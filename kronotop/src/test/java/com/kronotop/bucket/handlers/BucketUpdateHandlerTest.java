@@ -59,7 +59,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Set<String> updatedVersionstamps = new HashSet<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", "{\"$set\": {\"status\": \"senior\"}}").encode(buf);
+            cmd.update(TEST_BUCKET, "{\"age\": {\"$gt\": 30}}", "{\"$set\": {\"status\": \"senior\"}}").encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -85,7 +85,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Map<String, Document> allDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{}").encode(buf);
+            cmd.query(TEST_BUCKET, "{}").encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -178,7 +178,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Set<String> updatedVersionstamps = new HashSet<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", "{\"$unset\": [\"temp\", \"deprecated\"]}").encode(buf);
+            cmd.update(TEST_BUCKET, "{\"age\": {\"$gt\": 30}}", "{\"$unset\": [\"temp\", \"deprecated\"]}").encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -204,7 +204,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Map<String, Document> allDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{}").encode(buf);
+            cmd.query(TEST_BUCKET, "{}").encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -335,7 +335,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
             Document updateDoc = new Document("$set", setDoc);
             byte[] update = BSONUtil.toBytes(updateDoc);
-            cmd.update(BUCKET_NAME, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}", update).encode(buf);
+            cmd.update(TEST_BUCKET, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}", update).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -362,7 +362,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Document updatedDocument = null;
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}").encode(buf);
+            cmd.query(TEST_BUCKET, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}").encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -451,7 +451,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         // Initial update with limit=1
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 30}}", "{\"$set\": {\"status\": \"senior\"}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.update(TEST_BUCKET, "{\"age\": {\"$gt\": 30}}", "{\"$set\": {\"status\": \"senior\"}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -520,7 +520,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Map<String, Document> allDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{}").encode(buf);
+            cmd.query(TEST_BUCKET, "{}").encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 

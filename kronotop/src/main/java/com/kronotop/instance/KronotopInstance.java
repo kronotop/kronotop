@@ -59,6 +59,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -156,6 +157,7 @@ public class KronotopInstance {
         BucketService bucketService = new BucketService(context);
         context.registerService(BucketService.NAME, bucketService);
 
+        cachedTimeService.start();
         membershipService.start();
         routingService.start();
         volumeService.start();

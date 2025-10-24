@@ -62,7 +62,7 @@ public class IndexBuilder {
      * @throws KronotopException if the required ID index subspace cannot be found in the metadata indexes.
      */
     public static void setPrimaryIndexEntry(Transaction tr, int shardId, BucketMetadata metadata, AppendedEntry[] entries) {
-        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READWRITE);
         if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
@@ -95,7 +95,7 @@ public class IndexBuilder {
             Object indexValue,
             AppendedEntry entry
     ) {
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
         if (index == null) {
             throw new KronotopException("Index '" + definition.name() + "' not found");
         }
@@ -118,8 +118,42 @@ public class IndexBuilder {
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, backPointer, NULL_VALUE);
     }
 
-    public static void dropPrimaryIndex(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
-        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+    public static void insertIndexEntry(
+            Transaction tr,
+            IndexDefinition definition,
+            BucketMetadata metadata,
+            Versionstamp versionstamp,
+            Object indexValue,
+            int shardId,
+            byte[] entry
+    ) {
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
+        if (index == null) {
+            throw new KronotopException("Index '" + definition.name() + "' not found");
+        }
+        DirectorySubspace indexSubspace = index.subspace();
+
+        Tuple indexEntryTuple = Tuple.from(
+                IndexSubspaceMagic.ENTRIES.getValue(),
+                indexValue,
+                versionstamp
+        );
+        byte[] indexEntryKey = indexSubspace.pack(indexEntryTuple);
+        IndexEntry indexEntry = new IndexEntry(shardId, entry);
+        tr.set(indexEntryKey, indexEntry.encode());
+        IndexUtil.mutateCardinality(tr, metadata.subspace(), definition.id(), 1);
+
+        Tuple backPointerTuple = Tuple.from(
+                IndexSubspaceMagic.BACK_POINTER.getValue(),
+                versionstamp,
+                indexValue
+        );
+        byte[] backPointer = indexSubspace.pack(backPointerTuple);
+        tr.set(backPointer, NULL_VALUE);
+    }
+
+    public static void dropPrimaryIndexEntry(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READWRITE);
         if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }
@@ -182,7 +216,7 @@ public class IndexBuilder {
             int shardId,
             byte[] entryMetadata
     ) {
-        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READWRITE);
         if (index == null) {
             throw new KronotopException("Index '" + DefaultIndexDefinition.ID.name() + "' not found");
         }

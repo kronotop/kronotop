@@ -20,5 +20,19 @@ import com.apple.foundationdb.tuple.Versionstamp;
 
 import java.nio.ByteBuffer;
 
-public record KeyEntryPair(Versionstamp key, ByteBuffer entry) {
+/**
+ * Represents the logical view of an entry in a Volume.
+ * <p>
+ * A {@code KeyEntry} consists of:
+ * <ul>
+ *   <li>{@code key}: the logical address of the entry, expressed as a {@link Versionstamp},</li>
+ *   <li>{@code entry}: the raw payload bytes as stored in the volume.</li>
+ * </ul>
+ *
+ * <p>This type is typically used by higher-level APIs for read and write
+ * operations where {@code EntryMetadata} is not required. It provides a
+ * lightweight abstraction compared to {@link VolumeEntry}, which also
+ * includes the underlying volume metadata.</p>
+ */
+public record KeyEntry(Versionstamp key, ByteBuffer entry) {
 }

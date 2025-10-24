@@ -18,6 +18,8 @@ package com.kronotop.bucket.handlers;
 
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketShard;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.protocol.CommitArgs;
@@ -38,11 +40,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BaseBucketHandlerTest extends BaseHandlerTest {
-    protected final String BUCKET_NAME = "test-bucket";
     protected final int SHARD_ID = 1;
     protected final byte[] DOCUMENT = BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}");
 
@@ -75,7 +77,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[][] docs = makeDocumentsArray(documents);
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -159,5 +161,35 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         RedisMessage msg = findInMapMessage((MapRedisMessage) response, "entries");
         assertInstanceOf(MapRedisMessage.class, msg);
         return (MapRedisMessage) msg;
+    }
+
+
+    protected void insertAtBackground(CountDownLatch halfLatch, CountDownLatch allLatch, int totalInserts) {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        byte[][] docs = makeDocumentsArray(
+                List.of(
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 32}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 40}")
+                ));
+
+        for (int j = 0; j < totalInserts; j++) {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+            runCommand(channel, buf);
+
+            try {
+                Thread.sleep(2);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+
+            halfLatch.countDown();
+            allLatch.countDown();
+        }
+    }
+
+    protected BucketShard getShard(int shardId) {
+        return ((BucketService) context.getService(BucketService.NAME)).getShard(SHARD_ID);
     }
 }

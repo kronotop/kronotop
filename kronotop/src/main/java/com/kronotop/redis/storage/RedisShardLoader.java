@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.redis.handlers.hash.HashValue;
-import com.kronotop.volume.KeyEntryPair;
+import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.VolumeSession;
 import org.slf4j.Logger;
@@ -56,7 +56,7 @@ public final class RedisShardLoader {
      * @param entry the KeyEntry containing the data to be unpacked and processed
      * @throws IOException if the KeyEntry cannot be unpacked or contains invalid data
      */
-    public static void processStringPack(RedisShard shard, KeyEntryPair entry) throws IOException {
+    public static void processStringPack(RedisShard shard, VolumeEntry entry) throws IOException {
         StringPack pack = StringPack.unpack(entry.entry());
         ReadWriteLock lock = shard.striped().get(pack.key());
         lock.writeLock().lock();
@@ -79,7 +79,7 @@ public final class RedisShardLoader {
      * @param entry the KeyEntry containing the data to be unpacked and processed
      * @throws IOException if the KeyEntry cannot be unpacked or contains invalid data
      */
-    public static void processHashFieldPack(RedisShard shard, KeyEntryPair entry) throws IOException {
+    public static void processHashFieldPack(RedisShard shard, VolumeEntry entry) throws IOException {
         HashFieldPack pack = HashFieldPack.unpack(entry.entry());
         ReadWriteLock lock = shard.striped().get(pack.key());
         lock.writeLock().lock();
@@ -96,11 +96,11 @@ public final class RedisShardLoader {
         }
     }
 
-    private void processStringPack(KeyEntryPair entry) throws IOException {
+    private void processStringPack(VolumeEntry entry) throws IOException {
         processStringPack(shard, entry);
     }
 
-    private void processHashFieldPack(KeyEntryPair entry) throws IOException {
+    private void processHashFieldPack(VolumeEntry entry) throws IOException {
         processHashFieldPack(shard, entry);
     }
 
@@ -110,7 +110,7 @@ public final class RedisShardLoader {
      **/
     private void loadFromVolume(Transaction tr) {
         VolumeSession session = new VolumeSession(tr, prefix);
-        Iterable<KeyEntryPair> iterable = shard.volume().getRange(session);
+        Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
         iterable.forEach(entry -> {
             try {
                 byte kind = entry.entry().get(0);

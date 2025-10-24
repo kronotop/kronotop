@@ -16,14 +16,11 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
@@ -31,8 +28,6 @@ import com.kronotop.bucket.planner.physical.*;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Base test class for optimizer integration tests.
@@ -49,7 +44,7 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
         optimizer = new Optimizer();
         physicalPlanner = new PhysicalPlanner();
         logicalPlanner = new LogicalPlanner();
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     /**
@@ -84,13 +79,9 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
      * Helper method to create an index
      */
     void createIndex(IndexDefinition definition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-            assertNotNull(indexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(definition);
         // Refresh the index registry
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     /**

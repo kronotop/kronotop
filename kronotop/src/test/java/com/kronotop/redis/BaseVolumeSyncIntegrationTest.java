@@ -22,7 +22,7 @@ import com.kronotop.redis.handlers.BaseRedisHandlerTest;
 import com.kronotop.redis.storage.HashFieldPack;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.StringPack;
-import com.kronotop.volume.KeyEntryPair;
+import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
 
 import java.io.IOException;
@@ -40,8 +40,8 @@ public class BaseVolumeSyncIntegrationTest extends BaseRedisHandlerTest {
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             // TODO: This can be done without a loop
-            Iterable<KeyEntryPair> iterable = shard.volume().getRange(session);
-            for (KeyEntryPair entry : iterable) {
+            Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
+            for (VolumeEntry entry : iterable) {
                 StringPack pack = StringPack.unpack(entry.entry());
                 if (key.equals(pack.key())) {
                     return true;
@@ -59,8 +59,8 @@ public class BaseVolumeSyncIntegrationTest extends BaseRedisHandlerTest {
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             // TODO: This can be done without a loop
-            Iterable<KeyEntryPair> iterable = shard.volume().getRange(session);
-            for (KeyEntryPair entry : iterable) {
+            Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
+            for (VolumeEntry entry : iterable) {
                 HashFieldPack pack = HashFieldPack.unpack(entry.entry());
                 if (pack.key().equals(hashKey) && pack.field().equals(field)) {
                     return true;
@@ -72,13 +72,13 @@ public class BaseVolumeSyncIntegrationTest extends BaseRedisHandlerTest {
         return false;
     }
 
-    protected boolean checkOnVolume(String key, Predicate<KeyEntryPair> f) {
+    protected boolean checkOnVolume(String key, Predicate<VolumeEntry> f) {
         RedisService service = instance.getContext().getService(RedisService.NAME);
         RedisShard shard = service.findShard(key, ShardStatus.READONLY);
         try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            Iterable<KeyEntryPair> iterable = shard.volume().getRange(session);
-            for (KeyEntryPair entry : iterable) {
+            Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
+            for (VolumeEntry entry : iterable) {
                 if (f.test(entry)) {
                     return true;
                 }

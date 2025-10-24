@@ -35,7 +35,7 @@ class BasePhysicalPlannerTest extends BaseStandaloneInstanceTest {
     void setUp() {
         physicalPlanner = new PhysicalPlanner();
         logicalPlanner = new LogicalPlanner();
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     /**

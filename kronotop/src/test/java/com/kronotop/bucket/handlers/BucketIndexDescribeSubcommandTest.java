@@ -16,6 +16,10 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -27,13 +31,13 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
+class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldReturnErrorIfBucketDoesNotExist() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeIndex("non-existing-bucket", "not-existing-index").encode(buf);
+        cmd.indexDescribe("non-existing-bucket", "not-existing-index").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -42,10 +46,10 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldReturnErrorIfIndexDoesNotExist() {
-        getBucketMetadata(BUCKET_NAME); // creates the bucket with the default id index
+        getBucketMetadata(TEST_BUCKET); // creates the bucket with the default id index
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeIndex(BUCKET_NAME, "not-existing-index").encode(buf);
+        cmd.indexDescribe(TEST_BUCKET, "not-existing-index").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -57,14 +61,16 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(BUCKET_NAME, "{\"username\": {\"bson_type\": \"string\"}}").encode(buf);
+            cmd.indexCreate(TEST_BUCKET, "{\"username\": {\"bson_type\": \"string\"}}").encode(buf);
             runCommand(channel, buf);
         }
+
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         String indexName = "selector:username.bsonType:STRING";
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.describeIndex(BUCKET_NAME, indexName).encode(buf);
+        cmd.indexDescribe(TEST_BUCKET, indexName).encode(buf);
         Object msg = runCommand(channel, buf);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -73,6 +79,11 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
         for (Map.Entry<RedisMessage, RedisMessage> entry : fields.entrySet()) {
             SimpleStringRedisMessage key = (SimpleStringRedisMessage) entry.getKey();
             switch (key.content()) {
+                case "id" -> {
+                    IntegerRedisMessage value = (IntegerRedisMessage) entry.getValue();
+                    Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+                    assertEquals(index.definition().id(), value.value());
+                }
                 case "selector" -> {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
                     assertEquals("username", value.content());
@@ -80,6 +91,10 @@ class BucketDescribeIndexHandlerTest extends BaseIndexHandlerTest {
                 case "bson_type" -> {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
                     assertEquals("STRING", value.content());
+                }
+                case "status" -> {
+                    SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
+                    assertEquals(IndexStatus.WAITING.name(), value.content());
                 }
                 case "statistics" -> {
                     MapRedisMessage value = (MapRedisMessage) entry.getValue();

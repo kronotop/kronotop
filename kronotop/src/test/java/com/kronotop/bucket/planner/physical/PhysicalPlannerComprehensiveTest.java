@@ -16,14 +16,11 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.optimizer.Optimizer;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.logical.LogicalNode;
@@ -55,17 +52,13 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         logicalPlanner = new LogicalPlanner();
         physicalPlanner = new PhysicalPlanner();
         optimizer = new Optimizer();
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     private void createIndex(IndexDefinition definition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-            assertNotNull(indexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(definition);
         // Refresh the index registry
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     private void createIndexes(IndexDefinition... definitions) {

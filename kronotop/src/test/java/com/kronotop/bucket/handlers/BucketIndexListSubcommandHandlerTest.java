@@ -29,18 +29,18 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class BucketListIndexesHandlerTest extends BaseBucketHandlerTest {
+class BucketIndexListSubcommandHandlerTest extends BaseBucketHandlerTest {
 
     @BeforeEach
     void beforeEach() {
-        getBucketMetadata(BUCKET_NAME);
+        getBucketMetadata(TEST_BUCKET);
     }
 
     @Test
     void shouldReturnErrorIfBucketDoesNotExist() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.listIndexes("non-existing-bucket").encode(buf);
+        cmd.indexList("non-existing-bucket").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -52,18 +52,18 @@ class BucketListIndexesHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}").encode(buf);
+            cmd.indexCreate(TEST_BUCKET, "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}").encode(buf);
             runCommand(channel, buf);
         }
 
         List<String> expectedNames = List.of(
-                "selector:_id.bsonType:BINARY",
+                "primary-index",
                 "selector:selector.bsonType:INT32",
                 "selector:username.bsonType:STRING"
         );
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.listIndexes(BUCKET_NAME).encode(buf);
+        cmd.indexList(TEST_BUCKET).encode(buf);
         Object msg = runCommand(channel, buf);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertNotNull(actualMessage);

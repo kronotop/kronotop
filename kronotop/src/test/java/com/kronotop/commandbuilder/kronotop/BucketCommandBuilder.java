@@ -111,26 +111,36 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return new Command<>(HELLO, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
-    public final Command<K, V, String> createIndex(String bucket, String definitions) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(definitions);
-        return createCommand(CommandType.BUCKET_CREATE_INDEX, new StatusOutput<>(codec), args);
+    public final Command<K, V, String> indexCreate(String bucket, String schemas) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(BucketIndex.CREATE).
+                add(bucket).
+                add(schemas);
+        return createCommand(CommandType.BUCKET_INDEX, new StatusOutput<>(codec), args);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Command<K, V, List<Map<String, Object>>> listIndexes(String bucket) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec);
-        args.add(bucket);
-        return new Command(CommandType.BUCKET_LIST_INDEXES, new ListOfGenericMapsOutput<>(StringCodec.ASCII), args);
+    public Command<K, V, List<Map<String, Object>>> indexList(String bucket) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(BucketIndex.LIST).
+                add(bucket);
+        return new Command(CommandType.BUCKET_INDEX, new ListOfGenericMapsOutput<>(StringCodec.ASCII), args);
     }
 
-    public Command<String, String, Map<String, Object>> describeIndex(String bucket, String index) {
-        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.UTF8).add(bucket).add(index);
-        return new Command<>(CommandType.BUCKET_DESCRIBE_INDEX, new GenericMapOutput<>(StringCodec.ASCII), args);
+    public Command<String, String, Map<String, Object>> indexDescribe(String bucket, String index) {
+        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.UTF8).
+                add(BucketIndex.DESCRIBE).
+                add(bucket).
+                add(index);
+        return new Command<>(CommandType.BUCKET_INDEX, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
-    public Command<K, V, String> dropIndex(String bucket, String index) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(index);
-        return createCommand(CommandType.BUCKET_DROP_INDEX, new StatusOutput<>(codec), args);
+    public Command<K, V, String> indexDrop(String bucket, String index) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(BucketIndex.DROP).
+                add(bucket).
+                add(index);
+        return createCommand(CommandType.BUCKET_INDEX, new StatusOutput<>(codec), args);
     }
 
     public final Command<K, V, Map<K, V>> delete(String bucket, String query) {
@@ -165,21 +175,36 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     enum CommandType implements ProtocolKeyword {
+        QUERY("QUERY"),
         BUCKET_INSERT("BUCKET.INSERT"),
         BUCKET_QUERY("BUCKET.QUERY"),
         BUCKET_DELETE("BUCKET.DELETE"),
         BUCKET_UPDATE("BUCKET.UPDATE"),
-        QUERY("QUERY"),
         BUCKET_ADVANCE("BUCKET.ADVANCE"),
         BUCKET_CLOSE("BUCKET.CLOSE"),
-        BUCKET_CREATE_INDEX("BUCKET.CREATE-INDEX"),
-        BUCKET_LIST_INDEXES("BUCKET.LIST-INDEXES"),
-        BUCKET_DESCRIBE_INDEX("BUCKET.DESCRIBE-INDEX"),
-        BUCKET_DROP_INDEX("BUCKET.DROP-INDEX");
+        BUCKET_INDEX("BUCKET.INDEX");
 
         public final byte[] bytes;
 
         CommandType(String name) {
+            bytes = name.getBytes(StandardCharsets.US_ASCII);
+        }
+
+        @Override
+        public byte[] getBytes() {
+            return bytes;
+        }
+    }
+
+    enum BucketIndex implements ProtocolKeyword {
+        CREATE("CREATE"),
+        LIST("LIST"),
+        DESCRIBE("DESCRIBE"),
+        DROP("DROP");
+
+        public final byte[] bytes;
+
+        BucketIndex(String name) {
             bytes = name.getBytes(StandardCharsets.US_ASCII);
         }
 

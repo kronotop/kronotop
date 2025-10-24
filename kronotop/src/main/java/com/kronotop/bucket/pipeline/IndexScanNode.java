@@ -25,6 +25,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 
 public class IndexScanNode extends AbstractScanNode implements ScanNode {
     private final IndexDefinition index;
@@ -42,7 +43,7 @@ public class IndexScanNode extends AbstractScanNode implements ScanNode {
 
     @Override
     public void execute(QueryContext ctx, Transaction tr) {
-        Index indexRecord = ctx.metadata().indexes().getIndex(index.selector());
+        Index indexRecord = ctx.metadata().indexes().getIndex(index.selector(), IndexSelectionPolicy.READONLY);
         if (indexRecord == null) {
             throw new IllegalStateException("Index not found for selector: " + index.selector());
         }

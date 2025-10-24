@@ -57,32 +57,126 @@ import static com.kronotop.volume.Subspaces.*;
 import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
 
 /**
- * Volume implements a transactional key/value store based on append-only log files
- * and stores its metadata in FoundationDB.
+ * Volume implements a transactional, append-only storage engine for document bodies in Kronotop.
+ *
+ * <p>Volume provides a hybrid storage architecture combining:</p>
+ * <ul>
+ *   <li><b>FoundationDB</b>: Stores entry metadata, segment metadata, and transaction state</li>
+ *   <li><b>Append-only segments</b>: Stores actual document bodies on local filesystem</li>
+ *   <li><b>Segment logs</b>: Tracks all operations (APPEND, DELETE, VACUUM) for replication</li>
+ * </ul>
+ *
+ * <p><b>Key Features:</b></p>
+ * <ul>
+ *   <li>ACID transactions through FoundationDB integration</li>
+ *   <li>Automatic segment creation when current segment fills up</li>
+ *   <li>Entry metadata caching for fast lookups</li>
+ *   <li>Vacuum support for reclaiming space from deleted/updated entries</li>
+ *   <li>Read-only mode support for maintenance operations</li>
+ *   <li>Segment-level replication logs for primary-standby setups</li>
+ * </ul>
+ *
+ * <p><b>Storage Architecture:</b></p>
+ * <p>Each Volume consists of multiple segments (append-only files). When an entry is appended:</p>
+ * <ol>
+ *   <li>Entry is written to the current writable segment</li>
+ *   <li>Entry metadata is stored in FoundationDB with a versionstamped key</li>
+ *   <li>Segment metadata (cardinality, used bytes) is updated</li>
+ *   <li>Operation is logged to the segment log for replication</li>
+ *   <li>Streaming subscribers are notified</li>
+ * </ol>
+ *
+ * <p><b>Segment Management:</b></p>
+ * <p>Segments are managed automatically. When a segment fills up, a new segment is created.
+ * Old segments can be vacuumed to reclaim space from deleted/updated entries. Segments with
+ * zero cardinality can be safely deleted during cleanup operations.</p>
+ *
+ * <p><b>Thread Safety:</b></p>
+ * <p>Volume is thread-safe. Segment operations are protected by a {@link StampedLock}.
+ * Status changes are protected by a {@link ReadWriteLock}. The entry metadata cache
+ * is thread-safe and shared across all operations.</p>
+ *
+ * <p><b>Usage Example:</b></p>
+ * <pre>{@code
+ * // Append entries
+ * VolumeSession session = new VolumeSession(transaction, prefix);
+ * AppendResult result = volume.append(session, entry1, entry2);
+ *
+ * // Retrieve entries
+ * ByteBuffer value = volume.get(session, versionstamp);
+ *
+ * // Delete entries
+ * DeleteResult deleteResult = volume.delete(session, versionstamp1, versionstamp2);
+ * }</pre>
+ *
+ * @see VolumeSession
+ * @see Segment
+ * @see EntryMetadata
+ * @see VolumeConfig
  */
 public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
+
+    /** Byte array representing value 1 in little-endian format for atomic increment operations. */
     private static final byte[] INCREASE_BY_ONE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
+
+    /** Number of entries to process in a single transaction during segment vacuum operations. */
     private static final int SEGMENT_VACUUM_BATCH_SIZE = 100;
 
+    /** Application context providing access to FoundationDB and core services. */
     private final Context context;
+
+    /** Unique identifier for this volume, generated using SipHash24 during initialization. */
     private final int id;
+
+    /** Configuration settings for this volume (name, data directory, segment size, subspace). */
     private final VolumeConfig config;
+
+    /** FoundationDB subspace containing all volume data (entries, metadata, segments). */
     private final VolumeSubspace subspace;
+
+    /** Cache for entry metadata, keyed by prefix to optimize reads and avoid FoundationDB lookups. */
     private final EntryMetadataCache entryMetadataCache;
+
+    /** FoundationDB key that is atomically incremented to notify streaming subscribers of changes. */
     private final byte[] streamingSubscribersTriggerKey;
 
-    // segmentsLock protects segments map
+    /** Lock protecting the segments map from concurrent modifications. */
     private final StampedLock segmentsLock = new StampedLock();
+
+    /** Map of segment names to segment containers, sorted for efficient last-segment access. */
     private final TreeMap<String, SegmentContainer> segments = new TreeMap<>();
 
+    /** Lock protecting volume status changes. */
     private final ReadWriteLock statusLock = new ReentrantReadWriteLock();
-    // The "attributes" variable is used to set, get and unset runtime attributes of the Volume
-    // A runtime attribute might be ShardId or ownership of the Volume.
+
+    /** Runtime attributes for this volume (e.g., ShardId, ownership information). */
     private final AttributeMap attributes = new DefaultAttributeMap();
+
+    /** Current status of the volume (READONLY, READWRITE). */
     private VolumeStatus status;
+
+    /** Flag indicating whether the volume has been closed. */
     private volatile boolean isClosed;
 
+    /**
+     * Constructs a new Volume with the given context and configuration.
+     *
+     * <p><b>Initialization sequence:</b></p>
+     * <ol>
+     *   <li>Initializes volume metadata in FoundationDB (assigns unique ID if new)</li>
+     *   <li>Loads volume metadata (ID, status, segment list)</li>
+     *   <li>Initializes subspace and entry metadata cache</li>
+     *   <li>Opens all existing segments from metadata</li>
+     * </ol>
+     *
+     * <p>If this is a new volume (no ID assigned), a unique ID is generated using SipHash24
+     * and persisted to FoundationDB before the volume becomes operational.</p>
+     *
+     * @param context the application context providing access to FoundationDB and services
+     * @param config the volume configuration (name, data directory, segment size, subspace)
+     * @throws IOException if an I/O error occurs while opening segments
+     */
     public Volume(Context context, VolumeConfig config) throws IOException {
         this.context = context;
         this.config = config;
@@ -166,12 +260,23 @@ public class Volume {
         }
     }
 
+    /**
+     * Loads the volume metadata from FoundationDB.
+     *
+     * @return the VolumeMetadata containing ID, status, and segment list
+     */
     private VolumeMetadata loadVolumeMetadata() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return VolumeMetadata.load(tr, config.subspace());
         }
     }
 
+    /**
+     * Retrieves the segment container for the given segment name in a thread-safe manner.
+     *
+     * @param segmentName the name of the segment to retrieve
+     * @return the SegmentContainer for the segment, or null if not found
+     */
     private SegmentContainer getSegmentContainer(String segmentName) {
         long stamp = segmentsLock.readLock();
         try {
@@ -291,10 +396,27 @@ public class Volume {
         return config;
     }
 
+    /**
+     * Triggers streaming subscribers by atomically incrementing a trigger key in FoundationDB.
+     *
+     * <p>This method is called after mutations (append, delete, update) to notify watchers
+     * that new data is available for streaming/replication.</p>
+     *
+     * @param tr the transaction in which to increment the trigger key
+     */
     private void triggerStreamingSubscribers(Transaction tr) {
         tr.mutate(MutationType.ADD, streamingSubscribersTriggerKey, INCREASE_BY_ONE_DELTA);
     }
 
+    /**
+     * Flushes all segments that have been mutated by the given entry metadata list.
+     *
+     * <p>This method ensures that all data written to segments is persisted to disk
+     * before the transaction commits, maintaining durability guarantees.</p>
+     *
+     * @param entryMetadataList array of entry metadata indicating which segments were mutated
+     * @throws IOException if an I/O error occurs during flush operations
+     */
     private void flushMutatedSegments(EntryMetadata[] entryMetadataList) throws IOException {
         // Forces any updates to this channel's file to be written to the storage device that contains it.
         for (EntryMetadata entryMetadata : entryMetadataList) {
@@ -451,24 +573,34 @@ public class Volume {
     }
 
     /**
-     * Appends a segment log entry to the given session.
+     * Appends a segment log entry for the given session.
      *
-     * @param session       the session object containing the current transaction.
-     * @param kind          the kind of operation being logged.
-     * @param entryMetadata metadata of the entry being appended to the segment.
+     * <p>This is a convenience method that delegates to the full {@link #appendSegmentLog} method
+     * with session-specific parameters.</p>
+     *
+     * @param session the session object containing the current transaction and prefix
+     * @param kind the kind of operation being logged (APPEND, DELETE, VACUUM)
+     * @param versionstamp the versionstamp key for the entry (may be null for incomplete versionstamps)
+     * @param entryMetadata metadata of the entry being logged
      */
     private void appendSegmentLog(VolumeSession session, OperationKind kind, Versionstamp versionstamp, EntryMetadata entryMetadata) {
         appendSegmentLog(session.transaction(), kind, versionstamp, session.getAndIncrementUserVersion(), session.prefix().asLong(), entryMetadata);
     }
 
     /**
-     * Appends a segment log entry to the specified transaction.
+     * Appends a segment log entry to the specified transaction for replication.
      *
-     * @param tr            the transaction object to which the log entry is appended.
-     * @param kind          the kind of operation being logged (e.g., APPEND, DELETE, VACUUM).
-     * @param userVersion   the user-defined version associated with the operation.
-     * @param entryMetadata metadata of the entry being appended, which includes segment, position, and length information.
-     * @throws IllegalStateException if the segment specified in the entry metadata cannot be found.
+     * <p>Segment logs track all operations on entries for replication purposes. Each log entry
+     * contains the operation kind, prefix, position, and length. The log is keyed by versionstamp
+     * and user version to ensure proper ordering during replication.</p>
+     *
+     * @param tr the transaction object to which the log entry is appended
+     * @param kind the kind of operation being logged (APPEND, DELETE, VACUUM)
+     * @param versionstamp the versionstamp key for the entry (may be null for incomplete versionstamps)
+     * @param userVersion the user-defined version associated with the operation
+     * @param prefix the prefix associated with the entry
+     * @param entryMetadata metadata of the entry being appended, which includes segment, position, and length
+     * @throws IllegalStateException if the segment specified in the entry metadata cannot be found
      */
     private void appendSegmentLog(Transaction tr, OperationKind kind, Versionstamp versionstamp, int userVersion, long prefix, EntryMetadata entryMetadata) {
         SegmentContainer segmentContainer = getSegmentContainer(entryMetadata.segment());
@@ -480,12 +612,24 @@ public class Volume {
     }
 
     /**
-     * Writes metadata entries to the specified volume session and updates the transaction accordingly.
-     * Also handles segment metadata updates and triggers any associated subscribers.
+     * Writes entry metadata to FoundationDB and updates segment statistics.
      *
-     * @param session the volume session containing the transaction and associated metadata.
-     * @param entries an array of metadata entries to be written.
-     * @return a result object containing the appended entries and the transaction's versionstamp.
+     * <p>This method performs multiple operations atomically within the session's transaction:</p>
+     * <ul>
+     *   <li>Stores entry metadata with versionstamped keys (prefix + versionstamp)</li>
+     *   <li>Creates reverse index (metadata bytes → versionstamp) for efficient lookups</li>
+     *   <li>Updates segment cardinality (increments entry count)</li>
+     *   <li>Updates segment used bytes (adds entry length)</li>
+     *   <li>Appends operation to segment log for replication</li>
+     *   <li>Triggers streaming subscribers</li>
+     * </ul>
+     *
+     * <p>The versionstamp is incomplete at write time and will be filled in by FoundationDB
+     * when the transaction commits, ensuring unique, monotonically increasing keys.</p>
+     *
+     * @param session the volume session containing the transaction and prefix
+     * @param entries an array of entry metadata to be written
+     * @return a result object containing the appended entries and the transaction's versionstamp future
      */
     private WriteMetadataResult writeMetadata(VolumeSession session, EntryMetadata[] entries) {
         AppendedEntry[] appendedEntries = new AppendedEntry[entries.length];
@@ -544,13 +688,36 @@ public class Volume {
     }
 
     /**
-     * Appends multiple entries to the storage within the context of the given session.
+     * Appends multiple entries to the volume within the given session's transaction.
      *
-     * @param session The session object specifying the transactional context for the append operation.
-     * @param entries An array of ByteBuffers containing the entries to be appended.
-     * @return An AppendResult object containing the result of the append operation,
-     * including metadata about the appended entries and a future for the transaction versionstamp.
-     * @throws IOException If an I/O error occurs during the append operation.
+     * <p>This is the primary write operation for Volume. It performs the following steps:</p>
+     * <ol>
+     *   <li>Validates entry count (must be > 0 and ≤ UserVersion.MAX_VALUE)</li>
+     *   <li>Writes each entry to the appropriate segment (creates new segments if needed)</li>
+     *   <li>Flushes mutated segments to ensure durability</li>
+     *   <li>Writes entry metadata to FoundationDB with versionstamped keys</li>
+     *   <li>Updates segment metadata (cardinality, used bytes)</li>
+     *   <li>Appends operations to segment logs for replication</li>
+     *   <li>Triggers streaming subscribers</li>
+     *   <li>Validates that the volume is not read-only</li>
+     * </ol>
+     *
+     * <p><b>Transaction Semantics:</b></p>
+     * <p>This method does NOT commit the transaction. The caller is responsible for committing
+     * the session's transaction. Entry metadata is written with incomplete versionstamps that
+     * will be filled in by FoundationDB when the transaction commits.</p>
+     *
+     * <p><b>Entry Ordering:</b></p>
+     * <p>Entries are assigned user versions starting from 0 within the transaction. The final
+     * versionstamp key for each entry is: (transaction versionstamp, user version).</p>
+     *
+     * @param session the session object specifying the transactional context (must have a transaction)
+     * @param entries an array of ByteBuffers containing the entries to be appended
+     * @return an AppendResult containing metadata for appended entries and a cache invalidator
+     * @throws IOException if an I/O error occurs during segment operations
+     * @throws IllegalArgumentException if the entries array is empty
+     * @throws TooManyEntriesException if more than UserVersion.MAX_VALUE entries are provided
+     * @throws VolumeReadOnlyException if the volume is in read-only mode
      */
     public AppendResult append(@Nonnull VolumeSession session, @Nonnull ByteBuffer... entries) throws IOException {
         if (entries.length == 0) {
@@ -562,23 +729,14 @@ public class Volume {
 
         EntryMetadata[] appendEntries = appendEntries(session.prefix(), entries);
 
-        Thread asyncFlush = Thread.ofVirtual().start(() -> {
-            // Forces any updates to this channel's file to be written to the storage device that contains it.
-            try {
-                flushMutatedSegments(appendEntries);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
-
-        WriteMetadataResult result = writeMetadata(session, appendEntries);
-
+        // Forces any updates to this channel's file to be written to the storage device that contains it.
         try {
-            asyncFlush.join();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            flushMutatedSegments(appendEntries);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
 
+        WriteMetadataResult result = writeMetadata(session, appendEntries);
         raiseExceptionIfVolumeReadOnly();
         return new AppendResult(result.versionstampFuture(), result.entries(), entryMetadataCache.load(session.prefix())::put);
     }
@@ -699,12 +857,23 @@ public class Volume {
     }
 
     /**
-     * Retrieves the value associated with the specified key from the given session.
+     * Retrieves the entry associated with the specified versionstamp key from the volume.
+     *
+     * <p>This method supports two modes of operation:</p>
+     * <ul>
+     *   <li><b>Transactional read</b>: If session has a transaction, reads entry metadata from
+     *       FoundationDB within the transaction (for consistent reads during updates/deletes)</li>
+     *   <li><b>Cached read</b>: If session has no transaction, uses the entry metadata cache
+     *       to avoid FoundationDB lookups (optimized for read-heavy workloads)</li>
+     * </ul>
+     *
+     * <p>After retrieving the entry metadata, the method reads the actual entry data from
+     * the appropriate segment at the position and length specified in the metadata.</p>
      *
      * @param session the session to be used for the operation, must not be null
-     * @param key     the key associated with the value to retrieve, must not be null
-     * @return a ByteBuffer containing the value associated with the specified key, or null if no value is found
-     * @throws IOException if an I/O error occurs during the operation
+     * @param key the versionstamp key associated with the entry to retrieve, must not be null
+     * @return a ByteBuffer containing the entry data, or null if no entry is found
+     * @throws IOException if an I/O error occurs during segment read operations
      */
     public ByteBuffer get(@Nonnull VolumeSession session, @Nonnull Versionstamp key) throws IOException {
         EntryMetadata metadata;
@@ -756,12 +925,31 @@ public class Volume {
     }
 
     /**
-     * Deletes the entries associated with the given keys within the provided session.
+     * Deletes the entries associated with the given versionstamp keys within the session's transaction.
      *
-     * @param session The session within which the delete operation is to be performed. Must not be null.
-     * @param keys    The versionstamps of the entries to be deleted. Must not be null.
-     * @return A DeleteResult containing the results of the deletion operation, including the count of deleted entries
-     * and a callback for invalidating related cache entries.
+     * <p>This method performs the following operations for each key:</p>
+     * <ol>
+     *   <li>Reads the entry metadata from FoundationDB (within the transaction)</li>
+     *   <li>If the entry doesn't exist (already deleted), skips to next key</li>
+     *   <li>Clears the entry key and entry metadata reverse index from FoundationDB</li>
+     *   <li>Updates segment metadata (decrements cardinality, subtracts used bytes)</li>
+     *   <li>Appends DELETE operation to segment log for replication</li>
+     *   <li>Triggers streaming subscribers</li>
+     * </ol>
+     *
+     * <p><b>Important:</b> Deletion does NOT reclaim disk space immediately. The entry data
+     * remains in the segment file until a vacuum operation is performed. Segment metadata
+     * tracks used bytes to identify segments that need vacuuming.</p>
+     *
+     * <p><b>Transaction Semantics:</b></p>
+     * <p>This method does NOT commit the transaction. The caller is responsible for committing
+     * the session's transaction. The delete operation is not visible until the transaction commits.</p>
+     *
+     * @param session the session within which the delete operation is to be performed, must not be null
+     * @param keys the versionstamps of the entries to be deleted, must not be null
+     * @return a DeleteResult containing the count of deleted entries and a cache invalidator
+     * @throws IllegalArgumentException if the keys array is empty
+     * @throws VolumeReadOnlyException if the volume is in read-only mode
      */
     public DeleteResult delete(@Nonnull VolumeSession session, @Nonnull Versionstamp... keys) {
         if (keys.length == 0) {
@@ -799,15 +987,45 @@ public class Volume {
     }
 
     /**
-     * Updates the given key entries in the session.
+     * Updates existing entries with new data within the session's transaction.
      *
-     * @param session The current session running the update transaction.
-     * @param pairs   The key entries to be updated.
-     * @return The result of the update operation containing updated key entries and a cache invalidator.
-     * @throws IOException          If an I/O error occurs during the update.
-     * @throws KeyNotFoundException If a key is not found during the update.
+     * <p>This method performs an atomic update operation for each key-entry pair:</p>
+     * <ol>
+     *   <li>Appends new entry data to segments (may use different segments than original)</li>
+     *   <li>Flushes mutated segments to ensure durability</li>
+     *   <li>For each key:
+     *     <ul>
+     *       <li>Verifies the key exists (throws KeyNotFoundException if not)</li>
+     *       <li>Reads old entry metadata</li>
+     *       <li>Updates segment metadata (cardinality, used bytes) for both old and new segments</li>
+     *       <li>Replaces entry metadata in FoundationDB</li>
+     *       <li>Appends DELETE log for old entry and APPEND log for new entry</li>
+     *       <li>Triggers streaming subscribers</li>
+     *     </ul>
+     *   </li>
+     * </ol>
+     *
+     * <p><b>Segment Metadata Handling:</b></p>
+     * <p>If the new entry is written to a different segment than the old entry:
+     * <ul>
+     *   <li>Old segment: cardinality decremented, used bytes reduced by old entry length</li>
+     *   <li>New segment: cardinality incremented, used bytes increased by new entry length</li>
+     * </ul>
+     * If the same segment is used, only the used bytes delta is applied.</p>
+     *
+     * <p><b>Transaction Semantics:</b></p>
+     * <p>This method does NOT commit the transaction. The caller is responsible for committing
+     * the session's transaction. The update is not visible until the transaction commits.</p>
+     *
+     * @param session the current session running the update transaction, must not be null
+     * @param pairs the key-entry pairs to be updated (key must exist), must not be null
+     * @return the result of the update operation containing updated entry metadata and a cache invalidator
+     * @throws IOException if an I/O error occurs during segment operations
+     * @throws KeyNotFoundException if any key is not found in the volume
+     * @throws IllegalArgumentException if the pairs array is empty
+     * @throws VolumeReadOnlyException if the volume is in read-only mode
      */
-    public UpdateResult update(@Nonnull VolumeSession session, @Nonnull KeyEntryPair... pairs) throws IOException, KeyNotFoundException {
+    public UpdateResult update(@Nonnull VolumeSession session, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
         if (pairs.length == 0) {
             throw new IllegalArgumentException("Empty key pairs array");
         }
@@ -822,7 +1040,7 @@ public class Volume {
         UpdatedEntry[] updatedEntries = new UpdatedEntry[pairs.length];
         Transaction tr = session.transaction();
         int index = 0;
-        for (KeyEntryPair keyEntry : pairs) {
+        for (KeyEntry keyEntry : pairs) {
             Versionstamp key = keyEntry.key();
             byte[] packedKey = subspace.packEntryKey(session.prefix(), key);
             byte[] encodedPrevEntryMetadata = tr.get(packedKey).join();
@@ -934,7 +1152,7 @@ public class Volume {
      * @param session the session for which to retrieve the KeyEntry objects
      * @return an iterable collection of KeyEntry objects within the specified session
      */
-    public Iterable<KeyEntryPair> getRange(@Nonnull VolumeSession session) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session) {
         return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED);
     }
 
@@ -945,7 +1163,7 @@ public class Volume {
      * @param reverse a boolean indicating the traversal direction; if true, traverses in reverse order
      * @return an Iterable of KeyEntry objects representing the resulting range
      */
-    public Iterable<KeyEntryPair> getRange(@Nonnull VolumeSession session, boolean reverse) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, boolean reverse) {
         return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED, reverse);
     }
 
@@ -956,7 +1174,7 @@ public class Volume {
      * @param limit   the maximum number of KeyEntry objects to retrieve
      * @return an Iterable of KeyEntry objects within the specified range
      */
-    public Iterable<KeyEntryPair> getRange(@Nonnull VolumeSession session, int limit) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, int limit) {
         return getRange(session, limit, false);
     }
 
@@ -968,7 +1186,7 @@ public class Volume {
      * @param reverse if true, retrieves the entries in reverse order
      * @return an iterable collection of KeyEntry objects matching the specified range and order
      */
-    public Iterable<KeyEntryPair> getRange(@Nonnull VolumeSession session, int limit, boolean reverse) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, int limit, boolean reverse) {
         return new VolumeIterable(this, session, null, null, limit, reverse);
     }
 
@@ -980,7 +1198,7 @@ public class Volume {
      * @param end     the ending VersionstampedKeySelector for the range
      * @return an Iterable of KeyEntry objects within the specified range
      */
-    public Iterable<KeyEntryPair> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
         return getRange(session, begin, end, ReadTransaction.ROW_LIMIT_UNLIMITED);
     }
 
@@ -993,7 +1211,7 @@ public class Volume {
      * @param limit   the maximum number of key entries to include in the range
      * @return an iterable collection of KeyEntry objects that falls within the specified range
      */
-    public Iterable<KeyEntryPair> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
         return new VolumeIterable(this, session, begin, end, limit, false);
     }
 
@@ -1007,7 +1225,7 @@ public class Volume {
      * @param reverse whether to retrieve the range in reverse order
      * @return an Iterable collection of KeyEntry objects within the specified range
      */
-    public Iterable<KeyEntryPair> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
+    public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         return new VolumeIterable(this, session, begin, end, limit, reverse);
     }
 
@@ -1086,13 +1304,31 @@ public class Volume {
     }
 
     /**
-     * Performs a vacuum operation on a specific segment to clean up stale or unnecessary data.
-     * The method processes the segment in batches, checks for stale data prefixes, updates valid entries,
-     * and removes stale data, applying transactions to the underlying FDB cluster as needed.
+     * Performs a vacuum operation on a specific segment to reclaim space from deleted/updated entries.
      *
-     * @param vacuumContext Provides the context for the vacuum process, including the segment to vacuum
-     *                      and control flags to stop the operation gracefully if required.
-     * @throws IOException If an I/O error occurs during the vacuum process.
+     * <p>Vacuum works by reading all entry metadata for a segment, loading the actual entry data,
+     * and rewriting it to new segments. This process:</p>
+     * <ul>
+     *   <li>Reads entries in batches (SEGMENT_VACUUM_BATCH_SIZE entries per transaction)</li>
+     *   <li>Groups entries by prefix for efficient batch updates</li>
+     *   <li>Uses the update operation to rewrite entries (old entry is deleted, new entry is appended)</li>
+     *   <li>Commits each batch independently to avoid long-running transactions</li>
+     *   <li>Handles transaction conflicts (error codes 1007, 1020) with automatic retry</li>
+     *   <li>Respects the stop flag in vacuumContext for graceful cancellation</li>
+     * </ul>
+     *
+     * <p><b>Space Reclamation:</b></p>
+     * <p>After vacuuming, the original segment file still contains the old entries. To reclaim
+     * disk space, call {@link #cleanupStaleSegments()} which removes segments with zero cardinality.</p>
+     *
+     * <p><b>Performance Considerations:</b></p>
+     * <p>Vacuum is I/O intensive as it reads and rewrites all entries. It should be run during
+     * low-traffic periods. The batch size (SEGMENT_VACUUM_BATCH_SIZE) controls the trade-off
+     * between transaction size and progress granularity.</p>
+     *
+     * @param vacuumContext provides the context for the vacuum process, including the segment name
+     *                      and a stop flag for graceful cancellation
+     * @throws IOException if an I/O error occurs during segment read/write operations
      */
     protected void vacuumSegment(VacuumContext vacuumContext) throws IOException {
         Segment segment = getOrOpenSegmentByName(vacuumContext.segment());
@@ -1105,7 +1341,7 @@ public class Volume {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 int batchSize = 0;
                 Range range = new Range(begin, end);
-                HashMap<Prefix, List<KeyEntryPair>> pairsByPrefix = new HashMap<>();
+                HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
                 for (KeyValue keyValue : tr.getRange(range)) {
                     if (vacuumContext.stop()) {
                         break;
@@ -1126,10 +1362,10 @@ public class Volume {
 
                     Prefix prefix = Prefix.fromBytes(entryMetadata.prefix());
                     Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
-                    List<KeyEntryPair> pairs = pairsByPrefix.computeIfAbsent(prefix, (prefixAsLong) -> new ArrayList<>());
+                    List<KeyEntry> pairs = pairsByPrefix.computeIfAbsent(prefix, (prefixAsLong) -> new ArrayList<>());
 
                     ByteBuffer buffer = getByEntryMetadata(prefix, versionstampedKey, entryMetadata);
-                    pairs.add(new KeyEntryPair(versionstampedKey, buffer));
+                    pairs.add(new KeyEntry(versionstampedKey, buffer));
                     batchSize++;
                     if (batchSize >= SEGMENT_VACUUM_BATCH_SIZE) {
                         break;
@@ -1143,8 +1379,8 @@ public class Volume {
                 }
 
                 List<UpdateResult> results = new ArrayList<>();
-                for (Map.Entry<Prefix, List<KeyEntryPair>> entry : pairsByPrefix.entrySet()) {
-                    UpdateResult updateResult = update(new VolumeSession(tr, entry.getKey()), entry.getValue().toArray(new KeyEntryPair[0]));
+                for (Map.Entry<Prefix, List<KeyEntry>> entry : pairsByPrefix.entrySet()) {
+                    UpdateResult updateResult = update(new VolumeSession(tr, entry.getKey()), entry.getValue().toArray(new KeyEntry[0]));
                     results.add(updateResult);
                 }
 
@@ -1207,11 +1443,33 @@ public class Volume {
     }
 
     /**
-     * Cleans up stale segments based on the specified allowed garbage ratio.
-     * This method analyzes segments and identifies those with zero cardinality
-     * and a garbage ratio exceeding the specified threshold for cleanup.
+     * Cleans up stale segments that have zero cardinality (no live entries).
      *
-     * @return a list of file names that were successfully cleaned up
+     * <p>This method is typically called after vacuum operations to reclaim disk space
+     * from segments whose entries have all been moved to other segments. The cleanup process:</p>
+     * <ol>
+     *   <li>Analyzes all segments to identify their cardinality</li>
+     *   <li>Sorts segments by name to process them in order</li>
+     *   <li>Skips the last segment (always writable, never stale)</li>
+     *   <li>For each segment with zero cardinality:
+     *     <ul>
+     *       <li>Removes the segment from volume metadata in FoundationDB</li>
+     *       <li>Removes the segment from the in-memory segments map</li>
+     *       <li>Deletes the segment file from disk</li>
+     *     </ul>
+     *   </li>
+     * </ol>
+     *
+     * <p><b>Safety:</b></p>
+     * <p>This method is synchronized to prevent concurrent cleanup operations. It's safe to
+     * delete segments with zero cardinality because vacuum has already moved all live entries
+     * to other segments.</p>
+     *
+     * <p><b>Error Handling:</b></p>
+     * <p>If cleanup fails for a segment, an error is logged but the operation continues with
+     * remaining segments. Failed cleanups may leave orphan segment files that require manual cleanup.</p>
+     *
+     * @return a list of file paths for segments that were successfully deleted
      */
     protected synchronized List<String> cleanupStaleSegments() {
         // This method should be used carefully.
@@ -1270,9 +1528,29 @@ public class Volume {
     }
 
     /**
-     * Clears all entries with a specific prefix from the given session's transaction.
+     * Clears all entries with a specific prefix from the volume within the session's transaction.
      *
-     * @param session the session containing the transaction and prefix information.
+     * <p>This operation removes all entries associated with the session's prefix by:</p>
+     * <ul>
+     *   <li>Clearing all entry metadata for this prefix across all segments</li>
+     *   <li>Clearing all entry keys in the entry subspace for this prefix</li>
+     *   <li>Resetting segment cardinality and used bytes for this prefix to zero</li>
+     * </ul>
+     *
+     * <p><b>Important:</b> Like delete operations, clearPrefix does NOT immediately reclaim
+     * disk space. The entry data remains in segment files until a vacuum operation is performed.</p>
+     *
+     * <p><b>Use Case:</b></p>
+     * <p>This operation is typically used to delete all documents in a bucket or collection.
+     * It's more efficient than deleting entries individually when removing large numbers of entries.</p>
+     *
+     * <p><b>Transaction Semantics:</b></p>
+     * <p>This method does NOT commit the transaction. The caller is responsible for committing
+     * the session's transaction. The clear operation is not visible until the transaction commits.</p>
+     *
+     * @param session the session containing the transaction and prefix information, must not be null
+     * @throws NullPointerException if session, transaction, or prefix is null
+     * @throws VolumeReadOnlyException if the volume is in read-only mode
      */
     public void clearPrefix(@Nonnull VolumeSession session) {
         Objects.requireNonNull(session.transaction());
@@ -1284,13 +1562,38 @@ public class Volume {
     }
 
     /**
-     * Inserts the given entries into the specified segment.
-     * <p>
-     * Assumed that callers of this method call flush after a successful return.
+     * Inserts pre-packed entries into a specific segment at exact positions (used for replication).
+     *
+     * <p>This method is designed for replication scenarios where entries need to be inserted
+     * at specific positions in specific segments to maintain identical layout across primary
+     * and standby instances.</p>
+     *
+     * <p><b>Important Differences from append():</b></p>
+     * <ul>
+     *   <li>Does NOT update entry metadata in FoundationDB (metadata is replicated separately)</li>
+     *   <li>Does NOT update segment metadata (replicated separately)</li>
+     *   <li>Does NOT append to segment logs (already logged on primary)</li>
+     *   <li>Inserts at exact positions specified in PackedEntry (not appended)</li>
+     *   <li>Does NOT automatically flush (caller must call flush())</li>
+     * </ul>
+     *
+     * <p><b>Replication Flow:</b></p>
+     * <ol>
+     *   <li>Primary logs operation to segment log</li>
+     *   <li>Standby reads segment log</li>
+     *   <li>Standby calls insert() to replicate entry data at exact position</li>
+     *   <li>Standby replicates FoundationDB metadata separately</li>
+     * </ol>
+     *
+     * <p><b>Caller Responsibilities:</b></p>
+     * <p>The caller MUST call {@link #flush()} after a successful return to ensure durability.</p>
      *
      * @param segmentName the name of the segment into which entries will be inserted
-     * @param entries     the entries to be inserted into the segment
+     * @param entries the packed entries with exact positions to be inserted
      * @throws IOException if an I/O error occurs while accessing the segment
+     * @throws IllegalArgumentException if the entries array is empty
+     * @throws KronotopException if NotEnoughSpaceException occurs (should never happen in replication)
+     * @throws VolumeReadOnlyException if the volume is in read-only mode
      */
     public void insert(String segmentName, PackedEntry... entries) throws IOException {
         if (entries.length == 0) {

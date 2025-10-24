@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.CachedTimeService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
@@ -45,16 +46,15 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
     private final int numberOfShards;
     private final RoutingService routing;
-    private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
-            Runtime.getRuntime().availableProcessors(),
-            Thread.ofVirtual().name("kr.bucket-service-", 0L).factory()
+    private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(
+            1,
+            new ThreadFactoryBuilder().setNameFormat("kr.bucket-service-%d").build()
     );
-
     // The default ShardSelector is RoundRobinShardSelector.
     private final ShardSelector shardSelector = new RoundRobinShardSelector();
-
     private final QueryExecutor queryExecutor;
     private final Planner planner;
+    private volatile boolean shutdown;
 
     public BucketService(Context context) {
         super(context, NAME);
@@ -67,13 +67,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         handlerMethod(ServerKind.EXTERNAL, new BucketQueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new QueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketAdvanceHandler(this));
-        handlerMethod(ServerKind.EXTERNAL, new BucketCreateIndexHandler(this));
-        handlerMethod(ServerKind.EXTERNAL, new BucketListIndexesHandler(this));
-        handlerMethod(ServerKind.EXTERNAL, new BucketDescribeIndexHandler(this));
-        handlerMethod(ServerKind.EXTERNAL, new BucketDropIndexHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketDeleteHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketUpdateHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketCloseHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketIndexHandler(this));
 
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
@@ -146,7 +143,23 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
         CachedTimeService cachedTimeService = context.getService(CachedTimeService.NAME);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(cachedTimeService, 1000 * 5 * 60);
-        scheduledExecutorService.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
+        scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
+    }
+
+    @Override
+    public void shutdown() {
+        try {
+            shutdown = true;
+            for (BucketShard shard : getServiceContext().shards().values()) {
+                shard.close();
+            }
+            scheduler.shutdownNow();
+            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
+                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -197,6 +210,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             }
             BucketShard shard = getShard(shardId);
             shard.setOperable(false);
+            shard.close();
             shardSelector.remove(shard);
         }
     }

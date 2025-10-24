@@ -57,7 +57,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(2)).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -131,7 +131,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
         int queryCursorId;
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(BUCKET_NAME, "{}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(1)).encode(buf);
             Object msg = runCommand(channel, buf);
 
             MapRedisMessage queryResponse = (MapRedisMessage) msg;
@@ -154,7 +154,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
         int updateCursorId;
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.update(BUCKET_NAME, "{\"age\": {\"$gt\": 20}}", "{\"$set\": {\"status\": \"active\"}}",
+            cmd.update(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", "{\"$set\": {\"status\": \"active\"}}",
                     BucketQueryArgs.Builder.limit(1)).encode(buf);
             Object msg = runCommand(channel, buf);
 

@@ -41,7 +41,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetVersionstamps(TEST_BUCKET, documents);
     }
 
     @Test

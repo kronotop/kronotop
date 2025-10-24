@@ -16,52 +16,101 @@
 
 package com.kronotop;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 /**
- * The CachedTimeService class extends the BaseKronotopService and implements the KronotopService
- * interface. This service provides a mechanism to manage and access a cached system time
- * that is periodically updated in the background. The frequent system time updates allow
- * efficient access to the current time with reduced overhead compared to directly calling
- * {@code System.currentTimeMillis()}.
+ * A service that provides cached access to the current system time with millisecond precision.
  * <p>
- * The service uses a {@code ScheduledExecutorService} to execute the {@code CachedTime} instance,
- * which periodically refreshes the cached system time.
+ * This service maintains a cached timestamp that is updated approximately every millisecond
+ * by a low-priority background thread. This approach reduces the overhead of frequent
+ * {@code System.currentTimeMillis()} calls while maintaining reasonable time accuracy
+ * for applications that can tolerate slight time skew (up to 1ms).
  * <p>
- * Key features of this service include:
- * - Caching of system time updated on a millisecond interval.
- * - Background thread execution for minimal performance impact.
- * - Graceful shutdown of background threads upon service termination.
+ * The service is particularly useful in high-throughput scenarios where time is frequently
+ * accessed but microsecond precision is not required, such as TTL checks, timeout calculations,
+ * or timestamp generation for non-critical operations.
  * <p>
- * This service is uniquely identified by the {@code NAME} "CachedTime".
+ * Thread-safety: This service is thread-safe. The cached time value is stored in a volatile
+ * field, ensuring visibility across threads.
+ *
+ * @see BaseKronotopService
+ * @see KronotopService
  */
 public class CachedTimeService extends BaseKronotopService implements KronotopService {
     public static String NAME = "CachedTime";
-    private final CachedTime cachedTime = new CachedTime();
-    private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(1,
-            Thread.ofVirtual().name("kr.cached-time-service-", 0L).factory());
+    private final Thread updater;
+    private volatile long currentTimeInMilliseconds;
+    private volatile boolean shutdown;
 
+    /**
+     * Constructs a new CachedTimeService with the specified context.
+     * <p>
+     * Creates a daemon thread that will continuously update the cached time value
+     * at approximately 1ms intervals. The updater thread runs at minimum priority
+     * to minimize impact on application performance.
+     *
+     * @param context the Kronotop context providing access to system resources
+     */
     public CachedTimeService(Context context) {
         super(context, NAME);
-        executor.scheduleAtFixedRate(cachedTime, 0, 1, TimeUnit.MILLISECONDS);
+        updater = new Thread(() -> {
+            Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+            while (!shutdown) {
+                update();
+                LockSupport.parkNanos(1_000_000); // 1ms
+            }
+        });
+        updater.setDaemon(true);
+        updater.setName("kr-cached-time-service");
+    }
+
+    private void update() {
+        currentTimeInMilliseconds = System.currentTimeMillis();
     }
 
     /**
-     * Retrieves the current cached system time in milliseconds.
-     * This method delegates the call to the {@code CachedTime} instance
-     * to return a snapshot of the time that is periodically updated
-     * by a background thread.
-     *
-     * @return the current cached system time in milliseconds.
+     * Starts the cached time service by launching the background updater thread.
+     * <p>
+     * Once started, the service will begin updating the cached time value approximately
+     * every millisecond. This method should be called once during service initialization.
+     * <p>
+     * Note: The service must be started before {@link #getCurrentTimeInMilliseconds()}
+     * will return meaningful values.
      */
-    public long getCurrentTimeInMilliseconds() {
-        return cachedTime.getCurrentTimeInMilliseconds();
+    public void start() {
+        updater.start();
     }
 
+    /**
+     * Returns the cached current time in milliseconds since the Unix epoch.
+     * <p>
+     * This method returns the most recently cached time value, which is updated
+     * approximately every millisecond by the background thread. The returned value
+     * may be up to 1ms behind the actual system time.
+     * <p>
+     * This method is lock-free and has minimal overhead compared to calling
+     * {@code System.currentTimeMillis()} directly.
+     *
+     * @return the cached current time in milliseconds since January 1, 1970 UTC
+     */
+    public long getCurrentTimeInMilliseconds() {
+        return currentTimeInMilliseconds;
+    }
+
+    /**
+     * Shuts down the cached time service and stops the background updater thread.
+     * <p>
+     * This method sets the shutdown flag and interrupts the updater thread if it's
+     * still running. After shutdown, the service will no longer update the cached
+     * time value.
+     * <p>
+     * This method is idempotent and can be called multiple times safely.
+     */
     @Override
     public void shutdown() {
-        executor.shutdownNow();
+        shutdown = true;
+        if (updater != null && updater.isAlive()) {
+            updater.interrupt();
+        }
     }
 }

@@ -131,7 +131,8 @@ public class BucketMetadataUtil {
             // Transaction cannot be used after this point.
 
             String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
-            BucketMetadata metadata = new BucketMetadata(bucket, version, subspace, prefix, indexes);
+            BucketMetadata metadata = new BucketMetadata(namespace, bucket, version, subspace, prefix, indexes);
+            // Update the global bucket metadata cache
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
         } catch (CompletionException e) {
@@ -164,17 +165,18 @@ public class BucketMetadataUtil {
     }
 
     /**
-     * Creates or opens a {@code BucketMetadata} instance for the specified bucket name within the context and session.
-     * <p>
-     * If the namespace is not specified in the session attributes, an {@code IllegalArgumentException} is thrown.
-     * The method ensures the existence of a {@code BucketMetadataRegistry} for the namespace and retrieves
-     * or creates the metadata for the specified bucket name. If the metadata does not already exist, it creates one.
+     * Creates or retrieves the metadata for a specified bucket within a given context and session.
+     * This method ensures the requested bucket metadata exists and is consistent with the latest version
+     * stored in the database. It utilizes a cache to optimize metadata access and validates the bucket's
+     * version against the currently stored metadata.
+     * If the metadata does not exist or the version has changed, it fetches or creates new metadata.
+     * Additionally, the index statistics for the bucket are refreshed based on a predefined time-to-live (TTL).
      *
-     * @param context the {@code Context} instance providing the environment and Kronotop services
-     * @param session the {@code Session} instance containing namespace and bucket-related attributes
-     * @param bucket  the unique name of the bucket whose metadata needs to be created or retrieved
-     * @return the {@code BucketMetadata} instance corresponding to the specified bucket name
-     * @throws IllegalArgumentException if the namespace is not specified in the session
+     * @param context the {@code Context} instance providing the execution environment and FoundationDB services.
+     * @param session the {@code Session} instance containing attributes such as the namespace for the bucket.
+     * @param bucket  the unique name of the bucket to create or open.
+     * @return a {@code BucketMetadata} instance corresponding to the specified bucket.
+     * @throws IllegalArgumentException if the namespace is not specified in the session.
      */
     public static BucketMetadata createOrOpen(Context context, Session session, String bucket) {
         String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
@@ -199,8 +201,8 @@ public class BucketMetadataUtil {
         return metadata;
     }
 
-    private static BucketMetadata open_internal(Context context, Transaction tr, Session session, String bucket) {
-        DirectorySubspace dataStructureSubspace = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
+    private static BucketMetadata open_internal(Context context, Transaction tr, String namespace, String bucket) {
+        DirectorySubspace dataStructureSubspace = NamespaceUtil.open(tr, context.getClusterName(), namespace, DataStructureKind.BUCKET);
         try {
             DirectorySubspace subspace = dataStructureSubspace.open(tr, List.of(bucket)).join();
             byte[] bucketVolumePrefixKey = prefixKey(subspace);
@@ -223,8 +225,7 @@ public class BucketMetadataUtil {
             long version = header.version();
 
             Prefix prefix = Prefix.fromBytes(raw);
-            String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
-            BucketMetadata metadata = new BucketMetadata(bucket, version, subspace, prefix, indexes);
+            BucketMetadata metadata = new BucketMetadata(namespace, bucket, version, subspace, prefix, indexes);
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
         } catch (CompletionException e) {
@@ -254,15 +255,31 @@ public class BucketMetadataUtil {
             throw new IllegalArgumentException("namespace not specified");
         }
 
+        return open_internal(context, tr, namespace, bucket);
+    }
+
+    /**
+     * Opens the metadata for the specified bucket within the provided context, namespace, and transaction.
+     * This method attempts to retrieve the bucket metadata from a cache. If the metadata is not found
+     * or the version has changed, it fetches the latest metadata from the database. Index statistics
+     * are refreshed based on a predefined time-to-live (TTL).
+     *
+     * @param context   the {@code Context} instance providing the necessary environment and services
+     * @param tr        the {@code Transaction} instance used to interact with the database
+     * @param namespace the namespace to which the bucket belongs
+     * @param bucket    the unique name of the bucket whose metadata needs to be opened
+     * @return a {@code BucketMetadata} instance corresponding to the specified bucket
+     */
+    public static BucketMetadata open(Context context, Transaction tr, String namespace, String bucket) {
         BucketMetadata metadata = context.getBucketMetadataCache().get(namespace, bucket);
         if (metadata == null) {
-            return open_internal(context, tr, session, bucket);
+            return open_internal(context, tr, namespace, bucket);
         }
 
         long version = readVersion(tr, metadata.subspace());
         if (version != metadata.version()) {
             // version changed, fetch the latest metadata.
-            return open_internal(context, tr, session, bucket);
+            return open_internal(context, tr, namespace, bucket);
         }
 
         refreshIndexStatistics(context, metadata, INDEX_STATISTICS_TTL);
@@ -367,15 +384,9 @@ public class BucketMetadataUtil {
      * @return an {@code IndexStatistics} instance containing the cardinality of the specified index
      */
     public static IndexStatistics readIndexStatistics(Transaction tr, DirectorySubspace subspace, long indexId) {
-        Tuple tuple = Tuple.from(
-                BucketMetadataMagic.HEADER.getValue(),
-                BucketMetadataMagic.INDEX_STATISTICS.getValue(),
-                BucketMetadataMagic.INDEX_CARDINALITY.getValue(),
-                indexId
-        );
-
+        byte[] key = IndexUtil.getCardinalityKey(subspace, indexId);
         long cardinality = 0;
-        byte[] value = tr.get(subspace.pack(tuple)).join();
+        byte[] value = tr.get(key).join();
         if (value == null) {
             return new IndexStatistics(cardinality);
         }

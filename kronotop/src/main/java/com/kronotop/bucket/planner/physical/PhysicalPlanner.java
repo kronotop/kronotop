@@ -18,6 +18,7 @@ package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.planner.logical.*;
 
 import java.util.ArrayList;
@@ -68,7 +69,7 @@ public class PhysicalPlanner {
      */
     private PhysicalNode transposeFilter(BucketMetadata metadata, LogicalFilter filter, PlannerContext context) {
         // Check for index availability
-        Index index = metadata.indexes().getIndex(filter.selector());
+        Index index = metadata.indexes().getIndex(filter.selector(), IndexSelectionPolicy.READONLY);
 
         // Direct field reuse - no object copying
         PhysicalFilter node = new PhysicalFilter(context.nextId(), filter.selector(), filter.op(), filter.operand());

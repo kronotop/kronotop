@@ -23,7 +23,7 @@ import com.kronotop.redis.BaseVolumeSyncIntegrationTest;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.redis.storage.StringPack;
-import com.kronotop.volume.KeyEntryPair;
+import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -260,10 +260,10 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
             RedisShard shard = service.findShard(key, ShardStatus.READONLY);
             try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-                Iterable<KeyEntryPair> iterable = shard.volume().getRange(session);
+                Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
 
                 HashMap<String, String> result = new HashMap<>();
-                for (KeyEntryPair entry : iterable) {
+                for (VolumeEntry entry : iterable) {
                     StringPack pack = StringPack.unpack(entry.entry());
                     result.put(pack.key(), new String(pack.stringValue().value()));
                 }
@@ -287,10 +287,10 @@ public class VolumeSyncIntegrationTest extends BaseVolumeSyncIntegrationTest {
             RedisShard shard = service.findShard(key, ShardStatus.READONLY);
             try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-                Iterable<KeyEntryPair> iterable = shard.volume().getRange(session);
+                Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
 
                 HashMap<String, String> result = new HashMap<>();
-                for (KeyEntryPair entry : iterable) {
+                for (VolumeEntry entry : iterable) {
                     StringPack pack = StringPack.unpack(entry.entry());
                     result.put(pack.key(), new String(pack.stringValue().value()));
                 }

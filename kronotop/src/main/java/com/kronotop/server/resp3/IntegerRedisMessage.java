@@ -38,7 +38,6 @@ public final class IntegerRedisMessage extends AbstractNumberRedisMessage {
      * @return long value
      */
     public long value() {
-        return value.intValue();
+        return value.longValue();
     }
-
 }

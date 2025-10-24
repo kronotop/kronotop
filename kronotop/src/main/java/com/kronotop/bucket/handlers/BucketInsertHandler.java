@@ -24,6 +24,8 @@ import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.SelectorMatcher;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
@@ -35,9 +37,8 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeSession;
-import org.bson.BsonBinaryReader;
-import org.bson.BsonReader;
-import org.bson.BsonType;
+import org.bson.BsonNull;
+import org.bson.BsonValue;
 import org.bson.Document;
 
 import java.io.IOException;
@@ -60,66 +61,6 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
     @Override
     public void beforeExecute(Request request) {
         request.attr(MessageTypes.BUCKETINSERT).set(new BucketInsertMessage(request));
-    }
-
-    /**
-     * Extracts a field value from a BSON document and converts it to the appropriate Java object
-     * for index storage. Returns null if the field is not found or if the BSON type doesn't
-     * match the expected IndexDefinition type.
-     *
-     * @param entry            the ByteBuffer containing the BSON document
-     * @param selector         the field name to extract
-     * @param expectedBsonType the expected BSON type from IndexDefinition
-     * @return the extracted field value as a Java object, or null if not found/type mismatch
-     */
-    private Object extractFieldValueFromBsonDocument(ByteBuffer entry, String selector, BsonType expectedBsonType) {
-        entry.rewind();
-        try (BsonReader reader = new BsonBinaryReader(entry)) {
-            reader.readStartDocument();
-
-            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                String fieldName = reader.readName();
-
-                if (fieldName.equals(selector)) {
-                    BsonType actualBsonType = reader.getCurrentBsonType();
-
-                    // Check if the actual BSON type matches the expected type from IndexDefinition
-                    if (actualBsonType != expectedBsonType) {
-                        // Int64 covers Int32 values
-                        if (!(expectedBsonType.equals(BsonType.INT64) && actualBsonType.equals(BsonType.INT32))) {
-                            throw new KronotopException("Type mismatch for '" + selector + "'. Expected BsonType=" + expectedBsonType);
-                        }
-                    }
-
-                    // Extract the value based on the BSON type
-                    return switch (actualBsonType) {
-                        case STRING -> reader.readString();
-                        case INT32 -> (long) reader.readInt32(); // FoundationDB stores as Long
-                        case INT64 -> reader.readInt64();
-                        case DOUBLE -> reader.readDouble();
-                        case BOOLEAN -> reader.readBoolean();
-                        case BINARY -> reader.readBinaryData().getData();
-                        case DATE_TIME -> reader.readDateTime();
-                        case DECIMAL128 -> reader.readDecimal128().bigDecimalValue();
-                        case NULL -> {
-                            reader.readNull();
-                            yield null;
-                        }
-                        default -> {
-                            reader.skipValue(); // Skip unsupported types
-                            yield null;
-                        }
-                    };
-                } else {
-                    reader.skipValue(); // Skip fields that don't match our selector
-                }
-            }
-
-            return null; // Field not found in document
-        } catch (Exception e) {
-            // Log and ignore parsing errors - missing field is OK
-            return null;
-        }
     }
 
     /**
@@ -181,19 +122,27 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             for (int i = 0; i < appendResult.getAppendedEntries().length; i++) {
                 AppendedEntry appendedEntry = appendResult.getAppendedEntries()[i];
                 ByteBuffer entry = pack.entries[i];
-                entry.rewind();
+                entry.rewind(); // ready to read the document again
 
-                for (Index index : metadata.indexes().getIndexes()) {
+                for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
                     // Skip the default ID index as it's already handled above
                     if (index.definition().equals(DefaultIndexDefinition.ID)) {
                         continue;
                     }
 
-                    Object indexValue = extractFieldValueFromBsonDocument(
-                            entry,
-                            index.definition().selector(),
-                            index.definition().bsonType()
-                    );
+                    // Every insert produces an index entry. Missing values and explicit nulls are both
+                    // represented as null in the index. Non-null values are converted to the target type;
+                    // if conversion fails due to a type mismatch, the entry is skipped.
+                    Object indexValue = null;
+                    BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), entry);
+                    if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+                        indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
+                        if (indexValue == null) {
+                            // Type mismatch, continue
+                            continue;
+                        }
+                    }
+
                     IndexBuilder.setIndexEntry(
                             tr,
                             index.definition(),

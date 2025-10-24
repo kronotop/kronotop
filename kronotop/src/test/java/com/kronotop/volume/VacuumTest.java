@@ -49,10 +49,10 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            KeyEntryPair[] pairs = new KeyEntryPair[versionstampedKeys.length];
+            KeyEntry[] pairs = new KeyEntry[versionstampedKeys.length];
             for (int i = 0; i < versionstampedKeys.length; i++) {
                 Versionstamp key = versionstampedKeys[i];
-                pairs[i] = new KeyEntryPair(key, randomBytes(bufferSize));
+                pairs[i] = new KeyEntry(key, randomBytes(bufferSize));
             }
             VolumeSession session = new VolumeSession(tr, prefix);
             UpdateResult updateResult = volume.update(session, pairs);

@@ -34,14 +34,12 @@ import com.kronotop.protocol.CommitArgs;
 import com.kronotop.protocol.CommitKeyword;
 import com.kronotop.protocol.KronotopCommandBuilder;
 import com.kronotop.server.Response;
-import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -74,7 +72,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     void test_insert_single_document_with_oneOff_transaction() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -97,7 +95,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                         BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
                         BSONUtil.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                 ));
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -134,7 +132,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                             BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
                             BSONUtil.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                     ));
-            bucketCommandBuilder.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+            bucketCommandBuilder.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -185,7 +183,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                             BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}"),
                             BSONUtil.jsonToDocumentThenBytes("{\"three\": \"four\"}")
                     ));
-            bucketCommandBuilder.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+            bucketCommandBuilder.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -234,21 +232,16 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         IndexDefinition indexDefinition = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
 
         // Create bucket metadata and register the index
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), indexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(indexDefinition);
 
         // Refresh bucket metadata to include the new index
-        metadata = getBucketMetadata(BUCKET_NAME);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -256,7 +249,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify the index entry was created
-        Index index = metadata.indexes().getIndex(indexDefinition.selector());
+        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist for " + fieldName);
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -292,30 +285,22 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    @Disabled
-    void shouldIgnoreMissingFieldsInDocument() {
+    void shouldNotIgnoreMissingFieldsInDocument() {
         // Create indexes for fields that don't exist in the document
         IndexDefinition nameIndexDefinition = IndexDefinition.create("name-index", "name", BsonType.STRING);
         IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
-        // Create bucket metadata and register the indexes
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), nameIndexDefinition);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(nameIndexDefinition, ageIndexDefinition);
 
         // Refresh bucket metadata to include the new indexes
-        metadata = getBucketMetadata(BUCKET_NAME);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document that only has one of the indexed fields
         String jsonDocument = "{\"name\": \"John Doe\", \"city\": \"New York\"}"; // Missing 'age' field
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -323,8 +308,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify only the 'name' index entry was created
-        Index nameIndex = metadata.indexes().getIndex("name");
-        Index ageIndex = metadata.indexes().getIndex("age");
+        Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.READONLY);
+        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READONLY);
         assertNotNull(nameIndex, "Name index should exist");
         assertNotNull(ageIndex, "Age index should exist");
         DirectorySubspace nameIndexSubspace = nameIndex.subspace();
@@ -339,39 +324,38 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             ).asList().join();
             assertEquals(1, nameEntries.size(), "Should have one entry for name index");
 
-            // Check age index - should have no entries
+            // Check age index - should have one entry(null)
             byte[] agePrefix = ageIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> ageEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(agePrefix),
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(agePrefix))
             ).asList().join();
-            assertEquals(0, ageEntries.size(), "Should have no entries for age index when field is missing");
+
+            assertEquals(1, ageEntries.size(), "Should have an entry(null) for age index when field is missing");
+            for (KeyValue entry : ageEntries) {
+                Tuple tuple = ageIndexSubspace.unpack(entry.getKey());
+                assertNull(tuple.get(1));
+            }
         }
     }
 
     @Test
-    @Disabled
     void shouldIgnoreTypeMismatchedFields() {
         // Create an index expecting INT32 for 'age' field
         IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
         // Create bucket metadata and register the index
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Refresh bucket metadata to include the new index
-        metadata = getBucketMetadata(BUCKET_NAME);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document where 'age' is a STRING instead of INT32
         String jsonDocument = "{\"name\": \"John\", \"age\": \"twenty-five\"}"; // 'age' is string, not int32
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -379,7 +363,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify no index entry was created due to type mismatch
-        Index ageIndex = metadata.indexes().getIndex("age");
+        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READONLY);
         assertNotNull(ageIndex, "Age index should exist");
         DirectorySubspace ageIndexSubspace = ageIndex.subspace();
 
@@ -401,24 +385,17 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         IndexDefinition activeIndexDefinition = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
 
         // Create bucket metadata and register the indexes
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), nameIndexDefinition);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
-            com.kronotop.bucket.index.IndexUtil.create(tr, metadata.subspace(), activeIndexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(nameIndexDefinition, ageIndexDefinition, activeIndexDefinition);
 
         // Refresh bucket metadata to include the new indexes
-        metadata = getBucketMetadata(BUCKET_NAME);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         // Insert document with all indexed fields
         String jsonDocument = "{\"name\": \"Alice\", \"age\": 28, \"active\": true, \"city\": \"Boston\"}";
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -428,7 +405,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Verify all three index entries were created
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Check name index
-            Index nameIndex = metadata.indexes().getIndex("name");
+            Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.READONLY);
             assertNotNull(nameIndex, "Name index should exist");
             DirectorySubspace nameIndexSubspace = nameIndex.subspace();
             byte[] namePrefix = nameIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -439,7 +416,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, nameEntries.size(), "Should have one entry for name index");
 
             // Check age index
-            Index ageIndex = metadata.indexes().getIndex("age");
+            Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READONLY);
             assertNotNull(ageIndex, "Age index should exist");
             DirectorySubspace ageIndexSubspace = ageIndex.subspace();
             byte[] agePrefix = ageIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -450,7 +427,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, ageEntries.size(), "Should have one entry for age index");
 
             // Check active index
-            Index activeIndex = metadata.indexes().getIndex("active");
+            Index activeIndex = metadata.indexes().getIndex("active", IndexSelectionPolicy.READONLY);
             assertNotNull(activeIndex, "Active index should exist");
             DirectorySubspace activeIndexSubspace = activeIndex.subspace();
             byte[] activePrefix = activeIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -478,15 +455,10 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
         // Create bucket metadata and register the index
-        BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            metadata = BucketMetadataUtil.createOrOpen(context, channel.attr(SessionAttributes.SESSION).get(), BUCKET_NAME);
-            IndexUtil.create(tr, metadata.subspace(), ageIndexDefinition);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(ageIndexDefinition);
 
         // Refresh bucket metadata to include the new index
-        metadata = getBucketMetadata(BUCKET_NAME);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace());
@@ -505,7 +477,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         for (String jsonDocument : documents) {
             ByteBuf buf = Unpooled.buffer();
             byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
-            cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+            cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -524,7 +496,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Insert one more document to verify cardinality increments correctly
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"David\", \"age\": 40}");
-        cmd.insert(BUCKET_NAME, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);

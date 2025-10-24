@@ -22,6 +22,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.*;
 import com.kronotop.volume.*;
 import org.bson.BsonValue;
@@ -103,7 +104,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
                 VolumeSession session = new VolumeSession(tr, ctx.metadata().volumePrefix());
 
-                List<KeyEntryPair> updatedEntries = new ArrayList<>();
+                List<KeyEntry> updatedEntries = new ArrayList<>();
                 for (Versionstamp versionstamp : versionstampGroupByShard.getValue()) {
                     ByteBuffer document = shard.volume().get(session, versionstamp);
                     if (document == null) {
@@ -115,13 +116,13 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                             ctx.options().update().setOps(),
                             ctx.options().update().unsetOps()
                     );
-                    KeyEntryPair updatedEntry = new KeyEntryPair(versionstamp, setResult.document());
+                    KeyEntry updatedEntry = new KeyEntry(versionstamp, setResult.document());
                     updatedEntries.add(updatedEntry);
                     updateResultContainers.put(versionstamp, new UpdateResultContainer(shardId, setResult));
                 }
 
                 // Update the documents at Volume level
-                UpdateResult updateResult = shard.volume().update(session, updatedEntries.toArray(new KeyEntryPair[0]));
+                UpdateResult updateResult = shard.volume().update(session, updatedEntries.toArray(new KeyEntry[0]));
                 ctx.registerPostCommitHook(new PostCommitHook(updateResult));
 
                 setUpdatedEntryMetadata(updateResultContainers, updateResult.entries());
@@ -176,7 +177,11 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
      *                               generate index entries and update metadata for unaffected indexes
      */
     private void updateUnaffectedIndexes(QueryContext ctx, Transaction tr, Map<Versionstamp, UpdateResultContainer> updateResultContainers) {
-        for (Index index : ctx.metadata().indexes().getIndexes()) {
+        for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            // Skip the default ID index as it'll be handled separately
+            if (index.definition().equals(DefaultIndexDefinition.ID)) {
+                continue;
+            }
             String selector = index.definition().selector();
             if (ctx.options().update().setOps().containsKey(selector) || ctx.options().update().unsetOps().contains(selector)) {
                 continue;
@@ -242,7 +247,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         Map<String, BsonValue> newValues = updateResultContainer.getDocumentUpdateResult().newValues();
         for (Map.Entry<String, BsonValue> newValue : newValues.entrySet()) {
             String selector = newValue.getKey();
-            Index index = ctx.metadata().indexes().getIndex(selector);
+            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READONLY);
             if (index == null) {
                 continue;
             }
@@ -278,7 +283,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         matchedSelectors.addAll(updateResultContainer.getDocumentUpdateResult().newValues().keySet());
         matchedSelectors.addAll(updateResultContainer.getDocumentUpdateResult().droppedSelectors());
         for (String selector : matchedSelectors) {
-            Index index = ctx.metadata().indexes().getIndex(selector);
+            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READONLY);
             if (index == null) {
                 continue;
             }

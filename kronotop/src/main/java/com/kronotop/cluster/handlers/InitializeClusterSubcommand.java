@@ -19,6 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryAlreadyExistsException;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.AsyncCommandExecutor;
@@ -36,6 +37,7 @@ import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 
+import java.util.List;
 import java.util.concurrent.CompletionException;
 
 class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
@@ -60,6 +62,21 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
     }
 
 
+    private void initializeIndexMetadata(Transaction tr, int shardId) {
+        List<String> layout = KronotopDirectory.
+                kronotop().cluster(context.getClusterName()).metadata().
+                shards().bucket().shard(shardId).maintenance().
+                index().tasks().toList();
+        DirectoryLayer.getDefault().create(tr, layout).join();
+    }
+
+    private void initializeIndexTaskCounter(Transaction tr) {
+        List<String> indexCounterLayout = KronotopDirectory.
+                kronotop().cluster(context.getClusterName()).metadata().
+                buckets().maintenance().index().counter().toList();
+        DirectoryLayer.getDefault().create(tr, indexCounterLayout).join();
+    }
+
     private void initializeBucketSection(Transaction tr, DirectorySubspace subspace) {
         int numberOfBucketShards = membership.getContext().getConfig().getInt("bucket.shards");
         for (int shardId = 0; shardId < numberOfBucketShards; shardId++) {
@@ -71,8 +88,10 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
                     bucket().
                     shard(shardId);
             DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
+            initializeIndexMetadata(tr, shardId);
             ShardUtils.setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
         }
+        initializeIndexTaskCounter(tr);
     }
 
     private void setClusterInitializedTrue(Transaction tr, DirectorySubspace subspace) {

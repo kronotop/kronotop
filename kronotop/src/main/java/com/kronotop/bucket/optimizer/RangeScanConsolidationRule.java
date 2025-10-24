@@ -19,6 +19,7 @@ package com.kronotop.bucket.optimizer;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 
@@ -181,7 +182,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     }
 
     private IndexDefinition getIndexFromMetadata(BucketMetadata metadata, String selector) {
-        Index index = metadata.indexes().getIndex(selector);
+        Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READONLY);
         if (index == null) {
             return null;
         }

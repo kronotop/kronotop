@@ -153,7 +153,6 @@ public class VersionstampedKeySelector {
      * @return a copy of the "anchor" key for this {@code VersionstampedKeySelector}.
      */
     public Versionstamp getKey() {
-        key.getBytes();
         byte[] res = new byte[key.getBytes().length];
         System.arraycopy(key.getBytes(), 0, res, 0, res.length);
         return Versionstamp.fromBytes(res);

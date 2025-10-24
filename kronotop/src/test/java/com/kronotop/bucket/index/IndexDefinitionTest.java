@@ -42,4 +42,34 @@ class IndexDefinitionTest {
     void DECIMAL128NotImplementedYet() {
         assertThrows(NotImplementedException.class, () -> IndexDefinition.create("index-name", "_id", BsonType.DECIMAL128));
     }
+
+    @Test
+    void shouldUpdateStatus() {
+        IndexDefinition definition = IndexDefinition.create("index-name", "_id", BsonType.INT32);
+        IndexDefinition updated = definition.updateStatus(IndexStatus.BUILDING);
+        assertEquals(IndexStatus.BUILDING, updated.status());
+    }
+
+    @Test
+    void shouldNotUpdateStatusFromDroppedToOtherStatus() {
+        IndexDefinition definition = IndexDefinition.create("index-name", "_id", BsonType.INT32);
+        IndexDefinition dropped = definition.updateStatus(IndexStatus.DROPPED);
+        assertEquals(IndexStatus.DROPPED, dropped.status());
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+                dropped.updateStatus(IndexStatus.READY)
+        );
+        assertEquals("Index 'index-name' is already dropped and its status cannot be modified.", exception.getMessage());
+    }
+
+    @Test
+    void shouldAllowUpdatingDroppedStatusToDroppedAgain() {
+        IndexDefinition definition = IndexDefinition.create("index-name", "_id", BsonType.INT32);
+        IndexDefinition dropped = definition.updateStatus(IndexStatus.DROPPED);
+        assertEquals(IndexStatus.DROPPED, dropped.status());
+
+        // Idempotent operation - should not throw
+        IndexDefinition droppedAgain = dropped.updateStatus(IndexStatus.DROPPED);
+        assertEquals(IndexStatus.DROPPED, droppedAgain.status());
+    }
 }

@@ -22,7 +22,6 @@ import com.kronotop.CommitHook;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.handlers.protocol.QueryArguments;
 import com.kronotop.bucket.pipeline.PipelineNode;
@@ -41,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public abstract class AbstractBucketHandler implements Handler {
+    protected static final byte[] NULL_BYTES = new byte[]{};
     private final static RedisMessage CURSOR_ID_MESSAGE_KEY = new SimpleStringRedisMessage("cursor_id");
     private final static RedisMessage ENTRIES_MESSAGE_KEY = new SimpleStringRedisMessage("entries");
     private final static RedisMessage VERSIONSTAMPS_MESSAGE_KEY = new SimpleStringRedisMessage("versionstamps");

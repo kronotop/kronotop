@@ -16,6 +16,10 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -29,24 +33,24 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
+class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
-    void shouldReturnErrorIfBucketDoesNotExist() {
+    void shouldCreateBucketIfItDoesNotExist() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex("non-existing-bucket", "{\"username\": {\"bson_type\": \"string\"}}").encode(buf);
+        cmd.indexCreate("non-existing-bucket", "{\"username\": {\"bson_type\": \"string\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertNotNull(actualMessage);
-        assertEquals("NOSUCHBUCKET No such bucket: 'non-existing-bucket'", actualMessage.content());
+        assertEquals(Response.OK, actualMessage.content());
     }
 
     @Test
     void shouldCreateIndexWithMultipleFields() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"selector-one\": {\"bson_type\": \"int32\"}, \"selector-two\": {\"bson_type\": \"string\"}}").encode(buf);
+        cmd.indexCreate(TEST_BUCKET, "{\"selector-one\": {\"bson_type\": \"int32\"}, \"selector-two\": {\"bson_type\": \"string\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -57,7 +61,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     void invalidTypeShouldReturnError() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"selector\": {\"bson_type\": \"int322\"}}").encode(buf);
+        cmd.indexCreate(TEST_BUCKET, "{\"selector\": {\"bson_type\": \"int322\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -67,14 +71,14 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldCreateIndexForValidTypes() {
-        String template = "{\"selector\": {\"bson_type\": \"%s\"}}";
+        String template = "{\"selector-%s\": {\"bson_type\": \"%s\"}}";
         List<String> validTypes = List.of("int32", "string", "double", "binary", "boolean", "datetime", "timestamp", "int64");
         // TODO: Enable this when we implement decimal128 indexes - "decimal128");
         for (String validType : validTypes) {
             BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             ByteBuf buf = Unpooled.buffer();
-            String directive = String.format(template, validType);
-            cmd.createIndex(BUCKET_NAME, directive).encode(buf);
+            String directive = String.format(template, validType, validType);
+            cmd.indexCreate(TEST_BUCKET, directive).encode(buf);
             Object msg = runCommand(channel, buf);
             if (msg instanceof ErrorRedisMessage errorRedisMessage) {
                 fail("For '" + directive + "', should not return error: " + errorRedisMessage.content());
@@ -85,14 +89,13 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
         }
     }
 
-
     @Test
     void shouldThrowAnErrorWhenIndexAlreadyExists() {
         String definition = "{\"selector\": {\"bson_type\": \"int32\"}, \"username\": {\"bson_type\": \"string\"}}";
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(BUCKET_NAME, definition).encode(buf);
+            cmd.indexCreate(TEST_BUCKET, definition).encode(buf);
             Object msg = runCommand(channel, buf);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertNotNull(actualMessage);
@@ -100,7 +103,7 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
         }
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.createIndex(BUCKET_NAME, definition).encode(buf);
+            cmd.indexCreate(TEST_BUCKET, definition).encode(buf);
             Object msg = runCommand(channel, buf);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
             assertNotNull(actualMessage);
@@ -112,10 +115,28 @@ class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
     void invalidIndexDefinition() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.createIndex(BUCKET_NAME, "{\"some\": \"key\"}").encode(buf);
+        cmd.indexCreate(TEST_BUCKET, "{\"some\": \"key\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
-        assertEquals("ERR Invalid index definition", actualMessage.content());
+        assertEquals("ERR Invalid index schema", actualMessage.content());
+    }
+
+    @Test
+    void shouldCreateTaskForSecondaryIndex() {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexCreate(TEST_BUCKET, "{\"username\": {\"name\": \"test\", \"bson_type\": \"string\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertNotNull(actualMessage);
+        assertEquals(Response.OK, actualMessage.content());
+
+        // Verify task was created
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            List<Versionstamp> taskIds = IndexTaskUtil.listTasks(tx, TEST_NAMESPACE, TEST_BUCKET, "test");
+            assertEquals(1, taskIds.size(), "Expected exactly one task to be created");
+        }
     }
 }

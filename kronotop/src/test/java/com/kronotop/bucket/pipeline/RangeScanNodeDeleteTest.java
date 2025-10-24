@@ -24,6 +24,7 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -69,7 +70,7 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        Index index = metadata.indexes().getIndex(ageIndex.selector());
+        Index index = metadata.indexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -134,7 +135,7 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        Index index = metadata.indexes().getIndex(ageIndex.selector());
+        Index index = metadata.indexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 

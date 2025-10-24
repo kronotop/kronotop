@@ -17,6 +17,7 @@
 package com.kronotop.redis;
 
 import com.apple.foundationdb.Transaction;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.*;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -61,7 +62,7 @@ public class RedisService extends ShardOwnerService<RedisShard> implements Krono
     private final MembershipService membership;
     private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
-            Thread.ofVirtual().name("kr.redis-service-", 0L).factory()
+            new ThreadFactoryBuilder().setNameFormat("kr.redis-service-%d").build()
     );
     private final int numberOfShards;
     private final List<VolumeSyncWorker> volumeSyncWorkers = new ArrayList<>();

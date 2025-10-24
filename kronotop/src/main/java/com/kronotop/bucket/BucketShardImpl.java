@@ -17,6 +17,7 @@
 package com.kronotop.bucket;
 
 import com.kronotop.Context;
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.impl.AbstractShard;
 import com.kronotop.volume.Volume;
@@ -26,6 +27,9 @@ import com.kronotop.volume.VolumeConfigGenerator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Implementation of the {@link BucketShard} interface, representing a specific type of shard
@@ -51,6 +55,9 @@ import java.io.UncheckedIOException;
  */
 public class BucketShardImpl extends AbstractShard implements BucketShard {
     private final Volume volume;
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final IndexMaintenanceWatchDog worker;
+    private volatile boolean closed;
 
     public BucketShardImpl(Context context, int id) {
         super(context, ShardKind.BUCKET, id);
@@ -64,6 +71,8 @@ public class BucketShardImpl extends AbstractShard implements BucketShard {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+        this.worker = new IndexMaintenanceWatchDog(context, this);
+        executor.submit(worker);
     }
 
     @Override
@@ -72,7 +81,22 @@ public class BucketShardImpl extends AbstractShard implements BucketShard {
     }
 
     @Override
+    public boolean isClosed() {
+        return closed;
+    }
+
+    @Override
     public void close() {
+        closed = true;
         volume.close();
+        worker.shutdown();
+        executor.shutdownNow();
+        try {
+            if (!executor.awaitTermination(6000, TimeUnit.MILLISECONDS)) {
+                // TODO: Add logger
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

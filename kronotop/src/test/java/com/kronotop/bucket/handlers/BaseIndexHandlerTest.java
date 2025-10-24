@@ -21,6 +21,6 @@ import org.junit.jupiter.api.BeforeEach;
 public class BaseIndexHandlerTest extends BaseBucketHandlerTest {
     @BeforeEach
     void beforeEach() {
-        getBucketMetadata(BUCKET_NAME);
+        getBucketMetadata(TEST_BUCKET);
     }
 }

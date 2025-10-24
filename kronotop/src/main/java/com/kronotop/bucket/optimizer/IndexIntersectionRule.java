@@ -19,6 +19,7 @@ package com.kronotop.bucket.optimizer;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 
@@ -73,7 +74,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
                     node instanceof PhysicalFilter filter &&
                     isEqualityOperator(filter.op())) {
 
-                Index index = metadata.indexes().getIndex(filter.selector());
+                Index index = metadata.indexes().getIndex(filter.selector(), IndexSelectionPolicy.READONLY);
                 if (index != null) {
                     indexCandidates.add(new IndexScanCandidate(filter, index.definition()));
                 } else {

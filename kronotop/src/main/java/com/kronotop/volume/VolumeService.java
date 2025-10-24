@@ -21,6 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
@@ -76,7 +77,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         this.routing = context.getService(RoutingService.NAME);
         assert routing != null;
 
-        ThreadFactory factory = Thread.ofVirtual().name("kr.volume").factory();
+        ThreadFactory factory = new ThreadFactoryBuilder().setNameFormat("kr.volume-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
 
         String consumerId = String.format("%s-member:%s", JournalName.DISUSED_PREFIXES.getValue(), context.getMember().getId());

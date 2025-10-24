@@ -16,10 +16,7 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.planner.Operator;
 import org.bson.BsonType;
 import org.junit.jupiter.api.DisplayName;
@@ -40,13 +37,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
      * Helper method to create an index
      */
     void createIndex(IndexDefinition definition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-            assertNotNull(indexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(definition);
         // Refresh the index registry
-        metadata = getBucketMetadata(TEST_BUCKET_NAME);
+        metadata = getBucketMetadata(TEST_BUCKET);
     }
 
     /**

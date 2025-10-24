@@ -31,9 +31,10 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.util.Date;
-import java.util.List;
 import java.util.Collection;
+import java.util.Date;
+
+import static org.bson.BsonType.INT32;
 
 /**
  * Utility class for handling BSON {@code Document} serialization and deserialization.
@@ -160,6 +161,44 @@ public class BSONUtil {
             }
             default ->
                     throw new IllegalArgumentException("Unsupported value type for BSON conversion: " + value.getClass().getSimpleName());
+        };
+    }
+
+    /**
+     * Converts a given {@link BsonValue} to its corresponding Java object based on the BSON type.
+     * If there is a mismatch between the actual BSON type of the value and the expected BSON type,
+     * null is returned unless the mismatch is specifically allowed (e.g., INT32 values are allowed
+     * where INT64 is expected).
+     *
+     * @param value           the {@link BsonValue} to be converted
+     * @param desiredBsonType the expected {@link BsonType} of the {@code value}
+     * @return a Java object that corresponds to the BSON type of the {@code value},
+     * or null if there is a type mismatch or the BSON type is unsupported
+     * @throws IllegalArgumentException if an unsupported BSON type is encountered
+     */
+    public static Object toObject(BsonValue value, BsonType desiredBsonType) {
+        // Check if the actual BSON type matches the expected type from IndexDefinition
+        if (value.getBsonType() != desiredBsonType) {
+            // Int64 covers Int32 values
+            if (!(desiredBsonType.equals(BsonType.INT64) && value.getBsonType().equals(INT32))) {
+                // Type mismatches are not indexed, but documents are still persisted.
+                return null;
+            }
+        }
+        return switch (value.getBsonType()) {
+            case STRING -> value.asString().getValue();
+            case INT32 -> value.asInt32().getValue();
+            case INT64 -> value.asInt64().getValue();
+            case DOUBLE -> value.asDouble().getValue();
+            case BOOLEAN -> value.asBoolean().getValue();
+            case BINARY -> value.asBinary().getData();
+            case DATE_TIME -> value.asDateTime().getValue();
+            case TIMESTAMP -> value.asTimestamp().getValue();
+            case DECIMAL128 -> value.asDecimal128().getValue().bigDecimalValue();
+            case NULL -> null;
+            default -> {
+                throw new IllegalArgumentException("Unsupported BSON type: " + value.getBsonType());
+            }
         };
     }
 }

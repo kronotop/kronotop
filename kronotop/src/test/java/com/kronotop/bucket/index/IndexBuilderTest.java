@@ -43,7 +43,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IndexBuilderTest extends BaseStandaloneInstanceTest {
     final int SHARD_ID = 1;
-    final String testBucketName = "test-bucket";
 
     /**
      * Provides test data for all BqlValue/BsonType combinations
@@ -77,14 +76,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     }
 
     BucketMetadata createIndexAndLoadBucketMetadata(IndexDefinition definition, String bucket) {
-        BucketMetadata metadata = getBucketMetadata(bucket);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace indexSubspace = IndexUtil.create(tr, metadata.subspace(), definition);
-            assertNotNull(indexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(TEST_NAMESPACE, bucket, definition);
         // Refresh the index registry
-        return getBucketMetadata(TEST_BUCKET_NAME);
+        return getBucketMetadata(TEST_BUCKET);
     }
 
     /**
@@ -136,12 +130,12 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @MethodSource("indexValueTestData")
     void shouldSetIndexValueForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
         IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist for " + bsonType);
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -159,7 +153,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     void shouldSetDefaultIDIndex() {
         AppendedEntry[] entries = getAppendedEntries();
         assertDoesNotThrow(() -> {
-            BucketMetadata metadata = getBucketMetadata(testBucketName);
+            BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
                 tr.commit().join();
@@ -176,13 +170,13 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReadEntriesFromIdIndex() {
         AppendedEntry[] entries = getAppendedEntries();
-        BucketMetadata metadata = getBucketMetadata(testBucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuilder.setPrimaryIndexEntry(tr, SHARD_ID, metadata, entries);
             tr.commit().join();
         }
 
-        Index idIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        Index idIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(idIndex, "Index should exist");
         DirectorySubspace idIndexSubspace = idIndex.subspace();
         byte[] prefix = idIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -211,14 +205,14 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldDropIndexEntry() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         String indexValue = "test-value";
 
         // First set the index entry
         setIndexEntryAndCommit(definition, metadata, indexValue, entries[0]);
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -280,13 +274,13 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @MethodSource("indexValueTestData")
     void shouldDropIndexEntryForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
         IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         // Set the index entry
         setIndexEntryAndCommit(definition, metadata, inputValue, entries[0]);
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -337,14 +331,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING);
         IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32);
 
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(stringIndex, testBucketName);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace intIndexSubspace = IndexUtil.create(tr, metadata.subspace(), intIndex);
-            assertNotNull(intIndexSubspace);
-            tr.commit().join();
-        }
+        createIndexThenWaitForReadiness(stringIndex, intIndex);
         // Refresh metadata
-        metadata = getBucketMetadata(testBucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         AppendedEntry[] entries = getAppendedEntries();
         String stringValue = "multi-drop-test";
@@ -354,10 +343,10 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(stringIndex, metadata, stringValue, entries[0]);
         setIndexEntryAndCommit(intIndex, metadata, intValue, entries[0]);
 
-        Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector());
+        Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(stringIndexObj, "String index should exist");
         DirectorySubspace stringIndexSubspace = stringIndexObj.subspace();
-        Index intIndexObj = metadata.indexes().getIndex(intIndex.selector());
+        Index intIndexObj = metadata.indexes().getIndex(intIndex.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(intIndexObj, "Int index should exist");
         DirectorySubspace intIndexSubspace = intIndexObj.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -442,9 +431,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldHandleDropIndexEntryForNonExistentVersionstamp() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -468,7 +457,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldDropOnlySpecificVersionstampEntries() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         // Set multiple entries with different versionstamps
@@ -476,7 +465,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         setIndexEntryAndCommit(definition, metadata, "value2", entries[1]);
         setIndexEntryAndCommit(definition, metadata, "value3", entries[2]);
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -552,14 +541,14 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldUpdateEntryMetadata() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[0];
         String indexValue = "update-test";
 
         setIndexEntryAndCommit(definition, metadata, indexValue, entry);
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -603,7 +592,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldUpdateEntryMetadataForMultipleIndexValues() {
         IndexDefinition definition = IndexDefinition.create("multi-value-index", "tag", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[1];
@@ -614,7 +603,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             setIndexEntryAndCommit(definition, metadata, value, entry);
         }
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -660,9 +649,9 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldHandleUpdateEntryMetadataForNonExistentVersionstamp() {
         IndexDefinition definition = IndexDefinition.create("empty-index", "value", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         Versionstamp nonExistentVersionstamp = Versionstamp.complete(new byte[10], 999);
@@ -691,13 +680,13 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @MethodSource("indexValueTestData")
     void shouldUpdateEntryMetadataForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
         IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
         AppendedEntry entry = entries[0];
 
         setIndexEntryAndCommit(definition, metadata, inputValue, entry);
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -738,8 +727,8 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldDropPrimaryIndex() {
-        BucketMetadata metadata = getBucketMetadata(testBucketName);
+    void shouldDropPrimaryIndexEntry() {
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         // First set the ID index entries
@@ -748,7 +737,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
@@ -768,7 +757,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         // Drop primary index entry
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuilder.dropPrimaryIndex(tr, actualVersionstamp, metadata);
+            IndexBuilder.dropPrimaryIndexEntry(tr, actualVersionstamp, metadata);
             tr.commit().join();
         }
 
@@ -797,7 +786,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldUpdatePrimaryIndex() {
-        BucketMetadata metadata = getBucketMetadata(testBucketName);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
 
         // First set the primary index entries
@@ -806,7 +795,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector());
+        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
@@ -861,14 +850,14 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldSetIndexEntryByVersionstamp() {
         IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
-        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, testBucketName);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
         String indexValue = "test-value";
         int userVersion = 42;
         Versionstamp versionstamp = generateVersionstamp(userVersion);
         byte[] entryMetadata = getEncodedEntryMetadata();
 
-        Index index = metadata.indexes().getIndex(definition.selector());
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READONLY);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 

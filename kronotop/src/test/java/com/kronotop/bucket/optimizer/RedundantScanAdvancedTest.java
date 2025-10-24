@@ -24,7 +24,8 @@ import com.kronotop.bucket.planner.physical.PhysicalNode;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /**
  * Advanced flat tests for RedundantScanEliminationRule covering complex scenarios.

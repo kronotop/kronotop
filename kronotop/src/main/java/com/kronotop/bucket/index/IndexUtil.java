@@ -25,14 +25,17 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketMetadataMagic;
-import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.*;
+import com.kronotop.bucket.index.maintenance.*;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.internal.task.TaskStorage;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -63,8 +66,7 @@ public class IndexUtil {
         subpath.add(definition.name());
         try {
             DirectorySubspace indexSubspace = DirectoryLayer.getDefault().create(tr, subpath).join();
-            byte[] indexDefinitionKey = indexSubspace.pack(BucketMetadataMagic.INDEX_DEFINITION.getValue());
-            tr.set(indexDefinitionKey, JSONUtil.writeValueAsBytes(definition));
+            saveIndexDefinition(tr, definition, indexSubspace);
             BucketMetadataUtil.increaseVersion(tr, bucketMetadataSubspace, POSITIVE_DELTA_ONE);
             return indexSubspace;
         } catch (CompletionException e) {
@@ -73,6 +75,35 @@ public class IndexUtil {
             }
             throw e;
         }
+    }
+
+    public static DirectorySubspace create(TransactionalContext tx,
+                                           String namespace,
+                                           String bucket,
+                                           IndexDefinition definition) {
+
+        BucketMetadata bucketMetadata = BucketMetadataUtil.open(tx.context(), tx.tr(), namespace, bucket);
+        // Create the index
+        DirectorySubspace indexSubspace = create(tx.tr(), bucketMetadata.subspace(), definition);
+
+        if (definition.id() == DefaultIndexDefinition.ID.id()) {
+            // Primary index doesn't require a background index building procedure
+            return indexSubspace;
+        }
+
+        // Create background build tasks for all shards
+        IndexBuildingTask task = new IndexBuildingTask(namespace, bucket, definition.id());
+        byte[] encodedTask = JSONUtil.writeValueAsBytes(task);
+
+        BucketService service = tx.context().getService(BucketService.NAME);
+        int userVersion = tx.getAndIncreaseUserVersion(); // increases the user version
+        for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
+            DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);
+            // create tasks in the task subspaces with the same ID
+            TaskStorage.create(tx.tr(), userVersion, taskSubspace, encodedTask);
+        }
+
+        return indexSubspace;
     }
 
     /**
@@ -118,6 +149,46 @@ public class IndexUtil {
     }
 
     /**
+     * Saves the index definition to the specified index subspace.
+     *
+     * <p>This private helper method serializes the index definition to JSON and stores
+     * it in FoundationDB under the INDEX_DEFINITION key within the index subspace.
+     * This method is used internally during index creation to persist the definition.
+     *
+     * @param tr            the transaction instance used to interact with the database
+     * @param definition    the index definition to be saved
+     * @param indexSubspace the directory subspace for the index where the definition will be stored
+     */
+    private static void saveIndexDefinition(Transaction tr, IndexDefinition definition, DirectorySubspace indexSubspace) {
+        byte[] indexDefinitionKey = indexSubspace.pack(BucketMetadataMagic.INDEX_DEFINITION.getValue());
+        tr.set(indexDefinitionKey, JSONUtil.writeValueAsBytes(definition));
+    }
+
+    /**
+     * Saves an updated index definition and increments the bucket metadata version.
+     *
+     * <p>This public method is used to update an existing index definition within the bucket.
+     * It performs the following operations:
+     * <ul>
+     *   <li>Locates the index by its ID in the bucket metadata</li>
+     *   <li>Saves the updated definition to the index subspace</li>
+     *   <li>Increments the bucket metadata version to reflect the change</li>
+     * </ul>
+     *
+     * <p>The version increment ensures that cached metadata is invalidated and clients
+     * receive the updated index definition.
+     *
+     * @param tr         the transaction instance used to interact with the database
+     * @param metadata   the bucket metadata containing the index to be updated
+     * @param definition the updated index definition to be saved
+     */
+    public static void saveIndexDefinition(Transaction tr, BucketMetadata metadata, IndexDefinition definition) {
+        Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
+        saveIndexDefinition(tr, definition, index.subspace());
+        BucketMetadataUtil.increaseVersion(tr, metadata.subspace(), POSITIVE_DELTA_ONE);
+    }
+
+    /**
      * Lists the subdirectories within the bucket metadata subspace's index directory.
      * This method constructs the subpath for the index directory, then fetches
      * the list of subdirectories using the DirectoryLayer. If the index directory does not exist,
@@ -142,7 +213,27 @@ public class IndexUtil {
         }
     }
 
-    private static byte[] getCardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
+    /**
+     * Constructs the FoundationDB key for storing an index's cardinality value.
+     *
+     * <p>This method builds a tuple-encoded key within the bucket metadata subspace
+     * that identifies the cardinality statistic for a specific index. The key structure
+     * includes:
+     * <ul>
+     *   <li>HEADER magic value</li>
+     *   <li>INDEX_STATISTICS magic value</li>
+     *   <li>INDEX_CARDINALITY magic value</li>
+     *   <li>The index ID</li>
+     * </ul>
+     *
+     * <p>Cardinality represents the approximate number of unique values in the index,
+     * which is useful for query optimization and statistics.
+     *
+     * @param bucketMetadataSubspace the directory subspace representing the bucket's metadata
+     * @param indexId                the unique identifier of the index
+     * @return the byte array key for accessing the index's cardinality value
+     */
+    public static byte[] getCardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
         Tuple tuple = Tuple.from(
                 BucketMetadataMagic.HEADER.getValue(),
                 BucketMetadataMagic.INDEX_STATISTICS.getValue(),
@@ -188,15 +279,15 @@ public class IndexUtil {
     }
 
     /**
-     * Drops an index and its associated metadata from a bucket metadata subspace.
+     * Clears an index and its associated metadata from a bucket metadata subspace.
      * This method removes the index definition, cardinality information, and the actual index subspace.
      *
      * @param tr                     the transaction instance used to interact with the database
      * @param bucketMetadataSubspace the bucket metadata subspace serving as the base path for the index
-     * @param name                   the name of the index to be dropped
+     * @param name                   the name of the index to be cleared
      * @throws KronotopException if the specified index does not exist
      */
-    public static void drop(Transaction tr, DirectorySubspace bucketMetadataSubspace, String name) {
+    public static void clear(Transaction tr, DirectorySubspace bucketMetadataSubspace, String name) {
         DirectorySubspace indexSubspace = open(tr, bucketMetadataSubspace, name);
         if (indexSubspace == null) {
             throw new NoSuchIndexException(name);
@@ -211,10 +302,54 @@ public class IndexUtil {
         byte[] cardinalityKey = getCardinalityKey(bucketMetadataSubspace, definition.id());
         tr.clear(cardinalityKey);
 
-        // Drop the index
+        // Clear the index
         List<String> subpath = new ArrayList<>(bucketMetadataSubspace.getPath());
         subpath.add(BucketMetadataUtil.INDEXES_DIRECTORY);
         subpath.add(definition.name());
         DirectoryLayer.getDefault().remove(tr, subpath).join();
+        BucketMetadataUtil.increaseVersion(tr, bucketMetadataSubspace, POSITIVE_DELTA_ONE);
+    }
+
+    /**
+     * Marks an index as dropped and initiates asynchronous cleanup.
+     *
+     * <p>This method performs a two-phase deletion:
+     * <ol>
+     *   <li>Marks the index as {@link IndexStatus#DROPPED}, making it inaccessible for queries</li>
+     *   <li>Creates an {@link IndexDropTask} in a randomly selected shard to coordinate background cleanup</li>
+     * </ol>
+     *
+     * <p>The {@link IndexDropRoutine} waits 6 seconds for existing transactions to expire before
+     * physically removing the index data via {@link #clear}.
+     *
+     * <p>Random shard selection ensures single-point coordination and load distribution.
+     *
+     * @param tx       the transactional context providing access to both the transaction and application context
+     * @param metadata the bucket metadata containing the index to be dropped
+     * @param name     the name of the index to be dropped
+     * @throws NoSuchIndexException  if the specified index does not exist
+     * @throws IllegalStateException if the index is already in DROPPED status
+     * @see #clear(Transaction, DirectorySubspace, String)
+     * @see IndexDropRoutine
+     */
+    public static void drop(TransactionalContext tx, BucketMetadata metadata, String name) {
+        DirectorySubspace indexSubspace = IndexUtil.open(tx.tr(), metadata.subspace(), name);
+        IndexDefinition latestDef = IndexUtil.loadIndexDefinition(tx.tr(), indexSubspace);
+        IndexUtil.saveIndexDefinition(tx.tr(), metadata, latestDef.updateStatus(IndexStatus.DROPPED));
+
+        IndexDropTask task = new IndexDropTask(metadata.namespace(), metadata.name(), latestDef.id());
+        byte[] definition = JSONUtil.writeValueAsBytes(task);
+
+        BucketService service = tx.context().getService(BucketService.NAME);
+
+        Random random = new Random();
+        int shardId = random.nextInt(service.getNumberOfShards());
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);
+        TaskStorage.tasks(tx.tr(), taskSubspace, (taskId) -> {
+            IndexBuildingTaskState.setStatus(tx.tr(), taskSubspace, taskId, IndexTaskStatus.STOPPED);
+            return true;
+        });
+        TaskStorage.create(tx.tr(), tx.getAndIncreaseUserVersion(), taskSubspace, definition);
+        TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
     }
 }

@@ -34,8 +34,37 @@ public class Bucket extends KronotopDirectoryNode {
             layout.add(Integer.toString(shardId));
         }
 
-        public Index index(String bucket, String index) {
-            return new Index(layout, bucket, index);
+        public Maintenance maintenance() {
+            return new Maintenance(layout);
+        }
+
+        public static class Maintenance extends KronotopDirectoryNode {
+            public Maintenance(List<String> layout) {
+                super(layout);
+                layout.add("maintenance");
+            }
+
+            public Index index() {
+                return new Index(layout);
+            }
+
+            public static class Index extends KronotopDirectoryNode {
+                public Index(List<String> layout) {
+                    super(layout);
+                    layout.add("index");
+                }
+
+                public Tasks tasks() {
+                    return new Tasks(layout);
+                }
+
+                public static class Tasks extends KronotopDirectoryNode {
+                    public Tasks(List<String> layout) {
+                        super(layout);
+                        layout.add("tasks");
+                    }
+                }
+            }
         }
     }
 }

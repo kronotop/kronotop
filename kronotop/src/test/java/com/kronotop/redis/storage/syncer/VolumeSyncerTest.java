@@ -24,7 +24,7 @@ import com.kronotop.redis.storage.*;
 import com.kronotop.redis.storage.impl.OnHeapRedisShardImpl;
 import com.kronotop.redis.storage.syncer.jobs.AppendHashFieldJob;
 import com.kronotop.redis.storage.syncer.jobs.AppendStringJob;
-import com.kronotop.volume.KeyEntryPair;
+import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
 import org.junit.jupiter.api.Test;
 
@@ -50,8 +50,8 @@ public class VolumeSyncerTest extends BaseStorageTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            Iterable<KeyEntryPair> iterable = shard.volume().getRange(session);
-            for (KeyEntryPair keyEntry : iterable) {
+            Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
+            for (VolumeEntry keyEntry : iterable) {
                 StringPack pack = StringPack.unpack(keyEntry.entry());
                 assertEquals(expectedKey, pack.key());
                 assertArrayEquals(expectedValue.getBytes(), pack.stringValue().value());
@@ -82,8 +82,8 @@ public class VolumeSyncerTest extends BaseStorageTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            Iterable<KeyEntryPair> iterable = shard.volume().getRange(session);
-            for (KeyEntryPair keyEntry : iterable) {
+            Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
+            for (VolumeEntry keyEntry : iterable) {
                 HashFieldPack pack = HashFieldPack.unpack(keyEntry.entry());
                 assertEquals(expectedKey, pack.key());
                 assertEquals(expectedField, pack.field());

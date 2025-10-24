@@ -41,7 +41,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{}").encode(buf);
+        cmd.query(TEST_BUCKET, "{}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -68,7 +68,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP2);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{}").encode(buf);
+        cmd.query(TEST_BUCKET, "{}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
@@ -104,7 +104,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, String.format("{_id: {$eq: \"%s\"}}", expectedKey)).encode(buf);
+        cmd.query(TEST_BUCKET, String.format("{_id: {$eq: \"%s\"}}", expectedKey)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -136,7 +136,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, String.format("{_id: {$gte: \"%s\"}}", key)).encode(buf);
+        cmd.query(TEST_BUCKET, String.format("{_id: {$gte: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -170,7 +170,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, String.format("{_id: {$gt: \"%s\"}}", key)).encode(buf);
+        cmd.query(TEST_BUCKET, String.format("{_id: {$gt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -206,7 +206,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Query should retrieve the first two documents we inserted
-        cmd.query(BUCKET_NAME, String.format("{_id: {$lt: \"%s\"}}", key)).encode(buf);
+        cmd.query(TEST_BUCKET, String.format("{_id: {$lt: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -245,7 +245,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Query should retrieve the first two documents we inserted
-        cmd.query(BUCKET_NAME, String.format("{_id: {$lte: \"%s\"}}", key)).encode(buf);
+        cmd.query(TEST_BUCKET, String.format("{_id: {$lte: \"%s\"}}", key)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -288,7 +288,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"name\": {\"$eq\": \"Alice\"}}").encode(buf);
+        cmd.query(TEST_BUCKET, "{\"name\": {\"$eq\": \"Alice\"}}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -324,7 +324,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"age\": {\"$gte\": 30}}").encode(buf);
+        cmd.query(TEST_BUCKET, "{\"age\": {\"$gte\": 30}}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -366,7 +366,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"category\": \"SPECIAL\"}").encode(buf);
+        cmd.query(TEST_BUCKET, "{\"category\": \"SPECIAL\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -400,7 +400,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"active\": true}").encode(buf);
+        cmd.query(TEST_BUCKET, "{\"active\": true}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -439,7 +439,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         // Range query: 70 <= score <= 90
-        cmd.query(BUCKET_NAME, "{\"$and\": [{\"score\": {\"$gte\": 70}}, {\"score\": {\"$lte\": 90}}]}").encode(buf);
+        cmd.query(TEST_BUCKET, "{\"$and\": [{\"score\": {\"$gte\": 70}}, {\"score\": {\"$lte\": 90}}]}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -477,7 +477,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"category\": \"NONEXISTENT_TYPE\"}").encode(buf);
+        cmd.query(TEST_BUCKET, "{\"category\": \"NONEXISTENT_TYPE\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -499,7 +499,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"status\": \"active\"}").encode(buf);
+        cmd.query(TEST_BUCKET, "{\"status\": \"active\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -537,7 +537,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"priority\": 1}").encode(buf);
+        cmd.query(TEST_BUCKET, "{\"priority\": 1}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -577,7 +577,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(BUCKET_NAME, "{\"tier\": \"GOLD\"}").encode(buf);
+        cmd.query(TEST_BUCKET, "{\"tier\": \"GOLD\"}").encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 

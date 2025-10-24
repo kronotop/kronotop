@@ -26,6 +26,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TransactionUtils {
@@ -85,6 +87,34 @@ public class TransactionUtils {
                 session.unsetTransaction();
             }
         }
+    }
+
+    /**
+     * Awaits the completion of the given {@link CompletableFuture} without blocking the carrier thread.
+     * <p>
+     * This method allows a virtual thread to suspend while the provided future completes.
+     * Under the hood, the carrier thread is released, and the virtual thread is parked until
+     * the result (or exception) is available.
+     * <p>
+     * If the provided future completes exceptionally with a {@link java.util.concurrent.CompletionException},
+     * its cause will be unwrapped and propagated to the returned future to avoid double-wrapping.
+     *
+     * @param action the {@link CompletableFuture} to await
+     * @param <T>    the result type returned by the future
+     * @return a new {@link CompletableFuture} that completes with the same result or exception
+     * as the provided future, without blocking the carrier thread
+     */
+    public static <T> CompletableFuture<T> await(CompletableFuture<T> action) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        action.thenAccept(future::complete).
+                exceptionally(ex -> {
+                    Throwable cause = (ex instanceof CompletionException && ex.getCause() != null)
+                            ? ex.getCause()
+                            : ex;
+                    future.completeExceptionally(cause);
+                    return null;
+                });
+        return future;
     }
 
     /**
