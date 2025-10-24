@@ -39,9 +39,7 @@ jobs:
         run: sudo dpkg -i $HOME/foundationdb-server_$FOUNDATIONDB_VERSION-1_amd64.deb
 
       - name: Run tests with Maven
-        run: mvn -B test --file pom.xml
-        env:
-          MAVEN_OPTS: "-Dlog.level=OFF"
+        run: mvn -B test --file pom.xml -Dlog.level=OFF
 
       # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
       - name: Update dependency graph
