@@ -121,9 +121,10 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Command<K, V, List<Map<String, Object>>> listIndexes(String bucket) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec);
-        args.add(bucket);
-        return new Command(CommandType.BUCKET_LIST_INDEXES, new ListOfGenericMapsOutput<>(StringCodec.ASCII), args);
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(BucketIndex.LIST).
+                add(bucket);
+        return new Command(CommandType.BUCKET_INDEX, new ListOfGenericMapsOutput<>(StringCodec.ASCII), args);
     }
 
     public Command<String, String, Map<String, Object>> describeIndex(String bucket, String index) {
@@ -175,8 +176,6 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         QUERY("QUERY"),
         BUCKET_ADVANCE("BUCKET.ADVANCE"),
         BUCKET_CLOSE("BUCKET.CLOSE"),
-        BUCKET_CREATE_INDEX("BUCKET.CREATE-INDEX"),
-        BUCKET_LIST_INDEXES("BUCKET.LIST-INDEXES"),
         BUCKET_DESCRIBE_INDEX("BUCKET.DESCRIBE-INDEX"),
         BUCKET_DROP_INDEX("BUCKET.DROP-INDEX"),
         BUCKET_INDEX("BUCKET.INDEX");
@@ -194,7 +193,8 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     enum BucketIndex implements ProtocolKeyword {
-        CREATE("CREATE");
+        CREATE("CREATE"),
+        LIST("LIST");
 
         public final byte[] bytes;
 

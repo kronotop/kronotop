@@ -136,7 +136,6 @@ public class MessageTypes {
     public static final AttributeKey<BucketInsertMessage> BUCKETINSERT = AttributeKey.valueOf(BucketInsertMessage.COMMAND);
     public static final AttributeKey<BucketQueryMessage> BUCKETQUERY = AttributeKey.valueOf(BucketQueryMessage.COMMAND);
     public static final AttributeKey<BucketAdvanceMessage> BUCKETADVANCE = AttributeKey.valueOf(BucketAdvanceMessage.COMMAND);
-    public static final AttributeKey<BucketListIndexesMessage> BUCKETLISTINDEXES = AttributeKey.valueOf(BucketListIndexesMessage.COMMAND);
     public static final AttributeKey<BucketDescribeIndexMessage> BUCKETDESCRIBEINDEX = AttributeKey.valueOf(BucketDescribeIndexMessage.COMMAND);
     public static final AttributeKey<BucketDropIndexMessage> BUCKETDROPINDEX = AttributeKey.valueOf(BucketDropIndexMessage.COMMAND);
     public static final AttributeKey<BucketDeleteMessage> BUCKETDELETE = AttributeKey.valueOf(BucketDeleteMessage.COMMAND);

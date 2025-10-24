@@ -18,7 +18,8 @@ package com.kronotop.bucket.handlers.protocol;
 
 public enum BucketIndexSubcommand {
     CREATE("create"),
-    DESCRIBE_TASKS("describe-tasks");
+    DESCRIBE_TASKS("describe-tasks"),
+    LIST("list");
 
     private final String value;
 

@@ -122,7 +122,7 @@ class BucketIndexDescribeTasksSubcommand implements SubcommandHandler {
                     Map<RedisMessage, RedisMessage> child = scanTaskId(tr, taskId);
                     parent.put(
                             new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(taskId)),
-                            new MapRedisMessage(parent)
+                            new MapRedisMessage(child)
                     );
                 }
             }

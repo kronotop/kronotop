@@ -29,7 +29,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class BucketListIndexesHandlerTest extends BaseBucketHandlerTest {
+class BucketIndexListSubcommandHandlerTest extends BaseBucketHandlerTest {
 
     @BeforeEach
     void beforeEach() {
