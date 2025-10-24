@@ -33,7 +33,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class BucketCreateIndexHandlerTest extends BaseIndexHandlerTest {
+class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldCreateBucketIfItDoesNotExist() {
