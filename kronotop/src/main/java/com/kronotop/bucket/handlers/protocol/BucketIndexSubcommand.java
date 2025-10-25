@@ -21,7 +21,8 @@ public enum BucketIndexSubcommand {
     TASKS("tasks"),
     LIST("list"),
     DESCRIBE("describe"),
-    DROP("drop");
+    DROP("drop"),
+    ANALYZE("analyze");
 
     private final String value;
 
