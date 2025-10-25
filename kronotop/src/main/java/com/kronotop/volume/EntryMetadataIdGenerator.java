@@ -16,40 +16,33 @@
 
 package com.kronotop.volume;
 
-import net.jpountz.xxhash.StreamingXXHash32;
-import net.jpountz.xxhash.XXHashFactory;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 
 import java.nio.ByteBuffer;
 
 /**
- * Provides functionality to generate unique metadata IDs using a hashing algorithm.
- * <p>
- * This class utilizes the XXHash algorithm, initialized with a predefined seed, to compute
- * a hash value based on the provided entity identifier, segment identifier, and position.
- * The generated hash serves as a unique representation of these combined input parameters.
+ * Generates deterministic hash-based metadata identifiers for volume entries.
+ * Uses MurmurHash3 to compute a 32-bit hash from volume ID, segment ID, and position.
  */
 public class EntryMetadataIdGenerator {
-    private static final int SEED = 0x9747b28c;
     private static final int LENGTH = 20;
+    private static final HashFunction MURMUR3_32_FIXED = Hashing.murmur3_32_fixed();
 
     /**
-     * Generates a unique hash value based on the provided parameters.
-     * The hash is computed using the XXHash algorithm with a specified seed.
+     * Generates a deterministic 32-bit hash from volume location coordinates.
      *
-     * @param volumeId        the identifier for the entity
-     * @param segmentId the identifier for the segment
+     * @param volumeId  the volume identifier
+     * @param segmentId the segment identifier
      * @param position  the position within the segment
-     * @return a hash value as an integer representing the combined input parameters
+     * @return a 32-bit hash value
      */
     public static int generate(int volumeId, long segmentId, long position) {
         ByteBuffer buf = ByteBuffer.allocate(LENGTH);
-        try (StreamingXXHash32 hashFunc = XXHashFactory.fastestInstance().newStreamingHash32(SEED)) {
-            buf.putInt(volumeId);
-            buf.putLong(segmentId);
-            buf.putLong(position);
-            buf.flip();
-            hashFunc.update(buf.array(), 0, LENGTH);
-            return hashFunc.getValue();
-        }
+        buf.putInt(volumeId);
+        buf.putLong(segmentId);
+        buf.putLong(position);
+        buf.flip();
+        return MURMUR3_32_FIXED.hashBytes(buf.array()).asInt();
     }
 }
