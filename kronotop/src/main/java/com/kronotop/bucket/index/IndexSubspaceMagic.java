@@ -19,7 +19,8 @@ package com.kronotop.bucket.index;
 public enum IndexSubspaceMagic {
     ENTRIES((byte) 0x01),
     BACK_POINTER((byte) 0x02),
-    TASKS((byte) 0x03);
+    TASKS((byte) 0x03),
+    STAT_HINTS((byte) 0x04);
 
     public final byte value;
 

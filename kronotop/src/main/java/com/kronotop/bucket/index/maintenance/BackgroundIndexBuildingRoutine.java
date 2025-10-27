@@ -25,6 +25,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
@@ -401,11 +402,11 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
 
         Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
         Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
-        Versionstamp cursor = null;
+        Versionstamp versionstamp = null;
         for (VolumeEntry pair : entries) {
             total++;
             Object indexValue = null;
-            cursor = pair.key();
+            versionstamp = pair.key();
             BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), pair.entry());
             if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
                 indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
@@ -414,9 +415,10 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
                     continue;
                 }
             }
-            IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, pair.key(), indexValue, shardId, pair.metadata());
+            IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, versionstamp, indexValue, shardId, pair.metadata());
+            IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, bsonValue);
         }
-        setCursor(tr, cursor);
+        setCursor(tr, versionstamp);
         return total;
     }
 

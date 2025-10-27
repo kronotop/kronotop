@@ -26,6 +26,7 @@ import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.SelectorMatcher;
+import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
@@ -142,6 +143,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                         indexValue,
                         appendedEntry
                 );
+                IndexStatsBuilder.setHintForStats(tr, appendedEntry.userVersion(), index, bsonValue);
             }
         }
     }
