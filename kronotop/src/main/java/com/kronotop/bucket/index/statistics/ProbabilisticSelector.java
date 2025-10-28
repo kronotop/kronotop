@@ -46,6 +46,18 @@ public class ProbabilisticSelector {
     }
 
     /**
+     * Determines whether the given 64-bit integer value should be selected
+     * for sampling based on a probabilistic hash.
+     *
+     * @param value the 64-bit integer value to evaluate
+     * @return true if the value is selected based on a ~1/16,384 probability, false otherwise
+     */
+    public static boolean match(long value) {
+        int hash = (int) (value ^ (value >>> 32));
+        return (hash & MASK) == 0;
+    }
+
+    /**
      * Computes hash for BsonValue with minimal allocations.
      * Uses numeric values directly, hashes binary/string types.
      */
