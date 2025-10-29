@@ -26,9 +26,13 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
     private final IndexStatsTask task;
@@ -41,24 +45,37 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         this.task = task;
     }
 
-    @Override
-    public void start() {
-        BucketMetadata metadata = context.getFoundationDB().run(tr ->
-                BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket()));
-        metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READ);
-        //IndexUtil.open(tr, metadata.subspace(), task);
+    private List<Versionstamp> collectStatHints(Index index) {
+        byte[] beginKey = index.subspace().pack(Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue()));
+        byte[] endKey = index.subspace().pack(beginKey);
 
-
-        byte[] beginKey = subspace.pack(Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue()));
-        byte[] endKey = subspace.pack(beginKey);
-
+        List<Versionstamp> versionstamps = new ArrayList<>();
         KeySelector begin = KeySelector.firstGreaterThan(beginKey);
         KeySelector end = KeySelector.firstGreaterOrEqual(endKey);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             AsyncIterable<KeyValue> iterable = tr.getRange(begin, end);
             for (KeyValue keyValue : iterable) {
-
+                Tuple unpacked = subspace.unpack(keyValue.getKey());
+                versionstamps.add((Versionstamp) unpacked.get(1));
             }
+        }
+        return versionstamps;
+    }
+
+    @Override
+    public void start() {
+        Index index = context.getFoundationDB().run(tr -> {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+            return metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READ);
+        });
+        if (index == null) {
+            return;
+        }
+
+        List<Versionstamp> versionstamps = collectStatHints(index);
+        if (versionstamps.isEmpty()) {
+            // No entry found in STAT_HINTS subspace
+            // fallback
         }
     }
 }
