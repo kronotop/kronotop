@@ -20,6 +20,9 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.RetryMethods;
+import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
+import com.kronotop.bucket.index.statistics.IndexStatsRoutine;
+import com.kronotop.bucket.index.statistics.IndexStatsTask;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 
@@ -109,6 +112,10 @@ public class IndexMaintenanceWorker implements Runnable {
             case DROP -> {
                 IndexDropTask task = JSONUtil.readValue(definition, IndexDropTask.class);
                 this.routine = new IndexDropRoutine(context, subspace, taskId, task);
+            }
+            case STATS -> {
+                IndexStatsTask task = JSONUtil.readValue(definition, IndexStatsTask.class);
+                this.routine = new IndexStatsRoutine(context, subspace, taskId, task);
             }
             default -> throw new IllegalStateException("Unknown task kind: " + base.getKind());
         }

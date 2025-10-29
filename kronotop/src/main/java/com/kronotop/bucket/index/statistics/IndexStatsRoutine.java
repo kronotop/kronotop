@@ -24,16 +24,32 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
 
 public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
-    protected IndexStatsRoutine(Context context, DirectorySubspace subspace, Versionstamp taskId) {
+    private final IndexStatsTask task;
+
+    public IndexStatsRoutine(Context context,
+                             DirectorySubspace subspace,
+                             Versionstamp taskId,
+                             IndexStatsTask task) {
         super(context, subspace, taskId);
+        this.task = task;
     }
 
     @Override
     public void start() {
+        BucketMetadata metadata = context.getFoundationDB().run(tr ->
+                BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket()));
+        metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        //IndexUtil.open(tr, metadata.subspace(), task);
+
+
         byte[] beginKey = subspace.pack(Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue()));
         byte[] endKey = subspace.pack(beginKey);
 
@@ -42,16 +58,8 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             AsyncIterable<KeyValue> iterable = tr.getRange(begin, end);
             for (KeyValue keyValue : iterable) {
-                
+
             }
         }
-
-        // 1- scan STAT_HINTS subspace of subspace
-        // 2- the whole subspace must be small. for 1B inserts, there might be ~10k hints
-        // 3- hints are versionstamps from the backpointer subspace of the index
-        // 4- as a heuristic, we'll pick 100 hints(versionstamps) and scan the left and the right sides of that points
-        // 5- another heuristic: left size - 100 indexed values, right size 100 indexed values
-        // 6- build a histogram from those points.
-
     }
 }

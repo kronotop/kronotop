@@ -31,7 +31,7 @@ public class IndexStatsTask extends IndexMaintenanceTask {
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("indexId") long indexId) {
-        super(IndexMaintenanceTaskKind.DROP);
+        super(IndexMaintenanceTaskKind.STATS);
         this.namespace = namespace;
         this.bucket = bucket;
         this.indexId = indexId;
