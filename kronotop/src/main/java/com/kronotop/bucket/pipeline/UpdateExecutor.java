@@ -247,7 +247,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         Map<String, BsonValue> newValues = updateResultContainer.getDocumentUpdateResult().newValues();
         for (Map.Entry<String, BsonValue> newValue : newValues.entrySet()) {
             String selector = newValue.getKey();
-            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READONLY);
+            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READ);
             if (index == null) {
                 continue;
             }
@@ -283,7 +283,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         matchedSelectors.addAll(updateResultContainer.getDocumentUpdateResult().newValues().keySet());
         matchedSelectors.addAll(updateResultContainer.getDocumentUpdateResult().droppedSelectors());
         for (String selector : matchedSelectors) {
-            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READONLY);
+            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READ);
             if (index == null) {
                 continue;
             }

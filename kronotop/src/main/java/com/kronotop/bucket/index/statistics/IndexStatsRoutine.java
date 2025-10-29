@@ -28,7 +28,6 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
 
 public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
@@ -46,7 +45,7 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
     public void start() {
         BucketMetadata metadata = context.getFoundationDB().run(tr ->
                 BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket()));
-        metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READ);
         //IndexUtil.open(tr, metadata.subspace(), task);
 
 

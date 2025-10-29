@@ -24,7 +24,7 @@ package com.kronotop.bucket.index;
  *
  * <p><b>Policy Rules:</b>
  * <ul>
- *   <li>{@link #READONLY}: Only {@link IndexStatus#READY} indexes (fully built and queryable)</li>
+ *   <li>{@link #READ}: Only {@link IndexStatus#READY} indexes (fully built and queryable)</li>
  *   <li>{@link #READWRITE}: {@link IndexStatus#WAITING}, {@link IndexStatus#BUILDING},
  *       or {@link IndexStatus#READY} indexes (actively maintained)</li>
  *   <li>{@link #ALL}: Any index regardless of status, including {@link IndexStatus#DROPPED}
@@ -33,7 +33,7 @@ package com.kronotop.bucket.index;
  *
  * <p><b>Usage Context:</b>
  * <ul>
- *   <li><b>Query execution:</b> Use {@link #READONLY} to ensure stable, complete index data</li>
+ *   <li><b>Query execution:</b> Use {@link #READ} to ensure stable, complete index data</li>
  *   <li><b>Write operations:</b> Use {@link #READWRITE} to maintain indexes during document changes</li>
  *   <li><b>Maintenance/admin:</b> Use {@link #ALL} to access any index for status checks or cleanup</li>
  * </ul>
@@ -49,7 +49,7 @@ public enum IndexSelectionPolicy {
      * <p>Use for read operations requiring fully built, stable indexes. Excludes indexes
      * still building or in error states.
      */
-    READONLY,
+    READ,
 
     /**
      * Selects indexes in {@link IndexStatus#WAITING}, {@link IndexStatus#BUILDING},

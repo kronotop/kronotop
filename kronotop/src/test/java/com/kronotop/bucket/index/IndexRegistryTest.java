@@ -18,7 +18,6 @@ package com.kronotop.bucket.index;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.KronotopException;
 import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,11 +42,11 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     static Stream<Arguments> statusPolicyTestData() {
         return Stream.of(
                 // READONLY policy tests
-                Arguments.of(IndexStatus.WAITING, IndexSelectionPolicy.READONLY, false),
-                Arguments.of(IndexStatus.BUILDING, IndexSelectionPolicy.READONLY, false),
-                Arguments.of(IndexStatus.READY, IndexSelectionPolicy.READONLY, true),
-                Arguments.of(IndexStatus.DROPPED, IndexSelectionPolicy.READONLY, false),
-                Arguments.of(IndexStatus.FAILED, IndexSelectionPolicy.READONLY, false),
+                Arguments.of(IndexStatus.WAITING, IndexSelectionPolicy.READ, false),
+                Arguments.of(IndexStatus.BUILDING, IndexSelectionPolicy.READ, false),
+                Arguments.of(IndexStatus.READY, IndexSelectionPolicy.READ, true),
+                Arguments.of(IndexStatus.DROPPED, IndexSelectionPolicy.READ, false),
+                Arguments.of(IndexStatus.FAILED, IndexSelectionPolicy.READ, false),
 
                 // READWRITE policy tests
                 Arguments.of(IndexStatus.WAITING, IndexSelectionPolicy.READWRITE, true),
@@ -124,11 +123,11 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
         indexRegistry.register(failedDef, testSubspace);
 
         // Only READY index should be returned
-        assertNull(indexRegistry.getIndex("waiting.field", IndexSelectionPolicy.READONLY));
-        assertNull(indexRegistry.getIndex("building.field", IndexSelectionPolicy.READONLY));
-        assertNotNull(indexRegistry.getIndex("ready.field", IndexSelectionPolicy.READONLY));
-        assertNull(indexRegistry.getIndex("dropped.field", IndexSelectionPolicy.READONLY));
-        assertNull(indexRegistry.getIndex("failed.field", IndexSelectionPolicy.READONLY));
+        assertNull(indexRegistry.getIndex("waiting.field", IndexSelectionPolicy.READ));
+        assertNull(indexRegistry.getIndex("building.field", IndexSelectionPolicy.READ));
+        assertNotNull(indexRegistry.getIndex("ready.field", IndexSelectionPolicy.READ));
+        assertNull(indexRegistry.getIndex("dropped.field", IndexSelectionPolicy.READ));
+        assertNull(indexRegistry.getIndex("failed.field", IndexSelectionPolicy.READ));
     }
 
     @Test
@@ -284,7 +283,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
         // Verify initial state
         Index originalIndex = indexRegistry.getIndex("test.field", IndexSelectionPolicy.ALL);
         assertEquals(IndexStatus.READY, originalIndex.definition().status());
-        assertNotNull(indexRegistry.getIndex("test.field", IndexSelectionPolicy.READONLY));
+        assertNotNull(indexRegistry.getIndex("test.field", IndexSelectionPolicy.READ));
     }
 
     @Test
@@ -304,7 +303,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
         indexRegistry.register(failedDef, testSubspace);
 
         // Initial counts
-        assertEquals(1, indexRegistry.getIndexes(IndexSelectionPolicy.READONLY).size()); // Only READY
+        assertEquals(1, indexRegistry.getIndexes(IndexSelectionPolicy.READ).size()); // Only READY
         assertEquals(3, indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE).size()); // WAITING + READY + BUILDING
         assertEquals(4, indexRegistry.getIndexes(IndexSelectionPolicy.ALL).size()); // All indexes
     }
@@ -331,7 +330,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
 
         // Verify policy-based segregation
         Collection<Index> allIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.ALL);
-        Collection<Index> readonlyIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READONLY);
+        Collection<Index> readonlyIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READ);
         Collection<Index> readwriteIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE);
 
         // ALL policy should include all 5 indexes
@@ -356,7 +355,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
 
         // Get collections for each policy
         Collection<Index> allIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.ALL);
-        Collection<Index> readonlyIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READONLY);
+        Collection<Index> readonlyIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READ);
         Collection<Index> readwriteIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE);
 
         // Should throw UnsupportedOperationException when trying to modify

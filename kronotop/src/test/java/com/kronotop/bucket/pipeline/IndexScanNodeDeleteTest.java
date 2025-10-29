@@ -69,7 +69,7 @@ class IndexScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        Index index = metadata.indexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READONLY);
+        Index index = metadata.indexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -133,7 +133,7 @@ class IndexScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        Index index = metadata.indexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READONLY);
+        Index index = metadata.indexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 

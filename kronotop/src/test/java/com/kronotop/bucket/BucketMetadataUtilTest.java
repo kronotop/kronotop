@@ -47,7 +47,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         assertEquals(TEST_BUCKET, metadata.name());
         assertNotNull(metadata.subspace());
         assertNotNull(metadata.volumePrefix());
-        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index);
         assertNotNull(index.subspace());
         assertTrue(metadata.version() > 0);

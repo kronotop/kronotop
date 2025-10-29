@@ -165,7 +165,7 @@ public class IndexRegistry {
 
         IndexStatus status = index.definition().status();
 
-        if (policy == IndexSelectionPolicy.READONLY) {
+        if (policy == IndexSelectionPolicy.READ) {
             return status == IndexStatus.READY ? index : null;
         }
 
@@ -234,7 +234,7 @@ public class IndexRegistry {
     public Collection<Index> getIndexes(IndexSelectionPolicy policy) {
         return switch (policy) {
             case ALL -> all;
-            case READONLY -> readonly;
+            case READ -> readonly;
             case READWRITE -> readwrite;
         };
     }
