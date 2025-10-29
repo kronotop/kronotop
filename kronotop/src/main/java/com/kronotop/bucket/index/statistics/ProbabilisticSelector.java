@@ -62,6 +62,9 @@ public class ProbabilisticSelector {
      * Uses numeric values directly, hashes binary/string types.
      */
     private static int computeHash(BsonValue value) {
+        if (value == null) {
+            return 0;
+        }
         return switch (value.getBsonType()) {
             case INT32 -> value.asInt32().getValue();
             case INT64 -> {
