@@ -52,7 +52,7 @@ class IndexStatsRoutineTest extends BaseBucketHandlerTest {
     void test() throws InterruptedException {
         IndexDefinition definition = IndexDefinition.create(
                 "test-index",
-                "age",
+                "numeric",
                 BsonType.INT32,
                 IndexStatus.WAITING
         );
@@ -60,7 +60,6 @@ class IndexStatsRoutineTest extends BaseBucketHandlerTest {
         List<byte[]> documents = makeDummyDocumentInt(1000);
         Map<String, byte[]> documentsWithVersionstamp = insertDocuments(documents, 50);
         System.out.println(documentsWithVersionstamp.size());
-
 
         createIndexThenWaitForReadiness(definition);
 

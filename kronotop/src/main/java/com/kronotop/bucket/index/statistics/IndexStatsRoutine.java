@@ -21,21 +21,27 @@ import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
+import org.bson.BsonValue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
     private final IndexStatsTask task;
+    private static final int FALLBACK_INSPECTION_LIMIT = 1000;
 
     public IndexStatsRoutine(Context context,
                              DirectorySubspace subspace,
@@ -62,6 +68,32 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         return versionstamps;
     }
 
+    private List<Object> aggregateKeysFromIndex(Index index, int limit, boolean reverse) {
+        List<Object> indexedValues = new ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] prefix = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            KeySelector begin = KeySelector.firstGreaterThan(prefix);
+            KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+            for (KeyValue keyValue : tr.getRange(begin, end, limit, reverse)) {
+                Tuple unpacked = index.subspace().unpack(keyValue.getKey());
+                Object indexValue = unpacked.get(1);
+                indexedValues.add(indexValue);
+            }
+        }
+        return indexedValues;
+    }
+
+    private void fallback(Index index) {
+        List<Object> left = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT/2, false);
+        List<Object> right = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT/2, true);
+
+        for (Object value : left) {
+            BsonValue bsonValue = BSONUtil.toBsonValue(value);
+            if (bsonValue.getBsonType().equals(index.definition().bsonType())) {
+            }
+        }
+    }
+
     @Override
     public void start() {
         Index index = context.getFoundationDB().run(tr -> {
@@ -76,7 +108,7 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         System.out.println(versionstamps);
         if (versionstamps.isEmpty()) {
             // No entry found in STAT_HINTS subspace
-            // fallback
+            fallback(index);
         }
     }
 }
