@@ -19,6 +19,7 @@ package com.kronotop.bucket.index.statistics;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.IndexDefinition;
@@ -28,9 +29,25 @@ import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
 class IndexStatsRoutineTest extends BaseBucketHandlerTest {
+
+    protected List<byte[]> makeDummyDocumentInt(int number) {
+        List<byte[]> result = new ArrayList<>();
+        for (int i = 0; i < number; i++) {
+            String document = String.format("{\"numeric\": %d}", i);
+            result.add(BSONUtil.jsonToDocumentThenBytes(document));
+        }
+        return result;
+    }
+
     @Test
     void test() throws InterruptedException {
         IndexDefinition definition = IndexDefinition.create(
@@ -40,13 +57,14 @@ class IndexStatsRoutineTest extends BaseBucketHandlerTest {
                 IndexStatus.WAITING
         );
 
-        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-            IndexUtil.create(tr, metadata.subspace(), definition);
-            tr.commit().join();
-        }
+        List<byte[]> documents = makeDummyDocumentInt(1000);
+        Map<String, byte[]> documentsWithVersionstamp = insertDocuments(documents, 50);
+        System.out.println(documentsWithVersionstamp.size());
 
+
+        createIndexThenWaitForReadiness(definition);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         IndexStatsTask task = new IndexStatsTask(TEST_NAMESPACE, TEST_BUCKET, definition.id());
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
         System.out.println(task);

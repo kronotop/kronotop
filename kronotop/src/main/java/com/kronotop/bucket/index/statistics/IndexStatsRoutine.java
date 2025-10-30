@@ -73,6 +73,7 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         }
 
         List<Versionstamp> versionstamps = collectStatHints(index);
+        System.out.println(versionstamps);
         if (versionstamps.isEmpty()) {
             // No entry found in STAT_HINTS subspace
             // fallback

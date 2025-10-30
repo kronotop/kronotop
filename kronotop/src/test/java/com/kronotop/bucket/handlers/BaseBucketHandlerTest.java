@@ -36,10 +36,7 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -90,6 +87,22 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
             result.put(message.content(), documents.get(index));
         }
         return result;
+    }
+
+    protected Map<String, byte[]> insertDocuments(List<byte[]> documents, int batchSize) {
+        Map<String, byte[]> parent = new HashMap<>();
+        int index = 0;
+        while(index < documents.size()) {
+            List<byte[]> subDocs = new ArrayList<>();
+            for (int counter = 0; counter < batchSize; counter++) {
+                byte[] document = documents.get(index);
+                subDocs.add(document);
+                index++;
+            }
+            Map<String, byte[]> child = insertDocuments(subDocs);
+            parent.putAll(child);
+        }
+        return parent;
     }
 
     /**
