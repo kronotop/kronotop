@@ -233,11 +233,11 @@ public class IndexUtil {
      * @param indexId                the unique identifier of the index
      * @return the byte array key for accessing the index's cardinality value
      */
-    public static byte[] getCardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
+    public static byte[] cardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
         Tuple tuple = Tuple.from(
                 BucketMetadataMagic.HEADER.getValue(),
                 BucketMetadataMagic.INDEX_STATISTICS.getValue(),
-                BucketMetadataMagic.INDEX_CARDINALITY.getValue(),
+                BucketMetadataMagic.CARDINALITY.getValue(),
                 indexId
         );
         return bucketMetadataSubspace.pack(tuple);
@@ -253,7 +253,7 @@ public class IndexUtil {
      * @param delta                  the byte array representing the delta to be applied (positive or negative)
      */
     private static void mutateCardinality(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId, byte[] delta) {
-        byte[] key = getCardinalityKey(bucketMetadataSubspace, indexId);
+        byte[] key = cardinalityKey(bucketMetadataSubspace, indexId);
         tr.mutate(MutationType.ADD, key, delta);
     }
 
@@ -299,7 +299,7 @@ public class IndexUtil {
         tr.clear(indexDefinitionKey);
 
         // Remove cardinality
-        byte[] cardinalityKey = getCardinalityKey(bucketMetadataSubspace, definition.id());
+        byte[] cardinalityKey = cardinalityKey(bucketMetadataSubspace, definition.id());
         tr.clear(cardinalityKey);
 
         // Clear the index

@@ -22,7 +22,7 @@ public enum BucketMetadataMagic {
     INDEX_DEFINITION((byte) 0x03),
     VOLUME_PREFIX((byte) 0x04),
     INDEX_STATISTICS((byte) 0x05),
-    INDEX_CARDINALITY((byte) 0x06),
+    CARDINALITY((byte) 0x06),
     HISTOGRAM((byte) 0x07);
 
     public final byte value;

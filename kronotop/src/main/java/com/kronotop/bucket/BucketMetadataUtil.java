@@ -379,7 +379,7 @@ public class BucketMetadataUtil {
      * @return an {@code IndexStatistics} instance containing the cardinality of the specified index
      */
     public static IndexStatistics readIndexStatistics(Transaction tr, DirectorySubspace subspace, long indexId) {
-        byte[] key = IndexUtil.getCardinalityKey(subspace, indexId);
+        byte[] key = IndexUtil.cardinalityKey(subspace, indexId);
         long cardinality = 0;
         byte[] value = tr.get(key).join();
         if (value == null) {
