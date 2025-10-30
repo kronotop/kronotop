@@ -85,30 +85,12 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         return indexedValues;
     }
 
-    private int compareBsonValues(BsonValue a, BsonValue b) {
-        if (a.equals(b)) {
-            return 0;
-        }
-        return switch (a.getBsonType()) {
-            case DOUBLE -> a.asDouble().compareTo(b.asDouble());
-            case STRING -> a.asString().compareTo(b.asString());
-            case BINARY -> Arrays.compare(a.asBinary().getData(), b.asBinary().getData());
-            case BOOLEAN -> a.asBoolean().compareTo(b.asBoolean());
-            case DATE_TIME -> a.asDateTime().compareTo(b.asDateTime());
-            case NULL -> 0;
-            case INT32 -> a.asInt32().compareTo(b.asInt32());
-            case TIMESTAMP -> a.asTimestamp().compareTo(b.asTimestamp());
-            case INT64 -> a.asInt64().compareTo(b.asInt64());
-            case DECIMAL128 -> a.asDecimal128().getValue().compareTo(b.asDecimal128().getValue());
-            default -> throw new IllegalArgumentException("Unsupported bson type for indexing");
-        };
-    }
 
     private void fallback(Index index) {
         List<Object> left = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT / 2, false);
         List<Object> right = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT / 2, true);
 
-        TreeSet<BsonValue> values = new TreeSet<>(this::compareBsonValues);
+        TreeSet<BsonValue> values = new TreeSet<>(BSONUtil::compareBsonValues);
         for (Object value : left) {
             BsonValue bsonValue = BSONUtil.toBsonValue(value);
             if (BSONUtil.equals(bsonValue.getBsonType(), index.definition().bsonType())) {
