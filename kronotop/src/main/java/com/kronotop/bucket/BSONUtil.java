@@ -201,4 +201,23 @@ public class BSONUtil {
             }
         };
     }
+
+    /**
+     * Compares two {@link BsonType} values and determines if they are equivalent,
+     * considering specific cases where one type is allowed to match another.
+     * For example, a {@code valueType} of {@link BsonType#INT64} is considered
+     * equivalent to a {@link BsonType#INT32}.
+     *
+     * @param valueType   the actual {@link BsonType} being compared
+     * @param desiredType the desired {@link BsonType} to compare against
+     * @return {@code true} if the types are considered equivalent, {@code false} otherwise
+     */
+    public static boolean equals(BsonType valueType, BsonType desiredType) {
+        if (desiredType.equals(BsonType.INT32)) {
+            if (valueType.equals(BsonType.INT64)) {
+                return true;
+            }
+        }
+        return desiredType.equals(valueType);
+    }
 }

@@ -32,16 +32,18 @@ import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
+import org.bson.BsonType;
 import org.bson.BsonValue;
+import org.bson.internal.BsonUtil;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
-    private final IndexStatsTask task;
     private static final int FALLBACK_INSPECTION_LIMIT = 1000;
+    private final IndexStatsTask task;
 
     public IndexStatsRoutine(Context context,
                              DirectorySubspace subspace,
@@ -83,15 +85,44 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         return indexedValues;
     }
 
-    private void fallback(Index index) {
-        List<Object> left = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT/2, false);
-        List<Object> right = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT/2, true);
+    private int compareBsonValues(BsonValue a, BsonValue b) {
+        if (a.equals(b)) {
+            return 0;
+        }
+        return switch (a.getBsonType()) {
+            case DOUBLE -> a.asDouble().compareTo(b.asDouble());
+            case STRING -> a.asString().compareTo(b.asString());
+            case BINARY -> Arrays.compare(a.asBinary().getData(), b.asBinary().getData());
+            case BOOLEAN -> a.asBoolean().compareTo(b.asBoolean());
+            case DATE_TIME -> a.asDateTime().compareTo(b.asDateTime());
+            case NULL -> 0;
+            case INT32 -> a.asInt32().compareTo(b.asInt32());
+            case TIMESTAMP -> a.asTimestamp().compareTo(b.asTimestamp());
+            case INT64 -> a.asInt64().compareTo(b.asInt64());
+            case DECIMAL128 -> a.asDecimal128().getValue().compareTo(b.asDecimal128().getValue());
+            default -> throw new IllegalArgumentException("Unsupported bson type for indexing");
+        };
+    }
 
+    private void fallback(Index index) {
+        List<Object> left = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT / 2, false);
+        List<Object> right = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT / 2, true);
+
+        TreeSet<BsonValue> values = new TreeSet<>(this::compareBsonValues);
         for (Object value : left) {
             BsonValue bsonValue = BSONUtil.toBsonValue(value);
-            if (bsonValue.getBsonType().equals(index.definition().bsonType())) {
+            if (BSONUtil.equals(bsonValue.getBsonType(), index.definition().bsonType())) {
+                values.add(bsonValue);
             }
         }
+
+        for (Object value : right) {
+            BsonValue bsonValue = BSONUtil.toBsonValue(value);
+            if (BSONUtil.equals(bsonValue.getBsonType(), index.definition().bsonType())) {
+                values.add(bsonValue);
+            }
+        }
+        System.out.println(values);
     }
 
     @Override
