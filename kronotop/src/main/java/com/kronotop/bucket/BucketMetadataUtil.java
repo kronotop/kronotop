@@ -16,10 +16,7 @@
 
 package com.kronotop.bucket;
 
-import com.apple.foundationdb.FDBException;
-import com.apple.foundationdb.KeyValue;
-import com.apple.foundationdb.MutationType;
-import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.*;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
@@ -333,15 +330,13 @@ public class BucketMetadataUtil {
                 BucketMetadataMagic.HEADER.getValue(),
                 BucketMetadataMagic.INDEX_STATISTICS.getValue()
         );
-        byte[] begin = subspace.pack(tuple);
-        byte[] end = ByteArrayUtil.strinc(begin);
-
+        byte[] prefix = subspace.pack(tuple);
+        KeySelector begin = KeySelector.firstGreaterThan(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
         HashMap<Long, IndexStatistics> stats = new HashMap<>();
         for (KeyValue entry : tr.getRange(begin, end)) {
             Tuple unpackedKey = subspace.unpack(entry.getKey());
-            if (unpackedKey.getLong(1) == BucketMetadataMagic.INDEX_STATISTICS.getLong()) {
-                extractIndexStatistics(stats, unpackedKey, entry);
-            }
+            extractIndexStatistics(stats, unpackedKey, entry);
         }
         return Collections.unmodifiableMap(stats);
     }

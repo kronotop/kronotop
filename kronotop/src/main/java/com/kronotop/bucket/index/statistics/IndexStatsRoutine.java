@@ -32,12 +32,9 @@ import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
-import org.bson.BsonType;
 import org.bson.BsonValue;
-import org.bson.internal.BsonUtil;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.TreeSet;
 
