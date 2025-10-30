@@ -20,7 +20,10 @@ package com.kronotop.bucket.index.statistics;
 import com.kronotop.bucket.BSONUtil;
 import org.bson.BsonValue;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.TreeSet;
 
 /**
  * Utility class for building and querying histograms from sorted BSON values.
@@ -33,8 +36,11 @@ public final class HistogramUtils {
     }
 
     /**
-     * Builds a simple histogram from a sorted TreeSet of BsonValue instances.
-     * Each bucket represents an approximate percentile range.
+     * Builds a histogram by partitioning sorted BSON values into buckets of approximately equal size.
+     * The histogram contains at most 10 buckets, with each bucket tracking its min/max value range and count.
+     *
+     * @param values sorted TreeSet of BSON values to partition into histogram buckets
+     * @return list of histogram buckets ordered by value range, empty if input is empty
      */
     public static List<HistogramBucket> buildHistogram(TreeSet<BsonValue> values) {
         List<HistogramBucket> buckets = new ArrayList<>();
@@ -67,8 +73,11 @@ public final class HistogramUtils {
     }
 
     /**
-     * Finds which histogram bucket a given BSON value falls into using binary search.
-     * Returns null if the value is outside all bucket ranges.
+     * Locates the histogram bucket containing the specified BSON value using binary search.
+     *
+     * @param buckets list of histogram buckets sorted by value range
+     * @param value   BSON value to locate within the histogram
+     * @return matching bucket if value falls within its [min, max] range, null if value is outside all buckets
      */
     public static HistogramBucket findBucket(List<HistogramBucket> buckets, BsonValue value) {
         if (buckets.isEmpty()) return null;
@@ -90,12 +99,20 @@ public final class HistogramUtils {
         return null;
     }
 
+    /**
+     * Estimates the percentile rank of a BSON value within the histogram's value distribution.
+     * Returns the bucket's position as a percentile (0-100), with values below the first bucket returning 0.0
+     * and values above the last bucket returning 100.0.
+     *
+     * @param buckets list of histogram buckets sorted by value range
+     * @param value   BSON value to compute percentile for
+     * @return estimated percentile rank between 0.0 and 100.0, or 0.0 if buckets is empty
+     */
     public static double findPercentile(List<HistogramBucket> buckets, BsonValue value) {
         if (buckets.isEmpty()) return 0.0;
 
         HistogramBucket bucket = findBucket(buckets, value);
         if (bucket == null) {
-            // değer aralıktan küçükse -> 0, büyükse -> 100
             if (BSONUtil.compareBsonValues(value, buckets.get(0).min()) < 0) return 0.0;
             return 100.0;
         }
@@ -103,26 +120,7 @@ public final class HistogramUtils {
         int index = buckets.indexOf(bucket);
         int totalBuckets = buckets.size();
 
-        // bucket'ın sırası yüzdesel olarak
         double percentile = ((index + 1) / (double) totalBuckets) * 100.0;
         return Math.max(0, Math.min(100, percentile));
     }
-
-
-    // Example usage
-    public static void main(String[] args) {
-        TreeSet<BsonValue> set = new TreeSet<>(Comparator.comparingLong(v -> v.asInt64().getValue()));
-        for (int i = 0; i < 1000; i++) {
-            set.add(new org.bson.BsonInt64(i));
-        }
-
-        List<HistogramBucket> histogram = buildHistogram(set);
-        histogram.forEach(System.out::println);
-
-        BsonValue testValue = new org.bson.BsonInt64(120);
-        HistogramBucket bucket = findBucket(histogram, testValue);
-        System.out.println("Value " + testValue + " is in bucket: " + bucket);
-        System.out.println(findPercentile(histogram, testValue));
-    }
-
 }
