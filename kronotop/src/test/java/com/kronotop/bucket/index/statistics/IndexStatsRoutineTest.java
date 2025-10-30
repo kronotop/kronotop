@@ -16,26 +16,21 @@
 
 package com.kronotop.bucket.index.statistics;
 
-import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
-import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexStatus;
-import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 class IndexStatsRoutineTest extends BaseBucketHandlerTest {
 

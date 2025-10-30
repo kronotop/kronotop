@@ -85,26 +85,24 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         return indexedValues;
     }
 
+    private void filterBsonValuesByKind(Index index, List<Object> values, TreeSet<BsonValue> filtered) {
+        for (Object value : values) {
+            BsonValue bsonValue = BSONUtil.toBsonValue(value);
+            if (BSONUtil.equals(bsonValue.getBsonType(), index.definition().bsonType())) {
+                filtered.add(bsonValue);
+            }
+        }
+    }
 
     private void fallback(Index index) {
         List<Object> left = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT / 2, false);
         List<Object> right = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT / 2, true);
 
-        TreeSet<BsonValue> values = new TreeSet<>(BSONUtil::compareBsonValues);
-        for (Object value : left) {
-            BsonValue bsonValue = BSONUtil.toBsonValue(value);
-            if (BSONUtil.equals(bsonValue.getBsonType(), index.definition().bsonType())) {
-                values.add(bsonValue);
-            }
-        }
+        TreeSet<BsonValue> filtered = new TreeSet<>(BSONUtil::compareBsonValues);
+        filterBsonValuesByKind(index, left, filtered);
+        filterBsonValuesByKind(index, right, filtered);
 
-        for (Object value : right) {
-            BsonValue bsonValue = BSONUtil.toBsonValue(value);
-            if (BSONUtil.equals(bsonValue.getBsonType(), index.definition().bsonType())) {
-                values.add(bsonValue);
-            }
-        }
-        System.out.println(values);
+        System.out.println(HistogramUtils.buildHistogram(filtered));
     }
 
     @Override
@@ -120,7 +118,7 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         List<Versionstamp> versionstamps = collectStatHints(index);
         System.out.println(versionstamps);
         if (versionstamps.isEmpty()) {
-            // No entry found in STAT_HINTS subspace
+            // No entry found in the STAT_HINTS subspace
             fallback(index);
         }
     }
