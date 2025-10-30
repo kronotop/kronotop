@@ -237,8 +237,8 @@ public class IndexUtil {
         Tuple tuple = Tuple.from(
                 BucketMetadataMagic.HEADER.getValue(),
                 BucketMetadataMagic.INDEX_STATISTICS.getValue(),
-                BucketMetadataMagic.CARDINALITY.getValue(),
-                indexId
+                indexId,
+                BucketMetadataMagic.CARDINALITY.getValue()
         );
         return bucketMetadataSubspace.pack(tuple);
     }

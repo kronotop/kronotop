@@ -310,7 +310,7 @@ public class BucketMetadataUtil {
 
     private static void extractIndexStatistics(HashMap<Long, IndexStatistics> stats, Tuple unpackedKey, KeyValue entry) {
         long cardinality = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
-        long id = unpackedKey.getLong(3);
+        long id = unpackedKey.getLong(2);
         stats.put(id, new IndexStatistics(cardinality));
     }
 
