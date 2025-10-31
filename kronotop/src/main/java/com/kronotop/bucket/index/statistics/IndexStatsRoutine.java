@@ -31,6 +31,7 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
+import com.kronotop.bucket.index.maintenance.IndexBuildingTaskState;
 import com.kronotop.bucket.index.maintenance.IndexTaskStatus;
 import io.github.resilience4j.retry.Retry;
 import org.bson.BsonValue;
@@ -127,19 +128,35 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         });
     }
 
+    private BucketMetadata openBucketMetadata() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+        }
+    }
+
+    private void markIndexStatsTaskFailed(Throwable th) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexStatsTaskState.setError(tr, subspace, taskId, th.getMessage());
+            IndexStatsTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+            tr.commit().join();
+        }
+    }
+
     @Override
     public void start() {
-        BucketMetadata metadata = context.getFoundationDB().run(tr ->
-                BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
-        );
-        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READ);
-        if (index == null) {
-            return;
-        }
-        List<Versionstamp> versionstamps = collectStatHints(index);
-        if (versionstamps.isEmpty()) {
-            // No entry found in the STAT_HINTS subspace
-            constructHistogramFromEntries(metadata, index);
+        try {
+            BucketMetadata metadata = openBucketMetadata();
+            Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READ);
+            if (index == null) {
+                return;
+            }
+            List<Versionstamp> versionstamps = collectStatHints(index);
+            if (versionstamps.isEmpty()) {
+                // No entry found in the STAT_HINTS subspace
+                constructHistogramFromEntries(metadata, index);
+            }
+        } catch (Exception e) {
+            markIndexStatsTaskFailed(e);
         }
     }
 }
