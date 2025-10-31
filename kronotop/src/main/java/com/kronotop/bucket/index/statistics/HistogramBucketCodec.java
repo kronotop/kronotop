@@ -31,6 +31,7 @@ public class HistogramBucketCodec {
         FIXED_CAPACITY.put(BsonType.INT32, 13);
         FIXED_CAPACITY.put(BsonType.DOUBLE, 21);
         FIXED_CAPACITY.put(BsonType.DATE_TIME, 21);
+        FIXED_CAPACITY.put(BsonType.TIMESTAMP, 21);
     }
 
     private static void encodeBsonValue(ByteBuffer buffer, BsonValue value) {
@@ -46,6 +47,10 @@ public class HistogramBucketCodec {
             }
             case DATE_TIME -> {
                 buffer.putLong(value.asDateTime().getValue());
+            }
+            case TIMESTAMP -> {
+                buffer.putInt(value.asTimestamp().getTime());
+                buffer.putInt(value.asTimestamp().getInc());
             }
             default -> throw new IllegalArgumentException("Unknown BsonValue type: " + value.getBsonType());
         }
@@ -120,6 +125,19 @@ public class HistogramBucketCodec {
                 return new HistogramBucket(
                         new org.bson.BsonDateTime(min),
                         new org.bson.BsonDateTime(max),
+                        count
+                );
+            }
+            case TIMESTAMP -> {
+                int minTime = buffer.getInt();
+                int minInc = buffer.getInt();
+                int maxTime = buffer.getInt();
+                int maxInc = buffer.getInt();
+                int count = buffer.getInt();
+
+                return new HistogramBucket(
+                        new org.bson.BsonTimestamp(minTime, minInc),
+                        new org.bson.BsonTimestamp(maxTime, maxInc),
                         count
                 );
             }

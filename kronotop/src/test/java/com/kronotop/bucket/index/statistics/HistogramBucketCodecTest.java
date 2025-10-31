@@ -20,6 +20,7 @@ import org.bson.BsonDateTime;
 import org.bson.BsonDouble;
 import org.bson.BsonInt32;
 import org.bson.BsonInt64;
+import org.bson.BsonTimestamp;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,6 +53,14 @@ class HistogramBucketCodecTest {
     @Test
     void shouldEncodeDecode_DATE_TIME() {
         HistogramBucket bucket = new HistogramBucket(new BsonDateTime(1609459200000L), new BsonDateTime(1640995200000L), 10);
+        byte[] data = HistogramBucketCodec.encode(bucket);
+        HistogramBucket decoded = HistogramBucketCodec.decode(data);
+        assertEquals(bucket, decoded);
+    }
+
+    @Test
+    void shouldEncodeDecode_TIMESTAMP() {
+        HistogramBucket bucket = new HistogramBucket(new BsonTimestamp(1609459200, 1), new BsonTimestamp(1640995200, 5), 10);
         byte[] data = HistogramBucketCodec.encode(bucket);
         HistogramBucket decoded = HistogramBucketCodec.decode(data);
         assertEquals(bucket, decoded);
