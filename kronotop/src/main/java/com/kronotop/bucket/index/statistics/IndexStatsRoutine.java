@@ -31,8 +31,8 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
-import com.kronotop.bucket.index.maintenance.IndexBuildingTaskState;
 import com.kronotop.bucket.index.maintenance.IndexTaskStatus;
+import com.kronotop.internal.TransactionUtils;
 import io.github.resilience4j.retry.Retry;
 import org.bson.BsonValue;
 
@@ -128,24 +128,20 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         });
     }
 
-    private BucketMetadata openBucketMetadata() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-        }
-    }
-
     private void markIndexStatsTaskFailed(Throwable th) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        TransactionUtils.executeThenCommit(context, (tr) -> {
             IndexStatsTaskState.setError(tr, subspace, taskId, th.getMessage());
             IndexStatsTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-            tr.commit().join();
-        }
+            return null;
+        });
     }
 
     @Override
     public void start() {
         try {
-            BucketMetadata metadata = openBucketMetadata();
+            BucketMetadata metadata = TransactionUtils.execute(context,
+                    (tr) -> BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
+            );
             Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READ);
             if (index == null) {
                 return;

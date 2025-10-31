@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 public class TransactionUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(TransactionUtils.class);
@@ -174,5 +175,19 @@ public class TransactionUtils {
     public static int getUserVersion(Session session) {
         AtomicInteger counter = session.attr(SessionAttributes.USER_VERSION_COUNTER).get();
         return counter.getAndIncrement();
+    }
+
+    public static <T> T execute(Context context, Function<? super Transaction, T> action) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return action.apply(tr);
+        }
+    }
+
+    public static <T> T executeThenCommit(Context context, Function<? super Transaction, T> action) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            T result = action.apply(tr);
+            tr.commit().join();
+            return result;
+        }
     }
 }
