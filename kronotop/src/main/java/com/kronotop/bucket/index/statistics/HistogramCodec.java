@@ -20,9 +20,22 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Encodes and decodes histogram statistics for index metadata storage.
+ * Uses CRLF delimiters to separate individual histogram buckets and stores
+ * a version number at the beginning of the encoded data.
+ */
 public class HistogramCodec {
-    public static final byte[] CRLF = new byte[]{13, 10};
+    private static final byte[] CRLF = new byte[]{13, 10};
 
+    /**
+     * Encodes a list of histogram buckets with a version number.
+     * Format: [version (8 bytes)][bucket1][CRLF][bucket2][CRLF]...[bucketN][CRLF]
+     *
+     * @param histogram the list of histogram buckets to encode
+     * @param version the version number to store with the histogram
+     * @return the encoded byte array
+     */
     public static byte[] encode(List<HistogramBucket> histogram, long version) {
         int total = 0;
         byte[][] items = new byte[histogram.size()][];
@@ -44,11 +57,25 @@ public class HistogramCodec {
         return buffer.array();
     }
 
+    /**
+     * Reads the version number from encoded histogram data without decoding the buckets.
+     * Extracts the first 8 bytes as a long value.
+     *
+     * @param data the encoded histogram data
+     * @return the version number
+     */
     public static long readVersion(byte[] data) {
         ByteBuffer buffer = ByteBuffer.wrap(data);
         return buffer.getLong();
     }
 
+    /**
+     * Decodes histogram data into a list of histogram buckets.
+     * Skips the version number and parses CRLF-delimited bucket data.
+     *
+     * @param data the encoded histogram data
+     * @return the list of decoded histogram buckets
+     */
     public static List<HistogramBucket> decode(byte[] data) {
         ByteBuffer buffer = ByteBuffer.wrap(data);
         buffer.getLong(); // Swallow version
@@ -76,6 +103,13 @@ public class HistogramCodec {
         return histogram;
     }
 
+    /**
+     * Finds the position of the next CRLF delimiter in the buffer.
+     *
+     * @param buffer the byte buffer to search
+     * @param start the starting position for the search
+     * @return the position of CR byte if found, -1 otherwise
+     */
     private static int findCRLF(ByteBuffer buffer, int start) {
         for (int i = start; i < buffer.limit() - 1; i++) {
             if (buffer.get(i) == CRLF[0] && buffer.get(i + 1) == CRLF[1]) {
