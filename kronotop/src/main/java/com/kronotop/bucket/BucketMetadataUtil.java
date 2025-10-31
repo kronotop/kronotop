@@ -334,10 +334,26 @@ public class BucketMetadataUtil {
         KeySelector begin = KeySelector.firstGreaterThan(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
         HashMap<Long, IndexStatistics> stats = new HashMap<>();
+        Long currentId = null;
+        long cardinality = 0L;
         for (KeyValue entry : tr.getRange(begin, end)) {
             Tuple unpackedKey = subspace.unpack(entry.getKey());
-            extractIndexStatistics(stats, unpackedKey, entry);
+            long id = unpackedKey.getLong(2);
+            if (currentId == null) {
+                currentId = id;
+            } else if (currentId != id) {
+                stats.put(currentId, new IndexStatistics(cardinality));
+                currentId = id;
+                cardinality = 0;
+            }
+            long magic = unpackedKey.getLong(3);
+            if (magic  == BucketMetadataMagic.CARDINALITY.getLong()) {
+                cardinality = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
+            } else if (magic == BucketMetadataMagic.HISTOGRAM.getLong()) {
+                // Decode histogram
+            }
         }
+        stats.put(currentId, new IndexStatistics(cardinality));
         return Collections.unmodifiableMap(stats);
     }
 

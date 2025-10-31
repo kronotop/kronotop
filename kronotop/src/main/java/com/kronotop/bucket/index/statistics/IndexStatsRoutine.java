@@ -32,7 +32,11 @@ import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
+import com.kronotop.internal.JSONUtil;
+import org.bson.BsonArray;
+import org.bson.BsonInt32;
 import org.bson.BsonValue;
+import org.bson.internal.BsonUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -99,7 +103,10 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         filterBsonValuesByKind(index, left, filtered);
         filterBsonValuesByKind(index, right, filtered);
 
-        System.out.println(HistogramUtils.buildHistogram(filtered));
+        List<HistogramBucket> histogram = HistogramUtils.buildHistogram(filtered);
+        byte[] encoded = JSONUtil.writeValueAsBytes(histogram.get(0));
+        System.out.println(new String(encoded));
+        System.out.println(JSONUtil.readValue(encoded, HistogramBucket.class));
     }
 
     @Override
