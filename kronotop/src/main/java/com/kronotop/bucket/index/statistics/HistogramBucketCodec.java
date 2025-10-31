@@ -35,18 +35,10 @@ public class HistogramBucketCodec {
 
     private static void encodeBsonValue(ByteBuffer buffer, BsonValue value) {
         switch (value.getBsonType()) {
-            case INT64 -> {
-                buffer.putLong(value.asInt64().getValue());
-            }
-            case INT32 -> {
-                buffer.putInt(value.asInt32().getValue());
-            }
-            case DOUBLE -> {
-                buffer.putDouble(value.asDouble().getValue());
-            }
-            case DATE_TIME -> {
-                buffer.putLong(value.asDateTime().getValue());
-            }
+            case INT64 -> buffer.putLong(value.asInt64().getValue());
+            case INT32 -> buffer.putInt(value.asInt32().getValue());
+            case DOUBLE -> buffer.putDouble(value.asDouble().getValue());
+            case DATE_TIME -> buffer.putLong(value.asDateTime().getValue());
             case TIMESTAMP -> {
                 buffer.putInt(value.asTimestamp().getTime());
                 buffer.putInt(value.asTimestamp().getInc());
