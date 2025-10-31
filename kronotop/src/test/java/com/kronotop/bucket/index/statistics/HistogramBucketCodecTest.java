@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.index.statistics;
 
+import org.bson.BsonDateTime;
 import org.bson.BsonDouble;
 import org.bson.BsonInt32;
 import org.bson.BsonInt64;
@@ -43,6 +44,14 @@ class HistogramBucketCodecTest {
     @Test
     void shouldEncodeDecode_DOUBLE() {
         HistogramBucket bucket = new HistogramBucket(new BsonDouble(10.5), new BsonDouble(34.7), 10);
+        byte[] data = HistogramBucketCodec.encode(bucket);
+        HistogramBucket decoded = HistogramBucketCodec.decode(data);
+        assertEquals(bucket, decoded);
+    }
+
+    @Test
+    void shouldEncodeDecode_DATE_TIME() {
+        HistogramBucket bucket = new HistogramBucket(new BsonDateTime(1609459200000L), new BsonDateTime(1640995200000L), 10);
         byte[] data = HistogramBucketCodec.encode(bucket);
         HistogramBucket decoded = HistogramBucketCodec.decode(data);
         assertEquals(bucket, decoded);
