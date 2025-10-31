@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.index.statistics;
 
+import org.bson.BsonInt32;
 import org.bson.BsonInt64;
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +26,14 @@ class HistogramBucketCodecTest {
     @Test
     void shouldEncodeDecode_INT64() {
         HistogramBucket bucket = new HistogramBucket(new BsonInt64(10), new BsonInt64(34), 10);
+        byte[] data = HistogramBucketCodec.encode(bucket);
+        HistogramBucket decoded = HistogramBucketCodec.decode(data);
+        assertEquals(bucket, decoded);
+    }
+
+    @Test
+    void shouldEncodeDecode_INT32() {
+        HistogramBucket bucket = new HistogramBucket(new BsonInt32(10), new BsonInt32(34), 10);
         byte[] data = HistogramBucketCodec.encode(bucket);
         HistogramBucket decoded = HistogramBucketCodec.decode(data);
         assertEquals(bucket, decoded);

@@ -28,12 +28,16 @@ public class HistogramBucketCodec {
 
     static {
         FIXED_CAPACITY.put(BsonType.INT64, 21);
+        FIXED_CAPACITY.put(BsonType.INT32, 13);
     }
 
     private static void encodeBsonValue(ByteBuffer buffer, BsonValue value) {
         switch (value.getBsonType()) {
             case INT64 -> {
                 buffer.putLong(value.asInt64().getValue());
+            }
+            case INT32 -> {
+                buffer.putInt(value.asInt32().getValue());
             }
             default -> throw new IllegalArgumentException("Unknown BsonValue type: " + value.getBsonType());
         }
@@ -75,6 +79,17 @@ public class HistogramBucketCodec {
                 return new HistogramBucket(
                         new org.bson.BsonInt64(min),
                         new org.bson.BsonInt64(max),
+                        count
+                );
+            }
+            case INT32 -> {
+                int min = buffer.getInt();
+                int max = buffer.getInt();
+                int count = buffer.getInt();
+
+                return new HistogramBucket(
+                        new org.bson.BsonInt32(min),
+                        new org.bson.BsonInt32(max),
                         count
                 );
             }
