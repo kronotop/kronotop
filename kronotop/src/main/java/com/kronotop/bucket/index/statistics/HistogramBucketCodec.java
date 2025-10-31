@@ -16,8 +16,7 @@
 
 package com.kronotop.bucket.index.statistics;
 
-import org.bson.BsonType;
-import org.bson.BsonValue;
+import org.bson.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -90,8 +89,8 @@ public class HistogramBucketCodec {
                 int count = buffer.getInt();
 
                 return new HistogramBucket(
-                        new org.bson.BsonInt64(min),
-                        new org.bson.BsonInt64(max),
+                        new BsonInt64(min),
+                        new BsonInt64(max),
                         count
                 );
             }
@@ -101,8 +100,8 @@ public class HistogramBucketCodec {
                 int count = buffer.getInt();
 
                 return new HistogramBucket(
-                        new org.bson.BsonInt32(min),
-                        new org.bson.BsonInt32(max),
+                        new BsonInt32(min),
+                        new BsonInt32(max),
                         count
                 );
             }
@@ -112,8 +111,8 @@ public class HistogramBucketCodec {
                 int count = buffer.getInt();
 
                 return new HistogramBucket(
-                        new org.bson.BsonDouble(min),
-                        new org.bson.BsonDouble(max),
+                        new BsonDouble(min),
+                        new BsonDouble(max),
                         count
                 );
             }
@@ -123,8 +122,8 @@ public class HistogramBucketCodec {
                 int count = buffer.getInt();
 
                 return new HistogramBucket(
-                        new org.bson.BsonDateTime(min),
-                        new org.bson.BsonDateTime(max),
+                        new BsonDateTime(min),
+                        new BsonDateTime(max),
                         count
                 );
             }
@@ -136,8 +135,8 @@ public class HistogramBucketCodec {
                 int count = buffer.getInt();
 
                 return new HistogramBucket(
-                        new org.bson.BsonTimestamp(minTime, minInc),
-                        new org.bson.BsonTimestamp(maxTime, maxInc),
+                        new BsonTimestamp(minTime, minInc),
+                        new BsonTimestamp(maxTime, maxInc),
                         count
                 );
             }
