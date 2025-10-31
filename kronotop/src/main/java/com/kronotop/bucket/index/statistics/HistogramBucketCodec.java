@@ -56,6 +56,11 @@ public class HistogramBucketCodec {
                 buffer.putShort((short) data.length);
                 buffer.put(data);
             }
+            case STRING -> {
+                byte[] data = value.asString().getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                buffer.putShort((short) data.length);
+                buffer.put(data);
+            }
             default -> throw new IllegalArgumentException("Unknown BsonValue type: " + value.getBsonType());
         }
     }
@@ -66,6 +71,12 @@ public class HistogramBucketCodec {
         if (bsonType == BsonType.BINARY) {
             int minLength = histogramBucket.min().asBinary().getData().length;
             int maxLength = histogramBucket.max().asBinary().getData().length;
+            return 1 + 2 + minLength + 2 + maxLength + 4;
+        }
+
+        if (bsonType == BsonType.STRING) {
+            int minLength = histogramBucket.min().asString().getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+            int maxLength = histogramBucket.max().asString().getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
             return 1 + 2 + minLength + 2 + maxLength + 4;
         }
 
@@ -171,6 +182,25 @@ public class HistogramBucketCodec {
                 return new HistogramBucket(
                         new BsonBinary(minData),
                         new BsonBinary(maxData),
+                        count
+                );
+            }
+            case STRING -> {
+                short minLength = buffer.getShort();
+                byte[] minData = new byte[minLength];
+                buffer.get(minData);
+                String minValue = new String(minData, java.nio.charset.StandardCharsets.UTF_8);
+
+                short maxLength = buffer.getShort();
+                byte[] maxData = new byte[maxLength];
+                buffer.get(maxData);
+                String maxValue = new String(maxData, java.nio.charset.StandardCharsets.UTF_8);
+
+                int count = buffer.getInt();
+
+                return new HistogramBucket(
+                        new BsonString(minValue),
+                        new BsonString(maxValue),
                         count
                 );
             }

@@ -71,4 +71,12 @@ class HistogramBucketCodecTest {
         HistogramBucket decoded = HistogramBucketCodec.decode(data);
         assertEquals(bucket, decoded);
     }
+
+    @Test
+    void shouldEncodeDecode_STRING() {
+        HistogramBucket bucket = new HistogramBucket(new BsonString("apple"), new BsonString("zebra"), 10);
+        byte[] data = HistogramBucketCodec.encode(bucket);
+        HistogramBucket decoded = HistogramBucketCodec.decode(data);
+        assertEquals(bucket, decoded);
+    }
 }
