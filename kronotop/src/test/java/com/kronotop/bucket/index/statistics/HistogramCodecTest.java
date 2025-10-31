@@ -17,18 +17,42 @@
 package com.kronotop.bucket.index.statistics;
 
 import org.bson.BsonInt64;
+import org.bson.BsonString;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class HistogramCodecTest {
     @Test
-    void test() {
+    void shouldEncodeDecode_INT64() {
         List<HistogramBucket> histogram = List.of(
                 new HistogramBucket(new BsonInt64(10), new BsonInt64(34), 10),
                 new HistogramBucket(new BsonInt64(35), new BsonInt64(45), 10)
         );
-        System.out.println(Arrays.toString(HistogramCodec.encode(histogram, System.currentTimeMillis())));
+        byte[] encoded = HistogramCodec.encode(histogram, 12345L);
+        List<HistogramBucket> decoded = HistogramCodec.decode(encoded);
+        assertEquals(histogram, decoded);
+    }
+
+    @Test
+    void shouldEncodeDecode_STRING() {
+        List<HistogramBucket> histogram = List.of(
+                new HistogramBucket(new BsonString("apple"), new BsonString("banana"), 5),
+                new HistogramBucket(new BsonString("cherry"), new BsonString("date"), 8),
+                new HistogramBucket(new BsonString("elderberry"), new BsonString("fig"), 12)
+        );
+        byte[] encoded = HistogramCodec.encode(histogram, 67890L);
+        List<HistogramBucket> decoded = HistogramCodec.decode(encoded);
+        assertEquals(histogram, decoded);
+    }
+
+    @Test
+    void shouldEncodeDecodeEmptyHistogram() {
+        List<HistogramBucket> histogram = List.of();
+        byte[] encoded = HistogramCodec.encode(histogram, 0L);
+        List<HistogramBucket> decoded = HistogramCodec.decode(encoded);
+        assertEquals(histogram, decoded);
     }
 }

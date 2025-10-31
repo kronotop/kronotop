@@ -17,6 +17,7 @@
 package com.kronotop.bucket.index.statistics;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 
 public class HistogramCodec {
@@ -41,5 +42,41 @@ public class HistogramCodec {
             buffer.put(CRLF);
         }
         return buffer.array();
+    }
+
+    public static List<HistogramBucket> decode(byte[] data) {
+        ByteBuffer buffer = ByteBuffer.wrap(data);
+        buffer.getLong(); // Swallow version
+
+        List<HistogramBucket> histogram = new ArrayList<>();
+        while (buffer.hasRemaining()) {
+            int start = buffer.position();
+            int crlfPosition = findCRLF(buffer, start);
+
+            if (crlfPosition == -1) {
+                break;
+            }
+
+            int length = crlfPosition - start;
+            byte[] bucketData = new byte[length];
+            buffer.get(bucketData);
+
+            HistogramBucket bucket = HistogramBucketCodec.decode(bucketData);
+            histogram.add(bucket);
+
+            buffer.get(); // Skip CR
+            buffer.get(); // Skip LF
+        }
+
+        return histogram;
+    }
+
+    private static int findCRLF(ByteBuffer buffer, int start) {
+        for (int i = start; i < buffer.limit() - 1; i++) {
+            if (buffer.get(i) == CRLF[0] && buffer.get(i + 1) == CRLF[1]) {
+                return i;
+            }
+        }
+        return -1;
     }
 }
