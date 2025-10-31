@@ -51,8 +51,25 @@ public class HistogramBucketCodec {
                 buffer.putInt(value.asTimestamp().getTime());
                 buffer.putInt(value.asTimestamp().getInc());
             }
+            case BINARY -> {
+                byte[] data = value.asBinary().getData();
+                buffer.putShort((short) data.length);
+                buffer.put(data);
+            }
             default -> throw new IllegalArgumentException("Unknown BsonValue type: " + value.getBsonType());
         }
+    }
+
+    private static int calculateCapacity(HistogramBucket histogramBucket) {
+        BsonType bsonType = histogramBucket.min().getBsonType();
+
+        if (bsonType == BsonType.BINARY) {
+            int minLength = histogramBucket.min().asBinary().getData().length;
+            int maxLength = histogramBucket.max().asBinary().getData().length;
+            return 1 + 2 + minLength + 2 + maxLength + 4;
+        }
+
+        return FIXED_CAPACITY.get(bsonType);
     }
 
     public static byte[] encode(HistogramBucket histogramBucket) {
@@ -61,7 +78,7 @@ public class HistogramBucketCodec {
         }
 
         BsonType bsonType = histogramBucket.min().getBsonType();
-        int capacity = FIXED_CAPACITY.get(bsonType);
+        int capacity = calculateCapacity(histogramBucket);
         ByteBuffer buffer = ByteBuffer.allocate(capacity).order(ByteOrder.LITTLE_ENDIAN);
 
         buffer.put((byte) bsonType.getValue());
@@ -137,6 +154,23 @@ public class HistogramBucketCodec {
                 return new HistogramBucket(
                         new BsonTimestamp(minTime, minInc),
                         new BsonTimestamp(maxTime, maxInc),
+                        count
+                );
+            }
+            case BINARY -> {
+                short minLength = buffer.getShort();
+                byte[] minData = new byte[minLength];
+                buffer.get(minData);
+
+                short maxLength = buffer.getShort();
+                byte[] maxData = new byte[maxLength];
+                buffer.get(maxData);
+
+                int count = buffer.getInt();
+
+                return new HistogramBucket(
+                        new BsonBinary(minData),
+                        new BsonBinary(maxData),
                         count
                 );
             }

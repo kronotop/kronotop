@@ -16,11 +16,7 @@
 
 package com.kronotop.bucket.index.statistics;
 
-import org.bson.BsonDateTime;
-import org.bson.BsonDouble;
-import org.bson.BsonInt32;
-import org.bson.BsonInt64;
-import org.bson.BsonTimestamp;
+import org.bson.*;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -61,6 +57,16 @@ class HistogramBucketCodecTest {
     @Test
     void shouldEncodeDecode_TIMESTAMP() {
         HistogramBucket bucket = new HistogramBucket(new BsonTimestamp(1609459200, 1), new BsonTimestamp(1640995200, 5), 10);
+        byte[] data = HistogramBucketCodec.encode(bucket);
+        HistogramBucket decoded = HistogramBucketCodec.decode(data);
+        assertEquals(bucket, decoded);
+    }
+
+    @Test
+    void shouldEncodeDecode_BINARY() {
+        byte[] minBytes = {0x01, 0x02, 0x03, 0x04, 0x05};
+        byte[] maxBytes = {0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F};
+        HistogramBucket bucket = new HistogramBucket(new BsonBinary(minBytes), new BsonBinary(maxBytes), 10);
         byte[] data = HistogramBucketCodec.encode(bucket);
         HistogramBucket decoded = HistogramBucketCodec.decode(data);
         assertEquals(bucket, decoded);
