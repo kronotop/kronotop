@@ -25,16 +25,19 @@ public class IndexStatsTask extends IndexMaintenanceTask {
     private final String namespace;
     private final String bucket;
     private final long indexId;
+    private final int shardId;
 
     @JsonCreator
     public IndexStatsTask(
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
-            @JsonProperty("indexId") long indexId) {
+            @JsonProperty("indexId") long indexId,
+            @JsonProperty("shardId") int shardId) {
         super(IndexMaintenanceTaskKind.STATS);
         this.namespace = namespace;
         this.bucket = bucket;
         this.indexId = indexId;
+        this.shardId = shardId;
     }
 
     public String getNamespace() {
@@ -47,5 +50,9 @@ public class IndexStatsTask extends IndexMaintenanceTask {
 
     public long getIndexId() {
         return indexId;
+    }
+
+    public int getShardId() {
+        return shardId;
     }
 }

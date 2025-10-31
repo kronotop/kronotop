@@ -351,6 +351,7 @@ public class BucketMetadataUtil {
                 cardinality = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
             } else if (magic == BucketMetadataMagic.HISTOGRAM.getLong()) {
                 // Decode histogram
+                // TODO:
             }
         }
         stats.put(currentId, new IndexStatistics(cardinality));

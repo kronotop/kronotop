@@ -26,6 +26,8 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.index.statistics.IndexStatsTask;
+import com.kronotop.bucket.index.statistics.IndexStatsTaskState;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import io.github.resilience4j.retry.Retry;
@@ -287,6 +289,21 @@ public class IndexMaintenanceTaskSweeper {
         }
     }
 
+    private void sweepStatsTask(Transaction tr, Versionstamp taskId, byte[] taskDef) {
+        IndexStatsTask task = JSONUtil.readValue(taskDef, IndexStatsTask.class);
+        BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        if (index == null) {
+            dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.STATS);
+        } else {
+            DirectorySubspace taskSubspace = getOrOpenTaskSubspace(task.getShardId());
+            IndexStatsTaskState state = IndexStatsTaskState.load(tr, taskSubspace, taskId);
+            if (state.status() == IndexTaskStatus.COMPLETED || state.status() == IndexTaskStatus.STOPPED) {
+                dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.STATS);
+            }
+        }
+    }
+
     /**
      * Dispatches task cleanup to the appropriate handler based on task kind.
      *
@@ -309,6 +326,9 @@ public class IndexMaintenanceTaskSweeper {
                     break;
                 case IndexMaintenanceTaskKind.DROP:
                     sweepDropTask(tr, taskId, definition);
+                    break;
+                case IndexMaintenanceTaskKind.STATS:
+                    sweepStatsTask(tr, taskId, definition);
                     break;
                 default:
                     throw new IllegalStateException("Unknown index maintenance task kind: " + base.getKind());
@@ -355,8 +375,7 @@ public class IndexMaintenanceTaskSweeper {
      */
     private void dropIndexMaintenanceTask(Transaction tr, Versionstamp taskId, IndexMaintenanceTaskKind... kinds) {
         for (int shardId = 0; shardId < numShards; shardId++) {
-            DirectorySubspace subspace = subspaces.computeIfAbsent(shardId,
-                    (id) -> IndexTaskUtil.openTasksSubspace(context, id));
+            DirectorySubspace subspace = getOrOpenTaskSubspace(shardId);
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
                 continue;
@@ -367,5 +386,10 @@ public class IndexMaintenanceTaskSweeper {
                 TaskStorage.drop(tr, subspace, taskId);
             }
         }
+    }
+
+    private DirectorySubspace getOrOpenTaskSubspace(int shardId) {
+        return subspaces.computeIfAbsent(shardId,
+                (id) -> IndexTaskUtil.openTasksSubspace(context, id));
     }
 }

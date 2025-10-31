@@ -16,21 +16,29 @@
 
 package com.kronotop.bucket.index.statistics;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class IndexStatsRoutineTest extends BaseBucketHandlerTest {
 
@@ -44,7 +52,7 @@ class IndexStatsRoutineTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test() throws InterruptedException {
+    void shouldBuildHistogramWithWhenNoHintFound() {
         IndexDefinition definition = IndexDefinition.create(
                 "test-index",
                 "numeric",
@@ -53,16 +61,26 @@ class IndexStatsRoutineTest extends BaseBucketHandlerTest {
         );
 
         List<byte[]> documents = makeDummyDocumentInt(1000);
-        Map<String, byte[]> documentsWithVersionstamp = insertDocuments(documents, 50);
-        System.out.println(documentsWithVersionstamp.size());
+        insertDocuments(documents, 50);
 
         createIndexThenWaitForReadiness(definition);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        IndexStatsTask task = new IndexStatsTask(TEST_NAMESPACE, TEST_BUCKET, definition.id());
+        IndexStatsTask task = new IndexStatsTask(TEST_NAMESPACE, TEST_BUCKET, definition.id(), SHARD_ID);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
-        System.out.println(task);
-        System.out.println(taskId);
-        Thread.sleep(3000);
+
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
+            }
+        });
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
+            byte[] value = tr.get(key).join();
+            List<HistogramBucket> histogram = HistogramCodec.decode(value);
+            assertFalse(histogram.isEmpty());
+        }
     }
 }

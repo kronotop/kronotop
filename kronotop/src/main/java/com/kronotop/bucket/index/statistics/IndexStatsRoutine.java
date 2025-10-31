@@ -28,15 +28,12 @@ import com.kronotop.Context;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.RetryMethods;
+import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
-import com.kronotop.internal.JSONUtil;
-import org.bson.BsonArray;
-import org.bson.BsonInt32;
+import com.kronotop.bucket.index.maintenance.IndexTaskStatus;
+import io.github.resilience4j.retry.Retry;
 import org.bson.BsonValue;
-import org.bson.internal.BsonUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -95,7 +92,7 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         }
     }
 
-    private void fallback(Index index) {
+    private void constructHistogramFromEntries(BucketMetadata metadata, Index index) {
         List<Object> left = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT / 2, false);
         List<Object> right = aggregateKeysFromIndex(index, FALLBACK_INSPECTION_LIMIT / 2, true);
 
@@ -103,27 +100,46 @@ public class IndexStatsRoutine extends AbstractIndexMaintenanceRoutine {
         filterBsonValuesByKind(index, left, filtered);
         filterBsonValuesByKind(index, right, filtered);
 
+        buildAndSaveHistogram(metadata, index, filtered);
+    }
+
+    private void buildAndSaveHistogram(BucketMetadata metadata, Index index, TreeSet<BsonValue> filtered) {
         List<HistogramBucket> histogram = HistogramUtils.buildHistogram(filtered);
-        byte[] encoded = JSONUtil.writeValueAsBytes(histogram.get(0));
-        System.out.println(new String(encoded));
-        System.out.println(JSONUtil.readValue(encoded, HistogramBucket.class));
+        byte[] encodedHistogram = HistogramCodec.encode(histogram, context.now());
+
+        Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+        retry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, index.subspace());
+                if (definition == null) {
+                    // Index is dropped and flushed
+                    return;
+                }
+                if (definition.status() != IndexStatus.READY) {
+                    // Index is probably dropped
+                    return;
+                }
+                byte[] histogramKey = IndexUtil.histogramKey(metadata.subspace(), index.definition().id());
+                tr.set(histogramKey, encodedHistogram);
+                IndexStatsTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
+                tr.commit().join();
+            }
+        });
     }
 
     @Override
     public void start() {
-        Index index = context.getFoundationDB().run(tr -> {
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-            return metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READ);
-        });
+        BucketMetadata metadata = context.getFoundationDB().run(tr ->
+                BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
+        );
+        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READ);
         if (index == null) {
             return;
         }
-
         List<Versionstamp> versionstamps = collectStatHints(index);
-        System.out.println(versionstamps);
         if (versionstamps.isEmpty()) {
             // No entry found in the STAT_HINTS subspace
-            fallback(index);
+            constructHistogramFromEntries(metadata, index);
         }
     }
 }

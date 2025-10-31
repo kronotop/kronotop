@@ -243,6 +243,16 @@ public class IndexUtil {
         return bucketMetadataSubspace.pack(tuple);
     }
 
+    public static byte[] histogramKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
+        Tuple tuple = Tuple.from(
+                BucketMetadataMagic.HEADER.getValue(),
+                BucketMetadataMagic.INDEX_STATISTICS.getValue(),
+                indexId,
+                BucketMetadataMagic.HISTOGRAM.getValue()
+        );
+        return bucketMetadataSubspace.pack(tuple);
+    }
+
     /**
      * Updates the cardinality value of a specified index within the given bucket metadata subspace.
      * This method modifies the cardinality metadata in the database by applying the specified delta.
