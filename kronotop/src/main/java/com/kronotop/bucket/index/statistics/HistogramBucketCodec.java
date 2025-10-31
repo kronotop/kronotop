@@ -22,6 +22,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.EnumMap;
 
+/**
+ * Encodes and decodes histogram buckets to and from byte arrays for storage in FoundationDB.
+ * Supports both fixed-size types (INT32, INT64, DOUBLE, DATE_TIME, TIMESTAMP) and
+ * variable-size types (BINARY, STRING) with length prefixes.
+ */
 public class HistogramBucketCodec {
     private static final EnumMap<BsonType, Integer> FIXED_CAPACITY = new EnumMap<>(BsonType.class);
 
@@ -33,6 +38,14 @@ public class HistogramBucketCodec {
         FIXED_CAPACITY.put(BsonType.TIMESTAMP, 21);
     }
 
+    /**
+     * Encodes a BSON value into the provided buffer based on its type.
+     * Variable-size types (BINARY, STRING) include a 2-byte length prefix.
+     *
+     * @param buffer the byte buffer to write to
+     * @param value the BSON value to encode
+     * @throws IllegalArgumentException if the BSON type is not supported
+     */
     private static void encodeBsonValue(ByteBuffer buffer, BsonValue value) {
         switch (value.getBsonType()) {
             case INT64 -> buffer.putLong(value.asInt64().getValue());
@@ -57,6 +70,14 @@ public class HistogramBucketCodec {
         }
     }
 
+    /**
+     * Calculates the buffer capacity required to encode a histogram bucket.
+     * Fixed-size types use pre-calculated capacities, while variable-size types
+     * (BINARY, STRING) calculate based on actual data length.
+     *
+     * @param histogramBucket the histogram bucket to calculate capacity for
+     * @return the required buffer capacity in bytes
+     */
     private static int calculateCapacity(HistogramBucket histogramBucket) {
         BsonType bsonType = histogramBucket.min().getBsonType();
 
@@ -77,6 +98,14 @@ public class HistogramBucketCodec {
         return FIXED_CAPACITY.get(bsonType);
     }
 
+    /**
+     * Encodes a histogram bucket into a byte array using little-endian byte order.
+     * The encoded format is: type byte, min value, max value, count.
+     *
+     * @param histogramBucket the histogram bucket to encode
+     * @return the encoded byte array
+     * @throws IllegalStateException if min and max have different BSON types
+     */
     public static byte[] encode(HistogramBucket histogramBucket) {
         if (histogramBucket.min().getBsonType() != histogramBucket.max().getBsonType()) {
             throw new IllegalStateException("min and max must have the same BsonType");
@@ -94,6 +123,14 @@ public class HistogramBucketCodec {
         return buffer.array();
     }
 
+    /**
+     * Decodes a byte array into a histogram bucket using little-endian byte order.
+     * Reads the type byte first, then decodes min, max, and count accordingly.
+     *
+     * @param input the byte array to decode
+     * @return the decoded histogram bucket
+     * @throws IllegalArgumentException if the BSON type is unknown or unsupported
+     */
     public static HistogramBucket decode(byte[] input) {
         ByteBuffer buffer = ByteBuffer.wrap(input);
         buffer.order(ByteOrder.LITTLE_ENDIAN);
