@@ -55,4 +55,15 @@ class HistogramCodecTest {
         List<HistogramBucket> decoded = HistogramCodec.decode(encoded);
         assertEquals(histogram, decoded);
     }
+
+    @Test
+    void shouldReadVersion() {
+        List<HistogramBucket> histogram = List.of(
+                new HistogramBucket(new BsonInt64(10), new BsonInt64(34), 10)
+        );
+        long expectedVersion = 98765L;
+        byte[] encoded = HistogramCodec.encode(histogram, expectedVersion);
+        long actualVersion = HistogramCodec.readVersion(encoded);
+        assertEquals(expectedVersion, actualVersion);
+    }
 }

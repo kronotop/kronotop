@@ -44,6 +44,11 @@ public class HistogramCodec {
         return buffer.array();
     }
 
+    public static long readVersion(byte[] data) {
+        ByteBuffer buffer = ByteBuffer.wrap(data);
+        return buffer.getLong();
+    }
+
     public static List<HistogramBucket> decode(byte[] data) {
         ByteBuffer buffer = ByteBuffer.wrap(data);
         buffer.getLong(); // Swallow version
