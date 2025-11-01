@@ -62,8 +62,9 @@ public abstract class AbstractIndexMaintenanceRoutine implements IndexMaintenanc
      */
     protected void refreshBucketMetadata(String namespace, String bucket, long indexId) throws InterruptedException {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            // Open the BucketMetadata and refresh the caches
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, bucket);
+            // Open the BucketMetadata and refresh the caches, forceOpen always loads all bucket and
+            // index metadata from FDB using the given transaction.
+            BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, namespace, bucket);
             Index index = metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.ALL);
             if (index == null) {
                 throw new IndexMaintenanceRoutineException("index with id '" + indexId + "' could not be found");

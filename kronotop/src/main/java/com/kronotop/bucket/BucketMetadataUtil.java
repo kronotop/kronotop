@@ -284,6 +284,20 @@ public class BucketMetadataUtil {
     }
 
     /**
+     * Forces the opening of a bucket by its namespace and bucket name.
+     * This method bypasses certain checks to ensure the bucket is opened unconditionally.
+     *
+     * @param context the execution context required for the operation
+     * @param tr the transaction to be used during the operation
+     * @param namespace the namespace where the bucket resides
+     * @param bucket the name of the bucket to be forcefully opened
+     * @return the metadata of the bucket that was opened
+     */
+    public static BucketMetadata forceOpen(Context context, Transaction tr, String namespace, String bucket) {
+        return open_internal(context, tr, namespace, bucket);
+    }
+
+    /**
      * Reads the version of the bucket metadata stored in the database within the specified directory subspace.
      * The method retrieves the version as a long value stored using little-endian byte order.
      *
