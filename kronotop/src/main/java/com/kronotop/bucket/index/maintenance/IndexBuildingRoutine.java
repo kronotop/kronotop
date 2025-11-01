@@ -26,6 +26,7 @@ import com.kronotop.Context;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
@@ -198,7 +199,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
      *                              in refreshAndLoadBucketMetadata()
      */
     private void findOutBoundaries() throws InterruptedException {
-        IndexBuildingTaskState state = context.getFoundationDB().run(tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
+        IndexBuildingTaskState state = TransactionUtils.execute(context, tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
         if (state.cursorVersionstamp() != null && state.highestVersionstamp() != null) {
             return;
         }
@@ -208,7 +209,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
         refreshBucketMetadata(task.getNamespace(), task.getBucket(), task.getIndexId());
 
         // Fetch the up-to-date version of BucketMetadata
-        BucketMetadata metadata = context.getFoundationDB().run(
+        BucketMetadata metadata = TransactionUtils.execute(context,
                 tr -> BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
         );
         Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.ALL);
@@ -270,7 +271,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
         BucketShard shard = service.getShard(shardId);
         while (!stopped) {
             // Fetch the metadata with an independent TX due to prevent conflicts during commit time.
-            BucketMetadata metadata = context.getFoundationDB().run(tr ->
+            BucketMetadata metadata = TransactionUtils.execute(context, tr ->
                     BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
             );
             try (Transaction tr = context.getFoundationDB().createTransaction()) {

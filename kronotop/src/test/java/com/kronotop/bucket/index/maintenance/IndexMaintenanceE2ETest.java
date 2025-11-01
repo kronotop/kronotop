@@ -27,6 +27,7 @@ import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
 import org.junit.jupiter.api.AfterAll;
@@ -94,7 +95,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
             bgFuture.get();
 
-            DirectorySubspace subspace = context.getFoundationDB().run(tr ->
+            DirectorySubspace subspace = TransactionUtils.execute(context, tr ->
                     IndexUtil.open(tr, metadata.subspace(), definition.name()));
             await().atMost(Duration.ofSeconds(15)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -139,7 +140,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                     IndexStatus.WAITING
             );
 
-            context.getFoundationDB().run(tr -> {
+            TransactionUtils.executeThenCommit(context, tr -> {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
                 return null;
@@ -148,7 +149,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
             BucketMetadata finalMetadata = metadata;
-            context.getFoundationDB().run(tr -> {
+            TransactionUtils.executeThenCommit(context, tr -> {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 IndexUtil.drop(tx, finalMetadata, definition.name());
                 return null;

@@ -26,6 +26,7 @@ import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import io.github.resilience4j.retry.Retry;
@@ -110,7 +111,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
             return;
         }
 
-        IndexTaskStatus status = context.getFoundationDB().run(tr -> {
+        IndexTaskStatus status = TransactionUtils.executeThenCommit(context, tr -> {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
                 // task has dropped

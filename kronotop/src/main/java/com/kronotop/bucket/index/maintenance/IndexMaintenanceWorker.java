@@ -24,6 +24,7 @@ import com.kronotop.bucket.index.statistics.IndexStatsRoutine;
 import com.kronotop.bucket.index.statistics.IndexStatsTask;
 import com.kronotop.bucket.index.statistics.IndexStatsTaskState;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.task.TaskStorage;
 
 import java.util.function.Consumer;
@@ -62,7 +63,7 @@ public class IndexMaintenanceWorker implements Runnable {
         this.taskId = taskId;
         this.completionHook = completionHook;
 
-        byte[] definition = context.getFoundationDB().run(tr -> TaskStorage.getDefinition(tr, subspace, taskId));
+        byte[] definition = TransactionUtils.execute(context, tr -> TaskStorage.getDefinition(tr, subspace, taskId));
         IndexMaintenanceTask base = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
         switch (base.getKind()) {
             case BUILD -> {
@@ -84,15 +85,15 @@ public class IndexMaintenanceWorker implements Runnable {
     private IndexTaskStatus getRoutineStatus() {
         return switch (routine) {
             case IndexBuildingRoutine ignored -> {
-                IndexBuildingTaskState state = context.getFoundationDB().run(tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
+                IndexBuildingTaskState state = TransactionUtils.execute(context, tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
                 yield state.status();
             }
             case IndexDropRoutine ignored -> {
-                IndexDropTaskState state = context.getFoundationDB().run(tr -> IndexDropTaskState.load(tr, subspace, taskId));
+                IndexDropTaskState state = TransactionUtils.execute(context, tr -> IndexDropTaskState.load(tr, subspace, taskId));
                 yield state.status();
             }
             case IndexStatsRoutine ignored -> {
-                IndexStatsTaskState state = context.getFoundationDB().run(tr -> IndexStatsTaskState.load(tr, subspace, taskId));
+                IndexStatsTaskState state = TransactionUtils.execute(context, tr -> IndexStatsTaskState.load(tr, subspace, taskId));
                 yield state.status();
             }
             default -> throw new IllegalStateException("Unexpected value: " + routine);
