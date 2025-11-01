@@ -69,14 +69,14 @@ import java.util.List;
  * @see IndexBuildingTask
  * @see IndexBuildingTaskState
  */
-public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuildingRoutine.class);
+public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexBuildingRoutine.class);
     private final static int INDEX_SCAN_BATCH_SIZE = 100;
     private final int shardId;
     private final IndexBuildingTask task;
     private final BucketService service;
 
-    public BackgroundIndexBuildingRoutine(
+    public IndexBuildingRoutine(
             Context context,
             DirectorySubspace subspace,
             int shardId,

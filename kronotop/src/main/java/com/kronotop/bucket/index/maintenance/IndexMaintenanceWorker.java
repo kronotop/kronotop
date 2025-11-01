@@ -67,7 +67,7 @@ public class IndexMaintenanceWorker implements Runnable {
         switch (base.getKind()) {
             case BUILD -> {
                 IndexBuildingTask task = JSONUtil.readValue(definition, IndexBuildingTask.class);
-                this.routine = new BackgroundIndexBuildingRoutine(context, subspace, shardId, taskId, task);
+                this.routine = new IndexBuildingRoutine(context, subspace, shardId, taskId, task);
             }
             case DROP -> {
                 IndexDropTask task = JSONUtil.readValue(definition, IndexDropTask.class);
@@ -83,7 +83,7 @@ public class IndexMaintenanceWorker implements Runnable {
 
     private IndexTaskStatus getRoutineStatus() {
         return switch (routine) {
-            case BackgroundIndexBuildingRoutine ignored -> {
+            case IndexBuildingRoutine ignored -> {
                 IndexBuildingTaskState state = context.getFoundationDB().run(tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
                 yield state.status();
             }
