@@ -24,10 +24,12 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.maintenance.*;
+import com.kronotop.bucket.index.statistics.IndexAnalyzeTask;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 
@@ -44,8 +46,11 @@ import java.util.concurrent.CompletionException;
  * for reading the global index version, creating indexes, and opening existing index subspaces.
  */
 public class IndexUtil {
+    public static final byte[] NULL_BYTES = new byte[]{};
     public static final byte[] POSITIVE_DELTA_ONE = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1L, little-endian
     public static final byte[] NEGATIVE_DELTA_ONE = new byte[]{-1, -1, -1, -1, -1, -1, -1, -1}; // -1L, little-endian
+
+    private static final Random random = new Random(System.nanoTime());
 
     /**
      * Creates a new directory subspace for an index within the bucket metadata subspace.
@@ -102,6 +107,15 @@ public class IndexUtil {
             // create tasks in the task subspaces with the same ID
             TaskStorage.create(tx.tr(), userVersion, taskSubspace, encodedTask);
         }
+
+        // Create the task back pointer for easy inspection
+        byte[] taskId = indexSubspace.packWithVersionstamp(
+                Tuple.from(IndexSubspaceMagic.TASKS.getValue(), Versionstamp.incomplete(userVersion))
+        );
+        tx.tr().mutate(MutationType.SET_VERSIONSTAMPED_KEY, taskId, NULL_BYTES);
+
+        // Created a secondary index, publish a message to update the already opened BucketMetadata instances, if required.
+        BucketMetadataUtil.publishBucketMetadataEvent(tx, bucketMetadata);
 
         return indexSubspace;
     }
@@ -233,12 +247,22 @@ public class IndexUtil {
      * @param indexId                the unique identifier of the index
      * @return the byte array key for accessing the index's cardinality value
      */
-    public static byte[] getCardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
+    public static byte[] cardinalityKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
         Tuple tuple = Tuple.from(
                 BucketMetadataMagic.HEADER.getValue(),
                 BucketMetadataMagic.INDEX_STATISTICS.getValue(),
-                BucketMetadataMagic.INDEX_CARDINALITY.getValue(),
-                indexId
+                indexId,
+                BucketMetadataMagic.CARDINALITY.getValue()
+        );
+        return bucketMetadataSubspace.pack(tuple);
+    }
+
+    public static byte[] histogramKey(DirectorySubspace bucketMetadataSubspace, long indexId) {
+        Tuple tuple = Tuple.from(
+                BucketMetadataMagic.HEADER.getValue(),
+                BucketMetadataMagic.INDEX_STATISTICS.getValue(),
+                indexId,
+                BucketMetadataMagic.HISTOGRAM.getValue()
         );
         return bucketMetadataSubspace.pack(tuple);
     }
@@ -253,7 +277,7 @@ public class IndexUtil {
      * @param delta                  the byte array representing the delta to be applied (positive or negative)
      */
     private static void mutateCardinality(Transaction tr, DirectorySubspace bucketMetadataSubspace, long indexId, byte[] delta) {
-        byte[] key = getCardinalityKey(bucketMetadataSubspace, indexId);
+        byte[] key = cardinalityKey(bucketMetadataSubspace, indexId);
         tr.mutate(MutationType.ADD, key, delta);
     }
 
@@ -299,7 +323,7 @@ public class IndexUtil {
         tr.clear(indexDefinitionKey);
 
         // Remove cardinality
-        byte[] cardinalityKey = getCardinalityKey(bucketMetadataSubspace, definition.id());
+        byte[] cardinalityKey = cardinalityKey(bucketMetadataSubspace, definition.id());
         tr.clear(cardinalityKey);
 
         // Clear the index
@@ -308,6 +332,28 @@ public class IndexUtil {
         subpath.add(definition.name());
         DirectoryLayer.getDefault().remove(tr, subpath).join();
         BucketMetadataUtil.increaseVersion(tr, bucketMetadataSubspace, POSITIVE_DELTA_ONE);
+    }
+
+    /**
+     * Validates the kind of a task by comparing it with the expected kind.
+     *
+     * @param tr           the transaction used to interact with the database
+     * @param taskSubspace the subspace in the database associated with the task
+     * @param taskId       the unique identifier (versionstamp) for the task
+     * @param kind         the expected kind of the task
+     * @return true if the task kind matches the expected kind, false otherwise
+     */
+    public static boolean validateTaskKind(Transaction tr,
+                                           DirectorySubspace taskSubspace,
+                                           Versionstamp taskId,
+                                           IndexMaintenanceTaskKind kind
+    ) {
+        byte[] base = TaskStorage.getDefinition(tr, taskSubspace, taskId);
+        if (base == null) {
+            return false;
+        }
+        IndexMaintenanceTask baseTask = JSONUtil.readValue(base, IndexMaintenanceTask.class);
+        return baseTask.getKind() == kind;
     }
 
     /**
@@ -336,20 +382,61 @@ public class IndexUtil {
         DirectorySubspace indexSubspace = IndexUtil.open(tx.tr(), metadata.subspace(), name);
         IndexDefinition latestDef = IndexUtil.loadIndexDefinition(tx.tr(), indexSubspace);
         IndexUtil.saveIndexDefinition(tx.tr(), metadata, latestDef.updateStatus(IndexStatus.DROPPED));
+        BucketMetadataUtil.publishBucketMetadataEvent(tx, metadata);
 
         IndexDropTask task = new IndexDropTask(metadata.namespace(), metadata.name(), latestDef.id());
         byte[] definition = JSONUtil.writeValueAsBytes(task);
 
         BucketService service = tx.context().getService(BucketService.NAME);
 
-        Random random = new Random();
         int shardId = random.nextInt(service.getNumberOfShards());
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);
+        // Mark the running BUILD tasks as STOPPED, if there is any.
         TaskStorage.tasks(tx.tr(), taskSubspace, (taskId) -> {
-            IndexBuildingTaskState.setStatus(tx.tr(), taskSubspace, taskId, IndexTaskStatus.STOPPED);
+            if (validateTaskKind(tx.tr(), taskSubspace, taskId, IndexMaintenanceTaskKind.BUILD)) {
+                IndexBuildingTaskState.setStatus(tx.tr(), taskSubspace, taskId, IndexTaskStatus.STOPPED);
+            }
             return true;
         });
-        TaskStorage.create(tx.tr(), tx.getAndIncreaseUserVersion(), taskSubspace, definition);
+        int userVersion = tx.getAndIncreaseUserVersion();
+        TaskStorage.create(tx.tr(), userVersion, taskSubspace, definition);
+
+        byte[] taskId = indexSubspace.packWithVersionstamp(
+                Tuple.from(IndexSubspaceMagic.TASKS.getValue(), Versionstamp.incomplete(userVersion))
+        );
+        tx.tr().mutate(MutationType.SET_VERSIONSTAMPED_KEY, taskId, NULL_BYTES);
+
+        TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
+    }
+
+    /**
+     * Initiates asynchronous statistical analysis of an index to collect cardinality
+     * and histogram data for query optimization.
+     *
+     * @param tx       the transactional context
+     * @param metadata the bucket metadata containing the index
+     * @param name     the name of the index to analyze
+     * @throws NoSuchIndexException if the specified index does not exist
+     */
+    public static void analyze(TransactionalContext tx, BucketMetadata metadata, String name) {
+        DirectorySubspace indexSubspace = IndexUtil.open(tx.tr(), metadata.subspace(), name);
+        IndexDefinition definition = IndexUtil.loadIndexDefinition(tx.tr(), indexSubspace);
+
+        BucketService service = tx.context().getService(BucketService.NAME);
+        int shardId = random.nextInt(service.getNumberOfShards());
+
+        IndexAnalyzeTask task = new IndexAnalyzeTask(metadata.namespace(), metadata.name(), definition.id(), shardId);
+        byte[] encodedTask = JSONUtil.writeValueAsBytes(task);
+
+        int userVersion = tx.getAndIncreaseUserVersion();
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);
+        TaskStorage.create(tx.tr(), userVersion, taskSubspace, encodedTask);
+
+        byte[] taskId = indexSubspace.packWithVersionstamp(
+                Tuple.from(IndexSubspaceMagic.TASKS.getValue(), Versionstamp.incomplete(userVersion))
+        );
+        tx.tr().mutate(MutationType.SET_VERSIONSTAMPED_KEY, taskId, NULL_BYTES);
+
         TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
     }
 }

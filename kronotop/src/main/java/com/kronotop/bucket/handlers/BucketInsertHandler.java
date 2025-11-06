@@ -26,6 +26,7 @@ import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexBuilder;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.SelectorMatcher;
+import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.*;
@@ -92,6 +93,61 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
         return new EntriesPack(entries, documents);
     }
 
+    /**
+     * Processes and sets user-defined indexes for appended entries.
+     * This method iterates through appended entries and associated user-defined indexes,
+     * extracts values based on index definitions, and updates the indexing structure.
+     * It skips the default ID index as it is handled separately.
+     *
+     * @param tr           the transaction object used for writing data to the indexed structure
+     * @param metadata     metadata associated with the bucket, which includes index definitions
+     * @param shard        the shard to which the bucket belongs, utilized for indexing operations
+     * @param appendResult the result of the append operation containing appended entries
+     * @param pack         an {@code EntriesPack} containing the serialized entries and corresponding documents
+     */
+    private void setUserDefinedIndexes(Transaction tr,
+                                       BucketMetadata metadata,
+                                       BucketShard shard,
+                                       AppendResult appendResult,
+                                       EntriesPack pack
+    ) {
+        for (int i = 0; i < appendResult.getAppendedEntries().length; i++) {
+            AppendedEntry appendedEntry = appendResult.getAppendedEntries()[i];
+            ByteBuffer entry = pack.entries[i];
+            entry.rewind(); // ready to read the document again
+
+            for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+                // Skip the default ID index as it's already handled above
+                if (index.definition().id() == DefaultIndexDefinition.ID.id()) {
+                    continue;
+                }
+
+                // Every insert produces an index entry. Missing values and explicit nulls are both
+                // represented as null in the index. Non-null values are converted to the target type;
+                // if conversion fails due to a type mismatch, the entry is skipped.
+                Object indexValue = null;
+                BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), entry);
+                if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+                    indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
+                    if (indexValue == null) {
+                        // Type mismatch, continue
+                        continue;
+                    }
+                }
+
+                IndexBuilder.setIndexEntry(
+                        tr,
+                        index.definition(),
+                        shard.id(),
+                        metadata,
+                        indexValue,
+                        appendedEntry
+                );
+                IndexStatsBuilder.setHintForStats(tr, appendedEntry.userVersion(), index, bsonValue);
+            }
+        }
+    }
+
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
@@ -119,39 +175,9 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             IndexBuilder.setPrimaryIndexEntry(tr, shard.id(), metadata, appendResult.getAppendedEntries());
 
             // Index creation for all user-defined indexes
-            for (int i = 0; i < appendResult.getAppendedEntries().length; i++) {
-                AppendedEntry appendedEntry = appendResult.getAppendedEntries()[i];
-                ByteBuffer entry = pack.entries[i];
-                entry.rewind(); // ready to read the document again
-
-                for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
-                    // Skip the default ID index as it's already handled above
-                    if (index.definition().equals(DefaultIndexDefinition.ID)) {
-                        continue;
-                    }
-
-                    // Every insert produces an index entry. Missing values and explicit nulls are both
-                    // represented as null in the index. Non-null values are converted to the target type;
-                    // if conversion fails due to a type mismatch, the entry is skipped.
-                    Object indexValue = null;
-                    BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), entry);
-                    if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
-                        indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
-                        if (indexValue == null) {
-                            // Type mismatch, continue
-                            continue;
-                        }
-                    }
-
-                    IndexBuilder.setIndexEntry(
-                            tr,
-                            index.definition(),
-                            shard.id(),
-                            metadata,
-                            indexValue,
-                            appendedEntry
-                    );
-                }
+            // Minimum number of indexes is 1. The primary index is the default one.
+            if (metadata.indexes().getIndexes(IndexSelectionPolicy.READWRITE).size() > 1) {
+                setUserDefinedIndexes(tr, metadata, shard, appendResult, pack);
             }
 
             boolean autoCommit = TransactionUtils.getAutoCommit(request.getSession());

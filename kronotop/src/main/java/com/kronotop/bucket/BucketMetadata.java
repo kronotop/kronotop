@@ -20,6 +20,11 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.index.IndexRegistry;
 import com.kronotop.volume.Prefix;
 
-public record BucketMetadata(String namespace, String name, long version, DirectorySubspace subspace, Prefix volumePrefix,
+public record BucketMetadata(long id,
+                             String namespace,
+                             String name,
+                             long version,
+                             DirectorySubspace subspace,
+                             Prefix volumePrefix,
                              IndexRegistry indexes) {
 }

@@ -23,6 +23,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KrExecutors;
 import com.kronotop.internal.task.TaskStorage;
@@ -232,7 +233,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
      *
      * @param taskId the versionstamp identifier of the task to spawn a worker for
      * @return {@code true} if task queue processing should continue (worker spawned or already exists),
-     *         {@code false} if the worker pool has reached capacity and processing should pause
+     * {@code false} if the worker pool has reached capacity and processing should pause
      */
     private boolean spawnWorker(Versionstamp taskId) {
         if (workers.containsKey(taskId)) {
@@ -301,6 +302,16 @@ public class IndexMaintenanceWatchDog implements Runnable {
                     } else if (status == IndexTaskStatus.COMPLETED || status == IndexTaskStatus.STOPPED) {
                         sweeper.sweep(subspace, taskId);
                     }
+                } else if (kind == IndexMaintenanceTaskKind.ANALYZE) {
+                    IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, subspace, taskId);
+                    IndexTaskStatus status = state.status();
+                    if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
+                        return spawnWorker(taskId);
+                    } else if (status == IndexTaskStatus.COMPLETED || status == IndexTaskStatus.STOPPED) {
+                        sweeper.sweep(subspace, taskId);
+                    }
+                } else {
+                    throw new IllegalStateException("Unknown task kind: " + kind);
                 }
                 return true;
             });

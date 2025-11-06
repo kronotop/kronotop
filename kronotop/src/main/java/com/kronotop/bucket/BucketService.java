@@ -31,9 +31,7 @@ import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /*
 We have been given the scientific knowledge, the technical ability and the materials to pursue the exploration of the universe.
@@ -50,6 +48,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             1,
             new ThreadFactoryBuilder().setNameFormat("kr.bucket-service-%d").build()
     );
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final BucketMetadataWatcher bucketMetadataWatcher;
     // The default ShardSelector is RoundRobinShardSelector.
     private final ShardSelector shardSelector = new RoundRobinShardSelector();
     private final QueryExecutor queryExecutor;
@@ -75,8 +75,13 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
 
+        this.bucketMetadataWatcher = new BucketMetadataWatcher(context);
         this.planner = new Planner();
         this.queryExecutor = new QueryExecutor(this);
+    }
+
+    public Route findRoute(int shardId) {
+        return routing.findRoute(ShardKind.BUCKET, shardId);
     }
 
     public QueryExecutor getQueryExecutor() {
@@ -141,6 +146,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             initializeBucketShardsIfOwned(shardId);
         }
 
+        executor.submit(bucketMetadataWatcher);
         CachedTimeService cachedTimeService = context.getService(CachedTimeService.NAME);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(cachedTimeService, 1000 * 5 * 60);
         scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
@@ -150,9 +156,17 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     public void shutdown() {
         try {
             shutdown = true;
+            bucketMetadataWatcher.shutdown();
+
             for (BucketShard shard : getServiceContext().shards().values()) {
                 shard.close();
             }
+
+            executor.shutdownNow();
+            if (!executor.awaitTermination(6, TimeUnit.SECONDS)) {
+                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
+            }
+
             scheduler.shutdownNow();
             if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
                 LOGGER.warn("{} service cannot be stopped gracefully", NAME);

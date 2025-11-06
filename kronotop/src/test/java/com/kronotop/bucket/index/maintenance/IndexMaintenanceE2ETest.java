@@ -18,16 +18,26 @@ package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.TransactionalContext;
-import com.kronotop.bucket.BSONUtil;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.bucket.index.IndexStatus;
-import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.index.statistics.HistogramBucket;
+import com.kronotop.bucket.index.statistics.HistogramCodec;
+import com.kronotop.bucket.index.statistics.IndexAnalyzeTask;
+import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
+import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.internal.JSONUtil;
+import com.kronotop.internal.TransactionUtils;
+import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.server.Response;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import io.github.resilience4j.retry.Retry;
+import io.lettuce.core.codec.ByteArrayCodec;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -36,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,8 +54,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
@@ -68,7 +79,6 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         CountDownLatch halfLatch = new CountDownLatch(halfway);
         CountDownLatch allLatch = new CountDownLatch(totalInserts);
 
-
         try (ExecutorService service = Executors.newSingleThreadExecutor()) {
             Future<?> bgFuture = service.submit(() -> insertAtBackground(halfLatch, allLatch, totalInserts));
 
@@ -88,13 +98,13 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             }
 
             // Refresh the metadata
-            BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+            BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
             allLatch.await();
 
             bgFuture.get();
 
-            DirectorySubspace subspace = context.getFoundationDB().run(tr ->
+            DirectorySubspace subspace = TransactionUtils.execute(context, tr ->
                     IndexUtil.open(tr, metadata.subspace(), definition.name()));
             await().atMost(Duration.ofSeconds(15)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -139,20 +149,22 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                     IndexStatus.WAITING
             );
 
-            context.getFoundationDB().run(tr -> {
+            TransactionUtils.executeThenCommit(context, tr -> {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
                 return null;
             });
 
-            BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-
-            BucketMetadata finalMetadata = metadata;
-            context.getFoundationDB().run(tr -> {
-                TransactionalContext tx = new TransactionalContext(context, tr);
-                IndexUtil.drop(tx, finalMetadata, definition.name());
-                return null;
+            BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+            final BucketMetadata finalMetadata = metadata;
+            RetryMethods.retry(RetryMethods.TRANSACTION).executeRunnable(() -> {
+                TransactionUtils.executeThenCommit(context, tr -> {
+                    TransactionalContext tx = new TransactionalContext(context, tr);
+                    IndexUtil.drop(tx, finalMetadata, definition.name());
+                    return null;
+                });
             });
+
 
             allLatch.await();
 
@@ -229,5 +241,69 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         // Refresh and check
         metadata = getBucketMetadata(TEST_BUCKET);
         assertNull(metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL));
+    }
+
+    @Test
+    void shouldBuildHistogramWithHints() {
+        // Create index
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"numeric\": {\"name\": \"test-index\", \"bson_type\": \"int32\"}}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertNotNull(actualMessage);
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // Insert some data
+        List<byte[]> documents = generateRandomDocumentsWithNumericContent("numeric", 1000);
+        Map<String, byte[]> items = insertDocuments(documents, 50);
+
+        // Wait until index is becoming ready to use
+        IndexDefinition definition = loadIndexDefinition("numeric");
+        assertNotNull(definition);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            Index index = metadata.indexes().getIndex("numeric", IndexSelectionPolicy.ALL);
+            waitForIndexReadiness(index.subspace());
+            waitUntilUpdated(metadata);
+        }
+
+        // Fill the hint space manually.
+        List<String> randomKeys = selectRandomKeysFromMap(items, 200);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
+            assertNotNull(index);
+            for (String key : randomKeys) {
+                IndexStatsBuilder.insertHintForStats(tr, VersionstampUtil.base32HexDecode(key), index);
+            }
+            tr.commit().join();
+        }
+
+        // Initiate an async analyze task
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexAnalyze(TEST_BUCKET, "test-index").encode(buf);
+            Object msg = runCommand(channel, buf);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertNotNull(actualMessage);
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // It should be built at background
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+                byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
+                byte[] value = tr.get(key).join();
+                if (value == null) {
+                    return false;
+                }
+                List<HistogramBucket> histogram = HistogramCodec.decode(value);
+                return !histogram.isEmpty();
+            }
+        });
     }
 }

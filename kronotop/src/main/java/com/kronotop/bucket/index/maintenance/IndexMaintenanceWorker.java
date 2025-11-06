@@ -20,44 +20,23 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.RetryMethods;
+import com.kronotop.bucket.index.statistics.IndexAnalyzeRoutine;
+import com.kronotop.bucket.index.statistics.IndexAnalyzeTask;
+import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.task.TaskStorage;
 
 import java.util.function.Consumer;
 
 /**
- * Worker thread responsible for executing index maintenance tasks.
+ * Executes index maintenance tasks (BUILD, DROP, STATS) with retry logic and lifecycle management.
  *
- * <p>This class serves as the execution wrapper for index maintenance routines,
- * managing their lifecycle and coordinating with the watchdog service. Each worker:
- * <ul>
- *   <li>Loads the task definition from FoundationDB</li>
- *   <li>Creates the appropriate maintenance routine based on task kind:
- *       <ul>
- *         <li>{@link BackgroundIndexBuildingRoutine} for BUILD tasks</li>
- *         <li>{@link IndexDropRoutine} for DROP tasks</li>
- *       </ul>
- *   </li>
- *   <li>Executes the routine with retry logic for transient failures</li>
- *   <li>Notifies the watchdog upon task completion via a callback hook</li>
- *   <li>Handles graceful shutdown when requested</li>
- * </ul>
- *
- * <p>The worker implements a retry mechanism that continues execution until:
- * <ul>
- *   <li>The task reaches a terminal state (COMPLETED, FAILED, STOPPED)</li>
- *   <li>The worker is explicitly shut down</li>
- *   <li>An unrecoverable error occurs</li>
- * </ul>
- *
- * <p>Workers are managed by the {@link IndexMaintenanceWatchDog} which spawns them
- * for pending tasks and monitors their lifecycle. Upon completion, workers notify
- * the watchdog to remove them from the active worker pool and potentially spawn
- * new workers for other pending tasks.
+ * <p>Workers load task definitions from FoundationDB, create the appropriate routine, and execute it
+ * until completion or shutdown. Upon reaching a terminal state (COMPLETED, FAILED, STOPPED), workers
+ * notify the watchdog via completion hook and terminate gracefully.
  *
  * @see IndexMaintenanceRoutine
- * @see BackgroundIndexBuildingRoutine
- * @see IndexDropRoutine
  * @see IndexMaintenanceWatchDog
  */
 public class IndexMaintenanceWorker implements Runnable {
@@ -69,29 +48,14 @@ public class IndexMaintenanceWorker implements Runnable {
     private volatile boolean shutdown;
 
     /**
-     * Constructs a new IndexMaintenanceWorker for a specific task.
+     * Creates a worker for the specified task by loading its definition and instantiating the appropriate routine.
      *
-     * <p>This constructor performs the following initialization:
-     * <ul>
-     *   <li>Loads the task definition from FoundationDB using the provided task ID</li>
-     *   <li>Deserializes the task definition to determine the task kind (BUILD or DROP)</li>
-     *   <li>Creates the appropriate maintenance routine based on task kind:
-     *       <ul>
-     *         <li>BUILD: Creates {@link BackgroundIndexBuildingRoutine} for index building</li>
-     *         <li>DROP: Creates {@link IndexDropRoutine} for index removal</li>
-     *       </ul>
-     *   </li>
-     * </ul>
-     *
-     * <p>The completion hook provided will be called when the task reaches a terminal
-     * state, allowing the watchdog to clean up and manage the worker pool.
-     *
-     * @param context        the application context providing access to services and FoundationDB
-     * @param subspace       the directory subspace containing the task data
-     * @param shardId        the ID of the bucket shard this worker is operating on
-     * @param taskId         the unique versionstamp identifier of the task to execute
-     * @param completionHook callback to invoke when the task reaches a terminal state
-     * @throws IllegalStateException if the task kind is not recognized
+     * @param context        application context for service and FoundationDB access
+     * @param subspace       directory subspace containing task data
+     * @param shardId        bucket shard ID for this worker
+     * @param taskId         unique task identifier
+     * @param completionHook callback invoked when task reaches terminal state
+     * @throws IllegalStateException if task kind is unrecognized
      */
     public IndexMaintenanceWorker(Context context, DirectorySubspace subspace, int shardId, Versionstamp taskId, Consumer<Versionstamp> completionHook) {
         this.context = context;
@@ -99,47 +63,57 @@ public class IndexMaintenanceWorker implements Runnable {
         this.taskId = taskId;
         this.completionHook = completionHook;
 
-        byte[] definition = context.getFoundationDB().run(tr -> TaskStorage.getDefinition(tr, subspace, taskId));
+        byte[] definition = TransactionUtils.execute(context, tr -> TaskStorage.getDefinition(tr, subspace, taskId));
         IndexMaintenanceTask base = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
         switch (base.getKind()) {
             case BUILD -> {
                 IndexBuildingTask task = JSONUtil.readValue(definition, IndexBuildingTask.class);
-                this.routine = new BackgroundIndexBuildingRoutine(context, subspace, shardId, taskId, task);
+                this.routine = new IndexBuildingRoutine(context, subspace, shardId, taskId, task);
             }
             case DROP -> {
                 IndexDropTask task = JSONUtil.readValue(definition, IndexDropTask.class);
                 this.routine = new IndexDropRoutine(context, subspace, taskId, task);
             }
+            case ANALYZE -> {
+                IndexAnalyzeTask task = JSONUtil.readValue(definition, IndexAnalyzeTask.class);
+                this.routine = new IndexAnalyzeRoutine(context, subspace, taskId, task);
+            }
             default -> throw new IllegalStateException("Unknown task kind: " + base.getKind());
         }
     }
 
+    private IndexTaskStatus getRoutineStatus() {
+        return switch (routine) {
+            case IndexBuildingRoutine ignored -> {
+                IndexBuildingTaskState state = TransactionUtils.execute(context, tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
+                yield state.status();
+            }
+            case IndexDropRoutine ignored -> {
+                IndexDropTaskState state = TransactionUtils.execute(context, tr -> IndexDropTaskState.load(tr, subspace, taskId));
+                yield state.status();
+            }
+            case IndexAnalyzeRoutine ignored -> {
+                IndexAnalyzeTaskState state = TransactionUtils.execute(context, tr -> IndexAnalyzeTaskState.load(tr, subspace, taskId));
+                yield state.status();
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + routine);
+        };
+    }
+
     /**
-     * Executes the index maintenance task with retry logic.
+     * Determines if task status is terminal (COMPLETED, FAILED, or STOPPED).
      *
-     * <p>This method runs the maintenance routine within a retry wrapper that handles
-     * transient failures and ensures robust execution. The execution flow:
-     * <ol>
-     *   <li>Checks if shutdown has been requested before starting</li>
-     *   <li>Starts the maintenance routine (e.g., index building)</li>
-     *   <li>Monitors the task state after execution</li>
-     *   <li>If the task reaches a terminal state (COMPLETED, FAILED, STOPPED):
-     *       <ul>
-     *         <li>Invokes the completion hook to notify the watchdog</li>
-     *         <li>Initiates worker shutdown</li>
-     *       </ul>
-     *   </li>
-     * </ol>
+     * @param status task status to check
+     * @return true if terminal, false otherwise
+     */
+    private boolean isTerminal(IndexTaskStatus status) {
+        return status.equals(IndexTaskStatus.COMPLETED) || status.equals(IndexTaskStatus.FAILED) || status.equals(IndexTaskStatus.STOPPED);
+    }
+
+    /**
+     * Executes the maintenance routine with retry logic until task reaches terminal state or shutdown.
      *
-     * <p>The retry mechanism will continue attempting execution until either:
-     * <ul>
-     *   <li>The task completes successfully</li>
-     *   <li>The worker is shut down</li>
-     *   <li>An unrecoverable error occurs</li>
-     * </ul>
-     *
-     * <p>IndexMaintenanceRoutineShutdownException is caught and ignored as it's
-     * used solely as a signal to the retry mechanism to stop gracefully.
+     * <p>Invokes completion hook and initiates shutdown upon task completion.
      */
     @Override
     public void run() {
@@ -149,8 +123,8 @@ public class IndexMaintenanceWorker implements Runnable {
                     throw new IndexMaintenanceRoutineShutdownException();
                 }
                 routine.start();
-                IndexBuildingTaskState state = context.getFoundationDB().run(tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
-                if (IndexBuildingTaskState.isTerminal(state.status())) {
+                IndexTaskStatus status = getRoutineStatus();
+                if (isTerminal(status)) {
                     // Run a callback to remove this task from the watchdog thread.
                     completionHook.accept(taskId);
                     shutdown();
@@ -162,48 +136,18 @@ public class IndexMaintenanceWorker implements Runnable {
     }
 
     /**
-     * Returns metrics for the underlying index maintenance routine.
+     * Returns runtime metrics from the underlying routine for watchdog monitoring.
      *
-     * <p>Provides access to runtime metrics from the maintenance routine, including:
-     * <ul>
-     *   <li>Number of entries processed</li>
-     *   <li>Timestamp of the latest execution</li>
-     *   <li>Task initiation time</li>
-     * </ul>
-     *
-     * <p>These metrics are used by the watchdog to monitor worker health and detect
-     * stale workers that may need to be cleaned up.
-     *
-     * @return the {@link IndexMaintenanceRoutineMetrics} from the underlying routine
+     * @return routine metrics
      */
     public IndexMaintenanceRoutineMetrics getMetrics() {
         return routine.getMetrics();
     }
 
     /**
-     * Initiates graceful shutdown of this worker.
+     * Initiates graceful shutdown by stopping the routine and signaling retry loop exit.
      *
-     * <p>This method performs two key actions:
-     * <ul>
-     *   <li>Sets the shutdown flag to signal the retry mechanism to stop</li>
-     *   <li>Stops the underlying maintenance routine</li>
-     * </ul>
-     *
-     * <p>The shutdown flag ensures that:
-     * <ul>
-     *   <li>No new routine executions will be started</li>
-     *   <li>The retry loop will exit on the next iteration</li>
-     *   <li>The worker will terminate cleanly</li>
-     * </ul>
-     *
-     * <p>This method is typically called by the watchdog when:
-     * <ul>
-     *   <li>The worker is identified as stale</li>
-     *   <li>The watchdog itself is shutting down</li>
-     *   <li>The task has reached a terminal state</li>
-     * </ul>
-     *
-     * <p>The method is thread-safe and can be called from any thread.
+     * <p>Thread-safe and idempotent.
      */
     public void shutdown() {
         shutdown = true;

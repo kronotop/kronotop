@@ -21,6 +21,7 @@ package com.kronotop.journal;
  * Each enum constant corresponds to a specific journal and has an associated string value.
  */
 public enum JournalName {
+    BUCKET_METADATA_EVENTS("bucket-metadata-events"),
     DISUSED_PREFIXES("disused-prefixes"),
     CLUSTER_EVENTS("cluster-events");
 

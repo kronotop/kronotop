@@ -65,7 +65,7 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
             runCommand(channel, buf);
         }
 
-        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         String indexName = "selector:username.bsonType:STRING";
 

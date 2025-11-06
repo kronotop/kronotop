@@ -20,11 +20,11 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.KronotopException;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataHeader;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
-import com.kronotop.TransactionalContext;
 import com.kronotop.server.RESPError;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -203,11 +203,11 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldCreateSameIndexDefinitionOnDifferentBuckets() {
-        String firstTEST_BUCKET = "first-bucket";
-        String secondTEST_BUCKET = "second-bucket";
+        final String FIRST_TEST_BUCKET = "first-bucket";
+        final String SECOND_TEST_BUCKET = "second-bucket";
 
-        BucketMetadata firstBucketMetadata = getBucketMetadata(firstTEST_BUCKET);
-        BucketMetadata secondBucketMetadata = getBucketMetadata(secondTEST_BUCKET);
+        BucketMetadata firstBucketMetadata = getBucketMetadata(FIRST_TEST_BUCKET);
+        BucketMetadata secondBucketMetadata = getBucketMetadata(SECOND_TEST_BUCKET);
 
         // Create same index on first bucket
         DirectorySubspace firstIndexSubspace = assertDoesNotThrow(() -> {
@@ -360,5 +360,45 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
             IndexDefinition droppedDef = IndexUtil.loadIndexDefinition(tr, indexSubspace);
             assertEquals(IndexStatus.DROPPED, droppedDef.status());
         }
+    }
+
+    @Test
+    void shouldAnalyzeIndex() {
+        createIndexThenWaitForReadiness(definition);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        assertDoesNotThrow(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.analyze(tx, metadata, definition.name());
+                tr.commit().join();
+            }
+        });
+    }
+
+    @Test
+    void shouldNotAnalyzeNonExistingIndex() {
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        KronotopException exception = assertThrows(KronotopException.class, () -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.analyze(tx, metadata, "non-existing-index");
+            }
+        });
+        assertEquals("No such index: 'non-existing-index'", exception.getMessage());
+    }
+
+    @Test
+    void shouldAnalyzeDefaultIdIndex() {
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        assertDoesNotThrow(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.analyze(tx, metadata, DefaultIndexDefinition.ID.name());
+                tr.commit().join();
+            }
+        });
     }
 }

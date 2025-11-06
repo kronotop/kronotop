@@ -354,7 +354,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                     }
                     try {
                         processDisusePrefix(tr, event);
-                        disusedPrefixesConsumer.setOffset(event);
+                        disusedPrefixesConsumer.markConsumed(tr, event);
                     } catch (Exception e) {
                         // Periodic task will try to process again, quit now.
                         done = true;
@@ -365,7 +365,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                         break;
                     }
                 }
-                disusedPrefixesConsumer.complete(tr);
                 tr.commit().join();
             } catch (IllegalConsumerStateException e) {
                 // Ignore this exception, this is mostly about the concurrency in the integration tests.

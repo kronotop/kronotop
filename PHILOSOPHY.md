@@ -1,7 +1,8 @@
 # PHILOSOPHY
 
-While designing and developing Kronotop, we never lost sight of the following quotes. They remind us that engineering is
-not just about code — it is about clarity, respect for truth, and the courage to build what has never been built.
+Kronotop is founded on the belief that progress in engineering stems from intellectual discipline and curiosity.
+These statements have guided our approach: they reflect the pursuit of truth through simplicity, precision, and the 
+creative act of building itself.
 
 > I am enough of an artist to draw freely upon my imagination. Imagination is more important than knowledge.
 > Knowledge is limited. Imagination encircles the world.

@@ -506,15 +506,13 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
 
                 try {
                     processClusterEvent(event);
-                    clusterEventsConsumer.setOffset(event);
+                    clusterEventsConsumer.markConsumed(tr, event);
                 } catch (Exception e) {
                     LOGGER.error("Failed to process a broadcast event, passing it", e);
                 }
             }
-            clusterEventsConsumer.complete(tr);
             tr.commit().join();
         }
-        ;
     }
 
     /**

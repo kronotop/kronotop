@@ -182,7 +182,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     }
 
     private IndexDefinition getIndexFromMetadata(BucketMetadata metadata, String selector) {
-        Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READONLY);
+        Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READ);
         if (index == null) {
             return null;
         }

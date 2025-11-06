@@ -25,6 +25,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.KronotopException;
 import com.kronotop.MemberAttributes;
+import com.kronotop.MetadataVersion;
 import com.kronotop.cluster.ClusterConstants;
 import com.kronotop.cluster.MembershipUtils;
 import com.kronotop.cluster.RoutingService;
@@ -71,24 +72,42 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
     }
 
     private void initializeIndexTaskCounter(Transaction tr) {
-        List<String> indexCounterLayout = KronotopDirectory.
-                kronotop().cluster(context.getClusterName()).metadata().
-                buckets().maintenance().index().counter().toList();
-        DirectoryLayer.getDefault().create(tr, indexCounterLayout).join();
+        KronotopDirectoryNode directory = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                buckets().
+                maintenance().
+                index().
+                counter();
+        DirectoryLayer.getDefault().create(tr, directory.toList()).join();
+    }
+
+    private void initializeBucketMetadataVersionWitness(Transaction tr, int shardId) {
+        KronotopDirectoryNode directory = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                shards().
+                bucket().
+                shard(shardId).
+                lastSeenVersions();
+        DirectoryLayer.getDefault().create(tr, directory.toList()).join();
     }
 
     private void initializeBucketSection(Transaction tr, DirectorySubspace subspace) {
-        int numberOfBucketShards = membership.getContext().getConfig().getInt("bucket.shards");
+        int numberOfBucketShards = context.getConfig().getInt("bucket.shards");
         for (int shardId = 0; shardId < numberOfBucketShards; shardId++) {
             KronotopDirectoryNode directory = KronotopDirectory.
                     kronotop().
-                    cluster(membership.getContext().getClusterName()).
+                    cluster(context.getClusterName()).
                     metadata().
                     shards().
                     bucket().
                     shard(shardId);
             DirectorySubspace shardSubspace = subspace.create(tr, directory.excludeSubspace(subspace)).join();
             initializeIndexMetadata(tr, shardId);
+            initializeBucketMetadataVersionWitness(tr, shardId);
             ShardUtils.setShardStatus(tr, ShardStatus.INOPERABLE, shardSubspace);
         }
         initializeIndexTaskCounter(tr);
@@ -106,6 +125,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
             if (MembershipUtils.isClusterInitialized(tr, clusterMetadataSubspace)) {
                 throw new KronotopException("cluster has already been initialized");
             }
+            MetadataVersion.write(context, tr, MetadataVersion.CURRENT);
             initializeRedisSection(tr, clusterMetadataSubspace);
             initializeBucketSection(tr, clusterMetadataSubspace);
             setClusterInitializedTrue(tr, clusterMetadataSubspace);

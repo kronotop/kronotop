@@ -16,11 +16,7 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParser;
@@ -33,11 +29,9 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexNameGenerator;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
@@ -53,8 +47,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-
-import static com.kronotop.bucket.handlers.AbstractBucketHandler.NULL_BYTES;
 
 class BucketIndexCreateSubcommand implements SubcommandHandler {
     private final Context context;
@@ -90,21 +82,12 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
                                 schema.getBsonType()
                         );
 
-                        DirectorySubspace subspace = IndexUtil.create(
+                        IndexUtil.create(
                                 tx,
                                 namespace,
                                 parameters.getBucket(),
                                 indexDefinition
                         );
-
-                        // Create the task back pointer for easy inspection
-                        int userVersion = tx.getUserVersion();
-                        if (indexDefinition.id() != DefaultIndexDefinition.ID.id()) {
-                            byte[] taskId = subspace.packWithVersionstamp(
-                                    Tuple.from(IndexSubspaceMagic.TASKS.getValue(), Versionstamp.incomplete(userVersion))
-                            );
-                            tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, taskId, NULL_BYTES);
-                        }
                     }
                     tr.commit().join();
                 }

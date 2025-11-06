@@ -36,7 +36,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
     ));
 
     @Test
-    public void consume_events_when_offset_is_EARLIEST() {
+    void shouldConsumeAllEventsWhenOffsetIsEarliest() {
         Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
@@ -58,17 +58,16 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
                 if (event == null) {
                     break;
                 }
-                consumer.setOffset(event);
+                consumer.markConsumed(tr, event);
                 consumedEvents.add(new String(event.value()));
             }
-            consumer.complete(tr);
             tr.commit().join();
         }
         assertEquals(consumedEvents, expectedEvents);
     }
 
     @Test
-    public void start_consumer_after_publishing_events_when_offset_is_LATEST() {
+    void shouldConsumeNothingWhenOffsetIsLatestAndEventsAlreadyPublished() {
         Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
@@ -86,7 +85,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void start_consumer_before_publishing_events_when_offset_is_LATEST() {
+    void shouldConsumeNewEventsWhenOffsetIsLatestAndConsumerStartedFirst() {
         Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
@@ -108,17 +107,16 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
                 if (event == null) {
                     break;
                 }
-                consumer.setOffset(event);
+                consumer.markConsumed(tr, event);
                 consumedEvents.add(new String(event.value()));
             }
-            consumer.complete(tr);
             tr.commit().join();
         }
         assertEquals(expectedEvents, consumedEvents);
     }
 
     @Test
-    public void resume_consumer_after_publishing_events_when_offset_is_RESUME() {
+    void shouldResumeFromLastCommittedOffsetWhenOffsetIsResume() {
         Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
@@ -132,8 +130,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         // Consume the first event
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Event event = firstConsumer.consume(tr);
-            firstConsumer.setOffset(event);
-            firstConsumer.complete(tr);
+            firstConsumer.markConsumed(tr, event);
             tr.commit().join();
         }
 
@@ -150,7 +147,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void consume_the_same_message_if_consumed_not_called() {
+    void shouldConsumeSameEventWhenNotMarkedAsConsumed() {
         Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
@@ -176,7 +173,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void call_consume_before_starting_consumer() {
+    void shouldThrowExceptionWhenConsumeCalledBeforeStarting() {
         ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.EARLIEST);
         Consumer consumer = new Consumer(context, config);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -185,7 +182,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void call_consume_after_stopping_consumer() {
+    void shouldThrowExceptionWhenConsumeCalledAfterStopping() {
         ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.EARLIEST);
         Consumer consumer = new Consumer(context, config);
         consumer.start();
@@ -193,6 +190,52 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             assertThrows(IllegalStateException.class, () -> consumer.consume(tr));
+        }
+    }
+
+    @Test
+    void shouldRewindOffsetWhenTransactionFails() {
+        Journal journal = new Journal(config, context.getFoundationDB());
+        Publisher publisher = journal.getPublisher();
+
+        // Publish two events
+        String firstEvent = "first-message";
+        String secondEvent = "second-message";
+        publisher.publish(JOURNAL_NAME, firstEvent).complete();
+        publisher.publish(JOURNAL_NAME, secondEvent).complete();
+
+        ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.EARLIEST);
+        Consumer consumer = new Consumer(context, config);
+        consumer.start();
+
+        // First transaction: consume and mark, but DON'T commit (simulates failure)
+        Event event1;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            event1 = consumer.consume(tr);
+            assertNotNull(event1);
+            assertEquals(firstEvent, JSONUtil.readValue(event1.value(), String.class));
+            consumer.markConsumed(tr, event1);
+            // Intentionally NOT calling tr.commit() - simulates transaction failure
+        }
+
+        // Second transaction: should rewind and consume the same event again
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Event event2 = consumer.consume(tr);
+            assertNotNull(event2);
+            // Should be the SAME event as before (rewound to checkpoint)
+            assertEquals(firstEvent, JSONUtil.readValue(event2.value(), String.class));
+            assertArrayEquals(event1.key(), event2.key());
+
+            // Now commit successfully
+            consumer.markConsumed(tr, event2);
+            tr.commit().join();
+        }
+
+        // Third transaction: should now move forward to second event
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Event event3 = consumer.consume(tr);
+            assertNotNull(event3);
+            assertEquals(secondEvent, JSONUtil.readValue(event3.value(), String.class));
         }
     }
 }

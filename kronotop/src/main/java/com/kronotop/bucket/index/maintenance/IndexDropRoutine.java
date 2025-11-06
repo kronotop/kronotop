@@ -20,12 +20,14 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import io.github.resilience4j.retry.Retry;
@@ -95,6 +97,8 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
             return;
         }
         IndexUtil.clear(tr, metadata.subspace(), index.definition().name());
+        TransactionalContext tx = new TransactionalContext(context, tr);
+        BucketMetadataUtil.publishBucketMetadataEvent(tx, metadata);
     }
 
     /**
@@ -110,7 +114,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
             return;
         }
 
-        IndexTaskStatus status = context.getFoundationDB().run(tr -> {
+        IndexTaskStatus status = TransactionUtils.executeThenCommit(context, tr -> {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
                 // task has dropped

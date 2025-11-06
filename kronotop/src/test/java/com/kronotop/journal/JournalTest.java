@@ -27,7 +27,7 @@ class JournalTest extends BaseStandaloneInstanceTest {
     private final String TEST_JOURNAL = "test-journal";
 
     @Test
-    public void test_listJournals() {
+    void shouldListJournalsAfterPublishingEvent() {
         Journal journal = new Journal(context.getConfig(), context.getFoundationDB());
         journal.getPublisher().publish(TEST_JOURNAL, "message");
 

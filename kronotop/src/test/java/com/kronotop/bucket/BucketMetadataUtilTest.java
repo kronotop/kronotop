@@ -19,9 +19,15 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.CachedTimeService;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.index.*;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
+import com.kronotop.internal.JSONUtil;
+import com.kronotop.journal.Consumer;
+import com.kronotop.journal.ConsumerConfig;
+import com.kronotop.journal.Event;
+import com.kronotop.journal.JournalName;
 import com.kronotop.server.Session;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
@@ -31,6 +37,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
@@ -47,10 +54,42 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         assertEquals(TEST_BUCKET, metadata.name());
         assertNotNull(metadata.subspace());
         assertNotNull(metadata.volumePrefix());
-        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READONLY);
+        Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index);
         assertNotNull(index.subspace());
         assertTrue(metadata.version() > 0);
+        assertTrue(metadata.id() != 0);
+    }
+
+    @Test
+    void shouldPublishBucketMetadataEvent() {
+        Session session = getSession();
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.publishBucketMetadataEvent(tx, metadata);
+            tr.commit().join();
+        }
+        ConsumerConfig cfg = new ConsumerConfig(
+                UUID.randomUUID().toString(),
+                JournalName.BUCKET_METADATA_EVENTS.getValue(),
+                ConsumerConfig.Offset.RESUME
+        );
+        Consumer consumer = new Consumer(context, cfg);
+        try {
+            consumer.start();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                Event event = consumer.consume(tr);
+                BucketMetadataEvent evt = JSONUtil.readValue(event.value(), BucketMetadataEvent.class);
+                assertEquals(TEST_NAMESPACE, evt.namespace());
+                assertEquals(TEST_BUCKET, evt.bucket());
+                assertEquals(metadata.id(), evt.id());
+                assertEquals(metadata.version(), evt.minimumVersion());
+            }
+        } finally {
+            consumer.stop();
+        }
     }
 
     @Test

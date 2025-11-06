@@ -23,8 +23,11 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
@@ -68,14 +71,14 @@ import java.util.List;
  * @see IndexBuildingTask
  * @see IndexBuildingTaskState
  */
-public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BackgroundIndexBuildingRoutine.class);
+public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexBuildingRoutine.class);
     private final static int INDEX_SCAN_BATCH_SIZE = 100;
     private final int shardId;
     private final IndexBuildingTask task;
     private final BucketService service;
 
-    public BackgroundIndexBuildingRoutine(
+    public IndexBuildingRoutine(
             Context context,
             DirectorySubspace subspace,
             int shardId,
@@ -121,11 +124,13 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
      * @param th the throwable containing the error message to record
      */
     private void markIndexBuildTaskFailed(Throwable th) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setError(tr, subspace, taskId, th.getMessage());
-            IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-            tr.commit().join();
-        }
+        RetryMethods.retry(RetryMethods.TRANSACTION).executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexBuildingTaskState.setError(tr, subspace, taskId, th.getMessage());
+                IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+                tr.commit().join();
+            }
+        });
     }
 
     /**
@@ -175,29 +180,17 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
     }
 
     /**
-     * Determines and sets the cursor and highest versionstamp boundaries for index scanning.
+     * Establishes scan boundaries from the primary index for incremental index building.
      *
-     * <p>This method establishes the range boundaries for the background index building process by:
-     * <ul>
-     *   <li>Checking if boundaries are already set in the task state</li>
-     *   <li>If not set, refreshing bucket metadata and locating the primary index</li>
-     *   <li>Finding the lowest versionstamp (cursor start position) from the primary index</li>
-     *   <li>Finding the highest versionstamp (scan end position) from the primary index</li>
-     *   <li>Persisting both boundaries to the IndexBuildTaskState for progress tracking</li>
-     * </ul>
+     * <p>Determines the cursor start position (lowest versionstamp) and end position (highest versionstamp)
+     * by scanning the primary index. If boundaries already exist in the task state, returns immediately.
+     * Otherwise, waits for bucket metadata propagation across the cluster, scans the primary index range,
+     * and persists both boundaries to the task state for resumable progress tracking.
      *
-     * <p>The boundaries define the complete range of documents that need to be processed
-     * during index building. The cursor versionstamp tracks current progress, while the
-     * highest versionstamp defines when the scan is complete.
-     *
-     * <p>If boundaries are already set in the task state, this method returns immediately
-     * without any database operations, making it safe to call multiple times.
-     *
-     * @throws InterruptedException if the thread is interrupted during the 6-second sleep
-     *                              in refreshAndLoadBucketMetadata()
+     * @throws InterruptedException if interrupted during metadata propagation wait
      */
     private void findOutBoundaries() throws InterruptedException {
-        IndexBuildingTaskState state = context.getFoundationDB().run(tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
+        IndexBuildingTaskState state = TransactionUtils.execute(context, tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
         if (state.cursorVersionstamp() != null && state.highestVersionstamp() != null) {
             return;
         }
@@ -207,7 +200,7 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
         refreshBucketMetadata(task.getNamespace(), task.getBucket(), task.getIndexId());
 
         // Fetch the up-to-date version of BucketMetadata
-        BucketMetadata metadata = context.getFoundationDB().run(
+        BucketMetadata metadata = TransactionUtils.execute(context,
                 tr -> BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
         );
         Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.ALL);
@@ -237,6 +230,7 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
             }
             IndexDefinition definition = latestVersion.updateStatus(IndexStatus.BUILDING);
             IndexUtil.saveIndexDefinition(tr, metadata, definition);
+            BucketMetadataUtil.publishBucketMetadataEvent(new TransactionalContext(context, tr), metadata);
             tr.commit().join();
         }
     }
@@ -269,7 +263,7 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
         BucketShard shard = service.getShard(shardId);
         while (!stopped) {
             // Fetch the metadata with an independent TX due to prevent conflicts during commit time.
-            BucketMetadata metadata = context.getFoundationDB().run(tr ->
+            BucketMetadata metadata = TransactionUtils.execute(context, tr ->
                     BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
             );
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -401,11 +395,11 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
 
         Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
         Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
-        Versionstamp cursor = null;
+        Versionstamp versionstamp = null;
         for (VolumeEntry pair : entries) {
             total++;
             Object indexValue = null;
-            cursor = pair.key();
+            versionstamp = pair.key();
             BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), pair.entry());
             if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
                 indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
@@ -414,9 +408,10 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
                     continue;
                 }
             }
-            IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, pair.key(), indexValue, shardId, pair.metadata());
+            IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, versionstamp, indexValue, shardId, pair.metadata());
+            IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, bsonValue);
         }
-        setCursor(tr, cursor);
+        setCursor(tr, versionstamp);
         return total;
     }
 
@@ -470,7 +465,9 @@ public class BackgroundIndexBuildingRoutine extends AbstractIndexMaintenanceRout
         retry.executeRunnable(() -> {
             try {
                 findOutBoundaries();
-            } catch (InterruptedException e) {
+            } catch (IndexMaintenanceRoutineException exp) {
+                markIndexBuildTaskFailed(exp);
+            } catch (InterruptedException ignored) {
                 // Do not mark the task as failed. Program has stopped and this task
                 // can be retried.
                 Thread.currentThread().interrupt();

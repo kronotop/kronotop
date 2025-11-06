@@ -18,7 +18,6 @@ package com.kronotop.journal;
 
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
-import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterator;
 import com.apple.foundationdb.directory.DirectoryLayer;
@@ -35,13 +34,8 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 
 /**
- * The Consumer class provides functionality to interact with a journal by consuming events,
- * managing offsets, and ensuring proper record of progress within a FoundationDB database setup.
- * The Consumer is configured with a specific journal and operates in a dedicated subspace
- * for tracking its activity.
- * <p>
- * This class includes methods for lifecycle management (starting and stopping),
- * offset inspection and updates, and consuming events from the associated journal.
+ * Consumes events from a journal with at-least-once delivery semantics.
+ * Tracks consumption progress in FoundationDB and automatically recovers from transaction failures.
  */
 public class Consumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(Consumer.class);
@@ -50,9 +44,10 @@ public class Consumer {
     private final ConsumerConfig config;
     private final JournalMetadata journalMetadata;
     private final byte[] offsetKey;
-    private byte[] offset;
-    private boolean started;
-    private boolean stopped;
+    private final byte[] initialOffset;
+    private volatile byte[] offset;
+    private volatile boolean started;
+    private volatile boolean stopped;
 
 
     public Consumer(Context context, ConsumerConfig config) {
@@ -62,30 +57,21 @@ public class Consumer {
         DirectorySubspace consumerSubspace = createOrOpenConsumerSubspace();
         this.offsetKey = consumerSubspace.pack(Tuple.from(OFFSET_KEY));
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            this.offset = inspectOffset(tr);
+            this.initialOffset = inspectOffset(tr);
+            this.offset = initialOffset;
         }
     }
 
     /**
-     * Initiates the consumer by setting its internal state to started.
-     * This method is essential for enabling operations like consuming events
-     * and managing offsets. After calling this method, the consumer is considered
-     * ready to interact with the journal.
-     *
-     * @throws IllegalStateException if the consumer is already started or in an invalid state to start.
+     * Starts the consumer, enabling event consumption.
      */
     public void start() {
-        // start method is required for fine-grained flow control
+        // the start method is required for fine-grained flow control
         started = true;
     }
 
     /**
-     * Creates or opens a consumer subspace in FoundationDB based on the consumer's configuration
-     * and cluster context. The method ensures that the required directory structure is created
-     * or retrieved for the consumer to operate within the appropriate subspace.
-     *
-     * @return an instance of {@code DirectorySubspace} representing the consumer's subspace
-     * in FoundationDB, which allows for interaction with the underlying database.
+     * Creates or opens the FoundationDB subspace for this consumer's offset tracking.
      */
     private DirectorySubspace createOrOpenConsumerSubspace() {
         assert context != null;
@@ -103,11 +89,7 @@ public class Consumer {
     }
 
     /**
-     * Loads the metadata associated with a journal. This method interacts with the FoundationDB
-     * database to create or open the specified journal's subspace and constructs the journal's metadata
-     * using the resolved subspace.
-     *
-     * @return an instance of {@code JournalMetadata} containing the metadata of the journal.
+     * Loads journal metadata from FoundationDB.
      */
     private JournalMetadata loadJournalMetadata() {
         assert context != null;
@@ -126,14 +108,13 @@ public class Consumer {
     }
 
     /**
-     * Inspects the offset in the journal based on the configured offset type (LATEST, EARLIEST, or RESUME).
-     * Determines the appropriate starting position for the consumer to interact with the journal.
+     * Resolves the initial offset based on configuration (LATEST, EARLIEST, or RESUME).
      *
-     * @param tr The read transaction used to interact with the journal and retrieve information about the current offset.
-     * @return A byte array representing the resolved offset key for the journal based on the given configuration.
-     * @throws IllegalStateException if the offset type is unsupported or invalid.
+     * @param tr Transaction for reading offset state.
+     * @return Initial offset key.
+     * @throws IllegalStateException if offset type is unsupported.
      */
-    private byte[] inspectOffset(ReadTransaction tr) {
+    private byte[] inspectOffset(Transaction tr) {
         Subspace subspace = journalMetadata.eventsSubspace();
         if (config.offset().equals(ConsumerConfig.Offset.LATEST)) {
             AsyncIterator<KeyValue> iterator = tr.getRange(subspace.range(), 1, true).iterator();
@@ -152,20 +133,25 @@ public class Consumer {
     }
 
     /**
-     * Consumes the next available event from the journal by interacting
-     * with the provided read transaction. If no more events are available
-     * for consumption, returns {@code null}.
+     * Consumes the next event from the journal. Reloads offset checkpoint to recover from failed transactions.
      *
-     * @param tr The read transaction used to fetch the next event from the journal.
-     * @return An {@code Event} object representing the consumed event, or
-     * {@code null} if no events are available.
-     * @throws IllegalStateException if the consumer is not in a valid state
-     *                               to consume events (e.g., not started or already stopped).
+     * @param tr Transaction for reading events and offset state.
+     * @return Next event, or null if no events available.
+     * @throws IllegalConsumerStateException if consumer is not started or already stopped.
      */
-    public Event consume(ReadTransaction tr) {
+    public Event consume(Transaction tr) {
         checkOperationStatus();
 
         try {
+            // Reload offset from FDB to rewind to last committed checkpoint if previous transaction failed
+            byte[] checkpoint = tr.get(offsetKey).join();
+            if (checkpoint != null) {
+                offset = checkpoint;
+            } else {
+                // No checkpoint in FDB yet, use initial offset
+                offset = initialOffset;
+            }
+
             Subspace subspace = journalMetadata.eventsSubspace();
             KeySelector begin = KeySelector.firstGreaterThan(offset);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(subspace.pack()));
@@ -184,29 +170,15 @@ public class Consumer {
     }
 
     /**
-     * Updates the internal offset using the key of the provided event. Before updating, this method
-     * checks whether the consumer is in a valid state for the operation.
+     * Marks an event as successfully processed by updating the offset. Changes are only persisted if transaction commits.
      *
-     * @param event The event whose key will be used to update the internal offset.
-     *              The key represents the position of the event in the journal.
-     * @throws IllegalConsumerStateException if the consumer has not been started or is already stopped.
+     * @param tr Transaction to record offset update.
+     * @param event Event that was processed.
+     * @throws IllegalConsumerStateException if consumer is not started or already stopped.
      */
-    public void setOffset(Event event) {
+    public void markConsumed(Transaction tr, Event event) {
         checkOperationStatus();
         offset = event.key();
-    }
-
-    /**
-     * Marks the completion of an operation by updating the transaction with the current offset.
-     * Ensures that the consumer is in a valid operational state before proceeding.
-     *
-     * @param tr The transaction to be updated with the current offset value.
-     *           This transaction is used to record the consumer's progress.
-     * @throws IllegalConsumerStateException if the consumer has not been started
-     *                                       or is already stopped.
-     */
-    public void complete(Transaction tr) {
-        checkOperationStatus();
         tr.set(offsetKey, offset);
     }
 
@@ -220,10 +192,9 @@ public class Consumer {
     }
 
     /**
-     * Stops the consumer and marks it as no longer operational.
-     * This method should be called when the consumer has completed its operations.
+     * Stops the consumer, disabling further event consumption.
      *
-     * @throws IllegalStateException if the consumer has not been started prior to invoking this method.
+     * @throws IllegalStateException if consumer was not started.
      */
     public void stop() {
         if (!started) {

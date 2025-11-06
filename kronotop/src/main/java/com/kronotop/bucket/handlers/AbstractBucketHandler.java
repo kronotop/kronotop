@@ -28,7 +28,9 @@ import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.QueryOptions;
 import com.kronotop.bucket.pipeline.UpdateOptions;
+import com.kronotop.cluster.Route;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.network.Address;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
@@ -182,7 +184,12 @@ public abstract class AbstractBucketHandler implements Handler {
         }
         BucketShard shard = service.getShard(shardId);
         if (Objects.isNull(shard)) {
-            throw new KronotopException("Shard not owned by this member");
+            Route route = service.findRoute(shardId);
+            if (Objects.isNull(route)) {
+                throw new KronotopException("No routing information found for Bucket Shard: " + shardId);
+            }
+            Address address = route.primary().getExternalAddress();
+            throw new RedirectException(shardId, address.getHost(), address.getPort());
         }
         return shard;
     }

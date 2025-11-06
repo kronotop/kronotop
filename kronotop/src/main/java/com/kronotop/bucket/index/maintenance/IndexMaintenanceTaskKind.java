@@ -18,5 +18,6 @@ package com.kronotop.bucket.index.maintenance;
 
 public enum IndexMaintenanceTaskKind {
     BUILD,
-    DROP
+    DROP,
+    ANALYZE
 }

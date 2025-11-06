@@ -18,6 +18,7 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
+import com.kronotop.MetadataVersion;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.server.SubcommandHandler;
@@ -42,6 +43,8 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
             try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
+                String version = MetadataVersion.read(context, tr);
+                result.put(new SimpleStringRedisMessage("metadata_version"), new SimpleStringRedisMessage(version));
                 for (ShardKind kind : ShardKind.values()) {
                     Map<RedisMessage, RedisMessage> shardsByKind = new LinkedHashMap<>();
                     int numberOfShards = getNumberOfShards(kind);

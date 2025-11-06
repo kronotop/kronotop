@@ -39,7 +39,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
     void createIndex(IndexDefinition definition) {
         createIndexThenWaitForReadiness(definition);
         // Refresh the index registry
-        metadata = getBucketMetadata(TEST_BUCKET);
+        metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
     }
 
     /**

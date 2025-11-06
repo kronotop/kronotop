@@ -21,11 +21,14 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.index.statistics.IndexAnalyzeTask;
+import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import io.github.resilience4j.retry.Retry;
@@ -150,6 +153,24 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
+     * Clears the back pointer associated with a task in the specified index subspace.
+     * <p>
+     * This method removes the back pointer entry that maps the given task identifier
+     * to the subspace of the index. It operates within the provided FoundationDB transaction.
+     *
+     * @param tr     the active FoundationDB transaction to perform the operation
+     * @param index  the index containing the subspace where the back pointer is stored
+     * @param taskId the versionstamp identifier of the task whose back pointer is to be cleared
+     */
+    private void clearTaskBackPointer(Transaction tr, Index index, Versionstamp taskId) {
+        // Clean up the back pointer
+        byte[] taskIdBackPointer = index.subspace().pack(Tuple.from(
+                IndexSubspaceMagic.TASKS.getValue(), taskId
+        ));
+        tr.clear(taskIdBackPointer);
+    }
+
+    /**
      * Checks if a task has been completed on all shards (barrier verification).
      *
      * <p>This method implements the core barrier synchronization logic by checking
@@ -241,20 +262,17 @@ public class IndexMaintenanceTaskSweeper {
                 if (!isCompleted(taskId)) {
                     return;
                 }
+                // Index is ready to use. Update the status, save index definition and publish an event to trigger the metadata update
                 IndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
                 IndexUtil.saveIndexDefinition(tr, metadata, definition);
+                BucketMetadataUtil.publishBucketMetadataEvent(new TransactionalContext(context, tr), metadata);
                 dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
             } else if (status == IndexStatus.DROPPED) {
                 // Drop the BUILD tasks if there is any.
                 // The DROP tasks will be dropped separately.
                 dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
-
-                // Clean up the back pointer
-                byte[] taskIdBackPointer = index.subspace().pack(Tuple.from(
-                        IndexSubspaceMagic.TASKS.getValue(), taskId
-                ));
-                tr.clear(taskIdBackPointer);
             }
+            clearTaskBackPointer(tr, index, taskId);
         }
     }
 
@@ -287,6 +305,22 @@ public class IndexMaintenanceTaskSweeper {
         }
     }
 
+    private void sweepAnalyzeTask(Transaction tr, Versionstamp taskId, byte[] taskDef) {
+        IndexAnalyzeTask task = JSONUtil.readValue(taskDef, IndexAnalyzeTask.class);
+        BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        if (index == null) {
+            dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.ANALYZE);
+        } else {
+            DirectorySubspace taskSubspace = getOrOpenTaskSubspace(task.getShardId());
+            IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, taskSubspace, taskId);
+            if (state.status() == IndexTaskStatus.COMPLETED || state.status() == IndexTaskStatus.STOPPED) {
+                dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.ANALYZE);
+                clearTaskBackPointer(tr, index, taskId);
+            }
+        }
+    }
+
     /**
      * Dispatches task cleanup to the appropriate handler based on task kind.
      *
@@ -309,6 +343,9 @@ public class IndexMaintenanceTaskSweeper {
                     break;
                 case IndexMaintenanceTaskKind.DROP:
                     sweepDropTask(tr, taskId, definition);
+                    break;
+                case IndexMaintenanceTaskKind.ANALYZE:
+                    sweepAnalyzeTask(tr, taskId, definition);
                     break;
                 default:
                     throw new IllegalStateException("Unknown index maintenance task kind: " + base.getKind());
@@ -355,8 +392,7 @@ public class IndexMaintenanceTaskSweeper {
      */
     private void dropIndexMaintenanceTask(Transaction tr, Versionstamp taskId, IndexMaintenanceTaskKind... kinds) {
         for (int shardId = 0; shardId < numShards; shardId++) {
-            DirectorySubspace subspace = subspaces.computeIfAbsent(shardId,
-                    (id) -> IndexTaskUtil.openTasksSubspace(context, id));
+            DirectorySubspace subspace = getOrOpenTaskSubspace(shardId);
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
                 continue;
@@ -367,5 +403,10 @@ public class IndexMaintenanceTaskSweeper {
                 TaskStorage.drop(tr, subspace, taskId);
             }
         }
+    }
+
+    private DirectorySubspace getOrOpenTaskSubspace(int shardId) {
+        return subspaces.computeIfAbsent(shardId,
+                (id) -> IndexTaskUtil.openTasksSubspace(context, id));
     }
 }

@@ -22,6 +22,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketShard;
@@ -37,6 +38,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -83,27 +85,31 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
             IndexDefinition definition = IndexDefinition.create(
                     "test-index",
                     "age",
-                    BsonType.INT32,
-                    IndexStatus.WAITING
+                    BsonType.INT32
             );
 
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-                IndexUtil.create(tr, metadata.subspace(), definition);
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
                 tr.commit().join();
             }
 
-            IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, definition.id());
-            Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+            AtomicReference<Versionstamp> taskId = new AtomicReference<>();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TaskStorage.tasks(tr, taskSubspace, (id) -> {
+                    taskId.set(id);
+                    return false; // break;
+                });
+            }
 
             allLatch.await();
 
             bgFuture.get();
 
-            await().atMost(Duration.ofSeconds(10)).until(() -> {
+            await().atMost(Duration.ofSeconds(15)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+                    BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                     Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                     byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
                     byte[] end = ByteArrayUtil.strinc(begin);
@@ -116,12 +122,12 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
                 }
             });
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-                assertEquals(state.cursorVersionstamp(), state.highestVersionstamp());
-                assertNull(state.error());
-                assertEquals(IndexTaskStatus.COMPLETED, state.status());
-            }
+            await().atMost(15, TimeUnit.SECONDS).until(() -> {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    byte[] value = TaskStorage.getDefinition(tr, taskSubspace, taskId.get());
+                    return value == null; // swept & dropped task
+                }
+            });
         }
     }
 

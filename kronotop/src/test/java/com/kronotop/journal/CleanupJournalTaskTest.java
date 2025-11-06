@@ -38,7 +38,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void should_all_entries_be_evicted() {
+    void shouldAllEntriesEvicted() {
         Journal journal = new Journal(config, context.getFoundationDB());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -58,7 +58,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void should_journal_entry_not_be_evicted() {
+    void shouldNotEvictJournalEntryWhenWithinTTL() {
         Journal journal = new Journal(config, context.getFoundationDB());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {

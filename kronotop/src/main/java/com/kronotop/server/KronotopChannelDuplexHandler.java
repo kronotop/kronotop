@@ -291,6 +291,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
             }
 
             Attribute<List<Request>> queuedCommands = request.getSession().attr(SessionAttributes.QUEUED_COMMANDS);
+            ReferenceCountUtil.retain(request.getRedisMessage());
             queuedCommands.get().add(request);
             response.writeQUEUED();
             response.flush();

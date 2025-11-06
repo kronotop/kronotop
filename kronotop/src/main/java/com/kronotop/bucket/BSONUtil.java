@@ -31,6 +31,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 
@@ -199,6 +200,54 @@ public class BSONUtil {
             default -> {
                 throw new IllegalArgumentException("Unsupported BSON type: " + value.getBsonType());
             }
+        };
+    }
+
+    /**
+     * Compares two {@link BsonType} values and determines if they are equivalent,
+     * considering specific cases where one type is allowed to match another.
+     * For example, a {@code valueType} of {@link BsonType#INT64} is considered
+     * equivalent to a {@link BsonType#INT32}.
+     *
+     * @param valueType   the actual {@link BsonType} being compared
+     * @param desiredType the desired {@link BsonType} to compare against
+     * @return {@code true} if the types are considered equivalent, {@code false} otherwise
+     */
+    public static boolean equals(BsonType valueType, BsonType desiredType) {
+        if (desiredType.equals(BsonType.INT32)) {
+            if (valueType.equals(BsonType.INT64)) {
+                return true;
+            }
+        }
+        return desiredType.equals(valueType);
+    }
+
+    /**
+     * Compares two {@link BsonValue} instances and determines their relative order based on their types and values.
+     * If the BSON type is not supported for comparison, an {@link IllegalArgumentException} is thrown.
+     *
+     * @param a the first {@link BsonValue} to compare
+     * @param b the second {@link BsonValue} to compare
+     * @return 0 if the values are equal, a negative integer if {@code a} is less than {@code b},
+     *         or a positive integer if {@code a} is greater than {@code b}
+     * @throws IllegalArgumentException if the type of {@code a} or {@code b} is unsupported for comparison
+     */
+    public static int compareBsonValues(BsonValue a, BsonValue b) {
+        if (a.equals(b)) {
+            return 0;
+        }
+        return switch (a.getBsonType()) {
+            case DOUBLE -> a.asDouble().compareTo(b.asDouble());
+            case STRING -> a.asString().compareTo(b.asString());
+            case BINARY -> Arrays.compare(a.asBinary().getData(), b.asBinary().getData());
+            case BOOLEAN -> a.asBoolean().compareTo(b.asBoolean());
+            case DATE_TIME -> a.asDateTime().compareTo(b.asDateTime());
+            case NULL -> 0;
+            case INT32 -> a.asInt32().compareTo(b.asInt32());
+            case TIMESTAMP -> a.asTimestamp().compareTo(b.asTimestamp());
+            case INT64 -> a.asInt64().compareTo(b.asInt64());
+            case DECIMAL128 -> a.asDecimal128().getValue().compareTo(b.asDecimal128().getValue());
+            default -> throw new IllegalArgumentException("Unsupported bson type for indexing");
         };
     }
 }

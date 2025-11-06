@@ -23,4 +23,8 @@ public class IndexMaintenanceRoutineException extends KronotopException {
     public IndexMaintenanceRoutineException(String message) {
         super(message);
     }
+
+    public IndexMaintenanceRoutineException(Throwable throwable) {
+        super(throwable);
+    }
 }

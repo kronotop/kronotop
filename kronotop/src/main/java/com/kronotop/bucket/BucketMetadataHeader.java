@@ -20,5 +20,5 @@ import com.kronotop.bucket.index.IndexStatistics;
 
 import java.util.Map;
 
-public record BucketMetadataHeader(long version, Map<Long, IndexStatistics> indexStatistics) {
+public record BucketMetadataHeader(long id, long version, Map<Long, IndexStatistics> indexStatistics) {
 }

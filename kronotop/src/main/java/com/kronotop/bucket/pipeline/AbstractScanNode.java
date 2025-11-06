@@ -30,7 +30,29 @@ public abstract class AbstractScanNode extends AbstractPipelineNode implements S
     }
 
     /**
-     * Creates a BqlValue from a raw index value based on the BSON type.
+     * Converts a raw FoundationDB index value to a typed BqlValue for query processing.
+     *
+     * <p>Extracts the index value from the secondary index key structure
+     * ({@code BqlValue | Versionstamp}) at tuple position 1, and wraps it in the appropriate
+     * BqlValue subtype based on the BSON type metadata from the index definition.
+     *
+     * <p><b>Type Conversions:</b>
+     * <ul>
+     *   <li>{@code INT32}: FoundationDB stores as long, converted to int</li>
+     *   <li>{@code DECIMAL128}: Stored as string, parsed to BigDecimal</li>
+     *   <li>{@code BINARY}: Returns {@link VersionstampVal} for primary index (_id),
+     *       {@link BinaryVal} for regular binary indexes</li>
+     * </ul>
+     *
+     * <p>Used by scan nodes to construct checkpoint bounds and evaluate predicates
+     * during index traversal.
+     *
+     * @param value    the raw index value extracted from tuple position 1
+     * @param bsonType the BSON type from the index definition
+     * @return the typed BqlValue wrapper for query operations
+     * @throws IllegalArgumentException if the BSON type is not supported for indexing
+     * @see RangeScanNode
+     * @see IndexScanNode
      */
     BqlValue createBqlValueFromIndexValue(Object value, BsonType bsonType) {
         if (Objects.isNull(value)) {

@@ -74,7 +74,7 @@ public class RetryMethods {
                         }
                     })
                     .onError(ev -> {
-                        LOGGER.error("All retries failed for [{}] after {} attempts",
+                        LOGGER.debug("All retries failed for [{}] after {} attempts",
                                 ev.getName(),
                                 ev.getNumberOfRetryAttempts(),
                                 ev.getLastThrowable());

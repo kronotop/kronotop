@@ -22,14 +22,13 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
-import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -43,11 +42,12 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
-class BackgroundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
+class IndexBuildingRoutineTest extends BaseBucketHandlerTest {
     @Test
     void shouldBuildIndexAtBackground() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
@@ -74,26 +74,30 @@ class BackgroundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         IndexDefinition definition = IndexDefinition.create(
                 "test-index",
                 "age",
-                BsonType.INT32,
-                IndexStatus.WAITING
+                BsonType.INT32
         );
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-            IndexUtil.create(tr, metadata.subspace(), definition);
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
         }
 
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, definition.id());
-        Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+        AtomicReference<Versionstamp> taskId = new AtomicReference<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TaskStorage.tasks(tr, taskSubspace, (id) -> {
+                taskId.set(id);
+                return false; // break;
+            });
+        }
 
-        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+        await().atMost(15, TimeUnit.SECONDS).until(() -> {
             List<Long> expectedIndexValues = new ArrayList<>(List.of(32L, 40L));
             List<Long> indexValues = new ArrayList<>();
             List<Versionstamp> versionstamps = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+                BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
@@ -109,16 +113,9 @@ class BackgroundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-                return IndexTaskStatus.COMPLETED == state.status(); // ready to check the IndexBuildingTaskState
+                byte[] value = TaskStorage.getDefinition(tr, taskSubspace, taskId.get());
+                return value == null; // swept & dropped task
             }
         });
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-            assertEquals(state.cursorVersionstamp(), state.highestVersionstamp());
-            assertNull(state.error());
-            assertEquals(IndexTaskStatus.COMPLETED, state.status());
-        }
     }
 }

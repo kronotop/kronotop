@@ -48,14 +48,13 @@ import java.util.Map;
 
 class BucketIndexTasksSubcommand implements SubcommandHandler {
     private final Context context;
-    private final BucketService service;
 
     BucketIndexTasksSubcommand(Context context) {
         this.context = context;
-        this.service = context.getService(BucketService.NAME);
     }
 
     private Map<RedisMessage, RedisMessage> scanTaskId(Transaction tr, Versionstamp taskId) {
+        BucketService service = context.getService(BucketService.NAME);
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
         for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);

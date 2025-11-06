@@ -143,6 +143,14 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_INDEX, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, String> indexAnalyze(String bucket, String index) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(BucketIndex.ANALYZE).
+                add(bucket).
+                add(index);
+        return createCommand(CommandType.BUCKET_INDEX, new StatusOutput<>(codec), args);
+    }
+
     public final Command<K, V, Map<K, V>> delete(String bucket, String query) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
         return createCommand(CommandType.BUCKET_DELETE, new MapOutput<>(codec), args);
@@ -200,7 +208,8 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         CREATE("CREATE"),
         LIST("LIST"),
         DESCRIBE("DESCRIBE"),
-        DROP("DROP");
+        DROP("DROP"),
+        ANALYZE("ANALYZE");
 
         public final byte[] bytes;
 

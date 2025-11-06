@@ -38,6 +38,10 @@ public class Bucket extends KronotopDirectoryNode {
             return new Maintenance(layout);
         }
 
+        public LastSeenVersions lastSeenVersions() {
+            return new LastSeenVersions(layout);
+        }
+
         public static class Maintenance extends KronotopDirectoryNode {
             public Maintenance(List<String> layout) {
                 super(layout);
@@ -64,6 +68,13 @@ public class Bucket extends KronotopDirectoryNode {
                         layout.add("tasks");
                     }
                 }
+            }
+        }
+
+        public static class LastSeenVersions extends KronotopDirectoryNode {
+            public LastSeenVersions(List<String> layout) {
+                super(layout);
+                layout.add("lastSeenVersions");
             }
         }
     }

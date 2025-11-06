@@ -16,10 +16,7 @@
 
 package com.kronotop.bucket;
 
-import com.apple.foundationdb.FDBException;
-import com.apple.foundationdb.KeyValue;
-import com.apple.foundationdb.MutationType;
-import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.*;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
@@ -28,11 +25,13 @@ import com.google.common.hash.HashCode;
 import com.kronotop.Context;
 import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexRegistry;
 import com.kronotop.bucket.index.IndexStatistics;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.NamespaceUtil;
+import com.kronotop.journal.JournalName;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 import com.kronotop.volume.Prefix;
@@ -84,6 +83,18 @@ public class BucketMetadataUtil {
         increaseVersion(tr, subspace, delta);
     }
 
+    private static long generateAndSetId(Transaction tr, DirectorySubspace subspace) {
+        UUID uuid = UUID.randomUUID();
+        long id = sipHash24().hashBytes(uuid.toString().getBytes()).asLong();
+        Tuple tuple = Tuple.from(
+                BucketMetadataMagic.HEADER.getValue(),
+                BucketMetadataMagic.ID.getValue()
+        );
+        byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(id).array();
+        tr.set(subspace.pack(tuple), value);
+        return id;
+    }
+
     private static BucketMetadata createOrOpen_internal(Context context, Session session, String bucket) {
         /*
             The initial version is set using System.currentTimeMillis(), which may be affected by clock drift.
@@ -102,6 +113,7 @@ public class BucketMetadataUtil {
             byte[] bucketVolumePrefixKey = prefixKey(subspace);
             byte[] raw = tr.get(bucketVolumePrefixKey).join();
 
+            long id;
             long version;
             Prefix prefix;
             final IndexRegistry indexes = new IndexRegistry(context);
@@ -116,6 +128,7 @@ public class BucketMetadataUtil {
                 });
                 BucketMetadataHeader header = readBucketMetadataHeader(tr, subspace);
                 indexes.updateStatistics(header.indexStatistics());
+                id = header.version();
                 version = header.version();
             } else {
                 // Create
@@ -125,13 +138,14 @@ public class BucketMetadataUtil {
                 indexes.register(DefaultIndexDefinition.ID, idIndexSubspace);
                 indexes.updateStatistics(Map.of(DefaultIndexDefinition.ID.id(), new IndexStatistics(0)));
                 version = readVersion(tr, subspace);
+                id = generateAndSetId(tr, subspace);
                 tr.commit().join();
             }
 
             // Transaction cannot be used after this point.
 
             String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
-            BucketMetadata metadata = new BucketMetadata(namespace, bucket, version, subspace, prefix, indexes);
+            BucketMetadata metadata = new BucketMetadata(id, namespace, bucket, version, subspace, prefix, indexes);
             // Update the global bucket metadata cache
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
@@ -189,14 +203,6 @@ public class BucketMetadataUtil {
             return createOrOpen_internal(context, session, bucket);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            long version = readVersion(tr, metadata.subspace());
-            if (version != metadata.version()) {
-                // version changed, fetch the latest metadata.
-                return createOrOpen_internal(context, session, bucket);
-            }
-        }
-
         refreshIndexStatistics(context, metadata, INDEX_STATISTICS_TTL);
         return metadata;
     }
@@ -222,10 +228,9 @@ public class BucketMetadataUtil {
 
             BucketMetadataHeader header = readBucketMetadataHeader(tr, subspace);
             indexes.updateStatistics(header.indexStatistics());
-            long version = header.version();
 
             Prefix prefix = Prefix.fromBytes(raw);
-            BucketMetadata metadata = new BucketMetadata(namespace, bucket, version, subspace, prefix, indexes);
+            BucketMetadata metadata = new BucketMetadata(header.id(), namespace, bucket, header.version(), subspace, prefix, indexes);
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
         } catch (CompletionException e) {
@@ -276,14 +281,21 @@ public class BucketMetadataUtil {
             return open_internal(context, tr, namespace, bucket);
         }
 
-        long version = readVersion(tr, metadata.subspace());
-        if (version != metadata.version()) {
-            // version changed, fetch the latest metadata.
-            return open_internal(context, tr, namespace, bucket);
-        }
-
         refreshIndexStatistics(context, metadata, INDEX_STATISTICS_TTL);
         return metadata;
+    }
+
+    /**
+     * Forces the opening of a bucket within the specified namespace.
+     *
+     * @param context     The context of the operation, providing necessary configurations and settings.
+     * @param tr          The transaction instance used for ensuring the operation is performed atomically.
+     * @param namespace   The namespace within which the bucket resides.
+     * @param bucket      The name of the bucket to be forcibly opened.
+     * @return A BucketMetadata instance containing metadata of the forcibly opened bucket.
+     */
+    public static BucketMetadata forceOpen(Context context, Transaction tr, String namespace, String bucket) {
+        return open_internal(context, tr, namespace, bucket);
     }
 
     /**
@@ -311,9 +323,24 @@ public class BucketMetadataUtil {
         tr.mutate(MutationType.ADD, subspace.pack(VERSION_TUPLE), delta);
     }
 
+    /**
+     * Publishes a bucket metadata change event to the cluster journal for propagation.
+     *
+     * <p>Creates a broadcast event containing the bucket's namespace, name, ID, and version, then publishes it
+     * to the BUCKET_METADATA_EVENTS journal. Other cluster members watch this journal to detect metadata changes
+     * and invalidate their local caches, ensuring eventual consistency across the cluster.
+     *
+     * @param tx the transactional context containing both the transaction and system context
+     * @param metadata the bucket metadata to broadcast
+     */
+    public static void publishBucketMetadataEvent(TransactionalContext tx, BucketMetadata metadata) {
+        BucketMetadataEvent event = new BucketMetadataEvent(metadata.namespace(), metadata.name(), metadata.id(), metadata.version());
+        tx.context().getJournal().getPublisher().publish(tx.tr(), JournalName.BUCKET_METADATA_EVENTS, event);
+    }
+
     private static void extractIndexStatistics(HashMap<Long, IndexStatistics> stats, Tuple unpackedKey, KeyValue entry) {
         long cardinality = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
-        long id = unpackedKey.getLong(3);
+        long id = unpackedKey.getLong(2);
         stats.put(id, new IndexStatistics(cardinality));
     }
 
@@ -333,16 +360,31 @@ public class BucketMetadataUtil {
                 BucketMetadataMagic.HEADER.getValue(),
                 BucketMetadataMagic.INDEX_STATISTICS.getValue()
         );
-        byte[] begin = subspace.pack(tuple);
-        byte[] end = ByteArrayUtil.strinc(begin);
-
+        byte[] prefix = subspace.pack(tuple);
+        KeySelector begin = KeySelector.firstGreaterThan(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
         HashMap<Long, IndexStatistics> stats = new HashMap<>();
+        Long currentId = null;
+        long cardinality = 0L;
         for (KeyValue entry : tr.getRange(begin, end)) {
             Tuple unpackedKey = subspace.unpack(entry.getKey());
-            if (unpackedKey.getLong(1) == BucketMetadataMagic.INDEX_STATISTICS.getLong()) {
-                extractIndexStatistics(stats, unpackedKey, entry);
+            long id = unpackedKey.getLong(2);
+            if (currentId == null) {
+                currentId = id;
+            } else if (currentId != id) {
+                stats.put(currentId, new IndexStatistics(cardinality));
+                currentId = id;
+                cardinality = 0;
+            }
+            long magic = unpackedKey.getLong(3);
+            if (magic == BucketMetadataMagic.CARDINALITY.getLong()) {
+                cardinality = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
+            } else if (magic == BucketMetadataMagic.HISTOGRAM.getLong()) {
+                // Decode histogram
+                // TODO:
             }
         }
+        stats.put(currentId, new IndexStatistics(cardinality));
         return Collections.unmodifiableMap(stats);
     }
 
@@ -359,18 +401,22 @@ public class BucketMetadataUtil {
         byte[] begin = subspace.pack(tuple);
         byte[] end = ByteArrayUtil.strinc(begin);
 
+        long id = 0;
         long version = 0;
         HashMap<Long, IndexStatistics> stats = new HashMap<>();
-        for (KeyValue entry : tr.getRange(begin, end)) {
+
+        // Iterate over a read-only view of the database, just reading the stats.
+        for (KeyValue entry : tr.snapshot().getRange(begin, end)) {
             Tuple unpackedKey = subspace.unpack(entry.getKey());
-            if (unpackedKey.getLong(1) == BucketMetadataMagic.VERSION.getLong()) {
+            if (unpackedKey.getLong(1) == BucketMetadataMagic.ID.getLong()) {
+                id = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
+            } else if (unpackedKey.getLong(1) == BucketMetadataMagic.VERSION.getLong()) {
                 version = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
-            }
-            if (unpackedKey.getLong(1) == BucketMetadataMagic.INDEX_STATISTICS.getLong()) {
+            } else if (unpackedKey.getLong(1) == BucketMetadataMagic.INDEX_STATISTICS.getLong()) {
                 extractIndexStatistics(stats, unpackedKey, entry);
             }
         }
-        return new BucketMetadataHeader(version, stats);
+        return new BucketMetadataHeader(id, version, stats);
     }
 
     /**
@@ -384,7 +430,7 @@ public class BucketMetadataUtil {
      * @return an {@code IndexStatistics} instance containing the cardinality of the specified index
      */
     public static IndexStatistics readIndexStatistics(Transaction tr, DirectorySubspace subspace, long indexId) {
-        byte[] key = IndexUtil.getCardinalityKey(subspace, indexId);
+        byte[] key = IndexUtil.cardinalityKey(subspace, indexId);
         long cardinality = 0;
         byte[] value = tr.get(key).join();
         if (value == null) {

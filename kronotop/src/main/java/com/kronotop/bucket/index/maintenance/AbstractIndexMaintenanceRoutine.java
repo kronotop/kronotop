@@ -22,10 +22,17 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketMetadataVersionBarrier;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.internal.TransactionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.time.Duration;
 
 public abstract class AbstractIndexMaintenanceRoutine implements IndexMaintenanceRoutine {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractIndexMaintenanceRoutine.class);
     protected final Context context;
     protected final Versionstamp taskId;
     protected final DirectorySubspace subspace;
@@ -42,31 +49,37 @@ public abstract class AbstractIndexMaintenanceRoutine implements IndexMaintenanc
     }
 
     /**
-     * Refreshes bucket metadata and validates the target index while ensuring transaction isolation.
+     * Waits for bucket metadata propagation and establishes a stable transaction baseline for index maintenance.
      *
-     * <p>This method performs a critical initialization step for background index building by:
-     * <ul>
-     *   <li>Creating a new FoundationDB transaction with a stable read version</li>
-     *   <li>Loading bucket metadata and refreshing internal caches</li>
-     *   <li>Validating that the target index exists in the metadata</li>
-     *   <li>Introducing a 6-second sleep to ensure all previous transactions expire</li>
-     * </ul>
+     * <p>Blocks until bucket metadata propagates to all cluster members (up to 60 seconds), then opens a transaction
+     * with a stable read version. After validating the target index exists, sleeps for 10 seconds to guarantee all
+     * pre-existing transactions have expired (FoundationDB 5s limit). This ensures subsequent index operations
+     * see a consistent snapshot without conflicts from concurrent modifications.
      *
-     * <p>The 6-second sleep is a critical safety mechanism that ensures transaction isolation.
-     * Since FoundationDB transactions cannot live beyond 5 seconds, sleeping for 6 seconds
-     * guarantees that any previously opened transactions have either committed or expired.
-     * This prevents potential conflicts during the index building process.
-     *
-     * @throws InterruptedException             if the thread is interrupted during the 6-second sleep
-     * @throws IndexMaintenanceRoutineException if the target index is not found in the metadata
+     * @param namespace the namespace containing the bucket
+     * @param bucket the bucket name
+     * @param indexId the index identifier to validate
+     * @throws InterruptedException if interrupted during metadata propagation wait or transaction wait
+     * @throws IndexMaintenanceRoutineException if metadata propagation fails or index not found
      */
     protected void refreshBucketMetadata(String namespace, String bucket, long indexId) throws InterruptedException {
+        try {
+            BucketMetadata metadata = TransactionUtils.execute(context, tr -> BucketMetadataUtil.forceOpen(context, tr, namespace, bucket));
+            BucketMetadataVersionBarrier barrier = new BucketMetadataVersionBarrier(context, metadata);
+            // Wait up to 60 seconds (120 attempts × 500ms intervals). Background task - no rush needed.
+            barrier.await(metadata.version(), 120, Duration.ofMillis(500));
+        } catch (Exception e) {
+            LOGGER.debug("Bucket metadata synchronization failed for namespace={}, bucket={}, indexId={}", namespace, bucket, indexId, e);
+            throw new IndexMaintenanceRoutineException(e);
+        }
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            // Open the BucketMetadata and refresh the caches
+            // Open the BucketMetadata and refresh the caches, forceOpen always loads all bucket and
+            // index metadata from FDB using the given transaction.
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, bucket);
             Index index = metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.ALL);
             if (index == null) {
-                throw new IndexMaintenanceRoutineException("index with id '" + indexId + "' could not be found");
+                throw new IndexMaintenanceRoutineException("Index with id '" + indexId + "' could not be found");
             }
 
             /*
@@ -82,8 +95,8 @@ public abstract class AbstractIndexMaintenanceRoutine implements IndexMaintenanc
             boolean skipWaitTxLimit = context.getConfig().hasPath(txLimitConfigPath) && context.getConfig().getBoolean(txLimitConfigPath);
             if (!skipWaitTxLimit) {
                 // FoundationDB transactions cannot live beyond 5s.
-                // Sleeping 6s ensures that any previously opened transactions are expired.
-                Thread.sleep(6000);
+                // Sleeping 10s ensures that any previously opened transactions are expired.
+                Thread.sleep(10 * 1000);
             }
             // Now all transactions either committed or died.
         }

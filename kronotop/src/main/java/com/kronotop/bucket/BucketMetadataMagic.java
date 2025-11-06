@@ -18,11 +18,13 @@ package com.kronotop.bucket;
 
 public enum BucketMetadataMagic {
     HEADER((byte) 0x01),
-    VERSION((byte) 0x02),
-    INDEX_DEFINITION((byte) 0x03),
-    VOLUME_PREFIX((byte) 0x04),
-    INDEX_STATISTICS((byte) 0x05),
-    INDEX_CARDINALITY((byte) 0x06);
+    ID((byte) 0x02),
+    VERSION((byte) 0x03),
+    INDEX_DEFINITION((byte) 0x04),
+    VOLUME_PREFIX((byte) 0x05),
+    INDEX_STATISTICS((byte) 0x06),
+    CARDINALITY((byte) 0x07),
+    HISTOGRAM((byte) 0x08);
 
     public final byte value;
 

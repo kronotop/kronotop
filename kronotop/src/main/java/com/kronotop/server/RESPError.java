@@ -31,6 +31,7 @@ public enum RESPError {
     MOVED,
     CROSSSLOT,
     NOPROTO,
+    REDIRECT,
     ERR;
 
     public final static String TRANSACTION_TOO_OLD_MESSAGE = "Transaction is too old to perform reads or be committed";
