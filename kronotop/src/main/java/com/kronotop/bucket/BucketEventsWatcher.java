@@ -20,7 +20,12 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
+import com.kronotop.cluster.BaseBroadcastEvent;
+import com.kronotop.cluster.BroadcastEventKind;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -40,6 +45,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -89,9 +95,10 @@ import java.util.concurrent.TimeUnit;
  * retries via Resilience4j. If a bucket no longer exists, NoSuchBucketException is silently
  * ignored since the metadata change may have been a deletion.
  */
-public class BucketMetadataWatcher implements Runnable {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(BucketMetadataWatcher.class);
-    private final String journalName = JournalName.BUCKET_METADATA_EVENTS.getValue();
+public class BucketEventsWatcher implements Runnable {
+    protected static final Logger LOGGER = LoggerFactory.getLogger(BucketEventsWatcher.class);
+    private static final HashFunction MURMUR3_32_FIXED = Hashing.murmur3_32_fixed();
+    private final String journalName = JournalName.BUCKET_EVENTS.getValue();
     private final Context context;
     private final Consumer consumer;
     private final Map<Integer, DirectorySubspace> subspaces = new HashMap<>();
@@ -106,7 +113,7 @@ public class BucketMetadataWatcher implements Runnable {
      *
      * @param context the system context providing services and configuration
      */
-    public BucketMetadataWatcher(Context context) {
+    public BucketEventsWatcher(Context context) {
         this.context = context;
         this.routingService = context.getService(RoutingService.NAME);
         this.numberOfShards = context.getConfig().getInt("bucket.shards");
@@ -125,7 +132,7 @@ public class BucketMetadataWatcher implements Runnable {
     /**
      * Opens the lastSeenVersions subspace for a shard, caching the result.
      *
-     * @param tr the FoundationDB transaction
+     * @param tr      the FoundationDB transaction
      * @param shardId the shard identifier
      * @return the directory subspace for storing version witness records
      */
@@ -146,9 +153,9 @@ public class BucketMetadataWatcher implements Runnable {
     /**
      * Updates the last seen version for shards owned by this member.
      *
-     * @param tr the FoundationDB transaction
+     * @param tr         the FoundationDB transaction
      * @param metadataId the bucket metadata identifier
-     * @param value the version number encoded as 8-byte little-endian
+     * @param value      the version number encoded as 8-byte little-endian
      */
     private void updateLastSeenVersion(Transaction tr, long metadataId, byte[] value) {
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
@@ -165,26 +172,41 @@ public class BucketMetadataWatcher implements Runnable {
         }
     }
 
+    private boolean isShardOwnerFor(long indexId) {
+        // numberOfShards is a small value, there is no overflow risk here.
+        int shardId = Math.toIntExact(indexId % (long) numberOfShards);
+        Route route = routingService.findRoute(ShardKind.BUCKET, shardId);
+        if (route == null) {
+            return false;
+        }
+        return route.primary().equals(context.getMember());
+    }
+
     /**
      * Processes a bucket metadata change event and records the version.
      *
-     * @param tr the FoundationDB transaction
+     * @param tr    the FoundationDB transaction
      * @param event the journal event containing metadata change details
      */
-    private void processBucketMetadataEvent(Transaction tr, Event event) {
-        BucketMetadataEvent evt = JSONUtil.readValue(event.value(), BucketMetadataEvent.class);
-        try {
-            BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, evt.namespace(), evt.bucket());
-            byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(metadata.version()).array();
-            updateLastSeenVersion(tr, metadata.id(), value);
-        } catch (NoSuchBucketException ignored) {
+    private void processBucketEvent(Transaction tr, Event event) {
+        BaseBroadcastEvent base = JSONUtil.readValue(event.value(), BaseBroadcastEvent.class);
+        if (Objects.requireNonNull(base.kind()) == BroadcastEventKind.BUCKET_METADATA_UPDATED_EVENT) {
+            BucketMetadataUpdatedEvent evt = JSONUtil.readValue(event.value(), BucketMetadataUpdatedEvent.class);
+            try {
+                BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, evt.namespace(), evt.bucket());
+                byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(metadata.version()).array();
+                updateLastSeenVersion(tr, metadata.id(), value);
+            } catch (NoSuchBucketException ignored) {
+            }
+        } else {
+            throw new KronotopException(String.format("Unknown %s kind: %s", JournalName.BUCKET_EVENTS, base.kind()));
         }
     }
 
     /**
      * Fetches and processes all available metadata events from the journal.
      */
-    private void fetchBucketMetadataEvents() {
+    private void fetchBucketEvents() {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -196,7 +218,7 @@ public class BucketMetadataWatcher implements Runnable {
                     }
 
                     try {
-                        processBucketMetadataEvent(tr, event);
+                        processBucketEvent(tr, event);
                         consumer.markConsumed(tr, event);
                     } catch (Exception e) {
                         LOGGER.error("Failed to process a Bucket metadata event, passing it", e);
@@ -222,16 +244,16 @@ public class BucketMetadataWatcher implements Runnable {
                     tr.commit().join();
                     try {
                         // Try to fetch the latest events before start waiting
-                        fetchBucketMetadataEvents();
+                        fetchBucketEvents();
                         watcher.join();
                     } catch (CancellationException e) {
-                        LOGGER.debug("{} watcher has been cancelled", JournalName.BUCKET_METADATA_EVENTS);
+                        LOGGER.debug("{} watcher has been cancelled", JournalName.BUCKET_EVENTS);
                         return;
                     }
                     // A new event is ready to read
-                    fetchBucketMetadataEvents();
+                    fetchBucketEvents();
                 } catch (Exception e) {
-                    LOGGER.error("Error while watching journal: {}", JournalName.BUCKET_METADATA_EVENTS, e);
+                    LOGGER.error("Error while watching journal: {}", JournalName.BUCKET_EVENTS, e);
                 }
             }
         } finally {

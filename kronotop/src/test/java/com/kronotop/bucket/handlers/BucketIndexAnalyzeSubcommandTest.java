@@ -26,6 +26,7 @@ import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.index.statistics.HistogramBucket;
 import com.kronotop.bucket.index.statistics.HistogramCodec;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -86,6 +87,15 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
             assertNotNull(actualMessage);
             assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            // Analyze only works with the indexes in READY status.
+            BucketMetadata metadata = TransactionUtils.execute(context,
+                    tr -> BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET)
+            );
+            Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            waitForIndexReadiness(index.subspace());
         }
 
         {

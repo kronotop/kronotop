@@ -78,8 +78,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
                 metadata().
                 buckets().
                 maintenance().
-                index().
-                counter();
+                index();
         DirectoryLayer.getDefault().create(tr, directory.toList()).join();
     }
 

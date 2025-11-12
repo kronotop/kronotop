@@ -21,7 +21,6 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.internal.task.TaskStorage;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -34,7 +33,6 @@ import java.util.Map;
  * <p><b>State Components:</b></p>
  * <ul>
  *   <li><b>cursorVersionstamp:</b> The current position in the index building process (last processed entry)</li>
- *   <li><b>highestVersionstamp:</b> The upper bound versionstamp when the task started (defines end of range)</li>
  *   <li><b>status:</b> Current execution status (WAITING, RUNNING, COMPLETED, FAILED, STOPPED)</li>
  *   <li><b>error:</b> Error message if the task failed (null for successful tasks)</li>
  * </ul>
@@ -47,16 +45,6 @@ import java.util.Map;
  *   <li><b>FAILED:</b> Task encountered an error (terminal state, error field populated)</li>
  *   <li><b>STOPPED:</b> Task was manually stopped (terminal state)</li>
  * </ol>
- *
- * <p><b>Versionstamp Progress Tracking:</b></p>
- * <p>The task processes entries in versionstamp order from cursorVersionstamp to highestVersionstamp:</p>
- * <pre>{@code
- * while (cursorVersionstamp < highestVersionstamp) {
- *     // Process next batch of entries
- *     // Update cursorVersionstamp
- * }
- * // Mark status as COMPLETED
- * }</pre>
  *
  * <p><b>Persistence:</b></p>
  * <p>State fields are stored separately in FoundationDB using {@link TaskStorage}, allowing
@@ -86,28 +74,30 @@ import java.util.Map;
  * }</pre>
  *
  * @param cursorVersionstamp the current processing position (null if not started)
- * @param highestVersionstamp the upper bound versionstamp defining the end of the range to process
- * @param status the current execution status of the task
- * @param error error message if status is FAILED, null otherwise
- *
+ * @param status             the current execution status of the task
+ * @param error              error message if status is FAILED, null otherwise
  * @see IndexBuildingTask
  * @see IndexTaskStatus
  * @see IndexMaintenanceTaskSweeper
  * @see TaskStorage
  */
-public record IndexBuildingTaskState(Versionstamp cursorVersionstamp, Versionstamp highestVersionstamp,
-                                     IndexTaskStatus status, String error) {
-    /** Field key for the cursor versionstamp in TaskStorage. */
-    public static final String CURSOR_VERSIONSTAMP = "cv";
+public class IndexBuildingTaskState extends AbstractTaskState {
+    /**
+     * Field key for the cursor versionstamp in TaskStorage.
+     */
+    private static final String CURSOR_VERSIONSTAMP = "cv";
+    /**
+     * Field key for bootstrapped flag in TaskStorage.
+     */
+    private static final String BOOTSTRAPPED = "b";
+    private final Versionstamp cursorVersionstamp;
+    private final boolean bootstrapped;
 
-    /** Field key for the highest versionstamp in TaskStorage. */
-    public static final String HIGHEST_VERSIONSTAMP = "hv";
-
-    /** Field key for an error message in TaskStorage. */
-    public static final String ERROR = "e";
-
-    /** Field key for task status in TaskStorage. */
-    public static final String STATUS = "s";
+    protected IndexBuildingTaskState(Versionstamp cursorVersionstamp, boolean bootstrapped, IndexTaskStatus status, String error) {
+        super(status, error);
+        this.cursorVersionstamp = cursorVersionstamp;
+        this.bootstrapped = bootstrapped;
+    }
 
     /**
      * Loads the task state from FoundationDB for a specific task.
@@ -119,7 +109,6 @@ public record IndexBuildingTaskState(Versionstamp cursorVersionstamp, Versionsta
      * <p><b>Default Values:</b></p>
      * <ul>
      *   <li><b>cursorVersionstamp:</b> null (task hasn't started processing)</li>
-     *   <li><b>highestVersionstamp:</b> null (will be set when task starts)</li>
      *   <li><b>status:</b> WAITING (initial status for new tasks)</li>
      *   <li><b>error:</b> null (no error initially)</li>
      * </ul>
@@ -132,37 +121,29 @@ public record IndexBuildingTaskState(Versionstamp cursorVersionstamp, Versionsta
      *   <li>Error: Deserialized as UTF-8 string</li>
      * </ul>
      *
-     * @param tr the transaction to use for loading state
+     * @param tr       the transaction to use for loading state
      * @param subspace the directory subspace containing the task
-     * @param taskId the versionstamp identifier of the task
+     * @param taskId   the versionstamp identifier of the task
      * @return the loaded IndexBuildingTaskState with current field values or defaults
      */
     public static IndexBuildingTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
         Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
+
+        TaskStateFields fields = loadCommonFields(entries);
+
+        boolean bootstrapped = false;
+        byte[] rawBootstrapped = entries.get(BOOTSTRAPPED);
+        if (rawBootstrapped != null) {
+            bootstrapped = rawBootstrapped[0] != 0;
+        }
+
         Versionstamp cursorVersionstamp = null;
         byte[] rawCursorVs = entries.get(CURSOR_VERSIONSTAMP);
         if (rawCursorVs != null) {
             cursorVersionstamp = Versionstamp.fromBytes(rawCursorVs);
         }
 
-        Versionstamp highestVersionstamp = null;
-        byte[] rawHighestVs = entries.get(HIGHEST_VERSIONSTAMP);
-        if (rawHighestVs != null) {
-            highestVersionstamp = Versionstamp.fromBytes(rawHighestVs);
-        }
-
-        String error = null;
-        byte[] rawError = entries.get(ERROR);
-        if (rawError != null) {
-            error = new String(rawError, StandardCharsets.UTF_8);
-        }
-
-        IndexTaskStatus status = IndexTaskStatus.WAITING; // Initial status should be WAITING
-        byte[] rawStatus = entries.get(STATUS);
-        if (rawStatus != null) {
-            status = IndexTaskStatus.valueOf(new String(rawStatus));
-        }
-        return new IndexBuildingTaskState(cursorVersionstamp, highestVersionstamp, status, error);
+        return new IndexBuildingTaskState(cursorVersionstamp, bootstrapped, fields.status(), fields.error());
     }
 
     /**
@@ -183,87 +164,13 @@ public record IndexBuildingTaskState(Versionstamp cursorVersionstamp, Versionsta
      * tr.commit();
      * }</pre>
      *
-     * @param tr the transaction to use for the update
+     * @param tr       the transaction to use for the update
      * @param subspace the directory subspace containing the task
-     * @param taskId the versionstamp identifier of the task
-     * @param value the new cursor position (versionstamp of last processed entry)
+     * @param taskId   the versionstamp identifier of the task
+     * @param value    the new cursor position (versionstamp of last processed entry)
      */
     public static void setCursorVersionstamp(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, Versionstamp value) {
         TaskStorage.setStateField(tr, subspace, taskId, CURSOR_VERSIONSTAMP, value.getBytes());
-    }
-
-    /**
-     * Sets the highest versionstamp defining the upper bound of entries to process.
-     *
-     * <p>The highest versionstamp is set when the task starts and represents the snapshot
-     * point of the bucket. Only entries with versionstamps <= highestVersionstamp are
-     * processed by this task. This ensures the index build operates on a consistent snapshot
-     * even as new documents are inserted.</p>
-     *
-     * <p><b>Typical Usage:</b></p>
-     * <pre>{@code
-     * // When starting task, capture current highest versionstamp
-     * Versionstamp snapshot = getLatestVersionstamp(tr, bucket);
-     * IndexBuildingTaskState.setHighestVersionstamp(tr, subspace, taskId, snapshot);
-     * }</pre>
-     *
-     * @param tr the transaction to use for the update
-     * @param subspace the directory subspace containing the task
-     * @param taskId the versionstamp identifier of the task
-     * @param value the highest versionstamp to process (snapshot boundary)
-     */
-    public static void setHighestVersionstamp(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, Versionstamp value) {
-        TaskStorage.setStateField(tr, subspace, taskId, HIGHEST_VERSIONSTAMP, value.getBytes());
-    }
-
-    /**
-     * Records an error message when a task fails.
-     *
-     * <p>This method should be called when a task encounters a fatal error that prevents
-     * it from completing. The error message is stored for debugging and monitoring purposes.
-     * Typically called in conjunction with {@link #setStatus} to mark the task as FAILED.</p>
-     *
-     * <p><b>Usage Pattern:</b></p>
-     * <pre>{@code
-     * try {
-     *     // Build index
-     * } catch (Exception e) {
-     *     IndexBuildingTaskState.setError(tr, subspace, taskId, e.getMessage());
-     *     IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-     *     tr.commit();
-     * }
-     * }</pre>
-     *
-     * @param tr the transaction to use for the update
-     * @param subspace the directory subspace containing the task
-     * @param taskId the versionstamp identifier of the task
-     * @param error the error message describing the failure
-     */
-    public static void setError(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String error) {
-        TaskStorage.setStateField(tr, subspace, taskId, ERROR, error.getBytes(StandardCharsets.UTF_8));
-    }
-
-    /**
-     * Updates the task status to reflect current execution state.
-     *
-     * <p>Status transitions should follow the lifecycle:</p>
-     * <ul>
-     *   <li>WAITING → RUNNING (task starts execution)</li>
-     *   <li>RUNNING → COMPLETED (task finishes successfully)</li>
-     *   <li>RUNNING → FAILED (task encounters error)</li>
-     *   <li>RUNNING → STOPPED (task manually stopped)</li>
-     * </ul>
-     *
-     * <p><b>Important:</b> Once a task reaches a terminal status (COMPLETED, FAILED, STOPPED),
-     * it should not transition to any other status. Use {@link #isTerminal} to check.</p>
-     *
-     * @param tr the transaction to use for the update
-     * @param subspace the directory subspace containing the task
-     * @param taskId the versionstamp identifier of the task
-     * @param status the new status to set
-     */
-    public static void setStatus(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, IndexTaskStatus status) {
-        TaskStorage.setStateField(tr, subspace, taskId, STATUS, status.name().getBytes());
     }
 
     /**
@@ -291,5 +198,31 @@ public record IndexBuildingTaskState(Versionstamp cursorVersionstamp, Versionsta
      */
     public static boolean isTerminal(IndexTaskStatus status) {
         return status.equals(IndexTaskStatus.COMPLETED) || status.equals(IndexTaskStatus.FAILED) || status.equals(IndexTaskStatus.STOPPED);
+    }
+
+    /**
+     * Marks the index building task as bootstrapped or resets its bootstrap status.
+     *
+     * <p>This method updates the {@code BOOTSTRAPPED} flag in the task's state record within
+     * FoundationDB. When set to {@code true}, it indicates that the first batch of index
+     * entries has been successfully processed and that subsequent executions should use
+     * exclusive range selectors (e.g., {@code firstGreaterThan}) to continue from the
+     * last known cursor.
+     *
+     * @param tr           the FoundationDB transaction used to modify the task state
+     * @param subspace     the directory subspace where the task state is stored
+     * @param taskId       the unique identifier of the index building task
+     * @param bootstrapped {@code true} to mark the task as bootstrapped, {@code false} to reset it
+     */
+    public static void setBootstrapped(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, boolean bootstrapped) {
+        TaskStorage.setStateField(tr, subspace, taskId, BOOTSTRAPPED, new byte[]{(byte) (bootstrapped ? 1 : 0)});
+    }
+
+    public Versionstamp cursorVersionstamp() {
+        return cursorVersionstamp;
+    }
+
+    public boolean bootstrapped() {
+        return bootstrapped;
     }
 }

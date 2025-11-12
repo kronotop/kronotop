@@ -16,10 +16,7 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-import com.apple.foundationdb.KeySelector;
-import com.apple.foundationdb.KeyValue;
-import com.apple.foundationdb.MutationType;
-import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.*;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
@@ -28,28 +25,20 @@ import com.kronotop.Context;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.directory.KronotopDirectory;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
+
+import static com.kronotop.bucket.index.IndexUtil.NULL_BYTES;
 
 /**
- * Utility class for managing index maintenance task subspaces and task counters in FoundationDB.
- * <p>
- * This class provides methods for:
- * <ul>
- *   <li>Opening task subspaces for specific shards</li>
- *   <li>Managing task counters to track task completion across shards</li>
- *   <li>Reading task counter values for monitoring purposes</li>
- * </ul>
- *
- * <p>Task counters are used to coordinate index maintenance operations across multiple shards.
- * When a task affects multiple shards, the counter tracks how many shards have completed the task,
- * enabling efficient coordination without requiring a central coordinator.
+ * Utility class for managing index maintenance task operations in FoundationDB.
+ * Provides methods for opening task subspaces and listing task identifiers.
  *
  * @see IndexBuildingTask
  * @see IndexDropTask
@@ -87,84 +76,6 @@ public class IndexTaskUtil {
     }
 
     /**
-     * Atomically modifies a task counter by the specified delta value.
-     * <p>
-     * This method uses FoundationDB's atomic ADD mutation to increment or decrement
-     * a counter associated with a specific task. The counter is stored in a global
-     * maintenance subspace and is used to track task completion across multiple shards.
-     *
-     * <p>The directory path for counters follows the structure:
-     * <pre>
-     * kronotop/{cluster}/metadata/buckets/maintenance/index/counter
-     * </pre>
-     *
-     * <p>Common use cases:
-     * <ul>
-     *   <li>Increment by +1 when a shard completes its portion of a task</li>
-     *   <li>Decrement by -1 when a task needs to be retried</li>
-     *   <li>Initialize counter when creating a distributed task</li>
-     * </ul>
-     *
-     * <p><strong>Atomicity:</strong> This operation is atomic and thread-safe, using
-     * FoundationDB's {@link MutationType#ADD} mutation. Multiple shards can safely modify
-     * the same counter concurrently.
-     *
-     * @param context the application context providing access to cluster configuration
-     * @param tr      the transaction in which to perform the atomic mutation
-     * @param taskId  the versionstamp identifying the task whose counter should be modified
-     * @param delta   the value to add to the counter (can be negative for decrement)
-     * @see #readTaskCounter(Context, Versionstamp)
-     */
-    public static void modifyTaskCounter(Context context, Transaction tr, Versionstamp taskId, int delta) {
-        List<String> layout = KronotopDirectory.
-                kronotop().cluster(context.getClusterName()).metadata().
-                buckets().maintenance().index().counter().toList();
-        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(layout);
-        byte[] data = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(delta).array();
-        byte[] key = subspace.pack(taskId);
-        tr.mutate(MutationType.ADD, key, data);
-    }
-
-    /**
-     * Reads the current value of a task counter.
-     * <p>
-     * This method retrieves the counter value for a specific task from the global
-     * maintenance counter subspace. The counter tracks how many shards have completed
-     * their portion of a distributed task.
-     *
-     * <p>The directory path for counters follows the structure:
-     * <pre>
-     * kronotop/{cluster}/metadata/buckets/maintenance/index/counter
-     * </pre>
-     *
-     * <p>This method creates its own transaction for reading the counter value,
-     * providing a consistent snapshot of the counter at the time of the read.
-     *
-     * <p><strong>Note:</strong> The returned value represents a point-in-time snapshot.
-     * The actual counter value may change immediately after this method returns if other
-     * shards are concurrently modifying it.
-     *
-     * @param context the application context providing access to cluster configuration and FoundationDB
-     * @param taskId  the versionstamp identifying the task whose counter should be read
-     * @return the current counter value as a 32-bit integer
-     * @see #modifyTaskCounter(Context, Transaction, Versionstamp, int)
-     */
-    public static int readTaskCounter(Context context, Versionstamp taskId) {
-        List<String> layout = KronotopDirectory.
-                kronotop().cluster(context.getClusterName()).metadata().
-                buckets().maintenance().index().counter().toList();
-        DirectorySubspace subspace = context.getDirectorySubspaceCache().get(layout);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] key = subspace.pack(taskId);
-            byte[] data = tr.get(key).join();
-            if (data == null) {
-                return 0;
-            }
-            return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
-        }
-    }
-
-    /**
      * Retrieves all task identifiers associated with a specific index.
      * <p>
      * This method scans the index subspace for task entries and returns their versionstamp
@@ -179,7 +90,7 @@ public class IndexTaskUtil {
      * @see IndexUtil#create(TransactionalContext, String, String, com.kronotop.bucket.index.IndexDefinition)
      * @see IndexSubspaceMagic#TASKS
      */
-    public static List<Versionstamp> listTasks(TransactionalContext tx, String namespace, String bucket, String index) {
+    public static List<Versionstamp> getTaskIds(TransactionalContext tx, String namespace, String bucket, String index) {
         BucketMetadata metadata = BucketMetadataUtil.open(tx.context(), tx.tr(), namespace, bucket);
         DirectorySubspace indexSubspace = IndexUtil.open(tx.tr(), metadata.subspace(), index);
 
@@ -196,5 +107,129 @@ public class IndexTaskUtil {
             taskIds.add(taskId);
         }
         return taskIds;
+    }
+
+    /**
+     * Removes task back pointer from index subspace.
+     *
+     * <p>Clears all keys with prefix TASKS/{taskId} using range clear operation.
+     * This removes the back pointer marker created during task creation.
+     *
+     * @param tr     transaction for clear operation
+     * @param index  index containing the back pointer
+     * @param taskId task identifier
+     */
+    public static void clearTaskBackPointer(Transaction tr, Index index, Versionstamp taskId) {
+        byte[] prefix = index.subspace().pack(Tuple.from(
+                IndexSubspaceMagic.TASKS.getValue(), taskId
+        ));
+        tr.clear(Range.startsWith(prefix));
+    }
+
+    /**
+     * Creates a task back pointer in the index subspace using versionstamped keys.
+     *
+     * <p>Back pointers establish a link from the index subspace to tasks in shard-specific
+     * task subspaces. They enable efficient validation of task completion status and index
+     * readiness checking without scanning all shard task queues.
+     *
+     * <p><strong>Key Structure:</strong>
+     * <pre>
+     * Key: TASKS/{versionstamp}/{shardId}
+     * Tuple: [TASKS, Versionstamp.incomplete(userVersion), shardId]
+     * Value: Empty (NULL_BYTES)
+     * </pre>
+     *
+     * <p><strong>Versionstamp Mechanics:</strong> The incomplete versionstamp is replaced
+     * by FoundationDB with the actual transaction versionstamp during commit, ensuring
+     * the taskId matches the task definition created in the same transaction.
+     *
+     * <p>Used by {@link IndexUtil#createIndexBuildingTasks} to establish back pointers
+     * when creating BUILD tasks across multiple shards.
+     *
+     * @param tr            transaction for versionstamped mutation
+     * @param indexSubspace index subspace where back pointer is stored
+     * @param userVersion   user-defined component of the incomplete versionstamp
+     * @param shardId       shard identifier for the task
+     * @see #scanTaskBackPointers(Transaction, DirectorySubspace, BiFunction)
+     * @see #clearTaskBackPointer(Transaction, Index, Versionstamp)
+     * @see IndexUtil#createIndexBuildingTasks(TransactionalContext, String, String, long, Boundaries)
+     */
+    public static void setBackPointer(Transaction tr, DirectorySubspace indexSubspace, int userVersion, int shardId) {
+        byte[] backPointer = indexSubspace.packWithVersionstamp(
+                Tuple.from(IndexSubspaceMagic.TASKS.getValue(), Versionstamp.incomplete(userVersion), shardId)
+        );
+        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, backPointer, NULL_BYTES);
+    }
+
+    /**
+     * Scans all task back pointers in an index subspace and invokes a callback for each.
+     *
+     * <p>Iterates through all entries under the TASKS/ prefix in the index subspace,
+     * unpacks the versionstamp taskId and shard identifier, and invokes the provided
+     * callback function. The callback can control iteration by returning true (continue)
+     * or false (stop).
+     *
+     * <p><strong>Back Pointer Structure:</strong>
+     * <pre>
+     * Key: TASKS/{taskId}/{shardId}
+     * Unpacked tuple: [TASKS, versionstamp, shardId]
+     * Position 0: TASKS magic value (ignored)
+     * Position 1: Versionstamp taskId
+     * Position 2: Long shardId (cast to int)
+     * </pre>
+     *
+     * <p><strong>Callback Semantics:</strong> The BiFunction receives (taskId, shardId)
+     * and returns a boolean:
+     * <ul>
+     *   <li>true: Continue scanning next back pointer</li>
+     *   <li>false: Stop scanning immediately</li>
+     * </ul>
+     *
+     * <p><strong>Usage Example:</strong> {@link IndexUtil#markIndexAsReadyIfBuildDone}
+     * uses this method to validate all BUILD tasks have completed before marking an
+     * index as READY. It stops scanning early if any incomplete task is found.
+     *
+     * <p>Range scan: (TASKS/, strinc(TASKS/)] to retrieve all back pointers.
+     *
+     * @param tr            transaction for range scan operation
+     * @param indexSubspace index subspace containing back pointers
+     * @param action        callback function receiving (taskId, shardId) and returning true to continue
+     * @see IndexUtil#markIndexAsReadyIfBuildDone(TransactionalContext, String, String, long)
+     * @see #setBackPointer(Transaction, DirectorySubspace, int, int)
+     * @see #clearTaskBackPointer(Transaction, Index, Versionstamp)
+     */
+    public static void scanTaskBackPointers(Transaction tr, DirectorySubspace indexSubspace, BiFunction<Versionstamp, Integer, Boolean> action) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.TASKS.getValue()));
+        KeySelector begin = KeySelector.firstGreaterThan(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+        for (KeyValue keyValue : tr.getRange(begin, end)) {
+            Tuple unpacked = indexSubspace.unpack(keyValue.getKey());
+            Versionstamp taskId = (Versionstamp) unpacked.get(1);
+            long shardId = (long) unpacked.get(2);
+            if (!action.apply(taskId, (int) shardId)) {
+                break;
+            }
+        }
+    }
+
+    public static void changeTaskStatus(Transaction tr,
+                                        DirectorySubspace taskSubspace,
+                                        IndexMaintenanceTaskKind kind,
+                                        Versionstamp taskId,
+                                        IndexTaskStatus status
+    ) {
+        switch (kind) {
+            case BOUNDARY -> {
+                IndexBoundaryTaskState state = IndexBoundaryTaskState.load(tr, taskSubspace, taskId);
+                if (state.status() == IndexTaskStatus.COMPLETED) {
+                    throw new IllegalStateException("task is already completed");
+                }
+                if (state.status() == IndexTaskStatus.STOPPED) {
+                    throw new IllegalStateException("cannot change status of already stopped task");
+                }
+                IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, status);
+            }
+        }
     }
 }

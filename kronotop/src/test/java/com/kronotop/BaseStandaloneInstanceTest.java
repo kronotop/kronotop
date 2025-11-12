@@ -19,13 +19,14 @@ package com.kronotop;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketMetadataVersionBarrier;
+import com.kronotop.bucket.TestUtil;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.maintenance.IndexBuildingTask;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.MockChannelHandlerContext;
@@ -38,19 +39,18 @@ import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 import static org.awaitility.Awaitility.await;
 
 public class BaseStandaloneInstanceTest extends BaseTest {
     private static final String DEFAULT_CONFIG_FILE_NAME = "test.conf";
-    private final Random random = new Random(System.currentTimeMillis());
     protected KronotopTestInstance instance;
     protected Config config;
     protected Context context; // shortcut
 
     protected String TEST_BUCKET = "test-bucket";
     protected String TEST_NAMESPACE;
+    protected int TEST_SHARD_ID = 1;
 
     protected String getConfigFileName() {
         return DEFAULT_CONFIG_FILE_NAME;
@@ -77,12 +77,6 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         return BucketMetadataUtil.createOrOpen(context, session, name);
     }
 
-    protected Versionstamp generateVersionstamp(int userVersion) {
-        byte[] trVersion = new byte[10];
-        random.nextBytes(trVersion);
-        return Versionstamp.complete(trVersion, userVersion);
-    }
-
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
         config = loadConfig(getConfigFileName());
@@ -106,7 +100,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
      * with the latest information available.
      *
      * @param namespace the namespace to which the bucket belongs.
-     * @param bucket the name of the bucket whose metadata is being refreshed.
+     * @param bucket    the name of the bucket whose metadata is being refreshed.
      * @return the updated {@code BucketMetadata} for the specified bucket.
      */
     protected BucketMetadata refreshBucketMetadata(String namespace, String bucket) {
@@ -170,5 +164,16 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         }
 
         waitUntilUpdated(metadata);
+    }
+
+    protected IndexBuildingTask createIndexBuildingTask(long indexId) {
+        return new IndexBuildingTask(
+                TEST_NAMESPACE,
+                TEST_BUCKET,
+                indexId,
+                TEST_SHARD_ID,
+                TestUtil.generateVersionstamp(1),
+                TestUtil.generateVersionstamp(2)
+        );
     }
 }

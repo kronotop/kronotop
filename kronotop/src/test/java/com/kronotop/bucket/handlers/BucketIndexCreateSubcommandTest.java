@@ -135,7 +135,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
         // Verify task was created
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
-            List<Versionstamp> taskIds = IndexTaskUtil.listTasks(tx, TEST_NAMESPACE, TEST_BUCKET, "test");
+            List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, TEST_NAMESPACE, TEST_BUCKET, "test");
             assertEquals(1, taskIds.size(), "Expected exactly one task to be created");
         }
     }

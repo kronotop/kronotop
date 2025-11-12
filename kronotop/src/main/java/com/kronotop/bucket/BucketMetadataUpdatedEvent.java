@@ -22,17 +22,17 @@ import com.kronotop.cluster.BaseBroadcastEvent;
 import com.kronotop.cluster.BroadcastEventKind;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-class BucketMetadataEvent extends BaseBroadcastEvent {
+class BucketMetadataUpdatedEvent extends BaseBroadcastEvent {
     private String namespace;
     private String bucket;
     private long id;
     private long minimumVersion;
 
-    BucketMetadataEvent() {
+    BucketMetadataUpdatedEvent() {
     }
 
-    public BucketMetadataEvent(String namespace, String bucket, long id, long minimumVersion) {
-        super(BroadcastEventKind.BUCKET_METADATA_EVENT);
+    public BucketMetadataUpdatedEvent(String namespace, String bucket, long id, long minimumVersion) {
+        super(BroadcastEventKind.BUCKET_METADATA_UPDATED_EVENT);
         this.namespace = namespace;
         this.bucket = bucket;
         this.id = id;
@@ -62,8 +62,7 @@ class BucketMetadataEvent extends BaseBroadcastEvent {
     @Override
     public String toString() {
         return String.format(
-                "BucketMetadataEvent {kind=%s, namespace=%s, bucket=%s, id=%d, minimumVersion=%d}",
-                kind(),
+                "BucketMetadataUpdatedEvent {namespace=%s, bucket=%s, id=%d, minimumVersion=%d}",
                 namespace,
                 bucket,
                 id,

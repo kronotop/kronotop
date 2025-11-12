@@ -16,43 +16,26 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.kronotop.internal.VersionstampDeserializer;
-import com.kronotop.internal.VersionstampSerializer;
 
-public class IndexBuildingTask extends IndexMaintenanceTask {
+public class IndexBoundaryTask extends IndexMaintenanceTask {
     private final String namespace;
     private final String bucket;
     private final long indexId;
     private final int shardId;
 
-    @JsonSerialize(using = VersionstampSerializer.class)
-    @JsonDeserialize(using = VersionstampDeserializer.class)
-    private final Versionstamp lower;
-
-    @JsonSerialize(using = VersionstampSerializer.class)
-    @JsonDeserialize(using = VersionstampDeserializer.class)
-    private final Versionstamp upper;
-
     @JsonCreator
-    public IndexBuildingTask(
+    public IndexBoundaryTask(
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("indexId") long indexId,
-            @JsonProperty("shardId") int shardId,
-            @JsonProperty("lower") Versionstamp lower,
-            @JsonProperty("upper") Versionstamp upper) {
-        super(IndexMaintenanceTaskKind.BUILD);
+            @JsonProperty("shardId") int shardId) {
+        super(IndexMaintenanceTaskKind.BOUNDARY);
         this.namespace = namespace;
         this.bucket = bucket;
         this.indexId = indexId;
         this.shardId = shardId;
-        this.lower = lower;
-        this.upper = upper;
     }
 
     public String getNamespace() {
@@ -69,13 +52,5 @@ public class IndexBuildingTask extends IndexMaintenanceTask {
 
     public int getShardId() {
         return shardId;
-    }
-
-    public Versionstamp getLower() {
-        return lower;
-    }
-
-    public Versionstamp getUpper() {
-        return upper;
     }
 }

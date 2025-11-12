@@ -25,6 +25,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataHeader;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.RESPError;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
@@ -164,7 +165,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         assertEquals(RESPError.NOSUCHINDEX, exception.getPrefix());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadataHeader header = BucketMetadataUtil.readBucketMetadataHeader(tr, metadata.subspace());
+            BucketMetadataHeader header = BucketMetadataHeader.read(tr, metadata.subspace());
             assertFalse(header.indexStatistics().containsKey(definition.id()));
         }
     }
@@ -327,7 +328,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldAllowIdempotentDropOperation() {
+    void shouldRejectDropOfAlreadyDroppedIndex() {
         createIndexThenWaitForReadiness(definition);
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
@@ -345,14 +346,15 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
             assertEquals(IndexStatus.DROPPED, droppedDef.status());
         }
 
-        // Drop again should succeed (idempotent operation)
-        assertDoesNotThrow(() -> {
+        // Drop again should throw exception
+        KronotopException exception = assertThrows(KronotopException.class, () -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 IndexUtil.drop(tx, metadata, definition.name());
                 tr.commit().join();
             }
         });
+        assertEquals("Index is already in the 'DROPPED' status", exception.getMessage());
 
         // Verify status is still DROPPED
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -374,6 +376,28 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
                 tr.commit().join();
             }
         });
+    }
+
+    @Test
+    void shouldNotAnalyzeIfIndexNotREADY() {
+        createIndexThenWaitForReadiness(definition);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
+        IndexDefinition latest = index.definition().updateStatus(IndexStatus.DROPPED);
+        TransactionUtils.executeThenCommit(context, tr -> {
+            IndexUtil.saveIndexDefinition(tr, metadata, latest);
+            return null;
+        });
+
+        KronotopException exception = assertThrows(KronotopException.class, () -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                IndexUtil.analyze(tx, metadata, definition.name());
+                tr.commit().join();
+            }
+        });
+        assertEquals("Cannot analyze index: index is not in READY state (current=DROPPED)", exception.getMessage());
     }
 
     @Test

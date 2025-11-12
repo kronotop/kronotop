@@ -93,7 +93,7 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
             // Verify task was created
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
-                List<Versionstamp> taskIds = IndexTaskUtil.listTasks(tx, TEST_NAMESPACE, TEST_BUCKET, "test-index");
+                List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, TEST_NAMESPACE, TEST_BUCKET, "test-index");
                 // create-index + drop-index tasks will co-exists
                 assertEquals(2, taskIds.size());
             }

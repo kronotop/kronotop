@@ -72,7 +72,7 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
             String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
-                List<Versionstamp> taskIds = IndexTaskUtil.listTasks(tx, namespace, parameters.bucket, parameters.index);
+                List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, parameters.bucket, parameters.index);
                 for (Versionstamp taskId : taskIds) {
                     if (isAnalyzeTask(tr, taskId)) {
                         throw new KronotopException("An analyze task has already exist");

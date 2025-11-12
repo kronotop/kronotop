@@ -16,5 +16,10 @@
 
 package com.kronotop.bucket.index;
 
-public record IndexStatistics(long cardinality) {
+import com.kronotop.bucket.index.statistics.Histogram;
+
+public record IndexStatistics(long cardinality, Histogram histogram) {
+    public static IndexStatistics empty() {
+        return new IndexStatistics(0, Histogram.create());
+    }
 }

@@ -14,11 +14,18 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket.index.maintenance;
+package com.kronotop.bucket;
 
-public enum IndexMaintenanceTaskKind {
-    BOUNDARY,
-    BUILD,
-    DROP,
-    ANALYZE
+import com.apple.foundationdb.tuple.Versionstamp;
+
+import java.util.Random;
+
+public class TestUtil {
+    private static final Random random = new Random(System.nanoTime());
+
+    public static Versionstamp generateVersionstamp(int userVersion) {
+        byte[] trVersion = new byte[10];
+        random.nextBytes(trVersion);
+        return Versionstamp.complete(trVersion, userVersion);
+    }
 }

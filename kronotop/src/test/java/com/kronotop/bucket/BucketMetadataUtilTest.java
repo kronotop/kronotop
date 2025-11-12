@@ -62,18 +62,18 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldPublishBucketMetadataEvent() {
+    void shouldPublishBucketMetadataUpdatedEvent() {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
-            BucketMetadataUtil.publishBucketMetadataEvent(tx, metadata);
+            BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
             tr.commit().join();
         }
         ConsumerConfig cfg = new ConsumerConfig(
                 UUID.randomUUID().toString(),
-                JournalName.BUCKET_METADATA_EVENTS.getValue(),
+                JournalName.BUCKET_EVENTS.getValue(),
                 ConsumerConfig.Offset.RESUME
         );
         Consumer consumer = new Consumer(context, cfg);
@@ -81,7 +81,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
             consumer.start();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Event event = consumer.consume(tr);
-                BucketMetadataEvent evt = JSONUtil.readValue(event.value(), BucketMetadataEvent.class);
+                BucketMetadataUpdatedEvent evt = JSONUtil.readValue(event.value(), BucketMetadataUpdatedEvent.class);
                 assertEquals(TEST_NAMESPACE, evt.namespace());
                 assertEquals(TEST_BUCKET, evt.bucket());
                 assertEquals(metadata.id(), evt.id());
@@ -210,7 +210,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         latch.await();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace());
+            Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             assertEquals(2, stats.size());
 
             IndexStatistics idIndexStats = stats.get(DefaultIndexDefinition.ID.id());
@@ -253,7 +253,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadataHeader header = BucketMetadataUtil.readBucketMetadataHeader(tr, metadata.subspace());
+            BucketMetadataHeader header = BucketMetadataHeader.read(tr, metadata.subspace());
 
             assertEquals(metadata.version(), header.version());
             assertEquals(1, header.indexStatistics().size());

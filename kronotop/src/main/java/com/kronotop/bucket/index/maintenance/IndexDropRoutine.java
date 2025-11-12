@@ -27,7 +27,6 @@ import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import io.github.resilience4j.retry.Retry;
@@ -98,7 +97,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         }
         IndexUtil.clear(tr, metadata.subspace(), index.definition().name());
         TransactionalContext tx = new TransactionalContext(context, tr);
-        BucketMetadataUtil.publishBucketMetadataEvent(tx, metadata);
+        BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
     }
 
     /**
@@ -109,33 +108,13 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
      *
      * @throws IndexMaintenanceRoutineShutdownException if interrupted during execution
      */
-    private void doStart() {
+    private void startInternal() {
         if (stopped) {
             return;
         }
 
-        IndexTaskStatus status = TransactionUtils.executeThenCommit(context, tr -> {
-            byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
-            if (definition == null) {
-                // task has dropped
-                return IndexTaskStatus.COMPLETED;
-            }
-            IndexDropTaskState state = IndexDropTaskState.load(tr, subspace, taskId);
-            if (state.status() == IndexTaskStatus.COMPLETED) {
-                // Already completed
-                markIndexDropTaskCompleted(tr);
-                return IndexTaskStatus.COMPLETED;
-            }
-            IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
-            return IndexTaskStatus.RUNNING;
-        });
-
-        if (status == IndexTaskStatus.COMPLETED) {
-            return;
-        }
-
         try {
-            refreshBucketMetadata(task.getNamespace(), task.getBucket(), task.getIndexId());
+            BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket(), task.getIndexId());
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 clearIndex(tr);
                 markIndexDropTaskCompleted(tr);
@@ -163,11 +142,29 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         }
     }
 
+    private void initialize() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
+            if (definition == null) {
+                IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.STOPPED);
+            } else {
+                IndexDropTaskState state = IndexDropTaskState.load(tr, subspace, taskId);
+                if (state.status() == IndexTaskStatus.STOPPED || state.status() == IndexTaskStatus.COMPLETED) {
+                    // Already completed or stopped
+                    stopped = true;
+                    return;
+                }
+                IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
+            }
+            tr.commit().join();
+        }
+    }
+
     /**
      * Initiates the index drop routine with automatic retry on transient failures.
      *
      * <p>This method resets the stopped flag to enable restarts and delegates execution
-     * to {@link #doStart()} with retry protection for transient FoundationDB errors.
+     * to {@link #startInternal()} with retry protection for transient FoundationDB errors.
      */
     @Override
     public void start() {
@@ -179,6 +176,9 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         );
         stopped = false; // also means a restart
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
-        retry.executeRunnable(this::doStart);
+        retry.executeRunnable(this::initialize);
+        if (!stopped) {
+            retry.executeRunnable(this::startInternal);
+        }
     }
 }

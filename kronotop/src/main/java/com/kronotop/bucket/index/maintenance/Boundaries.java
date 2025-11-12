@@ -16,9 +16,7 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-public enum IndexMaintenanceTaskKind {
-    BOUNDARY,
-    BUILD,
-    DROP,
-    ANALYZE
+import com.apple.foundationdb.tuple.Versionstamp;
+
+public record Boundaries(Versionstamp lower, Versionstamp upper) {
 }

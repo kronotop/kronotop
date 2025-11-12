@@ -16,9 +16,7 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-public enum IndexMaintenanceTaskKind {
-    BOUNDARY,
-    BUILD,
-    DROP,
-    ANALYZE
+import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
+
+class IndexBoundaryRoutineTest extends BaseBucketHandlerTest {
 }

@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.index.maintenance;
 
+import com.kronotop.bucket.TestUtil;
 import com.kronotop.internal.JSONUtil;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +28,10 @@ class IndexBuildingTaskTest {
         IndexBuildingTask task = new IndexBuildingTask(
                 "namespace-name",
                 "bucket-name",
-                12345
+                12345,
+                1,
+                TestUtil.generateVersionstamp(1),
+                TestUtil.generateVersionstamp(2)
         );
         byte[] encoded = JSONUtil.writeValueAsBytes(task);
         IndexBuildingTask decoded = JSONUtil.readValue(encoded, IndexBuildingTask.class);
@@ -35,6 +39,9 @@ class IndexBuildingTaskTest {
         assertEquals(task.getNamespace(), decoded.getNamespace());
         assertEquals(task.getBucket(), decoded.getBucket());
         assertEquals(task.getIndexId(), decoded.getIndexId());
+        assertEquals(task.getShardId(), decoded.getShardId());
         assertEquals(task.getKind(), decoded.getKind());
+        assertEquals(task.getLower(), decoded.getLower());
+        assertEquals(task.getUpper(), decoded.getUpper());
     }
 }

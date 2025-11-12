@@ -20,47 +20,46 @@ import org.bson.BsonInt64;
 import org.bson.BsonString;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class HistogramCodecTest {
     @Test
     void shouldEncodeDecode_INT64() {
-        List<HistogramBucket> histogram = List.of(
-                new HistogramBucket(new BsonInt64(10), new BsonInt64(34), 10),
-                new HistogramBucket(new BsonInt64(35), new BsonInt64(45), 10)
-        );
-        byte[] encoded = HistogramCodec.encode(histogram, 12345L);
-        List<HistogramBucket> decoded = HistogramCodec.decode(encoded);
+        long version = 12346L;
+        Histogram histogram = Histogram.create(version);
+        histogram.add(new HistogramBucket(new BsonInt64(10), new BsonInt64(34), 10));
+        histogram.add(new HistogramBucket(new BsonInt64(35), new BsonInt64(45), 10));
+
+        byte[] encoded = HistogramCodec.encode(histogram, version);
+        Histogram decoded = HistogramCodec.decode(encoded);
         assertEquals(histogram, decoded);
     }
 
     @Test
     void shouldEncodeDecode_STRING() {
-        List<HistogramBucket> histogram = List.of(
-                new HistogramBucket(new BsonString("apple"), new BsonString("banana"), 5),
-                new HistogramBucket(new BsonString("cherry"), new BsonString("date"), 8),
-                new HistogramBucket(new BsonString("elderberry"), new BsonString("fig"), 12)
-        );
-        byte[] encoded = HistogramCodec.encode(histogram, 67890L);
-        List<HistogramBucket> decoded = HistogramCodec.decode(encoded);
+        long version = 12346L;
+        Histogram histogram = Histogram.create(version);
+        histogram.add(new HistogramBucket(new BsonString("apple"), new BsonString("banana"), 5));
+        histogram.add(new HistogramBucket(new BsonString("cherry"), new BsonString("date"), 8));
+        histogram.add(new HistogramBucket(new BsonString("elderberry"), new BsonString("fig"), 12));
+
+        byte[] encoded = HistogramCodec.encode(histogram, version);
+        Histogram decoded = HistogramCodec.decode(encoded);
         assertEquals(histogram, decoded);
     }
 
     @Test
     void shouldEncodeDecodeEmptyHistogram() {
-        List<HistogramBucket> histogram = List.of();
+        Histogram histogram = Histogram.create();
         byte[] encoded = HistogramCodec.encode(histogram, 0L);
-        List<HistogramBucket> decoded = HistogramCodec.decode(encoded);
+        Histogram decoded = HistogramCodec.decode(encoded);
         assertEquals(histogram, decoded);
     }
 
     @Test
     void shouldReadVersion() {
-        List<HistogramBucket> histogram = List.of(
-                new HistogramBucket(new BsonInt64(10), new BsonInt64(34), 10)
-        );
+        Histogram histogram = Histogram.create();
+        histogram.add(new HistogramBucket(new BsonInt64(10), new BsonInt64(34), 10));
         long expectedVersion = 98765L;
         byte[] encoded = HistogramCodec.encode(histogram, expectedVersion);
         long actualVersion = HistogramCodec.readVersion(encoded);

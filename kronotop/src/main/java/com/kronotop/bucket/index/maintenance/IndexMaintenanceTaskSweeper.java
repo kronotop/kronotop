@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.index.maintenance;
 
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
@@ -38,81 +39,60 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * Coordinates the finalization and cleanup of completed index maintenance tasks across all shards.
+ * Cleans up completed or orphaned index maintenance tasks and triggers index readiness checks.
  *
- * <p>IndexMaintenanceTaskSweeper acts as a distributed task coordinator that monitors index
- * maintenance tasks (building, dropping) and performs cleanup when all shards have completed
- * their work. This ensures atomic transitions of index states and prevents resource leaks.</p>
+ * <p>IndexMaintenanceTaskSweeper removes completed task definitions from task subspaces and
+ * their back pointers from index subspaces. For BUILD tasks, it triggers index readiness
+ * validation via {@link IndexUtil#markIndexAsReadyIfBuildDone}.
  *
- * <p><b>Primary Responsibilities:</b></p>
+ * <p><strong>Core Responsibilities:</strong>
  * <ul>
- *   <li>Monitors task completion status across all shards</li>
- *   <li>Transitions indexes from BUILDING → READY when all shards complete</li>
- *   <li>Cleans up BUILD tasks when indexes are DROPPED</li>
- *   <li>Removes task metadata from all shard subspaces atomically</li>
- *   <li>Handles orphaned tasks (e.g., when index is dropped during build)</li>
+ *   <li>Remove COMPLETED/STOPPED tasks from task subspaces</li>
+ *   <li>Clear task back pointers from index subspaces</li>
+ *   <li>Trigger index BUILDING → READY transition attempts</li>
+ *   <li>Clean up orphaned tasks when indexes are deleted</li>
  * </ul>
  *
- * <p><b>Coordination Logic:</b></p>
- * <p>The sweeper implements a barrier synchronization pattern:</p>
+ * <p><strong>Task Processing by Type:</strong>
+ * <ul>
+ *   <li><strong>BOUNDARY:</strong> Remove if COMPLETED/STOPPED or index deleted</li>
+ *   <li><strong>BUILD:</strong> Remove if COMPLETED/STOPPED or index deleted, then attempt index READY transition</li>
+ *   <li><strong>DROP:</strong> Remove if index deleted or index directory removed from FoundationDB</li>
+ *   <li><strong>ANALYZE:</strong> Remove if COMPLETED/STOPPED or index deleted</li>
+ * </ul>
+ *
+ * <p><strong>Workflow:</strong>
  * <ol>
- *   <li>Triggered when a shard marks a task as COMPLETED</li>
- *   <li>Checks if ALL shards (0..numShards-1) report COMPLETED status</li>
- *   <li>If yes: Updates index status and cleans up task data atomically</li>
- *   <li>If no: Returns without action (other shards still working)</li>
+ *   <li>Load task definition from task subspace</li>
+ *   <li>Dispatch to type-specific handler (sweepBuildTask, sweepDropTask, etc.)</li>
+ *   <li>Check task completion status or index existence</li>
+ *   <li>Remove task from all shard subspaces via {@link #dropIndexMaintenanceTask}</li>
+ *   <li>Clear back pointer from index subspace</li>
+ *   <li>For BUILD tasks: Separately call {@link IndexUtil#markIndexAsReadyIfBuildDone}</li>
  * </ol>
  *
- * <p><b>Index Status Transitions:</b></p>
- * <ul>
- *   <li><b>BUILDING → READY:</b> When all shards complete BUILD tasks successfully</li>
- *   <li><b>BUILDING + DROPPED:</b> Cleans up BUILD tasks, leaves DROP tasks for separate processing</li>
- *   <li><b>Index deleted:</b> Cleans up all task types (BUILD, DROP) to prevent leaks</li>
- * </ul>
+ * <p><strong>Index Readiness:</strong> The sweeper does NOT directly check if all shards are
+ * complete. Instead, it delegates to {@link IndexUtil#markIndexAsReadyIfBuildDone}, which
+ * scans all back pointers and validates remaining tasks before marking index READY.
  *
- * <p><b>Atomicity Guarantees:</b></p>
- * <p>All sweep operations are performed within a single FoundationDB transaction:</p>
- * <ul>
- *   <li>Index status update</li>
- *   <li>Task deletion across all shard subspaces</li>
- *   <li>Either all changes commit or none do (no partial state)</li>
- * </ul>
+ * <p><strong>Orphaned Task Cleanup:</strong> When an index is deleted from bucket metadata,
+ * the sweeper removes all associated tasks across all shards to prevent resource leaks.
  *
- * <p><b>Retry Behavior:</b></p>
- * <p>The sweeper uses retry logic to handle transient FoundationDB conflicts during
- * the final transaction (reading task state, updating index, deleting tasks). This ensures
- * eventual completion despite concurrent operations.</p>
+ * <p><strong>Atomicity:</strong> Each sweep operation runs in two transactions:
+ * <ol>
+ *   <li>First transaction: Remove task definitions and back pointers</li>
+ *   <li>Second transaction (BUILD only): Attempt index READY transition</li>
+ * </ol>
  *
- * <p><b>Example Workflow:</b></p>
- * <pre>{@code
- * // Shard 0 completes its BUILD task
- * taskState.updateStatus(IndexTaskStatus.COMPLETED);
- * // Triggers sweeper
- * sweeper.sweep(taskSubspace, taskId);
- * // Sweeper checks: Shard 0=COMPLETED, Shard 1=PROCESSING, Shard 2=PROCESSING
- * // Result: Returns without action
+ * <p><strong>Retry Behavior:</strong> Both transactions use {@link RetryMethods} to handle
+ * FoundationDB conflicts automatically.
  *
- * // Later, Shard 1 completes
- * taskState.updateStatus(IndexTaskStatus.COMPLETED);
- * sweeper.sweep(taskSubspace, taskId);
- * // Sweeper checks: Shard 0=COMPLETED, Shard 1=COMPLETED, Shard 2=PROCESSING
- * // Result: Returns without action
- *
- * // Finally, Shard 2 completes
- * taskState.updateStatus(IndexTaskStatus.COMPLETED);
- * sweeper.sweep(taskSubspace, taskId);
- * // Sweeper checks: Shard 0=COMPLETED, Shard 1=COMPLETED, Shard 2=COMPLETED
- * // Result: Updates index BUILDING→READY, deletes all task data
- * }</pre>
- *
- * <p><b>Thread Safety:</b></p>
- * <p>This class is NOT thread-safe and should be used by a single background thread
- * (typically IndexMaintenanceWatchDog). Concurrent sweep operations on the same task
- * are safe due to FoundationDB transaction isolation, but may cause unnecessary retries.</p>
- *
- * @see IndexBuildingTask
- * @see IndexBuildingTaskState
- * @see IndexTaskStatus
+ * @see IndexUtil#markIndexAsReadyIfBuildDone
  * @see IndexMaintenanceWatchDog
+ * @see IndexBuildingTask
+ * @see IndexDropTask
+ * @see IndexBoundaryTask
+ * @see IndexAnalyzeTask
  */
 public class IndexMaintenanceTaskSweeper {
     /**
@@ -131,20 +111,12 @@ public class IndexMaintenanceTaskSweeper {
     private final Map<Integer, DirectorySubspace> subspaces = new HashMap<>();
 
     /**
-     * Constructs a new IndexMaintenanceTaskSweeper with the specified context.
+     * Creates a sweeper with the specified application context.
      *
-     * <p>Initializes the sweeper with the application context and determines the total
-     * number of shards from the BucketService. The shard count is critical for the
-     * barrier synchronization logic - the sweeper must verify that all N shards have
-     * completed a task before finalizing it.</p>
+     * <p>Retrieves shard count from BucketService for iterating all task subspaces during
+     * cleanup operations. Initializes empty subspace cache populated lazily.
      *
-     * <p><b>Initialization:</b></p>
-     * <ul>
-     *   <li>Retrieves shard count from BucketService configuration</li>
-     *   <li>Initializes empty subspace cache (populated lazily during sweep operations)</li>
-     * </ul>
-     *
-     * @param context the application context providing access to services and FoundationDB
+     * @param context application context with FoundationDB and BucketService access
      */
     public IndexMaintenanceTaskSweeper(Context context) {
         this.context = context;
@@ -153,87 +125,14 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Clears the back pointer associated with a task in the specified index subspace.
-     * <p>
-     * This method removes the back pointer entry that maps the given task identifier
-     * to the subspace of the index. It operates within the provided FoundationDB transaction.
+     * Cleans up completed index maintenance tasks with retry logic.
      *
-     * @param tr     the active FoundationDB transaction to perform the operation
-     * @param index  the index containing the subspace where the back pointer is stored
-     * @param taskId the versionstamp identifier of the task whose back pointer is to be cleared
-     */
-    private void clearTaskBackPointer(Transaction tr, Index index, Versionstamp taskId) {
-        // Clean up the back pointer
-        byte[] taskIdBackPointer = index.subspace().pack(Tuple.from(
-                IndexSubspaceMagic.TASKS.getValue(), taskId
-        ));
-        tr.clear(taskIdBackPointer);
-    }
-
-    /**
-     * Checks if a task has been completed on all shards (barrier verification).
+     * <p>Entry point that wraps {@link #doSweep} with transaction retry handling.
+     * Removes task definitions and back pointers, then attempts index readiness
+     * transition for BUILD tasks.
      *
-     * <p>This method implements the core barrier synchronization logic by checking
-     * the task state on every shard in the cluster. The task is considered fully
-     * completed only when ALL shards report {@link IndexTaskStatus#COMPLETED}.</p>
-     *
-     * <p><b>Algorithm:</b></p>
-     * <ol>
-     *   <li>Initialize completion counter to 0</li>
-     *   <li>Iterate through all shards (0..numShards-1)</li>
-     *   <li>For each shard:
-     *     <ul>
-     *       <li>Load task state from the shard's task subspace</li>
-     *       <li>If task state is null (missing): return false immediately</li>
-     *       <li>If status != COMPLETED: break loop and return false</li>
-     *       <li>If status == COMPLETED: increment counter and continue</li>
-     *     </ul>
-     *   </li>
-     *   <li>Return true if numCompleted == numShards, false otherwise</li>
-     * </ol>
-     *
-     * <p><b>Early Exit Optimization:</b></p>
-     * <p>The method exits immediately in two cases:</p>
-     * <ul>
-     *   <li>When a shard is missing task state (returns false)</li>
-     *   <li>When a shard has non-COMPLETED status (breaks loop, returns false)</li>
-     * </ul>
-     * <p>This avoids unnecessary reads from remaining shards when the outcome is already determined.</p>
-     *
-     * <p><b>Return Value:</b></p>
-     * <ul>
-     *   <li><b>true:</b> All shards have COMPLETED status (safe to finalize index)</li>
-     *   <li><b>false:</b> At least one shard is not COMPLETED or missing (must wait)</li>
-     * </ul>
-     *
-     * @param taskId the versionstamp identifier of the task to check
-     * @return true if all shards have completed the task, false otherwise
-     */
-    private boolean isCompleted(Versionstamp taskId) {
-        int numCompleted = 0;
-        for (int shardId = 0; shardId < numShards; shardId++) {
-            DirectorySubspace otherTaskSubspace = subspaces.computeIfAbsent(shardId,
-                    (id) -> IndexTaskUtil.openTasksSubspace(context, id));
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, otherTaskSubspace, taskId);
-                if (state.status() != IndexTaskStatus.COMPLETED) {
-                    break;
-                }
-                numCompleted++;
-            }
-        }
-        return numCompleted == numShards;
-    }
-
-    /**
-     * Coordinates cleanup of completed index maintenance tasks with retry logic.
-     *
-     * <p>Wraps {@link #doSweep} with transaction retry to handle FoundationDB conflicts.
-     * Atomically updates index status and removes task metadata across all shards when
-     * all shards complete their work.
-     *
-     * @param taskSubspace the directory subspace containing the task definition
-     * @param taskId       the unique versionstamp identifier of the task to sweep
+     * @param taskSubspace directory subspace containing the task definition
+     * @param taskId versionstamp identifier of the task to sweep
      */
     public void sweep(DirectorySubspace taskSubspace, Versionstamp taskId) {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
@@ -241,14 +140,14 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Processes BUILD task cleanup and index status transitions.
+     * Handles BUILD task cleanup.
      *
-     * <p>Handles three cases: index deleted (cleanup BUILD task), index BUILDING
-     * (verify all shards complete, transition to READY), index DROPPED (cleanup BUILD task).
+     * <p>Removes BUILD task if: index deleted (null), task COMPLETED, or task STOPPED.
+     * Clears back pointer when task is removed.
      *
-     * @param tr      the active transaction
-     * @param taskId  the task identifier
-     * @param taskDef the serialized task definition
+     * @param tr transaction for cleanup operations
+     * @param taskId task identifier
+     * @param taskDef serialized BUILD task definition
      */
     private void sweepBuildTask(Transaction tr, Versionstamp taskId, byte[] taskDef) {
         IndexBuildingTask task = JSONUtil.readValue(taskDef, IndexBuildingTask.class);
@@ -257,34 +156,25 @@ public class IndexMaintenanceTaskSweeper {
         if (index == null) {
             dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
         } else {
-            IndexStatus status = index.definition().status();
-            if (status == IndexStatus.BUILDING) {
-                if (!isCompleted(taskId)) {
-                    return;
-                }
-                // Index is ready to use. Update the status, save index definition and publish an event to trigger the metadata update
-                IndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
-                IndexUtil.saveIndexDefinition(tr, metadata, definition);
-                BucketMetadataUtil.publishBucketMetadataEvent(new TransactionalContext(context, tr), metadata);
+            DirectorySubspace taskSubspace = getOrOpenTaskSubspace(task.getShardId());
+            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
+            if (state.status() == IndexTaskStatus.COMPLETED || state.status() == IndexTaskStatus.STOPPED) {
                 dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
-            } else if (status == IndexStatus.DROPPED) {
-                // Drop the BUILD tasks if there is any.
-                // The DROP tasks will be dropped separately.
-                dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
+                IndexTaskUtil.clearTaskBackPointer(tr, index, taskId);
             }
-            clearTaskBackPointer(tr, index, taskId);
         }
     }
 
     /**
-     * Processes DROP task cleanup after index data removal.
+     * Handles DROP task cleanup.
      *
-     * <p>Cleans up DROP task when index is removed from metadata or index data
-     * no longer exists in FoundationDB.
+     * <p>Removes DROP task if: index deleted from metadata, or index directory
+     * removed from FoundationDB. Returns early if index still has DROPPED status
+     * but directory exists (drop in progress).
      *
-     * @param tr      the active transaction
-     * @param taskId  the task identifier
-     * @param taskDef the serialized task definition
+     * @param tr transaction for cleanup operations
+     * @param taskId task identifier
+     * @param taskDef serialized DROP task definition
      */
     private void sweepDropTask(Transaction tr, Versionstamp taskId, byte[] taskDef) {
         IndexDropTask task = JSONUtil.readValue(taskDef, IndexDropTask.class);
@@ -305,6 +195,42 @@ public class IndexMaintenanceTaskSweeper {
         }
     }
 
+    /**
+     * Handles BOUNDARY task cleanup.
+     *
+     * <p>Removes BOUNDARY task if: index deleted (null), task COMPLETED, or task STOPPED.
+     * Clears back pointer when task is removed.
+     *
+     * @param tr transaction for cleanup operations
+     * @param taskId task identifier
+     * @param taskDef serialized BOUNDARY task definition
+     */
+    private void sweepBoundaryTask(Transaction tr, Versionstamp taskId, byte[] taskDef) {
+        IndexBoundaryTask task = JSONUtil.readValue(taskDef, IndexBoundaryTask.class);
+        BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        if (index == null) {
+            dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BOUNDARY);
+        } else {
+            DirectorySubspace taskSubspace = getOrOpenTaskSubspace(task.getShardId());
+            IndexBoundaryTaskState state = IndexBoundaryTaskState.load(tr, taskSubspace, taskId);
+            if (state.status() == IndexTaskStatus.COMPLETED || state.status() == IndexTaskStatus.STOPPED) {
+                dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BOUNDARY);
+                IndexTaskUtil.clearTaskBackPointer(tr, index, taskId);
+            }
+        }
+    }
+
+    /**
+     * Handles ANALYZE task cleanup.
+     *
+     * <p>Removes ANALYZE task if: index deleted (null), task COMPLETED, or task STOPPED.
+     * Clears back pointer when task is removed.
+     *
+     * @param tr transaction for cleanup operations
+     * @param taskId task identifier
+     * @param taskDef serialized ANALYZE task definition
+     */
     private void sweepAnalyzeTask(Transaction tr, Versionstamp taskId, byte[] taskDef) {
         IndexAnalyzeTask task = JSONUtil.readValue(taskDef, IndexAnalyzeTask.class);
         BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
@@ -316,19 +242,20 @@ public class IndexMaintenanceTaskSweeper {
             IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, taskSubspace, taskId);
             if (state.status() == IndexTaskStatus.COMPLETED || state.status() == IndexTaskStatus.STOPPED) {
                 dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.ANALYZE);
-                clearTaskBackPointer(tr, index, taskId);
+                IndexTaskUtil.clearTaskBackPointer(tr, index, taskId);
             }
         }
     }
 
     /**
-     * Dispatches task cleanup to the appropriate handler based on task kind.
+     * Main sweep logic that routes tasks to type-specific handlers.
      *
-     * <p>Loads task definition, routes to {@link #sweepBuildTask} or {@link #sweepDropTask},
-     * and commits changes atomically.
+     * <p>Loads task definition, dispatches to appropriate handler based on kind,
+     * commits cleanup transaction, then attempts index READY transition for BUILD tasks
+     * in a separate transaction.
      *
-     * @param taskSubspace the directory subspace containing the task definition
-     * @param taskId       the versionstamp identifier of the task to sweep
+     * @param taskSubspace directory subspace containing the task definition
+     * @param taskId versionstamp identifier of the task to sweep
      */
     private void doSweep(DirectorySubspace taskSubspace, Versionstamp taskId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -338,6 +265,9 @@ public class IndexMaintenanceTaskSweeper {
             }
             IndexMaintenanceTask base = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
             switch (base.getKind()) {
+                case IndexMaintenanceTaskKind.BOUNDARY:
+                    sweepBoundaryTask(tr, taskId, definition);
+                    break;
                 case IndexMaintenanceTaskKind.BUILD:
                     sweepBuildTask(tr, taskId, definition);
                     break;
@@ -351,44 +281,52 @@ public class IndexMaintenanceTaskSweeper {
                     throw new IllegalStateException("Unknown index maintenance task kind: " + base.getKind());
             }
             tr.commit().join();
+
+            // Committed successfully
+            if (base.getKind() == IndexMaintenanceTaskKind.BUILD) {
+                RetryMethods.retry(RetryMethods.TRANSACTION).executeRunnable(() -> tryMarkIndexAsReady(definition));
+            }
         }
     }
 
     /**
-     * Deletes task metadata from all shard subspaces for the specified task kinds.
+     * Attempts to mark index as READY after BUILD task cleanup.
      *
-     * <p>This method iterates through all shards and removes task entries that match
-     * any of the specified task kinds (BUILD, DROP). It's used during cleanup to ensure
-     * task metadata is completely removed from the distributed system.</p>
+     * <p>Called in separate transaction after removing BUILD task. Delegates to
+     * {@link IndexUtil#markIndexAsReadyIfBuildDone} which validates all tasks
+     * complete before transitioning index to READY status.
      *
-     * <p><b>Operation:</b></p>
+     * @param definition serialized BUILD task definition
+     */
+    private void tryMarkIndexAsReady(byte[] definition) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            IndexBuildingTask task = JSONUtil.readValue(definition, IndexBuildingTask.class);
+            if (IndexUtil.markIndexAsReadyIfBuildDone(tx, task.getNamespace(), task.getBucket(), task.getIndexId())) {
+                tr.commit().join();
+            }
+        }
+    }
+
+    /**
+     * Removes task definitions from all shard subspaces matching specified kinds.
+     *
+     * <p>Iterates through all shards (0..numShards-1), loads task definitions, and
+     * removes tasks whose kind matches any of the specified kinds.
+     *
+     * <p><strong>Operation:</strong>
      * <ol>
-     *   <li>For each shard (0..numShards-1):
-     *     <ul>
-     *       <li>Open or retrieve cached task subspace</li>
-     *       <li>Load task definition</li>
-     *       <li>Check if task kind matches any of the specified kinds</li>
-     *       <li>If match: Delete task using TaskStorage.drop()</li>
-     *     </ul>
-     *   </li>
+     *   <li>For each shard: Open/retrieve cached task subspace</li>
+     *   <li>Load task definition</li>
+     *   <li>Check if task kind matches any specified kind</li>
+     *   <li>If match: Delete via {@link TaskStorage#drop}</li>
      * </ol>
      *
-     * <p><b>Example Usage:</b></p>
-     * <pre>{@code
-     * // Remove only BUILD tasks
-     * dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
+     * <p>Must be called within active transaction. All deletions batched in transaction.
      *
-     * // Remove both BUILD and DROP tasks (orphaned index cleanup)
-     * dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD, IndexMaintenanceTaskKind.DROP);
-     * }</pre>
-     *
-     * <p><b>Transaction Context:</b></p>
-     * <p>This method MUST be called within an active transaction. All deletions are
-     * batched within the provided transaction and committed atomically by the caller.</p>
-     *
-     * @param tr     the active transaction to use for task deletion
-     * @param taskId the versionstamp identifier of the task to drop
-     * @param kinds  variable-length array of task kinds to delete (BUILD, DROP, etc.)
+     * @param tr transaction for task deletion
+     * @param taskId versionstamp identifier of task to drop
+     * @param kinds task kinds to delete (BUILD, DROP, BOUNDARY, ANALYZE)
      */
     private void dropIndexMaintenanceTask(Transaction tr, Versionstamp taskId, IndexMaintenanceTaskKind... kinds) {
         for (int shardId = 0; shardId < numShards; shardId++) {
@@ -405,6 +343,12 @@ public class IndexMaintenanceTaskSweeper {
         }
     }
 
+    /**
+     * Retrieves or lazily opens task subspace for a shard.
+     *
+     * @param shardId shard identifier
+     * @return cached or newly opened task subspace
+     */
     private DirectorySubspace getOrOpenTaskSubspace(int shardId) {
         return subspaces.computeIfAbsent(shardId,
                 (id) -> IndexTaskUtil.openTasksSubspace(context, id));

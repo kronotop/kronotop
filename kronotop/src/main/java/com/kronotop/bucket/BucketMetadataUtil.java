@@ -30,6 +30,8 @@ import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexRegistry;
 import com.kronotop.bucket.index.IndexStatistics;
 import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.statistics.Histogram;
+import com.kronotop.bucket.index.statistics.HistogramCodec;
 import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.journal.JournalName;
 import com.kronotop.server.Session;
@@ -126,7 +128,7 @@ public class BucketMetadataUtil {
                     IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, indexSubspace);
                     indexes.register(definition, indexSubspace);
                 });
-                BucketMetadataHeader header = readBucketMetadataHeader(tr, subspace);
+                BucketMetadataHeader header = BucketMetadataHeader.read(tr, subspace);
                 indexes.updateStatistics(header.indexStatistics());
                 id = header.version();
                 version = header.version();
@@ -136,7 +138,7 @@ public class BucketMetadataUtil {
                 prefix = createPrefix(context, tr, bucketVolumePrefixKey);
                 DirectorySubspace idIndexSubspace = IndexUtil.create(tr, subspace, DefaultIndexDefinition.ID);
                 indexes.register(DefaultIndexDefinition.ID, idIndexSubspace);
-                indexes.updateStatistics(Map.of(DefaultIndexDefinition.ID.id(), new IndexStatistics(0)));
+                indexes.updateStatistics(Map.of(DefaultIndexDefinition.ID.id(), IndexStatistics.empty()));
                 version = readVersion(tr, subspace);
                 id = generateAndSetId(tr, subspace);
                 tr.commit().join();
@@ -172,7 +174,7 @@ public class BucketMetadataUtil {
     public static void refreshIndexStatistics(Context context, BucketMetadata metadata, long ttl) {
         if (metadata.indexes().getStatsLastRefreshedAt() <= context.now() - ttl) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<Long, IndexStatistics> indexStatistics = readIndexStatistics(tr, metadata.subspace());
+                Map<Long, IndexStatistics> indexStatistics = readIndexStatistics(tr, metadata);
                 metadata.indexes().updateStatistics(indexStatistics);
             }
         }
@@ -226,7 +228,7 @@ public class BucketMetadataUtil {
                 indexes.register(definition, indexSubspace);
             });
 
-            BucketMetadataHeader header = readBucketMetadataHeader(tr, subspace);
+            BucketMetadataHeader header = BucketMetadataHeader.read(tr, subspace);
             indexes.updateStatistics(header.indexStatistics());
 
             Prefix prefix = Prefix.fromBytes(raw);
@@ -288,10 +290,10 @@ public class BucketMetadataUtil {
     /**
      * Forces the opening of a bucket within the specified namespace.
      *
-     * @param context     The context of the operation, providing necessary configurations and settings.
-     * @param tr          The transaction instance used for ensuring the operation is performed atomically.
-     * @param namespace   The namespace within which the bucket resides.
-     * @param bucket      The name of the bucket to be forcibly opened.
+     * @param context   The context of the operation, providing necessary configurations and settings.
+     * @param tr        The transaction instance used for ensuring the operation is performed atomically.
+     * @param namespace The namespace within which the bucket resides.
+     * @param bucket    The name of the bucket to be forcibly opened.
      * @return A BucketMetadata instance containing metadata of the forcibly opened bucket.
      */
     public static BucketMetadata forceOpen(Context context, Transaction tr, String namespace, String bucket) {
@@ -324,120 +326,101 @@ public class BucketMetadataUtil {
     }
 
     /**
-     * Publishes a bucket metadata change event to the cluster journal for propagation.
+     * Publishes a bucket metadata updated event to the cluster journal for propagation.
      *
      * <p>Creates a broadcast event containing the bucket's namespace, name, ID, and version, then publishes it
      * to the BUCKET_METADATA_EVENTS journal. Other cluster members watch this journal to detect metadata changes
      * and invalidate their local caches, ensuring eventual consistency across the cluster.
      *
-     * @param tx the transactional context containing both the transaction and system context
+     * @param tx       the transactional context containing both the transaction and system context
      * @param metadata the bucket metadata to broadcast
      */
-    public static void publishBucketMetadataEvent(TransactionalContext tx, BucketMetadata metadata) {
-        BucketMetadataEvent event = new BucketMetadataEvent(metadata.namespace(), metadata.name(), metadata.id(), metadata.version());
-        tx.context().getJournal().getPublisher().publish(tx.tr(), JournalName.BUCKET_METADATA_EVENTS, event);
-    }
-
-    private static void extractIndexStatistics(HashMap<Long, IndexStatistics> stats, Tuple unpackedKey, KeyValue entry) {
-        long cardinality = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
-        long id = unpackedKey.getLong(2);
-        stats.put(id, new IndexStatistics(cardinality));
+    public static void publishBucketMetadataUpdatedEvent(TransactionalContext tx, BucketMetadata metadata) {
+        BucketMetadataUpdatedEvent event = new BucketMetadataUpdatedEvent(
+                metadata.namespace(),
+                metadata.name(),
+                metadata.id(), metadata.version()
+        );
+        tx.context().getJournal().getPublisher().publish(tx.tr(), JournalName.BUCKET_EVENTS, event);
     }
 
     /**
-     * Reads index statistics from the FDB within the INDEX_STATISTICS directory subspace.
-     * The method retrieves key-value entries representing index statistics, unpacks the keys,
-     * and processes the corresponding values to generate a mapping between index IDs
-     * and their associated statistics.
+     * Reads index statistics including cardinality and histograms for all indexes in a bucket.
+     * Performs a single range scan and optimizes histogram decoding by reusing cached histograms
+     * when versions match.
      *
      * @param tr       the transaction instance used to interact with the database
-     * @param subspace the directory subspace containing the index statistics
-     * @return a map where each key represents the index ID as a {@code Long}, and the value
-     * is an {@code IndexStatistics} instance containing the cardinality
+     * @param metadata the bucket metadata containing the subspace and cached index statistics
+     * @return an immutable map of index IDs to their statistics (cardinality and histogram)
      */
-    public static Map<Long, IndexStatistics> readIndexStatistics(Transaction tr, DirectorySubspace subspace) {
+    public static Map<Long, IndexStatistics> readIndexStatistics(Transaction tr, BucketMetadata metadata) {
+        // Performance-critical section:
+        // This loop scans index statistics directly from FoundationDB.
+        // We deliberately avoid extra abstractions and object churn here.
+        // Histograms are only decoded when the version changes to minimize GC pressure.
+        // Refactor with caution—readability trade-offs are intentional.
+
+        HashMap<Long, IndexStatistics> stats = new HashMap<>();
+        Long currentIndexId = null;
+        long cardinality = 0L;
+        Histogram histogram = Histogram.create();
+
         Tuple tuple = Tuple.from(
                 BucketMetadataMagic.HEADER.getValue(),
                 BucketMetadataMagic.INDEX_STATISTICS.getValue()
         );
-        byte[] prefix = subspace.pack(tuple);
+        byte[] prefix = metadata.subspace().pack(tuple);
         KeySelector begin = KeySelector.firstGreaterThan(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        HashMap<Long, IndexStatistics> stats = new HashMap<>();
-        Long currentId = null;
-        long cardinality = 0L;
-        for (KeyValue entry : tr.getRange(begin, end)) {
-            Tuple unpackedKey = subspace.unpack(entry.getKey());
-            long id = unpackedKey.getLong(2);
-            if (currentId == null) {
-                currentId = id;
-            } else if (currentId != id) {
-                stats.put(currentId, new IndexStatistics(cardinality));
-                currentId = id;
+
+        for (KeyValue entry : tr.snapshot().getRange(begin, end)) {
+            Tuple unpackedKey = metadata.subspace().unpack(entry.getKey());
+            long indexId = unpackedKey.getLong(2);
+            if (currentIndexId == null) {
+                // fresh start
+                currentIndexId = indexId;
+            } else if (currentIndexId != indexId) {
+                // finalize the currentIndexId
+                stats.put(currentIndexId, new IndexStatistics(cardinality, histogram));
+                currentIndexId = indexId;
                 cardinality = 0;
+                histogram = Histogram.create();
             }
+
+            // Decode index statistics
             long magic = unpackedKey.getLong(3);
             if (magic == BucketMetadataMagic.CARDINALITY.getLong()) {
                 cardinality = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
             } else if (magic == BucketMetadataMagic.HISTOGRAM.getLong()) {
-                // Decode histogram
-                // TODO:
+                long version = HistogramCodec.readVersion(entry.getValue());
+                IndexStatistics indexStats = metadata.indexes().getStatistics(currentIndexId);
+                if (indexStats == null || indexStats.histogram().version() != version) {
+                    histogram = HistogramCodec.decode(entry.getValue());
+                }
             }
         }
-        stats.put(currentId, new IndexStatistics(cardinality));
+
+        if (currentIndexId != null) {
+            // Set the final entry
+            stats.put(currentIndexId, new IndexStatistics(cardinality, histogram));
+        }
         return Collections.unmodifiableMap(stats);
     }
 
     /**
-     * Reads the bucket metadata header stored in the database within the specified directory subspace.
-     * This method retrieves the version of the metadata and the index statistics associated with the bucket.
+     * Reads the index statistics for a specified index ID from the bucket metadata in the given subspace.
      *
-     * @param tr       the transaction instance used to interact with the database
-     * @param subspace the directory subspace containing the bucket metadata
-     * @return a {@code BucketMetadataHeader} instance containing the version and index statistics
-     */
-    public static BucketMetadataHeader readBucketMetadataHeader(Transaction tr, DirectorySubspace subspace) {
-        Tuple tuple = Tuple.from(BucketMetadataMagic.HEADER.getValue());
-        byte[] begin = subspace.pack(tuple);
-        byte[] end = ByteArrayUtil.strinc(begin);
-
-        long id = 0;
-        long version = 0;
-        HashMap<Long, IndexStatistics> stats = new HashMap<>();
-
-        // Iterate over a read-only view of the database, just reading the stats.
-        for (KeyValue entry : tr.snapshot().getRange(begin, end)) {
-            Tuple unpackedKey = subspace.unpack(entry.getKey());
-            if (unpackedKey.getLong(1) == BucketMetadataMagic.ID.getLong()) {
-                id = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
-            } else if (unpackedKey.getLong(1) == BucketMetadataMagic.VERSION.getLong()) {
-                version = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
-            } else if (unpackedKey.getLong(1) == BucketMetadataMagic.INDEX_STATISTICS.getLong()) {
-                extractIndexStatistics(stats, unpackedKey, entry);
-            }
-        }
-        return new BucketMetadataHeader(id, version, stats);
-    }
-
-    /**
-     * Reads the index statistics for a specific index ID from the database within the specified directory subspace.
-     * The method retrieves the index cardinality stored in little-endian byte order and encapsulates it in an
-     * {@code IndexStatistics} instance. If no data is found, the cardinality is assumed to be zero.
-     *
-     * @param tr       the transaction instance used to interact with the database
-     * @param subspace the directory subspace containing the index statistics
-     * @param indexId  the unique identifier of the index whose statistics are to be retrieved
-     * @return an {@code IndexStatistics} instance containing the cardinality of the specified index
+     * @param tr the transaction used to access the database
+     * @param subspace the subspace where the bucket metadata is stored
+     * @param indexId the unique identifier of the index for which statistics are to be read
+     * @return the statistics associated with the specified index ID, or a default IndexStatistics object if no statistics are found
      */
     public static IndexStatistics readIndexStatistics(Transaction tr, DirectorySubspace subspace, long indexId) {
-        byte[] key = IndexUtil.cardinalityKey(subspace, indexId);
-        long cardinality = 0;
-        byte[] value = tr.get(key).join();
-        if (value == null) {
-            return new IndexStatistics(cardinality);
+        BucketMetadataHeader header = BucketMetadataHeader.read(tr, subspace);
+        IndexStatistics stats = header.indexStatistics().get(indexId);
+        if (stats == null) {
+            return new IndexStatistics(0, Histogram.create());
         }
-
-        cardinality = ByteBuffer.wrap(value).order(ByteOrder.LITTLE_ENDIAN).getLong();
-        return new IndexStatistics(cardinality);
+        return stats;
     }
 }

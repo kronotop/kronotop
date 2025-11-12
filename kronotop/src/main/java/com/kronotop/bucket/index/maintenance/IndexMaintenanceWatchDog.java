@@ -247,6 +247,27 @@ public class IndexMaintenanceWatchDog implements Runnable {
         return workers.size() < MAX_WORKER_POOL_SIZE;
     }
 
+    private IndexTaskStatus getIndexTaskStatus(IndexMaintenanceTaskKind kind, Transaction tr, Versionstamp taskId) {
+        return switch (kind) {
+            case BOUNDARY -> {
+                IndexBoundaryTaskState state = IndexBoundaryTaskState.load(tr, subspace, taskId);
+                yield state.status();
+            }
+            case BUILD -> {
+                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
+                yield state.status();
+            }
+            case DROP -> {
+                IndexDropTaskState state = IndexDropTaskState.load(tr, subspace, taskId);
+                yield state.status();
+            }
+            case ANALYZE -> {
+                IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, subspace, taskId);
+                yield state.status();
+            }
+        };
+    }
+
     /**
      * Processes the task queue by spawning workers for pending tasks and cleaning up completed ones.
      *
@@ -281,37 +302,11 @@ public class IndexMaintenanceWatchDog implements Runnable {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TaskStorage.tasks(tr, subspace, (taskId) -> {
                 IndexMaintenanceTaskKind kind = getTaskKind(tr, taskId);
-                if (kind == IndexMaintenanceTaskKind.BUILD) {
-                    IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
-                    IndexTaskStatus status = state.status();
-                    if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
-                        return spawnWorker(taskId);
-                    } else if (status == IndexTaskStatus.COMPLETED) {
-                        int counter = IndexTaskUtil.readTaskCounter(context, taskId);
-                        if (counter == service.getNumberOfShards()) {
-                            sweeper.sweep(subspace, taskId);
-                        }
-                    } else if (status == IndexTaskStatus.STOPPED) {
-                        sweeper.sweep(subspace, taskId);
-                    }
-                } else if (kind == IndexMaintenanceTaskKind.DROP) {
-                    IndexDropTaskState state = IndexDropTaskState.load(tr, subspace, taskId);
-                    IndexTaskStatus status = state.status();
-                    if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
-                        return spawnWorker(taskId);
-                    } else if (status == IndexTaskStatus.COMPLETED || status == IndexTaskStatus.STOPPED) {
-                        sweeper.sweep(subspace, taskId);
-                    }
-                } else if (kind == IndexMaintenanceTaskKind.ANALYZE) {
-                    IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, subspace, taskId);
-                    IndexTaskStatus status = state.status();
-                    if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
-                        return spawnWorker(taskId);
-                    } else if (status == IndexTaskStatus.COMPLETED || status == IndexTaskStatus.STOPPED) {
-                        sweeper.sweep(subspace, taskId);
-                    }
-                } else {
-                    throw new IllegalStateException("Unknown task kind: " + kind);
+                IndexTaskStatus status = getIndexTaskStatus(kind, tr, taskId);
+                if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
+                    return spawnWorker(taskId);
+                } else if (status == IndexTaskStatus.COMPLETED || status == IndexTaskStatus.STOPPED) {
+                    sweeper.sweep(subspace, taskId);
                 }
                 return true;
             });

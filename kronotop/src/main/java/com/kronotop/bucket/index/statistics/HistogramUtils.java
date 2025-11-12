@@ -20,9 +20,7 @@ package com.kronotop.bucket.index.statistics;
 import com.kronotop.bucket.BSONUtil;
 import org.bson.BsonValue;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.TreeSet;
 
 /**
@@ -40,12 +38,12 @@ public final class HistogramUtils {
      * The histogram contains at most 10 buckets, with each bucket tracking its min/max value range and count.
      *
      * @param values sorted TreeSet of BSON values to partition into histogram buckets
-     * @return list of histogram buckets ordered by value range, empty if input is empty
+     * @return histogram ordered by value range, empty if input is empty
      */
-    public static List<HistogramBucket> buildHistogram(TreeSet<BsonValue> values) {
-        List<HistogramBucket> buckets = new ArrayList<>();
+    public static Histogram buildHistogram(TreeSet<BsonValue> values) {
+        Histogram histogram = Histogram.create();
         int size = values.size();
-        if (size == 0) return buckets;
+        if (size == 0) return histogram;
 
         int bucketCount = Math.min(10, size);
         int bucketSize = (int) Math.ceil(size / (double) bucketCount);
@@ -58,34 +56,34 @@ public final class HistogramUtils {
         while (iterator.hasNext()) {
             current = iterator.next();
             if (count % bucketSize == 0) {
-                buckets.add(new HistogramBucket(bucketStart, current, bucketSize));
+                histogram.add(new HistogramBucket(bucketStart, current, bucketSize));
                 bucketStart = current;
             }
             count++;
         }
 
         // Add final bucket if not already covered
-        if (buckets.isEmpty() || !buckets.get(buckets.size() - 1).max().equals(current)) {
-            buckets.add(new HistogramBucket(bucketStart, current, count % bucketSize));
+        if (histogram.isEmpty() || !histogram.get(histogram.size() - 1).max().equals(current)) {
+            histogram.add(new HistogramBucket(bucketStart, current, count % bucketSize));
         }
 
-        return buckets;
+        return histogram;
     }
 
     /**
      * Locates the histogram bucket containing the specified BSON value using binary search.
      *
-     * @param buckets list of histogram buckets sorted by value range
-     * @param value   BSON value to locate within the histogram
+     * @param histogram histogram sorted by value range
+     * @param value     BSON value to locate within the histogram
      * @return matching bucket if value falls within its [min, max] range, null if value is outside all buckets
      */
-    public static HistogramBucket findBucket(List<HistogramBucket> buckets, BsonValue value) {
-        if (buckets.isEmpty()) return null;
+    public static HistogramBucket findBucket(Histogram histogram, BsonValue value) {
+        if (histogram.isEmpty()) return null;
 
-        int low = 0, high = buckets.size() - 1;
+        int low = 0, high = histogram.size() - 1;
         while (low <= high) {
             int mid = (low + high) >>> 1;
-            HistogramBucket b = buckets.get(mid);
+            HistogramBucket b = histogram.get(mid);
 
 
             if (BSONUtil.compareBsonValues(value, b.min()) < 0) {
@@ -104,21 +102,21 @@ public final class HistogramUtils {
      * Returns the bucket's position as a percentile (0-100), with values below the first bucket returning 0.0
      * and values above the last bucket returning 100.0.
      *
-     * @param buckets list of histogram buckets sorted by value range
-     * @param value   BSON value to compute percentile for
-     * @return estimated percentile rank between 0.0 and 100.0, or 0.0 if buckets is empty
+     * @param histogram histogram sorted by value range
+     * @param value     BSON value to compute percentile for
+     * @return estimated percentile rank between 0.0 and 100.0, or 0.0 if histogram is empty
      */
-    public static double findPercentile(List<HistogramBucket> buckets, BsonValue value) {
-        if (buckets.isEmpty()) return 0.0;
+    public static double findPercentile(Histogram histogram, BsonValue value) {
+        if (histogram.isEmpty()) return 0.0;
 
-        HistogramBucket bucket = findBucket(buckets, value);
+        HistogramBucket bucket = findBucket(histogram, value);
         if (bucket == null) {
-            if (BSONUtil.compareBsonValues(value, buckets.get(0).min()) < 0) return 0.0;
+            if (BSONUtil.compareBsonValues(value, histogram.get(0).min()) < 0) return 0.0;
             return 100.0;
         }
 
-        int index = buckets.indexOf(bucket);
-        int totalBuckets = buckets.size();
+        int index = histogram.indexOf(bucket);
+        int totalBuckets = histogram.size();
 
         double percentile = ((index + 1) / (double) totalBuckets) * 100.0;
         return Math.max(0, Math.min(100, percentile));

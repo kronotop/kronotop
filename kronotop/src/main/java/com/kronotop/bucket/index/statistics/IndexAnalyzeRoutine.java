@@ -34,6 +34,7 @@ import com.kronotop.bucket.index.maintenance.AbstractIndexMaintenanceRoutine;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceRoutineException;
 import com.kronotop.bucket.index.maintenance.IndexTaskStatus;
 import com.kronotop.internal.TransactionUtils;
+import com.kronotop.internal.task.TaskStorage;
 import io.github.resilience4j.retry.Retry;
 import org.bson.BsonValue;
 import org.slf4j.Logger;
@@ -256,7 +257,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
      * @param samples  the collected BSON value samples
      */
     private void buildAndSaveHistogram(BucketMetadata metadata, Index index, TreeSet<BsonValue> samples) {
-        List<HistogramBucket> histogram = HistogramUtils.buildHistogram(samples);
+        Histogram histogram = HistogramUtils.buildHistogram(samples);
         byte[] encodedHistogram = HistogramCodec.encode(histogram, context.now());
 
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
@@ -312,20 +313,25 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
         return index;
     }
 
-    /**
-     * Executes the index analysis routine.
-     * Loads metadata, collects samples based on available hints, and persists the histogram.
-     * On failure, marks the task as FAILED.
-     */
-    @Override
-    public void start() {
-        long start = System.currentTimeMillis();
-        LOGGER.debug(
-                "Index analyze started: {}/{}/{}",
-                task.getNamespace(),
-                task.getBucket(),
-                task.getIndexId()
-        );
+    private void initialize() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
+            if (definition == null) {
+                IndexAnalyzeTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.STOPPED);
+            } else {
+                IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, subspace, taskId);
+                if (state.status() == IndexTaskStatus.STOPPED || state.status() == IndexTaskStatus.COMPLETED) {
+                    stopped = true;
+                    // Already completed or stopped
+                    return;
+                }
+                IndexAnalyzeTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
+            }
+            tr.commit().join();
+        }
+    }
+
+    private void startInternal() {
         try {
             BucketMetadata metadata = TransactionUtils.execute(context,
                     (tr) -> BucketMetadataUtil.forceOpen(context, tr, task.getNamespace(), task.getBucket())
@@ -341,14 +347,6 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
                 samples = buildHistogramFromHints(index, versionstamps);
             }
             buildAndSaveHistogram(metadata, index, samples);
-            long end = System.currentTimeMillis();
-            LOGGER.debug(
-                    "Index analyze completed: {}/{}/{} ({})ms",
-                    task.getNamespace(),
-                    task.getBucket(),
-                    task.getIndexId(),
-                    end - start
-            );
         } catch (Exception exp) {
             LOGGER.error("Index analyze failed: {}/{}/{}",
                     task.getNamespace(),
@@ -358,5 +356,34 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
             );
             markIndexAnalyzeTaskFailed(exp);
         }
+    }
+
+    /**
+     * Executes the index analysis routine.
+     * Loads metadata, collects samples based on available hints, and persists the histogram.
+     * On failure, marks the task as FAILED.
+     */
+    @Override
+    public void start() {
+        long start = System.currentTimeMillis();
+        LOGGER.debug(
+                "Index analyze started: {}/{}/{}",
+                task.getNamespace(),
+                task.getBucket(),
+                task.getIndexId()
+        );
+        Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+        retry.executeRunnable(this::initialize);
+        if (!stopped) {
+            retry.executeRunnable(this::startInternal);
+        }
+        long end = System.currentTimeMillis();
+        LOGGER.debug(
+                "Index analyze completed: {}/{}/{} ({})ms",
+                task.getNamespace(),
+                task.getBucket(),
+                task.getIndexId(),
+                end - start
+        );
     }
 }

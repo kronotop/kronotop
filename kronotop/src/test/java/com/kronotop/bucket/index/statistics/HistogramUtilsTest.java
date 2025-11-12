@@ -22,7 +22,6 @@ import org.bson.BsonValue;
 import org.junit.jupiter.api.Test;
 
 import java.util.Comparator;
-import java.util.List;
 import java.util.TreeSet;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,9 +31,9 @@ class HistogramUtilsTest {
     @Test
     void testBuildHistogram_EmptyInput() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
 
-        assertTrue(buckets.isEmpty());
+        assertTrue(histogram.isEmpty());
     }
 
     @Test
@@ -42,12 +41,12 @@ class HistogramUtilsTest {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         values.add(new BsonInt32(42));
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
 
-        assertEquals(1, buckets.size());
-        assertEquals(42, buckets.get(0).min().asInt32().getValue());
-        assertEquals(42, buckets.get(0).max().asInt32().getValue());
-        assertEquals(0, buckets.get(0).count());
+        assertEquals(1, histogram.size());
+        assertEquals(42, histogram.get(0).min().asInt32().getValue());
+        assertEquals(42, histogram.get(0).max().asInt32().getValue());
+        assertEquals(0, histogram.get(0).count());
     }
 
     @Test
@@ -56,11 +55,11 @@ class HistogramUtilsTest {
         values.add(new BsonInt32(10));
         values.add(new BsonInt32(20));
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
 
-        assertEquals(1, buckets.size());
-        assertEquals(10, buckets.get(0).min().asInt32().getValue());
-        assertEquals(20, buckets.get(0).max().asInt32().getValue());
+        assertEquals(1, histogram.size());
+        assertEquals(10, histogram.get(0).min().asInt32().getValue());
+        assertEquals(20, histogram.get(0).max().asInt32().getValue());
     }
 
     @Test
@@ -70,11 +69,11 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
 
-        assertTrue(buckets.size() <= 10);
-        assertEquals(1, buckets.get(0).min().asInt32().getValue());
-        assertEquals(10, buckets.get(buckets.size() - 1).max().asInt32().getValue());
+        assertTrue(histogram.size() <= 10);
+        assertEquals(1, histogram.get(0).min().asInt32().getValue());
+        assertEquals(10, histogram.get(histogram.size() - 1).max().asInt32().getValue());
     }
 
     @Test
@@ -84,11 +83,11 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
 
-        assertTrue(buckets.size() <= 10);
-        assertEquals(1, buckets.get(0).min().asInt32().getValue());
-        assertEquals(100, buckets.get(buckets.size() - 1).max().asInt32().getValue());
+        assertTrue(histogram.size() <= 10);
+        assertEquals(1, histogram.get(0).min().asInt32().getValue());
+        assertEquals(100, histogram.get(histogram.size() - 1).max().asInt32().getValue());
     }
 
     @Test
@@ -98,19 +97,19 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
 
-        assertFalse(buckets.isEmpty());
-        assertEquals(1, buckets.get(0).min().asInt32().getValue());
-        assertEquals(50, buckets.get(buckets.size() - 1).max().asInt32().getValue());
+        assertFalse(histogram.isEmpty());
+        assertEquals(1, histogram.get(0).min().asInt32().getValue());
+        assertEquals(50, histogram.get(histogram.size() - 1).max().asInt32().getValue());
     }
 
     @Test
     void testFindBucket_EmptyBuckets() {
-        List<HistogramBucket> buckets = List.of();
+        Histogram histogram = Histogram.create();
         BsonValue value = new BsonInt32(42);
 
-        HistogramBucket result = HistogramUtils.findBucket(buckets, value);
+        HistogramBucket result = HistogramUtils.findBucket(histogram, value);
 
         assertNull(result);
     }
@@ -122,10 +121,10 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i * 10));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonInt32(50);
 
-        HistogramBucket result = HistogramUtils.findBucket(buckets, searchValue);
+        HistogramBucket result = HistogramUtils.findBucket(histogram, searchValue);
 
         assertNotNull(result);
         assertTrue(searchValue.asInt32().getValue() >= result.min().asInt32().getValue());
@@ -139,10 +138,10 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonInt32(5);
 
-        HistogramBucket result = HistogramUtils.findBucket(buckets, searchValue);
+        HistogramBucket result = HistogramUtils.findBucket(histogram, searchValue);
 
         assertNull(result);
     }
@@ -154,10 +153,10 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonInt32(25);
 
-        HistogramBucket result = HistogramUtils.findBucket(buckets, searchValue);
+        HistogramBucket result = HistogramUtils.findBucket(histogram, searchValue);
 
         assertNull(result);
     }
@@ -169,10 +168,10 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonInt32(10);
 
-        HistogramBucket result = HistogramUtils.findBucket(buckets, searchValue);
+        HistogramBucket result = HistogramUtils.findBucket(histogram, searchValue);
 
         assertNotNull(result);
         assertEquals(10, result.min().asInt32().getValue());
@@ -185,10 +184,10 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonInt32(20);
 
-        HistogramBucket result = HistogramUtils.findBucket(buckets, searchValue);
+        HistogramBucket result = HistogramUtils.findBucket(histogram, searchValue);
 
         assertNotNull(result);
         assertEquals(20, result.max().asInt32().getValue());
@@ -196,10 +195,10 @@ class HistogramUtilsTest {
 
     @Test
     void testFindPercentile_EmptyBuckets() {
-        List<HistogramBucket> buckets = List.of();
+        Histogram histogram = Histogram.create();
         BsonValue value = new BsonInt32(42);
 
-        double percentile = HistogramUtils.findPercentile(buckets, value);
+        double percentile = HistogramUtils.findPercentile(histogram, value);
 
         assertEquals(0.0, percentile);
     }
@@ -211,10 +210,10 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonInt32(5);
 
-        double percentile = HistogramUtils.findPercentile(buckets, searchValue);
+        double percentile = HistogramUtils.findPercentile(histogram, searchValue);
 
         assertEquals(0.0, percentile);
     }
@@ -226,10 +225,10 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonInt32(25);
 
-        double percentile = HistogramUtils.findPercentile(buckets, searchValue);
+        double percentile = HistogramUtils.findPercentile(histogram, searchValue);
 
         assertEquals(100.0, percentile);
     }
@@ -241,10 +240,10 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonInt32(5);
 
-        double percentile = HistogramUtils.findPercentile(buckets, searchValue);
+        double percentile = HistogramUtils.findPercentile(histogram, searchValue);
 
         assertTrue(percentile > 0.0 && percentile <= 20.0);
     }
@@ -256,10 +255,10 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonInt32(95);
 
-        double percentile = HistogramUtils.findPercentile(buckets, searchValue);
+        double percentile = HistogramUtils.findPercentile(histogram, searchValue);
 
         assertTrue(percentile >= 80.0 && percentile <= 100.0);
     }
@@ -271,11 +270,11 @@ class HistogramUtilsTest {
             values.add(new BsonInt32(i));
         }
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
 
         for (int i = 1; i <= 50; i++) {
             BsonValue searchValue = new BsonInt32(i);
-            double percentile = HistogramUtils.findPercentile(buckets, searchValue);
+            double percentile = HistogramUtils.findPercentile(histogram, searchValue);
 
             assertTrue(percentile >= 0.0 && percentile <= 100.0);
         }
@@ -290,11 +289,11 @@ class HistogramUtilsTest {
         values.add(new BsonString("date"));
         values.add(new BsonString("elderberry"));
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
 
-        assertFalse(buckets.isEmpty());
-        assertEquals("apple", buckets.get(0).min().asString().getValue());
-        assertEquals("elderberry", buckets.get(buckets.size() - 1).max().asString().getValue());
+        assertFalse(histogram.isEmpty());
+        assertEquals("apple", histogram.get(0).min().asString().getValue());
+        assertEquals("elderberry", histogram.get(histogram.size() - 1).max().asString().getValue());
     }
 
     @Test
@@ -306,10 +305,10 @@ class HistogramUtilsTest {
         values.add(new BsonString("date"));
         values.add(new BsonString("elderberry"));
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonString("cherry");
 
-        HistogramBucket result = HistogramUtils.findBucket(buckets, searchValue);
+        HistogramBucket result = HistogramUtils.findBucket(histogram, searchValue);
 
         assertNotNull(result);
     }
@@ -323,10 +322,10 @@ class HistogramUtilsTest {
         values.add(new BsonString("date"));
         values.add(new BsonString("elderberry"));
 
-        List<HistogramBucket> buckets = HistogramUtils.buildHistogram(values);
+        Histogram histogram = HistogramUtils.buildHistogram(values);
         BsonValue searchValue = new BsonString("cherry");
 
-        double percentile = HistogramUtils.findPercentile(buckets, searchValue);
+        double percentile = HistogramUtils.findPercentile(histogram, searchValue);
 
         assertTrue(percentile >= 0.0 && percentile <= 100.0);
     }

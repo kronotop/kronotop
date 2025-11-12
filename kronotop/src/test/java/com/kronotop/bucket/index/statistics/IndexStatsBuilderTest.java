@@ -24,6 +24,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.bucket.TestUtil;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
@@ -109,7 +110,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         BsonValue matchingValue = BsonNull.VALUE;
         assertTrue(ProbabilisticSelector.match(matchingValue), "BsonNull should match");
 
-        Versionstamp versionstamp = generateVersionstamp(42);
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(42);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, matchingValue);
@@ -137,7 +138,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         BsonValue nonMatchingValue = new BsonInt32(1);
         assertFalse(ProbabilisticSelector.match(nonMatchingValue), "BsonInt32(1) should not match");
 
-        Versionstamp versionstamp = generateVersionstamp(42);
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(42);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, nonMatchingValue);
@@ -198,7 +199,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         Index index = new Index(definition, subspace);
 
         BsonValue matchingValue = BsonNull.VALUE;
-        Versionstamp versionstamp = generateVersionstamp(456);
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(456);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, matchingValue);

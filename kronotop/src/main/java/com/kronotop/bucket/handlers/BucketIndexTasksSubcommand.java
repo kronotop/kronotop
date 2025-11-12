@@ -24,10 +24,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.index.maintenance.IndexBuildingTaskState;
-import com.kronotop.bucket.index.maintenance.IndexDropTaskState;
-import com.kronotop.bucket.index.maintenance.IndexMaintenanceTask;
-import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
+import com.kronotop.bucket.index.maintenance.*;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
@@ -58,13 +55,14 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
         for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
-            byte[] base = TaskStorage.getDefinition(tr, taskSubspace, taskId);
-            if (base == null) {
+            byte[] encodedTask = TaskStorage.getDefinition(tr, taskSubspace, taskId);
+            if (encodedTask == null) {
                 continue;
             }
-            IndexMaintenanceTask baseTask = JSONUtil.readValue(base, IndexMaintenanceTask.class);
+            IndexMaintenanceTask baseTask = JSONUtil.readValue(encodedTask, IndexMaintenanceTask.class);
             switch (baseTask.getKind()) {
                 case BUILD -> {
+                    IndexBuildingTask task = JSONUtil.readValue(encodedTask, IndexBuildingTask.class);
                     IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
                     result.put(
                             new SimpleStringRedisMessage("kind"),
@@ -75,8 +73,12 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
                             new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(state.cursorVersionstamp()))
                     );
                     result.put(
-                            new SimpleStringRedisMessage("highest"),
-                            new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(state.highestVersionstamp()))
+                            new SimpleStringRedisMessage("lower"),
+                            new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(task.getLower()))
+                    );
+                    result.put(
+                            new SimpleStringRedisMessage("upper"),
+                            new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(task.getUpper()))
                     );
                     result.put(
                             new SimpleStringRedisMessage("status"),
@@ -116,7 +118,7 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
             String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
-                List<Versionstamp> taskIds = IndexTaskUtil.listTasks(tx, namespace, parameters.bucket, parameters.index);
+                List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, parameters.bucket, parameters.index);
                 for (Versionstamp taskId : taskIds) {
                     Map<RedisMessage, RedisMessage> child = scanTaskId(tr, taskId);
                     parent.put(

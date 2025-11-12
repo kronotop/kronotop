@@ -67,7 +67,7 @@ public class RetryMethods {
             retry.getEventPublisher()
                     .onRetry(ev -> {
                         if (ev.getLastThrowable() != null) {
-                            LOGGER.trace("Retry attempt #{} for [{}] due to {}",
+                            LOGGER.debug("Retry attempt #{} for [{}] due to {}",
                                     ev.getNumberOfRetryAttempts(),
                                     ev.getName(),
                                     ev.getLastThrowable().toString());

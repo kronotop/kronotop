@@ -16,11 +16,8 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.TransactionalContext;
@@ -29,6 +26,7 @@ import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
@@ -38,38 +36,53 @@ import org.bson.BsonValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-
 /**
- * Background routine for building secondary indexes on existing bucket data.
+ * Routine for building secondary indexes on existing bucket data in the background.
  *
- * <p>This routine implements the core logic for asynchronously building secondary indexes
- * without blocking normal bucket operations. It performs incremental index building by:
- * <ul>
- *   <li>Establishing scan boundaries from the primary index</li>
- *   <li>Processing documents in batches to manage memory and transaction sizes</li>
- *   <li>Tracking progress using cursor-based pagination</li>
- *   <li>Handling failures and retries with proper state management</li>
- * </ul>
+ * <p>Implements incremental index building by processing documents in batches while tracking
+ * progress through a cursor-based state mechanism. The routine operates asynchronously without
+ * blocking normal bucket operations.
  *
- * <p>The routine ensures transaction isolation by:
- * <ul>
- *   <li>Using a 6-second sleep to allow existing transactions to expire</li>
- *   <li>Operating with stable read versions from FoundationDB</li>
- *   <li>Retrying on transaction conflicts (codes 1007, 1020)</li>
- * </ul>
+ * <p><strong>Process Flow:</strong>
+ * <ol>
+ *   <li>Initialize cursor to lower boundary versionstamp from task</li>
+ *   <li>Process documents in batches of 100 from volume storage</li>
+ *   <li>Extract index values using selector and insert index entries</li>
+ *   <li>Update cursor position after each batch</li>
+ *   <li>Complete when cursor reaches upper boundary or no more documents</li>
+ * </ol>
  *
- * <p>Progress is tracked through {@link IndexBuildingTaskState} which persists:
+ * <p><strong>State Management:</strong> Task state persisted through {@link IndexBuildingTaskState}:
  * <ul>
- *   <li>Current cursor position for resumable processing</li>
- *   <li>Highest versionstamp boundary to detect completion</li>
- *   <li>Task status (RUNNING, COMPLETED, FAILED, STOPPED)</li>
+ *   <li>Cursor versionstamp for resumable processing</li>
+ *   <li>Task status: RUNNING, COMPLETED, FAILED, STOPPED</li>
+ *   <li>Bootstrap flag to track initial cursor positioning</li>
  *   <li>Error messages for failed tasks</li>
  * </ul>
+ *
+ * <p><strong>Index Status Lifecycle:</strong> Updates index status in bucket metadata:
+ * <ul>
+ *   <li>WAITING → BUILDING when routine starts processing</li>
+ *   <li>BUILDING → READY when task completes (handled by IndexMaintenanceWatchDog)</li>
+ *   <li>DROPPED causes routine to exit early</li>
+ * </ul>
+ *
+ * <p><strong>Error Handling:</strong>
+ * <ul>
+ *   <li>Transaction conflicts automatically retried via {@link RetryMethods}</li>
+ *   <li>IndexMaintenanceRoutineException marks task as FAILED with error message</li>
+ *   <li>Documents with type mismatches or missing selectors silently skipped</li>
+ *   <li>Routine can be stopped via {@link #stop()} method</li>
+ * </ul>
+ *
+ * <p><strong>Batch Processing:</strong> Each iteration processes up to 100 documents in a single
+ * transaction. The cursor advances after each successful batch, enabling resumption after
+ * interruption or failure.
  *
  * @see IndexMaintenanceRoutine
  * @see IndexBuildingTask
  * @see IndexBuildingTaskState
+ * @see AbstractIndexMaintenanceRoutine
  */
 public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexBuildingRoutine.class);
@@ -94,8 +107,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
     /**
      * Updates the index task status in FoundationDB with retry logic.
      *
-     * <p>This method atomically updates the task's status and handles the special case
-     * of COMPLETED status by incrementing the global task counter. The operation is
+     * <p>This method atomically updates the task's status. The operation is
      * wrapped in a retry mechanism to handle transient FoundationDB conflicts.
      *
      * @param status the new status to set for the index task
@@ -105,9 +117,6 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuildingTaskState.setStatus(tr, subspace, taskId, status);
-                if (status == IndexTaskStatus.COMPLETED) {
-                    IndexTaskUtil.modifyTaskCounter(context, tr, taskId, 1);
-                }
                 tr.commit().join();
             }
         });
@@ -116,10 +125,8 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
     /**
      * Marks the index building task as failed with an error message.
      *
-     * <p>This method atomically updates the task state to FAILED and records the
-     * error message from the provided throwable. Unlike normal status updates,
-     * this method does not use retry logic as it's typically called from
-     * exception handlers where further retries would be inappropriate.
+     * <p>Atomically updates task state to FAILED and records the error message.
+     * Uses retry logic to handle transient FoundationDB conflicts during state updates.
      *
      * @param th the throwable containing the error message to record
      */
@@ -134,137 +141,62 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
     }
 
     /**
-     * Finds the starting cursor position by locating the first versionstamp in the primary index.
+     * Transitions index status to BUILDING if currently in WAITING or FAILED state.
      *
-     * <p>This method performs a single-item range scan on the primary index to find the
-     * lowest versionstamp, which becomes the starting cursor position for the index
-     * building process. Returns null if the primary index is empty.
+     * <p>Loads the latest index definition and updates its status to BUILDING, then publishes
+     * a bucket metadata updated event. Skips update if index is already BUILDING or DROPPED.
      *
-     * @param tr           the FoundationDB transaction to use for the scan
-     * @param primaryIndex the primary index to scan
-     * @param begin        the starting byte array for the range scan
-     * @param end          the ending byte array for the range scan
-     * @return the first versionstamp found, or null if no entries exist
+     * @param metadata      bucket metadata containing the index
+     * @param indexSubspace directory subspace of the target index
      */
-    private Versionstamp findOutCursorVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
-        List<KeyValue> entries = tr.getRange(begin, end, 1).asList().join();
-        if (entries.isEmpty()) {
-            return null;
-        }
-        KeyValue entry = entries.getFirst();
-        Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
-        return (Versionstamp) parsedKey.get(1);
-    }
-
-    /**
-     * Finds the ending boundary by locating the highest versionstamp in the primary index.
-     *
-     * <p>This method performs a reverse single-item range scan on the primary index to find
-     * the highest versionstamp, which defines the end boundary for the index building
-     * process. Returns null if the primary index is empty.
-     *
-     * @param tr           the FoundationDB transaction to use for the scan
-     * @param primaryIndex the primary index to scan
-     * @param begin        the starting byte array for the range scan
-     * @param end          the ending byte array for the range scan
-     * @return the highest versionstamp found, or null if no entries exist
-     */
-    private Versionstamp findOutHighestVersionstamp(Transaction tr, Index primaryIndex, byte[] begin, byte[] end) {
-        List<KeyValue> entries = tr.getRange(begin, end, 1, true).asList().join();
-        if (entries.isEmpty()) {
-            return null;
-        }
-        KeyValue entry = entries.getFirst();
-        Tuple parsedKey = primaryIndex.subspace().unpack(entry.getKey());
-        return (Versionstamp) parsedKey.get(1);
-    }
-
-    /**
-     * Establishes scan boundaries from the primary index for incremental index building.
-     *
-     * <p>Determines the cursor start position (lowest versionstamp) and end position (highest versionstamp)
-     * by scanning the primary index. If boundaries already exist in the task state, returns immediately.
-     * Otherwise, waits for bucket metadata propagation across the cluster, scans the primary index range,
-     * and persists both boundaries to the task state for resumable progress tracking.
-     *
-     * @throws InterruptedException if interrupted during metadata propagation wait
-     */
-    private void findOutBoundaries() throws InterruptedException {
-        IndexBuildingTaskState state = TransactionUtils.execute(context, tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
-        if (state.cursorVersionstamp() != null && state.highestVersionstamp() != null) {
-            return;
-        }
-
-        // Refresh bucket metadata, it's important to fetch the latest indexes before building the secondary index
-        // We want that all threads have the latest view of the bucket metadata.
-        refreshBucketMetadata(task.getNamespace(), task.getBucket(), task.getIndexId());
-
-        // Fetch the up-to-date version of BucketMetadata
-        BucketMetadata metadata = TransactionUtils.execute(context,
-                tr -> BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
-        );
-        Index primaryIndex = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.ALL);
-        byte[] begin = primaryIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
-        byte[] end = ByteArrayUtil.strinc(begin);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Versionstamp cursor = findOutCursorVersionstamp(tr, primaryIndex, begin, end);
-            if (cursor != null) {
-                IndexBuildingTaskState.setCursorVersionstamp(tr, subspace, taskId, cursor);
-            }
-
-            Versionstamp highest = findOutHighestVersionstamp(tr, primaryIndex, begin, end);
-            if (highest != null) {
-                IndexBuildingTaskState.setHighestVersionstamp(tr, subspace, taskId, highest);
-            }
-
-            tr.commit().join();
-        }
-    }
-
     private void setIndexStatusAsBuilding(BucketMetadata metadata, DirectorySubspace indexSubspace) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            // This will retry in the case of conflict
             IndexDefinition latestVersion = IndexUtil.loadIndexDefinition(tr, indexSubspace);
             if (latestVersion.status() == IndexStatus.DROPPED || latestVersion.status() == IndexStatus.BUILDING) {
                 return;
             }
             IndexDefinition definition = latestVersion.updateStatus(IndexStatus.BUILDING);
             IndexUtil.saveIndexDefinition(tr, metadata, definition);
-            BucketMetadataUtil.publishBucketMetadataEvent(new TransactionalContext(context, tr), metadata);
+            BucketMetadataUtil.publishBucketMetadataUpdatedEvent(new TransactionalContext(context, tr), metadata);
             tr.commit().join();
         }
     }
 
     /**
-     * Scans the primary index and builds the target secondary index incrementally.
+     * Core loop that scans volume storage and builds the secondary index incrementally.
      *
-     * <p>This method performs the core work of background index building by:
+     * <p>Runs continuously until completion or interruption, processing documents in batches
+     * of 100 per transaction. Each iteration:
+     * <ol>
+     *   <li>Loads fresh bucket metadata to detect index changes</li>
+     *   <li>Validates index exists and is not READY or DROPPED</li>
+     *   <li>Transitions index status to BUILDING if needed</li>
+     *   <li>Loads task state and checks for completion conditions</li>
+     *   <li>Processes one batch via {@link #indexBucketEntries}</li>
+     *   <li>Updates metrics and continues to next batch</li>
+     * </ol>
+     *
+     * <p><strong>Completion Conditions:</strong>
      * <ul>
-     *   <li>Loading bucket metadata and validating the target index status</li>
-     *   <li>Updating index status to BUILDING if not already set</li>
-     *   <li>Reading documents from the volume in batches using cursor-based pagination</li>
-     *   <li>Extracting index values using the index selector and inserting index entries</li>
-     *   <li>Updating the cursor position for incremental progress tracking</li>
+     *   <li>Task status already COMPLETED or STOPPED</li>
+     *   <li>Cursor reaches upper boundary versionstamp</li>
+     *   <li>No cursor versionstamp found (empty shard)</li>
+     *   <li>Batch processing returns 0 entries</li>
+     *   <li>Index status becomes DROPPED</li>
+     *   <li>stopped flag set via {@link #stop()}</li>
      * </ul>
      *
-     * <p>The method uses transaction retries to handle FoundationDB conflicts (codes 1007, 1020)
-     * and processes documents in batches of 1000 to balance memory usage and transaction size.
+     * <p><strong>Error Handling:</strong> Catches {@link IndexMaintenanceRoutineException}
+     * to mark task as FAILED and exit loop. Transaction conflicts handled by outer retry logic.
      *
-     * <p>The scan continues until either:
-     * <ul>
-     *   <li>All documents have been processed (cursor reaches the highest versionstamp)</li>
-     *   <li>The task is manually stopped (status set to STOPPED)</li>
-     *   <li>The index is found to be in READY or DROPPED status</li>
-     * </ul>
-     *
-     * @throws IndexMaintenanceRoutineException if the index is not found, already ready, or dropped
+     * @throws IndexMaintenanceRoutineException if index not found or already READY
      */
-    private void scanPrimaryIndex() {
+    private void buildSecondaryIndex() {
         BucketShard shard = service.getShard(shardId);
         while (!stopped) {
             // Fetch the metadata with an independent TX due to prevent conflicts during commit time.
             BucketMetadata metadata = TransactionUtils.execute(context, tr ->
-                    BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket())
+                    BucketMetadataUtil.forceOpen(context, tr, task.getNamespace(), task.getBucket())
             );
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
@@ -316,7 +248,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
                     break;
                 }
 
-                if (state.cursorVersionstamp() == null || state.highestVersionstamp() == null) {
+                if (state.cursorVersionstamp() == null) {
                     LOGGER.debug(
                             "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed, no items found",
                             task.getNamespace(),
@@ -328,7 +260,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
                     setIndexTaskStatus(IndexTaskStatus.COMPLETED);
                     break;
                 }
-                if (state.cursorVersionstamp().equals(state.highestVersionstamp())) {
+                if (state.cursorVersionstamp().equals(task.getUpper())) {
                     LOGGER.debug(
                             "Background index builder for namespace={}, bucket={}, index={} on Bucket shard: {} has been completed",
                             task.getNamespace(),
@@ -365,32 +297,42 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
     }
 
     /**
-     * Processes a batch of bucket entries and builds corresponding index entries.
+     * Processes a batch of up to 100 documents from volume storage and creates index entries.
      *
-     * <p>This method reads documents from the volume storage in batches, extracts index
-     * values using the index selector, and inserts the corresponding index entries into
-     * FoundationDB. It handles:
+     * <p>Reads documents from the volume using cursor-based range scan, extracts index values
+     * via selector matching, and inserts index entries into FoundationDB. Updates cursor and
+     * bootstrap flag within the same transaction.
+     *
+     * <p><strong>Cursor Positioning:</strong>
      * <ul>
-     *   <li>Reading documents from volume using cursor-based pagination</li>
-     *   <li>Extracting index values based on the index definition selector</li>
-     *   <li>Type validation and conversion based on the index's BSON type</li>
-     *   <li>Inserting index entries with proper metadata</li>
-     *   <li>Updating the cursor position after each batch</li>
+     *   <li>First batch (not bootstrapped): Uses firstGreaterOrEqual to include cursor document</li>
+     *   <li>Subsequent batches: Uses firstGreaterThan to skip cursor document</li>
+     *   <li>Range ends at task upper boundary (exclusive)</li>
      * </ul>
      *
-     * <p>Documents that don't match the index selector or have type mismatches are
-     * silently skipped, allowing the index build to continue for valid documents.
+     * <p><strong>Document Processing:</strong>
+     * <ul>
+     *   <li>Matches selector against document to extract BSON value</li>
+     *   <li>Converts BSON value to Java object based on index BSON type</li>
+     *   <li>Skips document if selector doesn't match or type conversion fails</li>
+     *   <li>Inserts index entry with shard ID and document metadata</li>
+     *   <li>Inserts statistics hint for index optimization</li>
+     * </ul>
      *
-     * @param tr       the FoundationDB transaction to use for index operations
-     * @param shard    the bucket shard containing the volume to read from
-     * @param metadata the bucket metadata containing index definitions
-     * @param state    the current task state with cursor position
-     * @return the number of entries processed in this batch
+     * @param tr       transaction for index writes and state updates
+     * @param shard    bucket shard containing the volume to scan
+     * @param metadata bucket metadata with index definitions
+     * @param state    current task state with cursor and bootstrap flag
+     * @return number of documents processed (may exceed entries created due to skipped docs)
      */
     private int indexBucketEntries(Transaction tr, BucketShard shard, BucketMetadata metadata, IndexBuildingTaskState state) {
         int total = 0;
-        VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp());
-        VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(state.highestVersionstamp());
+
+        VersionstampedKeySelector begin = !state.bootstrapped() ?
+                VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp()) :
+                VersionstampedKeySelector.firstGreaterThan(state.cursorVersionstamp());
+
+        VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(task.getUpper());
         VolumeSession session = new VolumeSession(tr, metadata.volumePrefix());
 
         Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
@@ -408,22 +350,28 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
                     continue;
                 }
             }
+
             IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, versionstamp, indexValue, shardId, pair.metadata());
             IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, bsonValue);
         }
+
+        if (!state.bootstrapped()) {
+            IndexBuildingTaskState.setBootstrapped(tr, subspace, taskId, true);
+        }
+
         setCursor(tr, versionstamp);
         return total;
     }
 
     /**
-     * Updates the cursor position in the task state.
+     * Persists cursor versionstamp to task state for resumable processing.
      *
-     * <p>This method persists the current cursor position to the task state,
-     * allowing the index building process to resume from this point if interrupted.
-     * Only updates if a non-null cursor is provided.
+     * <p>Updates cursor only if non-null. The cursor represents the last processed
+     * document's versionstamp, enabling the routine to resume from this position
+     * after interruption or failure.
      *
-     * @param tr     the FoundationDB transaction to use for the update
-     * @param cursor the new cursor versionstamp to set, or null to skip update
+     * @param tr     transaction for state update
+     * @param cursor versionstamp of last processed document, or null to skip update
      */
     private void setCursor(Transaction tr, Versionstamp cursor) {
         if (cursor != null) {
@@ -431,25 +379,44 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
         }
     }
 
+    private void initialize() {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
+            if (definition == null) {
+                IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.STOPPED);
+            } else {
+                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
+                if (state.status() == IndexTaskStatus.STOPPED || state.status() == IndexTaskStatus.COMPLETED) {
+                    stopped = true;
+                    // Already completed or stopped
+                    return;
+                }
+                if (state.cursorVersionstamp() == null) {
+                    IndexBuildingTaskState.setCursorVersionstamp(tr, subspace, taskId, task.getLower());
+                }
+                IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
+            }
+            tr.commit().join();
+        }
+    }
+
     /**
-     * Starts the background index building routine.
+     * Initiates the index building process for this shard.
      *
-     * <p>This method initiates the index building process by:
+     * <p>Sets task status to RUNNING, initializes cursor to lower boundary if needed,
+     * then begins the index scan loop via {@link #buildSecondaryIndex()}. The method is
+     * idempotent and can be called multiple times to resume from saved cursor position.
+     *
+     * <p><strong>Initialization Steps:</strong>
      * <ol>
-     *   <li>Setting the task status to RUNNING</li>
-     *   <li>Finding and persisting the scan boundaries (cursor and highest versionstamp)</li>
-     *   <li>Beginning the primary index scan to build the secondary index</li>
+     *   <li>Reset stopped flag to allow resumption after {@link #stop()}</li>
+     *   <li>Update task status to RUNNING with retry logic</li>
+     *   <li>Initialize cursor to task lower boundary if null</li>
+     *   <li>Start scanning loop that processes batches until completion</li>
      * </ol>
      *
-     * <p>The method uses retry logic for both boundary detection and index scanning to handle
-     * FoundationDB conflicts. If interrupted during boundary detection (e.g., during shutdown),
-     * the method throws {@link IndexMaintenanceRoutineShutdownException} without marking the
-     * task as failed, allowing it to be retried later.
-     *
-     * <p>This method is idempotent and can be called multiple times (e.g., after a stop())
-     * to restart the index building process from the last saved cursor position.
-     *
-     * @throws IndexMaintenanceRoutineShutdownException if interrupted during boundary detection
+     * <p><strong>Retry Behavior:</strong> Both cursor initialization and scan loop wrapped
+     * in retry logic to handle FoundationDB transaction conflicts automatically.
      */
     public void start() {
         LOGGER.debug(
@@ -460,20 +427,11 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
                 shardId
         );
         stopped = false; // also means a restart
-        setIndexTaskStatus(IndexTaskStatus.RUNNING);
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
-        retry.executeRunnable(() -> {
-            try {
-                findOutBoundaries();
-            } catch (IndexMaintenanceRoutineException exp) {
-                markIndexBuildTaskFailed(exp);
-            } catch (InterruptedException ignored) {
-                // Do not mark the task as failed. Program has stopped and this task
-                // can be retried.
-                Thread.currentThread().interrupt();
-                throw new IndexMaintenanceRoutineShutdownException();
-            }
-        });
-        retry.executeRunnable(this::scanPrimaryIndex);
+
+        retry.executeRunnable(this::initialize);
+        if (!stopped) {
+            retry.executeRunnable(this::buildSecondaryIndex);
+        }
     }
 }

@@ -16,9 +16,10 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-public enum IndexMaintenanceTaskKind {
-    BOUNDARY,
-    BUILD,
-    DROP,
-    ANALYZE
+import com.kronotop.KronotopException;
+
+public class InvalidTaskStateException extends KronotopException {
+    public InvalidTaskStateException(String message) {
+        super(message);
+    }
 }

@@ -35,7 +35,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_create_with_context() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
@@ -46,7 +46,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_create_with_transaction() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId;
@@ -81,8 +81,8 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         // Create tasks with different user versions in the same transaction
         // Note: Both tasks will have the same transaction version but different user versions
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-            IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
+            IndexBuildingTask task1 = createIndexBuildingTask(1);
+            IndexBuildingTask task2 = createIndexBuildingTask(2);
 
             CompletableFuture<byte[]> future1 = TaskStorage.create(tr, 1, subspace, JSONUtil.writeValueAsBytes(task1));
             CompletableFuture<byte[]> future2 = TaskStorage.create(tr, 2, subspace, JSONUtil.writeValueAsBytes(task2));
@@ -105,7 +105,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_getDefinition() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 123);
+        IndexBuildingTask task = createIndexBuildingTask(123);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
@@ -136,7 +136,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_drop() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
@@ -175,7 +175,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_setStateField() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
@@ -198,7 +198,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_setStateField_update() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
@@ -226,7 +226,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_getStateField() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
@@ -248,7 +248,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_getStateField_nonExistent() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
@@ -261,7 +261,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_getStateFields() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
@@ -291,7 +291,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
     @Test
     void test_getStateFields_empty() {
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
@@ -325,7 +325,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         }
 
         // Create a task
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
 
         // Verify trigger was incremented
@@ -342,9 +342,9 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         // Create multiple tasks
-        IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-        IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
-        IndexBuildingTask task3 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+        IndexBuildingTask task1 = createIndexBuildingTask(1);
+        IndexBuildingTask task2 = createIndexBuildingTask(2);
+        IndexBuildingTask task3 = createIndexBuildingTask(3);
 
         Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
         Versionstamp taskId2 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
@@ -380,8 +380,8 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         // Create two tasks
-        IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-        IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
+        IndexBuildingTask task1 = createIndexBuildingTask(1);
+        IndexBuildingTask task2 = createIndexBuildingTask(2);
 
         Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
         Versionstamp taskId2 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
@@ -408,9 +408,9 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         // Create multiple tasks
-        IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-        IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
-        IndexBuildingTask task3 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+        IndexBuildingTask task1 = createIndexBuildingTask(1);
+        IndexBuildingTask task2 = createIndexBuildingTask(2);
+        IndexBuildingTask task3 = createIndexBuildingTask(3);
 
         Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
         Versionstamp taskId2 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
@@ -437,9 +437,9 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         // Create tasks sequentially
-        IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-        IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
-        IndexBuildingTask task3 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+        IndexBuildingTask task1 = createIndexBuildingTask(1);
+        IndexBuildingTask task2 = createIndexBuildingTask(2);
+        IndexBuildingTask task3 = createIndexBuildingTask(3);
 
         Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
         Versionstamp taskId2 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
@@ -466,9 +466,9 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         // Create multiple tasks
-        IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-        IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
-        IndexBuildingTask task3 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+        IndexBuildingTask task1 = createIndexBuildingTask(1);
+        IndexBuildingTask task2 = createIndexBuildingTask(2);
+        IndexBuildingTask task3 = createIndexBuildingTask(3);
 
         Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
         TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
@@ -493,9 +493,9 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         // Create multiple tasks
-        IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-        IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
-        IndexBuildingTask task3 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+        IndexBuildingTask task1 = createIndexBuildingTask(1);
+        IndexBuildingTask task2 = createIndexBuildingTask(2);
+        IndexBuildingTask task3 = createIndexBuildingTask(3);
 
         Versionstamp taskId1 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
         Versionstamp taskId2 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
@@ -521,9 +521,9 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         // Create multiple tasks
-        IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-        IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
-        IndexBuildingTask task3 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 3);
+        IndexBuildingTask task1 = createIndexBuildingTask(1);
+        IndexBuildingTask task2 = createIndexBuildingTask(2);
+        IndexBuildingTask task3 = createIndexBuildingTask(3);
 
         TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
         Versionstamp targetTaskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
@@ -573,7 +573,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         // Create a task with state fields
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
 
         // Add multiple state fields
@@ -603,11 +603,11 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         // Create multiple tasks
-        IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-        IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
-        IndexBuildingTask task3 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 3);
-        IndexBuildingTask task4 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 4);
-        IndexBuildingTask task5 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 5);
+        IndexBuildingTask task1 = createIndexBuildingTask(1);
+        IndexBuildingTask task2 = createIndexBuildingTask(2);
+        IndexBuildingTask task3 = createIndexBuildingTask(3);
+        IndexBuildingTask task4 = createIndexBuildingTask(4);
+        IndexBuildingTask task5 = createIndexBuildingTask(5);
 
         TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task1));
         TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));

@@ -24,7 +24,6 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
@@ -153,7 +152,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         // Create a worker that was just initiated (fresh)
@@ -185,7 +184,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
@@ -222,7 +221,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
@@ -259,7 +258,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(
@@ -299,10 +298,10 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
 
         // Create 4 tasks
-        IndexBuildingTask task1 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
-        IndexBuildingTask task2 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 2);
-        IndexBuildingTask task3 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 3);
-        IndexBuildingTask task4 = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 4);
+        IndexBuildingTask task1 = createIndexBuildingTask(1);
+        IndexBuildingTask task2 = createIndexBuildingTask(2);
+        IndexBuildingTask task3 = createIndexBuildingTask(3);
+        IndexBuildingTask task4 = createIndexBuildingTask(4);
 
         Versionstamp taskId1 = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task1));
         Versionstamp taskId2 = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task2));
@@ -354,7 +353,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId, (id) -> {
@@ -384,7 +383,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        IndexBuildingTask task = new IndexBuildingTask(TEST_NAMESPACE, TEST_BUCKET, 1);
+        IndexBuildingTask task = createIndexBuildingTask(1);
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId, (id) -> {

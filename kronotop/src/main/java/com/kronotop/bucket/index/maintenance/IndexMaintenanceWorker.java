@@ -30,7 +30,7 @@ import com.kronotop.internal.task.TaskStorage;
 import java.util.function.Consumer;
 
 /**
- * Executes index maintenance tasks (BUILD, DROP, STATS) with retry logic and lifecycle management.
+ * Executes index maintenance tasks (BOUNDARY, BUILD, DROP, STATS) with retry logic and lifecycle management.
  *
  * <p>Workers load task definitions from FoundationDB, create the appropriate routine, and execute it
  * until completion or shutdown. Upon reaching a terminal state (COMPLETED, FAILED, STOPPED), workers
@@ -66,6 +66,10 @@ public class IndexMaintenanceWorker implements Runnable {
         byte[] definition = TransactionUtils.execute(context, tr -> TaskStorage.getDefinition(tr, subspace, taskId));
         IndexMaintenanceTask base = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
         switch (base.getKind()) {
+            case BOUNDARY -> {
+                IndexBoundaryTask task = JSONUtil.readValue(definition, IndexBoundaryTask.class);
+                this.routine = new IndexBoundaryRoutine(context, subspace, taskId, task);
+            }
             case BUILD -> {
                 IndexBuildingTask task = JSONUtil.readValue(definition, IndexBuildingTask.class);
                 this.routine = new IndexBuildingRoutine(context, subspace, shardId, taskId, task);
@@ -84,6 +88,10 @@ public class IndexMaintenanceWorker implements Runnable {
 
     private IndexTaskStatus getRoutineStatus() {
         return switch (routine) {
+            case IndexBoundaryRoutine ignored -> {
+                IndexBoundaryTaskState state = TransactionUtils.execute(context, tr -> IndexBoundaryTaskState.load(tr, subspace, taskId));
+                yield state.status();
+            }
             case IndexBuildingRoutine ignored -> {
                 IndexBuildingTaskState state = TransactionUtils.execute(context, tr -> IndexBuildingTaskState.load(tr, subspace, taskId));
                 yield state.status();

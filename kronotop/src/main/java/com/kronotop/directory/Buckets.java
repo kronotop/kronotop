@@ -43,17 +43,6 @@ public class Buckets extends KronotopDirectoryNode {
                 super(layout);
                 layout.add("index");
             }
-
-            public Counter counter() {
-                return new Counter(layout);
-            }
-
-            public static class Counter extends KronotopDirectoryNode {
-                public Counter(List<String> layout) {
-                    super(layout);
-                    layout.add("counter");
-                }
-            }
         }
     }
 }

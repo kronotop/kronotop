@@ -18,23 +18,20 @@ package com.kronotop.bucket.index.maintenance;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.HistogramBucket;
 import com.kronotop.bucket.index.statistics.HistogramCodec;
-import com.kronotop.bucket.index.statistics.IndexAnalyzeTask;
 import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import io.github.resilience4j.retry.Retry;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -55,7 +52,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
@@ -69,6 +65,30 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     @AfterAll
     static void teardown() {
         System.clearProperty(SKIP_WAIT_TRANSACTION_LIMIT_KEY);
+    }
+
+    private void checkCardinality(int numberOfIndexes, long expected) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            Map<Long, IndexStatistics> statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            assertEquals(numberOfIndexes, statistics.size());
+            for (IndexStatistics stats : statistics.values()) {
+                assertEquals(expected, stats.cardinality());
+            }
+        }
+    }
+
+    private void checkCardinalityFromMetadata(long expected, String... selectors) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            for (String selector : selectors) {
+                Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READ);
+                assertNotNull(index);
+                IndexStatistics statistics = metadata.indexes().getStatistics(index.definition().id());
+                assertEquals(expected, statistics.cardinality());
+                assertTrue(statistics.histogram().isEmpty());
+            }
+        }
     }
 
     @Test
@@ -127,10 +147,12 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             }
             assertEquals(0, tasks.getAndIncrement());
         }
+
+        checkCardinality(2, 2000);
     }
 
     @Test
-    void shouldSweepStoppedBuildTasksForDroppedIndex() throws Exception {
+    void shouldSweepStoppedBuildTasksAndCompleteIndexDrop() throws Exception {
         int halfway = 500;
         int totalInserts = 1000;
 
@@ -156,22 +178,50 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             });
 
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-            final BucketMetadata finalMetadata = metadata;
+            BucketMetadata finalMetadata = metadata;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                KronotopException exception = assertThrows(KronotopException.class,
+                        () -> IndexUtil.drop(tx, finalMetadata, definition.name()));
+                assertEquals("Index has active tasks", exception.getMessage());
+            }
+
+            Index index = metadata.indexes().getIndex("age", IndexSelectionPolicy.READWRITE);
+            assertNotNull(index);
+
+            // Stop the BUILD tasks
             RetryMethods.retry(RetryMethods.TRANSACTION).executeRunnable(() -> {
                 TransactionUtils.executeThenCommit(context, tr -> {
-                    TransactionalContext tx = new TransactionalContext(context, tr);
-                    IndexUtil.drop(tx, finalMetadata, definition.name());
+                    IndexTaskUtil.scanTaskBackPointers(tr, index.subspace(), (taskId, shardId) -> {
+                        DirectorySubspace tasksSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
+                        IndexBuildingTaskState.setStatus(tr, tasksSubspace, taskId, IndexTaskStatus.STOPPED);
+                        return true;
+                    });
+                    BucketMetadataUtil.publishBucketMetadataUpdatedEvent(new TransactionalContext(context, tr), finalMetadata);
                     return null;
                 });
             });
 
+            waitUntilUpdated(metadata);
+
+            // Create the drop task.
+            await().atMost(Duration.ofSeconds(20)).until(() -> {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    TransactionalContext tx = new TransactionalContext(context, tr);
+                    IndexUtil.drop(tx, finalMetadata, definition.name());
+                    tr.commit().join();
+                } catch (Exception e) {
+                    return false;
+                }
+                return true;
+            });
 
             allLatch.await();
 
             bgFuture.get();
 
             BucketService bucketService = context.getService(BucketService.NAME);
-            await().atMost(Duration.ofSeconds(15)).until(() -> {
+            await().atMost(Duration.ofSeconds(20)).until(() -> {
                 // All build & drop tasks are killed and removed
                 AtomicInteger counter = new AtomicInteger();
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -305,5 +355,65 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                 return !histogram.isEmpty();
             }
         });
+
+        checkCardinality(2, 1000);
+    }
+
+    @Test
+    void shouldTrackCardinalityForSynchronousIndexing() {
+        // Create index
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexCreate(TEST_BUCKET, "{\"numeric\": {\"name\": \"test-index\", \"bson_type\": \"int32\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertNotNull(actualMessage);
+        assertEquals(Response.OK, actualMessage.content());
+
+        // Wait until index is becoming ready to use
+        IndexDefinition definition = loadIndexDefinition("numeric");
+        assertNotNull(definition);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            Index index = metadata.indexes().getIndex("numeric", IndexSelectionPolicy.ALL);
+            waitForIndexReadiness(index.subspace());
+            waitUntilUpdated(metadata);
+        }
+
+        // Insert some data
+        List<byte[]> documents = generateRandomDocumentsWithNumericContent("numeric", 1000);
+        insertDocuments(documents, 50);
+
+        checkCardinality(2, 1000);
+        checkCardinalityFromMetadata(1000, "numeric", DefaultIndexDefinition.ID.selector());
+    }
+
+    @Test
+    void shouldStoreCardinalityCorrectlyDuringBackgroundBuild() {
+        // Create index
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexCreate(TEST_BUCKET, "{\"numeric\": {\"name\": \"test-index\", \"bson_type\": \"int32\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertNotNull(actualMessage);
+        assertEquals(Response.OK, actualMessage.content());
+
+        // Insert some data
+        List<byte[]> documents = generateRandomDocumentsWithNumericContent("numeric", 1000);
+        insertDocuments(documents, 50);
+
+        // Wait until the index is becoming ready to use
+        IndexDefinition definition = loadIndexDefinition("numeric");
+        assertNotNull(definition);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            Index index = metadata.indexes().getIndex("numeric", IndexSelectionPolicy.ALL);
+            waitForIndexReadiness(index.subspace());
+            waitUntilUpdated(metadata);
+        }
+
+        checkCardinality(2, 1000);
+        checkCardinalityFromMetadata(1000, "numeric", DefaultIndexDefinition.ID.selector());
     }
 }

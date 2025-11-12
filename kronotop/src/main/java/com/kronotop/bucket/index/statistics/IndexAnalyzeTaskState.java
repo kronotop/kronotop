@@ -19,80 +19,80 @@ package com.kronotop.bucket.index.statistics;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.bucket.index.maintenance.AbstractTaskState;
 import com.kronotop.bucket.index.maintenance.IndexTaskStatus;
 import com.kronotop.internal.task.TaskStorage;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-public record IndexAnalyzeTaskState(IndexTaskStatus status, String error) {
-    /** Field key for an error message in TaskStorage. */
-    public static final String ERROR = "e";
+/**
+ * State tracker for index statistics collection tasks.
+ *
+ * <p>IndexAnalyzeTaskState manages the lifecycle of index analysis operations that build
+ * histogram statistics for query optimization. Analyze tasks scan index entries and
+ * construct value distribution histograms to help the query planner estimate selectivity.
+ *
+ * <p><strong>Analyze Task Purpose:</strong>
+ * <ul>
+ *   <li>Build histogram statistics from index hint space</li>
+ *   <li>Calculate value distribution for query optimizer</li>
+ *   <li>Store histogram in bucket metadata for planner access</li>
+ *   <li>Update index cardinality statistics</li>
+ * </ul>
+ *
+ * <p><strong>State Lifecycle:</strong>
+ * <pre>
+ * WAITING → RUNNING → COMPLETED (success)
+ *                  → FAILED (error during analysis)
+ *                  → STOPPED (manual cancellation)
+ * </pre>
+ *
+ * <p><strong>State Fields:</strong>
+ * <ul>
+ *   <li>status: Task execution status (inherited from AbstractTaskState)</li>
+ *   <li>error: Error message if failed (inherited from AbstractTaskState)</li>
+ * </ul>
+ *
+ * <p>Analyze tasks track only status and error. Unlike {@link com.kronotop.bucket.index.maintenance.IndexBuildingTaskState},
+ * they don't persist cursor position as analysis operations complete quickly by sampling
+ * the hint space rather than scanning the entire index.
+ *
+ * <p><strong>Cleanup:</strong> Completed or failed analyze tasks are removed by
+ * {@link com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper} after
+ * histogram storage.
+ *
+ * @see IndexAnalyzeRoutine
+ * @see IndexAnalyzeTask
+ * @see HistogramCodec
+ * @see AbstractTaskState
+ */
+public class IndexAnalyzeTaskState extends AbstractTaskState {
 
-    /** Field key for task status in TaskStorage. */
-    public static final String STATUS = "s";
+    /**
+     * Creates a new analyze task state with the specified status and error.
+     *
+     * @param status current task status
+     * @param error error message if failed, null otherwise
+     */
+    public IndexAnalyzeTaskState(IndexTaskStatus status, String error) {
+        super(status, error);
+    }
 
+    /**
+     * Loads the analyze task state from FoundationDB.
+     *
+     * <p>Retrieves common state fields (status and error) using the parent class
+     * {@link AbstractTaskState#loadCommonFields}. No additional fields are loaded
+     * as analyze tasks only track execution status.
+     *
+     * @param tr transaction for reading state
+     * @param subspace task subspace
+     * @param taskId task identifier
+     * @return loaded analyze task state
+     */
     public static IndexAnalyzeTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
         Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
-
-        String error = null;
-        byte[] rawError = entries.get(ERROR);
-        if (rawError != null) {
-            error = new String(rawError, StandardCharsets.UTF_8);
-        }
-
-        IndexTaskStatus status = IndexTaskStatus.WAITING; // Initial status should be WAITING
-        byte[] rawStatus = entries.get(STATUS);
-        if (rawStatus != null) {
-            status = IndexTaskStatus.valueOf(new String(rawStatus));
-        }
-        return new IndexAnalyzeTaskState(status, error);
-    }
-
-    /**
-     * Records an error message when a task fails.
-     *
-     * <p>This method should be called when a task encounters a fatal error that prevents
-     * it from completing. The error message is stored for debugging and monitoring purposes.
-     * Typically called in conjunction with {@link #setStatus} to mark the task as FAILED.</p>
-     *
-     * <p><b>Usage Pattern:</b></p>
-     * <pre>{@code
-     * try {
-     *     // Build index
-     * } catch (Exception e) {
-     *     IndexBuildingTaskState.setError(tr, subspace, taskId, e.getMessage());
-     *     IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-     *     tr.commit();
-     * }
-     * }</pre>
-     *
-     * @param tr the transaction to use for the update
-     * @param subspace the directory subspace containing the task
-     * @param taskId the versionstamp identifier of the task
-     * @param error the error message describing the failure
-     */
-    public static void setError(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String error) {
-        TaskStorage.setStateField(tr, subspace, taskId, ERROR, error.getBytes(StandardCharsets.UTF_8));
-    }
-
-    /**
-     * Updates the task status to reflect current execution state.
-     *
-     * <p>Status transitions should follow the lifecycle:</p>
-     * <ul>
-     *   <li>WAITING → RUNNING (task starts execution)</li>
-     *   <li>RUNNING → COMPLETED (task finishes successfully)</li>
-     *   <li>RUNNING → FAILED (task encounters error)</li>
-     *   <li>RUNNING → STOPPED (task manually stopped)</li>
-     * </ul>
-     *
-     * @param tr the transaction to use for the update
-     * @param subspace the directory subspace containing the task
-     * @param taskId the versionstamp identifier of the task
-     * @param status the new status to set
-     */
-    public static void setStatus(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, IndexTaskStatus status) {
-        TaskStorage.setStateField(tr, subspace, taskId, STATUS, status.name().getBytes());
+        TaskStateFields fields = loadCommonFields(entries);
+        return new IndexAnalyzeTaskState(fields.status(), fields.error());
     }
 }

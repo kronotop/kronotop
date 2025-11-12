@@ -19,6 +19,7 @@ package com.kronotop.bucket.index.maintenance;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.bucket.TestUtil;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     @BeforeEach
     void setupTask() {
         taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        taskId = generateVersionstamp(0);
+        taskId = TestUtil.generateVersionstamp(0);
     }
 
     @Test
@@ -46,7 +47,6 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
 
             assertNotNull(state);
             assertNull(state.cursorVersionstamp(), "Default cursor should be null");
-            assertNull(state.highestVersionstamp(), "Default highest versionstamp should be null");
             assertEquals(IndexTaskStatus.WAITING, state.status(), "Default status should be WAITING");
             assertNull(state.error(), "Default error should be null");
         }
@@ -66,23 +66,6 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
 
             assertNotNull(state.cursorVersionstamp());
             assertEquals(cursorValue, state.cursorVersionstamp());
-        }
-    }
-
-    @Test
-    void testSetAndLoadHighestVersionstamp() {
-        Versionstamp highestValue = Versionstamp.complete(new byte[10], 100);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setHighestVersionstamp(tr, taskSubspace, taskId, highestValue);
-            tr.commit().join();
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-
-            assertNotNull(state.highestVersionstamp());
-            assertEquals(highestValue, state.highestVersionstamp());
         }
     }
 
@@ -114,42 +97,6 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
 
             assertEquals(IndexTaskStatus.RUNNING, state.status());
-        }
-    }
-
-    @Test
-    void testCompleteTaskLifecycle() {
-        Versionstamp cursorValue = Versionstamp.complete(new byte[10], 0);
-        Versionstamp highestValue = Versionstamp.complete(new byte[10], 100);
-
-        // Initial state: set highest versionstamp when task starts
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setHighestVersionstamp(tr, taskSubspace, taskId, highestValue);
-            IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
-            tr.commit().join();
-        }
-
-        // Intermediate state: update cursor during processing
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setCursorVersionstamp(tr, taskSubspace, taskId, cursorValue);
-            tr.commit().join();
-        }
-
-        // Final state: mark as completed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setCursorVersionstamp(tr, taskSubspace, taskId, highestValue);
-            IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.COMPLETED);
-            tr.commit().join();
-        }
-
-        // Verify final state
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-
-            assertEquals(highestValue, state.cursorVersionstamp());
-            assertEquals(highestValue, state.highestVersionstamp());
-            assertEquals(IndexTaskStatus.COMPLETED, state.status());
-            assertNull(state.error());
         }
     }
 
@@ -209,27 +156,6 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testMultipleFieldUpdatesInSingleTransaction() {
-        Versionstamp cursorValue = Versionstamp.complete(new byte[10], 50);
-        Versionstamp highestValue = Versionstamp.complete(new byte[10], 200);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setCursorVersionstamp(tr, taskSubspace, taskId, cursorValue);
-            IndexBuildingTaskState.setHighestVersionstamp(tr, taskSubspace, taskId, highestValue);
-            IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
-            tr.commit().join();
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-
-            assertEquals(cursorValue, state.cursorVersionstamp());
-            assertEquals(highestValue, state.highestVersionstamp());
-            assertEquals(IndexTaskStatus.RUNNING, state.status());
-        }
-    }
-
-    @Test
     void testStatusTransitionFromWaitingToRunning() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuildingTaskState initialState = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
@@ -268,58 +194,6 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testCursorProgressTracking() {
-        Versionstamp highestValue = Versionstamp.complete(new byte[10], 1000);
-        Versionstamp cursor1 = Versionstamp.complete(new byte[10], 100);
-        Versionstamp cursor2 = Versionstamp.complete(new byte[10], 500);
-        Versionstamp cursor3 = Versionstamp.complete(new byte[10], 1000);
-
-        // Set highest versionstamp
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setHighestVersionstamp(tr, taskSubspace, taskId, highestValue);
-            IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
-            tr.commit().join();
-        }
-
-        // Progress update 1
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setCursorVersionstamp(tr, taskSubspace, taskId, cursor1);
-            tr.commit().join();
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-            assertEquals(cursor1, state.cursorVersionstamp());
-            assertNotEquals(state.cursorVersionstamp(), state.highestVersionstamp());
-        }
-
-        // Progress update 2
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setCursorVersionstamp(tr, taskSubspace, taskId, cursor2);
-            tr.commit().join();
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-            assertEquals(cursor2, state.cursorVersionstamp());
-        }
-
-        // Final progress update - cursor reaches highest
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setCursorVersionstamp(tr, taskSubspace, taskId, cursor3);
-            IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.COMPLETED);
-            tr.commit().join();
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-            assertEquals(cursor3, state.cursorVersionstamp());
-            assertEquals(state.cursorVersionstamp(), state.highestVersionstamp());
-            assertEquals(IndexTaskStatus.COMPLETED, state.status());
-        }
-    }
-
-    @Test
     void testErrorMessageWithUnicodeCharacters() {
         String errorMessage = "Index build failed: 文档验证错误 (Document validation error) - エラー";
 
@@ -331,40 +205,6 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(errorMessage, state.error());
-        }
-    }
-
-    @Test
-    void testStoppedTaskLifecycle() {
-        Versionstamp cursorValue = Versionstamp.complete(new byte[10], 50);
-        Versionstamp highestValue = Versionstamp.complete(new byte[10], 100);
-
-        // Task starts running
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setHighestVersionstamp(tr, taskSubspace, taskId, highestValue);
-            IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
-            tr.commit().join();
-        }
-
-        // Task makes some progress
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setCursorVersionstamp(tr, taskSubspace, taskId, cursorValue);
-            tr.commit().join();
-        }
-
-        // Task is manually stopped
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.STOPPED);
-            tr.commit().join();
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
-
-            assertEquals(IndexTaskStatus.STOPPED, state.status());
-            assertEquals(cursorValue, state.cursorVersionstamp());
-            assertNotEquals(state.cursorVersionstamp(), state.highestVersionstamp());
-            assertTrue(IndexBuildingTaskState.isTerminal(state.status()));
         }
     }
 }

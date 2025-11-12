@@ -27,6 +27,7 @@ import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.TestUtil;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeTestUtil;
@@ -855,7 +856,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
 
         String indexValue = "test-value";
         int userVersion = 42;
-        Versionstamp versionstamp = generateVersionstamp(userVersion);
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(userVersion);
         byte[] entryMetadata = getEncodedEntryMetadata();
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);

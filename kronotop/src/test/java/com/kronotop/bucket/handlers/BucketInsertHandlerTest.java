@@ -461,7 +461,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace());
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics ageStats = indexStatistics.get(ageIndexDefinition.id());
             assertNull(ageStats, "Age index statistics should not exist");
         }
@@ -487,7 +487,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
 
         // Verify cardinality has been updated to 3
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace());
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics ageStats = indexStatistics.get(ageIndexDefinition.id());
             assertNotNull(ageStats, "Age index statistics should exist after insertions");
             assertEquals(3L, ageStats.cardinality(), "Cardinality should be 3 after inserting 3 documents");
@@ -503,7 +503,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
 
         // Verify final cardinality is 4
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace());
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics ageStats = indexStatistics.get(ageIndexDefinition.id());
             assertNotNull(ageStats, "Age index statistics should exist after final insertion");
             assertEquals(4L, ageStats.cardinality(), "Final cardinality should be 4 after inserting 4 documents");

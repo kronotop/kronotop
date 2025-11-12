@@ -49,7 +49,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             new ThreadFactoryBuilder().setNameFormat("kr.bucket-service-%d").build()
     );
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final BucketMetadataWatcher bucketMetadataWatcher;
+    private final BucketEventsWatcher bucketEventsWatcher;
     // The default ShardSelector is RoundRobinShardSelector.
     private final ShardSelector shardSelector = new RoundRobinShardSelector();
     private final QueryExecutor queryExecutor;
@@ -75,7 +75,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
 
-        this.bucketMetadataWatcher = new BucketMetadataWatcher(context);
+        this.bucketEventsWatcher = new BucketEventsWatcher(context);
         this.planner = new Planner();
         this.queryExecutor = new QueryExecutor(this);
     }
@@ -146,7 +146,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             initializeBucketShardsIfOwned(shardId);
         }
 
-        executor.submit(bucketMetadataWatcher);
+        executor.submit(bucketEventsWatcher);
         CachedTimeService cachedTimeService = context.getService(CachedTimeService.NAME);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(cachedTimeService, 1000 * 5 * 60);
         scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
@@ -156,7 +156,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     public void shutdown() {
         try {
             shutdown = true;
-            bucketMetadataWatcher.shutdown();
+            bucketEventsWatcher.shutdown();
 
             for (BucketShard shard : getServiceContext().shards().values()) {
                 shard.close();

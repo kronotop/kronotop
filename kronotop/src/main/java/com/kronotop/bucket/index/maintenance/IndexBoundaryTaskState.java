@@ -24,23 +24,24 @@ import com.kronotop.internal.task.TaskStorage;
 import java.util.Map;
 
 /**
- * State tracker for index drop tasks that physically remove index data from FoundationDB.
+ * State tracker for index boundary detection tasks.
  *
- * <p>IndexDropTaskState manages the lifecycle of index deletion operations. Drop tasks
- * are created across all shards when an index is marked as DROPPED, and each shard
- * independently clears its portion of the index directory.
+ * <p>IndexBoundaryTaskState manages the lifecycle of boundary detection operations that
+ * determine the versionstamp scan range for index building. This is a short-lived task
+ * that runs once per index creation to calculate lower and upper boundaries.
  *
- * <p><strong>Drop Task Purpose:</strong>
+ * <p><strong>Boundary Task Purpose:</strong>
  * <ul>
- *   <li>Remove index directory and all subspace data from FoundationDB</li>
- *   <li>Clean up index statistics from bucket metadata</li>
- *   <li>Coordinate distributed deletion across multiple shards</li>
+ *   <li>Wait for cluster-wide bucket metadata convergence</li>
+ *   <li>Scan primary and secondary indexes to determine versionstamp boundaries</li>
+ *   <li>Create BUILD tasks for each shard with calculated boundaries</li>
+ *   <li>Mark index as READY if bucket is empty (optimization)</li>
  * </ul>
  *
  * <p><strong>State Lifecycle:</strong>
  * <pre>
  * WAITING → RUNNING → COMPLETED (success)
- *                  → FAILED (error during deletion)
+ *                  → FAILED (error during boundary detection)
  * </pre>
  *
  * <p><strong>State Fields:</strong>
@@ -49,45 +50,44 @@ import java.util.Map;
  *   <li>error: Error message if failed (inherited from AbstractTaskState)</li>
  * </ul>
  *
- * <p>Like {@link IndexBoundaryTaskState}, drop tasks only track status and error with no
- * additional state fields. Deletion operations are atomic and don't require cursor tracking.
+ * <p>Unlike {@link IndexBuildingTaskState}, this task state has no additional fields
+ * beyond status and error. Boundary tasks complete quickly and don't require cursor
+ * tracking or progress persistence.
  *
- * <p><strong>Cleanup:</strong> The {@link IndexMaintenanceTaskSweeper} removes completed
- * drop tasks when the index directory no longer exists in FoundationDB. Once all drop tasks
- * complete, the index is fully removed from bucket metadata.
+ * <p><strong>Cleanup:</strong> Completed or failed boundary tasks are removed by
+ * {@link IndexMaintenanceTaskSweeper} after execution.
  *
- * @see IndexDropRoutine
- * @see IndexDropTask
- * @see IndexMaintenanceTaskSweeper
+ * @see IndexBoundaryRoutine
+ * @see IndexBoundaryTask
+ * @see BoundaryLocator
  * @see AbstractTaskState
  */
-public class IndexDropTaskState extends AbstractTaskState {
-
+public class IndexBoundaryTaskState extends AbstractTaskState {
     /**
-     * Creates a new drop task state with the specified status and error.
+     * Creates a new boundary task state with the specified status and error.
      *
      * @param status current task status
      * @param error error message if failed, null otherwise
      */
-    public IndexDropTaskState(IndexTaskStatus status, String error) {
+    public IndexBoundaryTaskState(IndexTaskStatus status, String error) {
         super(status, error);
     }
 
     /**
-     * Loads the drop task state from FoundationDB.
+     * Loads the boundary task state from FoundationDB.
      *
      * <p>Retrieves common state fields (status and error) using the parent class
      * {@link AbstractTaskState#loadCommonFields}. No additional fields are loaded
-     * as drop tasks only track execution status.
+     * as boundary tasks only track execution status.
      *
      * @param tr transaction for reading state
      * @param subspace task subspace
      * @param taskId task identifier
-     * @return loaded drop task state
+     * @return loaded boundary task state
      */
-    public static IndexDropTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
+    public static IndexBoundaryTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
         Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
         TaskStateFields fields = loadCommonFields(entries);
-        return new IndexDropTaskState(fields.status(), fields.error());
+        return new IndexBoundaryTaskState(fields.status(), fields.error());
     }
 }
