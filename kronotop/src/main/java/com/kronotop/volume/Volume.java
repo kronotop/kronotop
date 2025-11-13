@@ -301,7 +301,11 @@ public class Volume {
      *
      * @return the SegmentContainer for the segment, or null if not found
      */
-    private SegmentContainer getSegmentContainer(Long segmentId) {
+    private SegmentContainer getSegmentContainerOrNull(long segmentId) {
+        SegmentContainer container = tryOptimisticSegmentLookup(segmentId);
+        if (container != null) {
+            return container;
+        }
         long stamp = segmentsLock.readLock();
         try {
             return segments.get(segmentId);
@@ -627,7 +631,7 @@ public class Volume {
      * @throws IllegalStateException if the segment specified in the entry metadata cannot be found
      */
     private void appendSegmentLog(Transaction tr, OperationKind kind, Versionstamp versionstamp, int userVersion, long prefix, EntryMetadata entryMetadata) {
-        SegmentContainer segmentContainer = getSegmentContainer(entryMetadata.segmentId());
+        SegmentContainer segmentContainer = getSegmentContainerOrNull(entryMetadata.segmentId());
         if (segmentContainer == null) {
             throw new IllegalStateException("Segment with id " + entryMetadata.segmentId() + " not found");
         }
@@ -676,7 +680,7 @@ public class Volume {
                     Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp()
             );
 
-            SegmentContainer segmentContainer = getSegmentContainer(entryMetadata.segmentId());
+            SegmentContainer segmentContainer = getSegmentContainerOrNull(entryMetadata.segmentId());
             if (segmentContainer == null) {
                 throw new IllegalStateException("Segment with id " + entryMetadata.segmentId() + " not found");
             }
@@ -789,11 +793,11 @@ public class Volume {
         }
     }
 
-    private Segment tryOptimisticSegmentOpen(long segmentId) {
+    private SegmentContainer tryOptimisticSegmentLookup(long segmentId) {
         long stamp = segmentsLock.tryOptimisticRead();
         SegmentContainer segmentContainer = segments.get(segmentId);
         if (segmentContainer != null && segmentsLock.validate(stamp)) {
-            return segmentContainer.segment();
+            return segmentContainer;
         }
         return null;
     }
@@ -807,14 +811,14 @@ public class Volume {
      * @throws SegmentNotFoundException if the specified segment cannot be found.
      */
     private Segment getOrOpenSegmentById(long segmentId) throws IOException, SegmentNotFoundException {
-        Segment segment = tryOptimisticSegmentOpen(segmentId);
-        if (segment != null) {
-            return segment;
+        SegmentContainer segmentContainer = tryOptimisticSegmentLookup(segmentId);
+        if (segmentContainer != null) {
+            return segmentContainer.segment();
         }
 
         long stamp = segmentsLock.readLock();
         try {
-            SegmentContainer segmentContainer = segments.get(segmentId);
+            segmentContainer = segments.get(segmentId);
             if (segmentContainer != null) {
                 return segmentContainer.segment();
             }
@@ -825,7 +829,7 @@ public class Volume {
         // Try to open the segment but check it first
         long writeStamp = segmentsLock.writeLock();
         try {
-            SegmentContainer segmentContainer = segments.get(segmentId);
+            segmentContainer = segments.get(segmentId);
             if (segmentContainer != null) {
                 return segmentContainer.segment();
             }
