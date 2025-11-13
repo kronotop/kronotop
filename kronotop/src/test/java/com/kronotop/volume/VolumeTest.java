@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class VolumeTest extends BaseVolumeIntegrationTest {
 
     @Test
-    void test_append() throws IOException {
+    void shouldAppendEntriesToVolume() throws IOException {
         ByteBuffer[] entries = getEntries(2);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -52,7 +52,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_append_IllegalArgumentException() {
+    void shouldThrowIllegalArgumentExceptionWhenAppendingWithoutEntries() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(IllegalArgumentException.class, () -> volume.append(session));
@@ -60,7 +60,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_get() throws IOException {
+    void shouldGetEntriesByVersionstamp() throws IOException {
         ByteBuffer[] entries = getEntries(3);
 
         AppendResult result;
@@ -85,7 +85,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_delete() throws IOException {
+    void shouldDeleteEntriesAndReturnNullOnGet() throws IOException {
         ByteBuffer[] entries = getEntries(2);
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -118,7 +118,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_delete_IllegalArgumentException() throws IOException {
+    void shouldThrowIllegalArgumentExceptionWhenDeletingWithoutKeys() throws IOException {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(IllegalArgumentException.class, () -> volume.delete(session));
@@ -126,7 +126,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_update() throws IOException, KeyNotFoundException {
+    void shouldUpdateEntriesWithNewValues() throws IOException, KeyNotFoundException {
         Versionstamp[] versionstampedKeys;
 
         {
@@ -170,7 +170,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_update_IllegalArgumentException() throws IOException {
+    void shouldThrowIllegalArgumentExceptionWhenUpdatingWithoutEntries() throws IOException {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             assertThrows(IllegalArgumentException.class, () -> volume.update(session));
@@ -178,7 +178,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_flush() {
+    void shouldFlushWithoutError() {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
@@ -189,7 +189,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_close() {
+    void shouldCloseWithoutError() {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
@@ -200,7 +200,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_close_then_reopen() throws IOException {
+    void shouldReopenVolumeAndRetrieveEntriesAfterClose() throws IOException {
         Versionstamp[] versionstampedKeys;
         ByteBuffer[] entries = getEntries(2);
         {
@@ -232,7 +232,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_reopen_write_new_entries() throws IOException {
+    void shouldWriteNewEntriesAfterReopeningVolume() throws IOException {
         List<Versionstamp> versionstampedKeys;
 
         ByteBuffer[] firstEntries = getEntries(2);
@@ -281,7 +281,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_create_new_segments() throws IOException {
+    void shouldCreateNewSegmentsWhenCapacityReached() throws IOException {
         long bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
@@ -298,7 +298,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_concurrent_append_then_get_all_versionstamped_keys() throws IOException, InterruptedException {
+    void shouldHandleConcurrentAppendsAndRetrieveAllKeys() throws IOException, InterruptedException {
         ConcurrentHashMap<Versionstamp, ByteBuffer> pairs = new ConcurrentHashMap<>();
         int numberOfThreads = Runtime.getRuntime().availableProcessors() * 2;
         int entriesPerThread = 2;
@@ -350,7 +350,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_analyze() throws IOException {
+    void shouldAnalyzeSegmentsCorrectly() throws IOException {
         long bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
@@ -380,7 +380,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_analyze_delete_entries() throws IOException {
+    void shouldCalculateGarbageRatioAfterDeletingEntries() throws IOException {
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
@@ -408,7 +408,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_TooManyEntriesException_before_appending() {
+    void shouldThrowTooManyEntriesExceptionWhenExceedingMaxEntries() {
         ByteBuffer[] entries = getEntries(UserVersion.MAX_VALUE + 1);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
@@ -417,7 +417,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_TooManyEntriesException_session() throws IOException {
+    void shouldThrowTooManyEntriesExceptionWhenExceedingSessionLimit() throws IOException {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             int batchSize = UserVersion.MAX_VALUE / 5;
@@ -431,7 +431,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_update_segment_cardinality() throws IOException, KeyNotFoundException {
+    void shouldUpdateSegmentCardinalityWhenUpdatingEntries() throws IOException, KeyNotFoundException {
         long bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
@@ -478,7 +478,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_vacuumSegment() throws IOException {
+    void shouldVacuumSegmentAndMoveEntries() throws IOException {
         long bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
@@ -514,7 +514,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_getRange_full_scan() throws IOException {
+    void shouldGetRangeForFullScan() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -548,7 +548,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_getRange_limit() throws IOException {
+    void shouldGetRangeWithLimit() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -585,7 +585,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_getRange_reverse() throws IOException {
+    void shouldGetRangeInReverseOrder() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -625,7 +625,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_getRange_random_range() throws IOException {
+    void shouldGetRangeWithCustomSelectors() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -670,7 +670,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_prefix_isolation() throws IOException {
+    void shouldIsolatePrefixesCorrectly() throws IOException {
         Prefix prefixOne = new Prefix("one");
         Prefix prefixTwo = new Prefix("two");
         String dataOne = "prefix-one-entry";
@@ -737,7 +737,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_getRange_prefix_isolation() throws IOException {
+    void shouldGetRangeWithPrefixIsolation() throws IOException {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -775,7 +775,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_clearPrefix() throws IOException {
+    void shouldClearPrefixAndRemoveAllEntries() throws IOException {
         ByteBuffer[] entries = getEntries(3);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -808,7 +808,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_clearPrefix_when_different_prefixes_exist() {
+    void shouldClearOnlySpecificPrefixWhenMultiplePrefixesExist() {
         Prefix prefixOne = new Prefix("prefixOne");
         Prefix prefixTwo = new Prefix("prefixTwo");
 
@@ -843,7 +843,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_insert(@TempDir Path dataDir) throws IOException {
+    void shouldInsertPackedEntries(@TempDir Path dataDir) throws IOException {
         byte[] first = new byte[]{1, 2, 3};
         byte[] second = new byte[]{4, 5, 6};
         ByteBuffer[] entries = {
@@ -888,17 +888,17 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_insert_IllegalArgumentException() {
+    void shouldThrowIllegalArgumentExceptionWhenInsertingWithoutEntries() {
         assertThrows(IllegalArgumentException.class, () -> volume.insert(123));
     }
 
     @Test
-    void test_getStatus_default_status() {
+    void shouldHaveReadWriteStatusByDefault() {
         assertEquals(VolumeStatus.READWRITE, volume.getStatus());
     }
 
     @Test
-    void test_setStatus_when_getStatus() {
+    void shouldSetAndPersistVolumeStatus() {
         volume.setStatus(VolumeStatus.READONLY);
         assertEquals(VolumeStatus.READONLY, volume.getStatus());
 
@@ -910,7 +910,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_when_append_raise_VolumeReadOnlyException() throws IOException {
+    void shouldThrowVolumeReadOnlyExceptionWhenAppendingToReadOnlyVolume() throws IOException {
         volume.setStatus(VolumeStatus.READONLY);
 
         ByteBuffer[] entries = getEntries(1);
@@ -921,7 +921,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_when_delete_raise_VolumeReadOnlyException() throws IOException {
+    void shouldThrowVolumeReadOnlyExceptionWhenDeletingFromReadOnlyVolume() throws IOException {
         ByteBuffer[] entries = getEntries(1);
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -939,7 +939,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_when_update_raise_VolumeReadOnlyException() throws IOException, KeyNotFoundException {
+    void shouldThrowVolumeReadOnlyExceptionWhenUpdatingReadOnlyVolume() throws IOException, KeyNotFoundException {
         Versionstamp[] versionstampedKeys;
 
         {
@@ -968,7 +968,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_when_clearPrefix_raise_VolumeReadOnlyException() throws IOException {
+    void shouldThrowVolumeReadOnlyExceptionWhenClearingPrefixOnReadOnlyVolume() throws IOException {
         ByteBuffer[] entries = getEntries(3);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -985,7 +985,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_when_insert_raise_VolumeReadOnlyException(@TempDir Path dataDir) throws IOException {
+    void shouldThrowVolumeReadOnlyExceptionWhenInsertingToReadOnlyVolume(@TempDir Path dataDir) throws IOException {
         byte[] first = new byte[]{1, 2, 3};
         byte[] second = new byte[]{4, 5, 6};
         ByteBuffer[] entries = {
@@ -1018,20 +1018,20 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_attributes() {
+    void shouldSetAndGetAttributes() {
         volume.setAttribute(VolumeAttributes.SHARD_ID, 1);
         assertEquals(1, volume.getAttribute(VolumeAttributes.SHARD_ID));
     }
 
     @Test
-    void test_first_set_attribute_then_remove() {
+    void shouldUnsetAttributeAfterSettingIt() {
         volume.setAttribute(VolumeAttributes.SHARD_ID, 1);
         volume.unsetAttribute(VolumeAttributes.SHARD_ID);
         assertNull(volume.getAttribute(VolumeAttributes.SHARD_ID));
     }
 
     @Test
-    void test_concurrent_appends_then_get_all() throws IOException, InterruptedException {
+    void shouldHandleHighConcurrencyAppendsAndRetrieveAll() throws IOException, InterruptedException {
         int PARALLEL_APPENDS = 100;
         ConcurrentHashMap<String, String> expected = new ConcurrentHashMap<>();
 
@@ -1089,7 +1089,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_initialization_sets_non_zero_id() {
+    void shouldSetNonZeroIdDuringVolumeInitialization() {
         // Test that volume initialization correctly sets a non-zero ID in VolumeMetadata
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeMetadata metadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
@@ -1107,7 +1107,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_openSegments_prevents_unnecessary_segment_creation() throws IOException {
+    void shouldPreventUnnecessarySegmentCreationWhenReopening() throws IOException {
         // Test that openSegments correctly opens existing segments and prevents creating new segments on reopen
 
         // Create initial volume and append data to force segment creation
