@@ -38,7 +38,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
     public void test_append() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
+        SegmentLog segmentLog = new SegmentLog(segment.id(), volume.getConfig().subspace());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SegmentLogValue entry = new SegmentLogValue(OperationKind.APPEND, prefix.asLong(), 0, 100);
@@ -51,7 +51,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
     public void test_SegmentLogIterable() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
+        SegmentLog segmentLog = new SegmentLog(segment.id(), volume.getConfig().subspace());
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
@@ -77,7 +77,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
         List<SegmentLogEntry> entries = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            SegmentLogIterable iterable = new SegmentLogIterable(tr, volume.getConfig().subspace(), segment.getName());
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, volume.getConfig().subspace(), segment.id());
             for (SegmentLogEntry segmentLogEntry : iterable) {
                 entries.add(segmentLogEntry);
             }
@@ -98,7 +98,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
     public void test_SegmentLogIterable_range() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
+        SegmentLog segmentLog = new SegmentLog(segment.id(), volume.getConfig().subspace());
         List<Versionstamp> keys = new ArrayList<>();
         List<SegmentLogValue> values = new ArrayList<>();
 
@@ -127,7 +127,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
 
         List<SegmentLogEntry> entries = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            SegmentLogIterable iterable = new SegmentLogIterable(tr, volume.getConfig().subspace(), segment.getName(), begin, end);
+            SegmentLogIterable iterable = new SegmentLogIterable(tr, volume.getConfig().subspace(), segment.id(), begin, end);
             for (SegmentLogEntry segmentLogEntry : iterable) {
                 entries.add(segmentLogEntry);
             }
@@ -148,7 +148,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
     public void test_getCardinality() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
-        SegmentLog segmentLog = new SegmentLog(segment.getName(), volume.getConfig().subspace());
+        SegmentLog segmentLog = new SegmentLog(segment.id(), volume.getConfig().subspace());
 
         int total = 100;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {

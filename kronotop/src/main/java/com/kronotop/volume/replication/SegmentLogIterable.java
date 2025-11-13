@@ -37,33 +37,33 @@ import static com.kronotop.volume.Subspaces.SEGMENT_LOG_SUBSPACE;
 
 public class SegmentLogIterable implements Iterable<SegmentLogEntry> {
     private final AsyncIterable<KeyValue> asyncIterable;
-    private final String segmentName;
+    private final long segmentId;
     private final DirectorySubspace subspace;
 
-    public SegmentLogIterable(Transaction tr, DirectorySubspace subspace, String segmentName) {
-        this(tr, subspace, segmentName, null, null);
+    public SegmentLogIterable(Transaction tr, DirectorySubspace subspace, long segmentId) {
+        this(tr, subspace, segmentId, null, null);
     }
 
-    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, String segmentName, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
-        this(tr, subspace, segmentName, begin, end, ReadTransaction.ROW_LIMIT_UNLIMITED, false);
+    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, long segmentId, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
+        this(tr, subspace, segmentId, begin, end, ReadTransaction.ROW_LIMIT_UNLIMITED, false);
     }
 
-    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, String segmentName, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
-        this(tr, subspace, segmentName, begin, end, limit, false);
+    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, long segmentId, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
+        this(tr, subspace, segmentId, begin, end, limit, false);
     }
 
-    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, String segmentName, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
+    SegmentLogIterable(Transaction tr, DirectorySubspace subspace, long segmentId, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         this.subspace = subspace;
-        this.segmentName = segmentName;
+        this.segmentId = segmentId;
         this.asyncIterable = createAsyncIterable(tr, begin, end, limit, reverse);
     }
 
     private byte[] packSegmentRoot() {
-        return subspace.pack(Tuple.from(SEGMENT_LOG_SUBSPACE, segmentName));
+        return subspace.pack(Tuple.from(SEGMENT_LOG_SUBSPACE, segmentId));
     }
 
     private byte[] packKey(Versionstamp key) {
-        return subspace.pack(Tuple.from(SEGMENT_LOG_SUBSPACE, segmentName, key));
+        return subspace.pack(Tuple.from(SEGMENT_LOG_SUBSPACE, segmentId, key));
     }
 
     private AsyncIterable<KeyValue> createAsyncIterable(Transaction tr, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {

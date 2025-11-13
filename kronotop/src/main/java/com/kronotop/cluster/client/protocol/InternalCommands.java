@@ -21,9 +21,9 @@ package com.kronotop.cluster.client.protocol;
 import java.util.List;
 
 public interface InternalCommands<K, V> {
-    List<Object> segmentrange(String volume, String segment, SegmentRange... ranges);
+    List<Object> segmentrange(String volume, long segmentId, SegmentRange... ranges);
 
-    String segmentinsert(String volume, String segment, PackedEntry... entries);
+    String segmentinsert(String volume, long segmentId, PackedEntry... entries);
 
     String ping();
 }

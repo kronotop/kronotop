@@ -112,24 +112,23 @@ public class ReplicationSlot {
      * @return a {@code Snapshot} object representing the segment's metadata and entry range
      */
     private static Snapshot newSegmentSnapshot(Transaction tr, ReplicationConfig config, long segmentId) {
-        String segmentName = Segment.generateName(segmentId);
         SegmentLogEntry firstEntry = new SegmentLogIterable(
                 tr,
                 config.volumeConfig().subspace(),
-                segmentName,
+                segmentId,
                 null,
                 null, 1
         ).iterator().next();
         SegmentLogEntry lastEntry = new SegmentLogIterable(
                 tr,
                 config.volumeConfig().subspace(),
-                segmentName,
+                segmentId,
                 null,
                 null,
                 1, true
         ).iterator().next();
 
-        SegmentLog segmentLog = new SegmentLog(segmentName, config.volumeConfig().subspace());
+        SegmentLog segmentLog = new SegmentLog(segmentId, config.volumeConfig().subspace());
         int totalEntries = segmentLog.getCardinality(tr);
         return new Snapshot(
                 segmentId,

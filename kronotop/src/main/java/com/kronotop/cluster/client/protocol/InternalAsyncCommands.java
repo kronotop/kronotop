@@ -21,9 +21,9 @@ import io.lettuce.core.RedisFuture;
 import java.util.List;
 
 public interface InternalAsyncCommands<K, V> {
-    RedisFuture<List<Object>> segmentrange(String volume, String segment, SegmentRange... ranges);
+    RedisFuture<List<Object>> segmentrange(String volume, long segmentId, SegmentRange... ranges);
 
-    RedisFuture<String> segmentinsert(String volume, String segment, PackedEntry... entries);
+    RedisFuture<String> segmentinsert(String volume, long segmentId, PackedEntry... entries);
 
     RedisFuture<String> ping();
 }

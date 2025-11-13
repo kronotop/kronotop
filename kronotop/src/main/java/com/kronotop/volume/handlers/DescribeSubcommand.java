@@ -62,7 +62,7 @@ class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHand
             segment.put(new SimpleStringRedisMessage("garbage_ratio"), new DoubleRedisMessage(analysis.garbageRatio()));
             segment.put(new SimpleStringRedisMessage("cardinality"), new IntegerRedisMessage(analysis.cardinality()));
 
-            segmentAnalysis.put(new SimpleStringRedisMessage(analysis.name()), new MapRedisMessage(segment));
+            segmentAnalysis.put(new IntegerRedisMessage(analysis.segmentId()), new MapRedisMessage(segment));
         }
         result.put(new SimpleStringRedisMessage("segments"), new MapRedisMessage(segmentAnalysis));
         response.writeMap(result);

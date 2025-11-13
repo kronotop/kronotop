@@ -30,17 +30,17 @@ class EntryMetadataTest {
     void decode_should_return_corresponding_EntryMetadata() {
         Prefix prefix = new Prefix("test");
         // Initialize necessary data
-        String segment = Segment.generateName(10);
+        long segmentId = 10;
         long position = 1L;
         long length = 1L;
         ByteBuffer buffer = ByteBuffer.allocate(EntryMetadata.SIZE); // Including space for position and length
-        buffer.put(segment.getBytes()).put(EntryMetadata.SUBSPACE_SEPARATOR).put(prefix.asBytes()).putLong(position).putLong(length).putInt(10).flip();
+        buffer.putLong(segmentId).put(EntryMetadata.SUBSPACE_SEPARATOR).put(prefix.asBytes()).putLong(position).putLong(length).putInt(10).flip();
 
         // Invoke method on test
         EntryMetadata result = EntryMetadata.decode(buffer);
 
         // Check that the result has the same values
-        assertEquals(segment, result.segment());
+        assertEquals(segmentId, result.segmentId());
         assertEquals(prefix, Prefix.fromBytes(result.prefix()));
         assertEquals(position, result.position());
         assertEquals(length, result.length());
@@ -53,13 +53,12 @@ class EntryMetadataTest {
 
         // Initialize necessary data
         int segmentId = 10;
-        String segment = Segment.generateName(segmentId);
         long position = 1L;
         long length = 1L;
         int id = EntryMetadataIdGenerator.generate(1, segmentId, position);
 
         // Create EntryMetadata instance
-        EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length, id);
+        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, id);
 
         // Invoke method on test
         ByteBuffer result = entry.encode();
@@ -74,13 +73,12 @@ class EntryMetadataTest {
 
         // Initialize necessary data
         int segmentId = 10;
-        String segment = Segment.generateName(segmentId);
         long position = 1L;
         long length = 1L;
         int id = EntryMetadataIdGenerator.generate(1, segmentId, position);
 
         // Create EntryMetadata instance
-        EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length, id);
+        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, id);
 
         // Invoke method on test
         ByteBuffer result = entry.encode();

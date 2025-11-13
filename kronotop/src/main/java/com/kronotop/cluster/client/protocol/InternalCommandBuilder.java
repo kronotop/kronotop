@@ -31,8 +31,8 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
         super(codec);
     }
 
-    public Command<K, V, List<Object>> segmentrange(String volume, String segment, SegmentRange... ranges) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(segment);
+    public Command<K, V, List<Object>> segmentrange(String volume, long segmentId, SegmentRange... ranges) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(segmentId);
         for (SegmentRange range : ranges) {
             args.add(range.position());
             args.add(range.length());
@@ -40,8 +40,8 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
         return createCommand(InternalCommandType.SEGMENTRANGE, new ArrayOutput<>(codec), args);
     }
 
-    public Command<K, V, String> segmentinsert(String volume, String segment, PackedEntry... entries) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(segment);
+    public Command<K, V, String> segmentinsert(String volume, long segmentId, PackedEntry... entries) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(segmentId);
         for (PackedEntry entry : entries) {
             args.add(entry.position());
             args.add(entry.data());

@@ -114,7 +114,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         assertTrue(() -> {
             for (SegmentAnalysis before : beforeVacuum) {
                 for (SegmentAnalysis after : afterVacuum) {
-                    if (before.name().equals(after.name())) {
+                    if (before.segmentId() == after.segmentId()) {
                         return false;
                     }
                 }

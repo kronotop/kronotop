@@ -493,8 +493,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         {
             List<SegmentAnalysis> segmentAnalysis = volume.analyze();
-            String firstSegment = segmentAnalysis.getFirst().name();
-            VacuumContext vacuumContext = new VacuumContext(firstSegment, new AtomicBoolean());
+            long firstSegmentId = segmentAnalysis.getFirst().segmentId();
+            VacuumContext vacuumContext = new VacuumContext(firstSegmentId, new AtomicBoolean());
             volume.vacuumSegment(vacuumContext);
         }
 
@@ -865,14 +865,14 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         );
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
-        String segmentName = segmentAnalysis.getFirst().name();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
 
         Volume standby = service.newVolume(config);
         PackedEntry[] packedEntries = new PackedEntry[]{
                 new PackedEntry(0, first),
                 new PackedEntry(3, second)
         };
-        standby.insert(segmentName, packedEntries);
+        standby.insert(segmentId, packedEntries);
         standby.flush();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -888,8 +888,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_insert_IllegalArgumentException() throws IOException {
-        assertThrows(IllegalArgumentException.class, () -> volume.insert("test-segment"));
+    void test_insert_IllegalArgumentException() {
+        assertThrows(IllegalArgumentException.class, () -> volume.insert(123));
     }
 
     @Test
@@ -1006,7 +1006,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         );
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
-        String segmentName = segmentAnalysis.getFirst().name();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
 
         Volume standby = service.newVolume(config);
         standby.setStatus(VolumeStatus.READONLY);
@@ -1014,7 +1014,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 new PackedEntry(0, first),
                 new PackedEntry(3, second)
         };
-        assertThrows(VolumeReadOnlyException.class, () -> standby.insert(segmentName, packedEntries));
+        assertThrows(VolumeReadOnlyException.class, () -> standby.insert(segmentId, packedEntries));
     }
 
     @Test

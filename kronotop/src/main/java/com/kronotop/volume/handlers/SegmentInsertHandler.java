@@ -47,7 +47,7 @@ public class SegmentInsertHandler extends BaseVolumeHandler implements Handler {
         SegmentInsertMessage message = request.attr(MessageTypes.SEGMENTINSERT).get();
         try {
             Volume volume = service.findVolume(message.getVolume());
-            volume.insert(message.getSegment(), message.getPackedEntries());
+            volume.insert(message.getSegmentId(), message.getPackedEntries());
             volume.flush();
         } catch (VolumeNotOpenException | ClosedVolumeException e) {
             throw new KronotopException(e.getMessage(), e);

@@ -55,7 +55,7 @@ public class SegmentRangeHandler extends BaseVolumeHandler implements Handler {
         try {
             Volume volume = service.findVolume(message.getVolume());
             List<RedisMessage> children = new ArrayList<>();
-            ByteBuffer[] entries = volume.getSegmentRange(message.getSegment(), message.getSegmentRanges());
+            ByteBuffer[] entries = volume.getSegmentRange(message.getSegmentId(), message.getSegmentRanges());
             for (ByteBuffer entry : entries) {
                 ByteBuf buffer = Unpooled.wrappedBuffer(entry);
                 children.add(new FullBulkStringRedisMessage(buffer));

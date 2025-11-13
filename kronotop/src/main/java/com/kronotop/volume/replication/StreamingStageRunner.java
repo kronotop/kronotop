@@ -104,7 +104,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
 
         for (KeyValue keyValue : iterable) {
             EntryMetadata metadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
-            return Segment.extractIdFromName(metadata.segment());
+            return metadata.segmentId();
         }
         throw new NoSegmentExistsException();
     }

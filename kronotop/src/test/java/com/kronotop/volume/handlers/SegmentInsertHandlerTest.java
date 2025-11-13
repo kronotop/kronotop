@@ -65,7 +65,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
-        String segmentName = segmentAnalysis.getFirst().name();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
 
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
         PackedEntry[] packedEntries = {
@@ -73,7 +73,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 new PackedEntry(3, second),
         };
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentinsert(volumeConfig.name(), segmentName, packedEntries).encode(buf);
+        cmd.segmentinsert(volumeConfig.name(), segmentId, packedEntries).encode(buf);
         secondInstance.getChannel().writeInbound(buf);
 
         Object response = secondInstance.getChannel().readOutbound();
@@ -97,7 +97,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentinsert("foobar", "barfoo", new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
+        cmd.segmentinsert("foobar", 1, new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
         kronotopInstance.getChannel().writeInbound(buf);
 
         Object response = kronotopInstance.getChannel().readOutbound();
@@ -110,11 +110,11 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentinsert(volumeConfig.name(), "0000000000000000001", new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
+        cmd.segmentinsert(volumeConfig.name(), 1, new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
         kronotopInstance.getChannel().writeInbound(buf);
 
         Object response = kronotopInstance.getChannel().readOutbound();
         ErrorRedisMessage message = (ErrorRedisMessage) response;
-        assertEquals("ERR Segment: '0000000000000000001' could not be found", message.content());
+        assertEquals("ERR Segment: '1' could not be found", message.content());
     }
 }

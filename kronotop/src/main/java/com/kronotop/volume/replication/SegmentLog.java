@@ -39,21 +39,20 @@ import static com.kronotop.volume.Subspaces.SEGMENT_LOG_SUBSPACE;
  */
 public class SegmentLog {
     private static final byte[] CARDINALITY_INCREASE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
-    private final String segmentName;
+    private final long segmentId;
     private final DirectorySubspace subspace;
     private final byte[] cardinalityKey;
 
     /**
      * Constructs a SegmentLog instance with the given segment name and subspace.
      *
-     * @param segmentName the name of the segment to be logged
      * @param subspace    the subspace where this segment log is stored
      */
-    public SegmentLog(String segmentName, DirectorySubspace subspace) {
-        this.segmentName = segmentName;
+    public SegmentLog(long segmentId, DirectorySubspace subspace) {
+        this.segmentId = segmentId;
         this.subspace = subspace;
 
-        Tuple key = Tuple.from(SEGMENT_LOG_CARDINALITY_SUBSPACE, segmentName);
+        Tuple key = Tuple.from(SEGMENT_LOG_CARDINALITY_SUBSPACE, this.segmentId);
         this.cardinalityKey = subspace.pack(key);
     }
 
@@ -96,14 +95,14 @@ public class SegmentLog {
         if (versionstamp == null) {
             preKey = Tuple.from(
                     SEGMENT_LOG_SUBSPACE,
-                    segmentName,
+                    segmentId,
                     Versionstamp.incomplete(userVersion),
                     Instant.now().toEpochMilli()
             );
         } else {
             preKey = Tuple.from(
                     SEGMENT_LOG_SUBSPACE,
-                    segmentName,
+                    segmentId,
                     Versionstamp.incomplete(userVersion),
                     versionstamp,
                     Instant.now().toEpochMilli()

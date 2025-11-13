@@ -18,8 +18,6 @@ package com.kronotop.volume;
 
 import java.nio.ByteBuffer;
 
-import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
-
 /**
  * EntryMetadata is a record class representing the metadata attached to a specific entry
  * within a segmented storage system. This metadata includes information about the segment
@@ -35,13 +33,11 @@ import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
  * binary format. The design supports fixed sizes for various components to ensure direct access
  * and manipulation efficiency.
  */
-public record EntryMetadata(String segment, byte[] prefix, long position, long length, int id) {
+public record EntryMetadata(long segmentId, byte[] prefix, long position, long length, int id) {
     public static int ENTRY_PREFIX_SIZE = 8;
     public static int SUBSPACE_SEPARATOR_SIZE = 1;
-    // 20 = position(8 bytes) + length (8 bytes) + id (4 bytes)
-    public static int SIZE = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE + 20;
-    static byte SUBSPACE_SEPARATOR = 0x0;
-
+    // 28 = segmentId(8 bytes) + position(8 bytes) + length (8 bytes) + id (4 bytes)
+    public static int SIZE = ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE + 28;
 
     /**
      * Decodes a ByteBuffer to extract entry metadata, including the segment name, prefix,
@@ -53,16 +49,14 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
      * position, and length extracted from the provided ByteBuffer.
      */
     public static EntryMetadata decode(ByteBuffer buffer) {
-        byte[] rawSegment = new byte[SEGMENT_NAME_SIZE];
-        buffer.get(rawSegment);
+        long segmentId = buffer.getLong();
         buffer.get(); // Consume the separator
-        String segment = new String(rawSegment);
         byte[] prefix = new byte[ENTRY_PREFIX_SIZE];
         buffer.get(prefix);
         long position = buffer.getLong();
         long length = buffer.getLong();
         int id = buffer.getInt(); // position = 44
-        return new EntryMetadata(segment, prefix, position, length, id);
+        return new EntryMetadata(segmentId, prefix, position, length, id);
     }
 
     /**
@@ -77,6 +71,7 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
      * @return the integer value representing the extracted ID.
      */
     public static int extractId(ByteBuffer buffer) {
+        // TODO: REFACTOR
         // The position of id is 44 in the current layout of encoded EntryMetadata
         buffer = buffer.position(44);
         int id = buffer.getInt();
@@ -100,8 +95,7 @@ public record EntryMetadata(String segment, byte[] prefix, long position, long l
         }
         return ByteBuffer.
                 allocate(SIZE).
-                put(segment.getBytes()).
-                put(SUBSPACE_SEPARATOR).
+                putLong(segmentId).
                 put(prefix).
                 putLong(position).
                 putLong(length).

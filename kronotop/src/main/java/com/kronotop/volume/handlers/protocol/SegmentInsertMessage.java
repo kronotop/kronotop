@@ -27,7 +27,7 @@ public class SegmentInsertMessage extends BaseMessage implements ProtocolMessage
     public static final String COMMAND = "SEGMENTINSERT";
     public static final int MINIMUM_PARAMETER_COUNT = 4;
     private String volume;
-    private String segment;
+    private long segmentId;
     private PackedEntry[] packedEntries;
 
     public SegmentInsertMessage(Request request) {
@@ -42,7 +42,7 @@ public class SegmentInsertMessage extends BaseMessage implements ProtocolMessage
 
         // segmentinsert <volume-name> <segment-name> <position> <bulk-data> <position> <bulk-data>
         volume = readString(0);
-        segment = readString(1);
+        segmentId = readLong(1);
 
         int index = 0;
         packedEntries = new PackedEntry[(request.getParams().size() - 2) / 2];
@@ -59,8 +59,8 @@ public class SegmentInsertMessage extends BaseMessage implements ProtocolMessage
         return volume;
     }
 
-    public String getSegment() {
-        return segment;
+    public long getSegmentId() {
+        return segmentId;
     }
 
     public PackedEntry[] getPackedEntries() {

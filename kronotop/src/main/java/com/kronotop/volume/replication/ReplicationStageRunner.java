@@ -109,7 +109,7 @@ public class ReplicationStageRunner {
      * @throws IOException             If an I/O error occurs during processing.
      */
     protected IterationResult iterate(Transaction tr, Segment segment, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) throws NotEnoughSpaceException, IOException {
-        SegmentLogIterable iterable = new SegmentLogIterable(tr, volumeConfig.subspace(), segment.getName(), begin, end, limit);
+        SegmentLogIterable iterable = new SegmentLogIterable(tr, volumeConfig.subspace(), segment.id(), begin, end, limit);
         List<SegmentLogEntry> segmentLogEntries = new ArrayList<>();
         for (SegmentLogEntry entry : iterable) {
             segmentLogEntries.add(entry);
@@ -119,7 +119,7 @@ public class ReplicationStageRunner {
             return new IterationResult(null, 0);
         }
 
-        FetchSegmentRangeResult result = fetchSegmentRange(segment.getName(), segmentLogEntries);
+        FetchSegmentRangeResult result = fetchSegmentRange(segment.id(), segmentLogEntries);
         insertSegmentRange(segment, result);
 
         // Invalidate the cache for fetched entries.
@@ -170,11 +170,10 @@ public class ReplicationStageRunner {
      * It filters the entries to include only those of type APPEND or VACUUM and constructs segment ranges.
      * The method retrieves data ranges from the client for these segment ranges and returns the result.
      *
-     * @param segmentName The name of the segment for which the range is to be fetched.
      * @param entries     The list of log entries to be processed for determining the segment ranges.
      * @return A FetchSegmentRangeResult object containing the constructed segment ranges and the associated data ranges.
      */
-    protected FetchSegmentRangeResult fetchSegmentRange(String segmentName, List<SegmentLogEntry> entries) {
+    protected FetchSegmentRangeResult fetchSegmentRange(long segmentId, List<SegmentLogEntry> entries) {
         int size = 0;
         for (SegmentLogEntry entry : entries) {
             if (entry.value().kind().equals(OperationKind.APPEND) || entry.value().kind().equals(OperationKind.VACUUM)) {
@@ -195,7 +194,7 @@ public class ReplicationStageRunner {
             segmentRanges[index] = new SegmentRange(entry.value().position(), entry.value().length());
             index++;
         }
-        List<Object> dataRanges = client.connection().sync().segmentrange(volumeConfig.name(), segmentName, segmentRanges);
+        List<Object> dataRanges = client.connection().sync().segmentrange(volumeConfig.name(), segmentId, segmentRanges);
         return new FetchSegmentRangeResult(segmentRanges, dataRanges);
     }
 

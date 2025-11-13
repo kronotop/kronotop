@@ -49,10 +49,10 @@ public class SynchronousReplication {
         this.appendResult = appendResult;
     }
 
-    private HashMap<String, AtomicInteger> getSegmentIndexCounter(Set<String> segments) {
-        HashMap<String, AtomicInteger> result = new HashMap<>();
-        for (String segment : segments) {
-            result.computeIfAbsent(segment, (k) -> new AtomicInteger());
+    private HashMap<Long, AtomicInteger> getSegmentIndexCounter(Set<Long> segments) {
+        HashMap<Long, AtomicInteger> result = new HashMap<>();
+        for (Long segmentId : segments) {
+            result.computeIfAbsent(segmentId, (k) -> new AtomicInteger());
         }
         return result;
     }
@@ -66,10 +66,10 @@ public class SynchronousReplication {
      * @return a HashMap where each key is a segment name, and the corresponding value is an array
      * of packed entries allocated for that segment
      */
-    private HashMap<String, PackedEntry[]> allocateEntriesBySegment(AppendResult result) {
-        HashMap<String, Integer> capacityBySegment = new HashMap<>();
+    private HashMap<Long, PackedEntry[]> allocateEntriesBySegment(AppendResult result) {
+        HashMap<Long, Integer> capacityBySegment = new HashMap<>();
         for (AppendedEntry entryMetadata : result.getAppendedEntries()) {
-            capacityBySegment.compute(entryMetadata.metadata().segment(), (k, number) -> {
+            capacityBySegment.compute(entryMetadata.metadata().segmentId(), (k, number) -> {
                 if (number == null) {
                     number = 0;
                 }
@@ -77,23 +77,23 @@ public class SynchronousReplication {
             });
         }
 
-        HashMap<String, PackedEntry[]> entriesBySegment = new HashMap<>();
-        for (String segment : capacityBySegment.keySet()) {
-            entriesBySegment.computeIfAbsent(segment, (k) -> new PackedEntry[capacityBySegment.get(segment)]);
+        HashMap<Long, PackedEntry[]> entriesBySegment = new HashMap<>();
+        for (Long segmentId : capacityBySegment.keySet()) {
+            entriesBySegment.computeIfAbsent(segmentId, (k) -> new PackedEntry[capacityBySegment.get(segmentId)]);
         }
         return entriesBySegment;
     }
 
     public boolean run() {
-        HashMap<String, PackedEntry[]> entriesBySegment = allocateEntriesBySegment(appendResult);
-        HashMap<String, AtomicInteger> segmentIndexCounter = getSegmentIndexCounter(entriesBySegment.keySet());
+        HashMap<Long, PackedEntry[]> entriesBySegment = allocateEntriesBySegment(appendResult);
+        HashMap<Long, AtomicInteger> segmentIndexCounter = getSegmentIndexCounter(entriesBySegment.keySet());
         for (int index = 0; index < appendResult.getAppendedEntries().length; index++) {
             AppendedEntry appendedEntry = appendResult.getAppendedEntries()[index];
-            PackedEntry[] packedEntries = entriesBySegment.get(appendedEntry.metadata().segment());
+            PackedEntry[] packedEntries = entriesBySegment.get(appendedEntry.metadata().segmentId());
             ByteBuffer buffer = entries.get(index);
             buffer.flip();
 
-            int segmentIndex = segmentIndexCounter.get(appendedEntry.metadata().segment()).getAndIncrement();
+            int segmentIndex = segmentIndexCounter.get(appendedEntry.metadata().segmentId()).getAndIncrement();
             packedEntries[segmentIndex] = new PackedEntry(appendedEntry.metadata().position(), buffer.array());
         }
 
@@ -127,9 +127,9 @@ public class SynchronousReplication {
     class SyncReplicationRunnable implements Runnable {
         private final CountDownLatch latch;
         private final Member member;
-        private final HashMap<String, PackedEntry[]> entriesBySegment;
+        private final HashMap<Long, PackedEntry[]> entriesBySegment;
 
-        SyncReplicationRunnable(CountDownLatch latch, Member member, HashMap<String, PackedEntry[]> entriesBySegment) {
+        SyncReplicationRunnable(CountDownLatch latch, Member member, HashMap<Long, PackedEntry[]> entriesBySegment) {
             this.latch = latch;
             this.member = member;
             this.entriesBySegment = entriesBySegment;
@@ -138,8 +138,8 @@ public class SynchronousReplication {
         @Override
         public void run() {
             StatefulInternalConnection<byte[], byte[]> connection = context.getInternalConnectionPool().get(member);
-            entriesBySegment.forEach((segment, packedEntries) -> {
-                String status = connection.sync().segmentinsert(volumeConfig.name(), segment, packedEntries);
+            entriesBySegment.forEach((segmentId, packedEntries) -> {
+                String status = connection.sync().segmentinsert(volumeConfig.name(), segmentId, packedEntries);
                 if (!status.equals(Response.OK)) {
                     throw new KronotopException("Failed to replicate entries synchronously to " + member + " : " + status);
                 }

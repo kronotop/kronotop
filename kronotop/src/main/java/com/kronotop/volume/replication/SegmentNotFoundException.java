@@ -17,7 +17,7 @@
 package com.kronotop.volume.replication;
 
 public class SegmentNotFoundException extends RuntimeException {
-    public SegmentNotFoundException(String name) {
-        super(String.format("Segment: '%s' could not be found", name));
+    public SegmentNotFoundException(long id) {
+        super(String.format("Segment with id: '%d' could not be found", id));
     }
 }

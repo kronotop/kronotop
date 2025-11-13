@@ -16,7 +16,6 @@
 
 package com.kronotop.volume.segment;
 
-import com.google.common.base.CharMatcher;
 import com.google.common.base.Strings;
 import com.kronotop.KronotopException;
 import com.kronotop.volume.EntryOutOfBoundException;
@@ -110,33 +109,41 @@ import java.util.concurrent.atomic.AtomicLong;
  * @see com.kronotop.volume.Volume
  */
 public class Segment {
-    /** Fixed length of segment names (19 characters for zero-padded long values). */
-    public static final int SEGMENT_NAME_SIZE = 19;
-
-    /** Directory name where segment files are stored (relative to data directory). */
+    /**
+     * Directory name where segment files are stored (relative to data directory).
+     */
     public static final String SEGMENTS_DIRECTORY = "segments";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Segment.class);
 
-    /** Configuration for this segment (ID, data directory, size). */
+    /**
+     * Configuration for this segment (ID, data directory, size).
+     */
     private final SegmentConfig config;
 
-    /** Zero-padded name of this segment (e.g., "0000000000000000001"). */
-    private final String name;
-
-    /** Total size of the segment file in bytes (pre-allocated). */
+    /**
+     * Total size of the segment file in bytes (pre-allocated).
+     */
     private final long size;
 
-    /** Lock protecting flush operations to prevent concurrent flushes. */
+    /**
+     * Lock protecting flush operations to prevent concurrent flushes.
+     */
     private final Object flushLock = new Object();
 
-    /** RandomAccessFile handle for reading and writing segment data. */
+    /**
+     * RandomAccessFile handle for reading and writing segment data.
+     */
     private final RandomAccessFile file;
 
-    /** Counter tracking the number of pending writes that need to be flushed. */
+    /**
+     * Counter tracking the number of pending writes that need to be flushed.
+     */
     private final AtomicInteger flushCounter = new AtomicInteger(0);
 
-    /** Current write position in the segment (atomically updated during appends). */
+    /**
+     * Current write position in the segment (atomically updated during appends).
+     */
     private final AtomicLong atomicPosition = new AtomicLong(0);
 
     /**
@@ -169,66 +176,15 @@ public class Segment {
      *   <li>Sets the write position to the specified value</li>
      * </ol>
      *
-     * @param config the segment configuration (ID, data directory, size)
+     * @param config   the segment configuration (ID, data directory, size)
      * @param position the initial write position in bytes (0 for new segments)
      * @throws IOException if an I/O error occurs while creating or opening the segment file
      */
     public Segment(SegmentConfig config, long position) throws IOException {
         this.config = config;
-        this.name = generateName(config.id());
         this.file = createOrOpenSegmentFile();
         this.size = this.file.length();
         this.atomicPosition.set(position);
-    }
-
-    /**
-     * Extracts the segment ID from a zero-padded segment name.
-     *
-     * <p>This method reverses the {@link #generateName(long)} operation by trimming
-     * leading zeros and parsing the remaining digits as a long value.</p>
-     *
-     * <p><b>Examples:</b></p>
-     * <ul>
-     *   <li>"0000000000000000001" → 1</li>
-     *   <li>"0000000000000000000" → 0</li>
-     *   <li>"0000000000000012345" → 12345</li>
-     * </ul>
-     *
-     * @param name the zero-padded segment name from which to extract the segment ID
-     * @return the extracted segment ID as a long value
-     * @throws KronotopException if the name cannot be parsed as a valid segment ID
-     */
-    public static long extractIdFromName(String name) {
-        String segmentId = CharMatcher.is('0').trimLeadingFrom(name);
-        if (segmentId.isEmpty()) {
-            return 0L;
-        }
-        try {
-            return Long.parseLong(segmentId);
-        } catch (NumberFormatException e) {
-            throw new KronotopException("Invalid segment ID: " + segmentId, e);
-        }
-    }
-
-    /**
-     * Generates a zero-padded segment name from a segment ID.
-     *
-     * <p>Segment names are 19 characters long, zero-padded on the left. This ensures
-     * that lexicographic ordering of segment names matches numeric ordering of IDs,
-     * which is important for iterating segments in the correct order.</p>
-     *
-     * <p><b>Examples:</b></p>
-     * <ul>
-     *   <li>1 → "0000000000000000001"</li>
-     *   <li>0 → "0000000000000000000"</li>
-     *   <li>12345 → "0000000000000012345"</li>
-     * </ul>
-     *
-     * @param id the unique segment identifier (must fit in 19 digits)
-     * @return the zero-padded 19-character segment name
-     */
-    public static String generateName(long id) {
-        return Strings.padStart(Long.toString(id), 19, '0');
     }
 
     /**
@@ -240,13 +196,8 @@ public class Segment {
         return config;
     }
 
-    /**
-     * Retrieves the zero-padded name of this segment.
-     *
-     * @return the 19-character segment name (e.g., "0000000000000000001")
-     */
-    public String getName() {
-        return name;
+    public long id() {
+        return config.id();
     }
 
     /**
@@ -271,6 +222,26 @@ public class Segment {
     }
 
     /**
+     * Generates a zero-padded segment file name from a segment ID.
+     *
+     * <p>Segment file names are 19 characters long, zero-padded on the left. This ensures
+     * that lexicographic ordering of segment names matches numeric ordering of IDs.</p>
+     *
+     * <p><b>Examples:</b></p>
+     * <ul>
+     *   <li>1 → "0000000000000000001"</li>
+     *   <li>0 → "0000000000000000000"</li>
+     *   <li>12345 → "0000000000000012345"</li>
+     * </ul>
+     *
+     * @param id the unique segment identifier (must fit in 19 digits)
+     * @return the zero-padded 19-character segment name
+     */
+    public static String generateFileName(long id) {
+        return Strings.padStart(Long.toString(id), 19, '0');
+    }
+
+    /**
      * Constructs the file system path for this segment.
      *
      * <p>Path format: {dataDir}/segments/{segmentName}</p>
@@ -278,7 +249,7 @@ public class Segment {
      * @return the Path to the segment file
      */
     private Path getSegmentFilePath() {
-        return Path.of(config.dataDir(), SEGMENTS_DIRECTORY, getName());
+        return Path.of(config.dataDir(), SEGMENTS_DIRECTORY, generateFileName(config.id()));
     }
 
     /**
@@ -377,14 +348,14 @@ public class Segment {
      * @param entry the entry data to append
      * @return a SegmentAppendResult containing the position and length of the appended entry
      * @throws NotEnoughSpaceException if there is insufficient space to append the entry
-     * @throws IOException if an I/O error occurs during the write operation
+     * @throws IOException             if an I/O error occurs during the write operation
      */
     public SegmentAppendResult append(ByteBuffer entry) throws NotEnoughSpaceException, IOException {
         try {
             long position = forwardMetadataPosition(entry.remaining());
             int length = file.getChannel().write(entry, position);
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("{} bytes has been written to segment {}", length, getName());
+                LOGGER.trace("{} bytes has been written to segment {}", length, id());
             }
             return new SegmentAppendResult(position, length);
         } finally {
@@ -417,16 +388,16 @@ public class Segment {
      * <p>This method is thread-safe for writes to different positions. However, replication
      * typically processes segment logs sequentially, so concurrent inserts are rare.</p>
      *
-     * @param entry the entry data to insert
+     * @param entry    the entry data to insert
      * @param position the exact position in the segment where the data should be written
-     * @throws IOException if an I/O error occurs during the write operation
+     * @throws IOException             if an I/O error occurs during the write operation
      * @throws NotEnoughSpaceException if the position + entry length exceeds the segment size
      */
     public void insert(ByteBuffer entry, long position) throws IOException, NotEnoughSpaceException {
         try {
             int length = file.getChannel().write(entry, position);
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("{} bytes has been inserted to segment {}", length, getName());
+                LOGGER.trace("{} bytes has been inserted to segment {}", length, id());
             }
         } finally {
             // Now this segment requires a flush.
@@ -460,9 +431,9 @@ public class Segment {
      * from memory rather than disk.</p>
      *
      * @param position the starting position in the segment from where the data should be read
-     * @param length the number of bytes to read from the segment
+     * @param length   the number of bytes to read from the segment
      * @return a ByteBuffer containing the entry data, positioned at 0 and ready to read
-     * @throws IOException if an I/O error occurs during the read operation
+     * @throws IOException              if an I/O error occurs during the read operation
      * @throws EntryOutOfBoundException if position + length exceeds the segment size
      */
     public ByteBuffer get(long position, long length) throws IOException {
@@ -473,7 +444,7 @@ public class Segment {
         ByteBuffer buffer = ByteBuffer.allocate((int) length);
         int nr = file.getChannel().read(buffer, position);
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("{} bytes has been read from segment {}", nr, getName());
+            LOGGER.trace("{} bytes has been read from segment {}", nr, id());
         }
         return buffer.flip();
     }
@@ -579,7 +550,7 @@ public class Segment {
      * {@code cleanupStaleSegments()} ensures these preconditions.</p>
      *
      * @return the absolute path of the deleted segment file
-     * @throws IOException if an I/O error occurs during the close operation
+     * @throws IOException       if an I/O error occurs during the close operation
      * @throws KronotopException if the file cannot be deleted
      */
     public String delete() throws IOException {

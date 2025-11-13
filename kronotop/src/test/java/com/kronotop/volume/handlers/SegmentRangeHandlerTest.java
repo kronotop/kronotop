@@ -52,7 +52,7 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         }
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
-        String segmentName = segmentAnalysis.getFirst().name();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
 
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
@@ -61,7 +61,7 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 new SegmentRange(0, 3),
                 new SegmentRange(3, 3),
         };
-        cmd.segmentrange(volumeConfig.name(), segmentName, ranges).encode(buf);
+        cmd.segmentrange(volumeConfig.name(), segmentId, ranges).encode(buf);
         kronotopInstance.getChannel().writeInbound(buf);
 
         Object response = kronotopInstance.getChannel().readOutbound();
@@ -77,7 +77,7 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentrange("foobar", "barfoo", new SegmentRange(0, 3)).encode(buf);
+        cmd.segmentrange("foobar", 1, new SegmentRange(0, 3)).encode(buf);
         kronotopInstance.getChannel().writeInbound(buf);
 
         Object response = kronotopInstance.getChannel().readOutbound();
@@ -90,11 +90,11 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentrange(volumeConfig.name(), "0000000000000000001", new SegmentRange(0, 3)).encode(buf);
+        cmd.segmentrange(volumeConfig.name(), 1, new SegmentRange(0, 3)).encode(buf);
         kronotopInstance.getChannel().writeInbound(buf);
 
         Object response = kronotopInstance.getChannel().readOutbound();
         ErrorRedisMessage message = (ErrorRedisMessage) response;
-        assertEquals("ERR Segment: '0000000000000000001' could not be found", message.content());
+        assertEquals("ERR Segment: '1' could not be found", message.content());
     }
 }
