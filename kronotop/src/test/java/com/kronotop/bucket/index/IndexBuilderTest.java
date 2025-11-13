@@ -64,7 +64,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
     }
 
     byte[] getEncodedEntryMetadata() {
-        return VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode().array();
+        return VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode();
     }
 
     private AppendedEntry[] getAppendedEntries() {
@@ -571,7 +571,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         }
 
         // Create new metadata
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated").encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated").encode();
         assertFalse(Arrays.equals(originalMetadata, newMetadata), "New metadata should be different from original");
 
         // Update entry metadata
@@ -624,7 +624,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         }
 
         // Create new metadata
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 3, 2, 3, "multi-updated").encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 3, 2, 3, "multi-updated").encode();
 
         // Update entry metadata for all entries with this versionstamp
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -657,7 +657,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         Versionstamp nonExistentVersionstamp = Versionstamp.complete(new byte[10], 999);
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode();
 
         // Should not throw exception for a non-existent versionstamp
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -709,7 +709,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         }
 
         // Create new metadata specific to this BSON type test
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 5, 4, 5, "updated-" + bsonType.name().toLowerCase()).encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 5, 4, 5, "updated-" + bsonType.name().toLowerCase()).encode();
         assertFalse(Arrays.equals(originalMetadata, newMetadata), "New metadata should differ from original for " + bsonType);
 
         // Update entry metadata
@@ -818,7 +818,7 @@ class IndexBuilderTest extends BaseStandaloneInstanceTest {
         }
 
         // Create new metadata for update
-        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated-primary").encode().array();
+        byte[] newMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated-primary").encode();
         assertFalse(Arrays.equals(originalIndexEntry, newMetadata), "New metadata should be different from original");
 
         // Update primary index entry metadata

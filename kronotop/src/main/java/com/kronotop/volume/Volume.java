@@ -52,7 +52,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 
 import static com.google.common.hash.Hashing.sipHash24;
-import static com.kronotop.volume.EntryMetadata.*;
 import static com.kronotop.volume.Subspaces.*;
 
 /**
@@ -663,7 +662,7 @@ public class Volume {
         for (int index = 0; index < entries.length; index++) {
             EntryMetadata entryMetadata = entries[index];
             int userVersion = session.getAndIncrementUserVersion();
-            byte[] encodedEntryMetadata = entryMetadata.encode().array();
+            byte[] encodedEntryMetadata = entryMetadata.encode();
             appendedEntries[index] = new AppendedEntry(index, userVersion, entryMetadata, encodedEntryMetadata);
 
             tr.mutate(
@@ -784,7 +783,7 @@ public class Volume {
                 return 0;
             }
             byte[] data = (byte[]) config.subspace().unpack(result.getFirst().getKey()).get(1);
-            EntryMetadata last = EntryMetadata.decode(ByteBuffer.wrap(data));
+            EntryMetadata last = EntryMetadata.decode(data);
 
             return last.position() + last.length();
         }
@@ -799,7 +798,6 @@ public class Volume {
      * @throws SegmentNotFoundException if the specified segment cannot be found.
      */
     private Segment getOrOpenSegmentById(Long segmentId) throws IOException, SegmentNotFoundException {
-        // TODO: rename this method
         long stamp = segmentsLock.readLock();
         try {
             SegmentContainer segmentContainer = segments.get(segmentId);
@@ -910,7 +908,7 @@ public class Volume {
             if (value == null) {
                 return null;
             }
-            metadata = EntryMetadata.decode(ByteBuffer.wrap(value));
+            metadata = EntryMetadata.decode(value);
         }
         return getByEntryMetadata(session.prefix(), key, metadata);
     }
@@ -992,7 +990,7 @@ public class Volume {
             tr.clear(entryKey);
             tr.clear(subspace.packEntryMetadataKey(encodedEntryMetadata));
 
-            EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
+            EntryMetadata entryMetadata = EntryMetadata.decode(encodedEntryMetadata);
 
             SegmentContainer segmentContainer = segments.get(entryMetadata.segmentId());
             segmentContainer.metadata().decreaseCardinalityByOne(session);
@@ -1070,7 +1068,7 @@ public class Volume {
                 throw new KeyNotFoundException(key);
             }
 
-            EntryMetadata prevEntryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedPrevEntryMetadata));
+            EntryMetadata prevEntryMetadata = EntryMetadata.decode(encodedPrevEntryMetadata);
             SegmentContainer prevSegmentContainer = segments.get(prevEntryMetadata.segmentId());
 
             EntryMetadata entryMetadata = entryMetadataList[index];
@@ -1086,7 +1084,7 @@ public class Volume {
             segmentContainer.metadata().increaseUsedBytes(session, entryMetadata.length());
 
             tr.clear(subspace.packEntryMetadataKey(encodedPrevEntryMetadata));
-            byte[] encodedEntryMetadata = entryMetadata.encode().array();
+            byte[] encodedEntryMetadata = entryMetadata.encode();
             tr.set(packedKey, encodedEntryMetadata);
             updatedEntries[index] = new UpdatedEntry(key, entryMetadata, encodedEntryMetadata);
 
@@ -1354,16 +1352,15 @@ public class Volume {
      */
     protected void vacuumSegment(VacuumContext vacuumContext) throws IOException {
         Segment segment = getOrOpenSegmentById(vacuumContext.segmentId());
-        byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.id()));
-        byte[] foo = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE));
-        byte[] end = ByteArrayUtil.strinc(begin);
+        byte[] segmentPrefix = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segment.id()).pack()));
+        segmentPrefix = Arrays.copyOf(segmentPrefix, segmentPrefix.length - 1);
 
         while (!vacuumContext.stop()) {
             raiseExceptionIfVolumeReadOnly();
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 int batchSize = 0;
-                Range range = new Range(begin, end);
+                Range range = Range.startsWith(segmentPrefix);
                 HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
                 for (KeyValue keyValue : tr.getRange(range)) {
                     if (vacuumContext.stop()) {
@@ -1371,7 +1368,7 @@ public class Volume {
                     }
 
                     byte[] key = keyValue.getKey();
-                    if (Arrays.equals(key, begin)) {
+                    if (Arrays.equals(key, segmentPrefix)) {
                         // begin is inclusive.
                         continue;
                     }
@@ -1381,7 +1378,7 @@ public class Volume {
                     int userVersion = ByteBuffer.wrap(Arrays.copyOfRange(keyValue.getValue(), 11, 13)).getShort();
 
                     byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(key).get(1);
-                    EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(encodedEntryMetadata));
+                    EntryMetadata entryMetadata = EntryMetadata.decode(encodedEntryMetadata);
 
                     Prefix prefix = Prefix.fromBytes(entryMetadata.prefix());
                     Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
@@ -1393,7 +1390,7 @@ public class Volume {
                     if (batchSize >= SEGMENT_VACUUM_BATCH_SIZE) {
                         break;
                     }
-                    begin = key;
+                    segmentPrefix = key;
                 }
 
                 if (pairsByPrefix.isEmpty()) {
@@ -1433,7 +1430,7 @@ public class Volume {
                 throw e;
             } catch (Exception e) {
                 // Catch all exceptions and start from scratch
-                begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.id()));
+                segmentPrefix = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.id()));
                 LOGGER.error("Vacuum on {}, Segment: {} has failed", config.name(), segment.id(), e);
             }
         }
@@ -1525,15 +1522,7 @@ public class Volume {
         VolumeMetadata volumeMetadata = VolumeMetadata.load(session.transaction(), config.subspace());
         for (long segmentId : volumeMetadata.getSegments()) {
 
-            // TODO: capacity calculation
-            // TODO: ENTRY-METADATA-REFACTOR
-            int capacity = 8 + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE;
-            ByteBuffer buffer = ByteBuffer.
-                    allocate(capacity).
-                    putLong(segmentId).
-                    put(session.prefix().asBytes()).flip();
-
-            byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, buffer.array()));
+            byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segmentId, session.prefix().asBytes()).pack()));
             byte[] end = ByteArrayUtil.strinc(begin);
             session.transaction().clear(begin, end);
 
@@ -1610,7 +1599,7 @@ public class Volume {
      * <p><b>Caller Responsibilities:</b></p>
      * <p>The caller MUST call {@link #flush()} after a successful return to ensure durability.</p>
      *
-     * @param entries     the packed entries with exact positions to be inserted
+     * @param entries the packed entries with exact positions to be inserted
      * @throws IOException              if an I/O error occurs while accessing the segment
      * @throws IllegalArgumentException if the entries array is empty
      * @throws KronotopException        if NotEnoughSpaceException occurs (should never happen in replication)

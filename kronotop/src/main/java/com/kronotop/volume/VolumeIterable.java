@@ -103,7 +103,7 @@ class VolumeIterable implements Iterable<VolumeEntry> {
             KeyValue keyValue = asyncIterator.next();
             Versionstamp key = (Versionstamp) volume.getConfig().subspace().unpack(keyValue.getKey()).get(2);
             byte[] rawMetadata = keyValue.getValue();
-            EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(rawMetadata));
+            EntryMetadata entryMetadata = EntryMetadata.decode(rawMetadata);
             try {
                 ByteBuffer entry = volume.getByEntryMetadata(session.prefix(), key, entryMetadata);
                 return new VolumeEntry(key, entry, rawMetadata);

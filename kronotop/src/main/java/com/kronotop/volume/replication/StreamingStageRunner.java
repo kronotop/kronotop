@@ -103,7 +103,7 @@ public class StreamingStageRunner extends ReplicationStageRunner implements Stag
         AsyncIterable<KeyValue> iterable = tr.getRange(begin, end, 1);
 
         for (KeyValue keyValue : iterable) {
-            EntryMetadata metadata = EntryMetadata.decode(ByteBuffer.wrap(keyValue.getValue()));
+            EntryMetadata metadata = EntryMetadata.decode(keyValue.getValue());
             return metadata.segmentId();
         }
         throw new NoSegmentExistsException();

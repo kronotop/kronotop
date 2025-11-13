@@ -20,8 +20,6 @@ import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.VolumeTestUtil;
 import org.junit.jupiter.api.Test;
 
-import java.nio.ByteBuffer;
-
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -30,16 +28,13 @@ class IndexEntryTest {
     @Test
     void shouldEncodeDecode() {
         EntryMetadata metadata = VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test");
-        // Invoke method on test
-        ByteBuffer result = metadata.encode();
-
-        byte[] encodedMetadata = result.array();
+        byte[] encodedMetadata = metadata.encode();
 
         int shardId = 10;
         IndexEntry indexEntry = new IndexEntry(shardId, encodedMetadata);
 
         byte[] encodedIndexEntry = indexEntry.encode();
-        assertEquals(IndexEntry.SHARD_ID_SIZE + EntryMetadata.SIZE, encodedIndexEntry.length);
+        assertEquals(IndexEntry.SHARD_ID_SIZE + encodedMetadata.length, encodedIndexEntry.length);
 
         IndexEntry decoded = IndexEntry.decode(encodedIndexEntry);
         assertEquals(shardId, decoded.shardId());

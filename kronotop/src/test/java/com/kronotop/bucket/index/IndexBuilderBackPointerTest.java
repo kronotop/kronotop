@@ -59,7 +59,7 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     }
 
     byte[] getEncodedEntryMetadata() {
-        return VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode().array();
+        return VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode();
     }
 
     private AppendedEntry createAppendedEntry(int userVersion) {

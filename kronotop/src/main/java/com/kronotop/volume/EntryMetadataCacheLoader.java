@@ -44,7 +44,7 @@ class EntryMetadataCacheLoader extends CacheLoader<Versionstamp, EntryMetadata> 
             if (value == null) {
                 return null;
             }
-            return EntryMetadata.decode(ByteBuffer.wrap(value));
+            return EntryMetadata.decode(value);
         });
     }
 }
