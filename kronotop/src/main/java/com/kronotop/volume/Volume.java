@@ -789,6 +789,15 @@ public class Volume {
         }
     }
 
+    private Segment tryOptimisticSegmentOpen(long segmentId) {
+        long stamp = segmentsLock.tryOptimisticRead();
+        SegmentContainer segmentContainer = segments.get(segmentId);
+        if (segmentContainer != null && segmentsLock.validate(stamp)) {
+            return segmentContainer.segment();
+        }
+        return null;
+    }
+
     /**
      * Retrieves an existing segment by its name or opens a new segment if it does not already exist.
      * This method ensures thread safety by using read and write locks.
@@ -797,7 +806,12 @@ public class Volume {
      * @throws IOException              if an I/O error occurs while opening a new segment.
      * @throws SegmentNotFoundException if the specified segment cannot be found.
      */
-    private Segment getOrOpenSegmentById(Long segmentId) throws IOException, SegmentNotFoundException {
+    private Segment getOrOpenSegmentById(long segmentId) throws IOException, SegmentNotFoundException {
+        Segment segment = tryOptimisticSegmentOpen(segmentId);
+        if (segment != null) {
+            return segment;
+        }
+
         long stamp = segmentsLock.readLock();
         try {
             SegmentContainer segmentContainer = segments.get(segmentId);
