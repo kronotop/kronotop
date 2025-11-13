@@ -550,6 +550,26 @@ public class Volume {
         }
     }
 
+    private SegmentContainer lookupWritableSegment(int size) {
+        Map.Entry<Long, SegmentContainer> entry = segments.lastEntry();
+        if (entry != null) {
+            SegmentContainer latest = entry.getValue();
+            if (size < latest.segment().getFreeBytes()) {
+                return latest;
+            }
+        }
+        return null;
+    }
+
+    private SegmentContainer tryOptimisticSegmentLookupForWrite(int size) {
+        long stamp = segmentsLock.tryOptimisticRead();
+        SegmentContainer container = lookupWritableSegment(size);
+        if (container != null && segmentsLock.validate(stamp)) {
+            return container;
+        }
+        return null;
+    }
+
     /**
      * Retrieves a writable segment that has sufficient free space to accommodate the specified size.
      * If no existing segment has enough space, a new writable segment is created or acquired.
@@ -559,14 +579,16 @@ public class Volume {
      * @throws IOException if an I/O error occurs while attempting to acquire or create a writable segment
      */
     private Segment getWritableSegment(int size) throws IOException {
+        SegmentContainer container = tryOptimisticSegmentLookupForWrite(size);
+        if (container != null) {
+            return container.segment();
+        }
+
         long stamp = segmentsLock.readLock();
         try {
-            Map.Entry<Long, SegmentContainer> entry = segments.lastEntry();
-            if (entry != null) {
-                Segment latest = entry.getValue().segment();
-                if (size < latest.getFreeBytes()) {
-                    return latest;
-                }
+            container = lookupWritableSegment(size);
+            if (container != null) {
+                return container.segment();
             }
         } finally {
             segmentsLock.unlockRead(stamp);
