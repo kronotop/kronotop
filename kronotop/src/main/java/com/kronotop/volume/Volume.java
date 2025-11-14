@@ -309,10 +309,15 @@ public class Volume {
      * @throws IOException if an I/O error occurs while opening any segment
      */
     private void openSegments(List<Long> segmentIds) throws IOException {
-        for (long segmentId : segmentIds) {
-            long position = findSegmentPosition(segmentId);
-            SegmentContainer container = openSegment(segmentId, position);
-            segments.put(segmentId, container);
+        long stamp = segmentsLock.writeLock();
+        try {
+            for (long segmentId : segmentIds) {
+                long position = findSegmentPosition(segmentId);
+                SegmentContainer container = openSegment(segmentId, position);
+                segments.put(segmentId, container);
+            }
+        } finally {
+            segmentsLock.unlockWrite(stamp);
         }
     }
 
