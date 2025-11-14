@@ -1094,7 +1094,15 @@ public class Volume {
      */
     public UpdateResult update(@Nonnull VolumeSession session, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
         if (pairs.length == 0) {
-            throw new IllegalArgumentException("Empty key pairs array");
+            throw new IllegalArgumentException("Empty entries array");
+        }
+        if (pairs.length > UserVersion.MAX_VALUE) {
+            throw new TooManyEntriesException();
+        }
+        for (KeyEntry pair : pairs) {
+            if (pair.entry().remaining() > ENTRY_SIZE_LIMIT) {
+                throw new EntrySizeExceedsLimitException();
+            }
         }
 
         ByteBuffer[] entries = new ByteBuffer[pairs.length];

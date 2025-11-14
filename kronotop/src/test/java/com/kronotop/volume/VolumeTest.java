@@ -178,6 +178,29 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    void shouldThrowEntrySizeExceedsLimitExceptionWhenUpdatingWithOversizedEntry() throws IOException {
+        Versionstamp versionstampedKey;
+
+        // First, append a small entry to get a key
+        ByteBuffer smallEntry = ByteBuffer.allocate(10).put("small".getBytes()).flip();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            AppendResult result = volume.append(session, smallEntry);
+            tr.commit().join();
+            versionstampedKey = result.getVersionstampedKeys()[0];
+        }
+
+        // Try to update with an oversized entry
+        ByteBuffer oversizedEntry = randomBytes(Volume.ENTRY_SIZE_LIMIT + 1);
+        KeyEntry oversizedPair = new KeyEntry(versionstampedKey, oversizedEntry);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            assertThrows(EntrySizeExceedsLimitException.class, () -> volume.update(session, oversizedPair));
+        }
+    }
+
+    @Test
     void shouldFlushWithoutError() {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
