@@ -45,7 +45,7 @@ public class SetStatusSubcommand extends BaseSubcommandHandler implements Subcom
         }
     }
 
-    private class SetStatusParameters {
+    private static class SetStatusParameters {
         private final String name;
         private final VolumeStatus status;
 

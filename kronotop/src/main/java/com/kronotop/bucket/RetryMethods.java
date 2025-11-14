@@ -24,6 +24,7 @@ import io.github.resilience4j.retry.RetryRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,14 +49,21 @@ public class RetryMethods {
                 RetryConfig.custom()
                         .maxAttempts(10)
                         .waitDuration(Duration.ofMillis(100))
-                        .retryOnException(e -> {
-                            if (e instanceof CompletionException) {
-                                Throwable cause = e.getCause();
+                        .retryOnException(throwable -> {
+                            // Network-transient
+                            if (throwable instanceof IOException) {
+                                return true;
+                            }
+
+                            if (throwable instanceof CompletionException) {
+                                Throwable cause = throwable.getCause();
                                 if (cause instanceof FDBException) {
                                     int code = ((FDBException) cause).getCode();
                                     // 1007: transaction_too_old
                                     // 1020: not_committed
-                                    return code == 1007 || code == 1020;
+                                    // 1021: commit_unknown_result
+                                    // 1031: transaction_timed_out
+                                    return code == 1007 || code == 1020 || code == 1021 || code == 1031;
                                 }
                             }
                             return false;

@@ -32,6 +32,8 @@ import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import com.kronotop.volume.segment.SegmentAppendResult;
 import com.kronotop.volume.segment.SegmentConfig;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
 import io.netty.util.AttributeKey;
 import io.netty.util.AttributeMap;
 import io.netty.util.DefaultAttributeMap;
@@ -42,6 +44,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -178,12 +181,11 @@ public class Volume {
      * Runtime attributes for this volume (e.g., ShardId, ownership information).
      */
     private final AttributeMap attributes = new DefaultAttributeMap();
-
+    private final Retry commitWithRetry;
     /**
      * Current status of the volume (READONLY, READWRITE).
      */
     private VolumeStatus status;
-
     /**
      * Flag indicating whether the volume has been closed.
      */
@@ -208,10 +210,12 @@ public class Volume {
      * @throws IOException if an I/O error occurs while opening segments
      */
     public Volume(Context context, VolumeConfig config) throws IOException {
+        this.commitWithRetry = getCommitWithRetry();
+
         this.context = context;
         this.config = config;
 
-        initialize();
+        commitWithRetry.executeRunnable(this::initialize);
 
         VolumeMetadata metadata = loadVolumeMetadata();
         this.id = metadata.getId();
@@ -221,6 +225,39 @@ public class Volume {
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
 
         openSegments(metadata.getSegments());
+    }
+
+    private Throwable getRootCause(Throwable t) {
+        Throwable result = t;
+        while (result.getCause() != null && result.getCause() != result) {
+            result = result.getCause();
+        }
+        return result;
+    }
+
+    private Retry getCommitWithRetry() {
+        return Retry.of("commit-with-retry", RetryConfig.custom()
+                .maxAttempts(10)
+                .waitDuration(Duration.ofMillis(100))
+                .retryOnException(e -> {
+                    Throwable root = getRootCause(e);
+
+                    // Network-transient
+                    if (root instanceof IOException) {
+                        return true;
+                    }
+
+                    // FDB retry-safe codes
+                    if (root instanceof FDBException fdb) {
+                        int code = fdb.getCode();
+                        return code == 1007 || // transaction_too_old
+                                code == 1020 || // not_committed (conflict)
+                                code == 1021 || // commit_unknown_result
+                                code == 1031; // Operation aborted because the transaction timed out
+                    }
+
+                    return false;
+                }).build());
     }
 
     /**
@@ -252,16 +289,6 @@ public class Volume {
             });
             if (modified.get()) {
                 tr.commit().join();
-            }
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof FDBException fdbException) {
-                int errorCode = fdbException.getCode();
-                if (errorCode == 1007 || errorCode == 1020) {
-                    LOGGER.error("Retrying to initialize the volume named '{}' due to error code: {}", config.name(), errorCode);
-                    // 1007 -> Transaction is too old to perform reads or be committed
-                    // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                    initialize();
-                }
             }
         }
     }
@@ -390,16 +417,18 @@ public class Volume {
      * @param status the new status to set for the volume
      */
     public void setStatus(VolumeStatus status) {
-        statusLock.writeLock().lock();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeMetadata.compute(tr, config.subspace(), volumeMetadata -> volumeMetadata.setStatus(status));
-            tr.commit().join();
+        commitWithRetry.executeRunnable(() -> {
+            statusLock.writeLock().lock();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeMetadata.compute(tr, config.subspace(), metadata -> metadata.setStatus(status));
+                tr.commit().join();
 
-            // Set the status only if the commit was successful.
-            this.status = status;
-        } finally {
-            statusLock.writeLock().unlock();
-        }
+                // Set the status only if the commit was successful.
+                this.status = status;
+            } finally {
+                statusLock.writeLock().unlock();
+            }
+        });
     }
 
     /**
@@ -1352,7 +1381,7 @@ public class Volume {
 
     private void commitVacuumIfVolumeWritable(Transaction tr) {
         raiseExceptionIfVolumeReadOnly();
-        tr.commit().join();
+        commitWithRetry.executeRunnable(() -> tr.commit().join());
     }
 
     /**
@@ -1482,8 +1511,8 @@ public class Volume {
         Segment segment = getOrOpenSegmentById(segmentId);
         // This will retry.
         context.getFoundationDB().run(tr -> {
-            VolumeMetadata.compute(tr, config.subspace(), (volumeMetadata) ->
-                    volumeMetadata.removeSegment(segment.getConfig().id()));
+            VolumeMetadata.compute(tr, config.subspace(), (metadata) ->
+                    metadata.removeSegment(segment.getConfig().id()));
             return null;
         });
         long stamp = segmentsLock.writeLock();
