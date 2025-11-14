@@ -1096,9 +1096,6 @@ public class Volume {
         if (pairs.length == 0) {
             throw new IllegalArgumentException("Empty entries array");
         }
-        if (pairs.length > UserVersion.MAX_VALUE) {
-            throw new TooManyEntriesException();
-        }
         for (KeyEntry pair : pairs) {
             if (pair.entry().remaining() > ENTRY_SIZE_LIMIT) {
                 throw new EntrySizeExceedsLimitException();
@@ -1662,9 +1659,6 @@ public class Volume {
     public void insert(long segmentId, PackedEntry... entries) throws IOException {
         if (entries.length == 0) {
             throw new IllegalArgumentException("Empty entries array");
-        }
-        if (entries.length > UserVersion.MAX_VALUE) {
-            throw new TooManyEntriesException();
         }
         for (PackedEntry entry : entries) {
             if (entry.data().length > ENTRY_SIZE_LIMIT) {
