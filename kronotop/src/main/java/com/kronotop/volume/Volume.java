@@ -296,6 +296,15 @@ public class Volume {
         }
     }
 
+    private SegmentContainer tryOptimisticSegmentLookup(long segmentId) {
+        long stamp = segmentsLock.tryOptimisticRead();
+        SegmentContainer container = segments.get(segmentId);
+        if (container != null && segmentsLock.validate(stamp)) {
+            return container;
+        }
+        return null;
+    }
+
     /**
      * Retrieves the segment container for the given segment name in a thread-safe manner.
      *
@@ -379,9 +388,7 @@ public class Volume {
     public void setStatus(VolumeStatus status) {
         statusLock.writeLock().lock();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeMetadata.compute(tr, config.subspace(), volumeMetadata -> {
-                volumeMetadata.setStatus(status);
-            });
+            VolumeMetadata.compute(tr, config.subspace(), volumeMetadata -> volumeMetadata.setStatus(status));
             tr.commit().join();
 
             // Set the status only if the commit was successful.
@@ -551,6 +558,7 @@ public class Volume {
     }
 
     private SegmentContainer lookupWritableSegment(int size) {
+        // requires segmentsLock
         Map.Entry<Long, SegmentContainer> entry = segments.lastEntry();
         if (entry != null) {
             SegmentContainer latest = entry.getValue();
@@ -813,15 +821,6 @@ public class Volume {
 
             return last.position() + last.length();
         }
-    }
-
-    private SegmentContainer tryOptimisticSegmentLookup(long segmentId) {
-        long stamp = segmentsLock.tryOptimisticRead();
-        SegmentContainer segmentContainer = segments.get(segmentId);
-        if (segmentContainer != null && segmentsLock.validate(stamp)) {
-            return segmentContainer;
-        }
-        return null;
     }
 
     /**
@@ -1490,9 +1489,8 @@ public class Volume {
         Segment segment = getOrOpenSegmentById(segmentId);
         // This will retry.
         context.getFoundationDB().run(tr -> {
-            VolumeMetadata.compute(tr, config.subspace(), (volumeMetadata) -> {
-                volumeMetadata.removeSegment(segment.getConfig().id());
-            });
+            VolumeMetadata.compute(tr, config.subspace(), (volumeMetadata) ->
+                    volumeMetadata.removeSegment(segment.getConfig().id()));
             return null;
         });
         long stamp = segmentsLock.writeLock();
