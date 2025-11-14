@@ -30,7 +30,12 @@ import java.util.List;
 import static com.kronotop.volume.Subspaces.ENTRY_METADATA_SUBSPACE;
 
 class SegmentUtil {
-    
+
+    static byte[] prefixOfVolumePrefix(DirectorySubspace subspace, long segmentId, Prefix prefix) {
+        byte[] begin = subspace.pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segmentId, prefix.asBytes()).pack()));
+        return Arrays.copyOf(begin, begin.length - 1);
+    }
+
     static byte[] segmentPrefix(DirectorySubspace subspace, long segmentId) {
         byte[] prefix = subspace.pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segmentId).pack()));
         return Arrays.copyOf(prefix, prefix.length - 1);

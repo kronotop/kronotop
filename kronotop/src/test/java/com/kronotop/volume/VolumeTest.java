@@ -16,6 +16,8 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.internal.VersionstampUtil;
@@ -838,6 +840,16 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
             volume.clearPrefix(session);
             tr.commit().join();
+        }
+
+        {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                SegmentAnalysis analysis = volume.analyze(tr).getFirst();
+                byte[] begin = SegmentUtil.prefixOfVolumePrefix(volume.getConfig().subspace(), analysis.segmentId(), redisVolumeSyncerPrefix);
+                Range range = Range.startsWith(begin);
+                List<KeyValue> survivedEntries = tr.getRange(range).asList().join();
+                assertEquals(0, survivedEntries.size());
+            }
         }
 
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();

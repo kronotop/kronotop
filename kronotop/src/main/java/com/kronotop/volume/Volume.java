@@ -1470,7 +1470,7 @@ public class Volume {
                 throw e;
             } catch (Exception e) {
                 // Catch all exceptions and start from scratch
-                segmentPrefix = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segment.id()));
+                segmentPrefix = SegmentUtil.segmentPrefix(config.subspace(), segment.id());
                 LOGGER.error("Vacuum on {}, Segment: {} has failed", config.name(), segment.id(), e);
             }
         }
@@ -1561,9 +1561,9 @@ public class Volume {
         VolumeMetadata volumeMetadata = VolumeMetadata.load(session.transaction(), config.subspace());
         for (long segmentId : volumeMetadata.getSegments()) {
 
-            byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segmentId, session.prefix().asBytes()).pack()));
-            byte[] end = ByteArrayUtil.strinc(begin);
-            session.transaction().clear(begin, end);
+            byte[] begin = SegmentUtil.prefixOfVolumePrefix(config.subspace(), segmentId, session.prefix());
+            Range range = Range.startsWith(begin);
+            session.transaction().clear(range);
 
             SegmentMetadata metadata = new SegmentMetadata(subspace, segmentId);
             metadata.resetCardinality(session);
@@ -1572,9 +1572,9 @@ public class Volume {
     }
 
     private void clearEntrySubspace(VolumeSession session) {
-        byte[] begin = config.subspace().pack(Tuple.from(ENTRY_SUBSPACE, session.prefix().asBytes()));
-        byte[] end = ByteArrayUtil.strinc(begin);
-        session.transaction().clear(begin, end);
+        byte[] prefix = config.subspace().pack(Tuple.from(ENTRY_SUBSPACE, session.prefix().asBytes()));
+        Range range = Range.startsWith(prefix);
+        session.transaction().clear(range);
     }
 
     /**
