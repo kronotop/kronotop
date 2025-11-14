@@ -17,7 +17,6 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.*;
-import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
@@ -312,7 +311,7 @@ public class Volume {
         long stamp = segmentsLock.writeLock();
         try {
             for (long segmentId : segmentIds) {
-                long position = findSegmentPosition(segmentId);
+                long position = SegmentUtil.findPosition(context, config.subspace(), segmentId);
                 SegmentContainer container = openSegment(segmentId, position);
                 segments.put(segmentId, container);
             }
@@ -822,30 +821,6 @@ public class Volume {
     }
 
     /**
-     * Finds the position of a segment based on its name. The method interacts with FDB
-     * to retrieve metadata related to the segment and computes its position.
-     *
-     * @return the position of the segment as a long value
-     */
-    private long findSegmentPosition(long segmentId) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] begin = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, segmentId));
-            byte[] end = ByteArrayUtil.strinc(begin);
-
-            AsyncIterable<KeyValue> iterable = tr.getRange(new Range(begin, end), 1, true);
-            List<KeyValue> result = iterable.asList().join();
-            if (result.isEmpty()) {
-                // No entries found
-                return 0;
-            }
-            byte[] data = (byte[]) config.subspace().unpack(result.getFirst().getKey()).get(1);
-            EntryMetadata last = EntryMetadata.decode(data);
-
-            return last.position() + last.length();
-        }
-    }
-
-    /**
      * Retrieves an existing segment by its name or opens a new segment if it does not already exist.
      * This method ensures thread safety by using read and write locks.
      *
@@ -885,7 +860,7 @@ public class Volume {
                     throw new SegmentNotFoundException(segmentId);
                 }
 
-                long position = findSegmentPosition(segmentId);
+                long position = SegmentUtil.findPosition(context, config.subspace(), segmentId);
                 SegmentContainer container = openSegment(segmentId, position);
                 segments.put(segmentId, container);
                 return container.segment();

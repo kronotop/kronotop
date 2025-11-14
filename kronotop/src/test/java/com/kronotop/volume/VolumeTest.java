@@ -255,6 +255,24 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    void shouldDetermineSegmentWritePositionFromPersistedMetadata() throws IOException {
+        byte[] data = new byte[]{0x01, 0x02, 0x03};
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            volume.append(session, ByteBuffer.wrap(data));
+            tr.commit().join();
+        }
+        List<SegmentAnalysis> analysis = volume.analyze();
+        assertEquals(1, analysis.size());
+
+        volume.close();
+
+        SegmentAnalysis segmentAnalysis = analysis.getFirst();
+        long position = SegmentUtil.findPosition(context, volume.getConfig().subspace(), segmentAnalysis.segmentId());
+        assertEquals(data.length, position);
+    }
+
+    @Test
     void shouldWriteNewEntriesAfterReopeningVolume() throws IOException {
         List<Versionstamp> versionstampedKeys;
 
