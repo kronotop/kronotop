@@ -24,7 +24,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheLoader;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.internal.TransactionUtils;
 import com.kronotop.volume.handlers.PackedEntry;
 import com.kronotop.volume.replication.SegmentLog;
 import com.kronotop.volume.replication.SegmentLogValue;
@@ -48,6 +47,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
@@ -484,47 +484,26 @@ public class Volume {
         return new SegmentContainer(segment, segmentLog, segmentMetadata);
     }
 
-    /**
-     * Retrieves the current highest segment ID and returns the next segment ID by incrementing the highest value by one.
-     * If no segments are available, returns 0.
-     * <p>
-     * This method is protected by the `segmentsLock` to ensure thread safety.
-     *
-     * @return the next segment ID. If no segments are available, returns 0.
-     */
-    private long getAndIncreaseSegmentId() {
-        // protected by segmentsLock
-        return TransactionUtils.execute(context, tr -> {
-            List<Long> availableSegments = VolumeMetadata.load(tr, config.subspace()).getSegments();
-            if (availableSegments.isEmpty()) {
-                return 0L;
+    private long allocateSegmentId(Transaction tr) {
+        AtomicLong segmentId = new AtomicLong();
+        VolumeMetadata.compute(tr, config.subspace(), (metadata) -> {
+            long computedSegmentId = 0L;
+            if (!metadata.getSegments().isEmpty()) {
+                computedSegmentId = metadata.getSegments().getLast() + 1;
             }
-            return availableSegments.getLast() + 1;
+            segmentId.set(computedSegmentId);
+            metadata.addSegment(computedSegmentId);
         });
+        return segmentId.get();
     }
 
-    /**
-     * Creates a new segment in the volume. This method handles the initialization
-     * of segment configuration, segment creation on physical medium, updating
-     * volume metadata in FoundationDB, and making the segment available for the
-     * rest of the volume.
-     *
-     * @return the Segment instance that has been created.
-     * @throws IOException if an I/O error occurs during the creation of the segment.
-     */
     private Segment createSegment() throws IOException {
-        // createsSegment protected by segmentsLock
-        long segmentId = getAndIncreaseSegmentId();
+        // createSegment protected by segmentsLock
+        long segmentId = context.getFoundationDB().run(this::allocateSegmentId);
+
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
         Segment segment = new Segment(segmentConfig, 0);
-
-        // After this point, the Segment has been created on the physical medium.
-
-        // Update the volume metadata on FoundationDB
-        context.getFoundationDB().run(tr -> {
-            VolumeMetadata.compute(tr, config.subspace(), (volumeMetadata) -> volumeMetadata.addSegment(segmentId));
-            return null;
-        });
+        // After this point, the Segment has been created in the physical medium.
 
         // Make it available for the rest of the Volume.
         SegmentLog segmentLog = new SegmentLog(segment.id(), config.subspace());
