@@ -24,6 +24,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheLoader;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.volume.handlers.PackedEntry;
 import com.kronotop.volume.replication.SegmentLog;
 import com.kronotop.volume.replication.SegmentLogValue;
@@ -493,7 +494,7 @@ public class Volume {
      */
     private long getAndIncreaseSegmentId() {
         // protected by segmentsLock
-        return context.getFoundationDB().run(tr -> {
+        return TransactionUtils.execute(context, tr -> {
             List<Long> availableSegments = VolumeMetadata.load(tr, config.subspace()).getSegments();
             if (availableSegments.isEmpty()) {
                 return 0L;
