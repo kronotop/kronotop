@@ -113,6 +113,9 @@ import static com.kronotop.volume.Subspaces.*;
  * @see VolumeConfig
  */
 public class Volume {
+    // The maximum entry size is 16 mebibytes.
+    public static final int ENTRY_SIZE_LIMIT = 1 << 24;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
 
     /**
@@ -783,6 +786,11 @@ public class Volume {
         }
         if (entries.length > UserVersion.MAX_VALUE) {
             throw new TooManyEntriesException();
+        }
+        for (ByteBuffer entry : entries) {
+            if (entry.remaining() > ENTRY_SIZE_LIMIT) {
+                throw new EntrySizeExceedsLimitException();
+            }
         }
 
         EntryMetadata[] appendEntries = appendEntries(session.prefix(), entries);

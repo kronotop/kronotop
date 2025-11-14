@@ -408,6 +408,15 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    void shouldThrowEntrySizeExceedsLimitExceptionWhenEntryTooLarge() {
+        ByteBuffer oversizedEntry = randomBytes(Volume.ENTRY_SIZE_LIMIT + 1);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            assertThrows(EntrySizeExceedsLimitException.class, () -> volume.append(session, oversizedEntry));
+        }
+    }
+
+    @Test
     void shouldThrowTooManyEntriesExceptionWhenExceedingMaxEntries() {
         ByteBuffer[] entries = getEntries(UserVersion.MAX_VALUE + 1);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
