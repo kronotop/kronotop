@@ -23,6 +23,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheLoader;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.volume.handlers.PackedEntry;
 import com.kronotop.volume.replication.SegmentLog;
 import com.kronotop.volume.replication.SegmentLogValue;
@@ -180,7 +181,9 @@ public class Volume {
      * Runtime attributes for this volume (e.g., ShardId, ownership information).
      */
     private final AttributeMap attributes = new DefaultAttributeMap();
-    private final Retry commitWithRetry;
+
+    private final Retry transactionWithRetry;
+
     /**
      * Current status of the volume (READONLY, READWRITE).
      */
@@ -209,12 +212,12 @@ public class Volume {
      * @throws IOException if an I/O error occurs while opening segments
      */
     public Volume(Context context, VolumeConfig config) throws IOException {
-        this.commitWithRetry = getCommitWithRetry();
+        this.transactionWithRetry = getTransactionWithRetry();
 
         this.context = context;
         this.config = config;
 
-        commitWithRetry.executeRunnable(this::initialize);
+        transactionWithRetry.executeRunnable(this::initialize);
 
         VolumeMetadata metadata = loadVolumeMetadata();
         this.id = metadata.getId();
@@ -234,8 +237,8 @@ public class Volume {
         return result;
     }
 
-    private Retry getCommitWithRetry() {
-        return Retry.of("commit-with-retry", RetryConfig.custom()
+    private Retry getTransactionWithRetry() {
+        return Retry.of("transaction-with-retry", RetryConfig.custom()
                 .maxAttempts(10)
                 .waitDuration(Duration.ofMillis(100))
                 .retryOnException(e -> {
@@ -252,7 +255,7 @@ public class Volume {
                         return code == 1007 || // transaction_too_old
                                 code == 1020 || // not_committed (conflict)
                                 code == 1021 || // commit_unknown_result
-                                code == 1031; // Operation aborted because the transaction timed out
+                                code == 1031; // transaction_timed_out
                     }
 
                     return false;
@@ -421,7 +424,7 @@ public class Volume {
      * @param status the new status to set for the volume
      */
     public void setStatus(VolumeStatus status) {
-        commitWithRetry.executeRunnable(() -> {
+        transactionWithRetry.executeRunnable(() -> {
             statusLock.writeLock().lock();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeMetadata.compute(tr, config.subspace(), metadata -> metadata.setStatus(status));
@@ -532,9 +535,13 @@ public class Volume {
 
     private Segment createSegment() throws IOException {
         // createSegment protected by segmentsLock
-        long segmentId = context.getFoundationDB().run(this::allocateSegmentId);
+        AtomicLong segmentId = new AtomicLong();
+        transactionWithRetry.executeRunnable(() -> {
+            long result = TransactionUtils.executeThenCommit(context, this::allocateSegmentId);
+            segmentId.set(result);
+        });
 
-        SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
+        SegmentConfig segmentConfig = new SegmentConfig(segmentId.get(), config.dataDir(), config.segmentSize());
         Segment segment = new Segment(segmentConfig, 0);
         // After this point, the Segment has been created in the physical medium.
 
@@ -1361,7 +1368,7 @@ public class Volume {
 
     private void commitVacuumIfVolumeWritable(Transaction tr) {
         raiseExceptionIfVolumeReadOnly();
-        commitWithRetry.executeRunnable(() -> tr.commit().join());
+        transactionWithRetry.executeRunnable(() -> tr.commit().join());
     }
 
     /**
@@ -1489,10 +1496,12 @@ public class Volume {
     private String cleanupStaleSegment(long segmentId) throws IOException {
         Segment segment = getOrOpenSegmentById(segmentId);
         // This will retry.
-        context.getFoundationDB().run(tr -> {
-            VolumeMetadata.compute(tr, config.subspace(), (metadata) ->
-                    metadata.removeSegment(segment.getConfig().id()));
-            return null;
+        transactionWithRetry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeMetadata.compute(tr, config.subspace(), (metadata) ->
+                        metadata.removeSegment(segment.getConfig().id()));
+                tr.commit().join();
+            }
         });
         long stamp = segmentsLock.writeLock();
         segments.remove(segmentId);
