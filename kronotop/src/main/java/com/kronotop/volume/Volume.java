@@ -1393,8 +1393,7 @@ public class Volume {
      */
     protected void vacuumSegment(VacuumContext vacuumContext) throws IOException {
         Segment segment = getOrOpenSegmentById(vacuumContext.segmentId());
-        byte[] segmentPrefix = config.subspace().pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segment.id()).pack()));
-        segmentPrefix = Arrays.copyOf(segmentPrefix, segmentPrefix.length - 1);
+        byte[] segmentPrefix = SegmentUtil.segmentPrefix(config.subspace(), segment.id());
 
         while (!vacuumContext.stop()) {
             raiseExceptionIfVolumeReadOnly();
