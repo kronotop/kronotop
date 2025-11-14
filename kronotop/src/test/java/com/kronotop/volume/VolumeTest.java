@@ -902,6 +902,27 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    void shouldThrowEntrySizeExceedsLimitExceptionWhenInsertingOversizedEntry() throws IOException {
+        byte[] oversizedData = new byte[Volume.ENTRY_SIZE_LIMIT + 1];
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+
+        // If no segments exist yet, create one by appending a small entry first
+        if (segmentAnalysis.isEmpty()) {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, prefix);
+                volume.append(session, ByteBuffer.wrap(new byte[]{1}));
+                tr.commit().join();
+            }
+            segmentAnalysis = volume.analyze();
+        }
+
+        long segmentId = segmentAnalysis.getFirst().segmentId();
+        PackedEntry oversizedEntry = new PackedEntry(0, oversizedData);
+
+        assertThrows(EntrySizeExceedsLimitException.class, () -> volume.insert(segmentId, oversizedEntry));
+    }
+
+    @Test
     void shouldHaveReadWriteStatusByDefault() {
         assertEquals(VolumeStatus.READWRITE, volume.getStatus());
     }

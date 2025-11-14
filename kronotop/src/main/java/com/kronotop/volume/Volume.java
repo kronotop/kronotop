@@ -1655,6 +1655,14 @@ public class Volume {
         if (entries.length == 0) {
             throw new IllegalArgumentException("Empty entries array");
         }
+        if (entries.length > UserVersion.MAX_VALUE) {
+            throw new TooManyEntriesException();
+        }
+        for (PackedEntry entry : entries) {
+            if (entry.data().length > ENTRY_SIZE_LIMIT) {
+                throw new EntrySizeExceedsLimitException();
+            }
+        }
         Segment segment = getOrOpenSegmentById(segmentId);
         for (PackedEntry entry : entries) {
             try {
