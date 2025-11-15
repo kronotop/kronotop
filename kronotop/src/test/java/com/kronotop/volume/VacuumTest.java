@@ -23,7 +23,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -105,6 +106,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
         List<SegmentAnalysis> beforeVacuum = volume.analyze();
 
+        // force vacuum
         VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
         Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
         List<String> files = assertDoesNotThrow(vacuum::start);
@@ -131,5 +133,100 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             }
             return true;
         });
+    }
+
+    @Test
+    void shouldConsolidateFragmentedSegmentsAfterDeletions() throws IOException {
+        int bufferSize = 100;
+        long segmentSize = VolumeConfiguration.segmentSize;
+        int numIterations = (int) (2 * (segmentSize / bufferSize));
+
+        // Insert some data
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            ByteBuffer[] entries = new ByteBuffer[numIterations];
+            for (int i = 0; i < numIterations; i++) {
+                entries[i] = randomBytes(bufferSize);
+            }
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] keys = appendResult.getVersionstampedKeys();
+        int total = keys.length;
+
+        int deleteCount = (int) (total * 0.60);
+
+        List<Versionstamp> list = new ArrayList<>(Arrays.asList(keys));
+        Collections.shuffle(list);
+        List<Versionstamp> toDelete = list.subList(0, deleteCount);
+
+        int batchSize = 100;
+
+        for (int offset = 0; offset < toDelete.size(); offset += batchSize) {
+            int end = Math.min(offset + batchSize, toDelete.size());
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+
+                int len = end - offset;
+                Versionstamp[] batch = new Versionstamp[len];
+
+                for (int i = 0; i < len; i++) {
+                    batch[i] = toDelete.get(offset + i);
+                }
+
+                VolumeSession session = new VolumeSession(tr, prefix);
+                DeleteResult result = volume.delete(session, batch);
+                tr.commit().join();
+                result.complete();
+            }
+        }
+
+        List<SegmentAnalysis> beforeVacuum = volume.analyze();
+        assertEquals(2, beforeVacuum.size());
+
+        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
+        Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
+        List<String> files = assertDoesNotThrow(vacuum::start);
+        assertFalse(files.isEmpty());
+
+        List<SegmentAnalysis> afterVacuum = volume.analyze();
+        assertEquals(1, afterVacuum.size());
+
+        // Some segments should not have zero cardinality value.
+        assertTrue(() -> {
+            for (SegmentAnalysis before : afterVacuum) {
+                if (before.cardinality() == 0) {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        Set<Long> afterIds = afterVacuum.stream()
+                .map(SegmentAnalysis::segmentId)
+                .collect(Collectors.toSet());
+        for (SegmentAnalysis sa : beforeVacuum) {
+            if (afterIds.contains(sa.segmentId())) {
+                fail("Segment still exists: " + sa.segmentId());
+            }
+        }
+
+        long beforeUsedBytes = 0;
+        int beforeCardinality = 0;
+        for (SegmentAnalysis analysis : beforeVacuum) {
+            beforeUsedBytes += analysis.usedBytes();
+            beforeCardinality += analysis.cardinality();
+        }
+
+        long afterUsedBytes = 0;
+        int afterCardinality = 0;
+        for (SegmentAnalysis analysis : afterVacuum) {
+            afterUsedBytes += analysis.usedBytes();
+            afterCardinality += analysis.cardinality();
+        }
+
+        assertEquals(beforeUsedBytes, afterUsedBytes);
+        assertEquals(beforeCardinality, afterCardinality);
     }
 }
