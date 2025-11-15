@@ -316,4 +316,91 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             return true;
         });
     }
+
+    @Test
+    void shouldHandleConcurrentDeletionsWhileVacuuming() throws Exception {
+        int bufferSize = 100;
+        long segmentSize = VolumeConfiguration.segmentSize;
+        int numIterations = (int) (2 * (segmentSize / bufferSize));
+
+        // Insert initial data
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            ByteBuffer[] entries = new ByteBuffer[numIterations];
+            for (int i = 0; i < numIterations; i++) {
+                entries[i] = randomBytes(bufferSize);
+            }
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] allKeys = appendResult.getVersionstampedKeys();
+        int deleteCount = (int) (allKeys.length * 0.60);
+
+        // Select 60% of keys to delete
+        List<Versionstamp> keyList = new ArrayList<>(Arrays.asList(allKeys));
+        Collections.shuffle(keyList);
+        List<Versionstamp> keysToDelete = keyList.subList(0, deleteCount);
+        List<Versionstamp> survivingKeys = keyList.subList(deleteCount, allKeys.length);
+
+        // Start vacuum in a separate thread with 0 garbage ratio to force it
+        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
+        Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
+
+        Thread vacuumThread = Thread.ofVirtual().start(() -> {
+            assertDoesNotThrow(vacuum::start);
+        });
+
+        // Concurrently, delete 60% of entries with retry logic
+        Thread deleteThread = Thread.ofVirtual().start(() -> {
+            try {
+                Versionstamp[] keysArray = keysToDelete.toArray(new Versionstamp[0]);
+
+                // Try many times because the CI/CD hosts might be slow.
+                volume.getTransactionWithRetry(250, Duration.ofMillis(100)).executeRunnable(() -> {
+                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                        VolumeSession session = new VolumeSession(tr, prefix);
+                        DeleteResult result = volume.delete(session, keysArray);
+                        tr.commit().join();
+                        result.complete();
+                    }
+                });
+            } catch (Exception e) {
+                fail("Delete failed: " + e);
+            }
+        });
+
+        // Wait for both operations to complete
+        vacuumThread.join();
+        deleteThread.join();
+
+        // Verify surviving keys are still accessible
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            for (Versionstamp key : survivingKeys) {
+                ByteBuffer entry = volume.get(session, key);
+                assertNotNull(entry, "Surviving entry should still be accessible after concurrent vacuum and delete");
+            }
+        }
+
+        // Verify deleted keys are not accessible
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            for (Versionstamp key : keysToDelete) {
+                assertNull(volume.get(session, key),"Deleted entry should not be accessible");
+            }
+        }
+
+        // Verify no segments have zero cardinality
+        List<SegmentAnalysis> afterVacuum = volume.analyze();
+        assertTrue(() -> {
+            for (SegmentAnalysis analysis : afterVacuum) {
+                if (analysis.cardinality() == 0) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
 }
