@@ -46,7 +46,7 @@ class VacuumTaskTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_VacuumTask() throws IOException {
+    void shouldCompleteVacuumTask() throws IOException {
         VacuumTask task = prepareTestEnv();
         try {
             task.run();
@@ -57,7 +57,7 @@ class VacuumTaskTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_VacuumTask_awaitCompletion() throws IOException {
+    void shouldAwaitTaskCompletion() throws IOException {
         VacuumTask task = prepareTestEnv();
 
         CountDownLatch latch = new CountDownLatch(1);
