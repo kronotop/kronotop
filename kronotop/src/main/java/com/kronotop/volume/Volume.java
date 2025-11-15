@@ -51,6 +51,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
@@ -1366,124 +1367,81 @@ public class Volume {
         }
     }
 
-    private KeySelector vacuumSegmentInternal(Transaction tr,
-                                       VacuumContext vacuumContext,
-                                       KeySelector begin,
-                                       KeySelector end) throws IOException, KeyNotFoundException {
+    private byte[] vacuumSegmentInternal(VacuumContext vacuumContext,
+                                         KeySelector begin,
+                                         KeySelector end) throws IOException, KeyNotFoundException {
         HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
         byte[] cursor = null;
-        for (KeyValue keyValue : tr.getRange(begin, end, SEGMENT_VACUUM_BATCH_SIZE)) {
-            if (vacuumContext.stop()) {
-                break;
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (KeyValue keyValue : tr.getRange(begin, end, SEGMENT_VACUUM_BATCH_SIZE)) {
+                if (vacuumContext.stop()) {
+                    break;
+                }
+
+                byte[] key = keyValue.getKey();
+                byte[] value = keyValue.getValue();
+
+                byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
+                int userVersion = ByteBuffer.wrap(Arrays.copyOfRange(keyValue.getValue(), 11, 13)).getShort();
+
+                byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(key).get(1);
+                EntryMetadata entryMetadata = EntryMetadata.decode(encodedEntryMetadata);
+
+                Prefix prefix = Prefix.fromBytes(entryMetadata.prefix());
+                Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
+                List<KeyEntry> pairs = pairsByPrefix.computeIfAbsent(prefix, (prefixAsLong) -> new ArrayList<>());
+
+                ByteBuffer buffer = getByEntryMetadata(prefix, versionstampedKey, entryMetadata);
+                pairs.add(new KeyEntry(versionstampedKey, buffer));
+                cursor = key;
             }
 
-            byte[] key = keyValue.getKey();
-            byte[] value = keyValue.getValue();
+            if (pairsByPrefix.isEmpty()) {
+                // End of the segment
+                return null;
+            }
 
-            byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
-            int userVersion = ByteBuffer.wrap(Arrays.copyOfRange(keyValue.getValue(), 11, 13)).getShort();
+            List<UpdateResult> results = new ArrayList<>();
+            for (Map.Entry<Prefix, List<KeyEntry>> entry : pairsByPrefix.entrySet()) {
+                UpdateResult updateResult = update(new VolumeSession(tr, entry.getKey()), entry.getValue().toArray(new KeyEntry[0]));
+                results.add(updateResult);
+            }
 
-            byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(key).get(1);
-            EntryMetadata entryMetadata = EntryMetadata.decode(encodedEntryMetadata);
+            // commit the vacuum operation if the volume is still writable
+            raiseExceptionIfVolumeReadOnly();
+            tr.commit().join();
 
-            Prefix prefix = Prefix.fromBytes(entryMetadata.prefix());
-            Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
-            List<KeyEntry> pairs = pairsByPrefix.computeIfAbsent(prefix, (prefixAsLong) -> new ArrayList<>());
-
-            ByteBuffer buffer = getByEntryMetadata(prefix, versionstampedKey, entryMetadata);
-            pairs.add(new KeyEntry(versionstampedKey, buffer));
-            cursor = key;
+            for (UpdateResult updateResult : results) {
+                updateResult.complete();
+            }
         }
 
-        if (pairsByPrefix.isEmpty()) {
-            // End of the segment
-            return null;
-        }
-
-        List<UpdateResult> results = new ArrayList<>();
-        for (Map.Entry<Prefix, List<KeyEntry>> entry : pairsByPrefix.entrySet()) {
-            UpdateResult updateResult = update(new VolumeSession(tr, entry.getKey()), entry.getValue().toArray(new KeyEntry[0]));
-            results.add(updateResult);
-        }
-
-        // commit the vacuum operation if the volume is still writable
-        raiseExceptionIfVolumeReadOnly();
-        tr.commit().join();
-
-        for (UpdateResult updateResult : results) {
-            updateResult.complete();
-        }
-
-        return cursor != null ? KeySelector.firstGreaterThan(cursor): null;
+        return cursor;
     }
 
-
+    @SuppressWarnings("ConstantConditions")
     protected void vacuumSegment(VacuumContext vacuumContext) throws IOException {
         Segment segment = getOrOpenSegmentById(vacuumContext.segmentId());
         byte[] segmentPrefix = SegmentUtil.segmentPrefix(config.subspace(), segment.id());
         KeySelector begin = KeySelector.firstGreaterOrEqual(segmentPrefix);
         KeySelector end = KeySelector.firstGreaterThan(ByteArrayUtil.strinc(segmentPrefix));
 
+        AtomicReference<KeySelector> currentBegin = new AtomicReference<>(begin);
         while (!vacuumContext.stop()) {
-            raiseExceptionIfVolumeReadOnly();
-
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                int batchSize = 0;
-                HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
-                for (KeyValue keyValue : tr.getRange(begin, end)) {
-                    if (vacuumContext.stop()) {
-                        break;
-                    }
-
-                    byte[] key = keyValue.getKey();
-                    byte[] value = keyValue.getValue();
-
-                    byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
-                    int userVersion = ByteBuffer.wrap(Arrays.copyOfRange(keyValue.getValue(), 11, 13)).getShort();
-
-                    byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(key).get(1);
-                    EntryMetadata entryMetadata = EntryMetadata.decode(encodedEntryMetadata);
-
-                    Prefix prefix = Prefix.fromBytes(entryMetadata.prefix());
-                    Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
-                    List<KeyEntry> pairs = pairsByPrefix.computeIfAbsent(prefix, (prefixAsLong) -> new ArrayList<>());
-
-                    ByteBuffer buffer = getByEntryMetadata(prefix, versionstampedKey, entryMetadata);
-                    pairs.add(new KeyEntry(versionstampedKey, buffer));
-                    batchSize++;
-                    if (batchSize >= SEGMENT_VACUUM_BATCH_SIZE) {
-                        break;
-                    }
-                    begin = KeySelector.firstGreaterThan(key);
-                }
-
-                if (pairsByPrefix.isEmpty()) {
-                    // End of the segment
-                    break;
-                }
-
-                List<UpdateResult> results = new ArrayList<>();
-                for (Map.Entry<Prefix, List<KeyEntry>> entry : pairsByPrefix.entrySet()) {
-                    UpdateResult updateResult = update(new VolumeSession(tr, entry.getKey()), entry.getValue().toArray(new KeyEntry[0]));
-                    results.add(updateResult);
-                }
-
-                // commit the vacuum operation if the volume is still writable
+            byte[] cursor = transactionWithRetry.executeSupplier(() -> {
                 raiseExceptionIfVolumeReadOnly();
-                tr.commit().join();
-
-                for (UpdateResult updateResult : results) {
-                    updateResult.complete();
+                try {
+                    return vacuumSegmentInternal(vacuumContext, currentBegin.get(), end);
+                } catch (Exception exp) {
+                    LOGGER.error("Error while running Vacuum on Segment: {} of Volume: {}", segment.id(), config.name());
+                    throw new RuntimeException(exp);
                 }
-
-            } catch (IOException ioExp) {
-                // It might be critical: disk errors, etc.
-                throw ioExp;
-            } catch (Exception e) {
-                // Catch all exceptions and start from scratch
-                begin = KeySelector.firstGreaterOrEqual(segmentPrefix);
-                LOGGER.error("Vacuum on {}, Segment: {} has failed, starting from scratch", config.name(), segment.id(), e);
+            });
+            if (cursor == null) {
+                return;
             }
+            currentBegin.set(KeySelector.firstGreaterThan(cursor));
         }
     }
 
