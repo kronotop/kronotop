@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -228,5 +229,91 @@ class VacuumTest extends BaseVolumeIntegrationTest {
 
         assertEquals(beforeUsedBytes, afterUsedBytes);
         assertEquals(beforeCardinality, afterCardinality);
+    }
+
+    @Test
+    void shouldHandleConcurrentUpdatesWhileVacuuming() throws Exception {
+        int bufferSize = 100;
+        long segmentSize = VolumeConfiguration.segmentSize;
+        int numIterations = (int) (2 * (segmentSize / bufferSize));
+
+        // Insert initial data
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            ByteBuffer[] entries = new ByteBuffer[numIterations];
+            for (int i = 0; i < numIterations; i++) {
+                entries[i] = randomBytes(bufferSize);
+            }
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] allKeys = appendResult.getVersionstampedKeys();
+        int updateCount = (int) (allKeys.length * 0.60);
+
+        // Select 60% of keys to update
+        List<Versionstamp> keyList = new ArrayList<>(Arrays.asList(allKeys));
+        Collections.shuffle(keyList);
+        List<Versionstamp> keysToUpdate = keyList.subList(0, updateCount);
+
+        // Start vacuum in a separate thread with 0 garbage ratio to force it
+        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
+        Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
+
+        Thread vacuumThread = Thread.ofVirtual().start(() -> {
+            assertDoesNotThrow(vacuum::start);
+        });
+
+        // Concurrently, update 60% of entries with retry logic
+        Thread updateThread = Thread.ofVirtual().start(() -> {
+            try {
+                KeyEntry[] entries = new KeyEntry[keysToUpdate.size()];
+                for (int i = 0; i < keysToUpdate.size(); i++) {
+                    entries[i] = new KeyEntry(keysToUpdate.get(i), randomBytes(bufferSize));
+                }
+
+                // Try many times because the CI/CD hosts might be slow.
+                volume.getTransactionWithRetry(250, Duration.ofMillis(100)).executeRunnable(() -> {
+                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                        VolumeSession session = new VolumeSession(tr, prefix);
+                        UpdateResult result;
+                        try {
+                            result = volume.update(session, entries);
+                        } catch (IOException | KeyNotFoundException e) {
+                            throw new RuntimeException(e);
+                        }
+                        tr.commit().join();
+                        result.complete();
+                    }
+                });
+            } catch (Exception e) {
+                fail("Update failed: " + e);
+            }
+        });
+
+        // Wait for both operations to complete
+        vacuumThread.join();
+        updateThread.join();
+
+        // Verify all keys are still accessible
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            for (Versionstamp key : allKeys) {
+                ByteBuffer entry = volume.get(session, key);
+                assertNotNull(entry, "Entry should still be accessible after concurrent vacuum and update");
+            }
+        }
+
+        // Verify no segments have zero cardinality
+        List<SegmentAnalysis> afterVacuum = volume.analyze();
+        assertTrue(() -> {
+            for (SegmentAnalysis analysis : afterVacuum) {
+                if (analysis.cardinality() == 0) {
+                    return false;
+                }
+            }
+            return true;
+        });
     }
 }

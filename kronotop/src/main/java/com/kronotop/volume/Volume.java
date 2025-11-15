@@ -213,7 +213,7 @@ public class Volume {
      * @throws IOException if an I/O error occurs while opening segments
      */
     public Volume(Context context, VolumeConfig config) throws IOException {
-        this.transactionWithRetry = getTransactionWithRetry();
+        this.transactionWithRetry = getTransactionWithRetry(10, Duration.ofMillis(100));
 
         this.context = context;
         this.config = config;
@@ -238,12 +238,16 @@ public class Volume {
         return result;
     }
 
-    private Retry getTransactionWithRetry() {
+    Retry getTransactionWithRetry(int maxAttempts, Duration waitDuration) {
         return Retry.of("transaction-with-retry", RetryConfig.custom()
-                .maxAttempts(10)
-                .waitDuration(Duration.ofMillis(100))
-                .retryOnException(e -> {
-                    Throwable root = getRootCause(e);
+                .maxAttempts(maxAttempts)
+                .waitDuration(waitDuration)
+                .retryOnException(throwable -> {
+                    if (throwable instanceof RetryableStateException) {
+                        return true;
+                    }
+
+                    Throwable root = getRootCause(throwable);
 
                     // Network-transient
                     if (root instanceof IOException) {
@@ -686,11 +690,11 @@ public class Volume {
      */
     private void appendSegmentLog(Transaction tr, OperationKind kind, Versionstamp versionstamp, int userVersion, long prefix, EntryMetadata entryMetadata) {
         SegmentContainer segmentContainer = getSegmentContainerOrNull(entryMetadata.segmentId());
-        if (segmentContainer == null) {
-            throw new IllegalStateException("Segment with id " + entryMetadata.segmentId() + " not found");
+        // TODO: VOLUME-REPLICATION-REFACTOR
+        if (segmentContainer != null) {
+            SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
+            segmentContainer.log().append(tr, versionstamp, userVersion, value);
         }
-        SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
-        segmentContainer.log().append(tr, versionstamp, userVersion, value);
     }
 
     /**
@@ -1036,9 +1040,12 @@ public class Volume {
 
             EntryMetadata entryMetadata = EntryMetadata.decode(encodedEntryMetadata);
 
-            SegmentContainer segmentContainer = segments.get(entryMetadata.segmentId());
-            segmentContainer.metadata().decreaseCardinalityByOne(session);
-            segmentContainer.metadata().increaseUsedBytes(session, -1 * entryMetadata.length());
+            SegmentContainer container = getSegmentContainerOrNull(entryMetadata.segmentId());
+            if (container == null) {
+                throw new RetryableStateException("Segment: " + entryMetadata.segmentId() + " could not be found");
+            }
+            container.metadata().decreaseCardinalityByOne(session);
+            container.metadata().increaseUsedBytes(session, -1 * entryMetadata.length());
 
             appendSegmentLog(session, OperationKind.DELETE, key, entryMetadata);
             triggerStreamingSubscribers(tr);
@@ -1118,19 +1125,23 @@ public class Volume {
             }
 
             EntryMetadata prevEntryMetadata = EntryMetadata.decode(encodedPrevEntryMetadata);
-            SegmentContainer prevSegmentContainer = segments.get(prevEntryMetadata.segmentId());
+            SegmentContainer previousContainer = getSegmentContainerOrNull(prevEntryMetadata.segmentId());
 
             EntryMetadata entryMetadata = entryMetadataList[index];
-            SegmentContainer segmentContainer = segments.get(entryMetadata.segmentId());
-
-            if (prevEntryMetadata.segmentId() != (entryMetadata.segmentId())) {
-                prevSegmentContainer.metadata().decreaseCardinalityByOne(session);
-                segmentContainer.metadata().increaseCardinalityByOne(session);
-                prevSegmentContainer.metadata().increaseUsedBytes(session, -1 * prevEntryMetadata.length());
-            } else {
-                segmentContainer.metadata().increaseUsedBytes(session, -1 * entryMetadata.length());
+            SegmentContainer container = getSegmentContainerOrNull(entryMetadata.segmentId());
+            if (container == null) {
+                throw new IllegalStateException("Segment: " + entryMetadata.segmentId() + " could not be found");
             }
-            segmentContainer.metadata().increaseUsedBytes(session, entryMetadata.length());
+
+            // Check the previous container here, it might be removed by the vacuum thread.
+            if (previousContainer != null && prevEntryMetadata.segmentId() != (entryMetadata.segmentId())) {
+                previousContainer.metadata().decreaseCardinalityByOne(session);
+                container.metadata().increaseCardinalityByOne(session);
+                previousContainer.metadata().increaseUsedBytes(session, -1 * prevEntryMetadata.length());
+            } else {
+                container.metadata().increaseUsedBytes(session, -1 * entryMetadata.length());
+            }
+            container.metadata().increaseUsedBytes(session, entryMetadata.length());
 
             tr.clear(subspace.packEntryMetadataKey(encodedPrevEntryMetadata));
             byte[] encodedEntryMetadata = entryMetadata.encode();
