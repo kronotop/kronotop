@@ -252,6 +252,10 @@ public class Segment {
         return Path.of(config.dataDir(), SEGMENTS_DIRECTORY, generateFileName(config.id()));
     }
 
+    public static Path getSegmentFilePath(String dataDir, long id) {
+        return Path.of(dataDir, SEGMENTS_DIRECTORY, generateFileName(id));
+    }
+
     /**
      * Creates or opens the segment file with the configured size.
      *

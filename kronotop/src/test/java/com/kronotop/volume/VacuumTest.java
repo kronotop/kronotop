@@ -18,11 +18,14 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -64,9 +67,25 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             fail("Key not found " + e.getMessage());
         }
 
+        List<SegmentAnalysis> beforeVacuum = volume.analyze();
+
+        // Collect empty segment's ids
+        List<Long> emptySegmentIds = new ArrayList<>();
+        for (SegmentAnalysis analysis : beforeVacuum) {
+            if (analysis.cardinality() == 0) {
+                emptySegmentIds.add(analysis.segmentId());
+            }
+        }
+        // Verify them on the disk
+        for (long segmentId : emptySegmentIds) {
+            Path path = Segment.getSegmentFilePath(volume.getConfig().dataDir(), segmentId);
+            boolean exists = Files.exists(path);
+            assertTrue(exists);
+        }
+
         // Some segments should have zero cardinality value.
         assertTrue(() -> {
-            for (SegmentAnalysis before : volume.analyze()) {
+            for (SegmentAnalysis before : beforeVacuum) {
                 if (before.cardinality() == 0) {
                     return true;
                 }
@@ -89,6 +108,13 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             }
             return true;
         });
+
+        // Empty segments must be removed
+        for (long segmentId : emptySegmentIds) {
+            Path path = Segment.getSegmentFilePath(volume.getConfig().dataDir(), segmentId);
+            boolean exists = Files.exists(path);
+            assertFalse(exists);
+        }
     }
 
     @Test
@@ -388,7 +414,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             for (Versionstamp key : keysToDelete) {
-                assertNull(volume.get(session, key),"Deleted entry should not be accessible");
+                assertNull(volume.get(session, key), "Deleted entry should not be accessible");
             }
         }
 
