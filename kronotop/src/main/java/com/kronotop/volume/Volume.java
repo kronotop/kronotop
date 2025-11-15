@@ -1366,61 +1366,78 @@ public class Volume {
         }
     }
 
-    private void commitVacuumIfVolumeWritable(Transaction tr) {
+    private KeySelector vacuumSegmentInternal(Transaction tr,
+                                       VacuumContext vacuumContext,
+                                       KeySelector begin,
+                                       KeySelector end) throws IOException, KeyNotFoundException {
+        HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
+        byte[] cursor = null;
+        for (KeyValue keyValue : tr.getRange(begin, end, SEGMENT_VACUUM_BATCH_SIZE)) {
+            if (vacuumContext.stop()) {
+                break;
+            }
+
+            byte[] key = keyValue.getKey();
+            byte[] value = keyValue.getValue();
+
+            byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
+            int userVersion = ByteBuffer.wrap(Arrays.copyOfRange(keyValue.getValue(), 11, 13)).getShort();
+
+            byte[] encodedEntryMetadata = (byte[]) config.subspace().unpack(key).get(1);
+            EntryMetadata entryMetadata = EntryMetadata.decode(encodedEntryMetadata);
+
+            Prefix prefix = Prefix.fromBytes(entryMetadata.prefix());
+            Versionstamp versionstampedKey = Versionstamp.complete(trVersion, userVersion);
+            List<KeyEntry> pairs = pairsByPrefix.computeIfAbsent(prefix, (prefixAsLong) -> new ArrayList<>());
+
+            ByteBuffer buffer = getByEntryMetadata(prefix, versionstampedKey, entryMetadata);
+            pairs.add(new KeyEntry(versionstampedKey, buffer));
+            cursor = key;
+        }
+
+        if (pairsByPrefix.isEmpty()) {
+            // End of the segment
+            return null;
+        }
+
+        List<UpdateResult> results = new ArrayList<>();
+        for (Map.Entry<Prefix, List<KeyEntry>> entry : pairsByPrefix.entrySet()) {
+            UpdateResult updateResult = update(new VolumeSession(tr, entry.getKey()), entry.getValue().toArray(new KeyEntry[0]));
+            results.add(updateResult);
+        }
+
+        // commit the vacuum operation if the volume is still writable
         raiseExceptionIfVolumeReadOnly();
-        transactionWithRetry.executeRunnable(() -> tr.commit().join());
+        tr.commit().join();
+
+        for (UpdateResult updateResult : results) {
+            updateResult.complete();
+        }
+
+        return cursor != null ? KeySelector.firstGreaterThan(cursor): null;
     }
 
-    /**
-     * Performs a vacuum operation on a specific segment to reclaim space from deleted/updated entries.
-     *
-     * <p>Vacuum works by reading all entry metadata for a segment, loading the actual entry data,
-     * and rewriting it to new segments. This process:</p>
-     * <ul>
-     *   <li>Reads entries in batches (SEGMENT_VACUUM_BATCH_SIZE entries per transaction)</li>
-     *   <li>Groups entries by prefix for efficient batch updates</li>
-     *   <li>Uses the update operation to rewrite entries (old entry is deleted, new entry is appended)</li>
-     *   <li>Commits each batch independently to avoid long-running transactions</li>
-     *   <li>Handles transaction conflicts (error codes 1007, 1020) with automatic retry</li>
-     *   <li>Respects the stop flag in vacuumContext for graceful cancellation</li>
-     * </ul>
-     *
-     * <p><b>Space Reclamation:</b></p>
-     * <p>After vacuuming, the original segment file still contains the old entries. To reclaim
-     * disk space, call {@link #cleanupStaleSegments()} which removes segments with zero cardinality.</p>
-     *
-     * <p><b>Performance Considerations:</b></p>
-     * <p>Vacuum is I/O intensive as it reads and rewrites all entries. It should be run during
-     * low-traffic periods. The batch size (SEGMENT_VACUUM_BATCH_SIZE) controls the trade-off
-     * between transaction size and progress granularity.</p>
-     *
-     * @param vacuumContext provides the context for the vacuum process, including the segment name
-     *                      and a stop flag for graceful cancellation
-     * @throws IOException if an I/O error occurs during segment read/write operations
-     */
+
     protected void vacuumSegment(VacuumContext vacuumContext) throws IOException {
         Segment segment = getOrOpenSegmentById(vacuumContext.segmentId());
         byte[] segmentPrefix = SegmentUtil.segmentPrefix(config.subspace(), segment.id());
+        KeySelector begin = KeySelector.firstGreaterOrEqual(segmentPrefix);
+        KeySelector end = KeySelector.firstGreaterThan(ByteArrayUtil.strinc(segmentPrefix));
 
         while (!vacuumContext.stop()) {
             raiseExceptionIfVolumeReadOnly();
 
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 int batchSize = 0;
-                Range range = Range.startsWith(segmentPrefix);
                 HashMap<Prefix, List<KeyEntry>> pairsByPrefix = new HashMap<>();
-                for (KeyValue keyValue : tr.getRange(range)) {
+                for (KeyValue keyValue : tr.getRange(begin, end)) {
                     if (vacuumContext.stop()) {
                         break;
                     }
 
                     byte[] key = keyValue.getKey();
-                    if (Arrays.equals(key, segmentPrefix)) {
-                        // begin is inclusive.
-                        continue;
-                    }
-
                     byte[] value = keyValue.getValue();
+
                     byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
                     int userVersion = ByteBuffer.wrap(Arrays.copyOfRange(keyValue.getValue(), 11, 13)).getShort();
 
@@ -1437,7 +1454,7 @@ public class Volume {
                     if (batchSize >= SEGMENT_VACUUM_BATCH_SIZE) {
                         break;
                     }
-                    segmentPrefix = key;
+                    begin = KeySelector.firstGreaterThan(key);
                 }
 
                 if (pairsByPrefix.isEmpty()) {
@@ -1451,34 +1468,21 @@ public class Volume {
                     results.add(updateResult);
                 }
 
-                commitVacuumIfVolumeWritable(tr);
+                // commit the vacuum operation if the volume is still writable
+                raiseExceptionIfVolumeReadOnly();
+                tr.commit().join();
 
                 for (UpdateResult updateResult : results) {
                     updateResult.complete();
                 }
-            } catch (CompletionException e) {
-                if (e.getCause() instanceof FDBException fdbException) {
-                    if (fdbException.getCode() == 1007) {
-                        // Transaction is too old to perform reads or be committed
-                        LOGGER.trace("Vacuum on '{}', Segment: '{}' - Transaction is too old, retrying",
-                                config.name(),
-                                segment.id()
-                        );
-                    } else if (fdbException.getCode() == 1020) {
-                        // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
-                        LOGGER.trace("Vacuum on '{}', Segment: '{}' - Transaction not committed due to conflict with another transaction",
-                                config.name(),
-                                segment.id()
-                        );
-                    }
-                }
-            } catch (IOException e) {
+
+            } catch (IOException ioExp) {
                 // It might be critical: disk errors, etc.
-                throw e;
+                throw ioExp;
             } catch (Exception e) {
                 // Catch all exceptions and start from scratch
-                segmentPrefix = SegmentUtil.segmentPrefix(config.subspace(), segment.id());
-                LOGGER.error("Vacuum on {}, Segment: {} has failed", config.name(), segment.id(), e);
+                begin = KeySelector.firstGreaterOrEqual(segmentPrefix);
+                LOGGER.error("Vacuum on {}, Segment: {} has failed, starting from scratch", config.name(), segment.id(), e);
             }
         }
     }
