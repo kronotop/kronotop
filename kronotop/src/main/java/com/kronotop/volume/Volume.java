@@ -1312,28 +1312,28 @@ public class Volume {
     /**
      * Analyzes the given segment in the context of the provided transaction.
      *
-     * @param tr               the transaction associated with the segment analysis
-     * @param segmentContainer the container holding the segment to be analyzed
+     * @param tr        the transaction associated with the segment analysis
+     * @param container the container holding the segment to be analyzed
      * @return a SegmentAnalysis object containing details about the segment
      */
-    private SegmentAnalysis analyzeSegment(Transaction tr, SegmentContainer segmentContainer) {
-        byte[] begin = config.subspace().pack(Tuple.from(SEGMENT_CARDINALITY_SUBSPACE, segmentContainer.segment().id()));
-        byte[] end = ByteArrayUtil.strinc(begin);
-
+    private SegmentAnalysis analyzeSegment(Transaction tr, SegmentContainer container) {
         int cardinality = 0;
         long usedBytes = 0;
 
-        for (KeyValue keyValue : tr.getRange(begin, end)) {
+        Range range = Range.startsWith(
+                config.subspace().pack(Tuple.from(SEGMENT_CARDINALITY_SUBSPACE, container.segment().id()))
+        );
+        for (KeyValue keyValue : tr.getRange(range)) {
             Tuple tuple = config.subspace().unpack(keyValue.getKey());
             byte[] prefixBytes = tuple.getBytes(2);
             Prefix prefix = Prefix.fromBytes(prefixBytes);
             VolumeSession session = new VolumeSession(tr, prefix);
 
-            cardinality += segmentContainer.metadata().cardinality(session);
-            usedBytes += segmentContainer.metadata().usedBytes(session);
+            cardinality += container.metadata().cardinality(session);
+            usedBytes += container.metadata().usedBytes(session);
         }
 
-        Segment segment = segmentContainer.segment();
+        Segment segment = container.segment();
         return new SegmentAnalysis(segment.id(), segment.getSize(), usedBytes, segment.getFreeBytes(), cardinality);
     }
 
