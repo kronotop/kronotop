@@ -24,7 +24,8 @@ public enum VolumeAdminSubcommand {
     VACUUM("vacuum"),
     STOP_VACUUM("stop-vacuum"),
     CLEANUP_ORPHAN_FILES("cleanup-orphan-files"),
-    MARK_STALE_PREFIXES("mark-stale-prefixes");
+    MARK_STALE_PREFIXES("mark-stale-prefixes"),
+    FIND_POSITION("find-position");
 
     private final String value;
 

@@ -33,7 +33,7 @@ import static com.kronotop.volume.Subspaces.ENTRY_METADATA_SUBSPACE;
  * Utility class for segment-related operations in the volume subsystem.
  * Provides helper methods for constructing FoundationDB key prefixes and finding segment positions.
  */
-class SegmentUtil {
+public class SegmentUtil {
 
     /**
      * Constructs a FoundationDB key prefix for entries in a segment filtered by volume prefix.
@@ -69,7 +69,7 @@ class SegmentUtil {
      * @param segmentId the segment identifier
      * @return the next available position (position + length of the last entry), or 0 if the segment is empty
      */
-    static long findPosition(Context context, DirectorySubspace subspace, long segmentId) {
+    public static long findPosition(Context context, DirectorySubspace subspace, long segmentId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] segmentPrefix = segmentPrefix(subspace, segmentId);
 

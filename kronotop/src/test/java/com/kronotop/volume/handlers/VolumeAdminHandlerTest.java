@@ -127,6 +127,33 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldFindPositionEmptyVolume() {
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.findPosition("redis-shard-1", 0).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(IntegerRedisMessage.class, msg);
+        IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
+        assertEquals(0, actualMessage.value());
+    }
+
+    @Test
+    void shouldFindPosition() throws IOException {
+        injectTestData();
+
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.findPosition("redis-shard-1", 0).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(IntegerRedisMessage.class, msg);
+        IntegerRedisMessage actualMessage = (IntegerRedisMessage) msg;
+        // 10 entries * 10 bytes = current cursor position
+        assertEquals(100, actualMessage.value());
+    }
+
+    @Test
     void shouldSetVolumeStatus() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {

@@ -17,6 +17,7 @@
 package com.kronotop.commandbuilder.kronotop;
 
 import io.lettuce.core.codec.RedisCodec;
+import io.lettuce.core.output.IntegerOutput;
 import io.lettuce.core.output.MapOutput;
 import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.output.StringListOutput;
@@ -76,6 +77,14 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, Long> findPosition(String volumeName, long segmentId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(CommandKeyword.FIND_POSITION).
+                add(volumeName).
+                add(segmentId);
+        return createCommand(CommandType.VOLUME_ADMIN, new IntegerOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         VOLUME_ADMIN("VOLUME.ADMIN");
 
@@ -99,7 +108,8 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         VACUUM("VACUUM"),
         STOP_VACUUM("STOP-VACUUM"),
         CLEANUP_ORPHAN_FILES("CLEANUP-ORPHAN-FILES"),
-        MARK_STALE_PREFIXES("MARK-STALE-PREFIXES");
+        MARK_STALE_PREFIXES("MARK-STALE-PREFIXES"),
+        FIND_POSITION("FIND-POSITION");
 
         public final byte[] bytes;
 
