@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test
-    public void test_append() throws IOException {
+    public void shouldAppendEntryToSegmentLog() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.id(), volume.getConfig().subspace());
@@ -48,7 +48,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    public void test_SegmentLogIterable() throws IOException {
+    public void shouldIterateOverSegmentLogEntries() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.id(), volume.getConfig().subspace());
@@ -95,7 +95,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    public void test_SegmentLogIterable_range() throws IOException {
+    public void shouldIterateOverSegmentLogEntriesInRange() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.id(), volume.getConfig().subspace());
@@ -145,7 +145,7 @@ class SegmentLogTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    public void test_getCardinality() throws IOException {
+    public void shouldReturnCorrectCardinality() throws IOException {
         SegmentConfig segmentConfig = new SegmentConfig(1, volume.getConfig().dataDir(), 0xfffff);
         Segment segment = new Segment(segmentConfig);
         SegmentLog segmentLog = new SegmentLog(segment.id(), volume.getConfig().subspace());
