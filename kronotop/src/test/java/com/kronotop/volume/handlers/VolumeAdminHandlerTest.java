@@ -154,6 +154,35 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldListSegmentsEmptyVolume() {
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.listSegments("redis-shard-1").encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        assertEquals(0, actualMessage.children().size());
+    }
+
+    @Test
+    void shouldListSegments() throws IOException {
+        injectTestData();
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.listSegments("redis-shard-1").encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        assertEquals(1, actualMessage.children().size());
+        for (RedisMessage child : actualMessage.children()) {
+            IntegerRedisMessage message = (IntegerRedisMessage) child;
+            assertEquals(0L, message.value());
+        }
+    }
+
+    @Test
     void shouldSetVolumeStatus() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {

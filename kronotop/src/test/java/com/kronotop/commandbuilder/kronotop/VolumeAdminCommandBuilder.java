@@ -17,10 +17,7 @@
 package com.kronotop.commandbuilder.kronotop;
 
 import io.lettuce.core.codec.RedisCodec;
-import io.lettuce.core.output.IntegerOutput;
-import io.lettuce.core.output.MapOutput;
-import io.lettuce.core.output.StatusOutput;
-import io.lettuce.core.output.StringListOutput;
+import io.lettuce.core.output.*;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 import io.lettuce.core.protocol.ProtocolKeyword;
@@ -85,6 +82,13 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         return createCommand(CommandType.VOLUME_ADMIN, new IntegerOutput<>(codec), args);
     }
 
+    public Command<K, V, List<Long>> listSegments(String volumeName) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(CommandKeyword.LIST_SEGMENTS).
+                add(volumeName);
+        return createCommand(CommandType.VOLUME_ADMIN, new IntegerListOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         VOLUME_ADMIN("VOLUME.ADMIN");
 
@@ -109,7 +113,8 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         STOP_VACUUM("STOP-VACUUM"),
         CLEANUP_ORPHAN_FILES("CLEANUP-ORPHAN-FILES"),
         MARK_STALE_PREFIXES("MARK-STALE-PREFIXES"),
-        FIND_POSITION("FIND-POSITION");
+        FIND_POSITION("FIND-POSITION"),
+        LIST_SEGMENTS("LIST-SEGMENTS");
 
         public final byte[] bytes;
 
