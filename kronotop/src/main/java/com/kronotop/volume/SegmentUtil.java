@@ -29,18 +29,46 @@ import java.util.List;
 
 import static com.kronotop.volume.Subspaces.ENTRY_METADATA_SUBSPACE;
 
+/**
+ * Utility class for segment-related operations in the volume subsystem.
+ * Provides helper methods for constructing FoundationDB key prefixes and finding segment positions.
+ */
 class SegmentUtil {
 
+    /**
+     * Constructs a FoundationDB key prefix for entries in a segment filtered by volume prefix.
+     *
+     * @param subspace the directory subspace for the volume
+     * @param segmentId the segment identifier
+     * @param prefix the volume prefix to filter entries
+     * @return the packed key prefix for querying entries in the segment with the specified volume prefix
+     */
     static byte[] prefixOfVolumePrefix(DirectorySubspace subspace, long segmentId, Prefix prefix) {
         byte[] begin = subspace.pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segmentId, prefix.asBytes()).pack()));
         return Arrays.copyOf(begin, begin.length - 1);
     }
 
+    /**
+     * Constructs a FoundationDB key prefix for all entries in a segment.
+     *
+     * @param subspace the directory subspace for the volume
+     * @param segmentId the segment identifier
+     * @return the packed key prefix for querying all entries in the segment
+     */
     static byte[] segmentPrefix(DirectorySubspace subspace, long segmentId) {
         byte[] prefix = subspace.pack(Tuple.from(ENTRY_METADATA_SUBSPACE, Tuple.from(segmentId).pack()));
         return Arrays.copyOf(prefix, prefix.length - 1);
     }
 
+    /**
+     * Finds the next available position in a segment by locating the last entry.
+     * This method performs a reverse range scan to find the highest position used in the segment.
+     *
+     * @param context the Kronotop context providing access to FoundationDB
+     * @param subspace the directory subspace for the volume
+     * @param segmentId the segment identifier
+     * @return the next available position (position + length of the last entry), or 0 if the segment is empty
+     */
     static long findPosition(Context context, DirectorySubspace subspace, long segmentId) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] segmentPrefix = segmentPrefix(subspace, segmentId);
