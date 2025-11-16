@@ -55,7 +55,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_admin_list() {
+    void shouldListVolumes() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.list().encode(buf);
@@ -69,7 +69,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_describe() throws IOException {
+    void shouldDescribeVolume() throws IOException {
         injectTestData();
 
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -127,7 +127,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_admin_set_status() {
+    void shouldSetVolumeStatus() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -156,7 +156,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_admin_vacuum() {
+    void shouldStartVacuumTask() {
         String volumeName = "redis-shard-1";
 
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -193,7 +193,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_admin_stop_vacuum() {
+    void shouldStopVacuumTask() {
         String volumeName = "redis-shard-1";
 
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -223,7 +223,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_admin_stop_when_vacuum_task_not_found() {
+    void shouldReturnErrorWhenStoppingNonExistentVacuumTask() {
         String volumeName = "redis-shard-1";
 
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -238,7 +238,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_admin_vacuum_when_volume_not_open() {
+    void shouldReturnErrorWhenVacuumingNonOpenVolume() {
         VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -251,7 +251,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_replications() {
+    void shouldListVolumeReplications() {
         // TODO: We expose too much details to test this command.
         VolumeConfig volumeConfig = new VolumeConfigGenerator(context, ShardKind.REDIS, 1).volumeConfig();
         ReplicationConfig config = new ReplicationConfig(
@@ -307,7 +307,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_volume_cleanup_orphan_files() throws IOException {
+    void shouldCleanupOrphanFiles() throws IOException {
         ByteBuffer[] entries = getEntries(3);
 
         VolumeService service = context.getService(VolumeService.NAME);
@@ -336,7 +336,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_mark_stale_prefixes_start() {
+    void shouldStartMarkStalePrefixesTask() {
         {
             VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
@@ -373,7 +373,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_mark_stale_prefixes_start_already_exists() {
+    void shouldReturnErrorWhenMarkStalePrefixesTaskAlreadyExists() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -397,7 +397,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_mark_stale_prefixes_stop() {
+    void shouldReturnErrorWhenStoppingNonExistentMarkStalePrefixesTask() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -431,7 +431,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_mark_stale_prefixes_start_then_stop() {
+    void shouldStartThenStopMarkStalePrefixesTask() {
         {
             VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
             ByteBuf buf = Unpooled.buffer();
@@ -460,7 +460,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_mark_stale_prefixes_remove() {
+    void shouldRemoveMarkStalePrefixesTask() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -488,7 +488,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_mark_stale_prefixes_remove_not_found() {
+    void shouldReturnErrorWhenRemovingNonExistentMarkStalePrefixesTask() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
