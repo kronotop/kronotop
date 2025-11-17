@@ -212,7 +212,7 @@ public class Volume {
      * @throws IOException if an I/O error occurs while opening segments
      */
     public Volume(Context context, VolumeConfig config) throws IOException {
-        this.transactionWithRetry = TransactionUtils.transactionWithRetryConfig(10, Duration.ofMillis(100));
+        this.transactionWithRetry = TransactionUtils.retry(10, Duration.ofMillis(100));
 
         this.context = context;
         this.config = config;

@@ -205,7 +205,7 @@ public class TransactionUtils {
         return result;
     }
 
-    public static Retry transactionWithRetryConfig(int maxAttempts, Duration waitDuration) {
+    public static Retry retry(int maxAttempts, Duration waitDuration) {
         return Retry.of("transaction-with-retry", RetryConfig.custom()
                 .maxAttempts(maxAttempts)
                 .waitDuration(waitDuration)

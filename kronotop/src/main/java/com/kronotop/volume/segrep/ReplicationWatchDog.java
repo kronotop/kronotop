@@ -58,7 +58,7 @@ public class ReplicationWatchDog implements Runnable {
         this.shardKind = shardKind;
         this.shardId = shardId;
         this.executor = Executors.newSingleThreadExecutor();
-        this.transactionWithRetry = TransactionUtils.transactionWithRetryConfig(10, Duration.ofMillis(100));
+        this.transactionWithRetry = TransactionUtils.retry(10, Duration.ofMillis(100));
 
         try {
             this.destination = Files.createDirectories(Path.of(destination));

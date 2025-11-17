@@ -301,7 +301,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
                 }
 
                 // Try many times because the CI/CD hosts might be slow.
-                TransactionUtils.transactionWithRetryConfig(250, Duration.ofMillis(100)).executeRunnable(() -> {
+                TransactionUtils.retry(250, Duration.ofMillis(100)).executeRunnable(() -> {
                     try (Transaction tr = context.getFoundationDB().createTransaction()) {
                         VolumeSession session = new VolumeSession(tr, prefix);
                         UpdateResult result;
@@ -385,7 +385,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
                 Versionstamp[] keysArray = keysToDelete.toArray(new Versionstamp[0]);
 
                 // Try many times because the CI/CD hosts might be slow.
-                TransactionUtils.transactionWithRetryConfig(250, Duration.ofMillis(100)).executeRunnable(() -> {
+                TransactionUtils.retry(250, Duration.ofMillis(100)).executeRunnable(() -> {
                     try (Transaction tr = context.getFoundationDB().createTransaction()) {
                         VolumeSession session = new VolumeSession(tr, prefix);
                         DeleteResult result = volume.delete(session, keysArray);
