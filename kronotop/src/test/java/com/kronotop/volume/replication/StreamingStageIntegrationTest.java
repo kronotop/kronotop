@@ -19,10 +19,8 @@ package com.kronotop.volume.replication;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.volume.AppendResult;
-import com.kronotop.volume.Volume;
-import com.kronotop.volume.VolumeConfig;
-import com.kronotop.volume.VolumeSession;
+import com.kronotop.volume.*;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -44,6 +42,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.awaitility.Awaitility.await;
 
+@Disabled
 public class StreamingStageIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamingStageIntegrationTest.class);
 

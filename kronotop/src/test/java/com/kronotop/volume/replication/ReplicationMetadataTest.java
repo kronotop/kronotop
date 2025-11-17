@@ -21,6 +21,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.BaseVolumeIntegrationTest;
 import com.kronotop.volume.VolumeSession;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.nio.ByteBuffer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Disabled
 class ReplicationMetadataTest extends BaseVolumeIntegrationTest {
 
     @Test

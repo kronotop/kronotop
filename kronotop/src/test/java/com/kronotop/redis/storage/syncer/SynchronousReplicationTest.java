@@ -24,7 +24,7 @@ import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeSession;
 import com.kronotop.volume.VolumeTestUtils;
-import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

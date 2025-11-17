@@ -26,7 +26,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.*;
-import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;

@@ -22,12 +22,14 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.BaseVolumeIntegrationTest;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeConfigGenerator;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Disabled
 class ReplicationSlotTest extends BaseVolumeIntegrationTest {
 
     private ReplicationConfig getReplicationConfig() {

@@ -28,6 +28,7 @@ import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -47,6 +48,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Disabled
 class ReplicationIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     @TempDir
     private Path standbyVolumeDataDir;

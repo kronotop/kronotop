@@ -24,7 +24,7 @@ import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
-import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

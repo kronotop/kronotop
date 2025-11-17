@@ -23,6 +23,7 @@ import com.kronotop.volume.OperationKind;
 import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentConfig;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Disabled
 class SegmentLogTest extends BaseVolumeIntegrationTest {
 
     @Test

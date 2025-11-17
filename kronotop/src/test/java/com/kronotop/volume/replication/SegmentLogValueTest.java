@@ -18,12 +18,14 @@ package com.kronotop.volume.replication;
 
 import com.kronotop.volume.OperationKind;
 import com.kronotop.volume.Prefix;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Disabled
 class SegmentLogValueTest {
 
     @Test

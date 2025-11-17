@@ -25,7 +25,7 @@ import com.kronotop.commandbuilder.kronotop.VolumeAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
-import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.replication.ReplicationConfig;
 import com.kronotop.volume.replication.ReplicationMetadata;
 import com.kronotop.volume.replication.ReplicationStage;
