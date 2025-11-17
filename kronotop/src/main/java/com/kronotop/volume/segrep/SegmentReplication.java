@@ -24,30 +24,32 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 public class SegmentReplication implements Runnable {
     private final Context context;
-    private final Member member;
     private final Path destination;
+    private final ReplicationClient client;
 
     private volatile boolean shutdown;
 
-    public SegmentReplication(Context context, String memberId, String destination) {
+    public SegmentReplication(Context context, ReplicationClient client, String destination) {
         this.context = context;
+        this.client = client;
 
         try {
             this.destination = Files.createDirectories(Path.of(destination));
         } catch (IOException exp) {
             throw new UncheckedIOException(exp);
         }
-
-        MembershipService service = context.getService(MembershipService.NAME);
-        this.member = service.findMember(memberId);
     }
 
     @Override
     public void run() {
-
+        //List<Long> segmentIds = connection.sync().listSegments(volumeName);
+        //for (Long segmentId : segmentIds) {
+        //    System.out.println(segmentId + " " + connection.sync().findPosition(volumeName, segmentId));
+        //}
     }
 
     public void shutdown() {

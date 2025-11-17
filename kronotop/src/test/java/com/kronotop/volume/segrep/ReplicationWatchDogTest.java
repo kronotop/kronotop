@@ -16,19 +16,41 @@
 
 package com.kronotop.volume.segrep;
 
+import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.VolumeSession;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
+
+    private void appendEntries(int number, int length) throws IOException {
+        ByteBuffer[] entries = getEntries(number, length);
+        AppendResult result;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+        assertEquals(number, result.getVersionstampedKeys().length);
+    }
+
     @Test
-    void test(@TempDir Path destination) {
-        ReplicationWatchDog watchDog = new ReplicationWatchDog(context, ShardKind.BUCKET, 1, destination.toString());
+    void test(@TempDir Path destination) throws IOException {
+        int length = 1024;
+        int number = Math.toIntExact(volume.getConfig().segmentSize() / length);
+        number += (number / 2);
+        appendEntries(number, length);
+
+        ReplicationWatchDog watchDog = new ReplicationWatchDog(context, ShardKind.REDIS, 1, destination.toString());
         watchDog.run();
     }
 }

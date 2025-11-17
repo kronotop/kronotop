@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Database;
+import com.google.common.base.Strings;
 import com.kronotop.BaseClusterTestWithTCPServer;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Paths;
 import java.util.UUID;
 
@@ -70,6 +72,15 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    protected ByteBuffer[] getEntries(int number, int length) {
+        ByteBuffer[] entries = new ByteBuffer[number];
+        for (int i = 0; i < number; i++) {
+            byte[] data = Strings.padStart(Integer.toString(i), length, '0').getBytes();
+            entries[i] = ByteBuffer.allocate(length).put(data).flip();
+        }
+        return entries;
     }
 
     protected static class BaseVolumeTestWrapper extends BaseVolumeTest {

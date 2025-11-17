@@ -36,6 +36,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -94,7 +95,6 @@ public class ReplicationWatchDog implements Runnable {
         if (!connection.sync().ping().equals(Response.PONG)) {
             throw new KronotopException("Replication client health check has failed");
         }
-        System.out.println(connection.sync().listSegments(volumeName));
         LOGGER.debug("Ready to start replication");
     }
 
