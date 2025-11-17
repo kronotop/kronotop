@@ -94,6 +94,7 @@ public class ReplicationWatchDog implements Runnable {
         if (!connection.sync().ping().equals(Response.PONG)) {
             throw new KronotopException("Replication client health check has failed");
         }
+        System.out.println(connection.sync().listSegments(volumeName));
         LOGGER.debug("Ready to start replication");
     }
 

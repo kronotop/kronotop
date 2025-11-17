@@ -20,13 +20,13 @@ import io.lettuce.core.protocol.ProtocolKeyword;
 
 import java.nio.charset.StandardCharsets;
 
-public enum InternalCommandType implements ProtocolKeyword {
+public enum SegmentCommandType implements ProtocolKeyword {
     SEGMENTRANGE,
     SEGMENTINSERT;
 
     public final byte[] bytes;
 
-    InternalCommandType() {
+    SegmentCommandType() {
         bytes = name().getBytes(StandardCharsets.US_ASCII);
     }
 

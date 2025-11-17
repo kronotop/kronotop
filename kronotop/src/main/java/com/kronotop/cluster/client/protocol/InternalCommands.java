@@ -17,13 +17,16 @@
 
 package com.kronotop.cluster.client.protocol;
 
-
 import java.util.List;
 
 public interface InternalCommands<K, V> {
     List<Object> segmentrange(String volume, long segmentId, SegmentRange... ranges);
 
     String segmentinsert(String volume, long segmentId, PackedEntry... entries);
+
+    List<Long> listSegments(String volume);
+
+    Long findPosition(String volume, long segmentId);
 
     String ping();
 }

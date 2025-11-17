@@ -25,5 +25,9 @@ public interface InternalAsyncCommands<K, V> {
 
     RedisFuture<String> segmentinsert(String volume, long segmentId, PackedEntry... entries);
 
+    RedisFuture<Long> findPosition(String volume, long segmentId);
+
+    RedisFuture<List<Long>> listSegments(String volume);
+
     RedisFuture<String> ping();
 }

@@ -18,6 +18,8 @@ package com.kronotop.cluster.client.protocol;
 
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.output.ArrayOutput;
+import io.lettuce.core.output.IntegerListOutput;
+import io.lettuce.core.output.IntegerOutput;
 import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
@@ -37,7 +39,7 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
             args.add(range.position());
             args.add(range.length());
         }
-        return createCommand(InternalCommandType.SEGMENTRANGE, new ArrayOutput<>(codec), args);
+        return createCommand(SegmentCommandType.SEGMENTRANGE, new ArrayOutput<>(codec), args);
     }
 
     public Command<K, V, String> segmentinsert(String volume, long segmentId, PackedEntry... entries) {
@@ -46,7 +48,22 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
             args.add(entry.position());
             args.add(entry.data());
         }
-        return createCommand(InternalCommandType.SEGMENTINSERT, new StatusOutput<>(codec), args);
+        return createCommand(SegmentCommandType.SEGMENTINSERT, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, Long> findPosition(String volumeName, long segmentId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(VolumeAdminCommandType.FIND_POSITION).
+                add(volumeName).
+                add(segmentId);
+        return createCommand(VolumeAdminCommandType.VOLUME_ADMIN, new IntegerOutput<>(codec), args);
+    }
+
+    public Command<K, V, List<Long>> listSegments(String volumeName) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(VolumeAdminCommandType.LIST_SEGMENTS).
+                add(volumeName);
+        return createCommand(VolumeAdminCommandType.VOLUME_ADMIN, new IntegerListOutput<>(codec), args);
     }
 
     public Command<K, V, String> ping() {

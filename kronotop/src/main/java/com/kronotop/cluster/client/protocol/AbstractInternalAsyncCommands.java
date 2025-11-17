@@ -49,6 +49,16 @@ public abstract class AbstractInternalAsyncCommands<K, V> implements InternalAsy
         return dispatch(commandBuilder.segmentinsert(volume, segmentId, entries));
     }
 
+    @Override
+    public RedisFuture<Long> findPosition(String volume, long segmentId) {
+        return dispatch(commandBuilder.findPosition(volume, segmentId));
+    }
+
+    @Override
+    public RedisFuture<List<Long>> listSegments(String volume) {
+        return dispatch(commandBuilder.listSegments(volume));
+    }
+
     private <T> AsyncCommand<K, V, T> dispatch(RedisCommand<K, V, T> cmd) {
         AsyncCommand<K, V, T> asyncCommand = new AsyncCommand<>(cmd);
         RedisCommand<K, V, T> dispatched = connection.dispatch(asyncCommand);
