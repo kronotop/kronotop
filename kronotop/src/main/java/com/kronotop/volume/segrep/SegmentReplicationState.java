@@ -31,13 +31,6 @@ public class SegmentReplicationState {
 
     public SegmentReplicationState(Context context) {
         this.context = context;
-        KronotopDirectory.kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                volumes().
-                bucket().
-                volume("volume").
-                standby(context.getMember().getId());
     }
 
     public static void setPosition(Transaction tr, DirectorySubspace subspace, long segmentId, long position) {

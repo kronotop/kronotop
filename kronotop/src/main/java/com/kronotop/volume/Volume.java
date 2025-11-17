@@ -33,7 +33,6 @@ import com.kronotop.volume.segment.SegmentAnalysis;
 import com.kronotop.volume.segment.SegmentAppendResult;
 import com.kronotop.volume.segment.SegmentConfig;
 import io.github.resilience4j.retry.Retry;
-import io.github.resilience4j.retry.RetryConfig;
 import io.netty.util.AttributeKey;
 import io.netty.util.AttributeMap;
 import io.netty.util.DefaultAttributeMap;
@@ -213,7 +212,7 @@ public class Volume {
      * @throws IOException if an I/O error occurs while opening segments
      */
     public Volume(Context context, VolumeConfig config) throws IOException {
-        this.transactionWithRetry = getTransactionWithRetry(10, Duration.ofMillis(100));
+        this.transactionWithRetry = TransactionUtils.transactionWithRetryConfig(10, Duration.ofMillis(100));
 
         this.context = context;
         this.config = config;
@@ -228,43 +227,6 @@ public class Volume {
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
 
         openSegments(metadata.getSegments());
-    }
-
-    private Throwable getRootCause(Throwable t) {
-        Throwable result = t;
-        while (result.getCause() != null && result.getCause() != result) {
-            result = result.getCause();
-        }
-        return result;
-    }
-
-    Retry getTransactionWithRetry(int maxAttempts, Duration waitDuration) {
-        return Retry.of("transaction-with-retry", RetryConfig.custom()
-                .maxAttempts(maxAttempts)
-                .waitDuration(waitDuration)
-                .retryOnException(throwable -> {
-                    if (throwable instanceof RetryableStateException) {
-                        return true;
-                    }
-
-                    Throwable root = getRootCause(throwable);
-
-                    // Network-transient
-                    if (root instanceof IOException) {
-                        return true;
-                    }
-
-                    // FDB retry-safe codes
-                    if (root instanceof FDBException fdb) {
-                        int code = fdb.getCode();
-                        return code == 1007 || // transaction_too_old
-                                code == 1020 || // not_committed (conflict)
-                                code == 1021 || // commit_unknown_result
-                                code == 1031; // transaction_timed_out
-                    }
-
-                    return false;
-                }).build());
     }
 
     /**

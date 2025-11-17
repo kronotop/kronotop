@@ -18,6 +18,7 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
@@ -300,7 +301,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
                 }
 
                 // Try many times because the CI/CD hosts might be slow.
-                volume.getTransactionWithRetry(250, Duration.ofMillis(100)).executeRunnable(() -> {
+                TransactionUtils.transactionWithRetryConfig(250, Duration.ofMillis(100)).executeRunnable(() -> {
                     try (Transaction tr = context.getFoundationDB().createTransaction()) {
                         VolumeSession session = new VolumeSession(tr, prefix);
                         UpdateResult result;
@@ -384,7 +385,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
                 Versionstamp[] keysArray = keysToDelete.toArray(new Versionstamp[0]);
 
                 // Try many times because the CI/CD hosts might be slow.
-                volume.getTransactionWithRetry(250, Duration.ofMillis(100)).executeRunnable(() -> {
+                TransactionUtils.transactionWithRetryConfig(250, Duration.ofMillis(100)).executeRunnable(() -> {
                     try (Transaction tr = context.getFoundationDB().createTransaction()) {
                         VolumeSession session = new VolumeSession(tr, prefix);
                         DeleteResult result = volume.delete(session, keysArray);

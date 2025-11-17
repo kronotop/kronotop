@@ -16,9 +16,16 @@
 
 package com.kronotop.volume.segrep;
 
+import com.apple.foundationdb.directory.DirectoryLayer;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.internal.TransactionUtils;
+import com.kronotop.volume.VolumeConfigGenerator;
+import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +33,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +46,10 @@ public class ReplicationWatchDog implements Runnable {
     private final ShardKind shardKind;
     private final int shardId;
     private final Path destination;
+    private final String volumeName;
+    private final DirectorySubspace subspace;
+
+    private final Retry transactionWithRetry;
     private StatefulInternalConnection<byte[], byte[]> connection;
     private volatile boolean shutdown;
 
@@ -46,17 +58,34 @@ public class ReplicationWatchDog implements Runnable {
         this.shardKind = shardKind;
         this.shardId = shardId;
         this.executor = Executors.newSingleThreadExecutor();
+        this.transactionWithRetry = TransactionUtils.transactionWithRetryConfig(10, Duration.ofMillis(100));
 
         try {
             this.destination = Files.createDirectories(Path.of(destination));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+
+        this.volumeName = VolumeConfigGenerator.volumeName(shardKind, shardId);
+        this.subspace = openStandbySubspace();
+    }
+
+    private DirectorySubspace openStandbySubspace() {
+        KronotopDirectoryNode node = KronotopDirectory.kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                volumes().
+                bucket().
+                volume(volumeName).
+                standby(context.getMember().getId());
+
+        return transactionWithRetry.executeSupplier(() -> TransactionUtils.executeThenCommit(context,
+                tr -> DirectoryLayer.getDefault().createOrOpen(tr, node.toList()).join()
+        ));
     }
 
     @Override
     public void run() {
-
     }
 
     public void shutdown() {
