@@ -60,6 +60,7 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
         }
     }
 
+    @Deprecated
     protected Volume newStandbyVolume(Context standbyContext) {
         String dataDir = Paths.get(volumeConfigGenerator.getDataDir(), UUID.randomUUID().toString()).toString();
         VolumeConfig standbyVolumeConfig = volumeConfigGenerator.volumeConfig(dataDir);
