@@ -17,6 +17,8 @@
 package com.kronotop.volume.segrep;
 
 import com.kronotop.Context;
+import com.kronotop.cluster.client.StatefulInternalConnection;
+import com.kronotop.cluster.sharding.ShardKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,13 +35,16 @@ public class ReplicationWatchDog implements Runnable {
 
     private final Context context;
     private final ExecutorService executor;
-    private final String name;
+    private final ShardKind shardKind;
+    private final int shardId;
     private final Path destination;
+    private StatefulInternalConnection<byte[], byte[]> connection;
     private volatile boolean shutdown;
 
-    public ReplicationWatchDog(Context context, String name, String destination) {
+    public ReplicationWatchDog(Context context, ShardKind shardKind, int shardId, String destination) {
         this.context = context;
-        this.name = name;
+        this.shardKind = shardKind;
+        this.shardId = shardId;
         this.executor = Executors.newSingleThreadExecutor();
 
         try {
