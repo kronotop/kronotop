@@ -19,13 +19,22 @@ package com.kronotop.volume.segrep;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.TransactionUtils;
+import com.kronotop.server.Response;
 import com.kronotop.volume.VolumeConfigGenerator;
 import io.github.resilience4j.retry.Retry;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisConnectionException;
+import io.lettuce.core.codec.ByteArrayCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +59,7 @@ public class ReplicationWatchDog implements Runnable {
     private final DirectorySubspace subspace;
 
     private final Retry transactionWithRetry;
-    private StatefulInternalConnection<byte[], byte[]> connection;
+    private final ReplicationClient client;
     private volatile boolean shutdown;
 
     public ReplicationWatchDog(Context context, ShardKind shardKind, int shardId, String destination) {
@@ -68,6 +77,7 @@ public class ReplicationWatchDog implements Runnable {
 
         this.volumeName = VolumeConfigGenerator.volumeName(shardKind, shardId);
         this.subspace = openStandbySubspace();
+        this.client = new ReplicationClient(context, shardKind, shardId);
     }
 
     private DirectorySubspace openStandbySubspace() {
@@ -86,11 +96,18 @@ public class ReplicationWatchDog implements Runnable {
 
     @Override
     public void run() {
+        client.connect();
+        StatefulInternalConnection<byte[], byte[]> connection = client.connection();
+        if (!connection.sync().ping().equals(Response.PONG)) {
+            throw new KronotopException("Replication client health check has failed");
+        }
+        LOGGER.debug("Ready to start replication");
     }
 
     public void shutdown() {
         shutdown = true;
         executor.shutdownNow();
+        client.shutdown();
 
         try {
             if (!executor.awaitTermination(6, TimeUnit.SECONDS)) {
