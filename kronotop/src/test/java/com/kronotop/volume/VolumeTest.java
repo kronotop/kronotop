@@ -1255,4 +1255,40 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         // Clean up
         reopenedVolume.close();
     }
+
+    @Test
+    void shouldGetSegmentRangeAndRetrieveMultipleEntries() throws IOException {
+        byte[] first = new byte[]{1, 2, 3};
+        byte[] second = new byte[]{4, 5, 6};
+        byte[] third = new byte[]{7, 8, 9};
+        ByteBuffer[] entries = {
+                ByteBuffer.wrap(first),
+                ByteBuffer.wrap(second),
+                ByteBuffer.wrap(third)
+        };
+
+        AppendResult result;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+        result.updateEntryMetadataCache();
+
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
+
+        SegmentRange[] segmentRanges = new SegmentRange[]{
+                new SegmentRange(0, first.length),
+                new SegmentRange(first.length, second.length),
+                new SegmentRange(first.length + second.length, third.length)
+        };
+
+        ByteBuffer[] retrievedEntries = volume.getSegmentRange(segmentId, segmentRanges);
+
+        assertEquals(3, retrievedEntries.length);
+        assertArrayEquals(first, retrievedEntries[0].array());
+        assertArrayEquals(second, retrievedEntries[1].array());
+        assertArrayEquals(third, retrievedEntries[2].array());
+    }
 }
