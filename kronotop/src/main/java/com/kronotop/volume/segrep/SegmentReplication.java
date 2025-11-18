@@ -64,11 +64,10 @@ public class SegmentReplication {
     }
 
     private RandomAccessFile createOrOpenSegmentFile() throws IOException {
-        Path parent = Files.createDirectories(session.destination());
-        String fileName = Segment.generateFileName(session.segmentId());
-        Path segmentFilePath = parent.resolve(fileName);
+        Path segmenFilePath = Segment.getSegmentFilePath(session.destination().toAbsolutePath().toString(), session.segmentId());
+        Files.createDirectories(segmenFilePath.getParent());
         try {
-            RandomAccessFile file = new RandomAccessFile(segmentFilePath.toFile(), "rw");
+            RandomAccessFile file = new RandomAccessFile(segmenFilePath.toFile(), "rw");
             if (file.length() < session.segmentSize()) {
                 // Do not truncate the file, only extend it.
                 file.setLength(session.segmentSize());

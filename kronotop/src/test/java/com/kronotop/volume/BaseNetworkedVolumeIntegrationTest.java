@@ -39,6 +39,8 @@ import java.util.UUID;
 public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPServer {
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
 
+    protected final int SHARD_ID = 1;
+    protected final ShardKind SHARD_KIND = ShardKind.REDIS;
     protected Context context;
     protected Database database;
     protected KronotopTestInstance kronotopInstance;
@@ -53,7 +55,7 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
     public void setup() {
         super.setup();
         kronotopInstance = getInstances().getFirst();
-        volumeConfigGenerator = new VolumeConfigGenerator(kronotopInstance.getContext(), ShardKind.REDIS, 1);
+        volumeConfigGenerator = new VolumeConfigGenerator(kronotopInstance.getContext(), SHARD_KIND, SHARD_ID);
         volumeService = kronotopInstance.getContext().getService(VolumeService.NAME);
         channel = kronotopInstance.getChannel();
         context = kronotopInstance.getContext();

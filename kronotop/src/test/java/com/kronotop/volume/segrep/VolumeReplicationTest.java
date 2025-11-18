@@ -17,7 +17,6 @@
 package com.kronotop.volume.segrep;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.VolumeSession;
@@ -32,8 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
@@ -55,24 +53,33 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         number += (number / 2);
         appendEntries(number, length);
         // We have 1 full segment and 1 half
-        VolumeReplication replication = new VolumeReplication(context, ShardKind.REDIS, 1, destination.toString());
+        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
         try {
             replication.run();
 
-            List<SegmentAnalysis> analyses = volume.analyze();
-            assertEquals(2, analyses.size());
+            List<SegmentAnalysis> items = volume.analyze();
+            assertEquals(2, items.size());
 
-            for (SegmentAnalysis analysis : analyses) {
-                Path segmentFile = Segment.getSegmentFilePath(volume.getConfig().dataDir(), analysis.segmentId());
-                byte[] originalSha1 = sha1(segmentFile.toString());
 
-                try (var stream = Files.list(Path.of(volume.getConfig().dataDir()))) {
-                    stream.forEach(path -> {
-                        Path replicatedSegmentFile = path.resolve(Segment.generateFileName(analysis.segmentId()));
-                        byte[] replicatedSha1 = sha1(replicatedSegmentFile.toString());
-                        assertArrayEquals(originalSha1, replicatedSha1);
-                    });
+            int fullSegments = 0;
+            for (SegmentAnalysis analysis : items) {
+                if (analysis.size() - analysis.usedBytes() < length) {
+                    fullSegments++;
                 }
+            }
+            assertEquals(1, fullSegments);
+
+            SegmentAnalysis analysis = items.stream().filter(i -> i.size() - i.usedBytes() < length).findFirst().orElse(null);
+            assertNotNull(analysis);
+
+            Path segmentFile = Segment.getSegmentFilePath(volume.getConfig().dataDir(), analysis.segmentId());
+            byte[] expected = sha1(segmentFile.toString());
+            try (var stream = Files.list(destination)) {
+                stream.forEach(path -> {
+                    Path replicatedSegmentFile = path.resolve(Segment.generateFileName(analysis.segmentId()));
+                    byte[] actual = sha1(replicatedSegmentFile.toString());
+                    assertArrayEquals(expected, actual);
+                });
             }
         } finally {
             replication.shutdown();
