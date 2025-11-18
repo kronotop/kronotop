@@ -144,7 +144,11 @@ public class SegmentReplication {
                     position = writeChunks((byte[]) chunk, position);
 
                     file.getFD().sync();
-                    setPosition(position);
+                    if (isLastSegment) {
+                        setPosition(Math.min(position, limitPosition));
+                    } else {
+                        setPosition(position);
+                    }
                 }
             }
         } catch (IOException e) {
