@@ -49,7 +49,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test(@TempDir Path destination) throws IOException {
+    void shouldReplicateSegments(@TempDir Path destination) throws IOException {
         int length = 1024;
         int number = Math.toIntExact(volume.getConfig().segmentSize() / length);
         number += (number / 2);
