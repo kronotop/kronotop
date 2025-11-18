@@ -96,6 +96,13 @@ public class VolumeReplication implements Runnable {
         ));
     }
 
+    private long getChunkSize() {
+        return switch (shardKind) {
+            case BUCKET -> context.getConfig().getLong("bucket.volume.segment_replication_chunk_size");
+            case REDIS -> context.getConfig().getLong("redis.volume_syncer.segment_replication_chunk_size");
+        };
+    }
+
     @Override
     public void run() {
         client.connect();
@@ -105,12 +112,19 @@ public class VolumeReplication implements Runnable {
         }
         LOGGER.debug("Ready to start replication");
 
+        long chunkSize = getChunkSize();
         ReplicationCursor cursor = TransactionUtils.execute(context, tr -> SegmentReplicationState.readCursor(tr, subspace));
         long lastPosition = segmentSize - 1;
         if (lastPosition > cursor.position()) {
-            ReplicationSession session = new ReplicationSession(volume, destination, cursor.segmentId(), cursor.position(), segmentSize);
+            ReplicationSession session = new ReplicationSession(
+                    volume,
+                    destination,
+                    cursor.segmentId(),
+                    cursor.position(),
+                    chunkSize, segmentSize
+            );
             SegmentReplication replication = new SegmentReplication(context, subspace, client, session);
-            replication.run();
+            replication.start();
         }
     }
 

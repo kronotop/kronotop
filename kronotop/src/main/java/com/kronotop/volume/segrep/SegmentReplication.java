@@ -40,7 +40,6 @@ import java.util.concurrent.CountDownLatch;
 
 public class SegmentReplication {
     private static final Logger LOGGER = LoggerFactory.getLogger(SegmentReplication.class);
-    private static final long CHUNK_SIZE = 1 << 24;
     private final Context context;
     private final DirectorySubspace subspace;
     private final RandomAccessFile file;
@@ -110,7 +109,7 @@ public class SegmentReplication {
         });
     }
 
-    public void run() {
+    public void start() {
         long position = session.position();
         long length;
 
@@ -118,7 +117,7 @@ public class SegmentReplication {
             while (position < session.segmentSize()) {
                 if (shutdown) break;
 
-                length = Math.min(CHUNK_SIZE, session.segmentSize() - position);
+                length = Math.min(session.chunkSize(), session.segmentSize() - position);
 
                 SegmentRange range = new SegmentRange(position, length);
                 List<Object> chunks = client.connection().sync()

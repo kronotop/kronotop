@@ -18,5 +18,5 @@ package com.kronotop.volume.segrep;
 
 import java.nio.file.Path;
 
-public record ReplicationSession(String volume, Path destination, long segmentId, long position, long segmentSize) {
+public record ReplicationSession(String volume, Path destination, long segmentId, long position, long chunkSize, long segmentSize) {
 }
