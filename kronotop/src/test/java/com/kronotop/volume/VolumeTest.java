@@ -1291,4 +1291,26 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         assertArrayEquals(second, retrievedEntries[1].array());
         assertArrayEquals(third, retrievedEntries[2].array());
     }
+
+    @Test
+    void shouldThrowEntryOutOfBoundExceptionWhenSegmentRangeExceedsSize() throws IOException {
+        byte[] data = new byte[]{1, 2, 3};
+        ByteBuffer[] entries = {ByteBuffer.wrap(data)};
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
+        long segmentSize = segmentAnalysis.getFirst().size();
+
+        SegmentRange[] segmentRanges = new SegmentRange[]{
+                new SegmentRange(segmentSize - 10, 20)
+        };
+
+        assertThrows(EntryOutOfBoundException.class, () -> volume.getSegmentRange(segmentId, segmentRanges));
+    }
 }
