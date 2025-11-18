@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
-    public void test_SEGMENTRANGE() throws IOException {
+    public void shouldRetrieveMultipleSegmentRanges() throws IOException {
         ByteBuffer[] entries = {
                 ByteBuffer.wrap(new byte[]{1, 2, 3}),
                 ByteBuffer.wrap(new byte[]{4, 5, 6}),
@@ -73,7 +73,7 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_SEGMENTRANGE_VolumeNotOpenException() {
+    public void shouldThrowVolumeNotOpenExceptionWhenVolumeNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -86,7 +86,7 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_SEGMENTRANGE_SegmentNotFoundException() {
+    public void shouldThrowSegmentNotFoundExceptionWhenSegmentNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -95,6 +95,6 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         Object response = kronotopInstance.getChannel().readOutbound();
         ErrorRedisMessage message = (ErrorRedisMessage) response;
-        assertEquals("ERR Segment: '1' could not be found", message.content());
+        assertEquals("ERR Segment with id: '1' could not be found", message.content());
     }
 }
