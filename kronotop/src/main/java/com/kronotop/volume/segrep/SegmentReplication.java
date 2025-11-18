@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.segrep;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
@@ -78,6 +79,33 @@ public class SegmentReplication {
         }
     }
 
+    private long writeChunks(byte[] chunk, long position) throws IOException {
+        ByteBuffer buffer = ByteBuffer.wrap(chunk);
+        long writePosition = position;
+        while (buffer.hasRemaining()) {
+            int nr = file.getChannel().write(buffer, writePosition);
+            if (nr == 0) {
+                // IO stall?
+                Thread.onSpinWait();
+                continue;
+            }
+            writePosition += nr;
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("{} bytes has been written to segment {}", nr, session.segmentId());
+            }
+        }
+        return writePosition;
+    }
+
+    private void setPosition(final long position) {
+        transactionWithRetry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                SegmentReplicationState.setPosition(tr, subspace, session.segmentId(), position);
+                tr.commit().join();
+            }
+        });
+    }
+
     public void run() {
         long position = session.position();
         long length = CHUNK_SIZE;
@@ -90,21 +118,10 @@ public class SegmentReplication {
                 SegmentRange range = new SegmentRange(position, length);
                 List<Object> chunks = client.connection().sync().segmentrange(session.volume(), session.segmentId(), range);
                 for (Object chunk : chunks) {
-                    ByteBuffer buffer = ByteBuffer.wrap((byte[]) chunk);
-                    int nr = file.getChannel().write(buffer, position);
-                    if (LOGGER.isTraceEnabled()) {
-                        LOGGER.trace("{} bytes has been written to segment {}", nr, session.segmentId());
-                    }
+                    position = writeChunks((byte[]) chunk, position);
                 }
                 file.getFD().sync();
-                position += length;
-                final long finalPosition = position;
-                transactionWithRetry.executeRunnable(() -> {
-                    TransactionUtils.executeThenCommit(context, tr -> {
-                        SegmentReplicationState.setPosition(tr, subspace, session.segmentId(), finalPosition);
-                        return null;
-                    });
-                });
+                setPosition(position);
             } while (position < session.segmentSize() && !shutdown);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
