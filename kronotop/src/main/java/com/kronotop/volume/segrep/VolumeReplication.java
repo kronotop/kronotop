@@ -36,6 +36,8 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -103,6 +105,18 @@ public class VolumeReplication implements Runnable {
         };
     }
 
+    private Long nextSegmentId(long segmentId) {
+        List<Long> segmentIds = client.connection().sync().listSegments(volume);
+        int idx = Collections.binarySearch(segmentIds, segmentId);
+        if (idx >= 0) {
+            idx++;
+        } else {
+            idx = -(idx + 1);
+        }
+        return idx < segmentIds.size() ? segmentIds.get(idx) : null;
+    }
+
+
     @Override
     public void run() {
         client.connect();
@@ -113,15 +127,35 @@ public class VolumeReplication implements Runnable {
         LOGGER.debug("Ready to start replication");
 
         long chunkSize = getChunkSize();
-        ReplicationCursor cursor = TransactionUtils.execute(context, tr -> SegmentReplicationState.readCursor(tr, subspace));
-        long lastPosition = segmentSize - 1;
-        if (lastPosition > cursor.position()) {
+
+        while (true) {
+            ReplicationCursor cursor = TransactionUtils.execute(context, tr -> SegmentReplicationState.readCursor(tr, subspace));
+            // Guard
+            if (cursor.position() > segmentSize) {
+                throw new IllegalStateException("cursor.position exceeds segmentSize");
+            }
+
+            Long segmentId;
+            long position = 0;
+            if (cursor.position() < segmentSize) {
+                // continue from where we left off
+                position = cursor.position();
+                segmentId = cursor.segmentId();
+            } else {
+                segmentId = nextSegmentId(cursor.segmentId());
+            }
+            if (segmentId == null) {
+                // Consumed the last segment. Quit.
+                break;
+            }
+
             ReplicationSession session = new ReplicationSession(
                     volume,
                     destination,
-                    cursor.segmentId(),
-                    cursor.position(),
-                    chunkSize, segmentSize
+                    segmentId,
+                    position,
+                    chunkSize,
+                    segmentSize
             );
             SegmentReplication replication = new SegmentReplication(context, subspace, client, session);
             replication.start();
