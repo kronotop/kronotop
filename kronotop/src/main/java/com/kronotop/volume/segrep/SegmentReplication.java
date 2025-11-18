@@ -84,25 +84,24 @@ public class SegmentReplication {
     private long writeChunks(byte[] chunk, long position) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(chunk);
         long writePosition = position;
-        while (buffer.hasRemaining() && !shutdown) {
+
+        while (buffer.hasRemaining()) {
             int nr = file.getChannel().write(buffer, writePosition);
             if (nr == 0) {
-                // IO stall?
                 Thread.onSpinWait();
                 continue;
             }
             writePosition += nr;
+
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("{} bytes has been written to segment {}", nr, session.segmentId());
+                LOGGER.trace("{} bytes written to segment {}", nr, session.segmentId());
             }
         }
+
         return writePosition;
     }
 
     private void setPosition(final long position) {
-        if (shutdown) {
-            return;
-        }
         transactionWithRetry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 SegmentReplicationState.setPosition(tr, subspace, session.segmentId(), position);
@@ -113,24 +112,28 @@ public class SegmentReplication {
 
     public void run() {
         long position = session.position();
-        long length = CHUNK_SIZE;
+        long length;
 
         try {
-            do {
-                if (position + CHUNK_SIZE > session.segmentSize()) {
-                    length = session.segmentSize() - position;
-                }
+            while (position < session.segmentSize()) {
+                if (shutdown) break;
+
+                length = Math.min(CHUNK_SIZE, session.segmentSize() - position);
+
                 SegmentRange range = new SegmentRange(position, length);
-                List<Object> chunks = client.connection().sync().segmentrange(session.volume(), session.segmentId(), range);
-                for (Object chunk : chunks) {
-                    if (shutdown) {
-                        break;
-                    }
-                    position = writeChunks((byte[]) chunk, position);
+                List<Object> chunks = client.connection().sync()
+                        .segmentrange(session.volume(), session.segmentId(), range);
+                if (chunks.isEmpty()) {
+                    throw new KronotopException("Segment range returned no chunks");
                 }
-                file.getFD().sync();
-                setPosition(position);
-            } while (position < session.segmentSize() && !shutdown);
+                for (Object chunk : chunks) {
+                    if (shutdown) break;
+                    position = writeChunks((byte[]) chunk, position);
+
+                    file.getFD().sync();
+                    setPosition(position);
+                }
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         } finally {
