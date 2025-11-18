@@ -108,12 +108,27 @@ public class SegmentReplication {
         });
     }
 
+    private boolean isLastSegment(long segmentId) {
+        List<Long> segmentIds = client.connection().sync().listSegments(session.volume());
+        if (segmentIds.isEmpty()) {
+            return true;
+        }
+        long lastSegmentId = segmentIds.getLast();
+        return lastSegmentId == segmentId;
+    }
+
     public void start() {
+        long limitPosition = session.segmentSize();
         long position = session.position();
         long length;
 
+        boolean isLastSegment = isLastSegment(session.segmentId());
+        if (isLastSegment) {
+            limitPosition = client.connection().sync().findPosition(session.volume(), session.segmentId());
+        }
+
         try {
-            while (position < session.segmentSize()) {
+            while (position < limitPosition) {
                 if (shutdown) break;
 
                 length = Math.min(session.chunkSize(), session.segmentSize() - position);

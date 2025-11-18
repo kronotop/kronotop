@@ -116,7 +116,6 @@ public class VolumeReplication implements Runnable {
         return idx < segmentIds.size() ? segmentIds.get(idx) : null;
     }
 
-
     @Override
     public void run() {
         client.connect();
