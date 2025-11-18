@@ -16,27 +16,35 @@
 
 package com.kronotop.volume.segrep;
 
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.Context;
-import com.kronotop.directory.KronotopDirectory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class SegmentReplicationState {
     public static final byte SEGMENTS = 0x00;
-    private final Context context;
-
-    public SegmentReplicationState(Context context) {
-        this.context = context;
-    }
 
     public static void setPosition(Transaction tr, DirectorySubspace subspace, long segmentId, long position) {
         Tuple tuple = Tuple.from(SEGMENTS, segmentId);
         byte[] key = subspace.pack(tuple.pack());
         byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(position).array();
         tr.set(key, value);
+    }
+
+    public static ReplicationCursor readCursor(Transaction tr, DirectorySubspace subspace) {
+        Tuple tuple = Tuple.from(SEGMENTS);
+        byte[] prefix = subspace.pack(tuple);
+        Range range = Range.startsWith(prefix);
+        for (KeyValue entry : tr.getRange(range, 1, true)) {
+            Tuple key = Tuple.fromBytes(entry.getKey());
+            long segmentId = key.getLong(1);
+            long position = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
+            return new ReplicationCursor(segmentId, position);
+        }
+        return new ReplicationCursor(0, 0);
     }
 }

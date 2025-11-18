@@ -50,7 +50,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         number += (number / 2);
         appendEntries(number, length);
 
-        ReplicationWatchDog watchDog = new ReplicationWatchDog(context, ShardKind.REDIS, 1, destination.toString());
+        VolumeReplication watchDog = new VolumeReplication(context, ShardKind.REDIS, 1, destination.toString());
         watchDog.run();
     }
 }

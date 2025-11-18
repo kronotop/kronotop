@@ -27,7 +27,7 @@ import com.kronotop.cluster.sharding.ShardKind;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.codec.ByteArrayCodec;
 
-class ReplicationClient {
+public class ReplicationClient {
     private final Context context;
     private final ShardKind shardKind;
     private final int shardId;

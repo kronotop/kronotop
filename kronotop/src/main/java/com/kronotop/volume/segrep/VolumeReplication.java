@@ -36,27 +36,27 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class ReplicationWatchDog implements Runnable {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationWatchDog.class);
+public class VolumeReplication implements Runnable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(VolumeReplication.class);
 
     private final Context context;
     private final ExecutorService executor;
     private final ShardKind shardKind;
     private final int shardId;
     private final Path destination;
-    private final String volumeName;
+    private final String volume;
+    private final long segmentSize;
     private final DirectorySubspace subspace;
 
     private final Retry transactionWithRetry;
     private final ReplicationClient client;
     private volatile boolean shutdown;
 
-    public ReplicationWatchDog(Context context, ShardKind shardKind, int shardId, String destination) {
+    public VolumeReplication(Context context, ShardKind shardKind, int shardId, String destination) {
         this.context = context;
         this.shardKind = shardKind;
         this.shardId = shardId;
@@ -69,9 +69,17 @@ public class ReplicationWatchDog implements Runnable {
             throw new UncheckedIOException(e);
         }
 
-        this.volumeName = VolumeConfigGenerator.volumeName(shardKind, shardId);
+        this.segmentSize = getSegmentSize();
+        this.volume = VolumeConfigGenerator.volumeName(shardKind, shardId);
         this.subspace = openStandbySubspace();
         this.client = new ReplicationClient(context, shardKind, shardId);
+    }
+
+    private long getSegmentSize() {
+        return switch (shardKind) {
+            case REDIS -> context.getConfig().getLong("redis.volume_syncer.segment_size");
+            case BUCKET -> context.getConfig().getLong("bucket.volume.segment_size");
+        };
     }
 
     private DirectorySubspace openStandbySubspace() {
@@ -80,7 +88,7 @@ public class ReplicationWatchDog implements Runnable {
                 metadata().
                 volumes().
                 bucket().
-                volume(volumeName).
+                volume(volume).
                 standby(context.getMember().getId());
 
         return transactionWithRetry.executeSupplier(() -> TransactionUtils.executeThenCommit(context,
@@ -96,6 +104,14 @@ public class ReplicationWatchDog implements Runnable {
             throw new KronotopException("Replication client health check has failed");
         }
         LOGGER.debug("Ready to start replication");
+
+        ReplicationCursor cursor = TransactionUtils.execute(context, tr -> SegmentReplicationState.readCursor(tr, subspace));
+        long lastPosition = segmentSize - 1;
+        if (lastPosition > cursor.position()) {
+            ReplicationSession session = new ReplicationSession(volume, destination, cursor.segmentId(), cursor.position(), segmentSize);
+            SegmentReplication replication = new SegmentReplication(context, subspace, client, session);
+            replication.run();
+        }
     }
 
     public void shutdown() {
