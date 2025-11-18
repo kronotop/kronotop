@@ -55,16 +55,14 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         number += (number / 2);
         appendEntries(number, length);
         // We have 1 full segment and 1 half
-
         VolumeReplication replication = new VolumeReplication(context, ShardKind.REDIS, 1, destination.toString());
-        replication.run();
+        try {
+            replication.run();
 
-        List<SegmentAnalysis> analyses = volume.analyze();
-        assertEquals(2, analyses.size());
+            List<SegmentAnalysis> analyses = volume.analyze();
+            assertEquals(2, analyses.size());
 
-        for (SegmentAnalysis analysis : analyses) {
-            if (analysis.size() - analysis.usedBytes() < length) {
-                // Found a full segment
+            for (SegmentAnalysis analysis : analyses) {
                 Path segmentFile = Segment.getSegmentFilePath(volume.getConfig().dataDir(), analysis.segmentId());
                 byte[] originalSha1 = sha1(segmentFile.toString());
 
@@ -76,6 +74,8 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                     });
                 }
             }
+        } finally {
+            replication.shutdown();
         }
     }
 }
