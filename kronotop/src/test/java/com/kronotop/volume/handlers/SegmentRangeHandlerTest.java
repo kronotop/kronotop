@@ -97,4 +97,33 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Segment with id: '1' could not be found", message.content());
     }
+
+    @Test
+    public void shouldThrowEntryOutOfBoundExceptionWhenRangeExceedsSegmentSize() throws IOException {
+        ByteBuffer[] entries = {
+                ByteBuffer.wrap(new byte[]{1, 2, 3}),
+        };
+        try (Transaction tr = database.createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
+        long segmentSize = segmentAnalysis.getFirst().size();
+
+        InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        SegmentRange[] ranges = {
+                new SegmentRange(segmentSize - 10, 20)
+        };
+        cmd.segmentrange(volumeConfig.name(), segmentId, ranges).encode(buf);
+        kronotopInstance.getChannel().writeInbound(buf);
+
+        Object response = kronotopInstance.getChannel().readOutbound();
+        ErrorRedisMessage message = (ErrorRedisMessage) response;
+        assertEquals("OUTOFBOUND position: " + (segmentSize - 10) + ", length: 20 but size: " + segmentSize, message.content());
+    }
 }
