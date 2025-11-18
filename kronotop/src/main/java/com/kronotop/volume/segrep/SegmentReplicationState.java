@@ -25,26 +25,75 @@ import com.apple.foundationdb.tuple.Tuple;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+/**
+ * Manages segment replication state in FoundationDB for volume replication.
+ * Tracks replication progress via cursor positions and error messages per segment.
+ */
 public class SegmentReplicationState {
-    public static final byte SEGMENTS = 0x00;
+    private static final byte SEGMENTS = 0x00;
+    private static final byte ERROR_MESSAGE = 0x01;
 
+    /**
+     * Records the replication position for a segment.
+     *
+     * @param tr the FoundationDB transaction
+     * @param subspace the directory subspace for replication state
+     * @param segmentId the segment identifier
+     * @param position the current replication position within the segment
+     */
     public static void setPosition(Transaction tr, DirectorySubspace subspace, long segmentId, long position) {
         Tuple tuple = Tuple.from(SEGMENTS, segmentId);
-        byte[] key = subspace.pack(tuple.pack());
+        byte[] key = subspace.pack(tuple);
         byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(position).array();
         tr.set(key, value);
     }
 
+    /**
+     * Retrieves the latest replication cursor from the highest segment.
+     * Returns a cursor with the most recent segment ID and its replication position.
+     *
+     * @param tr the FoundationDB transaction
+     * @param subspace the directory subspace for replication state
+     * @return the replication cursor with segment ID and position, or (0,0) if no segments exist
+     */
     public static ReplicationCursor readCursor(Transaction tr, DirectorySubspace subspace) {
         Tuple tuple = Tuple.from(SEGMENTS);
         byte[] prefix = subspace.pack(tuple);
         Range range = Range.startsWith(prefix);
-        for (KeyValue entry : tr.getRange(range, 1, true)) {
-            Tuple key = Tuple.fromBytes(entry.getKey());
+        for (KeyValue keyValue : tr.getRange(range, 1, true)) {
+            Tuple key = subspace.unpack(keyValue.getKey());
             long segmentId = key.getLong(1);
-            long position = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
+            long position = ByteBuffer.wrap(keyValue.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
             return new ReplicationCursor(segmentId, position);
         }
         return new ReplicationCursor(0, 0);
+    }
+
+    /**
+     * Stores an error message for a specific segment.
+     *
+     * @param tr the FoundationDB transaction
+     * @param subspace the directory subspace for replication state
+     * @param segmentId the segment identifier
+     * @param message the error message as a byte array
+     */
+    public static void setErrorMessage(Transaction tr, DirectorySubspace subspace, long segmentId, byte[] message) {
+        Tuple tuple = Tuple.from(ERROR_MESSAGE, segmentId);
+        byte[] key = subspace.pack(tuple);
+        tr.set(key, message);
+    }
+
+    /**
+     * Retrieves the error message for a specific segment.
+     *
+     * @param tr the FoundationDB transaction
+     * @param subspace the directory subspace for replication state
+     * @param segmentId the segment identifier
+     * @return the error message as a byte array, or null if no error exists
+     */
+    public static byte[] readErrorMessage(Transaction tr, DirectorySubspace subspace, long segmentId) {
+        Tuple tuple = Tuple.from(ERROR_MESSAGE, segmentId);
+        byte[] key = subspace.pack(tuple);
+        return tr.get(key).join();
     }
 }
