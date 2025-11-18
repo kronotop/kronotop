@@ -36,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 public class SegmentReplication {
     private static final Logger LOGGER = LoggerFactory.getLogger(SegmentReplication.class);
@@ -47,6 +48,7 @@ public class SegmentReplication {
     private final ReplicationSession session;
     private final Retry transactionWithRetry;
 
+    private final CountDownLatch latch = new CountDownLatch(1);
     private volatile boolean shutdown;
 
     public SegmentReplication(Context context, DirectorySubspace subspace, ReplicationClient client, ReplicationSession session) {
@@ -82,7 +84,7 @@ public class SegmentReplication {
     private long writeChunks(byte[] chunk, long position) throws IOException {
         ByteBuffer buffer = ByteBuffer.wrap(chunk);
         long writePosition = position;
-        while (buffer.hasRemaining()) {
+        while (buffer.hasRemaining() && !shutdown) {
             int nr = file.getChannel().write(buffer, writePosition);
             if (nr == 0) {
                 // IO stall?
@@ -98,6 +100,9 @@ public class SegmentReplication {
     }
 
     private void setPosition(final long position) {
+        if (shutdown) {
+            return;
+        }
         transactionWithRetry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 SegmentReplicationState.setPosition(tr, subspace, session.segmentId(), position);
@@ -118,6 +123,9 @@ public class SegmentReplication {
                 SegmentRange range = new SegmentRange(position, length);
                 List<Object> chunks = client.connection().sync().segmentrange(session.volume(), session.segmentId(), range);
                 for (Object chunk : chunks) {
+                    if (shutdown) {
+                        break;
+                    }
                     position = writeChunks((byte[]) chunk, position);
                 }
                 file.getFD().sync();
@@ -125,10 +133,15 @@ public class SegmentReplication {
             } while (position < session.segmentSize() && !shutdown);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        } finally {
+            latch.countDown();
         }
     }
 
-    public void shutdown() {
+    public void shutdown() throws InterruptedException, IOException {
         shutdown = true;
+        latch.await();
+        file.getFD().sync();
+        file.close();
     }
 }
