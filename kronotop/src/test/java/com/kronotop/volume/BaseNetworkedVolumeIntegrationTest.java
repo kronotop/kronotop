@@ -25,10 +25,15 @@ import com.kronotop.cluster.sharding.ShardKind;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Paths;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPServer {
@@ -81,6 +86,19 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
             entries[i] = ByteBuffer.allocate(length).put(data).flip();
         }
         return entries;
+    }
+
+    public byte[] sha1(String filePath) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-1");
+            try (InputStream in = new DigestInputStream(new FileInputStream(filePath), digest)) {
+                byte[] buf = new byte[4096];
+                while (in.read(buf) != -1) { /* no-op */ }
+            }
+            return digest.digest();
+        } catch (IOException | NoSuchAlgorithmException exp) {
+            throw new RuntimeException(exp);
+        }
     }
 
     protected static class BaseVolumeTestWrapper extends BaseVolumeTest {

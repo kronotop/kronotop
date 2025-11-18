@@ -364,7 +364,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldCleanupOrphanFiles() throws IOException {
-        ByteBuffer[] entries = getEntries(3);
+        ByteBuffer[] entries = getEntries(3, 10);
 
         VolumeService service = context.getService(VolumeService.NAME);
         Volume shard = service.findVolume("redis-shard-1");

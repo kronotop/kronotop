@@ -21,16 +21,21 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.VolumeSession;
+import com.kronotop.volume.segment.Segment;
+import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
+class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
     private void appendEntries(int number, int length) throws IOException {
         ByteBuffer[] entries = getEntries(number, length);
@@ -49,8 +54,28 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         int number = Math.toIntExact(volume.getConfig().segmentSize() / length);
         number += (number / 2);
         appendEntries(number, length);
+        // We have 1 full segment and 1 half
 
-        VolumeReplication watchDog = new VolumeReplication(context, ShardKind.REDIS, 1, destination.toString());
-        watchDog.run();
+        VolumeReplication replication = new VolumeReplication(context, ShardKind.REDIS, 1, destination.toString());
+        replication.run();
+
+        List<SegmentAnalysis> analyses = volume.analyze();
+        assertEquals(2, analyses.size());
+
+        for (SegmentAnalysis analysis : analyses) {
+            if (analysis.size() - analysis.usedBytes() < length) {
+                // Found a full segment
+                Path segmentFile = Segment.getSegmentFilePath(volume.getConfig().dataDir(), analysis.segmentId());
+                byte[] originalSha1 = sha1(segmentFile.toString());
+
+                try (var stream = Files.list(Path.of(volume.getConfig().dataDir()))) {
+                    stream.forEach(path -> {
+                        Path replicatedSegmentFile = path.resolve(Segment.generateFileName(analysis.segmentId()));
+                        byte[] replicatedSha1 = sha1(replicatedSegmentFile.toString());
+                        assertArrayEquals(originalSha1, replicatedSha1);
+                    });
+                }
+            }
+        }
     }
 }
