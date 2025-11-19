@@ -87,7 +87,7 @@ public class VolumeReplication implements Runnable {
         };
     }
 
-    private DirectorySubspace openStandbySubspace() {
+    DirectorySubspace openStandbySubspace() {
         KronotopDirectoryNode node = KronotopDirectory.kronotop().
                 cluster(context.getClusterName()).
                 metadata().
@@ -126,17 +126,6 @@ public class VolumeReplication implements Runnable {
         }
         long lastSegmentId = segmentIds.getLast();
         return lastSegmentId == segmentId;
-    }
-
-    private void setSegmentReplicationFailed(long segmentId, Throwable throwable) {
-        Throwable root = getRootCause(throwable);
-        transactionWithRetry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                SegmentReplicationState.setStatus(tr, subspace, segmentId, SegmentReplicationStatus.FAILED);
-                SegmentReplicationState.setErrorMessage(tr, subspace, segmentId, root.getMessage());
-                tr.commit().join();
-            }
-        });
     }
 
     @Override
@@ -180,12 +169,7 @@ public class VolumeReplication implements Runnable {
                     segmentSize
             );
             SegmentReplication replication = new SegmentReplication(context, subspace, client, session);
-            try {
-                replication.start();
-            } catch (Exception exp) {
-                setSegmentReplicationFailed(segmentId, exp);
-                return;
-            }
+            replication.start();
 
             if (isLastSegment(segmentId)) {
                 // TODO: Implement CDC

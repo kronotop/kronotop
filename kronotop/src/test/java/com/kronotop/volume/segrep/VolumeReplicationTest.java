@@ -17,6 +17,8 @@
 package com.kronotop.volume.segrep;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.VolumeSession;
@@ -81,6 +83,12 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                     assertArrayEquals(expected, actual);
                 });
             }
+
+            DirectorySubspace standbySubspace = replication.openStandbySubspace();
+            SegmentReplicationStatus status = TransactionUtils.execute(context, tr ->
+                    SegmentReplicationState.readStatus(tr, standbySubspace, analysis.segmentId())
+            );
+            assertEquals(SegmentReplicationStatus.DONE, status);
         } finally {
             replication.shutdown();
         }
@@ -119,6 +127,11 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                     assertArrayEquals(expected, actual);
                 });
             }
+            DirectorySubspace standbySubspace = replication.openStandbySubspace();
+            SegmentReplicationStatus status = TransactionUtils.execute(context, tr ->
+                    SegmentReplicationState.readStatus(tr, standbySubspace, analysis.segmentId())
+            );
+            assertEquals(SegmentReplicationStatus.RUNNING, status);
         } finally {
             replication.shutdown();
         }

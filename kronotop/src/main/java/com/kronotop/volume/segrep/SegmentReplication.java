@@ -38,6 +38,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+import static com.google.common.base.Throwables.getRootCause;
+
 public class SegmentReplication {
     private static final Logger LOGGER = LoggerFactory.getLogger(SegmentReplication.class);
     private final Context context;
@@ -61,6 +63,26 @@ public class SegmentReplication {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private void updateStatus(long segmentId, SegmentReplicationStatus status) {
+        transactionWithRetry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                SegmentReplicationState.setStatus(tr, subspace, segmentId, status);
+                tr.commit().join();
+            }
+        });
+    }
+
+    private void markFailed(long segmentId, Throwable throwable) {
+        Throwable root = getRootCause(throwable);
+        transactionWithRetry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                SegmentReplicationState.setStatus(tr, subspace, segmentId, SegmentReplicationStatus.FAILED);
+                SegmentReplicationState.setErrorMessage(tr, subspace, segmentId, root.getMessage());
+                tr.commit().join();
+            }
+        });
     }
 
     private RandomAccessFile createOrOpenSegmentFile() throws IOException {
@@ -117,7 +139,7 @@ public class SegmentReplication {
         return lastSegmentId == segmentId;
     }
 
-    public void start() {
+    private void startInternal() {
         long limitPosition = session.segmentSize();
         long position = session.position();
         long length;
@@ -162,6 +184,18 @@ public class SegmentReplication {
             throw new UncheckedIOException(e);
         } finally {
             latch.countDown();
+        }
+    }
+
+    public void start() {
+        try {
+            updateStatus(session.segmentId(), SegmentReplicationStatus.RUNNING);
+            startInternal();
+            if (!isLastSegment(session.segmentId())) {
+                updateStatus(session.segmentId(), SegmentReplicationStatus.DONE);
+            }
+        } catch (Exception exp) {
+            markFailed(session.segmentId(), exp);
         }
     }
 
