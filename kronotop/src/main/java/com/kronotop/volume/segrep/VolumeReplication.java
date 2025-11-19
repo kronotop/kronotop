@@ -132,7 +132,7 @@ public class VolumeReplication implements Runnable {
         Throwable root = getRootCause(throwable);
         transactionWithRetry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                SegmentReplicationState.setErrorMessage(tr, subspace, segmentId, root.getMessage().getBytes());
+                SegmentReplicationState.setErrorMessage(tr, subspace, segmentId, root.getMessage());
                 tr.commit().join();
             }
         });

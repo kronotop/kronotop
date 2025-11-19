@@ -100,7 +100,7 @@ class SegmentReplicationStateTest extends BaseStandaloneInstanceTest {
     void shouldSetAndReadErrorMessage() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-error-message");
         long segmentId = 5L;
-        byte[] expectedMessage = "Replication error occurred".getBytes();
+        String expectedMessage = "Replication error occurred";
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SegmentReplicationState.setErrorMessage(tr, subspace, segmentId, expectedMessage);
@@ -108,8 +108,8 @@ class SegmentReplicationStateTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] actualMessage = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId);
-            assertArrayEquals(expectedMessage, actualMessage);
+            String actualMessage = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId);
+            assertEquals(expectedMessage, actualMessage);
         }
     }
 
@@ -117,8 +117,8 @@ class SegmentReplicationStateTest extends BaseStandaloneInstanceTest {
     void shouldUpdateErrorMessageForExistingSegment() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-update-error");
         long segmentId = 6L;
-        byte[] initialMessage = "Initial error".getBytes();
-        byte[] updatedMessage = "Updated error message".getBytes();
+        String initialMessage = "Initial error";
+        String updatedMessage = "Updated error message";
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SegmentReplicationState.setErrorMessage(tr, subspace, segmentId, initialMessage);
@@ -131,8 +131,8 @@ class SegmentReplicationStateTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] actualMessage = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId);
-            assertArrayEquals(updatedMessage, actualMessage);
+            String actualMessage = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId);
+            assertEquals(updatedMessage, actualMessage);
         }
     }
 
@@ -142,7 +142,7 @@ class SegmentReplicationStateTest extends BaseStandaloneInstanceTest {
         long segmentId = 7L;
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] message = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId);
+            String message = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId);
             assertNull(message);
         }
     }
@@ -152,8 +152,8 @@ class SegmentReplicationStateTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-multiple-errors");
         long segmentId1 = 8L;
         long segmentId2 = 9L;
-        byte[] message1 = "Error for segment 8".getBytes();
-        byte[] message2 = "Error for segment 9".getBytes();
+        String message1 = "Error for segment 8";
+        String message2 = "Error for segment 9";
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SegmentReplicationState.setErrorMessage(tr, subspace, segmentId1, message1);
@@ -162,10 +162,10 @@ class SegmentReplicationStateTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] actualMessage1 = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId1);
-            byte[] actualMessage2 = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId2);
-            assertArrayEquals(message1, actualMessage1);
-            assertArrayEquals(message2, actualMessage2);
+            String actualMessage1 = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId1);
+            String actualMessage2 = SegmentReplicationState.readErrorMessage(tr, subspace, segmentId2);
+            assertEquals(message1, actualMessage1);
+            assertEquals(message2, actualMessage2);
         }
     }
 

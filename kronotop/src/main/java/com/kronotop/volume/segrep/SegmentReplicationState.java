@@ -75,12 +75,12 @@ public class SegmentReplicationState {
      * @param tr the FoundationDB transaction
      * @param subspace the directory subspace for replication state
      * @param segmentId the segment identifier
-     * @param message the error message as a byte array
+     * @param message the error message string
      */
-    public static void setErrorMessage(Transaction tr, DirectorySubspace subspace, long segmentId, byte[] message) {
+    public static void setErrorMessage(Transaction tr, DirectorySubspace subspace, long segmentId, String message) {
         Tuple tuple = Tuple.from(ERROR_MESSAGE, segmentId);
         byte[] key = subspace.pack(tuple);
-        tr.set(key, message);
+        tr.set(key, message.getBytes());
     }
 
     /**
@@ -89,11 +89,15 @@ public class SegmentReplicationState {
      * @param tr the FoundationDB transaction
      * @param subspace the directory subspace for replication state
      * @param segmentId the segment identifier
-     * @return the error message as a byte array, or null if no error exists
+     * @return the error message string, or null if no error exists
      */
-    public static byte[] readErrorMessage(Transaction tr, DirectorySubspace subspace, long segmentId) {
+    public static String readErrorMessage(Transaction tr, DirectorySubspace subspace, long segmentId) {
         Tuple tuple = Tuple.from(ERROR_MESSAGE, segmentId);
         byte[] key = subspace.pack(tuple);
-        return tr.get(key).join();
+        byte[] value = tr.get(key).join();
+        if (value == null) {
+            return null;
+        }
+        return new String(value);
     }
 }
