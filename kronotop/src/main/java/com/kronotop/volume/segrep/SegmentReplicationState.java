@@ -32,6 +32,7 @@ import java.nio.ByteOrder;
 public class SegmentReplicationState {
     private static final byte SEGMENTS = 0x00;
     private static final byte ERROR_MESSAGE = 0x01;
+    private static final byte STATUS = 0x02;
 
     /**
      * Records the replication position for a segment.
@@ -99,5 +100,37 @@ public class SegmentReplicationState {
             return null;
         }
         return new String(value);
+    }
+
+    /**
+     * Sets the replication status for a specific segment.
+     *
+     * @param tr the FoundationDB transaction
+     * @param subspace the directory subspace for replication state
+     * @param segmentId the segment identifier
+     * @param status the replication status to set
+     */
+    public static void setStatus(Transaction tr, DirectorySubspace subspace, long segmentId, SegmentReplicationStatus status) {
+        Tuple tuple = Tuple.from(STATUS, segmentId);
+        byte[] key = subspace.pack(tuple);
+        tr.set(key, status.name().getBytes());
+    }
+
+    /**
+     * Retrieves the replication status for a specific segment.
+     *
+     * @param tr the FoundationDB transaction
+     * @param subspace the directory subspace for replication state
+     * @param segmentId the segment identifier
+     * @return the replication status, or null if no status exists
+     */
+    public static SegmentReplicationStatus readStatus(Transaction tr, DirectorySubspace subspace, long segmentId) {
+        Tuple tuple = Tuple.from(STATUS, segmentId);
+        byte[] key = subspace.pack(tuple);
+        byte[] value = tr.get(key).join();
+        if (value == null) {
+            return SegmentReplicationStatus.WAITING;
+        }
+        return SegmentReplicationStatus.valueOf(new String(value));
     }
 }

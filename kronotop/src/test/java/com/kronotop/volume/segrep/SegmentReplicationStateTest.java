@@ -208,4 +208,98 @@ class SegmentReplicationStateTest extends BaseStandaloneInstanceTest {
             assertEquals(position2, cursor2.position());
         }
     }
+
+    @Test
+    void shouldSetAndReadStatus() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-status");
+        long segmentId = 12L;
+        SegmentReplicationStatus expectedStatus = SegmentReplicationStatus.RUNNING;
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SegmentReplicationState.setStatus(tr, subspace, segmentId, expectedStatus);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SegmentReplicationStatus actualStatus = SegmentReplicationState.readStatus(tr, subspace, segmentId);
+            assertEquals(expectedStatus, actualStatus);
+        }
+    }
+
+    @Test
+    void shouldUpdateStatusForExistingSegment() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-update-status");
+        long segmentId = 13L;
+        SegmentReplicationStatus initialStatus = SegmentReplicationStatus.WAITING;
+        SegmentReplicationStatus updatedStatus = SegmentReplicationStatus.DONE;
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SegmentReplicationState.setStatus(tr, subspace, segmentId, initialStatus);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SegmentReplicationState.setStatus(tr, subspace, segmentId, updatedStatus);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SegmentReplicationStatus actualStatus = SegmentReplicationState.readStatus(tr, subspace, segmentId);
+            assertEquals(updatedStatus, actualStatus);
+        }
+    }
+
+    @Test
+    void shouldReturnWaitingWhenStatusNotExists() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-no-status");
+        long segmentId = 14L;
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SegmentReplicationStatus status = SegmentReplicationState.readStatus(tr, subspace, segmentId);
+            assertEquals(SegmentReplicationStatus.WAITING, status);
+        }
+    }
+
+    @Test
+    void shouldHandleAllStatusValues() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-all-status");
+
+        SegmentReplicationStatus[] allStatuses = SegmentReplicationStatus.values();
+        for (int i = 0; i < allStatuses.length; i++) {
+            long segmentId = 15L + i;
+            SegmentReplicationStatus status = allStatuses[i];
+
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                SegmentReplicationState.setStatus(tr, subspace, segmentId, status);
+                tr.commit().join();
+            }
+
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                SegmentReplicationStatus actualStatus = SegmentReplicationState.readStatus(tr, subspace, segmentId);
+                assertEquals(status, actualStatus);
+            }
+        }
+    }
+
+    @Test
+    void shouldHandleMultipleStatusesForDifferentSegments() {
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-multiple-status");
+        long segmentId1 = 20L;
+        long segmentId2 = 21L;
+        SegmentReplicationStatus status1 = SegmentReplicationStatus.RUNNING;
+        SegmentReplicationStatus status2 = SegmentReplicationStatus.FAILED;
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SegmentReplicationState.setStatus(tr, subspace, segmentId1, status1);
+            SegmentReplicationState.setStatus(tr, subspace, segmentId2, status2);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SegmentReplicationStatus actualStatus1 = SegmentReplicationState.readStatus(tr, subspace, segmentId1);
+            SegmentReplicationStatus actualStatus2 = SegmentReplicationState.readStatus(tr, subspace, segmentId2);
+            assertEquals(status1, actualStatus1);
+            assertEquals(status2, actualStatus2);
+        }
+    }
 }
