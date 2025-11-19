@@ -40,7 +40,7 @@ import java.util.concurrent.CountDownLatch;
 
 import static com.google.common.base.Throwables.getRootCause;
 
-public class SegmentReplication {
+public class SegmentReplication implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(SegmentReplication.class);
     private final Context context;
     private final DirectorySubspace subspace;
@@ -50,6 +50,7 @@ public class SegmentReplication {
     private final Retry transactionWithRetry;
 
     private final CountDownLatch latch = new CountDownLatch(1);
+    private volatile boolean started;
     private volatile boolean shutdown;
 
     public SegmentReplication(Context context, DirectorySubspace subspace, ReplicationClient client, ReplicationSession session) {
@@ -180,6 +181,9 @@ public class SegmentReplication {
                     }
                 }
             }
+            if (!isLastSegment(session.segmentId())) {
+                updateStatus(session.segmentId(), SegmentReplicationStatus.DONE);
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         } finally {
@@ -188,21 +192,28 @@ public class SegmentReplication {
     }
 
     public void start() {
+        started = true;
         try {
             updateStatus(session.segmentId(), SegmentReplicationStatus.RUNNING);
             startInternal();
-            if (!isLastSegment(session.segmentId())) {
-                updateStatus(session.segmentId(), SegmentReplicationStatus.DONE);
-            }
         } catch (Exception exp) {
             markFailed(session.segmentId(), exp);
         }
     }
 
-    public void shutdown() throws InterruptedException, IOException {
+    @Override
+    public void close() {
         shutdown = true;
-        latch.await();
-        file.getFD().sync();
-        file.close();
+
+        try {
+            if (started) latch.await();
+
+            file.getFD().sync();
+            file.close();
+        } catch (IOException exp) {
+            LOGGER.error("Failed to close Segment file", exp);
+        } catch (InterruptedException exp) {
+            throw new RuntimeException(exp);
+        }
     }
 }

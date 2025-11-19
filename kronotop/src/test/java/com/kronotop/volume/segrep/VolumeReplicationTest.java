@@ -57,7 +57,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         // We have 1 full segment and 1 half
         VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
         try {
-            replication.run();
+            replication.start();
 
             List<SegmentAnalysis> items = volume.analyze();
             assertEquals(2, items.size());
@@ -102,7 +102,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         appendEntries(number, length);
         VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
         try {
-            replication.run();
+            replication.start();
 
             List<SegmentAnalysis> items = volume.analyze();
             assertEquals(2, items.size());

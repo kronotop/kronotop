@@ -39,19 +39,13 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CountDownLatch;
 
-import static com.google.common.base.Throwables.getRootCause;
-
-public class VolumeReplication implements Runnable {
+public class VolumeReplication {
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeReplication.class);
 
     private final Context context;
-    private final ExecutorService executor;
     private final ShardKind shardKind;
-    private final int shardId;
     private final Path destination;
     private final String volume;
     private final long segmentSize;
@@ -59,13 +53,14 @@ public class VolumeReplication implements Runnable {
 
     private final Retry transactionWithRetry;
     private final ReplicationClient client;
+    private final CountDownLatch latch = new CountDownLatch(1);
+    private volatile SegmentReplication replication;
+    private volatile boolean started;
     private volatile boolean shutdown;
 
     public VolumeReplication(Context context, ShardKind shardKind, int shardId, String destination) {
         this.context = context;
         this.shardKind = shardKind;
-        this.shardId = shardId;
-        this.executor = Executors.newSingleThreadExecutor();
         this.transactionWithRetry = TransactionUtils.retry(10, Duration.ofMillis(100));
 
         try {
@@ -119,8 +114,7 @@ public class VolumeReplication implements Runnable {
         return idx < segmentIds.size() ? segmentIds.get(idx) : null;
     }
 
-    @Override
-    public void run() {
+    private void startInternal() {
         client.connect();
         StatefulInternalConnection<byte[], byte[]> connection = client.connection();
         if (!connection.sync().ping().equals(Response.PONG)) {
@@ -130,7 +124,7 @@ public class VolumeReplication implements Runnable {
 
         long chunkSize = getChunkSize();
 
-        while (true) {
+        while (!shutdown) {
             ReplicationCursor cursor = TransactionUtils.execute(context, tr -> SegmentReplicationState.readCursor(tr, subspace));
             // Guard
             if (cursor.position() > segmentSize) {
@@ -159,33 +153,43 @@ public class VolumeReplication implements Runnable {
                     chunkSize,
                     segmentSize
             );
-            SegmentReplication replication = new SegmentReplication(context, subspace, client, session);
-            replication.start();
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                SegmentReplicationStatus status = SegmentReplicationState.readStatus(tr, subspace, segmentId);
-                if (status == SegmentReplicationStatus.RUNNING) {
-                    // TODO: Start streaming changes with CDC
-                    break;
+            replication = new SegmentReplication(context, subspace, client, session);
+            try {
+                replication.start();
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    SegmentReplicationStatus status = SegmentReplicationState.readStatus(tr, subspace, segmentId);
+                    if (status == SegmentReplicationStatus.RUNNING) {
+                        // TODO: Start streaming changes with CDC
+                        break; // temporary
+                    }
+                    if (status == SegmentReplicationStatus.FAILED || status == SegmentReplicationStatus.STOPPED) {
+                        break;
+                    }
                 }
-                if (status == SegmentReplicationStatus.FAILED || status == SegmentReplicationStatus.STOPPED) {
-                    break;
-                }
+            } finally {
+                replication.close();
             }
+        }
+    }
+
+    public void start() {
+        started = true;
+        try {
+            startInternal();
+        } finally {
+            latch.countDown();
         }
     }
 
     public void shutdown() {
         shutdown = true;
-        executor.shutdownNow();
-        client.shutdown();
-
         try {
-            if (!executor.awaitTermination(6, TimeUnit.SECONDS)) {
-                LOGGER.debug("Replication executor did not terminate within timeout");
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            if (replication != null) replication.close();
+            if (started) latch.await();
+            client.shutdown();
+        } catch (InterruptedException exp) {
+            throw new RuntimeException(exp);
         }
     }
 }
