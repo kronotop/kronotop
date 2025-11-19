@@ -119,15 +119,6 @@ public class VolumeReplication implements Runnable {
         return idx < segmentIds.size() ? segmentIds.get(idx) : null;
     }
 
-    private boolean isLastSegment(long segmentId) {
-        List<Long> segmentIds = client.connection().sync().listSegments(volume);
-        if (segmentIds.isEmpty()) {
-            return true;
-        }
-        long lastSegmentId = segmentIds.getLast();
-        return lastSegmentId == segmentId;
-    }
-
     @Override
     public void run() {
         client.connect();
@@ -171,9 +162,15 @@ public class VolumeReplication implements Runnable {
             SegmentReplication replication = new SegmentReplication(context, subspace, client, session);
             replication.start();
 
-            if (isLastSegment(segmentId)) {
-                // TODO: Implement CDC
-                break;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                SegmentReplicationStatus status = SegmentReplicationState.readStatus(tr, subspace, segmentId);
+                if (status == SegmentReplicationStatus.RUNNING) {
+                    // TODO: Start streaming changes with CDC
+                    break;
+                }
+                if (status == SegmentReplicationStatus.FAILED || status == SegmentReplicationStatus.STOPPED) {
+                    break;
+                }
             }
         }
     }
