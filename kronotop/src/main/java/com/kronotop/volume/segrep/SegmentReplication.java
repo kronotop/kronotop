@@ -141,8 +141,15 @@ public class SegmentReplication {
                 }
                 for (Object chunk : chunks) {
                     if (shutdown) break;
-                    position = writeChunks((byte[]) chunk, position);
-
+                    if (!(chunk instanceof byte[] data)) {
+                        throw new KronotopException("SEGMENTRANGE returned an invalid chunk type");
+                    }
+                    if (data.length != length) {
+                        throw new KronotopException(
+                                "SEGMENTRANGE returned " + data.length + " bytes, expected " + length
+                        );
+                    }
+                    position = writeChunks(data, position);
                     file.getFD().sync();
                     if (isLastSegment) {
                         setPosition(Math.min(position, limitPosition));

@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.segrep;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
@@ -41,6 +42,8 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import static com.google.common.base.Throwables.getRootCause;
 
 public class VolumeReplication implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(VolumeReplication.class);
@@ -125,6 +128,16 @@ public class VolumeReplication implements Runnable {
         return lastSegmentId == segmentId;
     }
 
+    private void setSegmentReplicationFailed(long segmentId, Throwable throwable) {
+        Throwable root = getRootCause(throwable);
+        transactionWithRetry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                SegmentReplicationState.setErrorMessage(tr, subspace, segmentId, root.getMessage().getBytes());
+                tr.commit().join();
+            }
+        });
+    }
+
     @Override
     public void run() {
         client.connect();
@@ -166,7 +179,13 @@ public class VolumeReplication implements Runnable {
                     segmentSize
             );
             SegmentReplication replication = new SegmentReplication(context, subspace, client, session);
-            replication.start();
+            try {
+                replication.start();
+            } catch (Exception exp) {
+                setSegmentReplicationFailed(segmentId, exp);
+                return;
+            }
+
             if (isLastSegment(segmentId)) {
                 // TODO: Implement CDC
                 break;

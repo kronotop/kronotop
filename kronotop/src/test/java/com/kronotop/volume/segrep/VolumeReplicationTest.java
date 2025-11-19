@@ -85,4 +85,42 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             replication.shutdown();
         }
     }
+
+    @Test
+    void shouldReplicatePartialSegmentAndVerifyChecksum(@TempDir Path destination) throws IOException {
+        int length = 1024;
+        int number = Math.toIntExact(volume.getConfig().segmentSize() / length);
+        number += (number / 2);
+        appendEntries(number, length);
+        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        try {
+            replication.run();
+
+            List<SegmentAnalysis> items = volume.analyze();
+            assertEquals(2, items.size());
+
+            int partialSegments = 0;
+            for (SegmentAnalysis analysis : items) {
+                if (analysis.size() - analysis.usedBytes() >= length) {
+                    partialSegments++;
+                }
+            }
+            assertEquals(1, partialSegments);
+
+            SegmentAnalysis analysis = items.stream().filter(i -> i.size() - i.usedBytes() >= length).findFirst().orElse(null);
+            assertNotNull(analysis);
+
+            Path segmentFile = Segment.getSegmentFilePath(volume.getConfig().dataDir(), analysis.segmentId());
+            byte[] expected = sha1(segmentFile.toString());
+            try (var stream = Files.list(destination)) {
+                stream.forEach(path -> {
+                    Path replicatedSegmentFile = path.resolve(Segment.generateFileName(analysis.segmentId()));
+                    byte[] actual = sha1(replicatedSegmentFile.toString());
+                    assertArrayEquals(expected, actual);
+                });
+            }
+        } finally {
+            replication.shutdown();
+        }
+    }
 }
