@@ -29,6 +29,8 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+
 class FindPosition extends BaseSubcommandHandler implements SubcommandHandler {
 
     public FindPosition(VolumeService service) {
@@ -38,11 +40,12 @@ class FindPosition extends BaseSubcommandHandler implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         FindPositionParameters parameters = new FindPositionParameters(request.getParams());
-        Volume volume = service.findVolume(parameters.name);
-        VolumeConfig config = volume.getConfig();
+        supplyAsync(context, response, () -> {
+            Volume volume = service.findVolume(parameters.name);
+            VolumeConfig config = volume.getConfig();
 
-        long position = SegmentUtil.findPosition(context, config.subspace(), parameters.segmentId);
-        response.writeInteger(position);
+            return SegmentUtil.findPosition(context, config.subspace(), parameters.segmentId);
+        }, response::writeInteger);
     }
 
     private static class FindPositionParameters {

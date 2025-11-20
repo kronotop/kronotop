@@ -33,6 +33,8 @@ import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+
 public class ListSegments extends BaseSubcommandHandler implements SubcommandHandler {
 
     public ListSegments(VolumeService service) {
@@ -42,18 +44,20 @@ public class ListSegments extends BaseSubcommandHandler implements SubcommandHan
     @Override
     public void execute(Request request, Response response) {
         ListSegmentsParameters parameters = new ListSegmentsParameters(request.getParams());
-        Volume volume = service.findVolume(parameters.name);
-        VolumeConfig config = volume.getConfig();
+        supplyAsync(context, response, () -> {
+            Volume volume = service.findVolume(parameters.name);
+            VolumeConfig config = volume.getConfig();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeMetadata metadata = VolumeMetadata.load(tr, config.subspace());
-            List<Long> segmentIds = metadata.getSegments();
             List<RedisMessage> children = new ArrayList<>();
-            for (long segmentId : segmentIds) {
-                children.add(new IntegerRedisMessage(segmentId));
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeMetadata metadata = VolumeMetadata.load(tr, config.subspace());
+                List<Long> segmentIds = metadata.getSegments();
+                for (long segmentId : segmentIds) {
+                    children.add(new IntegerRedisMessage(segmentId));
+                }
             }
-            response.writeArray(children);
-        }
+            return children;
+        }, response::writeArray);
     }
 
     private static class ListSegmentsParameters {

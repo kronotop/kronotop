@@ -25,7 +25,6 @@ import com.kronotop.commandbuilder.kronotop.VolumeAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
-import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.replication.ReplicationConfig;
 import com.kronotop.volume.replication.ReplicationMetadata;
 import com.kronotop.volume.replication.ReplicationStage;
@@ -40,7 +39,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Paths;
 
-import static com.kronotop.volume.VolumeTestUtils.getEntries;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
