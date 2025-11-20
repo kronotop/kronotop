@@ -24,16 +24,23 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 
 import static com.kronotop.volume.Subspaces.CHANGELOG_SUBSPACE;
+import static com.kronotop.volume.Subspaces.MUTATION_TRIGGER;
 
 public class ChangeLog {
-    // Volume root subspace
+    private static final byte[] INCREASE_BY_ONE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private final Context context;
     private final DirectorySubspace subspace;
+    private final byte[] mutationTriggerKey;
     private final HybridLogicalClock hlc = new HybridLogicalClock();
 
     public ChangeLog(Context context, DirectorySubspace subspace) {
         this.context = context;
         this.subspace = subspace;
+        this.mutationTriggerKey = subspace.pack(MUTATION_TRIGGER);
+    }
+
+    private void triggerWatchers(Transaction tr) {
+        tr.mutate(MutationType.ADD, mutationTriggerKey, INCREASE_BY_ONE_DELTA);
     }
 
     private long getDateBucket() {
@@ -41,24 +48,26 @@ public class ChangeLog {
         return context.now() / 86_400_000L;
     }
 
-    private byte[] prepareValue(EntryMetadata metadata, Prefix prefix) {
+    private byte[] packValue(EntryMetadata metadata, Prefix prefix) {
         Tuple valueTuple = Tuple.from(metadata.segmentId(), metadata.position(), metadata.length(), prefix.asLong());
         return subspace.pack(valueTuple);
     }
 
     private void emitChangeWithMutation(Transaction tr, EntryMetadata metadata, Prefix prefix, Tuple keyTuple) {
         byte[] key = subspace.packWithVersionstamp(keyTuple);
-        byte[] value = prepareValue(metadata, prefix);
+        byte[] value = packValue(metadata, prefix);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
+        triggerWatchers(tr);
     }
 
     private void emitChange(Transaction tr, EntryMetadata metadata, Prefix prefix, Tuple keyTuple) {
         byte[] key = subspace.pack(keyTuple);
-        byte[] value = prepareValue(metadata, prefix);
+        byte[] value = packValue(metadata, prefix);
         tr.set(key, value);
+        triggerWatchers(tr);
     }
 
-    private Tuple keyTuple(OperationKind kind, Versionstamp entryId) {
+    private Tuple getKeyTuple(OperationKind kind, Versionstamp entryId) {
         long dateBucket = getDateBucket();
         long logSequenceNumber = hlc.next(context.now());
         return Tuple.from(
@@ -71,18 +80,18 @@ public class ChangeLog {
     }
 
     public void appendOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, int userVersion) {
-        Tuple tuple = keyTuple(OperationKind.APPEND, Versionstamp.incomplete(userVersion));
+        Tuple tuple = getKeyTuple(OperationKind.APPEND, Versionstamp.incomplete(userVersion));
         emitChangeWithMutation(tr, metadata, prefix, tuple);
     }
 
     public void appendOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, Versionstamp versionstamp) {
         // Use this updating an existing entry.
-        Tuple tuple = keyTuple(OperationKind.APPEND, versionstamp);
+        Tuple tuple = getKeyTuple(OperationKind.APPEND, versionstamp);
         emitChange(tr, metadata, prefix, tuple);
     }
 
     public void deleteOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, Versionstamp versionstamp) {
-        Tuple tuple = keyTuple(OperationKind.DELETE, versionstamp);
+        Tuple tuple = getKeyTuple(OperationKind.DELETE, versionstamp);
         emitChange(tr, metadata, prefix, tuple);
     }
 }

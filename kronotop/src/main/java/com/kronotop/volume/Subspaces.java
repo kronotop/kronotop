@@ -27,4 +27,5 @@ public class Subspaces {
     public static final byte STREAMING_SUBSCRIBERS_SUBSPACE = 0x8;
     public static final byte MEMBER_REPLICATION_SLOT_SUBSPACE = 0x9;
     public static final byte CHANGELOG_SUBSPACE = 0x10;
+    public static final byte MUTATION_TRIGGER = 0x11;
 }
