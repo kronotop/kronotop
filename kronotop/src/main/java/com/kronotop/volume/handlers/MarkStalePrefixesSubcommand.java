@@ -50,8 +50,7 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
             TaskService taskService = context.getService(TaskService.NAME);
             if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.START)) {
                 if (taskService.hasTask(MarkStalePrefixesTask.NAME)) {
-                    response.writeError("Task " + MarkStalePrefixesTask.NAME + " already exists");
-                    return;
+                    throw new KronotopException("Task " + MarkStalePrefixesTask.NAME + " already exists");
                 }
                 MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
                 taskService.execute(task);

@@ -155,6 +155,11 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
             return;
         }
         shutdown = true;
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

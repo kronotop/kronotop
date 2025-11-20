@@ -37,13 +37,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
-    public void test_SEGMENTINSERT() throws IOException {
+    public void shouldInsertEntriesIntoSegment() throws IOException {
         byte[] first = new byte[]{1, 2, 3};
         byte[] second = new byte[]{4, 5, 6};
         ByteBuffer[] entries = {
@@ -72,11 +71,12 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 new PackedEntry(0, first),
                 new PackedEntry(3, second),
         };
+
         ByteBuf buf = Unpooled.buffer();
         cmd.segmentinsert(volumeConfig.name(), segmentId, packedEntries).encode(buf);
-        secondInstance.getChannel().writeInbound(buf);
+        Object response = runCommand(secondInstance.getChannel(), buf);
 
-        Object response = secondInstance.getChannel().readOutbound();
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage message = (SimpleStringRedisMessage) response;
         assertEquals(Response.OK, message.content());
 
@@ -93,28 +93,28 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_SEGMENTINSERT_VolumeNotOpenException() {
+    public void shouldThrowVolumeNotOpenExceptionWhenVolumeNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
         cmd.segmentinsert("foobar", 1, new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Volume: 'foobar' is not open", message.content());
     }
 
     @Test
-    public void test_SEGMENTINSERT_SegmentNotFoundException() {
+    public void shouldThrowSegmentNotFoundExceptionWhenSegmentNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
         cmd.segmentinsert(volumeConfig.name(), 1, new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
-        assertEquals("ERR Segment: '1' could not be found", message.content());
+        assertEquals("ERR Segment with id: '1' could not be found", message.content());
     }
 }

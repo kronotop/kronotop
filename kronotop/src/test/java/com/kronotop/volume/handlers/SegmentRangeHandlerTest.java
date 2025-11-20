@@ -34,13 +34,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
-    public void shouldRetrieveMultipleSegmentRanges() throws IOException {
+    void shouldRetrieveMultipleSegmentRanges() throws IOException {
         ByteBuffer[] entries = {
                 ByteBuffer.wrap(new byte[]{1, 2, 3}),
                 ByteBuffer.wrap(new byte[]{4, 5, 6}),
@@ -62,9 +61,9 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 new SegmentRange(3, 3),
         };
         cmd.segmentrange(volumeConfig.name(), segmentId, ranges).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
+        assertInstanceOf(ArrayRedisMessage.class, response);
         ArrayRedisMessage message = (ArrayRedisMessage) response;
         for (int i = 0; i < ranges.length; i++) {
             FullBulkStringRedisMessage redisMessage = (FullBulkStringRedisMessage) message.children().get(i);
@@ -73,33 +72,33 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void shouldThrowVolumeNotOpenExceptionWhenVolumeNotExists() {
+    void shouldThrowVolumeNotOpenExceptionWhenVolumeNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
         cmd.segmentrange("foobar", 1, new SegmentRange(0, 3)).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Volume: 'foobar' is not open", message.content());
     }
 
     @Test
-    public void shouldThrowSegmentNotFoundExceptionWhenSegmentNotExists() {
+    void shouldThrowSegmentNotFoundExceptionWhenSegmentNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
         cmd.segmentrange(volumeConfig.name(), 1, new SegmentRange(0, 3)).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Segment with id: '1' could not be found", message.content());
     }
 
     @Test
-    public void shouldThrowEntryOutOfBoundExceptionWhenRangeExceedsSegmentSize() throws IOException {
+    void shouldThrowEntryOutOfBoundExceptionWhenRangeExceedsSegmentSize() throws IOException {
         ByteBuffer[] entries = {
                 ByteBuffer.wrap(new byte[]{1, 2, 3}),
         };
@@ -120,9 +119,9 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 new SegmentRange(segmentSize - 10, 20)
         };
         cmd.segmentrange(volumeConfig.name(), segmentId, ranges).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("OUTOFBOUND position: " + (segmentSize - 10) + ", length: 20 but size: " + segmentSize, message.content());
     }

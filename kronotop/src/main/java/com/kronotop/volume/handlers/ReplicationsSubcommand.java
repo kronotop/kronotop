@@ -41,6 +41,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 import static com.kronotop.volume.Subspaces.REPLICATION_SLOT_SUBSPACE;
 
 public class ReplicationsSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
@@ -156,19 +157,21 @@ public class ReplicationsSubcommand extends BaseSubcommandHandler implements Sub
 
     @Override
     public void execute(Request request, Response response) {
-        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            for (ShardKind shardKind : ShardKind.values()) {
-                if (shardKind.equals(ShardKind.REDIS)) {
-                    int shards = context.getConfig().getInt("redis.shards");
-                    iterateReplicationSlots(tr, result, shardKind, shards);
-                } else if (shardKind.equals(ShardKind.BUCKET)) {
-                    // TODO: BUCKET-IMPLEMENTATION
-                } else {
-                    throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
+        supplyAsync(context, response, () -> {
+            Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                for (ShardKind shardKind : ShardKind.values()) {
+                    if (shardKind.equals(ShardKind.REDIS)) {
+                        int shards = context.getConfig().getInt("redis.shards");
+                        iterateReplicationSlots(tr, result, shardKind, shards);
+                    } else if (shardKind.equals(ShardKind.BUCKET)) {
+                        // TODO: BUCKET-IMPLEMENTATION
+                    } else {
+                        throw new IllegalArgumentException("Unknown shard kind: " + shardKind);
+                    }
                 }
             }
-        }
-        response.writeMap(result);
+            return result;
+        }, response::writeMap);
     }
 }

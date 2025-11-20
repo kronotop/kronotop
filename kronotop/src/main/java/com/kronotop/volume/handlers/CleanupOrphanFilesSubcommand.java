@@ -90,7 +90,7 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
             } catch (NoSuchFileException e) {
                 throw new KronotopException("File not found: " + e.getMessage());
             } catch (IOException | ClosedVolumeException | VolumeNotOpenException e) {
-                throw new KronotopException(e);
+                throw new KronotopException(e.getMessage(), e);
             }
             return deletedFiles;
         }, response::writeArray);
