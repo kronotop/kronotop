@@ -99,8 +99,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                     MapRedisMessage segments = (MapRedisMessage) v;
                     assertFalse(segments.children().isEmpty());
                     segments.children().forEach((kk, vv) -> {
-                        String name = ((SimpleStringRedisMessage) kk).content();
-                        assertFalse(name.isEmpty());
+                        assertInstanceOf(IntegerRedisMessage.class, kk);
 
                         MapRedisMessage sub = (MapRedisMessage) vv;
                         sub.children().forEach((k2, v2) -> {
