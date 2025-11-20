@@ -25,8 +25,6 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.volume.handlers.PackedEntry;
-import com.kronotop.volume.replication.SegmentLog;
-import com.kronotop.volume.replication.SegmentLogValue;
 import com.kronotop.volume.replication.SegmentNotFoundException;
 import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentAnalysis;
@@ -184,6 +182,8 @@ public class Volume {
 
     private final Retry transactionWithRetry;
 
+    private final SegmentLog segmentLog;
+
     /**
      * Current status of the volume (READONLY, READWRITE).
      */
@@ -223,6 +223,7 @@ public class Volume {
         this.id = metadata.getId();
         this.status = metadata.getStatus();
         this.subspace = new VolumeSubspace(config.subspace());
+        this.segmentLog = new SegmentLog(config.subspace());
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
 
@@ -482,9 +483,8 @@ public class Volume {
         // NOTE: must be protected by segmentsLock
         SegmentConfig segmentConfig = new SegmentConfig(segmentId, config.dataDir(), config.segmentSize());
         Segment segment = new Segment(segmentConfig, position);
-        SegmentLog segmentLog = new SegmentLog(segment.id(), config.subspace());
         SegmentMetadata segmentMetadata = new SegmentMetadata(subspace, segment.id());
-        return new SegmentContainer(segment, segmentLog, segmentMetadata);
+        return new SegmentContainer(segment, segmentMetadata);
     }
 
     private long allocateSegmentId(Transaction tr) {
@@ -513,9 +513,8 @@ public class Volume {
         // After this point, the Segment has been created in the physical medium.
 
         // Make it available for the rest of the Volume.
-        SegmentLog segmentLog = new SegmentLog(segment.id(), config.subspace());
         SegmentMetadata segmentMetadata = new SegmentMetadata(subspace, segment.id());
-        segments.put(segment.id(), new SegmentContainer(segment, segmentLog, segmentMetadata));
+        segments.put(segment.id(), new SegmentContainer(segment, segmentMetadata));
 
         return segment;
     }
@@ -621,45 +620,6 @@ public class Volume {
     }
 
     /**
-     * Appends a segment log entry for the given session.
-     *
-     * <p>This is a convenience method that delegates to the full {@link #appendSegmentLog} method
-     * with session-specific parameters.</p>
-     *
-     * @param session       the session object containing the current transaction and prefix
-     * @param kind          the kind of operation being logged (APPEND, DELETE, VACUUM)
-     * @param versionstamp  the versionstamp key for the entry (may be null for incomplete versionstamps)
-     * @param entryMetadata metadata of the entry being logged
-     */
-    private void appendSegmentLog(VolumeSession session, OperationKind kind, Versionstamp versionstamp, EntryMetadata entryMetadata) {
-        appendSegmentLog(session.transaction(), kind, versionstamp, session.getAndIncrementUserVersion(), session.prefix().asLong(), entryMetadata);
-    }
-
-    /**
-     * Appends a segment log entry to the specified transaction for replication.
-     *
-     * <p>Segment logs track all operations on entries for replication purposes. Each log entry
-     * contains the operation kind, prefix, position, and length. The log is keyed by versionstamp
-     * and user version to ensure proper ordering during replication.</p>
-     *
-     * @param tr            the transaction object to which the log entry is appended
-     * @param kind          the kind of operation being logged (APPEND, DELETE, VACUUM)
-     * @param versionstamp  the versionstamp key for the entry (may be null for incomplete versionstamps)
-     * @param userVersion   the user-defined version associated with the operation
-     * @param prefix        the prefix associated with the entry
-     * @param entryMetadata metadata of the entry being appended, which includes segment, position, and length
-     * @throws IllegalStateException if the segment specified in the entry metadata cannot be found
-     */
-    private void appendSegmentLog(Transaction tr, OperationKind kind, Versionstamp versionstamp, int userVersion, long prefix, EntryMetadata entryMetadata) {
-        SegmentContainer segmentContainer = getSegmentContainerOrNull(entryMetadata.segmentId());
-        // TODO: VOLUME-REPLICATION-REFACTOR
-        if (segmentContainer != null) {
-            SegmentLogValue value = new SegmentLogValue(kind, prefix, entryMetadata.position(), entryMetadata.length());
-            segmentContainer.log().append(tr, versionstamp, userVersion, value);
-        }
-    }
-
-    /**
      * Writes entry metadata to FoundationDB and updates segment statistics.
      *
      * <p>This method performs multiple operations atomically within the session's transaction:</p>
@@ -684,10 +644,10 @@ public class Volume {
         Transaction tr = session.transaction();
 
         for (int index = 0; index < entries.length; index++) {
-            EntryMetadata entryMetadata = entries[index];
+            EntryMetadata metadata = entries[index];
             int userVersion = session.getAndIncrementUserVersion();
-            byte[] encodedEntryMetadata = entryMetadata.encode();
-            appendedEntries[index] = new AppendedEntry(index, userVersion, entryMetadata, encodedEntryMetadata);
+            byte[] encodedEntryMetadata = metadata.encode();
+            appendedEntries[index] = new AppendedEntry(index, userVersion, metadata, encodedEntryMetadata);
 
             tr.mutate(
                     MutationType.SET_VERSIONSTAMPED_KEY,
@@ -700,16 +660,14 @@ public class Volume {
                     Tuple.from(Versionstamp.incomplete(userVersion)).packWithVersionstamp()
             );
 
-            SegmentContainer segmentContainer = getSegmentContainerOrNull(entryMetadata.segmentId());
-            if (segmentContainer == null) {
-                throw new IllegalStateException("Segment with id " + entryMetadata.segmentId() + " not found");
+            SegmentContainer container = getSegmentContainerOrNull(metadata.segmentId());
+            if (container == null) {
+                throw new IllegalStateException("Segment with id " + metadata.segmentId() + " not found");
             }
-            segmentContainer.metadata().increaseCardinalityByOne(session);
-            segmentContainer.metadata().increaseUsedBytes(session, entryMetadata.length());
+            container.metadata().increaseCardinalityByOne(session);
+            container.metadata().increaseUsedBytes(session, metadata.length());
 
-            // Passing versionstamp as null because we don't have any key for this entry for now.
-            // It will be automatically filled by FDB during the commit. It'll be the same versionstamp with entry's key.
-            appendSegmentLog(tr, OperationKind.APPEND, null, userVersion, session.prefix().asLong(), entryMetadata);
+            segmentLog.appendOperation(tr, metadata, session.prefix(), userVersion);
         }
 
         triggerStreamingSubscribers(tr);
@@ -868,23 +826,23 @@ public class Volume {
      *
      * @param prefix        the prefix used for the entry metadata cache
      * @param key           the versionstamp key to invalidate in cache if segment is not found
-     * @param entryMetadata the metadata containing segment name, position, and length of entry
+     * @param metadata the metadata containing segment name, position, and length of entry
      * @return a ByteBuffer containing the data specified by the entry metadata
      * @throws IOException if an I/O error occurs while accessing the segment
      */
-    protected ByteBuffer getByEntryMetadata(Prefix prefix, Versionstamp key, EntryMetadata entryMetadata) throws IOException {
+    protected ByteBuffer getByEntryMetadata(Prefix prefix, Versionstamp key, EntryMetadata metadata) throws IOException {
         Segment segment;
         try {
-            segment = getOrOpenSegmentById(entryMetadata.segmentId());
+            segment = getOrOpenSegmentById(metadata.segmentId());
         } catch (SegmentNotFoundException e) {
             // Invalidate the cache and try again.
             // It will load the EntryMetadata from FoundationDB.
             // Possible cause: cleanup up filled segments.
             entryMetadataCache.load(prefix).invalidate(key);
-            segment = getOrOpenSegmentById(entryMetadata.segmentId());
+            segment = getOrOpenSegmentById(metadata.segmentId());
         }
 
-        return segment.get(entryMetadata.position(), entryMetadata.length());
+        return segment.get(metadata.position(), metadata.length());
     }
 
     /**
@@ -992,24 +950,25 @@ public class Volume {
         int index = 0;
         for (Versionstamp key : keys) {
             byte[] entryKey = subspace.packEntryKey(session.prefix(), key);
-            byte[] encodedEntryMetadata = tr.get(entryKey).join();
-            if (encodedEntryMetadata == null) {
+            byte[] encodedMetadata = tr.get(entryKey).join();
+            if (encodedMetadata == null) {
                 // Already deleted by a previously committed transaction.
                 continue;
             }
             tr.clear(entryKey);
-            tr.clear(subspace.packEntryMetadataKey(encodedEntryMetadata));
+            tr.clear(subspace.packEntryMetadataKey(encodedMetadata));
 
-            EntryMetadata entryMetadata = EntryMetadata.decode(encodedEntryMetadata);
+            EntryMetadata metadata = EntryMetadata.decode(encodedMetadata);
 
-            SegmentContainer container = getSegmentContainerOrNull(entryMetadata.segmentId());
+            SegmentContainer container = getSegmentContainerOrNull(metadata.segmentId());
             if (container == null) {
-                throw new RetryableStateException("Segment: " + entryMetadata.segmentId() + " could not be found");
+                throw new RetryableStateException("Segment: " + metadata.segmentId() + " could not be found");
             }
             container.metadata().decreaseCardinalityByOne(session);
-            container.metadata().increaseUsedBytes(session, -1 * entryMetadata.length());
+            container.metadata().increaseUsedBytes(session, -1 * metadata.length());
 
-            appendSegmentLog(session, OperationKind.DELETE, key, entryMetadata);
+            segmentLog.deleteOperation(tr, metadata, session.prefix(), key);
+
             triggerStreamingSubscribers(tr);
 
             result.add(index, key);
@@ -1086,32 +1045,33 @@ public class Volume {
                 throw new KeyNotFoundException(key);
             }
 
-            EntryMetadata prevEntryMetadata = EntryMetadata.decode(encodedPrevEntryMetadata);
-            SegmentContainer previousContainer = getSegmentContainerOrNull(prevEntryMetadata.segmentId());
+            EntryMetadata prevMetadata = EntryMetadata.decode(encodedPrevEntryMetadata);
+            SegmentContainer previousContainer = getSegmentContainerOrNull(prevMetadata.segmentId());
 
-            EntryMetadata entryMetadata = entryMetadataList[index];
-            SegmentContainer container = getSegmentContainerOrNull(entryMetadata.segmentId());
+            EntryMetadata metadata = entryMetadataList[index];
+            SegmentContainer container = getSegmentContainerOrNull(metadata.segmentId());
             if (container == null) {
-                throw new IllegalStateException("Segment: " + entryMetadata.segmentId() + " could not be found");
+                throw new IllegalStateException("Segment: " + metadata.segmentId() + " could not be found");
             }
 
             // Check the previous container here, it might be removed by the vacuum thread.
-            if (previousContainer != null && prevEntryMetadata.segmentId() != (entryMetadata.segmentId())) {
+            if (previousContainer != null && prevMetadata.segmentId() != (metadata.segmentId())) {
                 previousContainer.metadata().decreaseCardinalityByOne(session);
                 container.metadata().increaseCardinalityByOne(session);
-                previousContainer.metadata().increaseUsedBytes(session, -1 * prevEntryMetadata.length());
+                previousContainer.metadata().increaseUsedBytes(session, -1 * prevMetadata.length());
             } else {
-                container.metadata().increaseUsedBytes(session, -1 * entryMetadata.length());
+                container.metadata().increaseUsedBytes(session, -1 * metadata.length());
             }
-            container.metadata().increaseUsedBytes(session, entryMetadata.length());
+            container.metadata().increaseUsedBytes(session, metadata.length());
 
             tr.clear(subspace.packEntryMetadataKey(encodedPrevEntryMetadata));
-            byte[] encodedEntryMetadata = entryMetadata.encode();
+            byte[] encodedEntryMetadata = metadata.encode();
             tr.set(packedKey, encodedEntryMetadata);
-            updatedEntries[index] = new UpdatedEntry(key, entryMetadata, encodedEntryMetadata);
+            updatedEntries[index] = new UpdatedEntry(key, metadata, encodedEntryMetadata);
 
-            appendSegmentLog(session, OperationKind.DELETE, key, prevEntryMetadata);
-            appendSegmentLog(session, OperationKind.APPEND, key, entryMetadata);
+            segmentLog.appendOperation(tr, metadata, session.prefix(), key);
+            segmentLog.deleteOperation(tr, prevMetadata, session.prefix(), key);
+
             triggerStreamingSubscribers(tr);
 
             index++;
