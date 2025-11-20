@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
-    public void shouldInsertEntriesIntoSegment() throws IOException {
+    void shouldInsertEntriesIntoSegment() throws IOException {
         byte[] first = new byte[]{1, 2, 3};
         byte[] second = new byte[]{4, 5, 6};
         ByteBuffer[] entries = {
@@ -93,7 +93,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void shouldThrowVolumeNotOpenExceptionWhenVolumeNotExists() {
+    void shouldThrowVolumeNotOpenExceptionWhenVolumeNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -106,7 +106,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void shouldThrowSegmentNotFoundExceptionWhenSegmentNotExists() {
+    void shouldThrowSegmentNotFoundExceptionWhenSegmentNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
