@@ -25,12 +25,21 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import static com.kronotop.volume.Subspaces.SEGMENT_LOG_SUBSPACE;
 
 public class SegmentLog {
+    private static final byte TRIGGER = 0x01;
+    private static final byte[] ONE = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private static final byte[] NULL_BYTES = new byte[]{};
 
+    // Volume root subspace
     private final DirectorySubspace subspace;
 
     public SegmentLog(DirectorySubspace subspace) {
         this.subspace = subspace;
+    }
+
+    private void triggerWatchers(Transaction tr, long segmentId) {
+        Tuple tuple = Tuple.from(SEGMENT_LOG_SUBSPACE, TRIGGER, segmentId);
+        byte[] key = subspace.pack(tuple);
+        tr.mutate(MutationType.ADD, key, ONE);
     }
 
     public void appendOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, int userVersion) {
@@ -45,6 +54,7 @@ public class SegmentLog {
         );
         byte[] key = subspace.packWithVersionstamp(tuple);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, NULL_BYTES);
+        triggerWatchers(tr, metadata.segmentId());
     }
 
     public void appendOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, Versionstamp versionstamp) {
@@ -60,6 +70,7 @@ public class SegmentLog {
         );
         byte[] key = subspace.pack(tuple);
         tr.set(key, NULL_BYTES);
+        triggerWatchers(tr, metadata.segmentId());
     }
 
     public void deleteOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, Versionstamp versionstamp) {
@@ -74,5 +85,6 @@ public class SegmentLog {
         );
         byte[] key = subspace.pack(tuple);
         tr.set(key, NULL_BYTES);
+        triggerWatchers(tr, metadata.segmentId());
     }
 }
