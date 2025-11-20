@@ -182,7 +182,7 @@ public class Volume {
 
     private final Retry transactionWithRetry;
 
-    private final SegmentLog segmentLog;
+    private final ChangeLog changeLog;
 
     /**
      * Current status of the volume (READONLY, READWRITE).
@@ -223,7 +223,7 @@ public class Volume {
         this.id = metadata.getId();
         this.status = metadata.getStatus();
         this.subspace = new VolumeSubspace(config.subspace());
-        this.segmentLog = new SegmentLog(config.subspace());
+        this.changeLog = new ChangeLog(context, config.subspace());
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
         this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
 
@@ -667,7 +667,7 @@ public class Volume {
             container.metadata().increaseCardinalityByOne(session);
             container.metadata().increaseUsedBytes(session, metadata.length());
 
-            segmentLog.appendOperation(tr, metadata, session.prefix(), userVersion);
+            changeLog.appendOperation(tr, metadata, session.prefix(), userVersion);
         }
 
         triggerStreamingSubscribers(tr);
@@ -967,7 +967,7 @@ public class Volume {
             container.metadata().decreaseCardinalityByOne(session);
             container.metadata().increaseUsedBytes(session, -1 * metadata.length());
 
-            segmentLog.deleteOperation(tr, metadata, session.prefix(), key);
+            changeLog.deleteOperation(tr, metadata, session.prefix(), key);
 
             triggerStreamingSubscribers(tr);
 
@@ -1069,8 +1069,8 @@ public class Volume {
             tr.set(packedKey, encodedEntryMetadata);
             updatedEntries[index] = new UpdatedEntry(key, metadata, encodedEntryMetadata);
 
-            segmentLog.appendOperation(tr, metadata, session.prefix(), key);
-            segmentLog.deleteOperation(tr, prevMetadata, session.prefix(), key);
+            changeLog.appendOperation(tr, metadata, session.prefix(), key);
+            changeLog.deleteOperation(tr, prevMetadata, session.prefix(), key);
 
             triggerStreamingSubscribers(tr);
 
