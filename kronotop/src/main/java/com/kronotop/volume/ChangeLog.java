@@ -26,6 +26,10 @@ import com.kronotop.Context;
 import static com.kronotop.volume.Subspaces.CHANGELOG_SUBSPACE;
 import static com.kronotop.volume.Subspaces.MUTATION_TRIGGER;
 
+/**
+ * Tracks volume operations in FoundationDB with temporal ordering using Hybrid Logical Clock.
+ * Provides append and delete operation tracking with automatic watcher notification for replication.
+ */
 public class ChangeLog {
     private static final byte[] INCREASE_BY_ONE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private final Context context;
@@ -33,26 +37,57 @@ public class ChangeLog {
     private final byte[] mutationTriggerKey;
     private final HybridLogicalClock hlc = new HybridLogicalClock();
 
+    /**
+     * Creates a new ChangeLog instance.
+     *
+     * @param context  the context providing FoundationDB access and system time
+     * @param subspace the directory subspace for storing changelog entries
+     */
     public ChangeLog(Context context, DirectorySubspace subspace) {
         this.context = context;
         this.subspace = subspace;
         this.mutationTriggerKey = subspace.pack(MUTATION_TRIGGER);
     }
 
+    /**
+     * Notifies watchers by incrementing the mutation trigger counter.
+     *
+     * @param tr the transaction to use
+     */
     private void triggerWatchers(Transaction tr) {
         tr.mutate(MutationType.ADD, mutationTriggerKey, INCREASE_BY_ONE_DELTA);
     }
 
+    /**
+     * Calculates the current date bucket for partitioning changelog entries by day.
+     *
+     * @return date bucket value (days since epoch)
+     */
     private long getDateBucket() {
         // 1 day = 86_400_000 ms
         return context.now() / 86_400_000L;
     }
 
+    /**
+     * Packs entry metadata into a tuple value.
+     *
+     * @param metadata the entry metadata to pack
+     * @param prefix   the prefix associated with the entry
+     * @return packed tuple bytes
+     */
     private byte[] packValue(EntryMetadata metadata, Prefix prefix) {
         Tuple valueTuple = Tuple.from(metadata.segmentId(), metadata.position(), metadata.length(), prefix.asLong());
-        return subspace.pack(valueTuple);
+        return valueTuple.pack();
     }
 
+    /**
+     * Emits a changelog entry using a versionstamped key mutation.
+     *
+     * @param tr       the transaction to use
+     * @param metadata the entry metadata
+     * @param prefix   the prefix associated with the entry
+     * @param keyTuple the key tuple containing an incomplete versionstamp
+     */
     private void emitChangeWithMutation(Transaction tr, EntryMetadata metadata, Prefix prefix, Tuple keyTuple) {
         byte[] key = subspace.packWithVersionstamp(keyTuple);
         byte[] value = packValue(metadata, prefix);
@@ -60,6 +95,14 @@ public class ChangeLog {
         triggerWatchers(tr);
     }
 
+    /**
+     * Emits a changelog entry using a regular set operation.
+     *
+     * @param tr       the transaction to use
+     * @param metadata the entry metadata
+     * @param prefix   the prefix associated with the entry
+     * @param keyTuple the key tuple with a complete versionstamp
+     */
     private void emitChange(Transaction tr, EntryMetadata metadata, Prefix prefix, Tuple keyTuple) {
         byte[] key = subspace.pack(keyTuple);
         byte[] value = packValue(metadata, prefix);
@@ -67,6 +110,13 @@ public class ChangeLog {
         triggerWatchers(tr);
     }
 
+    /**
+     * Constructs a key tuple for changelog entry.
+     *
+     * @param kind    the operation kind
+     * @param entryId the versionstamp identifying the entry
+     * @return key tuple containing all components
+     */
     private Tuple getKeyTuple(OperationKind kind, Versionstamp entryId) {
         long dateBucket = getDateBucket();
         long logSequenceNumber = hlc.next(context.now());
@@ -79,17 +129,40 @@ public class ChangeLog {
         );
     }
 
+    /**
+     * Records an append operation for a new entry with an incomplete versionstamp.
+     *
+     * @param tr          the transaction to use
+     * @param metadata    the entry metadata
+     * @param prefix      the prefix associated with the entry
+     * @param userVersion the user version for the versionstamp
+     */
     public void appendOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, int userVersion) {
         Tuple tuple = getKeyTuple(OperationKind.APPEND, Versionstamp.incomplete(userVersion));
         emitChangeWithMutation(tr, metadata, prefix, tuple);
     }
 
+    /**
+     * Records an append operation for an existing entry with complete versionstamp.
+     *
+     * @param tr           the transaction to use
+     * @param metadata     the entry metadata
+     * @param prefix       the prefix associated with the entry
+     * @param versionstamp the complete versionstamp
+     */
     public void appendOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, Versionstamp versionstamp) {
-        // Use this updating an existing entry.
         Tuple tuple = getKeyTuple(OperationKind.APPEND, versionstamp);
         emitChange(tr, metadata, prefix, tuple);
     }
 
+    /**
+     * Records a delete operation for an entry.
+     *
+     * @param tr           the transaction to use
+     * @param metadata     the entry metadata
+     * @param prefix       the prefix associated with the entry
+     * @param versionstamp the complete versionstamp
+     */
     public void deleteOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, Versionstamp versionstamp) {
         Tuple tuple = getKeyTuple(OperationKind.DELETE, versionstamp);
         emitChange(tr, metadata, prefix, tuple);
