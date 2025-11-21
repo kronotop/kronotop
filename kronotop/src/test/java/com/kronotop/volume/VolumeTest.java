@@ -1409,7 +1409,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 previousLogSeq = logSeq;
 
                 long rawOpKind = keyTuple.getLong(3);
-                OperationKind operationKind = OperationKind.valueOf((byte)rawOpKind);
+                OperationKind operationKind = OperationKind.valueOf((byte) rawOpKind);
                 Versionstamp versionstamp = keyTuple.getVersionstamp(4);
 
                 if (i < 2) {
