@@ -39,7 +39,7 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
             args.add(range.position());
             args.add(range.length());
         }
-        return createCommand(SegmentCommandType.SEGMENTRANGE, new ArrayOutput<>(codec), args);
+        return createCommand(ReplicationCommandType.SEGMENTRANGE, new ArrayOutput<>(codec), args);
     }
 
     public Command<K, V, String> segmentinsert(String volume, long segmentId, PackedEntry... entries) {
@@ -48,7 +48,7 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
             args.add(entry.position());
             args.add(entry.data());
         }
-        return createCommand(SegmentCommandType.SEGMENTINSERT, new StatusOutput<>(codec), args);
+        return createCommand(ReplicationCommandType.SEGMENTINSERT, new StatusOutput<>(codec), args);
     }
 
     public Command<K, V, Long> findPosition(String volumeName, long segmentId) {
@@ -64,6 +64,11 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
                 add(VolumeAdminCommandType.LIST_SEGMENTS).
                 add(volumeName);
         return createCommand(VolumeAdminCommandType.VOLUME_ADMIN, new IntegerListOutput<>(codec), args);
+    }
+
+    public Command<K, V, Long> volumeWatch(String volume, long logSequenceNumber) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(logSequenceNumber);
+        return createCommand(ReplicationCommandType.VOLUMEWATCH, new IntegerOutput<>(codec), args);
     }
 
     public Command<K, V, String> ping() {
