@@ -31,10 +31,8 @@ import static com.kronotop.volume.Subspaces.MUTATION_TRIGGER;
  * Provides append and delete operation tracking with automatic watcher notification for replication.
  */
 public class ChangeLog {
-    private static final byte[] INCREASE_BY_ONE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
     private final Context context;
     private final DirectorySubspace subspace;
-    private final byte[] mutationTriggerKey;
     private final HybridLogicalClock hlc = new HybridLogicalClock();
 
     /**
@@ -46,16 +44,6 @@ public class ChangeLog {
     public ChangeLog(Context context, DirectorySubspace subspace) {
         this.context = context;
         this.subspace = subspace;
-        this.mutationTriggerKey = subspace.pack(MUTATION_TRIGGER);
-    }
-
-    /**
-     * Notifies watchers by incrementing the mutation trigger counter.
-     *
-     * @param tr the transaction to use
-     */
-    private void triggerWatchers(Transaction tr) {
-        tr.mutate(MutationType.ADD, mutationTriggerKey, INCREASE_BY_ONE_DELTA);
     }
 
     /**

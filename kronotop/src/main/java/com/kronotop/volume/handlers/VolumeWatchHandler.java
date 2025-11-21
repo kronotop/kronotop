@@ -22,12 +22,8 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.handlers.protocol.VolumeWatchMessage;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
@@ -45,6 +41,13 @@ public class VolumeWatchHandler extends BaseVolumeHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        // Volume'un change log'unu okumasi lazim volume'u acmadan. pratikte her node ustunde calismali bu.
+        // Hemen change log'a bakip en buyuk LSN'i bulmali.
+        // Eger kullanicinin LSN'inden buyukse bulunan LSN aninda geri donmesi lazim bu guncel LSN'i.
+        // Eger kullanicinin LSN'i ile bulunan en buyuk LSN esitse beklemesi lazim kendini merkezi bir watcher'a register ederek.
+        // Merkezi watch'er tarafindan uyandirilinca bir TX acip en guncel LSN'i bulup client'ina donmeli.
+        // Tek bir FDB watch'in ayni anda birden fazla thread'i uyandiracagi ucuz ve etkili bir mekanizma bulmamiz lazim. FDB watcher'i hemen kendini tekrar kuracak.
+        // FDB watch'ler geri dondugunde hemen subscriber'larini sinyallemesi lazim.
         supplyAsync(context, response, () -> {
             VolumeWatchMessage message = request.attr(MessageTypes.VOLUMEWATCH).get();
             System.out.println(message.getVolume());

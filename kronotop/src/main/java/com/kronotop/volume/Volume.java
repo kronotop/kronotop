@@ -155,10 +155,7 @@ public class Volume {
      */
     private final EntryMetadataCache entryMetadataCache;
 
-    /**
-     * FoundationDB key that is atomically incremented to notify streaming subscribers of changes.
-     */
-    private final byte[] streamingSubscribersTriggerKey;
+    private final byte[] mutationTriggerKey;
 
     /**
      * Lock protecting the segments map from concurrent modifications.
@@ -225,9 +222,18 @@ public class Volume {
         this.subspace = new VolumeSubspace(config.subspace());
         this.changeLog = new ChangeLog(context, config.subspace());
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
-        this.streamingSubscribersTriggerKey = this.config.subspace().pack(Tuple.from(STREAMING_SUBSCRIBERS_SUBSPACE));
+        this.mutationTriggerKey = this.config.subspace().pack(MUTATION_TRIGGER);
 
         openSegments(metadata.getSegments());
+    }
+
+    /**
+     * Notifies watchers by incrementing the mutation trigger counter.
+     *
+     * @param tr the transaction to use
+     */
+    private void triggerWatchers(Transaction tr) {
+        tr.mutate(MutationType.ADD, mutationTriggerKey, INCREASE_BY_ONE_DELTA);
     }
 
     /**
@@ -437,18 +443,6 @@ public class Volume {
      */
     public VolumeConfig getConfig() {
         return config;
-    }
-
-    /**
-     * Triggers streaming subscribers by atomically incrementing a trigger key in FoundationDB.
-     *
-     * <p>This method is called after mutations (append, delete, update) to notify watchers
-     * that new data is available for streaming/replication.</p>
-     *
-     * @param tr the transaction in which to increment the trigger key
-     */
-    private void triggerStreamingSubscribers(Transaction tr) {
-        tr.mutate(MutationType.ADD, streamingSubscribersTriggerKey, INCREASE_BY_ONE_DELTA);
     }
 
     /**
@@ -670,7 +664,6 @@ public class Volume {
             changeLog.appendOperation(tr, metadata, session.prefix(), userVersion);
         }
 
-        triggerStreamingSubscribers(tr);
         return new WriteMetadataResult(appendedEntries, tr.getVersionstamp());
     }
 
@@ -748,6 +741,8 @@ public class Volume {
         }
 
         WriteMetadataResult result = writeMetadata(session, appendEntries);
+        triggerWatchers(session.transaction());
+
         raiseExceptionIfVolumeReadOnly();
         return new AppendResult(result.versionstampFuture(), result.entries(), entryMetadataCache.load(session.prefix())::put);
     }
@@ -969,11 +964,10 @@ public class Volume {
 
             changeLog.deleteOperation(tr, metadata, session.prefix(), key);
 
-            triggerStreamingSubscribers(tr);
-
             result.add(index, key);
             index++;
         }
+        triggerWatchers(tr);
         raiseExceptionIfVolumeReadOnly();
         return result;
     }
@@ -1046,7 +1040,7 @@ public class Volume {
             }
 
             EntryMetadata prevMetadata = EntryMetadata.decode(encodedPrevEntryMetadata);
-            SegmentContainer previousContainer = getSegmentContainerOrNull(prevMetadata.segmentId());
+            SegmentContainer prevContainer = getSegmentContainerOrNull(prevMetadata.segmentId());
 
             EntryMetadata metadata = entryMetadataList[index];
             SegmentContainer container = getSegmentContainerOrNull(metadata.segmentId());
@@ -1055,10 +1049,10 @@ public class Volume {
             }
 
             // Check the previous container here, it might be removed by the vacuum thread.
-            if (previousContainer != null && prevMetadata.segmentId() != (metadata.segmentId())) {
-                previousContainer.metadata().decreaseCardinalityByOne(session);
+            if (prevContainer != null && prevMetadata.segmentId() != (metadata.segmentId())) {
+                prevContainer.metadata().decreaseCardinalityByOne(session);
                 container.metadata().increaseCardinalityByOne(session);
-                previousContainer.metadata().increaseUsedBytes(session, -1 * prevMetadata.length());
+                prevContainer.metadata().increaseUsedBytes(session, -1 * prevMetadata.length());
             } else {
                 container.metadata().increaseUsedBytes(session, -1 * metadata.length());
             }
@@ -1072,10 +1066,10 @@ public class Volume {
             changeLog.appendOperation(tr, metadata, session.prefix(), key);
             changeLog.deleteOperation(tr, prevMetadata, session.prefix(), key);
 
-            triggerStreamingSubscribers(tr);
-
             index++;
         }
+
+        triggerWatchers(tr);
 
         raiseExceptionIfVolumeReadOnly();
         return new UpdateResult(updatedEntries, entryMetadataCache.load(session.prefix())::put);
