@@ -1444,6 +1444,85 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
+    void shouldTriggerWatchers_onAppendOperation() throws IOException {
+        ByteBuffer[] entries = getEntries(2);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] value = tr.get(volume.computeMutationTriggerKey()).join();
+            assertNotNull(value);
+        }
+    }
+
+    @Test
+    void shouldTriggerWatchers_onDeleteOperation() throws IOException {
+        ByteBuffer[] entries = getEntries(2);
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        byte[] valueAfterAppend;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            valueAfterAppend = tr.get(volume.computeMutationTriggerKey()).join();
+            assertNotNull(valueAfterAppend);
+        }
+
+        DeleteResult deleteResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            deleteResult = volume.delete(session, appendResult.getVersionstampedKeys());
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] valueAfterDelete = tr.get(volume.computeMutationTriggerKey()).join();
+            assertNotNull(valueAfterDelete);
+            assertNotEquals(valueAfterAppend, valueAfterDelete);
+        }
+    }
+
+    @Test
+    void shouldTriggerWatchers_onUpdateOperation() throws IOException, KeyNotFoundException {
+        ByteBuffer[] entries = {ByteBuffer.allocate(6).put("foobar".getBytes()).flip()};
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        byte[] valueAfterAppend;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            valueAfterAppend = tr.get(volume.computeMutationTriggerKey()).join();
+            assertNotNull(valueAfterAppend);
+        }
+
+        Versionstamp versionstamp = appendResult.getVersionstampedKeys()[0];
+        KeyEntry keyEntry = new KeyEntry(versionstamp, ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
+        UpdateResult updateResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            updateResult = volume.update(session, keyEntry);
+            tr.commit().join();
+        }
+        updateResult.complete();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] valueAfterUpdate = tr.get(volume.computeMutationTriggerKey()).join();
+            assertNotNull(valueAfterUpdate);
+            assertNotEquals(valueAfterAppend, valueAfterUpdate);
+        }
+    }
+
+    @Test
     void shouldRecordAppendAndUpdateOperationsInChangeLog() throws IOException, KeyNotFoundException {
         byte[] original = new byte[]{1, 2, 3};
         ByteBuffer[] entries = {ByteBuffer.wrap(original)};

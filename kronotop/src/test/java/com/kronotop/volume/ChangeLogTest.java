@@ -123,25 +123,6 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldTriggerWatchers_onAppendOperation() {
-        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-changelog");
-        ChangeLog changeLog = new ChangeLog(context, subspace);
-        EntryMetadata metadata = createTestMetadata();
-        Prefix prefix = new Prefix("test-prefix");
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            changeLog.appendOperation(tr, metadata, prefix, 0);
-            tr.commit().join();
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] triggerKey = subspace.pack(MUTATION_TRIGGER);
-            byte[] value = tr.get(triggerKey).join();
-            assertNotNull(value);
-        }
-    }
-
-    @Test
     void shouldMaintainChronologicalOrder_forMultipleOperations() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-changelog");
         ChangeLog changeLog = new ChangeLog(context, subspace);

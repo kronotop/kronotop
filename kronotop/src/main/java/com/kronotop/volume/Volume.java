@@ -222,9 +222,18 @@ public class Volume {
         this.subspace = new VolumeSubspace(config.subspace());
         this.changeLog = new ChangeLog(context, config.subspace());
         this.entryMetadataCache = new EntryMetadataCache(context, subspace);
-        this.mutationTriggerKey = this.config.subspace().pack(MUTATION_TRIGGER);
+        this.mutationTriggerKey = computeMutationTriggerKey();
 
         openSegments(metadata.getSegments());
+    }
+
+    /**
+     * Generates and returns a byte array key used as a mutation trigger.
+     *
+     * @return A byte array representing the packed mutation trigger key.
+     */
+    byte[] computeMutationTriggerKey() {
+        return config.subspace().pack(MUTATION_TRIGGER);
     }
 
     /**
