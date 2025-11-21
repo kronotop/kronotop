@@ -19,6 +19,7 @@ package com.kronotop.volume;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.volume.handlers.PackedEntry;
@@ -1312,5 +1313,56 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         };
 
         assertThrows(EntryOutOfBoundException.class, () -> volume.getSegmentRange(segmentId, segmentRanges));
+    }
+
+    @Test
+    void shouldRecordEntriesInChangeLog() throws IOException {
+        byte[] first = new byte[]{1, 2, 3};
+        byte[] second = new byte[]{4, 5, 6};
+        ByteBuffer[] entries = {ByteBuffer.wrap(first), ByteBuffer.wrap(second)};
+
+        AppendResult result;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstamps = result.getVersionstampedKeys();
+        assertEquals(2, versionstamps.length);
+
+        List<SegmentAnalysis> analysis = volume.analyze();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Range range = subspace.range(Tuple.from(Subspaces.CHANGELOG_SUBSPACE));
+            List<KeyValue> changeLogEntries = tr.getRange(range).asList().join();
+
+            assertEquals(2, changeLogEntries.size());
+
+            long previousLogSeq = -1;
+            for (int i = 0; i < changeLogEntries.size(); i++) {
+                KeyValue kv = changeLogEntries.get(i);
+                Tuple keyTuple = subspace.unpack(kv.getKey());
+                Tuple valueTuple = Tuple.fromBytes(kv.getValue());
+
+                long logSeq = keyTuple.getLong(2);
+                assertTrue(logSeq > previousLogSeq);
+                previousLogSeq = logSeq;
+
+                Versionstamp versionstamp = keyTuple.getVersionstamp(4);
+                assertEquals(versionstamps[i], versionstamp);
+
+                long segmentId = analysis.getFirst().segmentId();
+                assertEquals(segmentId, valueTuple.getLong(0));
+
+                long position = valueTuple.getLong(1);
+                assertEquals(i == 0 ? 0 : first.length, position);
+
+                long length = valueTuple.getLong(2);
+                assertEquals(i == 0 ? first.length : second.length, length);
+
+                assertEquals(redisVolumeSyncerPrefix.asLong(), valueTuple.getLong(3));
+            }
+        }
     }
 }
