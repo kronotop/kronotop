@@ -80,7 +80,6 @@ public class ChangeLog {
         byte[] key = subspace.packWithVersionstamp(keyTuple);
         byte[] value = packValue(metadata, prefix);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
-        triggerWatchers(tr);
     }
 
     /**
@@ -95,7 +94,6 @@ public class ChangeLog {
         byte[] key = subspace.pack(keyTuple);
         byte[] value = packValue(metadata, prefix);
         tr.set(key, value);
-        triggerWatchers(tr);
     }
 
     /**
