@@ -24,7 +24,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.bucket.TestUtil;
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSubspaceMagic;

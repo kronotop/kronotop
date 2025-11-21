@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.kronotop.bucket;
+package com.kronotop;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 
