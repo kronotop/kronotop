@@ -21,36 +21,29 @@ import com.kronotop.server.Request;
 
 import java.util.List;
 
-public class SegmentWatchMessage extends BaseMessage implements ProtocolMessage<Void> {
-    public static final String COMMAND = "SEGMENTWATCH";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
+public class VolumeWatchMessage extends BaseMessage implements ProtocolMessage<Void> {
+    public static final String COMMAND = "VOLUMEWATCH";
+    public static final int MINIMUM_PARAMETER_COUNT = 2;
     private String volume;
-    private long segmentId;
-    private long position;
+    private long logSequenceNumber;
 
-    public SegmentWatchMessage(Request request) {
+    public VolumeWatchMessage(Request request) {
         super(request);
         parse();
     }
 
-
     private void parse() {
-        // segmentwatch <volume-name> <segment-id> position
+        // volumewatch <volume-name> <log-sequence-number>
         volume = readString(0);
-        segmentId = readLong(1);
-        position = readLong(2);
+        logSequenceNumber = readLong(1);
     }
 
     public String getVolume() {
         return volume;
     }
 
-    public long getSegmentId() {
-        return segmentId;
-    }
-
-    public long getPosition() {
-        return position;
+    public long getLogSequenceNumber() {
+        return logSequenceNumber;
     }
 
     @Override

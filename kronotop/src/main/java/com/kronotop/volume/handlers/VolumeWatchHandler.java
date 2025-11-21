@@ -24,33 +24,32 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.VolumeService;
-import com.kronotop.volume.handlers.protocol.SegmentWatchMessage;
+import com.kronotop.volume.handlers.protocol.VolumeWatchMessage;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
-@Command(SegmentWatchMessage.COMMAND)
-@MinimumParameterCount(SegmentWatchMessage.MINIMUM_PARAMETER_COUNT)
-public class SegmentWatchHandler extends BaseVolumeHandler implements Handler {
-    public SegmentWatchHandler(VolumeService service) {
+@Command(VolumeWatchMessage.COMMAND)
+@MinimumParameterCount(VolumeWatchMessage.MINIMUM_PARAMETER_COUNT)
+public class VolumeWatchHandler extends BaseVolumeHandler implements Handler {
+    public VolumeWatchHandler(VolumeService service) {
         super(service);
     }
 
     @Override
     public void beforeExecute(Request request) {
-        request.attr(MessageTypes.SEGMENTWATCH).set(new SegmentWatchMessage(request));
+        request.attr(MessageTypes.VOLUMEWATCH).set(new VolumeWatchMessage(request));
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
-            SegmentWatchMessage message = request.attr(MessageTypes.SEGMENTWATCH).get();
+            VolumeWatchMessage message = request.attr(MessageTypes.VOLUMEWATCH).get();
             System.out.println(message.getVolume());
-            System.out.println(message.getSegmentId());
-            System.out.println(message.getPosition());
-            return (Map<RedisMessage, RedisMessage>) new LinkedHashMap<RedisMessage, RedisMessage>();
-        }, response::writeMap);
+            System.out.println(message.getLogSequenceNumber());
+            return 1L;
+        }, response::writeInteger);
     }
 }
