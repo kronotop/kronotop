@@ -1365,4 +1365,151 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             }
         }
     }
+
+    @Test
+    void shouldRecordAppendAndDeleteOperationsInChangeLog() throws IOException {
+        byte[] first = new byte[]{1, 2, 3};
+        byte[] second = new byte[]{4, 5, 6};
+        ByteBuffer[] entries = {ByteBuffer.wrap(first), ByteBuffer.wrap(second)};
+
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp[] versionstamps = appendResult.getVersionstampedKeys();
+        assertEquals(2, versionstamps.length);
+
+        DeleteResult deleteResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            deleteResult = volume.delete(session, versionstamps);
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        List<SegmentAnalysis> analysis = volume.analyze();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Range range = subspace.range(Tuple.from(Subspaces.CHANGELOG_SUBSPACE));
+            List<KeyValue> changeLogEntries = tr.getRange(range).asList().join();
+
+            assertEquals(4, changeLogEntries.size());
+
+            long previousLogSeq = -1;
+            for (int i = 0; i < changeLogEntries.size(); i++) {
+                KeyValue kv = changeLogEntries.get(i);
+                Tuple keyTuple = subspace.unpack(kv.getKey());
+                Tuple valueTuple = Tuple.fromBytes(kv.getValue());
+
+                long logSeq = keyTuple.getLong(2);
+                assertTrue(logSeq > previousLogSeq);
+                previousLogSeq = logSeq;
+
+                long rawOpKind = keyTuple.getLong(3);
+                OperationKind operationKind = OperationKind.valueOf((byte)rawOpKind);
+                Versionstamp versionstamp = keyTuple.getVersionstamp(4);
+
+                if (i < 2) {
+                    assertEquals(OperationKind.APPEND, operationKind);
+                    assertEquals(versionstamps[i], versionstamp);
+
+                    long segmentId = analysis.getFirst().segmentId();
+                    assertEquals(segmentId, valueTuple.getLong(0));
+
+                    long position = valueTuple.getLong(1);
+                    assertEquals(i == 0 ? 0 : first.length, position);
+
+                    long length = valueTuple.getLong(2);
+                    assertEquals(i == 0 ? first.length : second.length, length);
+                } else {
+                    assertEquals(OperationKind.DELETE, operationKind);
+                    assertEquals(versionstamps[i - 2], versionstamp);
+
+                    long segmentId = analysis.getFirst().segmentId();
+                    assertEquals(segmentId, valueTuple.getLong(0));
+
+                    long position = valueTuple.getLong(1);
+                    assertEquals((i - 2) == 0 ? 0 : first.length, position);
+
+                    long length = valueTuple.getLong(2);
+                    assertEquals((i - 2) == 0 ? first.length : second.length, length);
+                }
+
+                assertEquals(redisVolumeSyncerPrefix.asLong(), valueTuple.getLong(3));
+            }
+        }
+    }
+
+    @Test
+    void shouldRecordAppendAndUpdateOperationsInChangeLog() throws IOException, KeyNotFoundException {
+        byte[] original = new byte[]{1, 2, 3};
+        ByteBuffer[] entries = {ByteBuffer.wrap(original)};
+
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        Versionstamp versionstamp = appendResult.getVersionstampedKeys()[0];
+
+        byte[] updated = new byte[]{4, 5, 6, 7};
+        KeyEntry keyEntry = new KeyEntry(versionstamp, ByteBuffer.wrap(updated));
+        UpdateResult updateResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            updateResult = volume.update(session, keyEntry);
+            tr.commit().join();
+        }
+        updateResult.complete();
+
+        List<SegmentAnalysis> analysis = volume.analyze();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Range range = subspace.range(Tuple.from(Subspaces.CHANGELOG_SUBSPACE));
+            List<KeyValue> changeLogEntries = tr.getRange(range).asList().join();
+
+            assertEquals(3, changeLogEntries.size());
+
+            long previousLogSeq = -1;
+            for (int i = 0; i < changeLogEntries.size(); i++) {
+                KeyValue kv = changeLogEntries.get(i);
+                Tuple keyTuple = subspace.unpack(kv.getKey());
+                Tuple valueTuple = Tuple.fromBytes(kv.getValue());
+
+                long logSeq = keyTuple.getLong(2);
+                assertTrue(logSeq > previousLogSeq);
+                previousLogSeq = logSeq;
+
+                long rawOpKind = keyTuple.getLong(3);
+                OperationKind operationKind = OperationKind.valueOf((byte) rawOpKind);
+                Versionstamp changeLogVersionstamp = keyTuple.getVersionstamp(4);
+
+                assertEquals(versionstamp, changeLogVersionstamp);
+
+                long segmentId = analysis.getFirst().segmentId();
+                assertEquals(segmentId, valueTuple.getLong(0));
+
+                if (i == 0) {
+                    assertEquals(OperationKind.APPEND, operationKind);
+                    assertEquals(0, valueTuple.getLong(1));
+                    assertEquals(original.length, valueTuple.getLong(2));
+                } else if (i == 1) {
+                    assertEquals(OperationKind.APPEND, operationKind);
+                    assertEquals(original.length, valueTuple.getLong(1));
+                    assertEquals(updated.length, valueTuple.getLong(2));
+                } else {
+                    assertEquals(OperationKind.DELETE, operationKind);
+                    assertEquals(0, valueTuple.getLong(1));
+                    assertEquals(original.length, valueTuple.getLong(2));
+                }
+
+                assertEquals(redisVolumeSyncerPrefix.asLong(), valueTuple.getLong(3));
+            }
+        }
+    }
 }
