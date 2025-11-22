@@ -237,6 +237,10 @@ public class Volume {
         return config.subspace().pack(MUTATION_TRIGGER);
     }
 
+    long getId() {
+        return volumeId;
+    }
+
     /**
      * Notifies watchers by incrementing the mutation trigger counter.
      *
