@@ -16,7 +16,6 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -24,9 +23,12 @@ import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.internal.TransactionUtils;
 import com.typesafe.config.Config;
+import io.github.resilience4j.retry.Retry;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -92,23 +94,19 @@ public class VolumeConfigGenerator {
      *                             transaction conflict (which is retried automatically).
      */
     private DirectorySubspace createOrOpenVolumeSubspace(KronotopDirectoryNode directory, boolean createIfNotExist) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace;
-            if (createIfNotExist) {
-                subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
-            } else {
-                subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
-            }
-            tr.commit().join();
-            return subspace;
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof FDBException ex) {
-                if (ex.getCode() == 1020) {
-                    return createOrOpenVolumeSubspace(directory, createIfNotExist);
+        Retry retry = TransactionUtils.retry(10, Duration.ofMillis(100));
+        return retry.executeSupplier(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                DirectorySubspace subspace;
+                if (createIfNotExist) {
+                    subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+                } else {
+                    subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
                 }
+                tr.commit().join();
+                return subspace;
             }
-            throw e;
-        }
+        });
     }
 
     /**
