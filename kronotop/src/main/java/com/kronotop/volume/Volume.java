@@ -54,7 +54,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 
 import static com.google.common.hash.Hashing.murmur3_128;
-import static com.google.common.hash.Hashing.sipHash24;
 import static com.kronotop.volume.Subspaces.*;
 
 /**
@@ -833,8 +832,8 @@ public class Volume {
     /**
      * Retrieves a ByteBuffer from a segment based on the provided entry metadata.
      *
-     * @param prefix        the prefix used for the entry metadata cache
-     * @param key           the versionstamp key to invalidate in cache if segment is not found
+     * @param prefix   the prefix used for the entry metadata cache
+     * @param key      the versionstamp key to invalidate in cache if segment is not found
      * @param metadata the metadata containing segment name, position, and length of entry
      * @return a ByteBuffer containing the data specified by the entry metadata
      * @throws IOException if an I/O error occurs while accessing the segment
