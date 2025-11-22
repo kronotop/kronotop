@@ -114,7 +114,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         CompletableFuture<Void> future = watcher.watch(volume.getId(), trigger);
         assertFalse(future.isDone());
 
-        watcher.unwatch(volume.getId(), trigger);
+        watcher.unwatch(volume.getId());
 
         assertTrue(future.isCancelled());
 

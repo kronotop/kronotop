@@ -97,9 +97,8 @@ public class MutationWatcher {
      * Cancels and removes the watcher for the specified volume.
      *
      * @param volumeId the volume identifier
-     * @param key unused, kept for API consistency
      */
-    public void unwatch(long volumeId, byte[] key) {
+    public void unwatch(long volumeId) {
         long stamp = lock.readLock();
         try {
             watchers.computeIfPresent(volumeId, (ignored, watcher) -> {
