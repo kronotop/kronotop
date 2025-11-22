@@ -24,7 +24,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 
 import static com.kronotop.volume.Subspaces.CHANGELOG_SUBSPACE;
-import static com.kronotop.volume.Subspaces.MUTATION_TRIGGER;
 
 /**
  * Tracks volume operations in FoundationDB with temporal ordering using Hybrid Logical Clock.
