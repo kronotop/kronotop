@@ -139,7 +139,7 @@ public class Volume {
     /**
      * Unique identifier for this volume, generated using SipHash24 during initialization.
      */
-    private final long id;
+    private final long volumeId;
 
     /**
      * Configuration settings for this volume (name, data directory, segment size, subspace).
@@ -218,7 +218,7 @@ public class Volume {
         transactionWithRetry.executeRunnable(this::initialize);
 
         VolumeMetadata metadata = loadVolumeMetadata();
-        this.id = metadata.getId();
+        this.volumeId = metadata.getVolumeId();
         this.status = metadata.getStatus();
         this.subspace = new VolumeSubspace(config.subspace());
         this.changeLog = new ChangeLog(context, config.subspace());
@@ -266,10 +266,10 @@ public class Volume {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             AtomicBoolean modified = new AtomicBoolean(false);
             VolumeMetadata.compute(tr, config.subspace(), (metadata) -> {
-                if (metadata.getId() == 0) {
+                if (metadata.getVolumeId() == 0) {
                     String random = UUID.randomUUID().toString();
-                    long id = murmur3_128().hashBytes(random.getBytes()).asLong();
-                    metadata.setId(id);
+                    long volumeId = murmur3_128().hashBytes(random.getBytes()).asLong();
+                    metadata.setVolumeId(volumeId);
                     modified.set(true);
                 }
             });
@@ -613,7 +613,7 @@ public class Volume {
             Segment segment = getWritableSegment(size);
             try {
                 SegmentAppendResult result = segment.append(entry);
-                long handle = EntryHandleGenerator.generate(id, segment.getConfig().id(), result.position());
+                long handle = EntryHandleGenerator.generate(volumeId, segment.getConfig().id(), result.position());
                 return new EntryMetadata(segment.id(), prefix.asBytes(), result.position(), result.length(), handle);
             } catch (NotEnoughSpaceException e) {
                 if (LOGGER.isDebugEnabled()) {
