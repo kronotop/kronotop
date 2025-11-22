@@ -233,7 +233,7 @@ public class Volume {
      * @return A byte array representing the packed mutation trigger key.
      */
     byte[] computeMutationTriggerKey() {
-        return config.subspace().pack(MUTATION_TRIGGER);
+        return VolumeUtil.computeMutationTriggerKey(config.subspace());
     }
 
     long getId() {
