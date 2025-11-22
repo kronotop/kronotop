@@ -23,7 +23,9 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -140,5 +142,50 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         watcher.shutdown();
 
         assertTrue(future.isCancelled());
+    }
+
+    @Test
+    void shouldTriggerAllWaitingThreadsOnAppend() throws InterruptedException, IOException {
+        byte[] trigger = volume.computeMutationTriggerKey();
+        MutationWatcher watcher = new MutationWatcher(context);
+
+        int threadCount = 10;
+        AtomicInteger counter = new AtomicInteger(0);
+        CountDownLatch allThreadsReady = new CountDownLatch(threadCount);
+        CountDownLatch allThreadsDone = new CountDownLatch(threadCount);
+
+        for (int i = 0; i < threadCount; i++) {
+            Thread.startVirtualThread(() -> {
+                CompletableFuture<Void> future = watcher.watch(volume.getId(), trigger);
+                allThreadsReady.countDown();
+
+                try {
+                    future.get(10, TimeUnit.SECONDS);
+                    counter.incrementAndGet();
+                } catch (Exception e) {
+                    fail("Watcher should complete without exception");
+                } finally {
+                    allThreadsDone.countDown();
+                }
+            });
+        }
+
+        // Wait for all threads to register their watchers
+        assertTrue(allThreadsReady.await(5, TimeUnit.SECONDS));
+
+        // Trigger the watcher with an append
+        ByteBuffer[] entries = getEntries(1);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        // Wait for all threads to complete
+        assertTrue(allThreadsDone.await(10, TimeUnit.SECONDS));
+
+        assertEquals(threadCount, counter.get());
+
+        watcher.shutdown();
     }
 }
