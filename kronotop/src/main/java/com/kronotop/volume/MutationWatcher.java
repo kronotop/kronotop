@@ -24,6 +24,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.StampedLock;
 
+/**
+ * Manages FoundationDB key watches for volume mutations with thread-safe lifecycle handling.
+ *
+ * <p>This class provides a mechanism to watch for changes on specific keys in FoundationDB,
+ * ensuring that only one watcher exists per volume at any given time. It uses a {@link StampedLock}
+ * to coordinate between concurrent watch requests and shutdown operations.</p>
+ *
+ * <p>Instance is not reusable after shutdown.</p>
+ */
 public class MutationWatcher {
     private final Context context;
     private final ConcurrentHashMap<Long, CompletableFuture<Void>> watchers;
@@ -35,18 +44,18 @@ public class MutationWatcher {
         this.watchers = new ConcurrentHashMap<>();
     }
 
+    /**
+     * Creates and registers a new watcher for the given key.
+     * Thread-safe as it runs within the map's compute block.
+     */
     private CompletableFuture<Void> setWatcher(long volumeId, byte[] key) {
-        // Burada Transaction açıp FDB'ye gidiyoruz.
-        // Bu işlem map.compute bloğu içinde olduğu için thread-safe.
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             CompletableFuture<Void> watcher = tr.watch(key);
             tr.commit().join();
 
-            // BU KISIM ŞART: Watch tetiklendiğinde map'ten temizlenmeli.
-            // Yoksa shard silinse bile map'te zombie entry kalır.
+            // Clean up from the map when watch triggers to prevent zombie entries.
             watcher.whenComplete((v, th) -> {
-                // remove(key, value) sadece bu specific instance map'teyse siler.
-                // Race condition yaratmaz.
+                // Atomic remove only if this specific instance is still in the map.
                 watchers.remove(volumeId, watcher);
             });
 
@@ -54,18 +63,25 @@ public class MutationWatcher {
         }
     }
 
+    /**
+     * Watches for mutations on the specified key for a volume.
+     *
+     * <p>If a watcher already exists and is still active, returns the existing one.
+     * The compute operation is atomic - even with concurrent calls, only one watcher is created.</p>
+     *
+     * @param volumeId the volume identifier
+     * @param key the FoundationDB key to watch
+     * @return a future that completes when the key is mutated
+     * @throws KronotopException if called after shutdown
+     */
     public CompletableFuture<Void> watch(long volumeId, byte[] key) {
         if (shutdown) {
             throw new KronotopException("MutationWatcher is not reusable");
         }
 
-        // "Biletini göster geç" (Read Lock).
-        // Eğer Shutdown (Write Lock) devredeyse, burası BLOKLANIR.
+        // Read lock blocks if shutdown (write lock) is in progress.
         long stamp = lock.readLock();
         try {
-
-            // compute bloğu atomiktir.
-            // 10 thread aynı anda gelse bile setWatcher sadece 1 kere çalışır.
             return watchers.compute(volumeId, (k, existing) -> {
                 if (existing == null || existing.isDone()) {
                     return setWatcher(volumeId, key);
@@ -73,27 +89,35 @@ public class MutationWatcher {
                 return existing;
             });
         } finally {
-            // Kilidi bırak
             lock.unlockRead(stamp);
         }
     }
 
+    /**
+     * Cancels and removes the watcher for the specified volume.
+     *
+     * @param volumeId the volume identifier
+     * @param key unused, kept for API consistency
+     */
     public void unwatch(long volumeId, byte[] key) {
         long stamp = lock.readLock();
         try {
             watchers.computeIfPresent(volumeId, (ignored, watcher) -> {
                 watcher.cancel(true);
-                return null; // Entry'yi siler
+                return null;
             });
         } finally {
             lock.unlockRead(stamp);
         }
     }
 
+    /**
+     * Shuts down the watcher, cancelling all active watches.
+     *
+     * <p>Acquires write lock to block new watch requests and waits for
+     * in-progress operations to complete before cancelling all watchers.</p>
+     */
     public void shutdown() {
-        // Write Lock alıyoruz.
-        // Bu satır çalıştığı an, watch() metodundaki lock.readLock() çağrıları bloklanır.
-        // İçeride (try bloğunda) işlem yapan varsa, onların bitmesi beklenir.
         long stamp = lock.writeLock();
         try {
             shutdown = true;
