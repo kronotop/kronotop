@@ -77,7 +77,7 @@ public class IndexScanNode extends AbstractScanNode implements ScanNode {
             Object rawIndexValue = indexKeyTuple.get(1);
             BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index.bsonType());
             if (predicate.test(indexValue)) {
-                ctx.sinks().writeDocumentLocation(sink, location.entryMetadata().id(), location);
+                ctx.sinks().writeDocumentLocation(sink, location.entryMetadata().handle(), location);
             }
             counter++;
             ctx.env().cursorManager().saveIndexScanCheckpoint(ctx, id(), indexValue, versionstamp);

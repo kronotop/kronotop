@@ -20,9 +20,9 @@ import com.apple.foundationdb.tuple.Tuple;
 
 /**
  * EntryMetadata represents metadata for a storage entry within a segmented storage system.
- * Contains segment identifier, prefix, position, length, and unique entry ID.
+ * Contains segment identifier, prefix, position, length, and unique entry handle.
  */
-public record EntryMetadata(long segmentId, byte[] prefix, long position, long length, int id) {
+public record EntryMetadata(long segmentId, byte[] prefix, long position, long length, long handle) {
     public static int ENTRY_PREFIX_SIZE = 8;
 
     /**
@@ -37,19 +37,19 @@ public record EntryMetadata(long segmentId, byte[] prefix, long position, long l
         byte[] prefix = tuple.getBytes(1);
         long position = tuple.getLong(2);
         long length = tuple.getLong(3);
-        int id = Math.toIntExact(tuple.getLong(4));
-        return new EntryMetadata(segmentId, prefix, position, length, id);
+        long handle = tuple.getLong(4);
+        return new EntryMetadata(segmentId, prefix, position, length, handle);
     }
 
     /**
-     * Extracts the ID from packed tuple bytes.
+     * Extracts the handle from packed tuple bytes.
      *
      * @param data packed tuple bytes containing entry metadata
-     * @return the entry ID
+     * @return the entry handle
      */
-    public static int extractId(byte[] data) {
+    public static long extractHandle(byte[] data) {
         Tuple tuple = Tuple.fromBytes(data);
-        return Math.toIntExact(tuple.getLong(4));
+        return tuple.getLong(4);
     }
 
     /**
@@ -62,6 +62,6 @@ public record EntryMetadata(long segmentId, byte[] prefix, long position, long l
         if (prefix.length != ENTRY_PREFIX_SIZE) {
             throw new IllegalArgumentException("Invalid prefix length");
         }
-        return Tuple.from(segmentId, prefix, position, length, (long) id).pack();
+        return Tuple.from(segmentId, prefix, position, length, handle).pack();
     }
 }

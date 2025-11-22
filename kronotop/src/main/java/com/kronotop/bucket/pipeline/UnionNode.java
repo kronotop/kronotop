@@ -17,8 +17,8 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import org.roaringbitmap.FastAggregation;
-import org.roaringbitmap.RoaringBitmap;
+import org.roaringbitmap.longlong.LongIterator;
+import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
@@ -50,6 +50,19 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
         return true;
     }
 
+    private Roaring64Bitmap orAll(Roaring64Bitmap[] bitmaps) {
+        Roaring64Bitmap result = new Roaring64Bitmap();
+        if (bitmaps == null) {
+            return result;
+        }
+        for (Roaring64Bitmap bm : bitmaps) {
+            if (bm != null) {
+                result.or(bm);
+            }
+        }
+        return result;
+    }
+
     @Override
     public void execute(QueryContext ctx) {
         if (checkAndPropagateExhaustion(ctx)) {
@@ -57,8 +70,8 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
             return;
         }
 
-        Map<Integer, DocumentPointer> result = new LinkedHashMap<>();
-        RoaringBitmap[] bitmaps = new RoaringBitmap[children().size()];
+        Map<Long, DocumentPointer> result = new LinkedHashMap<>();
+        Roaring64Bitmap[] bitmaps = new Roaring64Bitmap[children().size()];
 
         for (int index = 0; index < children().size(); index++) {
             PipelineNode child = children().get(index);
@@ -68,12 +81,12 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
                 throw new IllegalStateException("No data sink found for " + child);
             }
 
-            RoaringBitmap bitmap = new RoaringBitmap();
+            Roaring64Bitmap bitmap = new Roaring64Bitmap();
             switch (sink) {
                 case PersistedEntrySink persistedEntrySink -> {
                     persistedEntrySink.forEach((versionstamp, persistedEntry) -> {
-                        bitmap.add(persistedEntry.metadataId());
-                        result.compute(persistedEntry.metadataId(), (ignored, documentPointer) -> {
+                        bitmap.add(persistedEntry.handle());
+                        result.compute(persistedEntry.handle(), (ignored, documentPointer) -> {
                             if (documentPointer == null) {
                                 DocumentPointer pointer = new DocumentPointer();
                                 pointer.setVersionstamp(versionstamp);
@@ -87,9 +100,9 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
                     });
                 }
                 case DocumentLocationSink documentLocationSink ->
-                        documentLocationSink.forEach((metadataId, location) -> {
-                            bitmap.add(metadataId);
-                            result.compute(metadataId, (ignored, documentPointer) -> {
+                        documentLocationSink.forEach((entryHandle, location) -> {
+                            bitmap.add(entryHandle);
+                            result.compute(entryHandle, (ignored, documentPointer) -> {
                                 if (documentPointer == null) {
                                     DocumentPointer pointer = new DocumentPointer();
                                     pointer.setLocation(location);
@@ -103,17 +116,19 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
 
             bitmaps[index] = bitmap;
         }
-        RoaringBitmap union = FastAggregation.or(bitmaps);
+        Roaring64Bitmap union = orAll(bitmaps);
 
         // Collect the document bodies from the cluster
         DataSink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
-        for (Integer metadataId : union) {
-            DocumentPointer documentPointer = result.get(metadataId);
+        LongIterator it = union.getLongIterator();
+        while (it.hasNext()) {
+            long entryHandle = it.next();
+            DocumentPointer documentPointer = result.get(entryHandle);
             if (documentPointer.getPersistedEntry() != null) {
                 ctx.sinks().writePersistedEntry(sink, documentPointer.getVersionstamp(), documentPointer.getPersistedEntry());
             } else {
                 ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), documentPointer.getLocation());
-                PersistedEntry entry = new PersistedEntry(documentPointer.getLocation().shardId(), documentPointer.getLocation().entryMetadata().id(), document);
+                PersistedEntry entry = new PersistedEntry(documentPointer.getLocation().shardId(), documentPointer.getLocation().entryMetadata().handle(), document);
                 ctx.sinks().writePersistedEntry(sink, documentPointer.getLocation().versionstamp(), entry);
             }
         }

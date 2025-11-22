@@ -47,7 +47,7 @@ public class DataSinkRegistry {
         );
     }
 
-    void writeDocumentLocation(DataSink sink, int locationId, DocumentLocation location) {
+    void writeDocumentLocation(DataSink sink, long locationId, DocumentLocation location) {
         sink.match(
                 buf -> {
                     throw new IllegalStateException("This sink expects DocumentLocation");

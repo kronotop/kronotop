@@ -29,9 +29,9 @@ class EntryMetadataTest {
         long segmentId = 10;
         long position = 1L;
         long length = 1L;
-        int id = 10;
+        int handle = 10;
 
-        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, id);
+        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, handle);
         byte[] encoded = entry.encode();
 
         EntryMetadata result = EntryMetadata.decode(encoded);
@@ -40,7 +40,7 @@ class EntryMetadataTest {
         assertEquals(prefix, Prefix.fromBytes(result.prefix()));
         assertEquals(position, result.position());
         assertEquals(length, result.length());
-        assertEquals(id, result.id());
+        assertEquals(handle, result.handle());
     }
 
     @Test
@@ -50,9 +50,9 @@ class EntryMetadataTest {
         int segmentId = 10;
         long position = 1L;
         long length = 1L;
-        int id = EntryMetadataIdGenerator.generate(1, segmentId, position);
+        long handle = EntryHandleGenerator.generate(1, segmentId, position);
 
-        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, id);
+        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, handle);
 
         byte[] result = entry.encode();
 
@@ -67,13 +67,13 @@ class EntryMetadataTest {
         int segmentId = 10;
         long position = 1L;
         long length = 1L;
-        int id = EntryMetadataIdGenerator.generate(1, segmentId, position);
+        long handle = EntryHandleGenerator.generate(1, segmentId, position);
 
-        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, id);
+        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, handle);
 
         byte[] result = entry.encode();
 
-        assertEquals(id, EntryMetadata.extractId(result));
+        assertEquals(handle, EntryMetadata.extractHandle(result));
 
         EntryMetadata decoded = EntryMetadata.decode(result);
         assertThat(entry).usingRecursiveComparison().isEqualTo(decoded);

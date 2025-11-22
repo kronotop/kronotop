@@ -20,9 +20,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
-class EntryMetadataIdGeneratorTest {
+class EntryHandleGeneratorTest {
     @Test
-    void test_generate() {
-        assertDoesNotThrow(() -> EntryMetadataIdGenerator.generate(11, 10, 1234));
+    void shouldGenerateHandle() {
+        assertDoesNotThrow(() -> EntryHandleGenerator.generate(11, 10, 1234));
     }
 }

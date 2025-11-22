@@ -53,6 +53,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.StampedLock;
 
+import static com.google.common.hash.Hashing.murmur3_128;
 import static com.google.common.hash.Hashing.sipHash24;
 import static com.kronotop.volume.Subspaces.*;
 
@@ -138,7 +139,7 @@ public class Volume {
     /**
      * Unique identifier for this volume, generated using SipHash24 during initialization.
      */
-    private final int id;
+    private final long id;
 
     /**
      * Configuration settings for this volume (name, data directory, segment size, subspace).
@@ -267,7 +268,7 @@ public class Volume {
             VolumeMetadata.compute(tr, config.subspace(), (metadata) -> {
                 if (metadata.getId() == 0) {
                     String random = UUID.randomUUID().toString();
-                    int id = sipHash24().hashBytes(random.getBytes()).asInt();
+                    long id = murmur3_128().hashBytes(random.getBytes()).asLong();
                     metadata.setId(id);
                     modified.set(true);
                 }
@@ -612,8 +613,8 @@ public class Volume {
             Segment segment = getWritableSegment(size);
             try {
                 SegmentAppendResult result = segment.append(entry);
-                int entryMetadataId = EntryMetadataIdGenerator.generate(id, segment.getConfig().id(), result.position());
-                return new EntryMetadata(segment.id(), prefix.asBytes(), result.position(), result.length(), entryMetadataId);
+                long handle = EntryHandleGenerator.generate(id, segment.getConfig().id(), result.position());
+                return new EntryMetadata(segment.id(), prefix.asBytes(), result.position(), result.length(), handle);
             } catch (NotEnoughSpaceException e) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("Trying to find a new segment with length {}", size);

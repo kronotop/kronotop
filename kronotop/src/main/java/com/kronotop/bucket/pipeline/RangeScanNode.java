@@ -70,7 +70,7 @@ public class RangeScanNode extends AbstractScanNode implements ScanNode {
             Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
             Object rawIndexValue = indexKeyTuple.get(1);
             BqlValue indexValue = createBqlValueFromIndexValue(rawIndexValue, index.bsonType());
-            ctx.sinks().writeDocumentLocation(sink, location.entryMetadata().id(), location);
+            ctx.sinks().writeDocumentLocation(sink, location.entryMetadata().handle(), location);
             ctx.env().cursorManager().saveIndexScanCheckpoint(ctx, id(), indexValue, versionstamp);
             counter++;
         }
