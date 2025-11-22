@@ -17,9 +17,6 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 
@@ -28,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.StampedLock;
 
 public class MutationWatcher {
-    private static final HashFunction MURMUR3_32_FIXED = Hashing.murmur3_32_fixed();
     private final Context context;
     private final ConcurrentHashMap<Long, CompletableFuture<Void>> watchers;
     private final StampedLock lock = new StampedLock();
@@ -39,14 +35,7 @@ public class MutationWatcher {
         this.watchers = new ConcurrentHashMap<>();
     }
 
-    private long computeCacheKey(byte[] key) {
-        // key sayimiz "devasa" cluster'larda bile dort haneli sayilarda dolasacaktir.
-        // tum key'ler sabit. cluster'in omru boyunca degismez.
-        HashCode hashCode = MURMUR3_32_FIXED.hashBytes(key);
-        return hashCode.asLong();
-    }
-
-    private CompletableFuture<Void> setWatcher(byte[] key, long cacheKey) {
+    private CompletableFuture<Void> setWatcher(long volumeId, byte[] key) {
         // Burada Transaction açıp FDB'ye gidiyoruz.
         // Bu işlem map.compute bloğu içinde olduğu için thread-safe.
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -58,14 +47,14 @@ public class MutationWatcher {
             watcher.whenComplete((v, th) -> {
                 // remove(key, value) sadece bu specific instance map'teyse siler.
                 // Race condition yaratmaz.
-                watchers.remove(cacheKey, watcher);
+                watchers.remove(volumeId, watcher);
             });
 
             return watcher;
         }
     }
 
-    public CompletableFuture<Void> watch(byte[] key) {
+    public CompletableFuture<Void> watch(long volumeId, byte[] key) {
         if (shutdown) {
             throw new KronotopException("MutationWatcher is not reusable");
         }
@@ -74,13 +63,12 @@ public class MutationWatcher {
         // Eğer Shutdown (Write Lock) devredeyse, burası BLOKLANIR.
         long stamp = lock.readLock();
         try {
-            long cacheKey = computeCacheKey(key);
 
             // compute bloğu atomiktir.
             // 10 thread aynı anda gelse bile setWatcher sadece 1 kere çalışır.
-            return watchers.compute(cacheKey, (k, existing) -> {
+            return watchers.compute(volumeId, (k, existing) -> {
                 if (existing == null || existing.isDone()) {
-                    return setWatcher(key, cacheKey);
+                    return setWatcher(volumeId, key);
                 }
                 return existing;
             });
@@ -90,11 +78,10 @@ public class MutationWatcher {
         }
     }
 
-    public void unwatch(byte[] key) {
+    public void unwatch(long volumeId, byte[] key) {
         long stamp = lock.readLock();
         try {
-            long cacheKey = computeCacheKey(key);
-            watchers.computeIfPresent(cacheKey, (ignored, watcher) -> {
+            watchers.computeIfPresent(volumeId, (ignored, watcher) -> {
                 watcher.cancel(true);
                 return null; // Entry'yi siler
             });
