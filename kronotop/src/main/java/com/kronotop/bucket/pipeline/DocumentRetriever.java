@@ -66,7 +66,7 @@ public class DocumentRetriever {
         // Decode the IndexEntry from the value
         IndexEntry indexEntryData = IndexEntry.decode(indexEntry.getValue());
         int shardId = indexEntryData.shardId();
-        EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(indexEntryData.entryMetadata()));
+        EntryMetadata entryMetadata = EntryMetadata.decode(indexEntryData.entryMetadata());
 
         return new DocumentLocation(documentId, shardId, entryMetadata);
     }

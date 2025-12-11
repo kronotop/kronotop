@@ -20,41 +20,49 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
     private final String TEST_JOURNAL = "test-journal";
 
-    private Event fetchEarliestEvent() {
-        ConsumerConfig config = new ConsumerConfig("test-consumer", TEST_JOURNAL, ConsumerConfig.Offset.EARLIEST);
+    private List<Event> consumeAllEvents() {
+        ConsumerConfig config = new ConsumerConfig("test-consumer-" + System.nanoTime(), TEST_JOURNAL, ConsumerConfig.Offset.EARLIEST);
         Consumer consumer = new Consumer(context, config);
         consumer.start();
+
+        List<Event> events = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return consumer.consume(tr);
+            Event event;
+            while ((event = consumer.consume(tr)) != null) {
+                events.add(event);
+                consumer.markConsumed(tr, event);
+            }
+            tr.commit().join();
         }
+        consumer.stop();
+        return events;
     }
 
     @Test
-    void shouldAllEntriesEvicted() {
+    void shouldEvictAllExpiredEntries() {
         Journal journal = new Journal(config, context.getFoundationDB());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 0; i < 3; i++) {
                 journal.getPublisher().publish(tr, TEST_JOURNAL, "message " + i);
-                Thread.sleep(10);
             }
             tr.commit().join();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
 
-        CleanupJournalTask task = new CleanupJournalTask(journal, 5, TimeUnit.MILLISECONDS);
+        // TTL of 0 means all entries are immediately expired
+        CleanupJournalTask task = new CleanupJournalTask(journal, 0, TimeUnit.MILLISECONDS);
         task.run();
 
-        assertNull(fetchEarliestEvent());
+        assertEquals(0, consumeAllEvents().size());
     }
 
     @Test
@@ -66,9 +74,115 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        // TTL = 1 second
-        CleanupJournalTask task = new CleanupJournalTask(journal, 1000, TimeUnit.MILLISECONDS);
+        // TTL = 1 hour, entry should not be expired
+        CleanupJournalTask task = new CleanupJournalTask(journal, 1, TimeUnit.HOURS);
         task.run();
-        assertNotNull(fetchEarliestEvent());
+
+        assertEquals(1, consumeAllEvents().size());
+    }
+
+    @Test
+    void shouldEvictOnlyExpiredEntries() {
+        Journal journal = new Journal(config, context.getFoundationDB());
+
+        // Publish first batch of entries
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int i = 0; i < 3; i++) {
+                journal.getPublisher().publish(tr, TEST_JOURNAL, "old message " + i);
+            }
+            tr.commit().join();
+        }
+
+        // Evict all existing entries (TTL=0)
+        CleanupJournalTask cleanupTask = new CleanupJournalTask(journal, 0, TimeUnit.MILLISECONDS);
+        cleanupTask.run();
+
+        // Publish the second batch of entries
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int i = 0; i < 3; i++) {
+                journal.getPublisher().publish(tr, TEST_JOURNAL, "new message " + i);
+            }
+            tr.commit().join();
+        }
+
+        // Run cleanup with long TTL - new entries should survive
+        CleanupJournalTask keepTask = new CleanupJournalTask(journal, 1, TimeUnit.HOURS);
+        keepTask.run();
+
+        // Only the 3 new entries should remain
+        assertEquals(3, consumeAllEvents().size());
+    }
+
+    @Test
+    void shouldHandleEmptyJournal() {
+        Journal journal = new Journal(config, context.getFoundationDB());
+
+        // Create the journal without publishing any entries
+        journal.getJournalMetadata(TEST_JOURNAL);
+
+        // Task should complete without error on empty journal
+        CleanupJournalTask task = new CleanupJournalTask(journal, 0, TimeUnit.MILLISECONDS);
+        assertDoesNotThrow(task::run);
+    }
+
+    @Test
+    void shouldCleanupMultipleJournals() {
+        Journal journal = new Journal(config, context.getFoundationDB());
+        String journal1 = "cleanup-test-journal-1";
+        String journal2 = "cleanup-test-journal-2";
+
+        // Publish entries to both journals
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int i = 0; i < 3; i++) {
+                journal.getPublisher().publish(tr, journal1, "message " + i);
+                journal.getPublisher().publish(tr, journal2, "message " + i);
+            }
+            tr.commit().join();
+        }
+
+        // Verify both journals exist
+        List<String> journals = journal.listJournals();
+        assertTrue(journals.contains(journal1));
+        assertTrue(journals.contains(journal2));
+
+        // TTL of 0 means all entries are immediately expired
+        CleanupJournalTask task = new CleanupJournalTask(journal, 0, TimeUnit.MILLISECONDS);
+        task.run();
+
+        // Verify both journals are cleaned
+        for (String journalName : List.of(journal1, journal2)) {
+            ConsumerConfig consumerConfig = new ConsumerConfig("consumer-" + journalName, journalName, ConsumerConfig.Offset.EARLIEST);
+            Consumer consumer = new Consumer(context, consumerConfig);
+            consumer.start();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                assertNull(consumer.consume(tr), "Journal " + journalName + " should be empty");
+            }
+            consumer.stop();
+        }
+    }
+
+    @Test
+    void shouldNeverComplete() {
+        Journal journal = new Journal(config, context.getFoundationDB());
+
+        CleanupJournalTask task = new CleanupJournalTask(journal, 1, TimeUnit.HOURS);
+
+        // Before running
+        assertFalse(task.isCompleted());
+
+        task.run();
+
+        // After running - still not completed (perpetual task)
+        assertFalse(task.isCompleted());
+    }
+
+    @Test
+    void shouldHandleShutdownGracefully() {
+        Journal journal = new Journal(config, context.getFoundationDB());
+
+        CleanupJournalTask task = new CleanupJournalTask(journal, 1, TimeUnit.HOURS);
+
+        // Shutdown is a no-op for this task, should not throw
+        assertDoesNotThrow(task::shutdown);
     }
 }

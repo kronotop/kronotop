@@ -16,8 +16,8 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
-import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectoryLayer;
@@ -28,16 +28,20 @@ import com.kronotop.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
+import com.kronotop.internal.TransactionUtils;
 import com.kronotop.journal.JournalName;
 import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
+import com.kronotop.task.handlers.TaskNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class MarkStalePrefixesTask extends BaseTask implements Task {
-    public static final String NAME = "volume:mark-stale-prefixes-task";
+    public static final String NAME = TaskNames.format("volume", "mark-stale-prefixes-task");
+    private static final int DEFAULT_BATCH_SIZE = 10000;
     private static final Logger LOGGER = LoggerFactory.getLogger(MarkStalePrefixesTask.class);
     private final int batchSize;
     private final Context context;
@@ -46,30 +50,25 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
     private volatile boolean shutdown;
 
     public MarkStalePrefixesTask(Context context) {
-        this(context, 10000);
+        this(context, DEFAULT_BATCH_SIZE);
     }
 
     protected MarkStalePrefixesTask(Context context, int batchSize) {
-        // Intended for tests
         this.context = context;
         this.batchSize = batchSize;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            this.subspace = openTaskSubspace(tr);
-            setMemberId(tr);
-            tr.commit().join();
-        }
-    }
-
-    private void setMemberId(Transaction tr) {
-        byte[] value = tr.get(subspace.pack(METADATA_KEY.MEMBER_ID.name())).join();
-        if (value == null) {
-            tr.set(subspace.pack(METADATA_KEY.MEMBER_ID.name()), context.getMember().getId().getBytes());
-        } else {
-            String memberId = new String(value);
-            if (!context.getMember().getId().equals(memberId)) {
-                throw new KronotopException("Run by another cluster member");
+        this.subspace = TransactionUtils.executeThenCommit(context, (tr) -> {
+            DirectorySubspace subspace = openTaskSubspace(tr);
+            byte[] value = tr.get(subspace.pack(METADATA_KEY.MEMBER_ID.name())).join();
+            if (value == null) {
+                tr.set(subspace.pack(METADATA_KEY.MEMBER_ID.name()), context.getMember().getId().getBytes());
+            } else {
+                String memberId = new String(value);
+                if (!context.getMember().getId().equals(memberId)) {
+                    throw new KronotopException("Run by another cluster member");
+                }
             }
-        }
+            return subspace;
+        });
     }
 
     private DirectorySubspace openTaskSubspace(Transaction tr) {
@@ -92,9 +91,9 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
         return latch.getCount() == 0;
     }
 
+    @Override
     public void complete() {
-        shutdown();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        TransactionUtils.executeThenCommit(context, (tr) -> {
             KronotopDirectoryNode node = KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).
@@ -102,64 +101,68 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
                     tasks().
                     task(NAME);
             DirectoryLayer.getDefault().removeIfExists(tr, node.toList()).join();
-            tr.commit().join();
-        }
-        // removed from FDB, mark it as completed.
-        latch.countDown();
+            return null;
+        });
         LOGGER.info("{} task has been completed", NAME);
     }
 
     @Override
     public void task() {
-        // Blocking call
-        DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
-        while (!shutdown) {
-            int total = 0;
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                byte[] begin = tr.get(subspace.pack(METADATA_KEY.LAST_PREFIX.name())).join();
-                byte[] end = ByteArrayUtil.strinc(prefixesSubspace.pack());
-                if (begin == null) {
-                    begin = prefixesSubspace.pack();
+        try {
+            // Blocking call
+            DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
+            while (!shutdown) {
+                int total = 0;
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    byte[] begin = tr.get(subspace.pack(METADATA_KEY.LAST_PREFIX.name())).join();
+                    byte[] end = ByteArrayUtil.strinc(prefixesSubspace.pack());
+                    if (begin == null) {
+                        begin = prefixesSubspace.pack();
+                    }
+
+                    KeySelector beginSelector = KeySelector.firstGreaterThan(begin);
+                    KeySelector endSelector = KeySelector.firstGreaterOrEqual(end);
+                    byte[] latestKey = null;
+                    AsyncIterable<KeyValue> iterator = tr.getRange(beginSelector, endSelector, batchSize);
+                    for (KeyValue keyValue : iterator) {
+                        if (shutdown) {
+                            break;
+                        }
+                        byte[] prefix = (byte[]) prefixesSubspace.unpack(keyValue.getKey()).get(0);
+                        if (PrefixUtil.isStale(context, tr, Prefix.fromBytes(prefix))) {
+                            tr.clear(keyValue.getKey());
+                            context.getJournal().getPublisher().publish(tr, JournalName.DISUSED_PREFIXES, prefix);
+                        }
+                        latestKey = keyValue.getKey();
+                        total++;
+                    }
+                    if (latestKey != null) {
+                        tr.set(subspace.pack(METADATA_KEY.LAST_PREFIX.name()), latestKey);
+                    }
+                    tr.commit().join();
                 }
 
-                Range range = new Range(begin, end);
-                byte[] latestKey = null;
-                AsyncIterable<KeyValue> iterator = tr.getRange(range, batchSize);
-                for (KeyValue keyValue : iterator) {
-                    if (shutdown) {
-                        break;
-                    }
-                    byte[] prefix = (byte[]) prefixesSubspace.unpack(keyValue.getKey()).get(0);
-                    if (PrefixUtil.isStale(context, tr, Prefix.fromBytes(prefix))) {
-                        tr.clear(keyValue.getKey());
-                        context.getJournal().getPublisher().publish(tr, JournalName.DISUSED_PREFIXES, prefix);
-                    }
-                    latestKey = keyValue.getKey();
-                    total++;
+                if (total == 0) {
+                    complete();
+                    break;
                 }
-                if (latestKey != null) {
-                    tr.set(subspace.pack(METADATA_KEY.LAST_PREFIX.name()), latestKey);
-                }
-                tr.commit().join();
             }
-
-            if (total == 0) {
-                complete();
-            }
+        } finally {
+            latch.countDown();
         }
     }
 
     @Override
     public void shutdown() {
-        if (shutdown) {
-            return;
-        }
         shutdown = true;
-    }
-
-    @Override
-    public void awaitCompletion() throws InterruptedException {
-        latch.await();
+        try {
+            if (!latch.await(10, TimeUnit.SECONDS)) {
+                LOGGER.warn("{} cannot be stopped gracefully", NAME);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new KronotopException("Operation was interrupted while waiting", e);
+        }
     }
 
     protected enum METADATA_KEY {

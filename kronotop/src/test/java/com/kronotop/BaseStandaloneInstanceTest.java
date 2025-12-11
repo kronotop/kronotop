@@ -22,7 +22,6 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketMetadataVersionBarrier;
-import com.kronotop.bucket.TestUtil;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.IndexUtil;

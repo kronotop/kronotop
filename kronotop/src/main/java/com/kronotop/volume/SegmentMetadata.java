@@ -39,10 +39,10 @@ class SegmentMetadata {
 
     private final LoadingCache<Prefix, Key> keys;
 
-    SegmentMetadata(VolumeSubspace subspace, String name) {
+    SegmentMetadata(VolumeSubspace subspace, long segmentId) {
         this.keys = CacheBuilder.newBuilder()
                 .expireAfterAccess(10, TimeUnit.MINUTES)
-                .build(new KeysLoader(subspace, name));
+                .build(new KeysLoader(subspace, segmentId));
     }
 
     /**
@@ -74,8 +74,8 @@ class SegmentMetadata {
         try {
             Key key = keys.get(session.prefix());
             session.transaction().mutate(MutationType.ADD, key.cardinality(), delta);
-        } catch (ExecutionException e) {
-            throw new KronotopException(e);
+        } catch (ExecutionException exp) {
+            throw new KronotopException(exp.getCause());
         }
     }
 
@@ -89,8 +89,8 @@ class SegmentMetadata {
         try {
             Key key = keys.get(session.prefix());
             session.transaction().clear(key.cardinality());
-        } catch (ExecutionException e) {
-            throw new KronotopException(e);
+        } catch (ExecutionException exp) {
+            throw new KronotopException(exp.getCause());
         }
     }
 
@@ -106,8 +106,8 @@ class SegmentMetadata {
             Key key = keys.get(session.prefix());
             byte[] data = session.transaction().get(key.cardinality()).join();
             return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
-        } catch (ExecutionException e) {
-            throw new KronotopException(e);
+        } catch (ExecutionException exp) {
+            throw new KronotopException(exp.getCause());
         }
     }
 
@@ -122,8 +122,8 @@ class SegmentMetadata {
         try {
             Key key = keys.get(session.prefix());
             session.transaction().mutate(MutationType.ADD, key.usedBytes(), delta);
-        } catch (ExecutionException e) {
-            throw new KronotopException(e);
+        } catch (ExecutionException exp) {
+            throw new KronotopException(exp.getCause());
         }
     }
 
@@ -137,8 +137,8 @@ class SegmentMetadata {
         try {
             Key key = keys.get(session.prefix());
             session.transaction().clear(key.usedBytes());
-        } catch (ExecutionException e) {
-            throw new KronotopException(e);
+        } catch (ExecutionException exp) {
+            throw new KronotopException(exp.getCause());
         }
     }
 
@@ -154,8 +154,8 @@ class SegmentMetadata {
             Key key = keys.get(session.prefix());
             byte[] data = session.transaction().get(key.usedBytes()).join();
             return ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
-        } catch (ExecutionException e) {
-            throw new KronotopException(e);
+        } catch (ExecutionException exp) {
+            throw new KronotopException(exp.getCause());
         }
     }
 
@@ -165,17 +165,17 @@ class SegmentMetadata {
      */
     private static class KeysLoader extends CacheLoader<Prefix, Key> {
         private final VolumeSubspace subspace;
-        private final String segmentName;
+        private final long segmentId;
 
-        private KeysLoader(VolumeSubspace subspace, String segmentName) {
+        private KeysLoader(VolumeSubspace subspace, long segmentId) {
             this.subspace = subspace;
-            this.segmentName = segmentName;
+            this.segmentId = segmentId;
         }
 
         @Override
         public @Nonnull Key load(@Nonnull Prefix prefix) {
-            byte[] cardinality = subspace.packSegmentCardinalityKey(segmentName, prefix);
-            byte[] usedBytes = subspace.packSegmentUsedBytesKey(segmentName, prefix);
+            byte[] cardinality = subspace.packSegmentCardinalityKey(segmentId, prefix);
+            byte[] usedBytes = subspace.packSegmentUsedBytesKey(segmentId, prefix);
             return new Key(cardinality, usedBytes);
         }
     }

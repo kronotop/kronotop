@@ -106,7 +106,7 @@ public final class ReadExecutor extends BaseExecutor implements Executor<Map<Ver
                     yield result;
                 }
                 case DocumentLocationSink documentLocationSink -> {
-                    documentLocationSink.forEach((entryMetadataId, location) -> {
+                    documentLocationSink.forEach((entryHandle, location) -> {
                         ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), location);
                         result.put(location.versionstamp(), document);
                     });

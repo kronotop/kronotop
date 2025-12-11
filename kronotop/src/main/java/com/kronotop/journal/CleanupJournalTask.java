@@ -37,8 +37,14 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * CleanupJournalsTask is a background task that periodically checks and removes expired entries
- * from a journal based on a configured time-to-live (TTL) value.
+ * A perpetual background task that removes expired entries from all journals based on a
+ * configured retention period (TTL).
+ *
+ * <p>This task iterates through all registered journals and clears entries whose timestamps
+ * exceed the retention period. It runs continuously and never completes.</p>
+ *
+ * @see Journal
+ * @see Entry
  */
 public class CleanupJournalTask extends BaseTask implements Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(CleanupJournalTask.class);
@@ -75,16 +81,11 @@ public class CleanupJournalTask extends BaseTask implements Task {
         // No state to clean
     }
 
-    @Override
-    public void awaitCompletion() throws InterruptedException {
-        // Not required for this task
-    }
-
     /**
-     * Checks if a given journal entry is expired based on the specified retention period.
+     * Checks if a journal entry is expired based on the retention period.
      *
-     * @param keyValue The KeyValue object representing the journal entry to be checked.
-     * @return The key of the journal entry if it is expired, otherwise null.
+     * @param keyValue the journal entry to check
+     * @return the entry's key if expired, null otherwise
      */
     private byte[] checkEntry(KeyValue keyValue) {
         Entry entry = Entry.decode(ByteBuffer.wrap(keyValue.getValue()));
@@ -96,12 +97,11 @@ public class CleanupJournalTask extends BaseTask implements Task {
     }
 
     /**
-     * This method identifies the range of expired journal entries that need to be cleaned up
-     * from a given subspace within a transaction.
+     * Identifies the contiguous range of expired journal entries to be cleared.
      *
-     * @param tr       The transaction context used to access and modify the database.
-     * @param subspace The directory subspace representing the journal's event space.
-     * @return A Range object specifying the byte range of keys to be cleaned up, or null if no expired entries are found.
+     * @param tr       the transaction context
+     * @param subspace the journal's directory subspace
+     * @return a Range of keys to clear, or null if no expired entries exist
      */
     private Range findCleanupRange(Transaction tr, DirectorySubspace subspace) {
         JournalMetadata metadata = new JournalMetadata(subspace);

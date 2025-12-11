@@ -34,6 +34,8 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
+import static com.kronotop.AsyncCommandExecutor.runAsync;
+
 public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public MarkStalePrefixesSubcommand(VolumeService service) {
@@ -44,31 +46,30 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
     public void execute(Request request, Response response) {
         MarkStalePrefixesParameters parameters = new MarkStalePrefixesParameters(request.getParams());
 
-        TaskService taskService = context.getService(TaskService.NAME);
-        if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.START)) {
-            if (taskService.hasTask(MarkStalePrefixesTask.NAME)) {
-                response.writeError("Task " + MarkStalePrefixesTask.NAME + " already exists");
-                return;
+        runAsync(context, response, () -> {
+            TaskService taskService = context.getService(TaskService.NAME);
+            if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.START)) {
+                if (taskService.hasTask(MarkStalePrefixesTask.NAME)) {
+                    throw new KronotopException("Task " + MarkStalePrefixesTask.NAME + " already exists");
+                }
+                MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
+                taskService.execute(task);
+            } else if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.STOP)) {
+                taskService.shutdownAndRemoveTask(MarkStalePrefixesTask.NAME);
+            } else if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.REMOVE)) {
+                taskService.shutdownAndRemoveTask(MarkStalePrefixesTask.NAME);
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    KronotopDirectoryNode node = KronotopDirectory.
+                            kronotop().
+                            cluster(context.getClusterName()).
+                            metadata().
+                            tasks().
+                            task(MarkStalePrefixesTask.NAME);
+                    DirectoryLayer.getDefault().removeIfExists(tr, node.toList()).join();
+                    tr.commit().join();
+                }
             }
-            MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
-            taskService.execute(task);
-        } else if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.STOP)) {
-            taskService.shutdownAndRemoveTask(MarkStalePrefixesTask.NAME);
-        } else if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.REMOVE)) {
-            taskService.shutdownAndRemoveTask(MarkStalePrefixesTask.NAME);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                KronotopDirectoryNode node = KronotopDirectory.
-                        kronotop().
-                        cluster(context.getClusterName()).
-                        metadata().
-                        tasks().
-                        task(MarkStalePrefixesTask.NAME);
-                DirectoryLayer.getDefault().removeIfExists(tr, node.toList()).join();
-                tr.commit().join();
-            }
-        }
-
-        response.writeOK();
+        }, response::writeOK);
     }
 
     private static class MarkStalePrefixesParameters {
@@ -88,7 +89,7 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
         }
 
         enum Operation {
-            START, STOP, REMOVE;
+            START, STOP, REMOVE
         }
     }
 }

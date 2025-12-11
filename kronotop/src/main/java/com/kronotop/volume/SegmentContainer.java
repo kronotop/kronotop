@@ -16,8 +16,7 @@
 
 package com.kronotop.volume;
 
-import com.kronotop.volume.replication.SegmentLog;
 import com.kronotop.volume.segment.Segment;
 
-public record SegmentContainer(Segment segment, SegmentLog log, SegmentMetadata metadata) {
+public record SegmentContainer(Segment segment, SegmentMetadata metadata) {
 }

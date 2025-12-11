@@ -69,7 +69,7 @@ public class FullScanNode extends AbstractScanNode implements ScanNode {
             ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), location);
 
             if (predicate.test(document)) {
-                PersistedEntry entry = new PersistedEntry(location.shardId(), location.entryMetadata().id(), document);
+                PersistedEntry entry = new PersistedEntry(location.shardId(), location.entryMetadata().handle(), document);
                 ctx.sinks().writePersistedEntry(sink, versionstamp, entry);
             }
             ctx.env().cursorManager().saveFullScanCheckpoint(ctx, id(), versionstamp);

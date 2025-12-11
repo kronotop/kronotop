@@ -20,11 +20,14 @@ public enum VolumeAdminSubcommand {
     LIST("list"),
     DESCRIBE("describe"),
     SET_STATUS("set-status"),
-    REPLICATIONS("replications"),
     VACUUM("vacuum"),
     STOP_VACUUM("stop-vacuum"),
     CLEANUP_ORPHAN_FILES("cleanup-orphan-files"),
-    MARK_STALE_PREFIXES("mark-stale-prefixes");
+    MARK_STALE_PREFIXES("mark-stale-prefixes"),
+    LIST_SEGMENTS("list-segments"),
+    START_REPLICATION("start-replication"),
+    STOP_REPLICATION("stop-replication"),
+    PRUNE_CHANGELOG("prune-changelog");
 
     private final String value;
 

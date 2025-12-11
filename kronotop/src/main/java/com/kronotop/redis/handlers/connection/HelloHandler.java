@@ -134,7 +134,7 @@ public class HelloHandler extends BaseHandler implements Handler {
     private void resp3Response(Response response) {
         // We want to keep the insertion order.
         Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
-        map.put(makeFullBulkString("server"), makeFullBulkString(KronotopInstance.KING_OF_THE_DATABASES));
+        map.put(makeFullBulkString("server"), makeFullBulkString(KronotopInstance.PRODUCT_NAME));
         map.put(makeFullBulkString("version"), getVersion3());
         map.put(makeFullBulkString("proto"), new IntegerRedisMessage(RESPVersion.RESP3.getValue()));
 
@@ -149,7 +149,7 @@ public class HelloHandler extends BaseHandler implements Handler {
     private void resp2Response(Response response) {
         List<RedisMessage> result = new ArrayList<>();
         result.add(new SimpleStringRedisMessage("server"));
-        result.add(new SimpleStringRedisMessage(KronotopInstance.KING_OF_THE_DATABASES));
+        result.add(new SimpleStringRedisMessage(KronotopInstance.PRODUCT_NAME));
 
         result.add(new SimpleStringRedisMessage("version"));
         result.add(getVersion2());

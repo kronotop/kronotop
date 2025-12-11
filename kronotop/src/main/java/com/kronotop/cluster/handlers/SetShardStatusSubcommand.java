@@ -67,12 +67,12 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
                 throw new InvalidNumberOfParametersException();
             }
 
-            shardKind = readShardKind(params.get(1));
+            shardKind = ProtocolMessageUtil.readShardKind(params.get(1));
 
             String rawShardId = ProtocolMessageUtil.readAsString(params.get(2));
             allShards = rawShardId.equals("*");
             if (!allShards) {
-                shardId = readShardId(shardKind, rawShardId);
+                shardId = ProtocolMessageUtil.readShardId(context.getConfig(), shardKind, rawShardId);
             } else {
                 shardId = -1; // dummy assignment due to final declaration
             }

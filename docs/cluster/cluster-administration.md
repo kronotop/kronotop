@@ -12,7 +12,6 @@ interface and are primarily intended for operators, infrastructure automation, a
   * [KR.ADMIN REMOVE-MEMBER](#kradmin-remove-member)
   * [KR.ADMIN DESCRIBE-CLUSTER](#kradmin-describe-cluster)
   * [KR.ADMIN DESCRIBE-SHARD](#kradmin-describe-shard)
-  * [KR.ADMIN SYNC-STANDBY](#kradmin-sync-standby)
   * [KR.ADMIN SET-MEMBER-STATUS](#kradmin-set-member-status)
   * [KR.ADMIN LIST-SILENT-MEMBERS](#kradmin-list-silent-members)
   * [KR.ADMIN SET-SHARD-STATUS](#kradmin-set-shard-status)
@@ -271,28 +270,24 @@ KR.ADMIN DESCRIBE-CLUSTER
    1# (integer) 0 =>
       1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
       2# standbys => (empty array)
-      3# sync_standbys => (empty array)
-      4# status => READWRITE
-      5# linked_volumes => 1) redis-shard-0
+      3# status => READWRITE
+      4# linked_volumes => 1) redis-shard-0
    2# (integer) 1 =>
       1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
       2# standbys => 1) b558c6eec79c646928e6678e06b5c67479809663
-      3# sync_standbys => (empty array)
-      4# status => READWRITE
-      5# linked_volumes => 1) redis-shard-1
+      3# status => READWRITE
+      4# linked_volumes => 1) redis-shard-1
 2# bucket =>
    1# (integer) 0 =>
       1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
       2# standbys => (empty array)
-      3# sync_standbys => (empty array)
-      4# status => READWRITE
-      5# linked_volumes => 1) bucket-shard-0
+      3# status => READWRITE
+      4# linked_volumes => 1) bucket-shard-0
    2# (integer) 1 =>
       1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
       2# standbys => (empty array)
-      3# sync_standbys => (empty array)
-      4# status => READWRITE
-      5# linked_volumes => 1) bucket-shard-1
+      3# status => READWRITE
+      4# linked_volumes => 1) bucket-shard-1
 ```
 
 **Output**
@@ -300,15 +295,13 @@ KR.ADMIN DESCRIBE-CLUSTER
 The response is grouped first by shard kind (e.g., REDIS, BUCKET), then by shard ID. Each shard contains the following fields:
 
 * `primary`: The member ID currently acting as the primary for this shard.
-* `standbys`: An array of member IDs acting as asynchronous standbys (replication targets but not in sync).
-* `sync_standbys`: An array of member IDs that are fully synchronized and eligible for synchronous failover.
+* `standbys`: An array of member IDs acting as standbys (replication targets).
 * `status`: Operational state of the shard (READWRITE, READONLY, or INOPERABLE).
 * `linked_volumes`: A list of volume names associated with the shard. These represent the physical or logical storage for the shard's data.
 
 **Notes**
 
 * A shard with no standbys is considered *under-replicated*, which may impact fault tolerance.
-* `sync_standbys` are promoted first during failover scenarios.
 * The command reflects the global cluster view as seen by the node handling the request.
 * Useful for debugging replication lag, topology drift, and verifying HA configurations.
 
@@ -332,16 +325,14 @@ KR.ADMIN DESCRIBE-SHARD
 127.0.0.1:3320> KR.ADMIN DESCRIBE-SHARD BUCKET 1
 1# primary => 99f14bd9e6f9e95953c2f0740846b08508eb97b4
 2# standbys => (empty array)
-3# sync_standbys => (empty array)
-4# status => READWRITE
-5# linked_volumes => 1) bucket-shard-1
+3# status => READWRITE
+4# linked_volumes => 1) bucket-shard-1
 ```
 
 **Output**
 
 * `primary`: The member currently acting as the primary node for the shard.
-* `standbys`: A list of asynchronous standby members.
-* `sync_standbys`: Members that are fully synchronized and eligible for synchronous failover.
+* `standbys`: A list of standby members.
 * `status`: Current operational state of the shard (READWRITE, READONLY, INOPERABLE).
 * `linked_volumes`: Names of volumes physically associated with the shard.
 
@@ -349,51 +340,6 @@ KR.ADMIN DESCRIBE-SHARD
 
 * This command only inspects a single shard. To view the full cluster layout, use `KR.ADMIN DESCRIBE-CLUSTER`.
 * Use `VOLUME.ADMIN REPLICATIONS` command when diagnosing replication lag, unresponsive primaries, or verifying volume assignments at the shard level.
-
-### KR.ADMIN SYNC-STANDBY
-
-`KR.ADMIN SYNC-STANDBY` command manages the **synchronous standby configuration** for a specific shard. A synchronous standby 
-is a member that must remain in sync with the primary before commit acknowledgements can be issued, ensuring stronger consistency 
-and durability guarantees.
-
-This command allows you to explicitly **set** or **unset** a member as a synchronous standby for a given shard.
-
-**Syntax**
-
-```
-KR.ADMIN SYNC-STANDBY operation shard-kind shard-id member-id
-```
-
-**Arguments**
-
-*Operation*
-
-* SET
-* UNSET
-
-*Shard Kind*
-
-* REDIS
-* BUCKET
-
-*Others*
-
-* `shard-id`: Numeric identifier of the target shard
-* `member-id`: UUIDv4 of the member to promote or demote as sync standby
-
-**Example**
-
-```
-127.0.0.1:3320> KR.ADMIN SYNC-STANDBY SET BUCKET 1 99f14bd9e6f9e95953c2f0740846b08508eb97b4
-OK
-```
-
-**Notes**
-
-* The member must already be a valid standby for the shard before it can be promoted to sync standby.
-* Removing a sync standby using `UNSET` will immediately downgrade its replication role.
-* This operation takes effect at runtime and may impact replication acknowledgements and failover behavior.
-* To verify the current sync standby set, use `KR.ADMIN DESCRIBE-SHARD` or `KR.ADMIN DESCRIBE-CLUSTER`.
 
 ### KR.ADMIN SET-MEMBER-STATUS
 

@@ -48,7 +48,6 @@ public class KrAdminHandler implements Handler {
         handlers.put(KrAdminSubcommand.ROUTE, new RouteSubcommandHandler(service));
         handlers.put(KrAdminSubcommand.SET_SHARD_STATUS, new SetShardStatusSubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_SHARD, new DescribeShardSubcommand(service));
-        handlers.put(KrAdminSubcommand.SYNC_STANDBY, new SyncStandbySubcommand(service));
         handlers.put(KrAdminSubcommand.DESCRIBE_MEMBER, new DescribeMemberSubcommand(service));
     }
 

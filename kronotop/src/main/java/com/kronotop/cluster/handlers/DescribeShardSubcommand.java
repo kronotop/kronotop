@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -52,8 +53,8 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
                 throw new InvalidNumberOfParametersException();
             }
 
-            kind = readShardKind(params.get(1));
-            shardId = readShardId(kind, params.get(2));
+            kind = ProtocolMessageUtil.readShardKind(params.get(1));
+            shardId = ProtocolMessageUtil.readShardId(context.getConfig(), kind, params.get(2));
         }
     }
 }

@@ -86,13 +86,13 @@ class Vacuum {
             }
             if (segmentAnalysis.garbageRatio() < vacuumMetadata.getAllowedGarbageRatio()) {
                 LOGGER.info("Garbage ratio doesn't exceed the allowed garbage ratio, skipping Vacuum on segment: {} on volume '{}'",
-                        segmentAnalysis.name(),
+                        segmentAnalysis.segmentId(),
                         volume.getConfig().name()
                 );
                 continue;
             }
-            LOGGER.info("Vacuuming segment: '{}' on volume '{}'", segmentAnalysis.name(), volume.getConfig().name());
-            VacuumContext vacuumContext = new VacuumContext(segmentAnalysis.name(), stop);
+            LOGGER.info("Vacuuming segment: '{}' on volume '{}'", segmentAnalysis.segmentId(), volume.getConfig().name());
+            VacuumContext vacuumContext = new VacuumContext(segmentAnalysis.segmentId(), stop);
             volume.vacuumSegment(vacuumContext);
         }
         return volume.cleanupStaleSegments();

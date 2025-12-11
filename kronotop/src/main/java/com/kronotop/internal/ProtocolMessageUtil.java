@@ -22,6 +22,9 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;
+import com.kronotop.cluster.handlers.InvalidShardIdException;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.typesafe.config.Config;
 import io.netty.buffer.ByteBuf;
 
 import java.util.HashSet;
@@ -51,6 +54,22 @@ public class ProtocolMessageUtil {
         byte[] raw = new byte[buf.readableBytes()];
         buf.readBytes(raw);
         return new String(raw);
+    }
+
+    /**
+     * Parses a shard kind from the given ByteBuf.
+     *
+     * @param shardKindBuf buffer containing the shard kind name (e.g., "REDIS", "BUCKET")
+     * @return the parsed ShardKind enum value
+     * @throws KronotopException if the value is not a valid shard kind
+     */
+    public static ShardKind readShardKind(ByteBuf shardKindBuf) {
+        String rawKind = ProtocolMessageUtil.readAsString(shardKindBuf);
+        try {
+            return ShardKind.valueOf(rawKind.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new KronotopException("invalid shard kind");
+        }
     }
 
     /**
@@ -180,6 +199,59 @@ public class ProtocolMessageUtil {
             return memberId;
         } else {
             throw new KronotopException("Invalid memberId: " + memberId);
+        }
+    }
+
+    /**
+     * Returns the configured number of shards for the given shard kind.
+     *
+     * @param config application configuration
+     * @param kind   the shard kind (REDIS or BUCKET)
+     * @return total number of shards configured for the given kind
+     * @throws IllegalArgumentException if the shard kind is unknown
+     */
+    private static int getNumberOfShards(Config config, ShardKind kind) {
+        if (kind.equals(ShardKind.REDIS)) {
+            return config.getInt("redis.shards");
+        } else if (kind.equals(ShardKind.BUCKET)) {
+            return config.getInt("bucket.shards");
+        }
+        throw new IllegalArgumentException("Unknown shard kind: " + kind);
+    }
+
+    /**
+     * Parses and validates a shard ID from the given ByteBuf.
+     *
+     * @param config     application configuration for shard count lookup
+     * @param shardKind  the shard kind to validate against
+     * @param shardIdBuf buffer containing the shard ID as a numeric string
+     * @return the validated shard ID
+     * @throws InvalidShardIdException if the value is not a valid integer or out of range
+     */
+    public static int readShardId(Config config, ShardKind shardKind, ByteBuf shardIdBuf) {
+        String rawShardId = ProtocolMessageUtil.readAsString(shardIdBuf);
+        return readShardId(config, shardKind, rawShardId);
+    }
+
+    /**
+     * Parses and validates a shard ID from a string.
+     *
+     * @param config     application configuration for shard count lookup
+     * @param shardKind  the shard kind to validate against
+     * @param rawShardId the shard ID as a numeric string
+     * @return the validated shard ID
+     * @throws InvalidShardIdException if the value is not a valid integer or out of range
+     */
+    public static int readShardId(Config config, ShardKind shardKind, String rawShardId) {
+        try {
+            int shardId = Integer.parseInt(rawShardId);
+            // Validate
+            if (shardId < 0 || shardId > getNumberOfShards(config, shardKind) - 1) {
+                throw new InvalidShardIdException();
+            }
+            return shardId;
+        } catch (NumberFormatException e) {
+            throw new InvalidShardIdException();
         }
     }
 

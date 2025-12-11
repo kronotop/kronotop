@@ -33,7 +33,7 @@ public class MemberTest {
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 
     @Test
-    public void test_Member() throws UnknownHostException, JsonProcessingException {
+    public void shouldSerializeAndDeserializeMember() throws UnknownHostException, JsonProcessingException {
         Member member = createMember("localhost:[5484]");
         ObjectMapper objectMapper = new ObjectMapper();
         String serialized = objectMapper.writeValueAsString(member);
@@ -42,14 +42,14 @@ public class MemberTest {
     }
 
     @Test
-    public void test_Members_compareTo() throws UnknownHostException, JsonProcessingException {
+    public void shouldCompareMembersCorrectly() throws UnknownHostException, JsonProcessingException {
         Member memberOne = createMember("localhost:[5484]");
         Member memberTwo = createMember("localhost:[5585]");
         assertTrue(memberOne.getProcessId().compareTo(memberTwo.getProcessId()) < 0);
     }
 
     @Test
-    public void test_Members_sorting() throws UnknownHostException, JsonProcessingException {
+    public void shouldSortMembersCorrectly() throws UnknownHostException, JsonProcessingException {
         Member memberOne = createMember("localhost:[5484]");
         Member memberTwo = createMember("localhost:[5585]");
         Member memberThree = createMember("localhost:[5686]");

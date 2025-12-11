@@ -1,6 +1,6 @@
 services:
   foundationdb:
-    image: foundationdb/foundationdb:7.3.64
+    image: foundationdb/foundationdb:7.3.68
     volumes:
       - foundationdb-data-volume:/var/fdb
     restart: on-failure

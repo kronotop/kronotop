@@ -39,7 +39,7 @@ class PrefixUtilsTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_register() {
+    void shouldRegisterPrefixSuccessfully() {
         TestBundle bundle = prepareTestBundle();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             assertDoesNotThrow(() -> PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.volumePrefix()));
@@ -48,7 +48,7 @@ class PrefixUtilsTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_isStale() {
+    void shouldDetectStalePrefixWhenPointerIsRemoved() {
         TestBundle bundle = prepareTestBundle();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.volumePrefix());
@@ -72,7 +72,7 @@ class PrefixUtilsTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_unregister() {
+    void shouldUnregisterPrefixAndNotBeStale() {
         TestBundle bundle = prepareTestBundle();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.volumePrefix());

@@ -26,6 +26,8 @@ import com.kronotop.volume.VolumeService;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+
 class ListSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public ListSubcommand(VolumeService service) {
@@ -34,10 +36,13 @@ class ListSubcommand extends BaseSubcommandHandler implements SubcommandHandler 
 
     @Override
     public void execute(Request request, Response response) {
-        List<RedisMessage> volumes = new ArrayList<>();
-        service.list().forEach(volume -> {
-            volumes.add(new SimpleStringRedisMessage(volume.getConfig().name()));
-        });
-        response.writeArray(volumes);
+        supplyAsync(context, response, () -> {
+            List<RedisMessage> volumes = new ArrayList<>();
+            service.list().forEach(volume -> {
+                volumes.add(new SimpleStringRedisMessage(volume.getConfig().name()));
+            });
+            return volumes;
+        }, response::writeArray);
+
     }
 }

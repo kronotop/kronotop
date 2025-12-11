@@ -17,31 +17,57 @@
 package com.kronotop.task;
 
 /**
- * The Task interface represents a unit of work that can be executed and monitored.
- * It extends the Runnable interface, allowing it to be used in thread execution.
- * Implementations of this interface encapsulate specific business logic in the `task` method.
+ * A background task with lifecycle management and optional FoundationDB metadata persistence.
+ *
+ * <p>Tasks are long-running operations managed by {@link TaskService}. They extend {@link Runnable}
+ * for thread execution, with {@link #task()} containing the actual business logic.</p>
+ *
+ * <p><b>Lifecycle:</b></p>
+ * <ul>
+ *   <li>{@link #task()} - Execute the work (may be blocking)</li>
+ *   <li>{@link #shutdown()} - Signal graceful stop (metadata preserved in FDB for restart)</li>
+ *   <li>{@link #complete()} - Mark finished and remove metadata from FDB</li>
+ * </ul>
+ *
+ * <p><b>Metadata Persistence:</b> Tasks may store metadata in FoundationDB for crash recovery.
+ * {@link #shutdown()} preserves this metadata (allowing restart), while {@link #complete()}
+ * removes it (task finished successfully).</p>
+ *
+ * @see BaseTask
+ * @see TaskService
  */
 public interface Task extends Runnable {
 
-    // Returns TaskStats for observing the internal state of Task implementation.
+    /**
+     * Returns statistics for monitoring task execution state.
+     */
     TaskStats stats();
 
-    // Returns the task name
+    /**
+     * Returns the unique task name used for registration and lookup.
+     */
     String name();
 
-    // Task method is called by run method of Runnable interface to run the business logic.
+    /**
+     * Executes the task's business logic. Called by {@link Runnable#run()}.
+     * May be a blocking operation.
+     */
     void task();
 
-    // Returns true if the task is completed. Completing means the task did its job successfully
-    // and deleted its own metadata from FDB.
+    /**
+     * Returns true if the task completed successfully and removed its metadata from FDB.
+     */
     boolean isCompleted();
 
-    // Completes the task and removes its metadata if there is any.
+    /**
+     * Marks the task as completed and removes its metadata from FoundationDB.
+     * Call this when the task finishes its work successfully.
+     */
     void complete();
 
-    // Shuts down the running task but the metadata still remains in FDB
+    /**
+     * Signals the task to stop gracefully. Metadata remains in FDB, allowing the task
+     * to be restarted later. Use {@link #complete()} to fully terminate and clean up.
+     */
     void shutdown();
-
-    // Await until the complete method does its job
-    void awaitCompletion() throws InterruptedException;
 }

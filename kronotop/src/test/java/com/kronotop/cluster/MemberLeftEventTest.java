@@ -23,10 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class MemberLeftEventTest {
+class MemberLeftEventTest {
 
     @Test
-    public void test_check_kind() {
+    void shouldHaveCorrectEventKind() {
         MemberLeftEvent event = new MemberLeftEvent(MemberIdGenerator.generateId());
         byte[] data = JSONUtil.writeValueAsBytes(event);
         assertNotNull(data);
@@ -36,7 +36,7 @@ public class MemberLeftEventTest {
     }
 
     @Test
-    public void test_encode_then_decode() {
+    void shouldEncodeThenDecode() {
         MemberLeftEvent expected = new MemberLeftEvent(MemberIdGenerator.generateId());
         byte[] data = JSONUtil.writeValueAsBytes(expected);
         assertNotNull(data);

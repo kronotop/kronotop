@@ -34,9 +34,7 @@ import com.kronotop.redis.server.protocol.FlushAllMessage;
 import com.kronotop.redis.server.protocol.FlushDBMessage;
 import com.kronotop.server.handlers.protocol.SessionAttributeMessage;
 import com.kronotop.task.handlers.protocol.TaskAdminMessage;
-import com.kronotop.volume.handlers.protocol.SegmentInsertMessage;
-import com.kronotop.volume.handlers.protocol.SegmentRangeMessage;
-import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
+import com.kronotop.volume.handlers.protocol.*;
 import io.netty.util.AttributeKey;
 
 /**
@@ -126,10 +124,14 @@ public class MessageTypes {
     public static final AttributeKey<HMGetMessage> HMGET = AttributeKey.valueOf(HMGetMessage.COMMAND);
 
     // Internal commands
-    public static final AttributeKey<SegmentRangeMessage> SEGMENTRANGE = AttributeKey.valueOf(SegmentRangeMessage.COMMAND);
-    public static final AttributeKey<KrAdminMessage> KRADMIN = AttributeKey.valueOf(KrAdminMessage.COMMAND);
     public static final AttributeKey<SegmentInsertMessage> SEGMENTINSERT = AttributeKey.valueOf(SegmentInsertMessage.COMMAND);
+    public static final AttributeKey<SegmentRangeMessage> SEGMENTRANGE = AttributeKey.valueOf(SegmentRangeMessage.COMMAND);
+    public static final AttributeKey<SegmentTailPointerMessage> SEGMENTTAILPOINTER = AttributeKey.valueOf(SegmentTailPointerMessage.COMMAND);
+    public static final AttributeKey<ChangeLogWatchMessage> CHANGELOGWATCH = AttributeKey.valueOf(ChangeLogWatchMessage.COMMAND);
+    public static final AttributeKey<ChangeLogRangeMessage> CHANGELOGRANGE = AttributeKey.valueOf(ChangeLogRangeMessage.COMMAND);
+    public static final AttributeKey<KrAdminMessage> KRADMIN = AttributeKey.valueOf(KrAdminMessage.COMMAND);
     public static final AttributeKey<VolumeAdminMessage> VOLUMEADMIN = AttributeKey.valueOf(VolumeAdminMessage.COMMAND);
+    public static final AttributeKey<VolumeInspectMessage> VOLUMEINSPECT = AttributeKey.valueOf(VolumeInspectMessage.COMMAND);
     public static final AttributeKey<TaskAdminMessage> TASKADMIN = AttributeKey.valueOf(TaskAdminMessage.COMMAND);
 
     // Buckets

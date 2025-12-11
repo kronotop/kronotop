@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class VolumeMetadataTest extends BaseStandaloneInstanceTest {
 
     @Test
-    public void test_addSegment() {
+    void shouldThrowWhenAddingDuplicateSegment() {
         VolumeMetadata volumeMetadata = new VolumeMetadata();
         volumeMetadata.addSegment(1);
 
@@ -35,7 +35,7 @@ class VolumeMetadataTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void test_removeSegment() {
+    void shouldThrowWhenRemovingNonExistentSegment() {
         VolumeMetadata volumeMetadata = new VolumeMetadata();
         volumeMetadata.addSegment(1);
         volumeMetadata.removeSegment(1);
@@ -44,7 +44,7 @@ class VolumeMetadataTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void test_getStatus_default_status() {
+    void shouldReturnReadWriteAsDefaultStatus() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("volume-metadata-test");
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, subspace);
@@ -53,7 +53,7 @@ class VolumeMetadataTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void test_setStatus_then_getStatus() {
+    void shouldPersistStatusAfterCompute() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("volume-metadata-test");
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VolumeMetadata.compute(tr, subspace, volumeMetadata -> {

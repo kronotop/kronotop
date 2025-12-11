@@ -32,29 +32,33 @@ public class StopVacuumTaskHook implements RoutingEventHook {
 
     @Override
     public void run(ShardKind shardKind, int shardId) {
-        String name = VolumeConfigGenerator.volumeName(shardKind, shardId);
-        Volume volume = service.findVolume(name);
-        if (service.hasVolumeOwnership(volume)) {
-            // Current owner, no need to stop it.
-            return;
-        }
-        try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
-            VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
-            if (vacuumMetadata == null) {
-                // No vacuum task found for this volume.
+        try {
+            String name = VolumeNames.format(shardKind, shardId);
+            Volume volume = service.findVolume(name);
+            if (service.hasVolumeOwnership(volume)) {
+                // Current owner, no need to stop it.
                 return;
             }
-            // Stop the task
-            TaskService taskService = service.getContext().getService(TaskService.NAME);
-            Task task = taskService.getTask(vacuumMetadata.getTaskName());
-            if (task == null) {
-                // No local task found
-                return;
+            try (Transaction tr = service.getContext().getFoundationDB().createTransaction()) {
+                VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
+                if (vacuumMetadata == null) {
+                    // No vacuum task found for this volume.
+                    return;
+                }
+                // Stop the task
+                TaskService taskService = service.getContext().getService(TaskService.NAME);
+                Task task = taskService.getTask(vacuumMetadata.getTaskName());
+                if (task == null) {
+                    // No local task found
+                    return;
+                }
+                // Stops the vacuum task but not completes it.
+                task.shutdown();
+            } catch (TaskNotFoundException e) {
+                // Ignore
             }
-            // Stops the vacuum task but not completes it.
-            task.shutdown();
-        } catch (TaskNotFoundException e) {
-            // Ignore
+        } catch (VolumeNotOpenException ignored) {
+            // The volume is not open, so there cannot be a running Vacuum task.
         }
     }
 }

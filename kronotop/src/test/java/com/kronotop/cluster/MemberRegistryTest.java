@@ -25,10 +25,10 @@ import java.util.TreeSet;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class MemberRegistryTest extends BaseStandaloneInstanceTest {
+class MemberRegistryTest extends BaseStandaloneInstanceTest {
 
     @Test
-    public void test_add() throws UnknownHostException {
+    void shouldAddMember() throws UnknownHostException {
         MemberRegistry registry = new MemberRegistry(context);
         Member member = createMemberWithEphemeralPort();
         DirectorySubspace subspace = assertDoesNotThrow(() -> registry.add(member));
@@ -36,7 +36,7 @@ public class MemberRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void test_add_throws_MemberAlreadyRegisteredException() throws UnknownHostException {
+    void shouldThrowMemberAlreadyRegisteredExceptionWhenAddingDuplicate() throws UnknownHostException {
         MemberRegistry registry = new MemberRegistry(context);
         Member member = createMemberWithEphemeralPort();
         assertDoesNotThrow(() -> registry.add(member));
@@ -44,7 +44,7 @@ public class MemberRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void test_remove() throws UnknownHostException {
+    void shouldRemoveMember() throws UnknownHostException {
         MemberRegistry registry = new MemberRegistry(context);
         Member member = createMemberWithEphemeralPort();
         assertDoesNotThrow(() -> registry.add(member));
@@ -52,20 +52,20 @@ public class MemberRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void test_delete_throws_MemberNotRegisteredException() throws UnknownHostException {
+    void shouldThrowMemberNotRegisteredExceptionWhenRemovingUnknown() throws UnknownHostException {
         MemberRegistry registry = new MemberRegistry(context);
         Member member = createMemberWithEphemeralPort();
         assertThrows(MemberNotRegisteredException.class, () -> registry.remove(member.getId()));
     }
 
     @Test
-    public void test_isAdded_false() {
+    void shouldReturnFalseWhenMemberNotAdded() {
         MemberRegistry members = new MemberRegistry(context);
         assertFalse(members.isAdded(MemberIdGenerator.generateId()));
     }
 
     @Test
-    public void test_isAdded_true() throws UnknownHostException {
+    void shouldReturnTrueWhenMemberAdded() throws UnknownHostException {
         MemberRegistry registry = new MemberRegistry(context);
         Member member = createMemberWithEphemeralPort();
         assertDoesNotThrow(() -> registry.add(member));
@@ -73,7 +73,7 @@ public class MemberRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void test_setStatus() throws UnknownHostException {
+    void shouldSetMemberStatus() throws UnknownHostException {
         MemberRegistry registry = new MemberRegistry(context);
         Member member = createMemberWithEphemeralPort();
         assertDoesNotThrow(() -> registry.add(member));
@@ -83,7 +83,7 @@ public class MemberRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void test_findMember() throws UnknownHostException {
+    void shouldFindMember() throws UnknownHostException {
         MemberRegistry registry = new MemberRegistry(context);
         Member member = createMemberWithEphemeralPort();
         assertDoesNotThrow(() -> registry.add(member));
@@ -92,13 +92,13 @@ public class MemberRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    public void test_findMember_MemberNotRegisteredException() {
+    void shouldThrowMemberNotRegisteredExceptionWhenFindingUnknown() {
         MemberRegistry registry = new MemberRegistry(context);
         assertThrows(MemberNotRegisteredException.class, () -> registry.findMember(MemberIdGenerator.generateId()));
     }
 
     @Test
-    public void test_listMembers() throws UnknownHostException {
+    void shouldListMembers() throws UnknownHostException {
         MemberRegistry registry = new MemberRegistry(context);
         Member one = createMemberWithEphemeralPort();
         Member two = createMemberWithEphemeralPort();

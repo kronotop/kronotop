@@ -23,7 +23,7 @@ import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.volume.VolumeSession;
-import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -34,13 +34,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
-    public void test_SEGMENTRANGE() throws IOException {
+    void shouldRetrieveMultipleSegmentRanges() throws IOException {
         ByteBuffer[] entries = {
                 ByteBuffer.wrap(new byte[]{1, 2, 3}),
                 ByteBuffer.wrap(new byte[]{4, 5, 6}),
@@ -52,49 +51,76 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         }
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
-        String segmentName = segmentAnalysis.getFirst().name();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
 
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        SegmentRange[] ranges = {
+        List<SegmentRange> ranges = List.of(
                 new SegmentRange(0, 3),
-                new SegmentRange(3, 3),
-        };
-        cmd.segmentrange(volumeConfig.name(), segmentName, ranges).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
+                new SegmentRange(3, 3)
+        );
+        cmd.segmentrange(volumeConfig.name(), segmentId, ranges).encode(buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
+        assertInstanceOf(ArrayRedisMessage.class, response);
         ArrayRedisMessage message = (ArrayRedisMessage) response;
-        for (int i = 0; i < ranges.length; i++) {
+        for (int i = 0; i < ranges.size(); i++) {
             FullBulkStringRedisMessage redisMessage = (FullBulkStringRedisMessage) message.children().get(i);
             assertArrayEquals(entries[i].array(), redisMessage.content().array());
         }
     }
 
     @Test
-    public void test_SEGMENTRANGE_VolumeNotOpenException() {
+    void shouldThrowVolumeNotOpenExceptionWhenVolumeNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentrange("foobar", "barfoo", new SegmentRange(0, 3)).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
+        cmd.segmentrange("foobar", 1, List.of(new SegmentRange(0, 3))).encode(buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Volume: 'foobar' is not open", message.content());
     }
 
     @Test
-    public void test_SEGMENTRANGE_SegmentNotFoundException() {
+    void shouldThrowSegmentNotFoundExceptionWhenSegmentNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentrange(volumeConfig.name(), "0000000000000000001", new SegmentRange(0, 3)).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
+        cmd.segmentrange(volumeConfig.name(), 1, List.of(new SegmentRange(0, 3))).encode(buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
-        assertEquals("ERR Segment: '0000000000000000001' could not be found", message.content());
+        assertEquals("ERR Segment with id: '1' could not be found", message.content());
+    }
+
+    @Test
+    void shouldThrowEntryOutOfBoundExceptionWhenRangeExceedsSegmentSize() throws IOException {
+        ByteBuffer[] entries = {
+                ByteBuffer.wrap(new byte[]{1, 2, 3}),
+        };
+        try (Transaction tr = database.createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
+        long segmentSize = segmentAnalysis.getFirst().size();
+
+        InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        List<SegmentRange> ranges = List.of(new SegmentRange(segmentSize - 10, 20));
+        cmd.segmentrange(volumeConfig.name(), segmentId, ranges).encode(buf);
+
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        ErrorRedisMessage message = (ErrorRedisMessage) response;
+        assertEquals("OUTOFBOUND position: " + (segmentSize - 10) + ", length: 20 but size: " + segmentSize, message.content());
     }
 }

@@ -21,9 +21,21 @@ import io.lettuce.core.RedisFuture;
 import java.util.List;
 
 public interface InternalAsyncCommands<K, V> {
-    RedisFuture<List<Object>> segmentrange(String volume, String segment, SegmentRange... ranges);
+    RedisFuture<List<Object>> segmentrange(String volume, long segmentId, List<SegmentRange> ranges);
 
-    RedisFuture<String> segmentinsert(String volume, String segment, PackedEntry... entries);
+    RedisFuture<String> segmentinsert(String volume, long segmentId, PackedEntry... entries);
+
+    RedisFuture<List<Long>> segmentTailPointer(String volume, long segmentId);
+
+    RedisFuture<List<Long>> listSegments(String volume);
+
+    RedisFuture<Long> changelogWatch(String volume, long sequenceNumber);
+
+    RedisFuture<VolumeInspectCursorResponse> volumeInspectCursor(String volume);
+
+    RedisFuture<VolumeInspectReplicationResponse> volumeInspectReplication(String shardKind, int shardId, String standbyId);
+
+    RedisFuture<List<ChangeLogEntryResponse>> changelogRange(String volume, String parentOperationKind, String start, String end, ChangeLogRangeArgs changelogArgs);
 
     RedisFuture<String> ping();
 }

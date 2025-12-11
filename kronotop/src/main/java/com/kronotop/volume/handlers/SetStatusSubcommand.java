@@ -22,10 +22,14 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.volume.*;
+import com.kronotop.volume.Volume;
+import com.kronotop.volume.VolumeService;
+import com.kronotop.volume.VolumeStatus;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+
+import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 public class SetStatusSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
@@ -36,16 +40,13 @@ public class SetStatusSubcommand extends BaseSubcommandHandler implements Subcom
     @Override
     public void execute(Request request, Response response) {
         SetStatusParameters parameters = new SetStatusParameters(request.getParams());
-        try {
+        runAsync(context, response, () -> {
             Volume volume = service.findVolume(parameters.name);
             volume.setStatus(parameters.status);
-            response.writeOK();
-        } catch (VolumeNotOpenException | ClosedVolumeException e) {
-            throw new KronotopException(e);
-        }
+        }, response::writeOK);
     }
 
-    private class SetStatusParameters {
+    private static class SetStatusParameters {
         private final String name;
         private final VolumeStatus status;
 

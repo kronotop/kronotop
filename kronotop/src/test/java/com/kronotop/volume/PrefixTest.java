@@ -20,9 +20,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PrefixTest {
+class PrefixTest {
     @Test
-    public void test_Prefix() {
+    void shouldCreatePrefixWithValidBytesAndPositiveValues() {
         Prefix prefix = new Prefix("test");
 
         assertNotNull(prefix.asBytes());
@@ -31,7 +31,7 @@ public class PrefixTest {
     }
 
     @Test
-    public void test_fromBytes() {
+    void shouldReconstructPrefixFromBytes() {
         Prefix prefix = new Prefix("test");
         assertEquals(prefix, Prefix.fromBytes(prefix.asBytes()));
     }

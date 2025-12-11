@@ -16,7 +16,7 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-import com.kronotop.bucket.TestUtil;
+import com.kronotop.TestUtil;
 import com.kronotop.internal.JSONUtil;
 import org.junit.jupiter.api.Test;
 

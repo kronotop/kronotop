@@ -30,17 +30,18 @@ import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
-import com.kronotop.journal.Consumer;
-import com.kronotop.journal.ConsumerConfig;
-import com.kronotop.journal.Event;
-import com.kronotop.journal.JournalName;
+import com.kronotop.internal.TransactionUtils;
+import com.kronotop.journal.*;
+import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * MembershipService manages cluster membership, health monitoring, and failure detection in Kronotop.
@@ -76,39 +77,63 @@ import java.util.concurrent.*;
 public class MembershipService extends BaseKronotopService implements KronotopService {
     public static final String NAME = "Membership";
 
-    /** Byte array representing value 1 in little-endian format for atomic increment operations. */
+    /**
+     * Byte array representing value 1 in little-endian format for atomic increment operations.
+     */
     private static final byte[] PLUS_ONE = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
 
-    /** Application context providing access to core services and configuration. */
+    /**
+     * Application context providing access to core services and configuration.
+     */
     private final Context context;
 
-    /** Registry managing member persistence and retrieval from FoundationDB. */
+    /**
+     * Registry managing member persistence and retrieval from FoundationDB.
+     */
     private final MemberRegistry registry;
 
-    /** Scheduler for background tasks (heartbeat, failure detection, event watching). */
+    /**
+     * Scheduler for background tasks (heartbeat, failure detection, event watching).
+     */
     private final ScheduledThreadPoolExecutor scheduler;
 
-    /** Watcher for monitoring key changes in FoundationDB. */
+    private final ExecutorService executor;
+
+    /**
+     * Watcher for monitoring key changes in FoundationDB.
+     */
     private final KeyWatcher keyWatcher = new KeyWatcher();
 
-    /** Mapping of members to their FoundationDB directory subspaces for heartbeat storage. */
+    /**
+     * Mapping of members to their FoundationDB directory subspaces for heartbeat storage.
+     */
     private final ConcurrentHashMap<Member, DirectorySubspace> subspaces = new ConcurrentHashMap<>();
 
-    /** Local view of other cluster members and their health status. */
+    /**
+     * Local view of other cluster members and their health status.
+     */
     private final ConcurrentHashMap<Member, MemberView> others = new ConcurrentHashMap<>();
 
-    /** Consumer for cluster events journal (member join/leave notifications). */
+    /**
+     * Consumer for cluster events journal (member join/leave notifications).
+     */
     private final Consumer clusterEventsConsumer;
 
-    /** Interval in seconds between heartbeat updates (from cluster.heartbeat.interval config). */
+    /**
+     * Interval in seconds between heartbeat updates (from cluster.heartbeat.interval config).
+     */
     private final int heartbeatInterval;
 
-    /** Maximum silent period in seconds before a member is considered dead (from cluster.heartbeat.maximum_silent_period config). */
+    /**
+     * Maximum silent period in seconds before a member is considered dead (from cluster.heartbeat.maximum_silent_period config).
+     */
     private final int heartbeatMaximumSilentPeriod;
 
-    /** Flag indicating whether the service is shutting down. */
+    /**
+     * Flag indicating whether the service is shutting down.
+     */
     private volatile boolean shutdown;
 
     /**
@@ -137,13 +162,14 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         this.clusterEventsConsumer = new Consumer(context, config);
 
         ThreadFactory factory = new ThreadFactoryBuilder().setNameFormat("kr.membership-%d").build();
-        this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
+        this.scheduler = new ScheduledThreadPoolExecutor(2, factory);
+        this.executor = Executors.newSingleThreadExecutor(factory);
     }
 
     /**
      * Opens the FoundationDB directory subspace for a given member.
      *
-     * @param tr the transaction to use for directory operations
+     * @param tr     the transaction to use for directory operations
      * @param member the member whose directory subspace should be opened
      * @return the directory subspace for the member
      */
@@ -231,11 +257,11 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         clusterEventsConsumer.start();
 
         ClusterEventsJournalWatcher eventsJournalWatcher = new ClusterEventsJournalWatcher();
-        scheduler.execute(eventsJournalWatcher);
+        executor.submit(eventsJournalWatcher);
         eventsJournalWatcher.waitUntilStarted();
 
-        scheduler.execute(new HeartbeatTask());
-        scheduler.execute(new FailureDetectionTask());
+        scheduler.submit(new HeartbeatTask());
+        scheduler.submit(new FailureDetectionTask());
     }
 
     /**
@@ -298,7 +324,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      * <p>This method persists the member's updated state to FoundationDB. Changes include
      * status updates, address changes, or any other member metadata modifications.</p>
      *
-     * @param tr the transaction to use for the update operation
+     * @param tr     the transaction to use for the update operation
      * @param member the Member object containing the updated information
      */
     public void updateMember(Transaction tr, Member member) {
@@ -311,7 +337,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      * <p>This is a safety measure to prevent accidental removal of active members. Members must be
      * in STOPPED or UNAVAILABLE status before they can be removed from the cluster.</p>
      *
-     * @param tr the transaction object used for querying and removing the member
+     * @param tr       the transaction object used for querying and removing the member
      * @param memberId the unique identifier of the member to be removed
      * @throws KronotopException if the member is in RUNNING status
      */
@@ -362,13 +388,21 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             shutdown = true;
             keyWatcher.unwatchAll();
             clusterEventsConsumer.stop();
-            scheduler.shutdownNow();
 
-            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
-                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
+            // executor
+            executor.shutdownNow();
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                LOGGER.warn("{} service did not stop gracefully (executor)", NAME);
+            }
+
+            // scheduler
+            scheduler.shutdownNow();
+            if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+                LOGGER.warn("{} service did not stop gracefully (scheduler)", NAME);
             }
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            Thread.currentThread().interrupt();
+            throw new KronotopException(e);
         } finally {
             Member member = context.getMember();
             updateMemberStatusAndLeftCluster(member, MemberStatus.STOPPED);
@@ -413,7 +447,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             context.getJournal().getPublisher().publish(tr, JournalName.CLUSTER_EVENTS, new MemberLeftEvent(member));
             tr.commit().join();
         } catch (Exception e) {
-            // Rollback the internal state
+            // Rolls back the internal state
             member.setStatus(initialStatus);
         }
     }
@@ -443,8 +477,10 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             others.put(member, new MemberView(heartbeat));
         }
 
-        // A new cluster member has joined.
-        LOGGER.info("Member join: {}", member.getExternalAddress());
+        if (!context.getMember().equals(member)) {
+            // A new cluster member has joined.
+            LOGGER.info("Member join: {}", member.getExternalAddress());
+        }
     }
 
     /**
@@ -466,7 +502,9 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         others.remove(member);
 
         context.getInternalConnectionPool().shutdown(member);
-        LOGGER.info("Member left: {}", member.getExternalAddress());
+        if (!context.getMember().equals(member)) {
+            LOGGER.info("Member left: {}", member.getExternalAddress());
+        }
     }
 
     /**
@@ -477,7 +515,6 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      */
     private void processClusterEvent(Event event) {
         BaseBroadcastEvent baseBroadcastEvent = JSONUtil.readValue(event.value(), BaseBroadcastEvent.class);
-        LOGGER.debug("Received broadcast event: {}", baseBroadcastEvent.kind());
         switch (baseBroadcastEvent.kind()) {
             case MEMBER_JOIN -> processMemberJoinEvent(event.value());
             case MEMBER_LEFT -> processMemberLeftEvent(event.value());
@@ -496,23 +533,37 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      * transaction to persist the updated consumer offset.</p>
      */
     private synchronized void fetchClusterEvents() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            while (true) {
-                // Try to consume the latest event.
-                Event event = clusterEventsConsumer.consume(tr);
-                if (event == null) {
-                    break;
-                }
+        Retry retry = TransactionUtils.retry(10, Duration.ofMillis(100));
+        retry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                while (true) {
+                    // Try to consume the latest event.
+                    Event event;
+                    try {
+                        event = clusterEventsConsumer.consume(tr);
+                        if (event == null) {
+                            LOGGER.trace("No more cluster events to consume");
+                            break;
+                        }
+                    } catch (IllegalConsumerStateException exp) {
+                        LOGGER.warn("Cluster event consumer is in an illegal state while consuming: {}", exp.getMessage());
+                        break;
+                    }
 
-                try {
-                    processClusterEvent(event);
-                    clusterEventsConsumer.markConsumed(tr, event);
-                } catch (Exception e) {
-                    LOGGER.error("Failed to process a broadcast event, passing it", e);
+                    try {
+                        processClusterEvent(event);
+                        clusterEventsConsumer.markConsumed(tr, event);
+                    } catch (IllegalConsumerStateException exp) {
+                        LOGGER.warn("Cluster event consumer is in an illegal state while marking consumed: {}", exp.getMessage());
+                        break;
+                    } catch (Exception e) {
+                        LOGGER.error("Cluster event processing failed for event={} – skipping", event, e);
+                    }
                 }
+                tr.commit().join();
+                LOGGER.debug("Cluster event batch committed");
             }
-            tr.commit().join();
-        }
+        });
     }
 
     /**
@@ -525,7 +576,9 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      * after each iteration.</p>
      */
     private class ClusterEventsJournalWatcher implements Runnable {
-        /** Latch to signal when the watcher has started and is ready. */
+        /**
+         * Latch to signal when the watcher has started and is ready.
+         */
         private final CountDownLatch latch = new CountDownLatch(1);
 
         /**
@@ -547,25 +600,24 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
                 return;
             }
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.CLUSTER_EVENTS.getValue()).trigger());
-                tr.commit().join();
-                try {
-                    // Try to fetch the latest events before start waiting
+            while (!shutdown) {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.CLUSTER_EVENTS.getValue()).trigger());
+                    tr.commit().join();
+                    try {
+                        // Try to fetch the latest events before start waiting
+                        fetchClusterEvents();
+                        latch.countDown();
+                        watcher.join();
+                    } catch (CancellationException e) {
+                        LOGGER.debug("{} watcher has been cancelled", JournalName.CLUSTER_EVENTS);
+                        return;
+                    }
+                    // A new event is ready to read
                     fetchClusterEvents();
-                    latch.countDown();
-                    watcher.join();
-                } catch (CancellationException e) {
-                    LOGGER.debug("{} watcher has been cancelled", JournalName.CLUSTER_EVENTS);
-                    return;
-                }
-                // A new event is ready to read
-                fetchClusterEvents();
-            } catch (Exception e) {
-                LOGGER.error("Error while watching journal: {}", JournalName.CLUSTER_EVENTS, e);
-            } finally {
-                if (!shutdown) {
-                    scheduler.execute(this);
+                } catch (Exception e) {
+                    LOGGER.error("Error while watching journal: {}", JournalName.CLUSTER_EVENTS, e);
+                    LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
                 }
             }
         }
@@ -581,7 +633,9 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      * <p>The task reschedules itself after each execution until the service is shut down.</p>
      */
     private class HeartbeatTask implements Runnable {
-        /** Directory subspace where this member's heartbeat is stored. */
+        /**
+         * Directory subspace where this member's heartbeat is stored.
+         */
         private final DirectorySubspace subspace = subspaces.get(context.getMember());
 
         @Override
@@ -594,9 +648,65 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
                 tr.commit().join();
             } catch (Exception e) {
                 LOGGER.error("Error while updating heartbeat", e);
+                LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
             } finally {
                 if (!shutdown) {
                     scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks the health status of all cluster members by comparing their heartbeats.
+     *
+     * <p>For each member in the cluster, this method:
+     * <ul>
+     *   <li>Reads the latest heartbeat from FoundationDB</li>
+     *   <li>Updates the member's view if heartbeat changed, or increments expected heartbeat if unchanged</li>
+     *   <li>Marks the member as dead if silent period exceeds the threshold</li>
+     *   <li>Reincarnates previously dead members if they resume sending heartbeats</li>
+     * </ul>
+     *
+     * <p>Members already marked as dead are skipped to avoid unnecessary processing.</p>
+     *
+     * @param maxSilentPeriod the maximum number of heartbeat intervals a member can be silent
+     *                        before being considered dead
+     */
+    void checkClusterMembers(long maxSilentPeriod) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (Member member : others.keySet()) {
+                DirectorySubspace subspace = subspaces.get(member);
+                long latestHeartbeat = Heartbeat.get(tr, subspace);
+                MemberView view = others.computeIfPresent(member, (m, memberView) -> {
+                    if (!memberView.isAlive()) {
+                        // continue
+                        return memberView;
+                    }
+
+                    if (memberView.getLatestHeartbeat() != latestHeartbeat) {
+                        memberView.setLatestHeartbeat(latestHeartbeat);
+                    } else {
+                        memberView.increaseExpectedHeartbeat();
+                    }
+                    return memberView;
+                });
+
+                if (view == null) {
+                    // This should not be possible
+                    continue;
+                }
+
+                long silentPeriod = view.getExpectedHeartbeat() - view.getLatestHeartbeat();
+                if (view.isAlive() && silentPeriod > maxSilentPeriod) {
+                    LOGGER.warn("{} has been suspected to be dead", member.getId());
+                    view.setAlive(false);
+                    return;
+                }
+
+                if (!view.isAlive() && silentPeriod < maxSilentPeriod) {
+                    LOGGER.warn("{} has been reincarnated", member.getId());
+                    view.setAlive(true);
                 }
             }
         }
@@ -629,43 +739,11 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             if (shutdown) {
                 return;
             }
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                for (Member member : others.keySet()) {
-                    DirectorySubspace subspace = subspaces.get(member);
-                    long latestHeartbeat = Heartbeat.get(tr, subspace);
-                    MemberView view = others.computeIfPresent(member, (m, memberView) -> {
-                        if (!memberView.isAlive()) {
-                            // continue
-                            return memberView;
-                        }
-
-                        if (memberView.getLatestHeartbeat() != latestHeartbeat) {
-                            memberView.setLatestHeartbeat(latestHeartbeat);
-                        } else {
-                            memberView.increaseExpectedHeartbeat();
-                        }
-                        return memberView;
-                    });
-
-                    if (view == null) {
-                        // This should not be possible
-                        continue;
-                    }
-
-                    long silentPeriod = view.getExpectedHeartbeat() - view.getLatestHeartbeat();
-                    if (view.isAlive() && silentPeriod > maxSilentPeriod) {
-                        LOGGER.warn("{} has been suspected to be dead", member.getId());
-                        view.setAlive(false);
-                        return;
-                    }
-
-                    if (!view.isAlive() && silentPeriod < maxSilentPeriod) {
-                        LOGGER.warn("{} has been reincarnated", member.getId());
-                        view.setAlive(true);
-                    }
-                }
+            try {
+                checkClusterMembers(maxSilentPeriod);
             } catch (Exception e) {
                 LOGGER.error("Error while running failure detection task", e);
+                LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
             } finally {
                 if (!shutdown) {
                     scheduler.schedule(this, heartbeatInterval, TimeUnit.SECONDS);

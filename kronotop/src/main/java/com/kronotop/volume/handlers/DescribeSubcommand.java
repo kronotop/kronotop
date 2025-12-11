@@ -33,6 +33,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+
 class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public DescribeSubcommand(VolumeService service) {
@@ -43,29 +45,31 @@ class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHand
     public void execute(Request request, Response response) {
         DescribeParameters parameters = new DescribeParameters(request.getParams());
 
-        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        Volume volume = service.findVolume(parameters.name);
-        VolumeConfig config = volume.getConfig();
+        supplyAsync(context, response, () -> {
+            Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+            Volume volume = service.findVolume(parameters.name);
+            VolumeConfig config = volume.getConfig();
 
-        result.put(new SimpleStringRedisMessage("name"), new SimpleStringRedisMessage(config.name()));
-        result.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(volume.getStatus().name()));
-        result.put(new SimpleStringRedisMessage("data_dir"), new SimpleStringRedisMessage(config.dataDir()));
-        result.put(new SimpleStringRedisMessage("segment_size"), new IntegerRedisMessage(config.segmentSize()));
+            result.put(new SimpleStringRedisMessage("name"), new SimpleStringRedisMessage(config.name()));
+            result.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(volume.getStatus().name()));
+            result.put(new SimpleStringRedisMessage("data_dir"), new SimpleStringRedisMessage(config.dataDir()));
+            result.put(new SimpleStringRedisMessage("segment_size"), new IntegerRedisMessage(config.segmentSize()));
 
-        List<SegmentAnalysis> segments = volume.analyze();
-        Map<RedisMessage, RedisMessage> segmentAnalysis = new LinkedHashMap<>();
-        for (SegmentAnalysis analysis : segments) {
-            Map<RedisMessage, RedisMessage> segment = new LinkedHashMap<>();
-            segment.put(new SimpleStringRedisMessage("size"), new IntegerRedisMessage(analysis.size()));
-            segment.put(new SimpleStringRedisMessage("free_bytes"), new IntegerRedisMessage(analysis.freeBytes()));
-            segment.put(new SimpleStringRedisMessage("used_bytes"), new IntegerRedisMessage(analysis.usedBytes()));
-            segment.put(new SimpleStringRedisMessage("garbage_ratio"), new DoubleRedisMessage(analysis.garbageRatio()));
-            segment.put(new SimpleStringRedisMessage("cardinality"), new IntegerRedisMessage(analysis.cardinality()));
+            List<SegmentAnalysis> segments = volume.analyze();
+            Map<RedisMessage, RedisMessage> segmentAnalysis = new LinkedHashMap<>();
+            for (SegmentAnalysis analysis : segments) {
+                Map<RedisMessage, RedisMessage> segment = new LinkedHashMap<>();
+                segment.put(new SimpleStringRedisMessage("size"), new IntegerRedisMessage(analysis.size()));
+                segment.put(new SimpleStringRedisMessage("free_bytes"), new IntegerRedisMessage(analysis.freeBytes()));
+                segment.put(new SimpleStringRedisMessage("used_bytes"), new IntegerRedisMessage(analysis.usedBytes()));
+                segment.put(new SimpleStringRedisMessage("garbage_ratio"), new DoubleRedisMessage(analysis.garbageRatio()));
+                segment.put(new SimpleStringRedisMessage("cardinality"), new IntegerRedisMessage(analysis.cardinality()));
 
-            segmentAnalysis.put(new SimpleStringRedisMessage(analysis.name()), new MapRedisMessage(segment));
-        }
-        result.put(new SimpleStringRedisMessage("segments"), new MapRedisMessage(segmentAnalysis));
-        response.writeMap(result);
+                segmentAnalysis.put(new IntegerRedisMessage(analysis.segmentId()), new MapRedisMessage(segment));
+            }
+            result.put(new SimpleStringRedisMessage("segments"), new MapRedisMessage(segmentAnalysis));
+            return result;
+        }, response::writeMap);
     }
 
     private static class DescribeParameters {

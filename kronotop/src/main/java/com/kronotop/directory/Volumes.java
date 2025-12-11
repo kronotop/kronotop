@@ -62,6 +62,18 @@ public class Volumes extends KronotopDirectoryNode {
                 super(layout);
                 layout.add(name);
             }
+
+            public Standby standby(String memberId) {
+                return new Standby(layout, memberId);
+            }
+
+            public static class Standby extends KronotopDirectoryNode {
+                public Standby(List<String> layout, String memberId) {
+                    super(layout);
+                    layout.add("standby");
+                    layout.add(memberId);
+                }
+            }
         }
     }
 }

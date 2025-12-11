@@ -33,9 +33,12 @@ import com.kronotop.volume.handlers.protocol.SegmentRangeMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(SegmentRangeMessage.COMMAND)
 @MinimumParameterCount(SegmentRangeMessage.MINIMUM_PARAMETER_COUNT)
@@ -51,18 +54,20 @@ public class SegmentRangeHandler extends BaseVolumeHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        SegmentRangeMessage message = request.attr(MessageTypes.SEGMENTRANGE).get();
-        try {
-            Volume volume = service.findVolume(message.getVolume());
-            List<RedisMessage> children = new ArrayList<>();
-            ByteBuffer[] entries = volume.getSegmentRange(message.getSegment(), message.getSegmentRanges());
-            for (ByteBuffer entry : entries) {
-                ByteBuf buffer = Unpooled.wrappedBuffer(entry);
-                children.add(new FullBulkStringRedisMessage(buffer));
+        supplyAsync(context, response, () -> {
+            SegmentRangeMessage message = request.attr(MessageTypes.SEGMENTRANGE).get();
+            try {
+                Volume volume = service.findVolume(message.getVolume());
+                List<RedisMessage> children = new ArrayList<>();
+                ByteBuffer[] entries = volume.getSegmentRange(message.getSegmentId(), message.getSegmentRanges());
+                for (ByteBuffer entry : entries) {
+                    ByteBuf buffer = Unpooled.wrappedBuffer(entry);
+                    children.add(new FullBulkStringRedisMessage(buffer));
+                }
+                return children;
+            } catch (VolumeNotOpenException | ClosedVolumeException | IOException e) {
+                throw new KronotopException(e.getMessage(), e);
             }
-            response.writeArray(children);
-        } catch (VolumeNotOpenException | ClosedVolumeException e) {
-            throw new KronotopException(e.getMessage(), e);
-        }
+        }, response::writeArray);
     }
 }

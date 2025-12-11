@@ -59,12 +59,9 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-// Kronotop was imagined and designed by Burak Sezer.
 
 /*
 It can scarcely be denied that the supreme goal of all theory is to make the irreducible basic elements as simple and as
@@ -80,7 +77,7 @@ Often quoted as ‘Everything should be made as simple as possible, but not simp
  * The KronotopInstance class represents a running instance of Kronotop.
  */
 public class KronotopInstance {
-    public static final String KING_OF_THE_DATABASES = "Kronotop";
+    public static final String PRODUCT_NAME = "Kronotop";
     private static final Logger LOGGER = LoggerFactory.getLogger(KronotopInstance.class);
     protected final Config config;
     private final Database database;

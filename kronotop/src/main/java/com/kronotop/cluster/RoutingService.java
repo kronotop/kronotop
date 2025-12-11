@@ -25,6 +25,7 @@ import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.DirectorySubspaceCache;
+import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.server.ServerKind;
 import io.netty.util.Attribute;
@@ -37,18 +38,40 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 
+/**
+ * Manages shard routing and topology change detection for the Kronotop cluster.
+ *
+ * <p>This service maintains an in-memory routing table that maps shards to their primary
+ * and standby members. It watches FoundationDB for topology changes and triggers event
+ * hooks when routing assignments change.
+ *
+ * <p>Key responsibilities:
+ * <ul>
+ *   <li>Loading and caching the routing table from FoundationDB</li>
+ *   <li>Watching for cluster initialization and topology changes</li>
+ *   <li>Detecting routing changes and invoking registered hooks</li>
+ *   <li>Providing route lookups for shard-to-member resolution</li>
+ * </ul>
+ *
+ * <p>The service uses two background watchers:
+ * <ul>
+ *   <li>{@link ClusterInitializationWatcher} - waits for cluster initialization</li>
+ *   <li>{@link RoutingEventsWatcher} - monitors topology changes after initialization</li>
+ * </ul>
+ */
 public class RoutingService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Routing";
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingService.class);
 
-    private final ScheduledThreadPoolExecutor scheduler;
+    private final ExecutorService executor;
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final MembershipService membership;
     private final AtomicReference<RoutingTable> routingTable = new AtomicReference<>(new RoutingTable());
     private final ConcurrentHashMap<RoutingEventKind, List<RoutingEventHook>> hooksByKind = new ConcurrentHashMap<>();
 
-    private volatile boolean isShutdown;
+    private volatile boolean shutdown;
 
     public RoutingService(Context context) {
         super(context, NAME);
@@ -56,11 +79,17 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         this.membership = context.getService(MembershipService.NAME);
 
         ThreadFactory factory = new ThreadFactoryBuilder().setNameFormat("kr.routing-%d").build();
-        this.scheduler = new ScheduledThreadPoolExecutor(1, factory);
+        this.executor = Executors.newFixedThreadPool(2, factory);
 
         handlerMethod(ServerKind.INTERNAL, new KrAdminHandler(this));
     }
 
+    /**
+     * Registers a hook to be invoked when the specified routing event occurs.
+     *
+     * @param kind the routing event type that triggers this hook
+     * @param hook the callback to execute when the event occurs
+     */
     public void registerHook(RoutingEventKind kind, RoutingEventHook hook) {
         hooksByKind.compute(kind, (k, value) -> {
             if (value == null) {
@@ -71,28 +100,33 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         });
     }
 
+    /**
+     * Starts the routing service by initializing the routing table and background watchers.
+     *
+     * <p>If the cluster is already initialized, loads the routing table immediately and
+     * starts the {@link RoutingEventsWatcher}. Otherwise, starts the
+     * {@link ClusterInitializationWatcher} to wait for cluster initialization.
+     */
     public void start() {
         Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
         clusterInitialized.set(isClusterInitialized_internal());
         if (!clusterInitialized.get()) {
-            scheduler.execute(new ClusterInitializationWatcher());
+            executor.execute(new ClusterInitializationWatcher());
         } else {
             loadRoutingTableFromFoundationDB(true);
-            scheduler.execute(new RoutingEventsWatcher());
+            executor.execute(new RoutingEventsWatcher());
         }
     }
 
+    /**
+     * Shuts down the routing service, cancelling all watchers and releasing resources.
+     */
     @Override
     public void shutdown() {
-        isShutdown = true;
-        try {
-            keyWatcher.unwatchAll();
-            scheduler.shutdownNow();
-            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
-                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
-            }
-        } catch (InterruptedException e) {
-            throw new KronotopException(e);
+        shutdown = true;
+        keyWatcher.unwatchAll();
+        if (!ExecutorServiceUtil.shutdownNowThenAwaitTermination(executor)) {
+            LOGGER.warn("Routing service cannot be stopped gracefully");
         }
     }
 
@@ -127,6 +161,9 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         return false;
     }
 
+    /**
+     * Converts a set of member IDs to their corresponding Member objects.
+     */
     private Set<Member> memberIdsToMembers(Set<String> memberIds) {
         Set<Member> members = new HashSet<>();
         for (String memberId : memberIds) {
@@ -158,10 +195,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
             Set<String> standbyIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
             Set<Member> standbys = memberIdsToMembers(standbyIds);
 
-            Set<String> syncStandbyIds = MembershipUtils.loadSyncStandbyMemberIds(tr, shardSubspace);
-            Set<Member> syncStandbys = memberIdsToMembers(syncStandbyIds);
-
-            return new Route(primary, standbys, shardStatus, syncStandbys);
+            return new Route(primary, standbys, shardStatus);
         } catch (MemberNotRegisteredException e) {
             LOGGER.error("Error while loading member", e);
         }
@@ -188,20 +222,13 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     }
 
     /**
-     * Loads the routing table from FoundationDB.
-     * <p>
-     * This method initializes a new RoutingTable instance and populates it
-     * with route information for various shard types supported in the system.
-     * Currently, it supports only the REDIS shard kind. For each shard kind
-     * (currently only REDIS), it reads configuration properties to determine
-     * the number of shards and loads the route info for each shard into the routing table.
-     * <p>
-     * Transactions are used to ensure that the read operations from FoundationDB
-     * are consistent. In case of encountering an unsupported shard kind,
-     * the method throws a KronotopException.
-     * <p>
-     * This method is designed to be used internally within the RoutingService class.
+     * Loads the routing table from FoundationDB and detects routing changes.
      *
+     * <p>Creates a new routing table, loads routes for all shard kinds (REDIS, BUCKET),
+     * and atomically replaces the current table. On subsequent runs, compares with
+     * the previous table to detect and trigger routing event hooks.
+     *
+     * @param firstRun true if this is the initial load (skip change detection)
      * @throws KronotopException if an unknown shard kind is encountered
      */
     private void loadRoutingTableFromFoundationDB(boolean firstRun) {
@@ -232,6 +259,9 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
     }
 
+    /**
+     * Executes all registered hooks for the specified routing event.
+     */
     private void runHooks(RoutingEventKind routingEventKind, ShardKind shardKind, int shardId) {
         List<RoutingEventHook> hooks = hooksByKind.get(routingEventKind);
         if (hooks == null) {
@@ -246,6 +276,18 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         }
     }
 
+    /**
+     * Detects routing changes between the previous and current routing tables, invoking
+     * appropriate hooks for this member based on assignment changes.
+     *
+     * <p>Detected events include:
+     * <ul>
+     *   <li>New primary assignment (triggers LOAD_REDIS_SHARD or INITIALIZE_BUCKET_SHARD)</li>
+     *   <li>New standby assignment (triggers START_REPLICATION)</li>
+     *   <li>Primary ownership change (triggers HAND_OVER_SHARD_OWNERSHIP, PRIMARY_OWNER_CHANGED)</li>
+     *   <li>Standby removal (triggers STOP_REPLICATION)</li>
+     * </ul>
+     */
     private void changesBetweenRoutingTables(RoutingTable previous, ShardKind shardKind) {
         int shards;
         if (shardKind.equals(ShardKind.BUCKET)) {
@@ -283,14 +325,14 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                     if (currentRoute.standbys().contains(context.getMember())) {
                         // New assignment
                         if (!previousRoute.standbys().contains(context.getMember())) {
-                            runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, shardKind, shardId);
+                            runHooks(RoutingEventKind.START_REPLICATION, shardKind, shardId);
                         }
                     }
                 } else {
                     // No previous root exists
                     if (currentRoute.standbys().contains(context.getMember())) {
                         // New assignment
-                        runHooks(RoutingEventKind.CREATE_REPLICATION_SLOT, shardKind, shardId);
+                        runHooks(RoutingEventKind.START_REPLICATION, shardKind, shardId);
                     }
                 }
             }
@@ -321,92 +363,87 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     }
 
     /**
-     * A watcher class responsible for monitoring the initialization state of the Kronotop cluster.
+     * Watches for cluster initialization by monitoring the CLUSTER_INITIALIZED key in FoundationDB.
+     *
+     * <p>Blocks until the cluster is initialized, then transitions to {@link RoutingEventsWatcher}.
      */
     private class ClusterInitializationWatcher implements Runnable {
 
         @Override
         public void run() {
-            if (isShutdown) {
+            if (shutdown) {
                 return;
             }
 
-            boolean clusterInitialized = false;
-            DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
-            byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
+            boolean clusterInitialized;
+            while (!shutdown) {
+                DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
+                byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
-                tr.commit().join();
-                try {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
+                    tr.commit().join();
+                    try {
+                        clusterInitialized = isClusterInitialized_internal();
+                        context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(clusterInitialized);
+                        if (clusterInitialized) {
+                            keyWatcher.unwatch(key);
+                            return;
+                        }
+                        watcher.join();
+                    } catch (CancellationException e) {
+                        LOGGER.debug("Cluster initialization watcher has been cancelled");
+                        return;
+                    }
                     clusterInitialized = isClusterInitialized_internal();
                     context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(clusterInitialized);
                     if (clusterInitialized) {
-                        keyWatcher.unwatch(key);
+                        executor.execute(new RoutingEventsWatcher());
                         return;
                     }
-                    watcher.join();
-                } catch (CancellationException e) {
-                    LOGGER.debug("Cluster initialization watcher has been cancelled");
-                    return;
-                }
-                clusterInitialized = isClusterInitialized_internal();
-                context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED).set(clusterInitialized);
-            } catch (Exception e) {
-                LOGGER.error("Error while waiting for cluster initialization", e);
-            } finally {
-                if (!isShutdown) {
-                    if (clusterInitialized) {
-                        scheduler.execute(new RoutingEventsWatcher());
-                    } else {
-                        // Try again
-                        scheduler.execute(this);
-                    }
+                } catch (Exception exp) {
+                    LOGGER.error("Error while waiting for cluster initialization", exp);
+                    LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
                 }
             }
         }
     }
 
     /**
-     * The RoutingEventsWatcher class is responsible for monitoring routing events
-     * and updating the routing table upon changes.
-     * <p>
-     * This class implements the Runnable interface and is intended to be executed
-     * by a scheduler in a loop until the system is shut down. It watches for changes in the
-     * routing table by using the FoundationDB directory subspace and updates the routing table
-     * upon detecting any changes.
+     * Watches for topology changes by monitoring the CLUSTER_TOPOLOGY_CHANGED key in FoundationDB.
+     *
+     * <p>When triggered, reloads the routing table and invokes hooks for any detected changes.
+     * Runs continuously until shutdown.
      */
     private class RoutingEventsWatcher implements Runnable {
 
         @Override
         public void run() {
-            if (isShutdown) {
+            if (shutdown) {
                 return;
             }
 
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
             byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_TOPOLOGY_CHANGED));
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
-                tr.commit().join();
+            while (!shutdown) {
+                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
+                    tr.commit().join();
 
-                loadRoutingTableFromFoundationDB(false);
+                    loadRoutingTableFromFoundationDB(false);
 
-                // Wait for routing table changes
-                try {
-                    watcher.join();
-                } catch (CancellationException e) {
-                    LOGGER.debug("Routing events watcher has been cancelled");
-                    return;
-                }
-                LOGGER.debug("Routing events watcher has been triggered");
-                loadRoutingTableFromFoundationDB(false);
-            } catch (Exception e) {
-                LOGGER.error("Error while waiting for routing events", e);
-            } finally {
-                if (!isShutdown) {
-                    // Try again
-                    scheduler.execute(this);
+                    // Wait for routing table changes
+                    try {
+                        watcher.join();
+                    } catch (CancellationException e) {
+                        LOGGER.debug("Routing events watcher has been cancelled");
+                        return;
+                    }
+                    LOGGER.debug("Routing events watcher has been triggered");
+                    loadRoutingTableFromFoundationDB(false);
+                } catch (Exception e) {
+                    LOGGER.error("Error while waiting for routing events", e);
+                    LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
                 }
             }
         }

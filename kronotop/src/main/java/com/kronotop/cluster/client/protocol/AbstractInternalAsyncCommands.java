@@ -40,13 +40,48 @@ public abstract class AbstractInternalAsyncCommands<K, V> implements InternalAsy
     }
 
     @Override
-    public RedisFuture<List<Object>> segmentrange(String volume, String segment, SegmentRange... ranges) {
-        return dispatch(commandBuilder.segmentrange(volume, segment, ranges));
+    public RedisFuture<List<Object>> segmentrange(String volume, long segmentId, List<SegmentRange> ranges) {
+        return dispatch(commandBuilder.segmentrange(volume, segmentId, ranges));
     }
 
     @Override
-    public RedisFuture<String> segmentinsert(String volume, String segment, PackedEntry... entries) {
-        return dispatch(commandBuilder.segmentinsert(volume, segment, entries));
+    public RedisFuture<String> segmentinsert(String volume, long segmentId, PackedEntry... entries) {
+        return dispatch(commandBuilder.segmentinsert(volume, segmentId, entries));
+    }
+
+    @Override
+    public RedisFuture<List<Long>> segmentTailPointer(String volume, long segmentId) {
+        return dispatch(commandBuilder.segmentTailPointer(volume, segmentId));
+    }
+
+    @Override
+    public RedisFuture<List<Long>> listSegments(String volume) {
+        return dispatch(commandBuilder.listSegments(volume));
+    }
+
+    @Override
+    public RedisFuture<Long> changelogWatch(String volume, long sequenceNumber) {
+        return dispatch(commandBuilder.changelogWatch(volume, sequenceNumber));
+    }
+
+    @Override
+    public RedisFuture<List<ChangeLogEntryResponse>> changelogRange(String volume,
+                                                                    String parentOperationKind,
+                                                                    String start,
+                                                                    String end,
+                                                                    ChangeLogRangeArgs changelogArgs
+    ) {
+        return dispatch(commandBuilder.changelogRange(volume, parentOperationKind, start, end, changelogArgs));
+    }
+
+    @Override
+    public RedisFuture<VolumeInspectCursorResponse> volumeInspectCursor(String volume) {
+        return dispatch(commandBuilder.volumeInspectCursor(volume));
+    }
+
+    @Override
+    public RedisFuture<VolumeInspectReplicationResponse> volumeInspectReplication(String shardKind, int shardId, String standbyId) {
+        return dispatch(commandBuilder.volumeInspectReplication(shardKind, shardId, standbyId));
     }
 
     private <T> AsyncCommand<K, V, T> dispatch(RedisCommand<K, V, T> cmd) {

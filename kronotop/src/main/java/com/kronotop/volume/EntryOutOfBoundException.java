@@ -16,8 +16,11 @@
 
 package com.kronotop.volume;
 
-public class EntryOutOfBoundException extends RuntimeException {
+import com.kronotop.KronotopException;
+import com.kronotop.server.RESPError;
+
+public class EntryOutOfBoundException extends KronotopException {
     public EntryOutOfBoundException(String message) {
-        super(message);
+        super(RESPError.OUTOFBOUND, message);
     }
 }

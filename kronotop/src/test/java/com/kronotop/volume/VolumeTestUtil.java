@@ -16,16 +16,13 @@
 
 package com.kronotop.volume;
 
-import com.kronotop.volume.segment.Segment;
-
 public class VolumeTestUtil {
 
     public static EntryMetadata generateEntryMetadata(int volumeId, long segmentId, long position, long length, String prefixName) {
         Prefix prefix = new Prefix(prefixName);
         // Initialize necessary data
-        String segment = Segment.generateName(segmentId);
-        int id = EntryMetadataIdGenerator.generate(volumeId, segmentId, position);
+        long handle = EntryHandleGenerator.generate(volumeId, segmentId, position);
         // Create EntryMetadata instance
-        return new EntryMetadata(segment, prefix.asBytes(), position, length, id);
+        return new EntryMetadata(segmentId, prefix.asBytes(), position, length, handle);
     }
 }

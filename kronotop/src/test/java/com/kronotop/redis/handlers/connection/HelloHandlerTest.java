@@ -52,7 +52,7 @@ class HelloHandlerTest extends BaseRedisHandlerTest {
                 switch (keyMessage.content()) {
                     case "server":
                         SimpleStringRedisMessage serverName = (SimpleStringRedisMessage) response.children().get(valueIndex);
-                        assertEquals(KronotopInstance.KING_OF_THE_DATABASES, serverName.content());
+                        assertEquals(KronotopInstance.PRODUCT_NAME, serverName.content());
                         continue;
                     case "version":
                         SimpleStringRedisMessage serverVersion = (SimpleStringRedisMessage) response.children().get(valueIndex);
@@ -97,7 +97,7 @@ class HelloHandlerTest extends BaseRedisHandlerTest {
             switch (key.content().toString()) {
                 case "server":
                     FullBulkStringRedisMessage serverName = (FullBulkStringRedisMessage) response.children().get(redisMessage);
-                    assertEquals(KronotopInstance.KING_OF_THE_DATABASES, serverName.content().toString());
+                    assertEquals(KronotopInstance.PRODUCT_NAME, serverName.content().toString());
                     continue;
                 case "version":
                     FullBulkStringRedisMessage serverVersion = (FullBulkStringRedisMessage) response.children().get(redisMessage);

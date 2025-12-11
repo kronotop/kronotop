@@ -38,9 +38,7 @@ import com.kronotop.journal.*;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
 import com.kronotop.task.TaskService;
-import com.kronotop.volume.handlers.SegmentInsertHandler;
-import com.kronotop.volume.handlers.SegmentRangeHandler;
-import com.kronotop.volume.handlers.VolumeAdminHandler;
+import com.kronotop.volume.handlers.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +67,10 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     private final ScheduledThreadPoolExecutor scheduler;
     private final Consumer disusedPrefixesConsumer;
     private final RoutingService routing;
+    private final ConcurrentHashMap<String, DirectorySubspace> subspaceCache;
+    private final ConcurrentHashMap<DirectorySubspace, Long> volumeIdCache;
+    private final ConcurrentHashMap<DirectorySubspace, byte[]> mutationTriggerKeyCache;
+    private final MutationWatcher mutationWatcher;
     private volatile boolean isShutdown;
 
     public VolumeService(Context context) throws CommandAlreadyRegisteredException {
@@ -76,6 +78,11 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
 
         this.routing = context.getService(RoutingService.NAME);
         assert routing != null;
+
+        this.subspaceCache = new ConcurrentHashMap<>();
+        this.volumeIdCache = new ConcurrentHashMap<>();
+        this.mutationTriggerKeyCache = new ConcurrentHashMap<>();
+        this.mutationWatcher = new MutationWatcher();
 
         ThreadFactory factory = new ThreadFactoryBuilder().setNameFormat("kr.volume-%d").build();
         this.scheduler = new ScheduledThreadPoolExecutor(3, factory);
@@ -85,8 +92,12 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         this.disusedPrefixesConsumer = new Consumer(context, config);
 
         handlerMethod(ServerKind.INTERNAL, new SegmentRangeHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new SegmentTailPointerHandler(this));
         handlerMethod(ServerKind.INTERNAL, new SegmentInsertHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new ChangeLogWatchHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new ChangeLogRangeHandler(this));
         handlerMethod(ServerKind.INTERNAL, new VolumeAdminHandler(this));
+        handlerMethod(ServerKind.INTERNAL, new VolumeInspectHandler(this));
 
         routing.registerHook(RoutingEventKind.PRIMARY_OWNER_CHANGED, new SubmitVacuumTaskHook(this));
         routing.registerHook(RoutingEventKind.PRIMARY_OWNER_CHANGED, new StopVacuumTaskHook(this));
@@ -94,6 +105,10 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         resumeMarkStalePrefixesTaskIfAny();
 
         this.scheduler.scheduleAtFixedRate(new CleanupStaleSegmentsOnStandbyTask(), 1, 1, TimeUnit.HOURS);
+    }
+
+    public MutationWatcher mutationWatcher() {
+        return mutationWatcher;
     }
 
     /**
@@ -301,6 +316,39 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         }
     }
 
+    public DirectorySubspace openSubspace(String volumeName) {
+        return subspaceCache.computeIfAbsent(volumeName, ignored -> {
+            VolumeNames.Parsed parsed = VolumeNames.parse(volumeName);
+            VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, parsed.shardKind(), parsed.shardId());
+            return volumeConfigGenerator.openVolumeSubspace();
+        });
+    }
+
+    /**
+     * Returns the volumeId for the given subspace, loading and caching it if necessary.
+     *
+     * @param subspace the directory subspace of the volume
+     * @return the volumeId
+     */
+    public long getVolumeId(DirectorySubspace subspace) {
+        return volumeIdCache.computeIfAbsent(subspace, s -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeMetadata metadata = VolumeMetadata.load(tr, s);
+                return metadata.getVolumeId();
+            }
+        });
+    }
+
+    /**
+     * Returns the mutation trigger key for the given subspace, computing and caching it if necessary.
+     *
+     * @param subspace the directory subspace of the volume
+     * @return the mutation trigger key
+     */
+    public byte[] getMutationTriggerKey(DirectorySubspace subspace) {
+        return mutationTriggerKeyCache.computeIfAbsent(subspace, VolumeUtil::computeMutationTriggerKey);
+    }
+
     public boolean hasVolumeOwnership(Volume volume) {
         Integer shardId = volume.getAttribute(VolumeAttributes.SHARD_ID);
         if (shardId == null) {
@@ -409,7 +457,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 LOGGER.warn("{} service cannot be stopped gracefully", NAME);
             }
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            Thread.currentThread().interrupt();
+            throw new KronotopException("Operation was interrupted while waiting", e);
         }
     }
 
@@ -469,7 +518,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
             try {
                 latch.await(); // Wait until the watcher is started
             } catch (InterruptedException e) {
-                throw new RuntimeException("Wait interrupted", e);
+                Thread.currentThread().interrupt();
+                throw new KronotopException("Operation was interrupted while waiting", e);
             }
         }
 

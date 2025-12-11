@@ -20,11 +20,6 @@ import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.KronotopException;
-import com.kronotop.cluster.Member;
-import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.redis.storage.DataStructurePack;
 import com.kronotop.redis.storage.RedisShard;
 import com.kronotop.volume.AppendResult;
@@ -35,32 +30,41 @@ import com.kronotop.volume.VolumeSession;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
-import java.util.Set;
 import java.util.concurrent.CompletionException;
 
 /**
- * The VolumeSyncSession class manages synchronization of volume data by packing
- * data structures into byte buffers and storing versionstamped keys. This class
- * interacts with a RedisShard and a Context to handle data persistence and deletion.
- * <p>
- * VolumeSyncSession is not thread-safe.
+ * Manages a batch of Redis data structure writes and deletes to Volume storage within a single
+ * FoundationDB transaction.
+ *
+ * <p>VolumeSyncSession accumulates entries via {@link #pack(DataStructurePack)} and deletions via
+ * {@link #delete(Versionstamp)}, then commits them atomically via {@link #sync()}. After sync,
+ * versionstamps for appended entries are available via {@link #versionstamps()}.</p>
+ *
+ * <p><b>Usage:</b></p>
+ * <ol>
+ *   <li>Call {@link #pack(DataStructurePack)} for each data structure to persist</li>
+ *   <li>Call {@link #delete(Versionstamp)} for each entry to remove</li>
+ *   <li>Call {@link #sync()} to commit all changes atomically</li>
+ *   <li>Use {@link #versionstamps()} to get keys for persisted entries</li>
+ * </ol>
+ *
+ * <p><b>Thread Safety:</b> Not thread-safe. Each session should be used by a single thread.</p>
+ *
+ * @see VolumeSyncer
+ * @see DataStructurePack
  */
 public class VolumeSyncSession {
     private final Context context;
     private final RedisShard shard;
-    private final RoutingService routing;
     private final LinkedList<ByteBuffer> entries;
     private final LinkedList<Versionstamp> versionstampedKeys;
     private final Prefix prefix;
-    private final boolean syncReplicationEnabled;
     private Versionstamp[] versionstamps;
     private int appendCursor;
 
-    public VolumeSyncSession(Context context, RedisShard shard, Prefix prefix, boolean syncReplicationEnabled) {
+    public VolumeSyncSession(Context context, RedisShard shard, Prefix prefix) {
         this.context = context;
         this.shard = shard;
-        this.syncReplicationEnabled = syncReplicationEnabled;
-        this.routing = context.getService(RoutingService.NAME);
         this.versionstampedKeys = new LinkedList<>();
         this.entries = new LinkedList<>();
         this.prefix = prefix;
@@ -86,31 +90,6 @@ public class VolumeSyncSession {
 
     public void delete(Versionstamp versionstampedKey) {
         versionstampedKeys.add(versionstampedKey);
-    }
-
-    private void synchronousReplication(AppendResult appendResult) {
-        if (!syncReplicationEnabled) {
-            return;
-        }
-
-        if (appendResult.getAppendedEntries().length == 0) {
-            return;
-        }
-
-        Route route = routing.findRoute(ShardKind.REDIS, shard.id());
-        Set<Member> syncStandbys = route.syncStandbys();
-        if (syncStandbys.isEmpty()) {
-            return;
-        }
-
-        SynchronousReplication sync = new SynchronousReplication(context, shard.volume().getConfig(), syncStandbys, entries, appendResult);
-        if (sync.run()) {
-            return;
-        }
-
-        // Failed to write to sync standbys. Don't commit metadata to FDB. Vacuum will
-        // clean all the garbage.
-        throw new KronotopException("Synchronous replication failed due to errors");
     }
 
     private AppendResult appendEntries(VolumeSession session) throws IOException {
@@ -153,9 +132,6 @@ public class VolumeSyncSession {
             DeleteResult deleteResult = deleteEntries(session);
 
             shard.volume().flush();
-            if (appendResult != null) {
-                synchronousReplication(appendResult);
-            }
 
             tr.commit().join();
             if (deleteResult != null) {

@@ -25,14 +25,29 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * The VolumeSyncer class is responsible for synchronizing volume data by persisting a list of jobs
- * into a storage system. It interacts with a given context and shard to ensure the data is correctly
- * persisted and applied.
+ * Synchronizes Redis data structures to Volume storage by processing queued sync jobs.
+ *
+ * <p>VolumeSyncer polls jobs from a shard's sync queue, executes them via {@link VolumeSyncSession},
+ * and persists the data to the underlying Volume. On failure, jobs are re-queued for retry.</p>
+ *
+ * <p><b>Sync Flow:</b></p>
+ * <ol>
+ *   <li>Poll up to 1000 jobs from the shard's sync queue</li>
+ *   <li>Execute each job via {@link VolumeSyncJob#run(VolumeSyncSession)}</li>
+ *   <li>Commit all changes via {@link VolumeSyncSession#sync()}</li>
+ *   <li>Run post-hooks for each job (e.g., cleanup, state updates)</li>
+ * </ol>
+ *
+ * <p><b>Error Handling:</b> On any exception during sync, all jobs are re-added to the queue
+ * for retry, and the exception is wrapped in a RuntimeException.</p>
+ *
+ * @see VolumeSyncSession
+ * @see VolumeSyncJob
+ * @see RedisShard#volumeSyncQueue()
  */
 public class VolumeSyncer {
     private final Context context;
     private final RedisShard shard;
-    private final boolean syncReplicationEnabled;
     private final Prefix prefix;
 
     /**
@@ -44,7 +59,6 @@ public class VolumeSyncer {
     public VolumeSyncer(Context context, RedisShard shard) {
         this.context = context;
         this.shard = shard;
-        this.syncReplicationEnabled = context.getConfig().getBoolean("redis.volume_syncer.synchronous_replication");
         this.prefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
     }
 
@@ -68,7 +82,7 @@ public class VolumeSyncer {
      * @throws IOException if an I/O error occurs while persisting the data
      */
     private void sync(List<VolumeSyncJob> jobs) throws IOException {
-        VolumeSyncSession session = new VolumeSyncSession(context, shard, prefix, syncReplicationEnabled);
+        VolumeSyncSession session = new VolumeSyncSession(context, shard, prefix);
 
         for (VolumeSyncJob job : jobs) {
             job.run(session);
@@ -80,6 +94,14 @@ public class VolumeSyncer {
         }
     }
 
+    /**
+     * Polls pending sync jobs from the queue and executes them.
+     *
+     * <p>Polls up to 1000 jobs, syncs them to Volume storage, and runs post-hooks.
+     * On failure, all jobs are re-queued for retry.</p>
+     *
+     * @throws RuntimeException if sync fails (wraps the underlying exception)
+     */
     public void run() {
         List<VolumeSyncJob> jobs = shard.volumeSyncQueue().poll(1000);
         if (jobs.isEmpty()) {

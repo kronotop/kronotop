@@ -26,7 +26,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.*;
-import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -37,13 +37,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
-    public void test_SEGMENTINSERT() throws IOException {
+    void shouldInsertEntriesIntoSegment() throws IOException {
         byte[] first = new byte[]{1, 2, 3};
         byte[] second = new byte[]{4, 5, 6};
         ByteBuffer[] entries = {
@@ -65,18 +64,19 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
 
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
-        String segmentName = segmentAnalysis.getFirst().name();
+        long segmentId = segmentAnalysis.getFirst().segmentId();
 
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
         PackedEntry[] packedEntries = {
                 new PackedEntry(0, first),
                 new PackedEntry(3, second),
         };
-        ByteBuf buf = Unpooled.buffer();
-        cmd.segmentinsert(volumeConfig.name(), segmentName, packedEntries).encode(buf);
-        secondInstance.getChannel().writeInbound(buf);
 
-        Object response = secondInstance.getChannel().readOutbound();
+        ByteBuf buf = Unpooled.buffer();
+        cmd.segmentinsert(volumeConfig.name(), segmentId, packedEntries).encode(buf);
+        Object response = runCommand(secondInstance.getChannel(), buf);
+
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage message = (SimpleStringRedisMessage) response;
         assertEquals(Response.OK, message.content());
 
@@ -93,28 +93,28 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_SEGMENTINSERT_VolumeNotOpenException() {
+    void shouldThrowVolumeNotOpenExceptionWhenVolumeNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentinsert("foobar", "barfoo", new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
+        cmd.segmentinsert("foobar", 1, new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Volume: 'foobar' is not open", message.content());
     }
 
     @Test
-    public void test_SEGMENTINSERT_SegmentNotFoundException() {
+    void shouldThrowSegmentNotFoundExceptionWhenSegmentNotExists() {
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.segmentinsert(volumeConfig.name(), "0000000000000000001", new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
-        kronotopInstance.getChannel().writeInbound(buf);
+        cmd.segmentinsert(volumeConfig.name(), 1, new PackedEntry(0, new byte[]{0, 1, 2})).encode(buf);
+        Object response = runCommand(kronotopInstance.getChannel(), buf);
 
-        Object response = kronotopInstance.getChannel().readOutbound();
+        assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
-        assertEquals("ERR Segment: '0000000000000000001' could not be found", message.content());
+        assertEquals("ERR Segment with id: '1' could not be found", message.content());
     }
 }

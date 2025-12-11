@@ -24,7 +24,7 @@ import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
-import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -32,10 +32,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
+class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
-    public void test_initializeCluster_already_initialized() {
+    void shouldReturnErrorWhenClusterAlreadyInitialized() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.initializeCluster().encode(buf);
@@ -47,7 +47,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_listMembers() {
+    void shouldListMembers() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.listMembers().encode(buf);
@@ -107,7 +107,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_describeMember() {
+    void shouldDescribeMember() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.describeMember().encode(buf);
@@ -162,7 +162,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void test_findMember() {
+    void shouldFindMember() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.findMember(kronotopInstance.getMember().getId()).encode(buf);
@@ -212,7 +212,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_setMemberStatus() {
+    void shouldSetMemberStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.setMemberStatus(kronotopInstance.getMember().getId(), "STOPPED").encode(buf);
@@ -224,7 +224,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_setMemberStatus_invalid_status() {
+    void shouldReturnErrorWhenSetMemberStatusWithInvalidStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.setMemberStatus(kronotopInstance.getMember().getId(), "some-status").encode(buf);
@@ -236,7 +236,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_setMemberStatus_member_not_found() {
+    void shouldReturnErrorWhenSetMemberStatusWithMemberNotFound() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
 
@@ -250,7 +250,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_removeMember() {
+    void shouldRemoveMember() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         KronotopTestInstance secondInstance = addNewInstance();
@@ -273,7 +273,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_listSilentMembers() {
+    void shouldListSilentMembers() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.listSilentMembers().encode(buf);
@@ -285,7 +285,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_removeMember_RUNNING_status() {
+    void shouldReturnErrorWhenRemoveMemberWithRunningStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         KronotopTestInstance secondInstance = addNewInstance();
@@ -300,7 +300,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_setShardStatus() {
+    void shouldSetShardStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.setShardStatus("redis", 1, "READONLY").encode(buf);
@@ -312,7 +312,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_setShardStatus_all_shards() {
+    void shouldSetShardStatusForAllShards() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.setShardStatus("redis", "READONLY").encode(buf);
@@ -324,7 +324,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_setShardStatus_when_negative_shardId() {
+    void shouldReturnErrorWhenSetShardStatusWithNegativeShardId() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.setShardStatus("redis", -1, "READONLY").encode(buf);
@@ -336,7 +336,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_setShardStatus_when_bigger_than_number_of_shards() {
+    void shouldReturnErrorWhenSetShardStatusWithShardIdBiggerThanNumberOfShards() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.setShardStatus("redis", 1231253, "READONLY").encode(buf);
@@ -348,7 +348,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    public void test_describeShard() {
+    void shouldDescribeShard() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -364,7 +364,7 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                     SimpleStringRedisMessage value = (SimpleStringRedisMessage) messageValue;
                     assertFalse(value.content().isEmpty());
                 }
-                case "standbys", "sync_standbys" -> {
+                case "standbys" -> {
                     ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
                     assertEquals(0, value.children().size());
                 }
@@ -382,179 +382,5 @@ public class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         });
     }
 
-    private void checkSyncStandbys(KrAdminCommandBuilder<String, String> cmd, String standbyMemberId, int shardId) {
-        ByteBuf buf = Unpooled.buffer();
-        cmd.describeShard("redis", 1).encode(buf);
-
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(MapRedisMessage.class, msg);
-        MapRedisMessage actualMessage = (MapRedisMessage) msg;
-        actualMessage.children().forEach((messageKey, messageValue) -> {
-            SimpleStringRedisMessage key = (SimpleStringRedisMessage) messageKey;
-            switch (key.content()) {
-                case "standbys", "sync_standbys" -> {
-                    ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
-                    assertEquals(1, value.children().size());
-                    RedisMessage first = value.children().getFirst();
-                    SimpleStringRedisMessage memberId = (SimpleStringRedisMessage) first;
-                    assertEquals(standbyMemberId, memberId.content());
-                }
-            }
-        });
-    }
-
-    @Test
-    public void test_set_syncStandby() {
-        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
-
-        // Start a new instance and set a standby id
-        KronotopTestInstance secondInstance = addNewInstance();
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.route("set", "standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        // set a sync standby
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        // control it
-        checkSyncStandbys(cmd, secondInstance.getMember().getId(), 1);
-    }
-
-    @Test
-    public void test_unset_syncStandby() {
-        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
-
-        // Start a new instance and set a standby id
-        KronotopTestInstance secondInstance = addNewInstance();
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.route("set", "standby", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        // set a sync standby
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        // unset a sync standby
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.syncStandby("unset", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        // control it
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.describeShard("redis", 1).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(MapRedisMessage.class, msg);
-            MapRedisMessage actualMessage = (MapRedisMessage) msg;
-            actualMessage.children().forEach((messageKey, messageValue) -> {
-                SimpleStringRedisMessage key = (SimpleStringRedisMessage) messageKey;
-                if (key.content().equals("sync_standbys")) {
-                    ArrayRedisMessage value = (ArrayRedisMessage) messageValue;
-                    assertEquals(0, value.children().size());
-                }
-            });
-        }
-    }
-
-    @Test
-    public void try_to_set_syncStandby_when_member_not_registered() {
-        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
-
-        String memberId = MemberIdGenerator.generateId();
-        ByteBuf buf = Unpooled.buffer();
-        cmd.syncStandby("set", "redis", 1, memberId).encode(buf);
-
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(ErrorRedisMessage.class, msg);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals(String.format("ERR Member: %s not registered", memberId), actualMessage.content());
-    }
-
-    @Test
-    public void test_unset_syncStandby_member_not_standby() {
-        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
-
-        // Start a new instance and set a standby id
-        KronotopTestInstance secondInstance = addNewInstance();
-
-        // set a sync standby
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.syncStandby("set", "redis", 1, secondInstance.getMember().getId()).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(ErrorRedisMessage.class, msg);
-            ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-            assertEquals("ERR member is not a standby", actualMessage.content());
-        }
-    }
-
-    @Test
-    public void test_set_syncStandby_all_shards_with_asterisk() {
-        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
-
-        // Start a new instance and set a standby id
-        KronotopTestInstance secondInstance = addNewInstance();
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.route("set", "standby", "redis", secondInstance.getMember().getId()).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        // set a sync standby
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.syncStandby("set", "redis", secondInstance.getMember().getId()).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        // control it
-        int shards = kronotopInstance.getContext().getConfig().getInt("redis.shards");
-        for (int shardId = 0; shardId < shards; shardId++) {
-            checkSyncStandbys(cmd, secondInstance.getMember().getId(), shardId);
-        }
-    }
 }
 

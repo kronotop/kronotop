@@ -81,12 +81,6 @@ public final class MembershipUtils {
         tr.set(key, JSONUtil.writeValueAsBytes(standbyMemberIds));
     }
 
-    public static void setSyncStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace, Set<String> syncStandbyMemberIds) {
-        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_SYNC_STANDBY_MEMBERS));
-        byte[] value = JSONUtil.writeValueAsBytes(syncStandbyMemberIds);
-        tr.set(key, value);
-    }
-
     /**
      * Checks if the given byte array represents the constant TRUE value defined in MembershipConstants.
      *
@@ -95,16 +89,5 @@ public final class MembershipUtils {
      */
     public static boolean isTrue(byte[] data) {
         return Arrays.equals(data, TRUE);
-    }
-
-    public static Set<String> loadSyncStandbyMemberIds(Transaction tr, DirectorySubspace shardSubspace) {
-        byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_SYNC_STANDBY_MEMBERS));
-        return tr.get(key).thenApply((value) -> {
-            if (value == null) {
-                return new HashSet<String>();
-            }
-            List<String> items = Arrays.asList(JSONUtil.readValue(value, String[].class));
-            return new HashSet<>(items);
-        }).join();
     }
 }

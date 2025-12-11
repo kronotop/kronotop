@@ -43,7 +43,7 @@ class SegmentTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_append() throws IOException {
+    void shouldAppendDataToSegment() throws IOException {
         Segment segment = new Segment(getSegmentConfig());
         try {
             ByteBuffer buffer = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
@@ -54,7 +54,7 @@ class SegmentTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_append_NotEnoughSpaceException() throws IOException {
+    void shouldThrowNotEnoughSpaceExceptionWhenSegmentFull() throws IOException {
         Segment segment = new Segment(getSegmentConfig());
         try {
             long bufferSize = 100480;
@@ -71,7 +71,7 @@ class SegmentTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_get() throws IOException, NotEnoughSpaceException {
+    void shouldRetrieveAppendedData() throws IOException, NotEnoughSpaceException {
         Segment segment = new Segment(getSegmentConfig());
         try {
             ByteBuffer buffer = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
@@ -84,7 +84,7 @@ class SegmentTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_getFreeBytes() throws IOException {
+    void shouldCalculateFreeBytesCorrectly() throws IOException {
         Segment segment = new Segment(getSegmentConfig());
         try {
             long bufferSize = 10;
@@ -102,7 +102,7 @@ class SegmentTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_flush() throws IOException {
+    void shouldFlushSegment() throws IOException {
         Segment segment = new Segment(getSegmentConfig());
         try {
             ByteBuffer buffer = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
@@ -114,7 +114,7 @@ class SegmentTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_close() throws IOException {
+    void shouldCloseSegment() throws IOException {
         Segment segment = new Segment(getSegmentConfig());
         ByteBuffer buffer = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
         assertDoesNotThrow(() -> segment.append(buffer));
@@ -122,7 +122,7 @@ class SegmentTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_reopen() throws IOException, NotEnoughSpaceException {
+    void shouldReadDataAfterReopeningSegment() throws IOException, NotEnoughSpaceException {
         SegmentAppendResult segmentEntryMetadata;
         ByteBuffer expected = ByteBuffer.allocate(6).put("foobar".getBytes()).flip();
         {
@@ -142,7 +142,7 @@ class SegmentTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void test_insert() throws IOException {
+    void shouldInsertDataAtSpecificPosition() throws IOException {
         Segment segment = new Segment(getSegmentConfig());
         try {
             byte[] data = "foobar".getBytes();

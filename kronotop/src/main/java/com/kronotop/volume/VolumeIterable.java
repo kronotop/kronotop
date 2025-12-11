@@ -30,6 +30,15 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 
+/**
+ * Provides iteration over volume entries within a specified range.
+ * <p>
+ * This class wraps FoundationDB's async range query to iterate over entries stored in a Volume.
+ * Each iteration returns a {@link VolumeEntry} containing the versionstamped key, entry data,
+ * and encoded metadata.
+ * <p>
+ * Supports range filtering via {@link VersionstampedKeySelector}, limiting results, and reverse iteration.
+ */
 class VolumeIterable implements Iterable<VolumeEntry> {
     private final AsyncIterable<KeyValue> asyncIterable;
     private final Volume volume;
@@ -37,6 +46,16 @@ class VolumeIterable implements Iterable<VolumeEntry> {
     private final int limit;
     private final boolean reverse;
 
+    /**
+     * Creates a new VolumeIterable for iterating over volume entries.
+     *
+     * @param volume  the volume to iterate over
+     * @param session the session containing the transaction and prefix
+     * @param begin   the starting key selector, or null to start from the beginning
+     * @param end     the ending key selector, or null to iterate to the end
+     * @param limit   maximum number of entries to return
+     * @param reverse if true, iterates in reverse (descending) order
+     */
     VolumeIterable(Volume volume, VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         this.volume = volume;
         this.session = session;
@@ -69,6 +88,10 @@ class VolumeIterable implements Iterable<VolumeEntry> {
         return new VolumeIterator(volume, session, asyncIterable.iterator());
     }
 
+    /**
+     * Iterator implementation that reads entries from FoundationDB and materializes them
+     * by fetching the actual data from the volume's segment storage.
+     */
     private static class VolumeIterator implements Iterator<VolumeEntry> {
         private final Volume volume;
         private final VolumeSession session;
@@ -103,7 +126,7 @@ class VolumeIterable implements Iterable<VolumeEntry> {
             KeyValue keyValue = asyncIterator.next();
             Versionstamp key = (Versionstamp) volume.getConfig().subspace().unpack(keyValue.getKey()).get(2);
             byte[] rawMetadata = keyValue.getValue();
-            EntryMetadata entryMetadata = EntryMetadata.decode(ByteBuffer.wrap(rawMetadata));
+            EntryMetadata entryMetadata = EntryMetadata.decode(rawMetadata);
             try {
                 ByteBuffer entry = volume.getByEntryMetadata(session.prefix(), key, entryMetadata);
                 return new VolumeEntry(key, entry, rawMetadata);

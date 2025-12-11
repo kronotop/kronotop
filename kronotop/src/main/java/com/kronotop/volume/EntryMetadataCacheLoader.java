@@ -21,7 +21,6 @@ import com.google.common.cache.CacheLoader;
 import com.kronotop.Context;
 
 import javax.annotation.Nonnull;
-import java.nio.ByteBuffer;
 import java.time.Duration;
 
 class EntryMetadataCacheLoader extends CacheLoader<Versionstamp, EntryMetadata> {
@@ -44,7 +43,7 @@ class EntryMetadataCacheLoader extends CacheLoader<Versionstamp, EntryMetadata> 
             if (value == null) {
                 return null;
             }
-            return EntryMetadata.decode(ByteBuffer.wrap(value));
+            return EntryMetadata.decode(value);
         });
     }
 }

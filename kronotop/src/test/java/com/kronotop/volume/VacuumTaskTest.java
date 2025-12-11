@@ -20,11 +20,8 @@ import com.apple.foundationdb.Transaction;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
 
-import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class VacuumTaskTest extends BaseVolumeIntegrationTest {
 
@@ -46,7 +43,7 @@ class VacuumTaskTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_VacuumTask() throws IOException {
+    void shouldCompleteVacuumTask() throws IOException {
         VacuumTask task = prepareTestEnv();
         try {
             task.run();
@@ -57,24 +54,27 @@ class VacuumTaskTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void test_VacuumTask_awaitCompletion() throws IOException {
+    void shouldCompleteImmediatelyWhenNoSegmentsExist() {
+        // No data appended - volume has no segments
+        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
+        VacuumTask task = new VacuumTask(context, volume, vacuumMetadata);
+
+        task.run();
+
+        assertTrue(task.isCompleted());
+    }
+
+    @Test
+    void shouldStopGracefullyOnShutdown() throws IOException {
         VacuumTask task = prepareTestEnv();
 
-        CountDownLatch latch = new CountDownLatch(1);
-        Thread.ofVirtual().start(() -> {
-            try {
-                latch.await();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            // awaitTermination must be called before
-            task.run();
-        });
+        Thread taskThread = new Thread(task);
+        taskThread.start();
 
-        await().atMost(Duration.ofSeconds(15)).until(() -> {
-            latch.countDown();
-            task.awaitCompletion();
-            return task.isCompleted();
-        });
+        // Shutdown should complete gracefully without throwing
+        assertDoesNotThrow(task::shutdown);
+
+        // Task has stopped running
+        assertTrue(task.isCompleted());
     }
 }

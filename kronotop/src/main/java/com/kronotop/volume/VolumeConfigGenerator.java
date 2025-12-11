@@ -16,17 +16,19 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.typesafe.config.Config;
+import com.kronotop.internal.TransactionUtils;
+import io.github.resilience4j.retry.Retry;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.concurrent.CompletionException;
 
 /**
@@ -43,10 +45,6 @@ public class VolumeConfigGenerator {
         this.context = context;
         this.shardKind = shardKind;
         this.shardId = shardId;
-    }
-
-    public static String volumeName(ShardKind shardKind, int shardId) {
-        return String.format("%s-shard-%d", shardKind, shardId).toLowerCase();
     }
 
     /**
@@ -92,23 +90,24 @@ public class VolumeConfigGenerator {
      *                             transaction conflict (which is retried automatically).
      */
     private DirectorySubspace createOrOpenVolumeSubspace(KronotopDirectoryNode directory, boolean createIfNotExist) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectorySubspace subspace;
-            if (createIfNotExist) {
-                subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
-            } else {
-                subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
-            }
-            tr.commit().join();
-            return subspace;
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof FDBException ex) {
-                if (ex.getCode() == 1020) {
-                    return createOrOpenVolumeSubspace(directory, createIfNotExist);
+        Retry retry = TransactionUtils.retry(10, Duration.ofMillis(100));
+        return retry.executeSupplier(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                DirectorySubspace subspace;
+                if (createIfNotExist) {
+                    subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+                } else {
+                    subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
                 }
+                tr.commit().join();
+                return subspace;
+            } catch (CompletionException exp) {
+                if (exp.getCause() instanceof NoSuchDirectoryException) {
+                    throw new IllegalArgumentException("No such volume");
+                }
+                throw exp;
             }
-            throw e;
-        }
+        });
     }
 
     /**
@@ -119,16 +118,14 @@ public class VolumeConfigGenerator {
      * @return a VolumeConfig object containing the configuration details for the Redis shard
      */
     private VolumeConfig newRedisShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
-        String name = volumeName(ShardKind.REDIS, shardId);
-        Config config = context.getConfig().getConfig("redis.volume_syncer");
-        long segmentSize = config.getLong("segment_size");
+        String name = VolumeNames.format(ShardKind.REDIS, shardId);
+        long segmentSize = context.getConfig().getLong("redis.volume.segment_size");
         return new VolumeConfig(subspace, name, dataDir, segmentSize);
     }
 
     private VolumeConfig newBucketShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
-        String name = volumeName(ShardKind.BUCKET, shardId);
-        Config config = context.getConfig().getConfig("bucket");
-        long segmentSize = config.getLong("volume.segment_size");
+        String name = VolumeNames.format(ShardKind.BUCKET, shardId);
+        long segmentSize = context.getConfig().getLong("bucket.volume.segment_size");
         return new VolumeConfig(subspace, name, dataDir, segmentSize);
     }
 

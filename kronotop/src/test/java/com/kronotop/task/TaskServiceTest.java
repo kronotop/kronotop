@@ -65,10 +65,6 @@ class TaskServiceTest extends BaseClusterTest {
             @Override
             public void shutdown() {
             }
-
-            @Override
-            public void awaitCompletion() {
-            }
         }
 
         for (int i = 0; i < NUMBER_OF_TASKS; i++) {
@@ -109,10 +105,6 @@ class TaskServiceTest extends BaseClusterTest {
             @Override
             public void shutdown() {
                 // nothing to do
-            }
-
-            @Override
-            public void awaitCompletion() {
             }
         }
 

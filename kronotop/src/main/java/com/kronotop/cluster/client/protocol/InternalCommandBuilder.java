@@ -18,6 +18,8 @@ package com.kronotop.cluster.client.protocol;
 
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.output.ArrayOutput;
+import io.lettuce.core.output.IntegerListOutput;
+import io.lettuce.core.output.IntegerOutput;
 import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
@@ -31,22 +33,72 @@ public class InternalCommandBuilder<K, V> extends BaseInternalCommandBuilder<K, 
         super(codec);
     }
 
-    public Command<K, V, List<Object>> segmentrange(String volume, String segment, SegmentRange... ranges) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(segment);
+    public Command<K, V, List<Object>> segmentrange(String volume, long segmentId, List<SegmentRange> ranges) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(segmentId);
         for (SegmentRange range : ranges) {
             args.add(range.position());
             args.add(range.length());
         }
-        return createCommand(InternalCommandType.SEGMENTRANGE, new ArrayOutput<>(codec), args);
+        return createCommand(ReplicationCommandType.SEGMENTRANGE, new ArrayOutput<>(codec), args);
     }
 
-    public Command<K, V, String> segmentinsert(String volume, String segment, PackedEntry... entries) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(segment);
+    public Command<K, V, String> segmentinsert(String volume, long segmentId, PackedEntry... entries) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(segmentId);
         for (PackedEntry entry : entries) {
             args.add(entry.position());
             args.add(entry.data());
         }
-        return createCommand(InternalCommandType.SEGMENTINSERT, new StatusOutput<>(codec), args);
+        return createCommand(ReplicationCommandType.SEGMENTINSERT, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, List<Long>> segmentTailPointer(String volumeName, long segmentId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(volumeName).
+                add(segmentId);
+        return createCommand(ReplicationCommandType.SEGMENTTAILPOINTER, new IntegerListOutput<>(codec), args);
+    }
+
+    public Command<K, V, List<Long>> listSegments(String volumeName) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(VolumeAdminCommandType.LIST_SEGMENTS).
+                add(volumeName);
+        return createCommand(VolumeAdminCommandType.VOLUME_ADMIN, new IntegerListOutput<>(codec), args);
+    }
+
+    public Command<K, V, Long> changelogWatch(String volume, long sequenceNumber) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(volume).add(sequenceNumber);
+        return createCommand(ReplicationCommandType.CHANGELOGWATCH, new IntegerOutput<>(codec), args);
+    }
+
+    public Command<K, V, VolumeInspectCursorResponse> volumeInspectCursor(String volume) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(VolumeInspectCommandType.CURSOR).add(volume);
+        return createCommand(VolumeInspectCommandType.VOLUME_INSPECT, new VolumeInspectCursorOutput<>(codec), args);
+    }
+
+    public Command<K, V, VolumeInspectReplicationResponse> volumeInspectReplication(String shardKind, int shardId, String standbyId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec)
+                .add(VolumeInspectCommandType.REPLICATION)
+                .add(shardKind)
+                .add(shardId)
+                .add(standbyId);
+        return createCommand(VolumeInspectCommandType.VOLUME_INSPECT, new VolumeInspectReplicationOutput<>(codec), args);
+    }
+
+    public Command<K, V, List<ChangeLogEntryResponse>> changelogRange(String volume,
+                                                                      String parentOperationKind,
+                                                                      String start,
+                                                                      String end,
+                                                                      ChangeLogRangeArgs changelogArgs
+    ) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(volume).
+                add(parentOperationKind).
+                add(start).
+                add(end);
+        if (changelogArgs != null) {
+            changelogArgs.build(args);
+        }
+        return new Command(ReplicationCommandType.CHANGELOGRANGE, new ChangeLogRangeOutput<>(codec), args);
     }
 
     public Command<K, V, String> ping() {

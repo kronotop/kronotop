@@ -16,5 +16,7 @@
 
 package com.kronotop.volume;
 
-public class TooManyEntriesException extends RuntimeException {
+import com.kronotop.KronotopException;
+
+public class TooManyEntriesException extends KronotopException {
 }

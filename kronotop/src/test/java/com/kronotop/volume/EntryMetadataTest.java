@@ -16,10 +16,7 @@
 
 package com.kronotop.volume;
 
-import com.kronotop.volume.segment.Segment;
 import org.junit.jupiter.api.Test;
-
-import java.nio.ByteBuffer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,67 +24,57 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class EntryMetadataTest {
 
     @Test
-    void decode_should_return_corresponding_EntryMetadata() {
+    void shouldDecodeToCorrespondingEntryMetadata() {
         Prefix prefix = new Prefix("test");
-        // Initialize necessary data
-        String segment = Segment.generateName(10);
+        long segmentId = 10;
         long position = 1L;
         long length = 1L;
-        ByteBuffer buffer = ByteBuffer.allocate(EntryMetadata.SIZE); // Including space for position and length
-        buffer.put(segment.getBytes()).put(EntryMetadata.SUBSPACE_SEPARATOR).put(prefix.asBytes()).putLong(position).putLong(length).putInt(10).flip();
+        long handle = 10L;
 
-        // Invoke method on test
-        EntryMetadata result = EntryMetadata.decode(buffer);
+        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, handle);
+        byte[] encoded = entry.encode();
 
-        // Check that the result has the same values
-        assertEquals(segment, result.segment());
+        EntryMetadata result = EntryMetadata.decode(encoded);
+
+        assertEquals(segmentId, result.segmentId());
         assertEquals(prefix, Prefix.fromBytes(result.prefix()));
         assertEquals(position, result.position());
         assertEquals(length, result.length());
-        assertEquals(10, result.id());
+        assertEquals(handle, result.handle());
     }
 
     @Test
-    void encode_should_return_corresponding_byte_buffer() {
+    void shouldEncodeToCorrespondingByteBuffer() {
         Prefix prefix = new Prefix("test");
 
-        // Initialize necessary data
         int segmentId = 10;
-        String segment = Segment.generateName(segmentId);
         long position = 1L;
         long length = 1L;
-        int id = EntryMetadataIdGenerator.generate(1, segmentId, position);
+        long handle = EntryHandleGenerator.generate(1, segmentId, position);
 
-        // Create EntryMetadata instance
-        EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length, id);
+        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, handle);
 
-        // Invoke method on test
-        ByteBuffer result = entry.encode();
+        byte[] result = entry.encode();
 
         EntryMetadata decoded = EntryMetadata.decode(result);
         assertThat(entry).usingRecursiveComparison().isEqualTo(decoded);
     }
 
     @Test
-    void should_extract_id_from_encoded_entry_metadata() {
+    void shouldExtractHandleFromEncodedEntryMetadata() {
         Prefix prefix = new Prefix("test");
 
-        // Initialize necessary data
         int segmentId = 10;
-        String segment = Segment.generateName(segmentId);
         long position = 1L;
         long length = 1L;
-        int id = EntryMetadataIdGenerator.generate(1, segmentId, position);
+        long handle = EntryHandleGenerator.generate(1, segmentId, position);
 
-        // Create EntryMetadata instance
-        EntryMetadata entry = new EntryMetadata(segment, prefix.asBytes(), position, length, id);
+        EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, handle);
 
-        // Invoke method on test
-        ByteBuffer result = entry.encode();
+        byte[] result = entry.encode();
 
-        assertEquals(id, EntryMetadata.extractId(result));
+        assertEquals(handle, EntryMetadata.extractHandle(result));
 
-        // Rewind works?
         EntryMetadata decoded = EntryMetadata.decode(result);
         assertThat(entry).usingRecursiveComparison().isEqualTo(decoded);
     }

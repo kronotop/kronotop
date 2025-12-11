@@ -114,24 +114,6 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
     }
 
-    public Command<K, V, String> syncStandby(String operationKind, String shardKind, int shardId, String memberId) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SYNC_STANDBY).
-                add(operationKind).
-                add(shardKind).
-                add(shardId).
-                add(memberId);
-        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
-    }
-
-    public Command<K, V, String> syncStandby(String operationKind, String shardKind, String memberId) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.SYNC_STANDBY).
-                add(operationKind).
-                add(shardKind).
-                add("*").
-                add(memberId);
-        return createCommand(CommandType.KR_ADMIN, new StatusOutput<>(codec), args);
-    }
-
     enum CommandType implements ProtocolKeyword {
         KR_ADMIN("KR.ADMIN");
 
@@ -158,8 +140,7 @@ public class KrAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V
         SET_SHARD_STATUS("SET-SHARD-STATUS"),
         DESCRIBE_SHARD("DESCRIBE-SHARD"),
         DESCRIBE_CLUSTER("DESCRIBE-CLUSTER"),
-        ROUTE("ROUTE"),
-        SYNC_STANDBY("SYNC-STANDBY");
+        ROUTE("ROUTE");
 
         public final byte[] bytes;
 

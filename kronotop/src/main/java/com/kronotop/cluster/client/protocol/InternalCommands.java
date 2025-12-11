@@ -17,13 +17,23 @@
 
 package com.kronotop.cluster.client.protocol;
 
-
 import java.util.List;
+import java.util.Map;
 
 public interface InternalCommands<K, V> {
-    List<Object> segmentrange(String volume, String segment, SegmentRange... ranges);
+    List<Object> segmentrange(String volume, long segmentId, List<SegmentRange> ranges);
 
-    String segmentinsert(String volume, String segment, PackedEntry... entries);
+    String segmentinsert(String volume, long segmentId, PackedEntry... entries);
+
+    List<Long> listSegments(String volume);
+
+    List<Long> segmentTailPointer(String volume, long segmentId);
+
+    Long changelogWatch(String volume, long sequenceNumber);
+
+    VolumeInspectCursorResponse volumeInspectCursor(String volume);
+
+    List<ChangeLogEntryResponse> changelogRange(String volume, String parentOperationKind, String start, String end, ChangeLogRangeArgs changelogArgs);
 
     String ping();
 }

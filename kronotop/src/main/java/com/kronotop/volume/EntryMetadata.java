@@ -16,96 +16,52 @@
 
 package com.kronotop.volume;
 
-import java.nio.ByteBuffer;
-
-import static com.kronotop.volume.segment.Segment.SEGMENT_NAME_SIZE;
+import com.apple.foundationdb.tuple.Tuple;
 
 /**
- * EntryMetadata is a record class representing the metadata attached to a specific entry
- * within a segmented storage system. This metadata includes information about the segment
- * name, the prefix used for organizing or identifying the entry, and its position and length
- * within the storage medium.
- * <p>
- * The segment name is stored as a string, while the prefix is a byte array, facilitating
- * efficient identification and retrieval operations. The position and length are long values
- * indicating where the associated data begins and its continuity in bytes.
- * <p>
- * EntryMetadata also provides mechanisms for encoding and decoding this metadata to and from
- * ByteBuffers, enabling streamlined persistence or transmission of this information in a
- * binary format. The design supports fixed sizes for various components to ensure direct access
- * and manipulation efficiency.
+ * EntryMetadata represents metadata for a storage entry within a segmented storage system.
+ * Contains segment identifier, prefix, position, length, and unique entry handle.
  */
-public record EntryMetadata(String segment, byte[] prefix, long position, long length, int id) {
+public record EntryMetadata(long segmentId, byte[] prefix, long position, long length, long handle) {
     public static int ENTRY_PREFIX_SIZE = 8;
-    public static int SUBSPACE_SEPARATOR_SIZE = 1;
-    // 20 = position(8 bytes) + length (8 bytes) + id (4 bytes)
-    public static int SIZE = SEGMENT_NAME_SIZE + ENTRY_PREFIX_SIZE + SUBSPACE_SEPARATOR_SIZE + 20;
-    static byte SUBSPACE_SEPARATOR = 0x0;
-
 
     /**
-     * Decodes a ByteBuffer to extract entry metadata, including the segment name, prefix,
-     * position, and length.
+     * Decodes entry metadata from packed tuple bytes.
      *
-     * @param buffer the ByteBuffer which contains the encoded entry metadata.
-     *               The buffer should be positioned at the start of the entry metadata.
-     * @return an instance of EntryMetadata containing the decoded segment name, prefix,
-     * position, and length extracted from the provided ByteBuffer.
+     * @param data packed tuple bytes containing entry metadata
+     * @return decoded EntryMetadata instance
      */
-    public static EntryMetadata decode(ByteBuffer buffer) {
-        byte[] rawSegment = new byte[SEGMENT_NAME_SIZE];
-        buffer.get(rawSegment);
-        buffer.get(); // Consume the separator
-        String segment = new String(rawSegment);
-        byte[] prefix = new byte[ENTRY_PREFIX_SIZE];
-        buffer.get(prefix);
-        long position = buffer.getLong();
-        long length = buffer.getLong();
-        int id = buffer.getInt(); // position = 44
-        return new EntryMetadata(segment, prefix, position, length, id);
+    public static EntryMetadata decode(byte[] data) {
+        Tuple tuple = Tuple.fromBytes(data);
+        long segmentId = tuple.getLong(0);
+        byte[] prefix = tuple.getBytes(1);
+        long position = tuple.getLong(2);
+        long length = tuple.getLong(3);
+        long handle = tuple.getLong(4);
+        return new EntryMetadata(segmentId, prefix, position, length, handle);
     }
 
     /**
-     * Extracts the ID from the specified ByteBuffer object. The method assumes
-     * that the ID is stored at a fixed offset (44) in the ByteBuffer. It
-     * retrieves the integer value from this position without altering the buffer's
-     * state, as it rewinds the buffer to its original position after the extraction.
+     * Extracts the handle from packed tuple bytes.
      *
-     * @param buffer the ByteBuffer containing the encoded data. The buffer should
-     *               have a valid layout where the ID can be read from the predefined
-     *               offset.
-     * @return the integer value representing the extracted ID.
+     * @param data packed tuple bytes containing entry metadata
+     * @return the entry handle
      */
-    public static int extractId(ByteBuffer buffer) {
-        // The position of id is 44 in the current layout of encoded EntryMetadata
-        buffer = buffer.position(44);
-        int id = buffer.getInt();
-        buffer.rewind();
-        return id;
+    public static long extractHandle(byte[] data) {
+        Tuple tuple = Tuple.fromBytes(data);
+        return tuple.getLong(4);
     }
 
     /**
-     * Encodes the current state of the entry metadata into a ByteBuffer. The resulting ByteBuffer
-     * contains the segment name, subspace separator, prefix, position, and length in a binary format
-     * that is suitable for storage or transmission.
+     * Encodes entry metadata into packed tuple bytes.
      *
-     * @return a ByteBuffer containing the binary representation of this EntryMetadata instance,
-     * with the data elements sequentially packed in the specified order.
-     * @throws IllegalArgumentException if the length of the prefix does not match the predefined
-     *                                  ENTRY_PREFIX_SIZE.
+     * @return packed tuple bytes
+     * @throws IllegalArgumentException if prefix length is invalid
      */
-    public ByteBuffer encode() {
+    public byte[] encode() {
         if (prefix.length != ENTRY_PREFIX_SIZE) {
             throw new IllegalArgumentException("Invalid prefix length");
         }
-        return ByteBuffer.
-                allocate(SIZE).
-                put(segment.getBytes()).
-                put(SUBSPACE_SEPARATOR).
-                put(prefix).
-                putLong(position).
-                putLong(length).
-                putInt(id).
-                flip();
+        return Tuple.from(segmentId, prefix, position, length, handle).pack();
     }
 }

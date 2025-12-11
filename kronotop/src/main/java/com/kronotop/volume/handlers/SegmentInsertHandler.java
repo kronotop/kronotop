@@ -23,11 +23,13 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.volume.ClosedVolumeException;
 import com.kronotop.volume.Volume;
-import com.kronotop.volume.VolumeNotOpenException;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.handlers.protocol.SegmentInsertMessage;
+
+import java.io.IOException;
+
+import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 @Command(SegmentInsertMessage.COMMAND)
 @MinimumParameterCount(SegmentInsertMessage.MINIMUM_PARAMETER_COUNT)
@@ -43,15 +45,16 @@ public class SegmentInsertHandler extends BaseVolumeHandler implements Handler {
     }
 
     @Override
-    public void execute(Request request, Response response) throws Exception {
-        SegmentInsertMessage message = request.attr(MessageTypes.SEGMENTINSERT).get();
-        try {
-            Volume volume = service.findVolume(message.getVolume());
-            volume.insert(message.getSegment(), message.getPackedEntries());
-            volume.flush();
-        } catch (VolumeNotOpenException | ClosedVolumeException e) {
-            throw new KronotopException(e.getMessage(), e);
-        }
-        response.writeOK();
+    public void execute(Request request, Response response) {
+        runAsync(context, response, () -> {
+            SegmentInsertMessage message = request.attr(MessageTypes.SEGMENTINSERT).get();
+            try {
+                Volume volume = service.findVolume(message.getVolume());
+                volume.insert(message.getSegmentId(), message.getPackedEntries());
+                volume.flush();
+            } catch (IOException e) {
+                throw new KronotopException(e.getMessage(), e);
+            }
+        }, response::writeOK);
     }
 }

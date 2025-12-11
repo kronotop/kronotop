@@ -49,39 +49,39 @@ public class VolumeServiceTest extends BaseVolumeTest {
     }
 
     @Test
-    public void test_newVolume() throws IOException {
+    public void shouldCreateNewVolume() throws IOException {
         Volume volume = service.newVolume(volumeConfig);
         assertNotNull(volume);
         volume.close();
     }
 
     @Test
-    public void test_findVolume() throws IOException {
+    public void shouldFindExistingVolume() throws IOException {
         Volume volume = service.newVolume(volumeConfig);
         assertDoesNotThrow(() -> service.findVolume(volumeConfig.name()));
         volume.close();
     }
 
     @Test
-    public void test_findVolume_VolumeNotOpenException() {
+    public void shouldThrowVolumeNotOpenExceptionWhenVolumeNotFound() {
         assertThrows(VolumeNotOpenException.class, () -> service.findVolume("foobar"));
     }
 
     @Test
-    public void test_findVolume_ClosedVolumeException() throws IOException {
+    public void shouldThrowClosedVolumeExceptionWhenVolumeClosed() throws IOException {
         Volume volume = service.newVolume(volumeConfig);
         volume.close();
         assertThrows(ClosedVolumeException.class, () -> service.findVolume(volumeConfig.name()));
     }
 
     @Test
-    public void test_closeVolume() throws IOException {
+    public void shouldCloseVolume() throws IOException {
         service.newVolume(volumeConfig);
         assertDoesNotThrow(() -> service.closeVolume(volumeConfig.name()));
     }
 
     @Test
-    public void test_register_volume() throws IOException {
+    public void shouldRegisterVolumeInList() throws IOException {
         Volume volume = service.newVolume(volumeConfig);
         try {
             boolean found = false;
@@ -98,7 +98,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
     }
 
     @Test
-    public void test_DisusedPrefixesWatcher() throws IOException {
+    public void shouldRemoveEntriesWhenPrefixMarkedAsDisused() throws IOException {
         Volume volume = service.newVolume(volumeConfig);
 
         ByteBuffer entry = ByteBuffer.wrap("entry".getBytes());
@@ -119,5 +119,24 @@ public class VolumeServiceTest extends BaseVolumeTest {
         } finally {
             volume.close();
         }
+    }
+
+    @Test
+    public void shouldThrowWhenOpenSubspaceWithInvalidVolumeName() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.openSubspace("invalid-name")
+        );
+        assertEquals("invalid volume name: invalid-name", exception.getMessage());
+    }
+
+    @Test
+    public void shouldThrowWhenOpenSubspaceWithNoSuchVolume() {
+        String name = VolumeNames.format(ShardKind.BUCKET, Integer.MAX_VALUE);
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.openSubspace(name)
+        );
+        assertEquals("No such volume", exception.getMessage());
     }
 }

@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 env:
-  FOUNDATIONDB_VERSION: 7.3.64
+  FOUNDATIONDB_VERSION: 7.3.68
   FOUNDATIONDB_DOWNLOAD_URL: https://github.com/apple/foundationdb/releases/download
 
 jobs:

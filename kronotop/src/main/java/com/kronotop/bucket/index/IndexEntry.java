@@ -16,8 +16,6 @@
 
 package com.kronotop.bucket.index;
 
-import com.kronotop.volume.EntryMetadata;
-
 import java.util.Arrays;
 
 public record IndexEntry(int shardId, byte[] entryMetadata) {
@@ -34,12 +32,12 @@ public record IndexEntry(int shardId, byte[] entryMetadata) {
 
     // 4 bytes for shardId (int), plus entry metadata length
     public byte[] encode() {
-        byte[] result = new byte[SHARD_ID_SIZE + EntryMetadata.SIZE];
+        byte[] result = new byte[SHARD_ID_SIZE + entryMetadata.length];
         result[0] = (byte) ((shardId >>> 24) & 0xFF);
         result[1] = (byte) ((shardId >>> 16) & 0xFF);
         result[2] = (byte) ((shardId >>> 8) & 0xFF);
         result[3] = (byte) (shardId & 0xFF);
-        System.arraycopy(entryMetadata, 0, result, SHARD_ID_SIZE, EntryMetadata.SIZE);
+        System.arraycopy(entryMetadata, 0, result, SHARD_ID_SIZE, entryMetadata.length);
         return result;
     }
 }

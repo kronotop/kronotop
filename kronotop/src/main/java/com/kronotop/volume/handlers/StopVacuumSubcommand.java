@@ -25,10 +25,14 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.task.Task;
 import com.kronotop.task.TaskService;
-import com.kronotop.volume.*;
+import com.kronotop.volume.VacuumMetadata;
+import com.kronotop.volume.Volume;
+import com.kronotop.volume.VolumeService;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+
+import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 public class StopVacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
@@ -39,20 +43,19 @@ public class StopVacuumSubcommand extends BaseSubcommandHandler implements Subco
     @Override
     public void execute(Request request, Response response) {
         StopVacuumParameters parameters = new StopVacuumParameters(request.getParams());
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Volume volume = service.findVolume(parameters.volumeName);
-            VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
-            if (vacuumMetadata == null) {
-                throw new KronotopException("Vacuum task not found on " + volume.getConfig().name());
+        runAsync(context, response, () -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                Volume volume = service.findVolume(parameters.volumeName);
+                VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
+                if (vacuumMetadata == null) {
+                    throw new KronotopException("Vacuum task not found on " + volume.getConfig().name());
+                }
+                TaskService taskService = context.getService(TaskService.NAME);
+                Task task = taskService.getTask(vacuumMetadata.getTaskName());
+                task.shutdown(); // stop it gracefully
+                task.complete(); // delete VacuumMetadata from FDB, destroy the task.
             }
-            TaskService taskService = context.getService(TaskService.NAME);
-            Task task = taskService.getTask(vacuumMetadata.getTaskName());
-            task.shutdown(); // stop it gracefully
-            task.complete(); // delete VacuumMetadata from FDB, destroy the task.
-        } catch (ClosedVolumeException | VolumeNotOpenException e) {
-            throw new KronotopException(e);
-        }
-        response.writeOK();
+        }, response::writeOK);
     }
 
     private static class StopVacuumParameters {

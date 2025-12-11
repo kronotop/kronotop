@@ -17,9 +17,7 @@
 package com.kronotop.commandbuilder.kronotop;
 
 import io.lettuce.core.codec.RedisCodec;
-import io.lettuce.core.output.MapOutput;
-import io.lettuce.core.output.StatusOutput;
-import io.lettuce.core.output.StringListOutput;
+import io.lettuce.core.output.*;
 import io.lettuce.core.protocol.Command;
 import io.lettuce.core.protocol.CommandArgs;
 import io.lettuce.core.protocol.ProtocolKeyword;
@@ -50,12 +48,6 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    public Command<K, V, Map<String, Object>> replications() {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.REPLICATIONS);
-        return createCommand(CommandType.VOLUME_ADMIN, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
-    }
-
     public Command<K, V, String> vacuum(String volumeName, double allowedGarbageRatio) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.VACUUM).add(volumeName).add(allowedGarbageRatio);
         return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
@@ -73,6 +65,37 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
 
     public Command<K, V, String> markStalePrefixes(String operation) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(CommandKeyword.MARK_STALE_PREFIXES).add(operation);
+        return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, List<Long>> listSegments(String volumeName) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(CommandKeyword.LIST_SEGMENTS).
+                add(volumeName);
+        return createCommand(CommandType.VOLUME_ADMIN, new IntegerListOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> startReplication(String shardKind, int shardId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec)
+                .add(CommandKeyword.START_REPLICATION)
+                .add(shardKind)
+                .add(shardId);
+        return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> stopReplication(String shardKind, int shardId) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec)
+                .add(CommandKeyword.STOP_REPLICATION)
+                .add(shardKind)
+                .add(shardId);
+        return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
+    }
+
+    public Command<K, V, String> pruneChangelog(String volumeName, long retentionPeriod) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec)
+                .add(CommandKeyword.PRUNE_CHANGELOG)
+                .add(volumeName)
+                .add(retentionPeriod);
         return createCommand(CommandType.VOLUME_ADMIN, new StatusOutput<>(codec), args);
     }
 
@@ -95,11 +118,14 @@ public class VolumeAdminCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
         LIST("LIST"),
         DESCRIBE("DESCRIBE"),
         SET_STATUS("SET-STATUS"),
-        REPLICATIONS("REPLICATIONS"),
         VACUUM("VACUUM"),
         STOP_VACUUM("STOP-VACUUM"),
         CLEANUP_ORPHAN_FILES("CLEANUP-ORPHAN-FILES"),
-        MARK_STALE_PREFIXES("MARK-STALE-PREFIXES");
+        MARK_STALE_PREFIXES("MARK-STALE-PREFIXES"),
+        LIST_SEGMENTS("LIST-SEGMENTS"),
+        START_REPLICATION("START-REPLICATION"),
+        STOP_REPLICATION("STOP-REPLICATION"),
+        PRUNE_CHANGELOG("PRUNE-CHANGELOG");
 
         public final byte[] bytes;
 

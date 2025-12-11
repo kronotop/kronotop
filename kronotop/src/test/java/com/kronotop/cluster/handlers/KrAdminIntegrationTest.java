@@ -46,7 +46,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
     }
 
     @Test
-    public void when_cluster_uninitialized() {
+    public void shouldReturnErrorWhenClusterUninitialized() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -60,7 +60,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
     }
 
     @Test
-    public void try_assign_standby_while_no_primary_assigned_yet() {
+    public void shouldReturnErrorWhenAssigningStandbyWithoutPrimary() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         initializeCluster(cmd);
 
@@ -74,7 +74,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
     }
 
     @Test
-    public void try_set_route_but_member_not_found() {
+    public void shouldReturnErrorWhenSettingRouteWithMemberNotFound() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         initializeCluster(cmd);
 

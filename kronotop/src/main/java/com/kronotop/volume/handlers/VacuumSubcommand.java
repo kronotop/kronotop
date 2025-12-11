@@ -24,10 +24,15 @@ import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.task.TaskService;
-import com.kronotop.volume.*;
+import com.kronotop.volume.VacuumMetadata;
+import com.kronotop.volume.VacuumTask;
+import com.kronotop.volume.Volume;
+import com.kronotop.volume.VolumeService;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+
+import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
     VacuumSubcommand(VolumeService service) {
@@ -50,7 +55,7 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
     @Override
     public void execute(Request request, Response response) {
         VacuumParameters parameters = new VacuumParameters(request.getParams());
-        try {
+        runAsync(context, response, () -> {
             Volume volume = service.findVolume(parameters.volumeName);
             if (!service.hasVolumeOwnership(volume)) {
                 throw new KronotopException("Volume " + volume.getConfig().name() + " is not owned by this member");
@@ -59,10 +64,7 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
             TaskService taskService = context.getService(TaskService.NAME);
             VacuumTask task = new VacuumTask(service.getContext(), volume, vacuumMetadata);
             taskService.execute(task);
-        } catch (ClosedVolumeException | VolumeNotOpenException e) {
-            throw new KronotopException(e);
-        }
-        response.writeOK();
+        }, response::writeOK);
     }
 
     private static class VacuumParameters {

@@ -41,6 +41,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+
 public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
     public CleanupOrphanFilesSubcommand(VolumeService service) {
@@ -61,36 +63,37 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
     public void execute(Request request, Response response) {
         CleanupOrphanFilesParameters parameters = new CleanupOrphanFilesParameters(request.getParams());
 
-        List<RedisMessage> deletedFiles = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Volume volume = service.findVolume(parameters.volumeName);
-            VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            Set<String> assumedFiles = new HashSet<>();
-            volumeMetadata.getSegments().forEach(segmentId -> {
-                String segmentName = Segment.generateName(segmentId);
-                assumedFiles.add(segmentName);
-            });
+        supplyAsync(context, response, () -> {
+            List<RedisMessage> deletedFiles = new ArrayList<>();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                Volume volume = service.findVolume(parameters.volumeName);
+                VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+                Set<String> assumedFiles = new HashSet<>();
+                volumeMetadata.getSegments().forEach(segmentId -> {
+                    assumedFiles.add(Segment.generateFileName(segmentId));
+                });
 
-            Set<String> orphanFiles = new HashSet<>();
-            Set<String> existingFiles = listFiles(Paths.get(volume.getConfig().dataDir(), Segment.SEGMENTS_DIRECTORY).toString());
-            for (String existingFile : existingFiles) {
-                if (!assumedFiles.contains(existingFile)) {
-                    orphanFiles.add(existingFile);
+                Set<String> orphanFiles = new HashSet<>();
+                Set<String> existingFiles = listFiles(Paths.get(volume.getConfig().dataDir(), Segment.SEGMENTS_DIRECTORY).toString());
+                for (String existingFile : existingFiles) {
+                    if (!assumedFiles.contains(existingFile)) {
+                        orphanFiles.add(existingFile);
+                    }
                 }
-            }
 
-            for (String orphanFile : orphanFiles) {
-                Path path = Paths.get(volume.getConfig().dataDir(), Segment.SEGMENTS_DIRECTORY, orphanFile);
-                if (Files.deleteIfExists(path)) {
-                    deletedFiles.add(new SimpleStringRedisMessage(path.toString()));
+                for (String orphanFile : orphanFiles) {
+                    Path path = Paths.get(volume.getConfig().dataDir(), Segment.SEGMENTS_DIRECTORY, orphanFile);
+                    if (Files.deleteIfExists(path)) {
+                        deletedFiles.add(new SimpleStringRedisMessage(path.toString()));
+                    }
                 }
+            } catch (NoSuchFileException e) {
+                throw new KronotopException("File not found: " + e.getMessage());
+            } catch (IOException | ClosedVolumeException | VolumeNotOpenException e) {
+                throw new KronotopException(e.getMessage(), e);
             }
-        } catch (NoSuchFileException e) {
-            throw new KronotopException("File not found: " + e.getMessage());
-        } catch (IOException | ClosedVolumeException | VolumeNotOpenException e) {
-            throw new KronotopException(e);
-        }
-        response.writeArray(deletedFiles);
+            return deletedFiles;
+        }, response::writeArray);
     }
 
     private static class CleanupOrphanFilesParameters {

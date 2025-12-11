@@ -31,8 +31,6 @@ import java.nio.charset.StandardCharsets;
 @Command(PingMessage.COMMAND)
 @MaximumParameterCount(PingMessage.MAXIMUM_PARAMETER_COUNT)
 public class PingHandler implements Handler {
-    final String DEFAULT_PING_RESPONSE = "PONG";
-
     @Override
     public boolean requiresClusterInitialization() {
         return false;
@@ -54,6 +52,6 @@ public class PingHandler implements Handler {
                 return;
             }
         }
-        response.writeSimpleString(DEFAULT_PING_RESPONSE);
+        response.writeSimpleString(Response.PONG);
     }
 }

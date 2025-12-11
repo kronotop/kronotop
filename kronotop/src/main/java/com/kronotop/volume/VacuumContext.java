@@ -24,16 +24,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * and a flag for the termination signal.
  */
 public class VacuumContext {
-    private final String segment;
+    private final long segmentId;
     private final AtomicBoolean stop;
 
-    VacuumContext(String segment, AtomicBoolean stop) {
-        this.segment = segment;
+    VacuumContext(long segmentId, AtomicBoolean stop) {
+        this.segmentId = segmentId;
         this.stop = stop;
     }
 
-    String segment() {
-        return segment;
+    long segmentId() {
+        return segmentId;
     }
 
     boolean stop() {

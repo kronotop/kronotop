@@ -23,10 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-public class MemberJoinEventTest {
+class MemberJoinEventTest {
 
     @Test
-    public void test_check_kind() {
+    void shouldHaveCorrectEventKind() {
         MemberJoinEvent event = new MemberJoinEvent(MemberIdGenerator.generateId());
         byte[] data = JSONUtil.writeValueAsBytes(event);
         assertNotNull(data);
@@ -36,7 +36,7 @@ public class MemberJoinEventTest {
     }
 
     @Test
-    public void test_encode_then_decode() {
+    void shouldEncodeThenDecode() {
         MemberJoinEvent expected = new MemberJoinEvent(MemberIdGenerator.generateId());
         byte[] data = JSONUtil.writeValueAsBytes(expected);
         assertNotNull(data);

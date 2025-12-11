@@ -31,6 +31,7 @@ import java.util.Set;
  * It provides methods to write different types of Redis messages.
  */
 public interface Response {
+    String PONG = "PONG";
     String OK = "OK";
     String QUEUED = "QUEUED";
 

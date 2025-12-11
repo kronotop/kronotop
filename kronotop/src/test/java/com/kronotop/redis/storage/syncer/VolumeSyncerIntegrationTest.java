@@ -36,7 +36,7 @@ import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.VolumeSession;
-import com.kronotop.volume.replication.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -53,31 +53,17 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeSyncerIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
 
-    private void setSyncStandby(KronotopTestInstance standbyInstance) {
+    private void setStandby(KronotopTestInstance standbyInstance) {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.route("SET", RouteKind.STANDBY.name(), ShardKind.REDIS.name(), standbyInstance.getMember().getId()).encode(buf);
-            runCommand(channel, buf);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.route("SET", RouteKind.STANDBY.name(), ShardKind.REDIS.name(), standbyInstance.getMember().getId()).encode(buf);
+        runCommand(channel, buf);
 
-            Object raw = channel.readOutbound();
-            if (raw instanceof SimpleStringRedisMessage message) {
-                assertEquals(Response.OK, message.content());
-            } else if (raw instanceof ErrorRedisMessage message) {
-                fail(message.content());
-            }
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.syncStandby("SET", ShardKind.REDIS.name(), standbyInstance.getMember().getId()).encode(buf);
-
-            Object raw = runCommand(channel, buf);
-            if (raw instanceof SimpleStringRedisMessage message) {
-                assertEquals(Response.OK, message.content());
-            } else if (raw instanceof ErrorRedisMessage message) {
-                fail(message.content());
-            }
+        Object raw = channel.readOutbound();
+        if (raw instanceof SimpleStringRedisMessage message) {
+            assertEquals(Response.OK, message.content());
+        } else if (raw instanceof ErrorRedisMessage message) {
+            fail(message.content());
         }
     }
 
@@ -86,7 +72,7 @@ class VolumeSyncerIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
     void sync_replication_when_standby_members_exists() throws IOException {
         // TODO: Check this test, it looks unhealthy.
         KronotopTestInstance standbyInstance = addNewInstance(true);
-        setSyncStandby(standbyInstance);
+        setStandby(standbyInstance);
 
         await().atMost(Duration.ofSeconds(5)).until(() -> {
             int numberOfShards = kronotopInstance.getContext().getConfig().getInt("redis.shards");
@@ -94,7 +80,7 @@ class VolumeSyncerIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
             RoutingService routing = kronotopInstance.getContext().getService(RoutingService.NAME);
             for (int shardId = 0; shardId < numberOfShards; shardId++) {
                 Route route = routing.findRoute(ShardKind.REDIS, shardId);
-                if (!route.syncStandbys().isEmpty()) {
+                if (!route.standbys().isEmpty()) {
                     shards.add(shardId);
                 }
             }

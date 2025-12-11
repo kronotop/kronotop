@@ -27,7 +27,7 @@ public class SegmentRangeMessage extends BaseMessage implements ProtocolMessage<
     public static final String COMMAND = "SEGMENTRANGE";
     public static final int MINIMUM_PARAMETER_COUNT = 4;
     private String volume;
-    private String segment;
+    private long segmentId;
     private SegmentRange[] segmentRanges;
 
     public SegmentRangeMessage(Request request) {
@@ -41,9 +41,9 @@ public class SegmentRangeMessage extends BaseMessage implements ProtocolMessage<
             throw new KronotopException("Wrong number of parameters");
         }
 
-        // segmentrange <volume-name> <segment-name> position length position length ...
+        // segmentrange <volume-name> <segment-id> position length position length ...
         volume = readString(0);
-        segment = readString(1);
+        segmentId = readLong(1);
 
         int index = 0;
         segmentRanges = new SegmentRange[(request.getParams().size() - 2) / 2];
@@ -60,8 +60,8 @@ public class SegmentRangeMessage extends BaseMessage implements ProtocolMessage<
         return volume;
     }
 
-    public String getSegment() {
-        return segment;
+    public long getSegmentId() {
+        return segmentId;
     }
 
     public SegmentRange[] getSegmentRanges() {

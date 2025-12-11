@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
+@Deprecated
 public class VolumeTestUtils {
     public static Prefix prefix = new Prefix("volume-test-prefix".getBytes());
 

@@ -23,13 +23,12 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
-import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.volume.VolumeConfigGenerator;
+import com.kronotop.volume.VolumeNames;
 import io.netty.buffer.ByteBuf;
 
 import java.util.*;
@@ -49,13 +48,13 @@ public class BaseKrAdminSubcommandHandler {
     /**
      * Describes the metadata and status of a specific shard.
      * Retrieves information about the primary member, standby members,
-     * synchronized standby members, and the status of the shard based on its type and ID.
+     * and the status of the shard based on its type and ID.
      *
      * @param tr        The transaction object used for accessing the database.
      * @param shardKind The kind of shard, represented as a {@link ShardKind}.
      * @param shardId   The ID of the shard to describe.
      * @return A map where the keys are {@link RedisMessage} instances representing metadata
-     * descriptors (e.g., "primary", "standbys", "sync_standbys", "status") and the
+     * descriptors (e.g., "primary", "standbys", "status") and the
      * values are {@link RedisMessage} instances containing the respective information.
      */
     protected Map<RedisMessage, RedisMessage> describeShard(Transaction tr, ShardKind shardKind, int shardId) {
@@ -77,22 +76,13 @@ public class BaseKrAdminSubcommandHandler {
         }
         shard.put(new SimpleStringRedisMessage("standbys"), new ArrayRedisMessage(standbyMessages));
 
-        List<RedisMessage> syncStandbyMessages = new ArrayList<>();
-        Set<String> syncStandbys = MembershipUtils.loadSyncStandbyMemberIds(tr, shardSubspace);
-        if (standbys != null) {
-            for (String syncStandby : syncStandbys) {
-                syncStandbyMessages.add(new SimpleStringRedisMessage(syncStandby));
-            }
-        }
-        shard.put(new SimpleStringRedisMessage("sync_standbys"), new ArrayRedisMessage(syncStandbyMessages));
-
         ShardStatus status = ShardUtils.getShardStatus(tr, shardSubspace);
         shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(status.name()));
 
         // TODO: This is not sufficient but it works for now.
         // Ideally, we should get this info from FDB, re-generating the volume name is not good.
         List<RedisMessage> linkedVolumes = new ArrayList<>();
-        linkedVolumes.add(new SimpleStringRedisMessage(VolumeConfigGenerator.volumeName(shardKind, shardId)));
+        linkedVolumes.add(new SimpleStringRedisMessage(VolumeNames.format(shardKind, shardId)));
         shard.put(new SimpleStringRedisMessage("linked_volumes"), new ArrayRedisMessage(linkedVolumes));
 
         return shard;
@@ -148,56 +138,6 @@ public class BaseKrAdminSubcommandHandler {
             return MemberStatus.valueOf(stringMemberStatus.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new KronotopException("Invalid member status " + stringMemberStatus);
-        }
-    }
-
-    /**
-     * Reads the shard kind from the provided ByteBuf.
-     *
-     * @param shardKindBuf the ByteBuf containing the raw bytes of the shard kind
-     * @return the corresponding ShardKind enum value
-     * @throws KronotopException if the shard kind is invalid
-     */
-    protected ShardKind readShardKind(ByteBuf shardKindBuf) {
-        String rawKind = ProtocolMessageUtil.readAsString(shardKindBuf);
-        try {
-            return ShardKind.valueOf(rawKind.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new KronotopException("invalid shard kind");
-        }
-    }
-
-    /**
-     * Reads the shard ID from the provided ByteBuf and validates it based on the given shard kind.
-     *
-     * @param shardKind  The type of shard whose ID is being read. Must be of type {@link ShardKind}.
-     * @param shardIdBuf The ByteBuf containing the raw bytes of the shard ID.
-     * @return The validated shard ID as an integer.
-     * @throws InvalidShardIdException if the shard ID is not a valid integer or is out of bounds for the specified shard kind.
-     */
-    protected int readShardId(ShardKind shardKind, ByteBuf shardIdBuf) {
-        String rawShardId = ProtocolMessageUtil.readAsString(shardIdBuf);
-        return readShardId(shardKind, rawShardId);
-    }
-
-    /**
-     * Reads and validates the shard ID based on the provided shard kind and raw shard ID string.
-     *
-     * @param shardKind  The type of shard whose ID is being read. Must be of type {@link ShardKind}.
-     * @param rawShardId A string representation of the shard ID.
-     * @return The validated shard ID as an integer.
-     * @throws InvalidShardIdException if the shard ID is not a valid integer or is out of bounds for the specified shard kind.
-     */
-    protected int readShardId(ShardKind shardKind, String rawShardId) {
-        try {
-            int shardId = Integer.parseInt(rawShardId);
-            // Validate
-            if (shardId < 0 || shardId > getNumberOfShards(shardKind) - 1) {
-                throw new InvalidShardIdException();
-            }
-            return shardId;
-        } catch (NumberFormatException e) {
-            throw new InvalidShardIdException();
         }
     }
 

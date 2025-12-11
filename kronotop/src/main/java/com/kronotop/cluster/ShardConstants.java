@@ -20,5 +20,4 @@ public class ShardConstants {
     public static final byte ROUTE_PRIMARY_MEMBER_KEY = 0x01;
     public static final byte ROUTE_STANDBY_MEMBER_KEY = 0x02;
     public static final byte SHARD_STATUS_KEY = 0x03;
-    public static final byte ROUTE_SYNC_STANDBY_MEMBERS = 0x04;
 }

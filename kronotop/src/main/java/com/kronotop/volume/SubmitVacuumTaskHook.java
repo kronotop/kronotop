@@ -28,8 +28,12 @@ public class SubmitVacuumTaskHook implements RoutingEventHook {
 
     @Override
     public void run(ShardKind shardKind, int shardId) {
-        String name = VolumeConfigGenerator.volumeName(shardKind, shardId);
-        Volume volume = service.findVolume(name);
-        service.submitVacuumTaskIfAny(volume);
+        String name = VolumeNames.format(shardKind, shardId);
+        try {
+            Volume volume = service.findVolume(name);
+            service.submitVacuumTaskIfAny(volume);
+        } catch (VolumeNotOpenException ignored) {
+            // The volume is not open, so there cannot be a running Vacuum task.
+        }
     }
 }
