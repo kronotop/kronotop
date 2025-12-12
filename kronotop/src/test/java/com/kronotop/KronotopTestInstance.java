@@ -331,9 +331,9 @@ public class KronotopTestInstance extends KronotopInstance {
         executor.shutdown();
         try {
             executor.awaitTermination(15, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
+        } catch (InterruptedException exp) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
+            throw new KronotopException(exp);
         } finally {
             if (channel != null) {
                 channel.finishAndReleaseAll();

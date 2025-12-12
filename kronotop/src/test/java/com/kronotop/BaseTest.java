@@ -74,6 +74,7 @@ public class BaseTest {
                     try {
                         TimeUnit.MILLISECONDS.sleep(10);
                     } catch (InterruptedException ignored) {
+                        Thread.currentThread().interrupt();
                         return null;
                     }
                     if ((System.currentTimeMillis() - start) / 1000.0 >= 10.0) {

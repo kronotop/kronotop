@@ -77,4 +77,8 @@ public class StatefulInternalConnection<K, V> {
         return new ClusterFutureSyncInvocationHandler<>(connection, RedisClusterAsyncCommands.class, NodeSelection.class,
                 NodeSelectionCommands.class, async());
     }
+
+    public void close() {
+        connection.close();
+    }
 }

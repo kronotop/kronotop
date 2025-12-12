@@ -96,7 +96,7 @@ class KrExecutorsTest {
                     startLatch.countDown();
                     try {
                         Thread.sleep(100);
-                    } catch (InterruptedException e) {
+                    } catch (InterruptedException exp) {
                         Thread.currentThread().interrupt();
                     }
                     completeLatch.countDown();
@@ -139,7 +139,7 @@ class KrExecutorsTest {
                 futures.add(executor.submit(() -> {
                     try {
                         blockingLatch.await();
-                    } catch (InterruptedException e) {
+                    } catch (InterruptedException exp) {
                         Thread.currentThread().interrupt();
                     }
                 }));
@@ -311,7 +311,7 @@ class KrExecutorsTest {
             executor.submit(() -> {
                 try {
                     blockingLatch.await();
-                } catch (InterruptedException e) {
+                } catch (InterruptedException exp) {
                     Thread.currentThread().interrupt();
                 }
             });
@@ -322,7 +322,7 @@ class KrExecutorsTest {
             List<Runnable> pendingTasks = executor.shutdownNow();
             assertTrue(executor.isShutdown());
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
-        } catch (InterruptedException e) {
+        } catch (InterruptedException exp) {
             fail("Interrupted while waiting for termination");
         }
     }

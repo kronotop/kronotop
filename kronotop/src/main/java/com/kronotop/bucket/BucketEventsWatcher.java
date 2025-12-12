@@ -269,8 +269,9 @@ public class BucketEventsWatcher implements Runnable {
         keyWatcher.unwatchAll();
         try {
             shutdownLatch.await(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        } catch (InterruptedException exp) {
+            Thread.currentThread().interrupt();
+            throw new KronotopException(exp);
         }
         consumer.stop();
     }

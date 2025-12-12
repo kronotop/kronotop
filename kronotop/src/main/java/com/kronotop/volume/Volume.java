@@ -1311,6 +1311,7 @@ public class Volume {
         byte[] cursor = null;
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            tr.options().setPriorityBatch();
             for (KeyValue keyValue : tr.getRange(begin, end, SEGMENT_VACUUM_BATCH_SIZE)) {
                 if (vacuumContext.stop()) {
                     break;

@@ -578,7 +578,7 @@ class BqlParserConcurrencyTest {
                         if (j % 50 == 0) {
                             try {
                                 Thread.sleep(1);
-                            } catch (InterruptedException e) {
+                            } catch (InterruptedException exp) {
                                 interruptedCount.incrementAndGet();
                                 Thread.currentThread().interrupt();
                                 return;
@@ -594,7 +594,7 @@ class BqlParserConcurrencyTest {
 
                     completedCount.incrementAndGet();
 
-                } catch (InterruptedException e) {
+                } catch (InterruptedException exp) {
                     interruptedCount.incrementAndGet();
                     Thread.currentThread().interrupt(); // Restore interrupted status
                 } finally {
@@ -784,7 +784,7 @@ class BqlParserConcurrencyTest {
                     assertTrue(threadExecutionTime < 15000,
                             "Thread " + threadId + " took too long (" + threadExecutionTime + "ms), possible deadlock");
 
-                } catch (InterruptedException e) {
+                } catch (InterruptedException exp) {
                     Thread.currentThread().interrupt();
                 } finally {
                     latch.countDown();

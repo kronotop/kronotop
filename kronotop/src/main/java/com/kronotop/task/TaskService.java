@@ -18,7 +18,9 @@ package com.kronotop.task;
 
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
+import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.server.ServerKind;
 import com.kronotop.task.handlers.TaskAdminHandler;
 import org.slf4j.Logger;
@@ -151,14 +153,9 @@ public class TaskService extends CommandHandlerService implements KronotopServic
             runner.task.stats().setRunning(false);
             runner.task.shutdown();
         });
-
-        scheduler.shutdownNow();
-        try {
-            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
-                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
-            }
-        } catch (InterruptedException e) {
-            LOGGER.warn("Error while shutting down {} service", NAME, e);
+        
+        if (!ExecutorServiceUtil.shutdownNowThenAwaitTermination(scheduler)) {
+            LOGGER.warn("{} service cannot be stopped gracefully", NAME);
         }
     }
 

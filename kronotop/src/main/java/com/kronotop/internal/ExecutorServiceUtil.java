@@ -21,7 +21,31 @@ import com.kronotop.KronotopException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Utility class for gracefully shutting down {@link ExecutorService} instances.
+ */
 public class ExecutorServiceUtil {
+    /**
+     * Default timeout value used for awaiting executor termination.
+     */
+    public static final long DEFAULT_TIMEOUT = 10;
+
+    /**
+     * Default time unit for the termination timeout.
+     */
+    public static final TimeUnit DEFAULT_TIMEOUT_TIMEUNIT = TimeUnit.SECONDS;
+
+    /**
+     * Immediately initiates shutdown and waits for termination.
+     *
+     * <p>Calls {@link ExecutorService#shutdownNow()} to cancel running tasks and
+     * reject new submissions, then blocks until termination completes or the
+     * default timeout (10 seconds) expires.
+     *
+     * @param executor the executor service to shut down; if null or already terminated, returns true immediately
+     * @return true if the executor terminated within the timeout, false otherwise
+     * @throws KronotopException if the waiting thread is interrupted
+     */
     public static boolean shutdownNowThenAwaitTermination(ExecutorService executor) {
         if (executor == null || executor.isTerminated()) {
             return true;
@@ -29,7 +53,7 @@ public class ExecutorServiceUtil {
 
         executor.shutdownNow();
         try {
-            return executor.awaitTermination(10, TimeUnit.SECONDS);
+            return executor.awaitTermination(DEFAULT_TIMEOUT, DEFAULT_TIMEOUT_TIMEUNIT);
         } catch (InterruptedException exp) {
             Thread.currentThread().interrupt();
             throw new KronotopException(exp);

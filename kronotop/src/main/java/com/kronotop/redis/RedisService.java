@@ -22,6 +22,7 @@ import com.kronotop.*;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
+import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.redis.handlers.InfoHandler;
 import com.kronotop.redis.handlers.client.ClientHandler;
 import com.kronotop.redis.handlers.cluster.ClusterHandler;
@@ -60,7 +61,7 @@ public class RedisService extends ShardOwnerService<RedisShard> implements Krono
     private final Watcher watcher;
     private final RoutingService routing;
     private final MembershipService membership;
-    private final ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(
+    private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             new ThreadFactoryBuilder().setNameFormat("kr.redis-service-%d").build()
     );
@@ -190,7 +191,7 @@ public class RedisService extends ShardOwnerService<RedisShard> implements Krono
         for (int workerId = 0; workerId < numVolumeSyncWorkers; workerId++) {
             VolumeSyncWorker worker = new VolumeSyncWorker(context, workerId);
             volumeSyncWorkers.add(worker);
-            scheduledExecutorService.scheduleAtFixedRate(worker, 0, period, TimeUnit.MILLISECONDS);
+            scheduler.scheduleAtFixedRate(worker, 0, period, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -227,7 +228,7 @@ public class RedisService extends ShardOwnerService<RedisShard> implements Krono
 
         initializeVolumeSyncerWorkers();
 
-        scheduledExecutorService.scheduleAtFixedRate(new EvictionWorker(context), 0, 100, TimeUnit.MILLISECONDS);
+        scheduler.scheduleAtFixedRate(new EvictionWorker(context), 0, 100, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -362,13 +363,8 @@ public class RedisService extends ShardOwnerService<RedisShard> implements Krono
             worker.shutdown();
         });
 
-        try {
-            scheduledExecutorService.shutdownNow();
-            if (!scheduledExecutorService.awaitTermination(6, TimeUnit.SECONDS)) {
-                LOGGER.warn("Redis scheduled executor service could not be stopped gracefully");
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        if (!ExecutorServiceUtil.shutdownNowThenAwaitTermination(scheduler)) {
+            LOGGER.warn("Redis scheduled executor service could not be stopped gracefully");
         }
     }
 

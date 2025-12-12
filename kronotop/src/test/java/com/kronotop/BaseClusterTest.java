@@ -63,8 +63,11 @@ public class BaseClusterTest extends BaseTest {
 
         try {
             kronotopInstance.start();
-        } catch (UnknownHostException | InterruptedException e) {
-            throw new RuntimeException(e);
+        } catch (InterruptedException exp) {
+            Thread.currentThread().interrupt();
+            throw new KronotopException(exp);
+        } catch (UnknownHostException exp) {
+            throw new KronotopException(exp);
         }
 
         kronotopInstances.put(kronotopInstance.getMember(), kronotopInstance);

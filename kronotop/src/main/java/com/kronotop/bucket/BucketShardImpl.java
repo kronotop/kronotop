@@ -17,6 +17,7 @@
 package com.kronotop.bucket;
 
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.impl.AbstractShard;
@@ -95,8 +96,9 @@ public class BucketShardImpl extends AbstractShard implements BucketShard {
             if (!executor.awaitTermination(6000, TimeUnit.MILLISECONDS)) {
                 // TODO: Add logger
             }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        } catch (InterruptedException exp) {
+            Thread.currentThread().interrupt();
+            throw new KronotopException(exp);
         }
     }
 }

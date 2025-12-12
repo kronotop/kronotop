@@ -203,7 +203,7 @@ public class IndexBoundaryRoutine extends AbstractIndexMaintenanceRoutine {
             }
         } catch (InvalidTaskStateException e) {
             LOGGER.error("Failed due to invalid task state: {}", e.getMessage());
-        } catch (InterruptedException e) {
+        } catch (InterruptedException exp) {
             // Do not mark task as failed—allow retry after restart
             Thread.currentThread().interrupt();
             throw new IndexMaintenanceRoutineShutdownException();

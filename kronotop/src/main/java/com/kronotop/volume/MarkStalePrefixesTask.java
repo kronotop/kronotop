@@ -114,6 +114,7 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
             while (!shutdown) {
                 int total = 0;
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    tr.options().setPriorityBatch();
                     byte[] begin = tr.get(subspace.pack(METADATA_KEY.LAST_PREFIX.name())).join();
                     byte[] end = ByteArrayUtil.strinc(prefixesSubspace.pack());
                     if (begin == null) {
@@ -159,9 +160,9 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
             if (!latch.await(10, TimeUnit.SECONDS)) {
                 LOGGER.warn("{} cannot be stopped gracefully", NAME);
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException exp) {
             Thread.currentThread().interrupt();
-            throw new KronotopException("Operation was interrupted while waiting", e);
+            throw new KronotopException("Operation was interrupted while waiting", exp);
         }
     }
 

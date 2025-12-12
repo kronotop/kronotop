@@ -105,8 +105,9 @@ public class CleanupJournalTask extends BaseTask implements Task {
      */
     private Range findCleanupRange(Transaction tr, DirectorySubspace subspace) {
         JournalMetadata metadata = new JournalMetadata(subspace);
-        KeySelector begin = KeySelector.firstGreaterThan(metadata.eventsSubspace().pack());
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(metadata.eventsSubspace().pack()));
+        byte[] prefix = metadata.eventsSubspace().pack();
+        KeySelector begin = KeySelector.firstGreaterThan(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
         byte[] rangeBegin = null;
         byte[] rangeEnd = null;
@@ -134,6 +135,7 @@ public class CleanupJournalTask extends BaseTask implements Task {
     @Override
     public void task() {
         try (Transaction tr = journal.database.createTransaction()) {
+            tr.options().setPriorityBatch();
             List<String> journals = journal.listJournals(tr);
             for (String journalName : journals) {
                 now = Instant.now().toEpochMilli();

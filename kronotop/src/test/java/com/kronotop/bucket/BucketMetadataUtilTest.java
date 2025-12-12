@@ -19,6 +19,7 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.CachedTimeService;
+import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.index.*;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
@@ -146,8 +147,9 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
                     Session session = getSession();
                     BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
                     result.put(threadId, metadata);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                } catch (InterruptedException exp) {
+                    Thread.currentThread().interrupt();
+                    throw new KronotopException(exp);
                 } finally {
                     latch.countDown();
                 }

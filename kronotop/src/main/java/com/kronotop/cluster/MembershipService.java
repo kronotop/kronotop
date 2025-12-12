@@ -27,10 +27,7 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.internal.DirectorySubspaceCache;
-import com.kronotop.internal.JSONUtil;
-import com.kronotop.internal.KeyWatcher;
-import com.kronotop.internal.TransactionUtils;
+import com.kronotop.internal.*;
 import com.kronotop.journal.*;
 import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
@@ -391,18 +388,24 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
 
             // executor
             executor.shutdownNow();
-            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+            if (!executor.awaitTermination(
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+            )) {
                 LOGGER.warn("{} service did not stop gracefully (executor)", NAME);
             }
 
             // scheduler
             scheduler.shutdownNow();
-            if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+            if (!scheduler.awaitTermination(
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+            )) {
                 LOGGER.warn("{} service did not stop gracefully (scheduler)", NAME);
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException exp) {
             Thread.currentThread().interrupt();
-            throw new KronotopException(e);
+            throw new KronotopException(exp);
         } finally {
             Member member = context.getMember();
             updateMemberStatusAndLeftCluster(member, MemberStatus.STOPPED);
@@ -589,8 +592,9 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         public void waitUntilStarted() {
             try {
                 latch.await(); // Wait until the watcher is started
-            } catch (InterruptedException e) {
-                throw new RuntimeException("Wait interrupted", e);
+            } catch (InterruptedException exp) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Wait interrupted", exp);
             }
         }
 

@@ -126,7 +126,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
                     task.getNamespace(),
                     task.getBucket()
             );
-        } catch (InterruptedException e) {
+        } catch (InterruptedException exp) {
             // Do not mark the task as failed. Program has stopped and this task
             // can be retried.
             Thread.currentThread().interrupt();

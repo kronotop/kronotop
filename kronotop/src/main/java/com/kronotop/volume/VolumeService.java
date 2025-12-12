@@ -32,6 +32,7 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.journal.*;
@@ -453,12 +454,15 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 lock.writeLock().unlock();
             }
 
-            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
+            if (!scheduler.awaitTermination(
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+            )) {
                 LOGGER.warn("{} service cannot be stopped gracefully", NAME);
             }
-        } catch (InterruptedException e) {
+        } catch (InterruptedException exp) {
             Thread.currentThread().interrupt();
-            throw new KronotopException("Operation was interrupted while waiting", e);
+            throw new KronotopException("Operation was interrupted while waiting", exp);
         }
     }
 
@@ -517,9 +521,9 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         public void waitUntilStarted() {
             try {
                 latch.await(); // Wait until the watcher is started
-            } catch (InterruptedException e) {
+            } catch (InterruptedException exp) {
                 Thread.currentThread().interrupt();
-                throw new KronotopException("Operation was interrupted while waiting", e);
+                throw new KronotopException("Operation was interrupted while waiting", exp);
             }
         }
 

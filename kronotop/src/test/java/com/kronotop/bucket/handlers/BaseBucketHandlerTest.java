@@ -18,6 +18,7 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexDefinition;
@@ -242,9 +243,9 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
 
             try {
                 Thread.sleep(2);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException exp) {
                 Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
+                throw new KronotopException(exp);
             }
 
             halfLatch.countDown();

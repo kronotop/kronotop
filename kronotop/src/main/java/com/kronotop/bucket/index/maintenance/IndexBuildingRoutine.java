@@ -199,6 +199,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
                     BucketMetadataUtil.forceOpen(context, tr, task.getNamespace(), task.getBucket())
             );
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                tr.options().setPriorityBatch();
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
                 if (index == null) {
                     throw new IndexMaintenanceRoutineException("no index found with id " + task.getIndexId());

@@ -17,6 +17,7 @@
 package com.kronotop.redis.storage;
 
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 import com.kronotop.ServiceContext;
 import com.kronotop.redis.RedisService;
 import com.kronotop.redis.storage.syncer.VolumeSyncer;
@@ -52,8 +53,9 @@ public class VolumeSyncWorker implements Runnable {
         try {
             LOGGER.info("{}: {} has been paused", this.getClass().getSimpleName(), workerId);
             semaphore.acquire();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        } catch (InterruptedException exp) {
+            Thread.currentThread().interrupt();
+            throw new KronotopException(exp);
         }
     }
 
@@ -105,8 +107,10 @@ public class VolumeSyncWorker implements Runnable {
                 LOGGER.error("Error while running Redis shard maintenance worker", e);
                 throw e;
             }
-        } catch (InterruptedException e) {
-            LOGGER.debug("Redis shard maintenance worker: {} is interrupted while running", workerId, e);
+        } catch (InterruptedException exp) {
+            LOGGER.debug("Redis shard maintenance worker: {} is interrupted while running", workerId, exp);
+            Thread.currentThread().interrupt();
+            throw new KronotopException(exp);
         } finally {
             semaphore.release();
         }
@@ -143,8 +147,10 @@ public class VolumeSyncWorker implements Runnable {
                 if (shardId % numWorkers != workerId) return;
                 drainVolumeSyncQueue(shard);
             });
-        } catch (InterruptedException e) {
-            LOGGER.debug("Redis shard maintenance worker: {} is interrupted while draining the volume sync queues", workerId, e);
+        } catch (InterruptedException exp) {
+            LOGGER.debug("Redis shard maintenance worker: {} is interrupted while draining the volume sync queues", workerId, exp);
+            Thread.currentThread().interrupt();
+            throw new KronotopException(exp);
         } finally {
             semaphore.release();
         }
@@ -154,8 +160,10 @@ public class VolumeSyncWorker implements Runnable {
         try {
             semaphore.acquire(); // wait until all syncers are done
             shutdown = true;
-        } catch (InterruptedException e) {
-            LOGGER.debug("Failed to shutdown Redis shard maintenance worker", e);
+        } catch (InterruptedException exp) {
+            LOGGER.debug("Failed to shutdown Redis shard maintenance worker", exp);
+            Thread.currentThread().interrupt();
+            throw new KronotopException(exp);
         } finally {
             semaphore.release();
         }

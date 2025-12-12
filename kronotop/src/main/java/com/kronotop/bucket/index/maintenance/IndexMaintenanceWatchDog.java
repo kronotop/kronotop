@@ -21,6 +21,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
@@ -399,8 +400,9 @@ public class IndexMaintenanceWatchDog implements Runnable {
             if (!scheduler.awaitTermination(6000, TimeUnit.MILLISECONDS)) {
                 LOGGER.warn("Index maintenance scheduler did not fully terminate for shard: {}", shard.id());
             }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        } catch (InterruptedException exp) {
+            Thread.currentThread().interrupt();
+            throw new KronotopException(exp);
         }
     }
 

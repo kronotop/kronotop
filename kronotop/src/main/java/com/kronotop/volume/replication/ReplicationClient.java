@@ -143,13 +143,18 @@ public class ReplicationClient {
 
     // Helper method that must be called while holding the lock
     private void cleanupResources() {
-        // Connection is stateless, so we just drop the reference
-        connection = null;
-
         if (client != null) {
+            client.getOptions().mutate().autoReconnect(false);
+
+            if (connection != null) {
+                connection.close();
+                connection = null;
+            }
+
             try {
                 // RedisClient is a heavy resource, must be closed.
                 client.shutdown();
+                client.getResources().shutdown();
             } catch (Exception ignored) {
                 // We can swallow errors during shutdown
             }

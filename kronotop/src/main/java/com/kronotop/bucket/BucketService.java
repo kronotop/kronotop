@@ -17,16 +17,14 @@
 package com.kronotop.bucket;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.kronotop.CachedTimeService;
-import com.kronotop.Context;
-import com.kronotop.KronotopService;
-import com.kronotop.ShardOwnerService;
+import com.kronotop.*;
 import com.kronotop.bucket.handlers.*;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -163,16 +161,23 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             }
 
             executor.shutdownNow();
-            if (!executor.awaitTermination(6, TimeUnit.SECONDS)) {
-                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
+            if (!executor.awaitTermination(
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+            )) {
+                LOGGER.warn("{} service cannot be stopped gracefully (executor)", NAME);
             }
 
             scheduler.shutdownNow();
-            if (!scheduler.awaitTermination(6, TimeUnit.SECONDS)) {
-                LOGGER.warn("{} service cannot be stopped gracefully", NAME);
+            if (!scheduler.awaitTermination(
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+            )) {
+                LOGGER.warn("{} service cannot be stopped gracefully (scheduler)", NAME);
             }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        } catch (InterruptedException exp) {
+            Thread.currentThread().interrupt();
+            throw new KronotopException(exp);
         }
     }
 
