@@ -504,7 +504,6 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         subspaces.remove(member);
         others.remove(member);
 
-        context.getInternalConnectionPool().shutdown(member);
         if (!context.getMember().equals(member)) {
             LOGGER.info("Member left: {}", member.getExternalAddress());
         }

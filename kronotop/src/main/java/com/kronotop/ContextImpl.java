@@ -19,14 +19,12 @@ package com.kronotop;
 import com.apple.foundationdb.Database;
 import com.kronotop.bucket.BucketMetadataCache;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.client.InternalConnectionPool;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.journal.Journal;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
 import com.typesafe.config.Config;
-import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.util.AttributeMap;
 import io.netty.util.DefaultAttributeMap;
 
@@ -54,7 +52,6 @@ public class ContextImpl implements Context {
     private final Map<String, CommandMetadata> unmodifiableCommandMetadata = Collections.unmodifiableMap(commandMetadata);
     private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
     private final Path dataDir;
-    private final InternalConnectionPool<byte[], byte[]> internalConnectionPool;
     private final String defaultNamespace;
     private final AttributeMap memberAttributes = new DefaultAttributeMap();
 
@@ -87,7 +84,6 @@ public class ContextImpl implements Context {
         this.journal = new Journal(config, database);
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
         this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database);
-        this.internalConnectionPool = new InternalConnectionPool<>(ByteArrayCodec.INSTANCE);
 
         for (ServerKind kind : ServerKind.values()) {
             this.handlers.put(kind, new CommandHandlerRegistry());
@@ -107,11 +103,6 @@ public class ContextImpl implements Context {
     @Override
     public String getDefaultNamespace() {
         return defaultNamespace;
-    }
-
-    @Override
-    public InternalConnectionPool<byte[], byte[]> getInternalConnectionPool() {
-        return internalConnectionPool;
     }
 
     @Override

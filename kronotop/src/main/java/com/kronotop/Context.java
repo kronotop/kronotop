@@ -19,7 +19,6 @@ package com.kronotop;
 import com.apple.foundationdb.Database;
 import com.kronotop.bucket.BucketMetadataCache;
 import com.kronotop.cluster.Member;
-import com.kronotop.cluster.client.InternalConnectionPool;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.journal.Journal;
@@ -61,16 +60,6 @@ public interface Context {
      * @return the default namespace as a String.
      */
     String getDefaultNamespace();
-
-    /**
-     * Retrieves the internal connection pool used to manage connections
-     * to Kronotop servers. The connection pool is responsible for handling
-     * the lifecycle of connections, ensuring efficient reuse and
-     * thread-safe access.
-     *
-     * @return the instance of the internal connection pool specialized for byte[] keys and byte[] values.
-     */
-    InternalConnectionPool<byte[], byte[]> getInternalConnectionPool();
 
     /**
      * Retrieves the DirectorySubspaceCache associated with the current context.
