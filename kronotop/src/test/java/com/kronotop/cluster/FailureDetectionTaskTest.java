@@ -36,11 +36,11 @@ class FailureDetectionTaskTest extends BaseClusterTest {
 
         // Wait for the second member to appear in others
         await().atMost(5, TimeUnit.SECONDS).until(() ->
-                membership.getOthers().containsKey(second.getMember())
+                membership.getKnownMembers().containsKey(second.getMember())
         );
 
         // Verify the member is initially alive
-        MemberView view = membership.getOthers().get(second.getMember());
+        MemberView view = membership.getKnownMembers().get(second.getMember());
         assertTrue(view.isAlive());
 
         // Shutdown second member to stop its heartbeats
@@ -66,10 +66,10 @@ class FailureDetectionTaskTest extends BaseClusterTest {
 
         // Wait for second member to appear in others
         await().atMost(5, TimeUnit.SECONDS).until(() ->
-                membership.getOthers().containsKey(second.getMember())
+                membership.getKnownMembers().containsKey(second.getMember())
         );
 
-        MemberView view = membership.getOthers().get(second.getMember());
+        MemberView view = membership.getKnownMembers().get(second.getMember());
         assertTrue(view.isAlive());
 
         // Wait for heartbeat to update
@@ -95,10 +95,10 @@ class FailureDetectionTaskTest extends BaseClusterTest {
 
         // Wait for second member to appear in others
         await().atMost(5, TimeUnit.SECONDS).until(() ->
-                membership.getOthers().containsKey(second.getMember())
+                membership.getKnownMembers().containsKey(second.getMember())
         );
 
-        MemberView view = membership.getOthers().get(second.getMember());
+        MemberView view = membership.getKnownMembers().get(second.getMember());
         assertTrue(view.isAlive());
 
         // Manually mark member as dead
@@ -127,10 +127,10 @@ class FailureDetectionTaskTest extends BaseClusterTest {
 
         // Wait for the second member to appear in others
         await().atMost(5, TimeUnit.SECONDS).until(() ->
-                membership.getOthers().containsKey(second.getMember())
+                membership.getKnownMembers().containsKey(second.getMember())
         );
 
-        MemberView view = membership.getOthers().get(second.getMember());
+        MemberView view = membership.getKnownMembers().get(second.getMember());
         long initialHeartbeat = view.getLatestHeartbeat();
 
         // Wait for heartbeat to be updated in FoundationDB
@@ -151,10 +151,10 @@ class FailureDetectionTaskTest extends BaseClusterTest {
 
         // Wait for second member to appear in others
         await().atMost(5, TimeUnit.SECONDS).until(() ->
-                membership.getOthers().containsKey(second.getMember())
+                membership.getKnownMembers().containsKey(second.getMember())
         );
 
-        MemberView view = membership.getOthers().get(second.getMember());
+        MemberView view = membership.getKnownMembers().get(second.getMember());
 
         // First call updates the latestHeartbeat from FoundationDB
         membership.checkClusterMembers(100);
@@ -176,10 +176,10 @@ class FailureDetectionTaskTest extends BaseClusterTest {
 
         // Wait for the second member to appear in others
         await().atMost(5, TimeUnit.SECONDS).until(() ->
-                membership.getOthers().containsKey(second.getMember())
+                membership.getKnownMembers().containsKey(second.getMember())
         );
 
-        MemberView view = membership.getOthers().get(second.getMember());
+        MemberView view = membership.getKnownMembers().get(second.getMember());
 
         // Manually mark member as dead
         view.setAlive(false);

@@ -155,14 +155,14 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             if (message.getDocuments().isEmpty()) {
                 throw new KronotopException("No documents provided");
             }
+            Session session = request.getSession();
+            BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, message.getBucket());
             BucketShard shard = getOrSelectBucketShardId(message.getArguments().shard());
 
             EntriesPack pack = prepareEntries(request, message);
 
-            Session session = request.getSession();
             Transaction tr = TransactionUtils.getOrCreateTransaction(context, session);
 
-            BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, message.getBucket());
             VolumeSession volumeSession = new VolumeSession(tr, metadata.volumePrefix());
 
             AppendResult appendResult;

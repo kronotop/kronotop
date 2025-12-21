@@ -21,9 +21,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.TransactionalContext;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.RetryMethods;
+import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.*;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
@@ -104,7 +102,7 @@ public class IndexBoundaryRoutine extends AbstractIndexMaintenanceRoutine {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBoundaryTaskState.setError(tr, subspace, taskId, th.getMessage());
             IndexBoundaryTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-            tr.commit().join();
+            commit(tr);
         }
     }
 
@@ -131,7 +129,7 @@ public class IndexBoundaryRoutine extends AbstractIndexMaintenanceRoutine {
                 }
                 IndexBoundaryTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
             }
-            tr.commit().join();
+            commit(tr);
         }
     }
 
@@ -173,14 +171,14 @@ public class IndexBoundaryRoutine extends AbstractIndexMaintenanceRoutine {
      * @throws IndexMaintenanceRoutineShutdownException if interrupted during execution
      */
     private void startInternal() {
-        if (stopped) {
+        if (stopped || Thread.currentThread().isInterrupted()) {
             return;
         }
 
         try {
-            BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket(), task.getIndexId());
+            BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket());
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, task.getNamespace(), task.getBucket());
+                BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, task.getNamespace(), task.getBucket());
 
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
                 if (index == null) {
@@ -199,7 +197,7 @@ public class IndexBoundaryRoutine extends AbstractIndexMaintenanceRoutine {
                     IndexUtil.createIndexBuildingTasks(tx, metadata, task.getIndexId(), boundaries);
                 }
                 markIndexBoundaryTaskCompleted(tr);
-                tr.commit().join();
+                commit(tr);
             }
         } catch (InvalidTaskStateException e) {
             LOGGER.error("Failed due to invalid task state: {}", e.getMessage());
@@ -207,7 +205,7 @@ public class IndexBoundaryRoutine extends AbstractIndexMaintenanceRoutine {
             // Do not mark task as failed—allow retry after restart
             Thread.currentThread().interrupt();
             throw new IndexMaintenanceRoutineShutdownException();
-        } catch (IndexMaintenanceRoutineException exp) {
+        } catch (IndexMaintenanceRoutineException | BucketMetadataConvergenceException exp) {
             LOGGER.error("TaskId: {} has failed due to an error: '{}'",
                     VersionstampUtil.base32HexEncode(taskId),
                     exp.getMessage()
@@ -236,7 +234,7 @@ public class IndexBoundaryRoutine extends AbstractIndexMaintenanceRoutine {
         stopped = false; // also means a restart
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(this::initialize);
-        if (!stopped) {
+        if (!stopped || !Thread.currentThread().isInterrupted()) {
             retry.executeRunnable(this::startInternal);
         }
         LOGGER.debug("IndexBoundaryRoutine for {}/{}/{} has been completed",

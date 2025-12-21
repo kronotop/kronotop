@@ -42,6 +42,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
+import static com.kronotop.bucket.BucketMetadataUtil.POSITIVE_DELTA_ONE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -110,7 +111,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadataUtil.increaseVersion(tr, metadata.subspace(), IndexUtil.POSITIVE_DELTA_ONE);
+            BucketMetadataUtil.increaseVersion(tr, metadata.subspace(), POSITIVE_DELTA_ONE);
             tr.commit().join();
         }
 
@@ -331,6 +332,131 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), DefaultIndexDefinition.ID.id());
             assertEquals(1, stats.cardinality());
+        }
+    }
+
+    @Test
+    void shouldReturnFalseWhenBucketIsNotRemoved() {
+        Session session = getSession();
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertFalse(BucketMetadataUtil.isRemoved(tr, metadata.subspace()));
+        }
+    }
+
+    @Test
+    void shouldSetRemovedAndReturnTrue() {
+        Session session = getSession();
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
+        long initialVersion = metadata.version();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertTrue(BucketMetadataUtil.isRemoved(tr, metadata.subspace()));
+
+            // Verify that setRemoved increases the version
+            long newVersion = BucketMetadataUtil.readVersion(tr, metadata.subspace());
+            assertEquals(initialVersion + 1, newVersion);
+        }
+
+        // Verify that setRemoved publishes BucketMetadataUpdatedEvent
+        ConsumerConfig cfg = new ConsumerConfig(
+                UUID.randomUUID().toString(),
+                JournalName.BUCKET_EVENTS.getValue(),
+                ConsumerConfig.Offset.RESUME
+        );
+        Consumer consumer = new Consumer(context, cfg);
+        try {
+            consumer.start();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                Event event = consumer.consume(tr);
+                BucketMetadataUpdatedEvent evt = JSONUtil.readValue(event.value(), BucketMetadataUpdatedEvent.class);
+                assertEquals(TEST_NAMESPACE, evt.namespace());
+                assertEquals(TEST_BUCKET, evt.bucket());
+                assertEquals(metadata.id(), evt.id());
+            }
+        } finally {
+            consumer.stop();
+        }
+    }
+
+    @Test
+    void shouldOpenRemovedBucketWithRemovedFlagTrue() {
+        Session session = getSession();
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
+
+        // Mark the bucket as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the cache
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Open the removed bucket using open() and verify removed flag
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata openedMetadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            assertTrue(openedMetadata.removed());
+        }
+    }
+
+    @Test
+    void shouldCreateOrOpenRemovedBucketWithRemovedFlagTrue() {
+        Session session = getSession();
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
+
+        // Mark the bucket as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the cache
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Open the removed bucket using createOrOpen() and verify removed flag
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata openedMetadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            assertTrue(openedMetadata.removed());
+        }
+    }
+
+    @Test
+    void shouldReturnRemovedFalseForNewBucket() {
+        Session session = getSession();
+        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
+        assertFalse(metadata.removed());
+    }
+
+    @Test
+    void shouldPurgeBucket() {
+        Session session = getSession();
+        BucketMetadataUtil.createOrOpen(context, session, TEST_BUCKET);
+
+        // Purge the bucket
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.purge(tx, TEST_NAMESPACE, TEST_BUCKET);
+            tr.commit().join();
+        }
+
+        // Verify bucket no longer exists
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () -> {
+                BucketMetadataUtil.open(context, tr, session, TEST_BUCKET);
+            });
+            assertEquals("No such bucket: 'test-bucket'", exception.getMessage());
         }
     }
 }

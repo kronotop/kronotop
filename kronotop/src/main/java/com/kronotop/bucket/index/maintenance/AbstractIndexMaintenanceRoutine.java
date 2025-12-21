@@ -16,14 +16,15 @@
 
 package com.kronotop.bucket.index.maintenance;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.kronotop.KronotopException;
+
+import java.util.concurrent.ExecutionException;
 
 public abstract class AbstractIndexMaintenanceRoutine implements IndexMaintenanceRoutine {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractIndexMaintenanceRoutine.class);
     protected final Context context;
     protected final Versionstamp taskId;
     protected final DirectorySubspace subspace;
@@ -47,5 +48,23 @@ public abstract class AbstractIndexMaintenanceRoutine implements IndexMaintenanc
     @Override
     public IndexMaintenanceRoutineMetrics getMetrics() {
         return metrics;
+    }
+
+    protected void commit(Transaction tr) {
+        checkForShutdown();
+        try {
+            tr.commit().get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IndexMaintenanceRoutineShutdownException(e);
+        } catch (ExecutionException e) {
+            throw new KronotopException(e.getCause());
+        }
+    }
+
+    protected void checkForShutdown() {
+        if (stopped || Thread.currentThread().isInterrupted()) {
+            throw new IndexMaintenanceRoutineShutdownException();
+        }
     }
 }

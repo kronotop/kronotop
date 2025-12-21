@@ -16,6 +16,13 @@
 
 package com.kronotop.bucket.index.maintenance;
 
+/**
+ * Defines a background maintenance routine for bucket indexes.
+ *
+ * <p>Implementations handle periodic index maintenance tasks such as cleanup,
+ * compaction, or consistency checks. Each routine runs independently and
+ * exposes metrics for monitoring.
+ */
 public interface IndexMaintenanceRoutine {
     void start();
 

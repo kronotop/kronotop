@@ -113,6 +113,13 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
         return createCommand(CommandType.NAMESPACE, new StatusOutput<>(codec), args);
     }
 
+    public Command<K, V, String> namespacePurge(K namespace) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(NamespaceKeywords.PURGE).
+                addKey(namespace);
+        return createCommand(CommandType.NAMESPACE, new StatusOutput<>(codec), args);
+    }
+
     /**
      * Constructs and executes a NAMESPACE USE command with the specified namespace.
      * This command is used to set the context to the specified namespace.

@@ -82,8 +82,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, taskSubspace, taskId);
-                return state.status() == IndexTaskStatus.FAILED && state.error().equals("No such bucket: 'test-bucket'");
+                return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
     }
@@ -121,7 +120,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
 
         // Index is ready to analyze but change status to BUILDING to trigger the error.
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
             IndexDefinition indexDefinition = IndexUtil.loadIndexDefinition(tr, indexSubspace);
             IndexDefinition updatedDefinition = indexDefinition.updateStatus(IndexStatus.BUILDING);

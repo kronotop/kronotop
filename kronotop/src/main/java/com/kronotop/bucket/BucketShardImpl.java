@@ -21,6 +21,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.impl.AbstractShard;
+import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeAttributes;
 import com.kronotop.volume.VolumeConfig;
@@ -92,13 +93,6 @@ public class BucketShardImpl extends AbstractShard implements BucketShard {
         volume.close();
         worker.shutdown();
         executor.shutdownNow();
-        try {
-            if (!executor.awaitTermination(6000, TimeUnit.MILLISECONDS)) {
-                // TODO: Add logger
-            }
-        } catch (InterruptedException exp) {
-            Thread.currentThread().interrupt();
-            throw new KronotopException(exp);
-        }
+        ExecutorServiceUtil.shutdownNowThenAwaitTermination(executor);
     }
 }

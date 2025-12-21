@@ -27,6 +27,8 @@ import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.TransactionUtils;
 import com.kronotop.internal.task.TaskStorage;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -41,10 +43,13 @@ import java.util.function.Consumer;
  */
 public class IndexMaintenanceWorker implements Runnable {
     private final Context context;
+    private final String namespace;
+    private final String tag;
     private final IndexMaintenanceRoutine routine;
     private final DirectorySubspace subspace;
     private final Versionstamp taskId;
     private final Consumer<Versionstamp> completionHook;
+    private final CountDownLatch latch = new CountDownLatch(1);
     private volatile boolean shutdown;
 
     /**
@@ -68,22 +73,38 @@ public class IndexMaintenanceWorker implements Runnable {
         switch (base.getKind()) {
             case BOUNDARY -> {
                 IndexBoundaryTask task = JSONUtil.readValue(definition, IndexBoundaryTask.class);
+                this.tag = task.getTag();
+                this.namespace = task.getNamespace();
                 this.routine = new IndexBoundaryRoutine(context, subspace, taskId, task);
             }
             case BUILD -> {
                 IndexBuildingTask task = JSONUtil.readValue(definition, IndexBuildingTask.class);
+                this.tag = task.getTag();
+                this.namespace = task.getNamespace();
                 this.routine = new IndexBuildingRoutine(context, subspace, shardId, taskId, task);
             }
             case DROP -> {
                 IndexDropTask task = JSONUtil.readValue(definition, IndexDropTask.class);
+                this.tag = task.getTag();
+                this.namespace = task.getNamespace();
                 this.routine = new IndexDropRoutine(context, subspace, taskId, task);
             }
             case ANALYZE -> {
                 IndexAnalyzeTask task = JSONUtil.readValue(definition, IndexAnalyzeTask.class);
+                this.tag = task.getTag();
+                this.namespace = task.getNamespace();
                 this.routine = new IndexAnalyzeRoutine(context, subspace, taskId, task);
             }
             default -> throw new IllegalStateException("Unknown task kind: " + base.getKind());
         }
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public String getNamespace() {
+        return namespace;
     }
 
     private IndexTaskStatus getRoutineStatus() {
@@ -140,6 +161,8 @@ public class IndexMaintenanceWorker implements Runnable {
             });
         } catch (IndexMaintenanceRoutineShutdownException ignored) {
             // ignore it, this only signals the retry mech
+        } finally {
+            latch.countDown();
         }
     }
 
@@ -160,5 +183,9 @@ public class IndexMaintenanceWorker implements Runnable {
     public void shutdown() {
         shutdown = true;
         routine.stop();
+    }
+
+    public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+        return latch.await(timeout, unit);
     }
 }

@@ -22,15 +22,22 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.BucketBeingRemovedException;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketShard;
+import com.kronotop.bucket.NoSuchBucketException;
 import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
+import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KrExecutors;
 import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.namespace.NamespaceBeingRemovedException;
+import com.kronotop.namespace.NoSuchNamespaceException;
+import com.kronotop.worker.Worker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.*;
 
@@ -74,14 +81,13 @@ public class IndexMaintenanceWatchDog implements Runnable {
     final long WORKER_MAX_STALE_PERIOD = 60000; // 60s (package-private for testing)
     private final int MAX_WORKER_POOL_SIZE;
     private final Context context;
-    private final BucketService service;
     private final BucketShard shard;
     private final IndexMaintenanceTaskSweeper sweeper;
     private final DirectorySubspace subspace;
     private final byte[] trigger;
     private final ExecutorService workerExecutor;
     private final ScheduledExecutorService scheduler;
-    private final Map<Versionstamp, Worker> workers = new ConcurrentHashMap<>();
+    private final Map<Versionstamp, WorkerHandle> workers = new ConcurrentHashMap<>();
     private volatile CompletableFuture<Void> watcher;
 
     /**
@@ -103,7 +109,6 @@ public class IndexMaintenanceWatchDog implements Runnable {
      */
     public IndexMaintenanceWatchDog(Context context, BucketShard shard) {
         this.context = context;
-        this.service = context.getService(BucketService.NAME);
         this.shard = shard;
         this.subspace = IndexTaskUtil.openTasksSubspace(context, shard.id());
         this.sweeper = new IndexMaintenanceTaskSweeper(context);
@@ -154,7 +159,10 @@ public class IndexMaintenanceWatchDog implements Runnable {
      * @param taskId the versionstamp identifier of the completed task
      */
     private void indexTaskCompletionHook(Versionstamp taskId) {
-        workers.remove(taskId);
+        WorkerHandle handle = workers.remove(taskId);
+        if (handle != null) {
+            context.getWorkerRegistry().remove(handle.getWorker().getNamespace(), handle);
+        }
         processTaskQueue();
     }
 
@@ -165,7 +173,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
      *
      * @return the map of active workers keyed by task ID
      */
-    Map<Versionstamp, Worker> getWorkers() {
+    Map<Versionstamp, WorkerHandle> getWorkers() {
         return workers;
     }
 
@@ -190,8 +198,8 @@ public class IndexMaintenanceWatchDog implements Runnable {
     synchronized void cleanupStaleWorkers() {
         long now = System.currentTimeMillis();
         workers.entrySet().removeIf(entry -> {
-            Worker worker = entry.getValue();
-            IndexMaintenanceWorker instance = worker.instance();
+            WorkerHandle worker = entry.getValue();
+            IndexMaintenanceWorker instance = worker.getWorker();
 
             boolean neverExecuted = instance.getMetrics().getLatestExecution() == 0;
             long lastActivity = neverExecuted
@@ -206,10 +214,17 @@ public class IndexMaintenanceWatchDog implements Runnable {
         });
     }
 
-    private IndexMaintenanceTaskKind getTaskKind(Transaction tr, Versionstamp taskId) {
-        byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
-        IndexMaintenanceTask task = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
-        return task.getKind();
+    private boolean bucketExists(Transaction tr, String namespace, String bucket) {
+        try {
+            BucketMetadataUtil.open(context, tr, namespace, bucket);
+            return true;
+        } catch (NoSuchBucketException |
+                 NoSuchNamespaceException |
+                 NamespaceBeingRemovedException |
+                 BucketBeingRemovedException e
+        ) {
+            return false;
+        }
     }
 
     /**
@@ -243,7 +258,9 @@ public class IndexMaintenanceWatchDog implements Runnable {
         IndexMaintenanceWorker worker =
                 new IndexMaintenanceWorker(context, subspace, shard.id(), taskId, this::indexTaskCompletionHook);
         Future<?> future = workerExecutor.submit(worker);
-        workers.put(taskId, new Worker(worker, future));
+        WorkerHandle handle = new WorkerHandle(worker, future);
+        workers.put(taskId, handle);
+        context.getWorkerRegistry().put(worker.getNamespace(), handle);
         // Backpressure
         return workers.size() < MAX_WORKER_POOL_SIZE;
     }
@@ -279,6 +296,11 @@ public class IndexMaintenanceWatchDog implements Runnable {
      *   <li><b>STOPPED tasks:</b> Immediately triggers task sweeping</li>
      * </ul>
      *
+     * <p><b>Garbage Collection:</b> Before processing each task, this method checks if the referenced
+     * bucket still exists. If the bucket or its namespace has been purged, the task is considered
+     * orphaned and is dropped immediately. This handles cleanup of tasks that reference buckets
+     * removed during namespace or bucket purge operations.
+     *
      * <p>Worker spawning behaviors:
      * <ul>
      *   <li>Respects the MAX_WORKER_POOL_SIZE limit to prevent overload</li>
@@ -302,8 +324,17 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TaskStorage.tasks(tr, subspace, (taskId) -> {
-                IndexMaintenanceTaskKind kind = getTaskKind(tr, taskId);
-                IndexTaskStatus status = getIndexTaskStatus(kind, tr, taskId);
+                byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
+                IndexMaintenanceTask task = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
+
+                // Garbage collection: check if the bucket still exists
+                if (!bucketExists(tr, task.getNamespace(), task.getBucket())) {
+                    LOGGER.info("Bucket '{}' purged, dropping orphaned task", task.getBucket());
+                    TaskStorage.drop(tr, subspace, taskId);
+                    return true; // continue to the next task
+                }
+
+                IndexTaskStatus status = getIndexTaskStatus(task.getKind(), tr, taskId);
                 if (status == IndexTaskStatus.RUNNING || status == IndexTaskStatus.WAITING) {
                     return spawnWorker(taskId);
                 } else if (status == IndexTaskStatus.COMPLETED || status == IndexTaskStatus.STOPPED) {
@@ -311,6 +342,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
                 }
                 return true;
             });
+            tr.commit().join();
         }
     }
 
@@ -388,16 +420,27 @@ public class IndexMaintenanceWatchDog implements Runnable {
         if (watcher != null) {
             watcher.cancel(true);
         }
-        for (Worker worker : workers.values()) {
-            worker.shutdown();
+        Iterator<Map.Entry<Versionstamp, WorkerHandle>> iterator = workers.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Versionstamp, WorkerHandle> entry = iterator.next();
+            WorkerHandle handle = entry.getValue();
+            handle.shutdown();
+            context.getWorkerRegistry().remove(handle.getWorker().getNamespace(), handle);
+            iterator.remove();
         }
         workerExecutor.shutdownNow();
         scheduler.shutdownNow();
         try {
-            if (!workerExecutor.awaitTermination(6000, TimeUnit.MILLISECONDS)) {
+            if (!workerExecutor.awaitTermination(
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+            )) {
                 LOGGER.warn("Index maintenance worker pool did not fully terminate for shard: {}", shard.id());
             }
-            if (!scheduler.awaitTermination(6000, TimeUnit.MILLISECONDS)) {
+            if (!scheduler.awaitTermination(
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+            )) {
                 LOGGER.warn("Index maintenance scheduler did not fully terminate for shard: {}", shard.id());
             }
         } catch (InterruptedException exp) {
@@ -407,31 +450,75 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Record representing an active worker and its associated future.
+     * A handle that wraps an IndexMaintenanceWorker and its associated Future.
      *
-     * <p>This record encapsulates:
+     * <p>This class encapsulates:
      * <ul>
      *   <li>The IndexMaintenanceWorker instance performing the actual work</li>
      *   <li>The Future representing the worker's execution in the thread pool</li>
      * </ul>
      *
-     * <p>The record provides a shutdown method that gracefully stops the worker
-     * and cancels its future, ensuring clean termination of the task.
-     *
-     * @param instance the IndexMaintenanceWorker performing index building
-     * @param future   the Future representing the worker's execution
+     * <p>Provides lifecycle management methods to gracefully stop the worker
+     * and cancel its future, ensuring clean termination of the task.
      */
-    record Worker(IndexMaintenanceWorker instance, Future<?> future) {
+    protected static class WorkerHandle implements Worker {
+        private final IndexMaintenanceWorker worker;
+        private final Future<?> future;
+
+        /**
+         * Creates a new WorkerHandle.
+         *
+         * @param worker the index maintenance worker instance
+         * @param future the future representing the worker's execution
+         */
+        WorkerHandle(IndexMaintenanceWorker worker, Future<?> future) {
+            this.worker = worker;
+            this.future = future;
+        }
+
+        /**
+         * Returns the underlying IndexMaintenanceWorker.
+         *
+         * @return the wrapped worker instance
+         */
+        public IndexMaintenanceWorker getWorker() {
+            return worker;
+        }
+
+        /**
+         * Returns the tag of the underlying worker.
+         *
+         * @return the worker name
+         */
+        @Override
+        public String getTag() {
+            return worker.getTag();
+        }
+
         /**
          * Shuts down this worker by stopping its execution and canceling its future.
          *
-         * <p>This method first calls the worker instance's shutdown method to signal
+         * <p>This method first calls the worker's shutdown method to signal
          * graceful termination, then cancels the future with interruption to ensure
          * the thread pool releases the task.
          */
-        void shutdown() {
-            instance.shutdown();
+        @Override
+        public void shutdown() {
+            worker.shutdown();
             future.cancel(true);
+        }
+
+        /**
+         * Waits for the worker to complete within the specified timeout.
+         *
+         * @param timeout the maximum time to wait
+         * @param unit    the time unit of the timeout
+         * @return true if the worker completed, false if timeout elapsed
+         * @throws InterruptedException if interrupted while waiting
+         */
+        @Override
+        public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+            return worker.await(timeout, unit);
         }
     }
 }

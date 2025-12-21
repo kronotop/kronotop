@@ -17,56 +17,26 @@
 package com.kronotop.bucket;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.kronotop.cluster.BaseBroadcastEvent;
 import com.kronotop.cluster.BroadcastEventKind;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-class BucketMetadataUpdatedEvent extends BaseBroadcastEvent {
-    private String namespace;
-    private String bucket;
-    private long id;
-    private long minimumVersion;
+class BucketMetadataUpdatedEvent extends AbstractBucketMetadataEvent {
 
     BucketMetadataUpdatedEvent() {
     }
 
     public BucketMetadataUpdatedEvent(String namespace, String bucket, long id, long minimumVersion) {
-        super(BroadcastEventKind.BUCKET_METADATA_UPDATED_EVENT);
-        this.namespace = namespace;
-        this.bucket = bucket;
-        this.id = id;
-        this.minimumVersion = minimumVersion;
-    }
-
-    @JsonProperty
-    public String namespace() {
-        return namespace;
-    }
-
-    @JsonProperty
-    public String bucket() {
-        return bucket;
-    }
-
-    @JsonProperty
-    public long id() {
-        return id;
-    }
-
-    @JsonProperty
-    public long minimumVersion() {
-        return minimumVersion;
+        super(BroadcastEventKind.BUCKET_METADATA_UPDATED_EVENT, namespace, bucket, id, minimumVersion);
     }
 
     @Override
     public String toString() {
         return String.format(
                 "BucketMetadataUpdatedEvent {namespace=%s, bucket=%s, id=%d, minimumVersion=%d}",
-                namespace,
-                bucket,
-                id,
-                minimumVersion
+                namespace(),
+                bucket(),
+                id(),
+                minimumVersion()
         );
     }
 }

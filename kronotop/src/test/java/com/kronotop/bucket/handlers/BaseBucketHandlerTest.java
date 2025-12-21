@@ -300,7 +300,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      */
     protected IndexDefinition loadIndexDefinition(String selector) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.ALL);
             return IndexUtil.loadIndexDefinition(tr, index.subspace());
         }

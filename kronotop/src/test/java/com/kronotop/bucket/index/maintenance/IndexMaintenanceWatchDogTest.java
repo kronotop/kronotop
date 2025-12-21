@@ -44,7 +44,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
-            "__test__.index_maintenance.skip_wait_transaction_limit";
+            "__test__.bucket_metadata_convergence.skip_wait_transaction_limit";
 
     @BeforeAll
     static void setUp() {
@@ -74,7 +74,6 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
 
         CountDownLatch halfLatch = new CountDownLatch(halfway);
         CountDownLatch allLatch = new CountDownLatch(totalInserts);
-
 
         try (ExecutorService service = Executors.newSingleThreadExecutor()) {
             Future<?> bgFuture = service.submit(() -> insertAtBackground(halfLatch, allLatch, totalInserts));
@@ -131,7 +130,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_cleanupStaleWorkers_noWorkers() {
+    void shouldNotFailWhenNoWorkersExist() {
         // Given: A watchdog with no workers
         BucketShard shard = getShard(SHARD_ID);
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
@@ -146,7 +145,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_cleanupStaleWorkers_freshWorkerNotRemoved() {
+    void shouldNotRemoveFreshWorker() {
         // Given: A watchdog with a fresh worker (just created)
         BucketShard shard = getShard(SHARD_ID);
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
@@ -165,7 +164,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
                 }
         );
         Future<?> future = CompletableFuture.completedFuture(null);
-        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.WorkerHandle(worker, future));
 
         // When: cleanupStaleWorkers is called immediately
         watchdog.cleanupStaleWorkers();
@@ -178,7 +177,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_cleanupStaleWorkers_neverExecutedStaleWorkerRemoved() throws Exception {
+    void shouldRemoveNeverExecutedStaleWorker() throws Exception {
         // Given: A watchdog with a worker that never executed and is stale
         BucketShard shard = getShard(SHARD_ID);
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
@@ -201,7 +200,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         setInitiatedAt(worker.getMetrics(), staleInitiationTime);
 
         Future<?> future = CompletableFuture.completedFuture(null);
-        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.WorkerHandle(worker, future));
 
         assertEquals(1, watchdog.getWorkers().size());
 
@@ -215,7 +214,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_cleanupStaleWorkers_executedButStaleWorkerRemoved() {
+    void shouldRemoveStaleWorkerWithOldExecution() {
         // Given: A watchdog with a worker that executed but is now stale
         BucketShard shard = getShard(SHARD_ID);
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
@@ -238,7 +237,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         worker.getMetrics().setLatestExecution(staleExecutionTime);
 
         Future<?> future = CompletableFuture.completedFuture(null);
-        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.WorkerHandle(worker, future));
 
         assertEquals(1, watchdog.getWorkers().size());
 
@@ -252,7 +251,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_cleanupStaleWorkers_executedRecentlyNotRemoved() {
+    void shouldNotRemoveRecentlyExecutedWorker() {
         // Given: A watchdog with a worker that executed recently
         BucketShard shard = getShard(SHARD_ID);
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
@@ -275,7 +274,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         worker.getMetrics().setLatestExecution(recentExecutionTime);
 
         Future<?> future = CompletableFuture.completedFuture(null);
-        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.WorkerHandle(worker, future));
 
         assertEquals(1, watchdog.getWorkers().size());
 
@@ -290,7 +289,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_cleanupStaleWorkers_mixedWorkers() throws Exception {
+    void shouldOnlyRemoveStaleWorkersFromMixedSet() throws Exception {
         // Given: A watchdog with multiple workers - some stale, some fresh
         BucketShard shard = getShard(SHARD_ID);
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
@@ -311,25 +310,25 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         // Worker 1: Fresh (just initiated)
         IndexMaintenanceWorker worker1 = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId1, (id) -> {
         });
-        watchdog.getWorkers().put(taskId1, new IndexMaintenanceWatchDog.Worker(worker1, CompletableFuture.completedFuture(null)));
+        watchdog.getWorkers().put(taskId1, new IndexMaintenanceWatchDog.WorkerHandle(worker1, CompletableFuture.completedFuture(null)));
 
         // Worker 2: Stale (never executed, initiated 70s ago)
         IndexMaintenanceWorker worker2 = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId2, (id) -> {
         });
         setInitiatedAt(worker2.getMetrics(), System.currentTimeMillis() - (watchdog.WORKER_MAX_STALE_PERIOD + 10000));
-        watchdog.getWorkers().put(taskId2, new IndexMaintenanceWatchDog.Worker(worker2, CompletableFuture.completedFuture(null)));
+        watchdog.getWorkers().put(taskId2, new IndexMaintenanceWatchDog.WorkerHandle(worker2, CompletableFuture.completedFuture(null)));
 
         // Worker 3: Fresh (executed 30s ago)
         IndexMaintenanceWorker worker3 = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId3, (id) -> {
         });
         worker3.getMetrics().setLatestExecution(System.currentTimeMillis() - 30000);
-        watchdog.getWorkers().put(taskId3, new IndexMaintenanceWatchDog.Worker(worker3, CompletableFuture.completedFuture(null)));
+        watchdog.getWorkers().put(taskId3, new IndexMaintenanceWatchDog.WorkerHandle(worker3, CompletableFuture.completedFuture(null)));
 
         // Worker 4: Stale (last executed 70s ago)
         IndexMaintenanceWorker worker4 = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId4, (id) -> {
         });
         worker4.getMetrics().setLatestExecution(System.currentTimeMillis() - (watchdog.WORKER_MAX_STALE_PERIOD + 10000));
-        watchdog.getWorkers().put(taskId4, new IndexMaintenanceWatchDog.Worker(worker4, CompletableFuture.completedFuture(null)));
+        watchdog.getWorkers().put(taskId4, new IndexMaintenanceWatchDog.WorkerHandle(worker4, CompletableFuture.completedFuture(null)));
 
         assertEquals(4, watchdog.getWorkers().size());
 
@@ -347,7 +346,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_cleanupStaleWorkers_boundaryCondition_exactlyAtStaleLimit() {
+    void shouldNotRemoveWorkerAtExactStaleBoundary() {
         // Given: A worker at exactly the stale boundary (60s)
         BucketShard shard = getShard(SHARD_ID);
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
@@ -364,7 +363,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         worker.getMetrics().setLatestExecution(exactlyStaleTime);
 
         Future<?> future = CompletableFuture.completedFuture(null);
-        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.WorkerHandle(worker, future));
 
         // When: cleanupStaleWorkers is called
         watchdog.cleanupStaleWorkers();
@@ -377,7 +376,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_cleanupStaleWorkers_boundaryCondition_justBeyondStaleLimit() {
+    void shouldRemoveWorkerJustBeyondStaleBoundary() {
         // Given: A worker just beyond the stale boundary (60s + 1ms)
         BucketShard shard = getShard(SHARD_ID);
         IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
@@ -394,7 +393,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         worker.getMetrics().setLatestExecution(justBeyondStaleTime);
 
         Future<?> future = CompletableFuture.completedFuture(null);
-        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.Worker(worker, future));
+        watchdog.getWorkers().put(taskId, new IndexMaintenanceWatchDog.WorkerHandle(worker, future));
 
         // When: cleanupStaleWorkers is called
         watchdog.cleanupStaleWorkers();

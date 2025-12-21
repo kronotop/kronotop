@@ -16,7 +16,12 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.Transaction;
+import com.kronotop.CachedTimeService;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
@@ -37,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
-    void test_bucket_update_with_set_operation() {
+    void shouldUpdateWithSetOperation() {
         // Step 1: Insert test documents with different ages
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\"}"),
@@ -156,7 +161,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_bucket_update_with_unset_operation() {
+    void shouldUpdateWithUnsetOperation() {
         // Step 1: Insert test documents with extra fields that we'll remove
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\", \"temp\": \"value1\", \"deprecated\": \"old\"}"),
@@ -291,7 +296,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_bucket_update_set_all_bson_types() {
+    void shouldSetAllBsonTypes() {
         // Step 1: Insert a single test document that we'll update with all BSON types
         List<byte[]> testDocuments = Collections.singletonList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"TestDoc\", \"age\": 30}")
@@ -425,7 +430,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_bucket_update_with_limit_and_advance() {
+    void shouldUpdateWithLimitAndAdvance() {
         // Step 1: Insert test documents - more than limit to test pagination
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 35, \"city\": \"New York\"}"),
@@ -581,5 +586,36 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         Set<String> expectedUpdatedNames = Set.of("Alice", "Bob", "Charlie", "Eve");
         assertEquals(expectedUpdatedNames, updatedNames, "Should have updated Alice, Bob, Charlie, and Eve");
+    }
+
+    @Test
+    void shouldThrowBucketBeingRemovedExceptionWhenUpdatingRemovedBucket() {
+        // Insert a document to create the bucket
+        insertDocuments(List.of(DOCUMENT));
+
+        // Get the bucket metadata and mark it as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the bucket metadata cache so createOrOpen reads the dropped status
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
+                context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Try to update the dropped bucket
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"status\": \"updated\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
     }
 }

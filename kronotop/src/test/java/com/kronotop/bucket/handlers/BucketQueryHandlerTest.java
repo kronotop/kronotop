@@ -16,7 +16,12 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.Transaction;
+import com.kronotop.CachedTimeService;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.*;
@@ -593,5 +598,36 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             Document doc = BSONUtil.toDocument(docBytes);
             assertEquals("GOLD", doc.getString("tier"), "All returned documents should be GOLD tier");
         }
+    }
+
+    @Test
+    void shouldThrowBucketBeingRemovedExceptionWhenQueryingRemovedBucket() {
+        // Insert a document to create the bucket
+        insertDocuments(List.of(DOCUMENT));
+
+        // Get the bucket metadata and mark it as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the bucket metadata cache so createOrOpen reads the dropped status
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
+                context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Try to query the dropped bucket
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}").encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
     }
 }

@@ -25,11 +25,6 @@ import com.kronotop.internal.VersionstampDeserializer;
 import com.kronotop.internal.VersionstampSerializer;
 
 public class IndexBuildingTask extends IndexMaintenanceTask {
-    private final String namespace;
-    private final String bucket;
-    private final long indexId;
-    private final int shardId;
-
     @JsonSerialize(using = VersionstampSerializer.class)
     @JsonDeserialize(using = VersionstampDeserializer.class)
     private final Versionstamp lower;
@@ -46,29 +41,9 @@ public class IndexBuildingTask extends IndexMaintenanceTask {
             @JsonProperty("shardId") int shardId,
             @JsonProperty("lower") Versionstamp lower,
             @JsonProperty("upper") Versionstamp upper) {
-        super(IndexMaintenanceTaskKind.BUILD);
-        this.namespace = namespace;
-        this.bucket = bucket;
-        this.indexId = indexId;
-        this.shardId = shardId;
+        super(IndexMaintenanceTaskKind.BUILD, namespace, bucket, indexId, shardId);
         this.lower = lower;
         this.upper = upper;
-    }
-
-    public String getNamespace() {
-        return namespace;
-    }
-
-    public String getBucket() {
-        return bucket;
-    }
-
-    public long getIndexId() {
-        return indexId;
-    }
-
-    public int getShardId() {
-        return shardId;
     }
 
     public Versionstamp getLower() {

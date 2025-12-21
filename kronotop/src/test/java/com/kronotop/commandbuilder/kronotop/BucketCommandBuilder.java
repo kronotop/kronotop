@@ -182,6 +182,16 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_UPDATE, new MapOutput<>(codec), args);
     }
 
+    public final Command<K, V, String> remove(String bucket) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
+        return createCommand(CommandType.BUCKET_REMOVE, new StatusOutput<>(codec), args);
+    }
+
+    public final Command<K, V, String> purge(String bucket) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
+        return createCommand(CommandType.BUCKET_PURGE, new StatusOutput<>(codec), args);
+    }
+
     enum CommandType implements ProtocolKeyword {
         QUERY("QUERY"),
         BUCKET_INSERT("BUCKET.INSERT"),
@@ -190,7 +200,9 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         BUCKET_UPDATE("BUCKET.UPDATE"),
         BUCKET_ADVANCE("BUCKET.ADVANCE"),
         BUCKET_CLOSE("BUCKET.CLOSE"),
-        BUCKET_INDEX("BUCKET.INDEX");
+        BUCKET_INDEX("BUCKET.INDEX"),
+        BUCKET_REMOVE("BUCKET.REMOVE"),
+        BUCKET_PURGE("BUCKET.PURGE");
 
         public final byte[] bytes;
 

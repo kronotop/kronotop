@@ -32,8 +32,8 @@ import com.kronotop.bucket.index.IndexStatistics;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.bucket.index.statistics.Histogram;
 import com.kronotop.bucket.index.statistics.HistogramCodec;
-import com.kronotop.internal.NamespaceUtil;
 import com.kronotop.journal.JournalName;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 import com.kronotop.volume.Prefix;
@@ -53,6 +53,9 @@ import static com.google.common.hash.Hashing.sipHash24;
  */
 public class BucketMetadataUtil {
     public static final String INDEXES_DIRECTORY = "indexes";
+    public static final byte[] NULL_BYTES = new byte[]{};
+    public static final byte[] POSITIVE_DELTA_ONE = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1L, little-endian
+    public static final byte[] NEGATIVE_DELTA_ONE = new byte[]{-1, -1, -1, -1, -1, -1, -1, -1}; // -1L, little-endian
     private static final Tuple VERSION_TUPLE = Tuple.from(
             BucketMetadataMagic.HEADER.getValue(),
             BucketMetadataMagic.VERSION.getValue()
@@ -115,6 +118,7 @@ public class BucketMetadataUtil {
             byte[] bucketVolumePrefixKey = prefixKey(subspace);
             byte[] raw = tr.get(bucketVolumePrefixKey).join();
 
+            boolean removed = false;
             long id;
             long version;
             Prefix prefix;
@@ -129,6 +133,9 @@ public class BucketMetadataUtil {
                     indexes.register(definition, indexSubspace);
                 });
                 BucketMetadataHeader header = BucketMetadataHeader.read(tr, subspace);
+                if (header.removed()) {
+                    throw new BucketBeingRemovedException(bucket);
+                }
                 indexes.updateStatistics(header.indexStatistics());
                 id = header.version();
                 version = header.version();
@@ -147,7 +154,16 @@ public class BucketMetadataUtil {
             // Transaction cannot be used after this point.
 
             String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
-            BucketMetadata metadata = new BucketMetadata(id, namespace, bucket, version, subspace, prefix, indexes);
+            BucketMetadata metadata = new BucketMetadata(
+                    id,
+                    namespace,
+                    bucket,
+                    version,
+                    removed,
+                    subspace,
+                    prefix,
+                    indexes
+            );
             // Update the global bucket metadata cache
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
@@ -209,7 +225,7 @@ public class BucketMetadataUtil {
         return metadata;
     }
 
-    private static BucketMetadata open_internal(Context context, Transaction tr, String namespace, String bucket) {
+    private static BucketMetadata open_internal(Context context, Transaction tr, String namespace, String bucket, boolean force) {
         DirectorySubspace dataStructureSubspace = NamespaceUtil.open(tr, context.getClusterName(), namespace, DataStructureKind.BUCKET);
         try {
             DirectorySubspace subspace = dataStructureSubspace.open(tr, List.of(bucket)).join();
@@ -229,10 +245,22 @@ public class BucketMetadataUtil {
             });
 
             BucketMetadataHeader header = BucketMetadataHeader.read(tr, subspace);
+            if (header.removed() && !force) {
+                throw new BucketBeingRemovedException(bucket);
+            }
             indexes.updateStatistics(header.indexStatistics());
 
             Prefix prefix = Prefix.fromBytes(raw);
-            BucketMetadata metadata = new BucketMetadata(header.id(), namespace, bucket, header.version(), subspace, prefix, indexes);
+            BucketMetadata metadata = new BucketMetadata(
+                    header.id(),
+                    namespace,
+                    bucket,
+                    header.version(),
+                    header.removed(),
+                    subspace,
+                    prefix,
+                    indexes
+            );
             context.getBucketMetadataCache().set(namespace, bucket, metadata);
             return metadata;
         } catch (CompletionException e) {
@@ -262,7 +290,7 @@ public class BucketMetadataUtil {
             throw new IllegalArgumentException("namespace not specified");
         }
 
-        return open_internal(context, tr, namespace, bucket);
+        return open_internal(context, tr, namespace, bucket, false);
     }
 
     /**
@@ -280,7 +308,7 @@ public class BucketMetadataUtil {
     public static BucketMetadata open(Context context, Transaction tr, String namespace, String bucket) {
         BucketMetadata metadata = context.getBucketMetadataCache().get(namespace, bucket);
         if (metadata == null) {
-            return open_internal(context, tr, namespace, bucket);
+            return open_internal(context, tr, namespace, bucket, false);
         }
 
         refreshIndexStatistics(context, metadata, INDEX_STATISTICS_TTL);
@@ -288,16 +316,38 @@ public class BucketMetadataUtil {
     }
 
     /**
-     * Forces the opening of a bucket within the specified namespace.
+     * Opens the bucket metadata by bypassing all in-memory caches and reading
+     * directly from the authoritative storage.
      *
-     * @param context   The context of the operation, providing necessary configurations and settings.
-     * @param tr        The transaction instance used for ensuring the operation is performed atomically.
-     * @param namespace The namespace within which the bucket resides.
-     * @param bucket    The name of the bucket to be forcibly opened.
-     * @return A BucketMetadata instance containing metadata of the forcibly opened bucket.
+     * <p>
+     * This method provides a strong consistency guarantee for metadata access
+     * and should be used only when it is critical to observe the latest
+     * persisted state (for example, during recovery, administrative operations,
+     * or cache invalidation workflows).
+     * </p>
+     *
+     * <p>
+     * Regular application code SHOULD prefer cache-backed access methods, as
+     * uncached access may incur higher latency and additional load on the
+     * underlying storage.
+     * </p>
+     *
+     * <p>
+     * This method does not populate or update any metadata caches.
+     * </p>
+     *
+     * @param context   the operation context providing configuration and runtime state
+     * @param tr        the active transaction used to perform the operation atomically
+     * @param namespace the namespace in which the bucket resides
+     * @param bucket    the name of the bucket to open
+     * @return the bucket metadata read directly from authoritative storage
      */
+    public static BucketMetadata openUncached(Context context, Transaction tr, String namespace, String bucket) {
+        return open_internal(context, tr, namespace, bucket, false);
+    }
+
     public static BucketMetadata forceOpen(Context context, Transaction tr, String namespace, String bucket) {
-        return open_internal(context, tr, namespace, bucket);
+        return open_internal(context, tr, namespace, bucket, true);
     }
 
     /**
@@ -339,7 +389,24 @@ public class BucketMetadataUtil {
         BucketMetadataUpdatedEvent event = new BucketMetadataUpdatedEvent(
                 metadata.namespace(),
                 metadata.name(),
-                metadata.id(), metadata.version()
+                metadata.id(),
+                metadata.version()
+        );
+        tx.context().getJournal().getPublisher().publish(tx.tr(), JournalName.BUCKET_EVENTS, event);
+    }
+
+    /**
+     * Publishes a bucket removed event to the journal for cluster-wide notification.
+     *
+     * @param tx       the transactional context
+     * @param metadata the bucket metadata containing namespace, name, id, and version
+     */
+    public static void publishBucketRemovedEvent(TransactionalContext tx, BucketMetadata metadata) {
+        BucketRemovedEvent event = new BucketRemovedEvent(
+                metadata.namespace(),
+                metadata.name(),
+                metadata.id(),
+                metadata.version()
         );
         tx.context().getJournal().getPublisher().publish(tx.tr(), JournalName.BUCKET_EVENTS, event);
     }
@@ -410,9 +477,9 @@ public class BucketMetadataUtil {
     /**
      * Reads the index statistics for a specified index ID from the bucket metadata in the given subspace.
      *
-     * @param tr the transaction used to access the database
+     * @param tr       the transaction used to access the database
      * @param subspace the subspace where the bucket metadata is stored
-     * @param indexId the unique identifier of the index for which statistics are to be read
+     * @param indexId  the unique identifier of the index for which statistics are to be read
      * @return the statistics associated with the specified index ID, or a default IndexStatistics object if no statistics are found
      */
     public static IndexStatistics readIndexStatistics(Transaction tr, DirectorySubspace subspace, long indexId) {
@@ -422,5 +489,48 @@ public class BucketMetadataUtil {
             return new IndexStatistics(0, Histogram.create());
         }
         return stats;
+    }
+
+    /**
+     * Checks whether the bucket has been marked as removed.
+     *
+     * @param tr       the transaction to use for reading
+     * @param subspace the bucket's directory subspace
+     * @return true if the bucket is marked as removed, false otherwise
+     */
+    public static boolean isRemoved(Transaction tr, DirectorySubspace subspace) {
+        BucketMetadataHeader header = BucketMetadataHeader.read(tr, subspace);
+        return header.removed();
+    }
+
+    /**
+     * Marks the bucket as removed, increments its version, and publishes an update event.
+     *
+     * @param tx       the transactional context
+     * @param metadata the bucket metadata to mark as removed
+     */
+    public static void setRemoved(TransactionalContext tx, BucketMetadata metadata) {
+        Tuple tuple = Tuple.from(
+                BucketMetadataMagic.HEADER.getValue(),
+                BucketMetadataMagic.REMOVED.getValue()
+        );
+        byte[] key = metadata.subspace().pack(tuple);
+        tx.tr().set(key, new byte[]{1});
+        increaseVersion(tx.tr(), metadata.subspace(), POSITIVE_DELTA_ONE);
+        publishBucketRemovedEvent(tx, metadata);
+    }
+
+    /**
+     * Physically removes the bucket directory and all its contents from FoundationDB.
+     * This operation is irreversible and should only be called after the bucket has been
+     * marked as removed and all cluster members have observed the removal.
+     *
+     * @param tx        the transactional context
+     * @param namespace the namespace containing the bucket
+     * @param bucket    the name of the bucket to purge
+     */
+    public static void purge(TransactionalContext tx, String namespace, String bucket) {
+        DirectorySubspace dataStructureSubspace = NamespaceUtil.open(tx.tr(), tx.context().getClusterName(), namespace, DataStructureKind.BUCKET);
+        dataStructureSubspace.remove(tx.tr(), List.of(bucket)).join();
     }
 }

@@ -45,6 +45,7 @@ public enum NamespaceKeywords implements ProtocolKeyword {
     LIST,
     MOVE,
     REMOVE,
+    PURGE,
     EXISTS,
     LAYER,
     PREFIX;

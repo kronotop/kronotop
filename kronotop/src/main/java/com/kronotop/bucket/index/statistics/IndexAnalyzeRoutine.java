@@ -108,6 +108,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             AsyncIterable<KeyValue> iterable = tr.snapshot().getRange(begin, end);
             for (KeyValue keyValue : iterable) {
+                checkForShutdown();
                 Tuple unpacked = index.subspace().unpack(keyValue.getKey());
                 versionstamps.add((Versionstamp) unpacked.get(1));
             }
@@ -130,6 +131,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
             KeySelector begin = KeySelector.firstGreaterThan(prefix);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
             for (KeyValue keyValue : tr.snapshot().getRange(begin, end, limit, reverse)) {
+                checkForShutdown();
                 Tuple unpacked = index.subspace().unpack(keyValue.getKey());
                 Object indexValue = unpacked.get(1);
                 indexedValues.add(indexValue);
@@ -156,6 +158,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
             KeySelector begin = KeySelector.firstGreaterThan(beginPrefix);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(endPrefix));
             for (KeyValue keyValue : tr.snapshot().getRange(begin, end, limit, reverse)) {
+                checkForShutdown();
                 Tuple unpacked = index.subspace().unpack(keyValue.getKey());
                 Object indexValue = unpacked.get(2);
                 indexedValues.add(indexValue);
@@ -173,6 +176,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
      */
     private void filterBsonValuesByKind(Index index, List<Object> values, TreeSet<BsonValue> filtered) {
         for (Object value : values) {
+            checkForShutdown();
             BsonValue bsonValue = BSONUtil.toBsonValue(value);
             if (BSONUtil.equals(bsonValue.getBsonType(), index.definition().bsonType())) {
                 filtered.add(bsonValue);
@@ -239,6 +243,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
         filterBsonValuesByKind(index, rightEdge, filtered);
 
         for (Versionstamp pivot : pivots) {
+            checkForShutdown();
             List<Object> left = aggregateKeysAroundPivot(index, pivot, perPointLimit / 2, false);
             List<Object> right = aggregateKeysAroundPivot(index, pivot, perPointLimit / 2, true);
             filterBsonValuesByKind(index, left, filtered);
@@ -262,6 +267,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
 
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
+            checkForShutdown();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, index.subspace());
                 if (definition == null) {
@@ -275,7 +281,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
                 byte[] histogramKey = IndexUtil.histogramKey(metadata.subspace(), index.definition().id());
                 tr.set(histogramKey, encodedHistogram);
                 IndexAnalyzeTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
-                tr.commit().join();
+                commit(tr);
             }
         });
     }
@@ -286,11 +292,11 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
      * @param th the exception that caused the failure
      */
     private void markIndexAnalyzeTaskFailed(Throwable th) {
-        TransactionUtils.executeThenCommit(context, (tr) -> {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexAnalyzeTaskState.setError(tr, subspace, taskId, th.getMessage());
             IndexAnalyzeTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-            return null;
-        });
+            commit(tr);
+        }
     }
 
     /**
@@ -327,14 +333,14 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
                 }
                 IndexAnalyzeTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
             }
-            tr.commit().join();
+            commit(tr);
         }
     }
 
     private void startInternal() {
         try {
             BucketMetadata metadata = TransactionUtils.execute(context,
-                    (tr) -> BucketMetadataUtil.forceOpen(context, tr, task.getNamespace(), task.getBucket())
+                    (tr) -> BucketMetadataUtil.openUncached(context, tr, task.getNamespace(), task.getBucket())
             );
             Index index = loadIndexFromMetadata(metadata);
             List<Versionstamp> versionstamps = collectStatHints(index);
@@ -374,7 +380,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
         );
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(this::initialize);
-        if (!stopped) {
+        if (!stopped || !Thread.currentThread().isInterrupted()) {
             retry.executeRunnable(this::startInternal);
         }
         long end = System.currentTimeMillis();

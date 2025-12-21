@@ -19,8 +19,7 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.BucketVersionstampArrayResponse;
+import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
 import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.pipeline.QueryContext;
@@ -66,7 +65,7 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         executor.execute(request, response);
     }
 
-    private QueryContext getQueryContextAndValidate(Request request) {
+    private QueryContext getQueryContextAndValidate(Transaction tr, Request request) {
         BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
         Session session = request.getSession();
         Map<Integer, QueryContext> contexts = findQueryContext(session, message.getOperation());
@@ -75,6 +74,8 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
             throw new KronotopException("No previous query context found for '" +
                     message.getOperation().name().toLowerCase() + "' operation with the given cursor id");
         }
+        BucketMetadata metadata = BucketMetadataUtil.open(context, tr, ctx.metadata().namespace(), ctx.metadata().name());
+        ctx.updateMetadata(metadata);
         return ctx;
     }
 
@@ -84,8 +85,8 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         public void execute(Request request, Response response) {
             supplyAsync(context, response, () -> {
                 BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
-                QueryContext ctx = getQueryContextAndValidate(request);
                 Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+                QueryContext ctx = getQueryContextAndValidate(tr, request);
                 return new BucketEntriesMapResponse(message.getCursorId(), service.getQueryExecutor().read(tr, ctx));
             }, (readResponse) -> {
                 RESPVersion protoVer = request.getSession().protocolVersion();
@@ -111,9 +112,8 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         public void execute(Request request, Response response) {
             supplyAsync(context, response, () -> {
                 BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
-                QueryContext ctx = getQueryContextAndValidate(request);
-
                 Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+                QueryContext ctx = getQueryContextAndValidate(tr, request);
                 List<Versionstamp> versionstamps;
                 if (BucketOperation.UPDATE.equals(operation)) {
                     versionstamps = service.getQueryExecutor().update(tr, ctx);

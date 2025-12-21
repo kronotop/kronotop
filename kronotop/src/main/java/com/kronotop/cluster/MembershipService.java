@@ -111,7 +111,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     /**
      * Local view of other cluster members and their health status.
      */
-    private final ConcurrentHashMap<Member, MemberView> others = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Member, MemberView> knownMembers = new ConcurrentHashMap<>();
 
     /**
      * Consumer for cluster events journal (member join/leave notifications).
@@ -195,7 +195,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
                 DirectorySubspace subspace = openMemberSubspace(tr, member);
                 long heartbeat = Heartbeat.get(tr, subspace);
                 MemberView memberView = new MemberView(heartbeat);
-                others.put(member, memberView);
+                knownMembers.put(member, memberView);
                 subspaces.put(member, subspace);
             }
         }
@@ -268,7 +268,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      * @return the latest heartbeat timestamp of the member, or 0 if the member is not found
      */
     public long getLatestHeartbeat(Member member) {
-        MemberView memberView = others.get(member);
+        MemberView memberView = knownMembers.get(member);
         if (memberView == null) {
             return 0;
         }
@@ -359,8 +359,8 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      *
      * @return an unmodifiable map where the keys are Member objects and the values are MemberView objects
      */
-    public Map<Member, MemberView> getOthers() {
-        return Collections.unmodifiableMap(others);
+    public Map<Member, MemberView> getKnownMembers() {
+        return Collections.unmodifiableMap(knownMembers);
     }
 
     /**
@@ -477,7 +477,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             DirectorySubspace subspace = openMemberSubspace(tr, member);
             long heartbeat = Heartbeat.get(tr, subspace);
             subspaces.put(member, subspace);
-            others.put(member, new MemberView(heartbeat));
+            knownMembers.put(member, new MemberView(heartbeat));
         }
 
         if (!context.getMember().equals(member)) {
@@ -502,7 +502,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         MemberLeftEvent event = JSONUtil.readValue(data, MemberLeftEvent.class);
         Member member = registry.findMember(event.memberId());
         subspaces.remove(member);
-        others.remove(member);
+        knownMembers.remove(member);
 
         if (!context.getMember().equals(member)) {
             LOGGER.info("Member left: {}", member.getExternalAddress());
@@ -666,8 +666,8 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      * <p>For each member in the cluster, this method:
      * <ul>
      *   <li>Reads the latest heartbeat from FoundationDB</li>
-     *   <li>Updates the member's view if heartbeat changed, or increments expected heartbeat if unchanged</li>
-     *   <li>Marks the member as dead if silent period exceeds the threshold</li>
+     *   <li>Updates the member's view if the heartbeat changed, or increments expected heartbeat if unchanged</li>
+     *   <li>Marks the member as dead if the silent period exceeds the threshold</li>
      *   <li>Reincarnates previously dead members if they resume sending heartbeats</li>
      * </ul>
      *
@@ -678,10 +678,10 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      */
     void checkClusterMembers(long maxSilentPeriod) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            for (Member member : others.keySet()) {
+            for (Member member : knownMembers.keySet()) {
                 DirectorySubspace subspace = subspaces.get(member);
                 long latestHeartbeat = Heartbeat.get(tr, subspace);
-                MemberView view = others.computeIfPresent(member, (m, memberView) -> {
+                MemberView view = knownMembers.computeIfPresent(member, (m, memberView) -> {
                     if (!memberView.isAlive()) {
                         // continue
                         return memberView;

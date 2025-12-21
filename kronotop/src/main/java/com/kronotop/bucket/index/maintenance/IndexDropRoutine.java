@@ -21,9 +21,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.TransactionalContext;
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.RetryMethods;
+import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexUtil;
@@ -69,7 +67,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexDropTaskState.setError(tr, subspace, taskId, th.getMessage());
             IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-            tr.commit().join();
+            commit(tr);
         }
     }
 
@@ -109,16 +107,21 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
      * @throws IndexMaintenanceRoutineShutdownException if interrupted during execution
      */
     private void startInternal() {
-        if (stopped) {
+        if (stopped || Thread.currentThread().isInterrupted()) {
             return;
         }
 
         try {
-            BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket(), task.getIndexId());
+            BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket());
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, task.getNamespace(), task.getBucket());
+                Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+                if (index == null) {
+                    throw new IndexMaintenanceRoutineException("Index could not be found");
+                }
                 clearIndex(tr);
                 markIndexDropTaskCompleted(tr);
-                tr.commit().join();
+                commit(tr);
             }
             LOGGER.debug(
                     "Index={} on namespace={}, bucket={} has been dropped",
@@ -131,7 +134,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
             // can be retried.
             Thread.currentThread().interrupt();
             throw new IndexMaintenanceRoutineShutdownException();
-        } catch (IndexMaintenanceRoutineException exp) {
+        } catch (IndexMaintenanceRoutineException | BucketMetadataConvergenceException exp) {
             LOGGER.error("TaskId: {} has failed due to an error: '{}'",
                     VersionstampUtil.base32HexEncode(taskId),
                     exp.getMessage()
@@ -156,7 +159,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
                 }
                 IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
             }
-            tr.commit().join();
+            commit(tr);
         }
     }
 
@@ -177,7 +180,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         stopped = false; // also means a restart
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(this::initialize);
-        if (!stopped) {
+        if (!stopped || !Thread.currentThread().isInterrupted()) {
             retry.executeRunnable(this::startInternal);
         }
     }

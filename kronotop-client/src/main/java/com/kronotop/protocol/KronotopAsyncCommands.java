@@ -39,6 +39,8 @@ public interface KronotopAsyncCommands<K, V> {
 
     RedisFuture<String> namespaceRemove(K namespace);
 
+    RedisFuture<String> namespacePurge(K namespace);
+
     RedisFuture<String> namespaceMove(K oldNamespace, K newNamespace);
 
     RedisFuture<String> namespaceCreate(K namespace);

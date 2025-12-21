@@ -52,6 +52,10 @@ public class BucketMetadataRegistry {
         return registry.entrySet();
     }
 
+    public void remove(String bucket) {
+        registry.remove(bucket);
+    }
+
     public static class BucketMetadataWrapper {
         final BucketMetadata metadata;
         long lastAccess;

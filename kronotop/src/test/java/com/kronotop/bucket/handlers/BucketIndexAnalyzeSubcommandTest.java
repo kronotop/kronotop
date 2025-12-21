@@ -17,6 +17,8 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.CachedTimeService;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.Index;
@@ -39,8 +41,8 @@ import java.time.Duration;
 import java.util.List;
 
 import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
+
 
 class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
 
@@ -92,7 +94,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
         {
             // Analyze only works with the indexes in READY status.
             BucketMetadata metadata = TransactionUtils.execute(context,
-                    tr -> BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET)
+                    tr -> BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET)
             );
             Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(index.subspace());
@@ -109,7 +111,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+                BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
                 Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
                 IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, index.subspace());
                 byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
@@ -121,5 +123,43 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
                 return histogram.isEmpty();
             }
         });
+    }
+
+    @Test
+    void shouldThrowBucketBeingRemovedExceptionWhenAnalyzingIndexOnRemovedBucket() {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+
+        // First create the bucket by creating an index
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"username\": {\"name\": \"test\", \"bson_type\": \"string\"}}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // Get the bucket metadata and mark it as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the bucket metadata cache so open reads the dropped status
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
+                context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Try to analyze the index on the dropped bucket
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexAnalyze(TEST_BUCKET, "test").encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+            ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+            assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
+        }
     }
 }

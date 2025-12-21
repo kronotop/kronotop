@@ -42,7 +42,7 @@ import java.util.Map;
  * @param version         Bucket metadata version timestamp for optimistic concurrency control
  * @param indexStatistics Map of index ID to statistics (cardinality and histogram) for query optimization
  */
-public record BucketMetadataHeader(long id, long version, Map<Long, IndexStatistics> indexStatistics) {
+public record BucketMetadataHeader(long id, boolean removed, long version, Map<Long, IndexStatistics> indexStatistics) {
 
     /**
      * Reads and reconstructs bucket metadata header from FoundationDB.
@@ -59,6 +59,7 @@ public record BucketMetadataHeader(long id, long version, Map<Long, IndexStatist
         byte[] prefix = subspace.pack(tuple);
 
         long bucketId = 0;
+        boolean removed = false;
         long bucketMetadataVersion = 0;
         HashMap<Long, IndexStatistics> stats = new HashMap<>();
 
@@ -72,6 +73,9 @@ public record BucketMetadataHeader(long id, long version, Map<Long, IndexStatist
             Tuple unpackedKey = subspace.unpack(entry.getKey());
             if (unpackedKey.getLong(1) == BucketMetadataMagic.ID.getLong()) {
                 bucketId = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
+            } else if (unpackedKey.getLong(1) == BucketMetadataMagic.REMOVED.getLong()) {
+                byte[] raw = entry.getValue();
+                removed = raw[0] == 1;
             } else if (unpackedKey.getLong(1) == BucketMetadataMagic.VERSION.getLong()) {
                 bucketMetadataVersion = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
             } else if (unpackedKey.getLong(1) == BucketMetadataMagic.INDEX_STATISTICS.getLong()) {
@@ -100,6 +104,6 @@ public record BucketMetadataHeader(long id, long version, Map<Long, IndexStatist
             // Set the final entry
             stats.put(currentIndexId, new IndexStatistics(cardinality, histogram));
         }
-        return new BucketMetadataHeader(bucketId, bucketMetadataVersion, stats);
+        return new BucketMetadataHeader(bucketId, removed, bucketMetadataVersion, stats);
     }
 }

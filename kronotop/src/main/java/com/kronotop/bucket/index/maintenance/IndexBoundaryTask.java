@@ -20,37 +20,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class IndexBoundaryTask extends IndexMaintenanceTask {
-    private final String namespace;
-    private final String bucket;
-    private final long indexId;
-    private final int shardId;
-
     @JsonCreator
     public IndexBoundaryTask(
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("indexId") long indexId,
             @JsonProperty("shardId") int shardId) {
-        super(IndexMaintenanceTaskKind.BOUNDARY);
-        this.namespace = namespace;
-        this.bucket = bucket;
-        this.indexId = indexId;
-        this.shardId = shardId;
-    }
-
-    public String getNamespace() {
-        return namespace;
-    }
-
-    public String getBucket() {
-        return bucket;
-    }
-
-    public long getIndexId() {
-        return indexId;
-    }
-
-    public int getShardId() {
-        return shardId;
+        super(IndexMaintenanceTaskKind.BOUNDARY, namespace, bucket, indexId, shardId);
     }
 }

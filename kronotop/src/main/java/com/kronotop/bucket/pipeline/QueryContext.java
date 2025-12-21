@@ -83,10 +83,7 @@ public class QueryContext {
      */
     public static final int DEFAULT_LIMIT = 100;
 
-    /**
-     * Bucket metadata containing schema information and configuration.
-     */
-    private final BucketMetadata metadata;
+    private volatile BucketMetadata metadata;
 
     /**
      * Thread-safe map of the execution state keyed by pipeline node ID.
@@ -168,6 +165,10 @@ public class QueryContext {
      */
     public BucketMetadata metadata() {
         return metadata;
+    }
+
+    public void updateMetadata(BucketMetadata metadata) {
+        this.metadata = metadata;
     }
 
     /**

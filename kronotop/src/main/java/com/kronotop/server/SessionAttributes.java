@@ -19,7 +19,7 @@ package com.kronotop.server;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.CommitHook;
 import com.kronotop.bucket.pipeline.QueryContext;
-import com.kronotop.foundationdb.namespace.Namespace;
+import com.kronotop.namespace.handlers.Namespace;
 import io.netty.util.AttributeKey;
 
 import java.util.HashMap;

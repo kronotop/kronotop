@@ -20,30 +20,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class IndexDropTask extends IndexMaintenanceTask {
-    private final String namespace;
-    private final String bucket;
-    private final long indexId;
-
     @JsonCreator
     public IndexDropTask(
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("indexId") long indexId) {
-        super(IndexMaintenanceTaskKind.DROP);
-        this.namespace = namespace;
-        this.bucket = bucket;
-        this.indexId = indexId;
-    }
-
-    public String getNamespace() {
-        return namespace;
-    }
-
-    public String getBucket() {
-        return bucket;
-    }
-
-    public long getIndexId() {
-        return indexId;
+        super(IndexMaintenanceTaskKind.DROP, namespace, bucket, indexId, -1);
     }
 }

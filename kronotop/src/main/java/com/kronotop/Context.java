@@ -24,6 +24,8 @@ import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.journal.Journal;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
+import com.kronotop.server.SessionStore;
+import com.kronotop.worker.WorkerRegistry;
 import com.typesafe.config.Config;
 import io.netty.util.AttributeMap;
 
@@ -202,4 +204,8 @@ public interface Context {
      * @return the current system time in milliseconds.
      */
     long now();
+
+    SessionStore getSessionStore();
+
+    WorkerRegistry getWorkerRegistry();
 }

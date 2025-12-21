@@ -17,6 +17,7 @@
 package com.kronotop.bucket;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.BarrierNotSatisfiedException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import org.junit.jupiter.api.Test;

@@ -18,18 +18,52 @@ package com.kronotop.bucket.index.maintenance;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kronotop.DataStructureKind;
+import com.kronotop.worker.WorkerTag;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class IndexMaintenanceTask {
+    private final String namespace;
+    private final String bucket;
+    private final long indexId;
+    private final int shardId;
     private final IndexMaintenanceTaskKind kind;
 
     public IndexMaintenanceTask(
-            @JsonProperty("kind") IndexMaintenanceTaskKind kind
+            @JsonProperty("kind") IndexMaintenanceTaskKind kind,
+            @JsonProperty("namespace") String namespace,
+            @JsonProperty("bucket") String bucket,
+            @JsonProperty("indexId") long indexId,
+            @JsonProperty("shardId") int shardId
     ) {
         this.kind = kind;
+        this.namespace = namespace;
+        this.bucket = bucket;
+        this.indexId = indexId;
+        this.shardId = shardId;
     }
 
     public IndexMaintenanceTaskKind getKind() {
         return kind;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public String getBucket() {
+        return bucket;
+    }
+
+    public long getIndexId() {
+        return indexId;
+    }
+
+    public int getShardId() {
+        return shardId;
+    }
+
+    public String getTag() {
+        return WorkerTag.generate(DataStructureKind.BUCKET, bucket);
     }
 }

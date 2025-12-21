@@ -31,9 +31,10 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.foundationdb.namespace.NamespaceAlreadyExistsException;
+import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.internal.FoundationDBFactory;
-import com.kronotop.internal.NamespaceUtil;
+import com.kronotop.namespace.NamespaceService;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.internal.ProcessIdGenerator;
 import com.kronotop.internal.ProcessIdGeneratorImpl;
 import com.kronotop.journal.CleanupJournalTask;
@@ -133,11 +134,14 @@ public class KronotopInstance {
         SessionService sessionService = new SessionService(context);
         context.registerService(SessionService.NAME, sessionService);
 
+        MembershipService membershipService = new MembershipService(context);
+        context.registerService(MembershipService.NAME, membershipService);
+
         FoundationDBService foundationDBService = new FoundationDBService(context);
         context.registerService(FoundationDBService.NAME, foundationDBService);
 
-        MembershipService membershipService = new MembershipService(context);
-        context.registerService(MembershipService.NAME, membershipService);
+        NamespaceService namespaceService = new NamespaceService(context);
+        context.registerService(NamespaceService.NAME, namespaceService);
 
         RoutingService routingService = new RoutingService(context);
         context.registerService(RoutingService.NAME, routingService);
@@ -156,6 +160,7 @@ public class KronotopInstance {
 
         cachedTimeService.start();
         membershipService.start();
+        namespaceService.start();
         routingService.start();
         volumeService.start();
         replicationService.start();

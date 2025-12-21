@@ -23,6 +23,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.CachedTimeService;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
@@ -47,8 +49,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketInsertHandlerTest extends BaseBucketHandlerTest {
@@ -69,7 +74,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_insert_single_document_with_oneOff_transaction() {
+    void shouldInsertSingleDocumentWithOneOffTransaction() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
@@ -87,7 +92,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_insert_documents_with_oneOff_transaction() {
+    void shouldInsertMultipleDocumentsWithOneOffTransaction() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[][] docs = makeDocumentsArray(
@@ -109,7 +114,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_insert_within_transaction() {
+    void shouldInsertWithinTransaction() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         // BEGIN
         {
@@ -160,7 +165,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_insert_commit_with_futures() {
+    void shouldInsertAndCommitWithFutures() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         // BEGIN
         {
@@ -507,6 +512,128 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             IndexStatistics ageStats = indexStatistics.get(ageIndexDefinition.id());
             assertNotNull(ageStats, "Age index statistics should exist after final insertion");
             assertEquals(4L, ageStats.cardinality(), "Final cardinality should be 4 after inserting 4 documents");
+        }
+    }
+
+    @Test
+    void shouldThrowBucketBeingRemovedExceptionWhenInsertingIntoRemovedBucket() {
+        // Insert a document to create the bucket
+        insertDocuments(List.of(DOCUMENT));
+
+        // Get the bucket metadata and mark it as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the bucket metadata cache so createOrOpen reads the dropped status
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
+                context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Try to insert into the dropped bucket
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
+    }
+
+    @Test
+    void shouldRejectInsertWhenNamespaceIsBeingRemovedThenPurged() {
+        String testNamespace = UUID.randomUUID().toString();
+        String testBucket = "insert-test-bucket";
+
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        BucketCommandBuilder<byte[], byte[]> bucketCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+
+        {
+            // Create namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(testNamespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        {
+            // Switch to the namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceUse(testNamespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            // Insert a document
+            ByteBuf buf = Unpooled.buffer();
+            bucketCmd.insert(testBucket, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(ArrayRedisMessage.class, response);
+            ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
+            assertEquals(1, actualMessage.children().size());
+        }
+
+        {
+            // Remove the namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceRemove(testNamespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        // Wait for the namespace removal event to be processed
+        await().atMost(15, TimeUnit.SECONDS).until(() ->
+                context.getBucketMetadataCache().get(testNamespace, testBucket) == null
+        );
+
+        {
+            // Try to insert a document - should fail with NAMESPACEBEINGREMOVED
+            ByteBuf buf = Unpooled.buffer();
+            bucketCmd.insert(testBucket, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+            assertEquals(
+                    String.format("NAMESPACEBEINGREMOVED Namespace '%s' is being removed", testNamespace),
+                    actualMessage.content()
+            );
+        }
+
+        {
+            // Purge the namespace - should succeed
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespacePurge(testNamespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            // Try to insert a document again - should fail with NOSUCHNAMESPACE
+            ByteBuf buf = Unpooled.buffer();
+            bucketCmd.insert(testBucket, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+            assertEquals(
+                    String.format("NOSUCHNAMESPACE No such namespace: '%s'", testNamespace),
+                    actualMessage.content()
+            );
         }
     }
 }

@@ -16,7 +16,12 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.Transaction;
+import com.kronotop.CachedTimeService;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
@@ -246,6 +251,57 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
             assertInstanceOf(MapRedisMessage.class, rawEntries);
             MapRedisMessage entries = (MapRedisMessage) rawEntries;
             assertEquals(0, entries.children().size(), "Advance should return empty when no matches");
+        }
+    }
+
+    @Test
+    void shouldThrowBucketBeingRemovedExceptionWhenAdvancingOnRemovedBucket() {
+        // Insert documents to create the bucket
+        List<byte[]> documents = new ArrayList<>();
+        for (int j = 0; j < 5; j++) {
+            documents.add(DOCUMENT);
+        }
+        insertDocuments(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        // Start a query with a limit to get a cursor
+        int cursorId;
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
+
+            RedisMessage rawCursorId = findInMapMessage(mapRedisMessage, "cursor_id");
+            assertNotNull(rawCursorId);
+            cursorId = Math.toIntExact(((IntegerRedisMessage) rawCursorId).value());
+        }
+
+        // Mark the bucket as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the bucket metadata cache so open reads the dropped status
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
+                context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Try to advance the cursor on the dropped bucket
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.advanceQuery(cursorId).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+            ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+            assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
         }
     }
 }

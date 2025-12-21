@@ -29,7 +29,7 @@ class Heartbeat {
 
     static long get(@Nonnull Transaction tr, @Nonnull DirectorySubspace subspace) {
         long heartbeat = 0;
-        byte[] data = tr.get(subspace.pack(Member.HEARTBEAT_KEY)).join();
+        byte[] data = tr.get(subspace.pack(MemberSubspace.HEARTBEAT.getValue())).join();
         if (data != null) {
             heartbeat = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getLong();
         }
@@ -37,7 +37,7 @@ class Heartbeat {
     }
 
     static void set(@Nonnull Transaction tr, @Nonnull DirectorySubspace subspace) {
-        byte[] key = subspace.pack(Member.HEARTBEAT_KEY);
+        byte[] key = subspace.pack(MemberSubspace.HEARTBEAT.getValue());
         tr.mutate(MutationType.ADD, key, HEARTBEAT_DELTA);
     }
 }

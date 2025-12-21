@@ -38,7 +38,7 @@ class ListSilentMembersSubcommand extends BaseKrAdminSubcommandHandler implement
     @Override
     public void execute(Request request, Response response) {
         List<RedisMessage> result = new ArrayList<>();
-        Map<Member, MemberView> others = membership.getOthers();
+        Map<Member, MemberView> others = membership.getKnownMembers();
         others.forEach((member, memberView) -> {
             if (!memberView.isAlive()) {
                 result.add(new SimpleStringRedisMessage(member.getId()));

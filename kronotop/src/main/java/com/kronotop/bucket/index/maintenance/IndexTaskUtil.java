@@ -22,19 +22,21 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.internal.task.TaskStorage;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 
-import static com.kronotop.bucket.index.IndexUtil.NULL_BYTES;
+import static com.kronotop.bucket.BucketMetadataUtil.NULL_BYTES;
+
 
 /**
  * Utility class for managing index maintenance task operations in FoundationDB.
@@ -115,12 +117,12 @@ public class IndexTaskUtil {
      * <p>Clears all keys with prefix TASKS/{taskId} using range clear operation.
      * This removes the back pointer marker created during task creation.
      *
-     * @param tr     transaction for clear operation
-     * @param index  index containing the back pointer
-     * @param taskId task identifier
+     * @param tr            transaction for clear operation
+     * @param indexSubspace index subspace containing the back pointer
+     * @param taskId        task identifier
      */
-    public static void clearTaskBackPointer(Transaction tr, Index index, Versionstamp taskId) {
-        byte[] prefix = index.subspace().pack(Tuple.from(
+    public static void clearTaskBackPointer(Transaction tr, DirectorySubspace indexSubspace, Versionstamp taskId) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(
                 IndexSubspaceMagic.TASKS.getValue(), taskId
         ));
         tr.clear(Range.startsWith(prefix));
@@ -152,8 +154,7 @@ public class IndexTaskUtil {
      * @param userVersion   user-defined component of the incomplete versionstamp
      * @param shardId       shard identifier for the task
      * @see #scanTaskBackPointers(Transaction, DirectorySubspace, BiFunction)
-     * @see #clearTaskBackPointer(Transaction, Index, Versionstamp)
-     * @see IndexUtil#createIndexBuildingTasks(TransactionalContext, String, String, long, Boundaries)
+     * @see #clearTaskBackPointer(Transaction, DirectorySubspace, Versionstamp)
      */
     public static void setBackPointer(Transaction tr, DirectorySubspace indexSubspace, int userVersion, int shardId) {
         byte[] backPointer = indexSubspace.packWithVersionstamp(
@@ -197,7 +198,7 @@ public class IndexTaskUtil {
      * @param action        callback function receiving (taskId, shardId) and returning true to continue
      * @see IndexUtil#markIndexAsReadyIfBuildDone(TransactionalContext, String, String, long)
      * @see #setBackPointer(Transaction, DirectorySubspace, int, int)
-     * @see #clearTaskBackPointer(Transaction, Index, Versionstamp)
+     * @see #clearTaskBackPointer(Transaction, DirectorySubspace, Versionstamp)
      */
     public static void scanTaskBackPointers(Transaction tr, DirectorySubspace indexSubspace, BiFunction<Versionstamp, Integer, Boolean> action) {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.TASKS.getValue()));
@@ -210,6 +211,41 @@ public class IndexTaskUtil {
             if (!action.apply(taskId, (int) shardId)) {
                 break;
             }
+        }
+    }
+
+    /**
+     * Clears all index tasks associated with a bucket.
+     *
+     * <p>This method iterates through all indexes in the bucket, scans their task back pointers,
+     * and removes both the tasks from shard task subspaces and the back pointers from index subspaces.
+     *
+     * <p>Used during bucket purge to clean up orphaned tasks that would otherwise remain
+     * in shard task subspaces after the bucket directory is removed.
+     *
+     * @param tx       transactional context providing access to transaction and application context
+     * @param metadata bucket metadata containing the subspace to scan for indexes
+     */
+    public static void clearBucketTasks(TransactionalContext tx, BucketMetadata metadata) {
+        Transaction tr = tx.tr();
+
+        List<String> indexNames;
+        try {
+            indexNames = IndexUtil.list(tr, metadata.subspace());
+        } catch (KronotopException e) {
+            // No indexes directory exists, nothing to clean
+            return;
+        }
+
+        for (String indexName : indexNames) {
+            DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), indexName);
+
+            scanTaskBackPointers(tr, indexSubspace, (taskId, shardId) -> {
+                DirectorySubspace taskSubspace = openTasksSubspace(tx.context(), shardId);
+                TaskStorage.drop(tr, taskSubspace, taskId);
+                clearTaskBackPointer(tr, indexSubspace, taskId);
+                return true;
+            });
         }
     }
 

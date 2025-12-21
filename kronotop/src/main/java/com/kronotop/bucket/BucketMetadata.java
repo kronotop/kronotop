@@ -24,6 +24,7 @@ public record BucketMetadata(long id,
                              String namespace,
                              String name,
                              long version,
+                             boolean removed,
                              DirectorySubspace subspace,
                              Prefix volumePrefix,
                              IndexRegistry indexes) {

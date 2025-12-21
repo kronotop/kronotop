@@ -16,7 +16,12 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.Transaction;
+import com.kronotop.CachedTimeService;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.commandbuilder.kronotop.BucketQueryArgs;
 import com.kronotop.protocol.KronotopCommandBuilder;
@@ -38,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
     @Test
-    void test_bucket_delete_with_age_filter() {
+    void shouldDeleteWithAgeFilter() {
         // Step 1: Insert test documents with different ages
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\"}"),
@@ -145,7 +150,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_bucket_delete_no_matches() {
+    void shouldHandleNoMatchingDeletes() {
         // Insert documents but delete with a filter that matches none
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),
@@ -188,7 +193,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_bucket_delete_all_documents() {
+    void shouldDeleteAllDocuments() {
         // Insert documents and delete all with an empty filter
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),
@@ -238,7 +243,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_bucket_delete_within_transaction() {
+    void shouldDeleteWithinTransaction() {
         // Step 1: Insert test documents with different ages (outside transaction)
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\"}"),
@@ -359,7 +364,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_bucket_delete_with_limit_and_advance() {
+    void shouldDeleteWithLimitAndAdvance() {
         // Step 1: Insert test documents with different ages
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 35, \"city\": \"New York\"}"),
@@ -488,5 +493,36 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             assertFalse(allDeletedVersionstamps.contains(remainingVs),
                     "Remaining versionstamp should NOT be in deleted versionstamps: " + remainingVs);
         }
+    }
+
+    @Test
+    void shouldThrowBucketBeingRemovedExceptionWhenDeletingFromRemovedBucket() {
+        // Insert a document to create the bucket
+        insertDocuments(List.of(DOCUMENT));
+
+        // Get the bucket metadata and mark it as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the bucket metadata cache so createOrOpen reads the dropped status
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
+                context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Try to delete from the removed bucket
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.delete(TEST_BUCKET, "{}").encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
     }
 }

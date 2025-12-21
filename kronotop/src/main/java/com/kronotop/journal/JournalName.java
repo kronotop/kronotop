@@ -23,7 +23,8 @@ package com.kronotop.journal;
 public enum JournalName {
     BUCKET_EVENTS("bucket-events"),
     DISUSED_PREFIXES("disused-prefixes"),
-    CLUSTER_EVENTS("cluster-events");
+    CLUSTER_EVENTS("cluster-events"),
+    NAMESPACE_EVENTS("namespace-events");
 
     private final String value;
 

@@ -18,7 +18,7 @@ package com.kronotop.server;
 
 import com.kronotop.bucket.handlers.protocol.*;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
-import com.kronotop.foundationdb.namespace.protocol.NamespaceMessage;
+import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
 import com.kronotop.foundationdb.protocol.*;
 import com.kronotop.foundationdb.zmap.protocol.*;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
@@ -142,6 +142,8 @@ public class MessageTypes {
     public static final AttributeKey<BucketUpdateMessage> BUCKETUPDATE = AttributeKey.valueOf(BucketUpdateMessage.COMMAND);
     public static final AttributeKey<BucketCloseMessage> BUCKETCLOSE = AttributeKey.valueOf(BucketCloseMessage.COMMAND);
     public static final AttributeKey<BucketIndexMessage> BUCKETINDEX = AttributeKey.valueOf(BucketIndexMessage.COMMAND);
+    public static final AttributeKey<BucketRemoveMessage> BUCKETREMOVE = AttributeKey.valueOf(BucketRemoveMessage.COMMAND);
+    public static final AttributeKey<BucketPurgeMessage> BUCKETPURGE = AttributeKey.valueOf(BucketPurgeMessage.COMMAND);
 
     // Session management
     public static final AttributeKey<SessionAttributeMessage> SESSIONATTRIBUTE = AttributeKey.valueOf(SessionAttributeMessage.COMMAND);

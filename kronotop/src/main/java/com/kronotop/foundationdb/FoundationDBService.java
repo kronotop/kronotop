@@ -19,7 +19,6 @@ package com.kronotop.foundationdb;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
-import com.kronotop.foundationdb.namespace.NamespaceHandler;
 import com.kronotop.foundationdb.zmap.*;
 import com.kronotop.server.ServerKind;
 
@@ -37,7 +36,6 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
         handlerMethod(ServerKind.EXTERNAL, new BeginHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new RollbackHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new CommitHandler(this));
-        handlerMethod(ServerKind.EXTERNAL, new NamespaceHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new SnapshotReadHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new GetReadVersionHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new GetApproximateSizeHandler(this));

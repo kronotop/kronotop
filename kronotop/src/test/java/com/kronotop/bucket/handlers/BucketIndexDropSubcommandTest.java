@@ -18,7 +18,10 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.CachedTimeService;
 import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
@@ -138,5 +141,43 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
         assertEquals("ERR Cannot drop the primary index", actualMessage.content());
+    }
+
+    @Test
+    void shouldThrowBucketBeingRemovedExceptionWhenDroppingIndexOnRemovedBucket() {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+
+        // First create the bucket by creating an index
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"username\": {\"name\": \"test-index\", \"bson_type\": \"string\"}}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // Get the bucket metadata and mark it as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the bucket metadata cache so open reads the dropped status
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
+                context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Try to drop the index on the dropped bucket
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexDrop(TEST_BUCKET, "test-index").encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+            ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+            assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
+        }
     }
 }

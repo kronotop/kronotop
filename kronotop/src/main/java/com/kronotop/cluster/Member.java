@@ -33,9 +33,6 @@ import static com.google.common.hash.Hashing.sipHash24;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Member {
-    @JsonIgnore
-    public static final String HEARTBEAT_KEY = "heartbeat";
-
     private String id;
     private MemberStatus status = MemberStatus.UNKNOWN;
     private Address externalAddress;

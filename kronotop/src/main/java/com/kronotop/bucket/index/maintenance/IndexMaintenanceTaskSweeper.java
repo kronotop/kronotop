@@ -160,7 +160,7 @@ public class IndexMaintenanceTaskSweeper {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             if (state.status() == IndexTaskStatus.COMPLETED || state.status() == IndexTaskStatus.STOPPED) {
                 dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BUILD);
-                IndexTaskUtil.clearTaskBackPointer(tr, index, taskId);
+                IndexTaskUtil.clearTaskBackPointer(tr, index.subspace(), taskId);
             }
         }
     }
@@ -216,7 +216,7 @@ public class IndexMaintenanceTaskSweeper {
             IndexBoundaryTaskState state = IndexBoundaryTaskState.load(tr, taskSubspace, taskId);
             if (state.status() == IndexTaskStatus.COMPLETED || state.status() == IndexTaskStatus.STOPPED) {
                 dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.BOUNDARY);
-                IndexTaskUtil.clearTaskBackPointer(tr, index, taskId);
+                IndexTaskUtil.clearTaskBackPointer(tr, index.subspace(), taskId);
             }
         }
     }
@@ -242,7 +242,7 @@ public class IndexMaintenanceTaskSweeper {
             IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, taskSubspace, taskId);
             if (state.status() == IndexTaskStatus.COMPLETED || state.status() == IndexTaskStatus.STOPPED) {
                 dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.ANALYZE);
-                IndexTaskUtil.clearTaskBackPointer(tr, index, taskId);
+                IndexTaskUtil.clearTaskBackPointer(tr, index.subspace(), taskId);
             }
         }
     }

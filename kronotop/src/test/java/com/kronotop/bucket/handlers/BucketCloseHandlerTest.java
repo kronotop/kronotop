@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BucketCloseHandlerTest extends BaseBucketHandlerTest {
 
     @Test
-    void test_bucket_close_cursor_lifecycle() {
+    void shouldCloseCursorAndPreventFurtherAccess() {
         // Step 1: Insert test documents
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25, \"city\": \"New York\"}"),
@@ -115,7 +115,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void test_bucket_close_different_operations() {
+    void shouldCloseCursorsForDifferentOperations() {
         // Test closing cursors for different operations (QUERY, UPDATE, DELETE)
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),

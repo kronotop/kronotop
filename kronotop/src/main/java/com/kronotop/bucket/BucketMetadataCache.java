@@ -21,7 +21,8 @@ import com.kronotop.Context;
 
 import java.util.Iterator;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.locks.StampedLock;
 
 /**
  * BucketMetadataCache is responsible for managing and caching metadata associated
@@ -29,16 +30,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * and retrieval of bucket metadata by internally maintaining a cache of
  * {@link BucketMetadataRegistry} instances for namespaces.
  * <p>
- * The class also supports eviction of expired metadata entries through a dedicated
- * worker thread, ensuring that the cache does not grow indefinitely.
+ * The class supports invalidation of cached entries either by specific bucket or by
+ * namespace prefix. It also supports eviction of expired metadata entries through a
+ * dedicated worker thread, ensuring that the cache does not grow indefinitely.
  */
 public class BucketMetadataCache {
     private final Context context;
-    private final Map<String, BucketMetadataRegistry> cache;
+    private final StampedLock lock = new StampedLock();
+    private final ConcurrentSkipListMap<String, BucketMetadataRegistry> cache;
 
     public BucketMetadataCache(Context context) {
         this.context = context;
-        this.cache = new ConcurrentHashMap<>();
+        this.cache = new ConcurrentSkipListMap<>();
     }
 
     private BucketMetadataRegistry getBucketMetadataRegistry(String namespace) {
@@ -54,8 +57,60 @@ public class BucketMetadataCache {
      * or {@code null} if no metadata is found for the bucket.
      */
     public BucketMetadata get(String namespace, String bucket) {
+        long stamp = lock.tryOptimisticRead();
         BucketMetadataRegistry registry = getBucketMetadataRegistry(namespace);
-        return registry.getBucketMetadata(bucket);
+        BucketMetadata metadata = registry.getBucketMetadata(bucket);
+        if (lock.validate(stamp)) {
+            return metadata;
+        }
+
+        stamp = lock.readLock();
+        try {
+            registry = getBucketMetadataRegistry(namespace);
+            return registry.getBucketMetadata(bucket);
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    /**
+     * Removes the cached metadata for a specific bucket within the given namespace.
+     *
+     * @param namespace the namespace containing the bucket
+     * @param bucket    the name of the bucket to invalidate
+     */
+    public void invalidate(String namespace, String bucket) {
+        long stamp = lock.writeLock();
+        try {
+            BucketMetadataRegistry registry = cache.get(namespace);
+            if (registry == null) {
+                return;
+            }
+            registry.remove(bucket);
+        } finally {
+            lock.unlockWrite(stamp);
+        }
+    }
+
+    /**
+     * Removes the cached metadata for a namespace and all its child namespaces.
+     * For example, invalidating "a.b" removes "a.b", "a.b.c", "a.b.c.d", etc.,
+     * but keeps "a" and "a.b2".
+     *
+     * @param prefix the namespace prefix to invalidate
+     */
+    public void invalidate(String prefix) {
+        long stamp = lock.writeLock();
+        try {
+            cache.remove(prefix);
+
+            String childPrefix = prefix + ".";
+            String endKey = childPrefix + Character.MAX_VALUE;
+
+            cache.subMap(childPrefix, true, endKey, false).clear();
+        } finally {
+            lock.unlockWrite(stamp);
+        }
     }
 
     /**
@@ -66,8 +121,13 @@ public class BucketMetadataCache {
      * @param metadata  the {@code BucketMetadata} to be associated with the specified bucket
      */
     public void set(String namespace, String bucket, BucketMetadata metadata) {
-        BucketMetadataRegistry registry = getBucketMetadataRegistry(namespace);
-        registry.register(bucket, metadata);
+        long stamp = lock.writeLock();
+        try {
+            BucketMetadataRegistry registry = getBucketMetadataRegistry(namespace);
+            registry.register(bucket, metadata);
+        } finally {
+            lock.unlockWrite(stamp);
+        }
     }
 
     /**
@@ -128,17 +188,22 @@ public class BucketMetadataCache {
 
         @Override
         public void run() {
-            int total = 0;
-            for (Map.Entry<String, BucketMetadataRegistry> entry : cache.entrySet()) {
-                if (total >= MAX_ENTRIES_PER_CLEANUP) {
-                    break;
+            long stamp = lock.writeLock();
+            try {
+                int total = 0;
+                for (Map.Entry<String, BucketMetadataRegistry> entry : cache.entrySet()) {
+                    if (total >= MAX_ENTRIES_PER_CLEANUP) {
+                        break;
+                    }
+                    BucketMetadataRegistry registry = entry.getValue();
+                    cleanupBucketMetadataRegistry(registry);
+                    if (registry.isEmpty()) {
+                        cache.remove(entry.getKey(), registry);
+                    }
+                    total++;
                 }
-                BucketMetadataRegistry registry = entry.getValue();
-                cleanupBucketMetadataRegistry(registry);
-                if (registry.isEmpty()) {
-                    cache.remove(entry.getKey(), registry);
-                }
-                total++;
+            } finally {
+                lock.unlockWrite(stamp);
             }
         }
     }

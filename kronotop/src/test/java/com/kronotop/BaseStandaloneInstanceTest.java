@@ -106,7 +106,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         BucketMetadata metadata = getBucketMetadata(bucket);
         waitUntilUpdated(metadata);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return BucketMetadataUtil.forceOpen(context, tr, namespace, bucket);
+            return BucketMetadataUtil.openUncached(context, tr, namespace, bucket);
         }
     }
 

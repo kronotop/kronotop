@@ -80,6 +80,11 @@ public abstract class AbstractKronotopAsyncCommands<K, V> implements KronotopAsy
     }
 
     @Override
+    public RedisFuture<String> namespacePurge(K namespace) {
+        return dispatch(commandBuilder.namespacePurge(namespace));
+    }
+
+    @Override
     public RedisFuture<String> namespaceMove(K oldNamespace, K newNamespace) {
         return dispatch(commandBuilder.namespaceMove(oldNamespace, newNamespace));
     }

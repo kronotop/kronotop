@@ -23,6 +23,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.kronotop.Context;
+import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.BaseBroadcastEvent;
 import com.kronotop.cluster.BroadcastEventKind;
@@ -37,6 +38,9 @@ import com.kronotop.journal.Consumer;
 import com.kronotop.journal.ConsumerConfig;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
+import com.kronotop.worker.Worker;
+import com.kronotop.worker.WorkerTag;
+import com.kronotop.worker.WorkerUtil;
 import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,12 +48,10 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Watches bucket metadata change events and maintains version tracking for shards.
@@ -182,6 +184,14 @@ public class BucketEventsWatcher implements Runnable {
         return route.primary().equals(context.getMember());
     }
 
+    private void updateLastSeenVersionIfNoWorkers(Transaction tr, BucketMetadata metadata, String tag) {
+        List<Worker> workers = context.getWorkerRegistry().get(metadata.namespace(), tag);
+        if (workers.isEmpty()) {
+            byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(metadata.version()).array();
+            updateLastSeenVersion(tr, metadata.id(), value);
+        }
+    }
+
     /**
      * Processes a bucket metadata change event and records the version.
      *
@@ -193,9 +203,24 @@ public class BucketEventsWatcher implements Runnable {
         if (Objects.requireNonNull(base.kind()) == BroadcastEventKind.BUCKET_METADATA_UPDATED_EVENT) {
             BucketMetadataUpdatedEvent evt = JSONUtil.readValue(event.value(), BucketMetadataUpdatedEvent.class);
             try {
+                // forceOpen will cache the BucketMetadata again
                 BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, evt.namespace(), evt.bucket());
                 byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(metadata.version()).array();
                 updateLastSeenVersion(tr, metadata.id(), value);
+            } catch (NoSuchBucketException ignored) {
+            }
+        } else if (Objects.requireNonNull(base.kind()) == BroadcastEventKind.BUCKET_REMOVED_EVENT) {
+            BucketRemovedEvent evt = JSONUtil.readValue(event.value(), BucketRemovedEvent.class);
+            try {
+                // forceOpen will cache the BucketMetadata again
+                BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, evt.namespace(), evt.bucket());
+                String tag = WorkerTag.generate(DataStructureKind.BUCKET, metadata.name());
+                List<Worker> workers = context.getWorkerRegistry().get(metadata.namespace(), tag);
+
+                // This may fail, no worries. The operator should call bucket.purge <bucket-name> command again.
+                WorkerUtil.shutdownThenAwait(metadata.namespace(), workers);
+
+                updateLastSeenVersionIfNoWorkers(tr, metadata, tag);
             } catch (NoSuchBucketException ignored) {
             }
         } else {

@@ -19,6 +19,7 @@ package com.kronotop.cluster;
 public enum BroadcastEventKind {
     MEMBER_JOIN,
     MEMBER_LEFT,
-    UPDATE_ROUTING_TABLE,
     BUCKET_METADATA_UPDATED_EVENT,
+    NAMESPACE_REMOVED_EVENT,
+    BUCKET_REMOVED_EVENT,
 }

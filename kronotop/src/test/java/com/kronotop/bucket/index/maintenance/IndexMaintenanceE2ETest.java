@@ -55,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
-            "__test__.index_maintenance.skip_wait_transaction_limit";
+            "__test__.bucket_metadata_convergence.skip_wait_transaction_limit";
 
     @BeforeAll
     static void setUp() {
@@ -80,7 +80,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
     private void checkCardinalityFromMetadata(long expected, String... selectors) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             for (String selector : selectors) {
                 Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READ);
                 assertNotNull(index);

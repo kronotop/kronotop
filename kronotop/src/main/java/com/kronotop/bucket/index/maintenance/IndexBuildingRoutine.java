@@ -117,7 +117,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuildingTaskState.setStatus(tr, subspace, taskId, status);
-                tr.commit().join();
+                commit(tr);
             }
         });
     }
@@ -135,7 +135,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 IndexBuildingTaskState.setError(tr, subspace, taskId, th.getMessage());
                 IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-                tr.commit().join();
+                commit(tr);
             }
         });
     }
@@ -158,7 +158,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
             IndexDefinition definition = latestVersion.updateStatus(IndexStatus.BUILDING);
             IndexUtil.saveIndexDefinition(tr, metadata, definition);
             BucketMetadataUtil.publishBucketMetadataUpdatedEvent(new TransactionalContext(context, tr), metadata);
-            tr.commit().join();
+            commit(tr);
         }
     }
 
@@ -193,10 +193,10 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
      */
     private void buildSecondaryIndex() {
         BucketShard shard = service.getShard(shardId);
-        while (!stopped) {
+        while (!stopped || !Thread.currentThread().isInterrupted()) {
             // Fetch the metadata with an independent TX due to prevent conflicts during commit time.
             BucketMetadata metadata = TransactionUtils.execute(context, tr ->
-                    BucketMetadataUtil.forceOpen(context, tr, task.getNamespace(), task.getBucket())
+                    BucketMetadataUtil.openUncached(context, tr, task.getNamespace(), task.getBucket())
             );
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 tr.options().setPriorityBatch();
@@ -275,7 +275,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
                 }
 
                 int processedEntries = indexBucketEntries(tr, shard, metadata, state);
-                tr.commit().join();
+                commit(tr);
                 if (processedEntries == 0) {
                     // everything went well and processed zero entry.
                     setIndexTaskStatus(IndexTaskStatus.COMPLETED);
@@ -340,6 +340,8 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
         Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
         Versionstamp versionstamp = null;
         for (VolumeEntry pair : entries) {
+            checkForShutdown();
+
             total++;
             Object indexValue = null;
             versionstamp = pair.key();
@@ -397,7 +399,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
                 }
                 IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
             }
-            tr.commit().join();
+            commit(tr);
         }
     }
 

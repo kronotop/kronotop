@@ -19,4 +19,11 @@ package com.kronotop.bucket.index.maintenance;
 import com.kronotop.KronotopException;
 
 public class IndexMaintenanceRoutineShutdownException extends KronotopException {
+    public IndexMaintenanceRoutineShutdownException(Throwable th) {
+        super(th);
+    }
+
+    public IndexMaintenanceRoutineShutdownException() {
+        super();
+    }
 }

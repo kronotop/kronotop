@@ -46,6 +46,8 @@ public interface KronotopCommands<K, V> {
 
     String namespaceRemove(K namespace);
 
+    String namespacePurge(K namespace);
+
     String namespaceUse(K namespace);
 
     Long namespaceExists(K namespace);

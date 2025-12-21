@@ -24,6 +24,8 @@ import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.journal.Journal;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
+import com.kronotop.server.SessionStore;
+import com.kronotop.worker.WorkerRegistry;
 import com.typesafe.config.Config;
 import io.netty.util.AttributeMap;
 import io.netty.util.DefaultAttributeMap;
@@ -48,6 +50,7 @@ public class ContextImpl implements Context {
     private final LinkedHashMap<String, KronotopService> services = new LinkedHashMap<>();
     private final String clusterName;
     private final Journal journal;
+    private final WorkerRegistry workerRegistry;
     private final ConcurrentHashMap<String, CommandMetadata> commandMetadata = new ConcurrentHashMap<>();
     private final Map<String, CommandMetadata> unmodifiableCommandMetadata = Collections.unmodifiableMap(commandMetadata);
     private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
@@ -61,6 +64,8 @@ public class ContextImpl implements Context {
     // Direct field access for minimal overhead on the hot path.
     // Initialized only once to avoid runtime lookup and casting costs.
     private BucketMetadataCache bucketMetadataCache;
+
+    private final SessionStore sessionStore = new SessionStore();
 
     public ContextImpl(Config config, Member member, Database database) {
         if (config.hasPath("default_namespace")) {
@@ -82,6 +87,7 @@ public class ContextImpl implements Context {
         this.member = member;
         this.database = database;
         this.journal = new Journal(config, database);
+        this.workerRegistry = new WorkerRegistry();
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
         this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database);
 
@@ -208,5 +214,15 @@ public class ContextImpl implements Context {
             cachedTimeService = getService(CachedTimeService.NAME);
         }
         return cachedTimeService.getCurrentTimeInMilliseconds();
+    }
+
+    @Override
+    public SessionStore getSessionStore() {
+        return sessionStore;
+    }
+
+    @Override
+    public WorkerRegistry getWorkerRegistry() {
+        return workerRegistry;
     }
 }

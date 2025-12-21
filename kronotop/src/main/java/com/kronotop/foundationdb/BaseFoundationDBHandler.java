@@ -20,7 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.DataStructureKind;
-import com.kronotop.internal.NamespaceUtil;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Handler;
 import com.kronotop.server.Session;
 

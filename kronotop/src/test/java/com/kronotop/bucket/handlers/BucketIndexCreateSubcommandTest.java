@@ -18,7 +18,10 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.CachedTimeService;
 import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
 import com.kronotop.server.Response;
@@ -137,6 +140,44 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
             TransactionalContext tx = new TransactionalContext(context, tr);
             List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, TEST_NAMESPACE, TEST_BUCKET, "test");
             assertEquals(1, taskIds.size(), "Expected exactly one task to be created");
+        }
+    }
+
+    @Test
+    void shouldThrowBucketBeingRemovedExceptionWhenCreatingIndexOnRemovedBucket() {
+        // First create the bucket by creating an index
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"name\": {\"bson_type\": \"string\"}}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // Get the bucket metadata and mark it as removed
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.setRemoved(tx, metadata);
+            tr.commit().join();
+        }
+
+        // Flush the bucket metadata cache so createOrOpen reads the dropped status
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
+                context.getService(CachedTimeService.NAME), 0);
+        cleanup.run();
+
+        // Try to create an index on the dropped bucket
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"age\": {\"bson_type\": \"int32\"}}").encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+            ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+            assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
         }
     }
 }

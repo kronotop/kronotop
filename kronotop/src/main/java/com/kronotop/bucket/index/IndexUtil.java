@@ -41,6 +41,9 @@ import java.util.Random;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.kronotop.bucket.BucketMetadataUtil.NEGATIVE_DELTA_ONE;
+import static com.kronotop.bucket.BucketMetadataUtil.POSITIVE_DELTA_ONE;
+
 /**
  * Utility class for managing index lifecycle and operations in FoundationDB.
  *
@@ -87,9 +90,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @see IndexDropTask
  */
 public class IndexUtil {
-    public static final byte[] NULL_BYTES = new byte[]{};
-    public static final byte[] POSITIVE_DELTA_ONE = new byte[]{1, 0, 0, 0, 0, 0, 0, 0}; // 1L, little-endian
-    public static final byte[] NEGATIVE_DELTA_ONE = new byte[]{-1, -1, -1, -1, -1, -1, -1, -1}; // -1L, little-endian
 
     private static final Random random = new Random(System.nanoTime());
 
@@ -147,14 +147,14 @@ public class IndexUtil {
      * for load distribution and single-point coordination.
      *
      * <p><strong>Back Pointer:</strong> Creates versionstamped key in index subspace
-     * linking to boundary task for tracking and inspection.
+     * linking to the boundary task for tracking and inspection.
      *
      * @param tx         transactional context with transaction and application context
      * @param namespace  bucket namespace
      * @param bucket     bucket name
      * @param definition index definition with name, selector, and BSON type
      * @return newly created index directory subspace
-     * @throws KronotopException if index name already exists
+     * @throws KronotopException if the index name already exists
      * @see IndexBoundaryRoutine
      * @see IndexBuildingRoutine
      */
@@ -188,10 +188,10 @@ public class IndexUtil {
     }
 
     /**
-     * Opens existing index directory subspace by name.
+     * Opens the existing index directory subspace by name.
      *
      * @param tr                     transaction for database operations
-     * @param bucketMetadataSubspace bucket metadata subspace as base path
+     * @param bucketMetadataSubspace bucket metadata subspace as a base path
      * @param name                   index name
      * @return index directory subspace
      * @throws NoSuchIndexException if index does not exist
@@ -571,7 +571,7 @@ public class IndexUtil {
      * @see IndexMaintenanceWatchDog
      */
     public static boolean markIndexAsReadyIfBuildDone(TransactionalContext tx, String namespace, String bucket, long indexId) {
-        BucketMetadata metadata = BucketMetadataUtil.forceOpen(tx.context(), tx.tr(), namespace, bucket);
+        BucketMetadata metadata = BucketMetadataUtil.openUncached(tx.context(), tx.tr(), namespace, bucket);
         Index index = metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.READWRITE);
         if (index == null) {
             return false;

@@ -42,7 +42,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public abstract class AbstractBucketHandler implements Handler {
-    protected static final byte[] NULL_BYTES = new byte[]{};
     private final static RedisMessage CURSOR_ID_MESSAGE_KEY = new SimpleStringRedisMessage("cursor_id");
     private final static RedisMessage ENTRIES_MESSAGE_KEY = new SimpleStringRedisMessage("entries");
     private final static RedisMessage VERSIONSTAMPS_MESSAGE_KEY = new SimpleStringRedisMessage("versionstamps");
@@ -245,7 +244,6 @@ public abstract class AbstractBucketHandler implements Handler {
     QueryContext buildQueryContext(Request request, String bucket, byte[] query, QueryArguments arguments, UpdateOptions updateOptions) {
         Session session = request.getSession();
         BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, bucket);
-
         QueryOptions options = buildQueryOptions(session, updateOptions, arguments);
         PipelineNode plan = service.getPlanner().plan(metadata, query);
         return new QueryContext(metadata, options, plan);

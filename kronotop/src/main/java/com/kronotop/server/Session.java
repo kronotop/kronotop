@@ -27,6 +27,7 @@ import io.netty.util.AttributeKey;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -78,6 +79,7 @@ public class Session {
     public static void registerSession(Context context, ChannelHandlerContext ctx) {
         Session session = new Session(context, ctx);
         ctx.channel().attr(SessionAttributes.SESSION).set(session);
+        context.getSessionStore().put(session.getClientId(), session);
     }
 
     /**
@@ -101,7 +103,7 @@ public class Session {
         setProtocolVersion(RESPVersion.RESP2);
         Long clientId = ClientIDGenerator.getAndIncrement();
         channel.attr(SessionAttributes.CLIENT_ID).set(clientId);
-        channel.attr(SessionAttributes.OPEN_NAMESPACES).set(new HashMap<>());
+        channel.attr(SessionAttributes.OPEN_NAMESPACES).set(new ConcurrentHashMap<>());
         channel.attr(SessionAttributes.CURRENT_NAMESPACE).set(context.getDefaultNamespace());
         channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
         channel.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).set(new HashMap<>());
@@ -209,6 +211,7 @@ public class Session {
     protected void channelUnregistered() {
         // Netty channel is closed, close the transaction if there is any.
         closeTransactionIfAny();
+        context.getSessionStore().remove(getClientId());
     }
 
     /**

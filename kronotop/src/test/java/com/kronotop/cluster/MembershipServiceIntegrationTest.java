@@ -181,9 +181,9 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         KronotopTestInstance first = getInstances().getFirst();
         MembershipService membership = first.getContext().getService(MembershipService.NAME);
 
-        await().atMost(5, TimeUnit.SECONDS).until(() -> membership.getOthers().containsKey(second.getMember()));
+        await().atMost(5, TimeUnit.SECONDS).until(() -> membership.getKnownMembers().containsKey(second.getMember()));
 
-        Map<Member, MemberView> others = membership.getOthers();
+        Map<Member, MemberView> others = membership.getKnownMembers();
         assertTrue(others.containsKey(second.getMember()));
     }
 
@@ -192,7 +192,7 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         KronotopTestInstance instance = getInstances().getFirst();
         MembershipService membership = instance.getContext().getService(MembershipService.NAME);
 
-        Map<Member, MemberView> others = membership.getOthers();
+        Map<Member, MemberView> others = membership.getKnownMembers();
         assertEquals(1, others.size());
         assertTrue(others.containsKey(instance.getMember()));
     }
@@ -226,18 +226,18 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         MembershipService firstMembership = first.getContext().getService(MembershipService.NAME);
 
         // Initially only self in others
-        assertEquals(1, firstMembership.getOthers().size());
+        assertEquals(1, firstMembership.getKnownMembers().size());
 
         // Add a new member which publishes MemberJoinEvent
         KronotopTestInstance second = addNewInstance();
 
         // Wait for the first member to process the MemberJoinEvent
         await().atMost(5, TimeUnit.SECONDS).until(() ->
-                firstMembership.getOthers().containsKey(second.getMember())
+                firstMembership.getKnownMembers().containsKey(second.getMember())
         );
 
         // Verify the new member is now tracked
-        assertTrue(firstMembership.getOthers().containsKey(second.getMember()));
+        assertTrue(firstMembership.getKnownMembers().containsKey(second.getMember()));
         assertEquals(2, firstMembership.listMembers().size());
     }
 
@@ -250,11 +250,11 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
 
         // Wait for first member to process the MemberJoinEvent from second member
         await().atMost(5, TimeUnit.SECONDS).until(() ->
-                firstMembership.getOthers().containsKey(second.getMember())
+                firstMembership.getKnownMembers().containsKey(second.getMember())
         );
 
         // Verify member view is initialized correctly
-        MemberView view = firstMembership.getOthers().get(second.getMember());
+        MemberView view = firstMembership.getKnownMembers().get(second.getMember());
         assertNotNull(view);
         assertTrue(view.isAlive());
     }
