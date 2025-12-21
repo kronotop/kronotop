@@ -12,7 +12,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: kronotop-test-runner
     strategy:
       matrix:
         java: [ '21', '25' ] # supported LTS versions and the latest JVM version (possibly a non-LTS)
