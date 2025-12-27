@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IndexScanNodeBatchingTest extends BasePipelineTest {
     @Test
-    void testGtOperatorFiltersCorrectly() {
+    void shouldFilterWithGtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
@@ -111,7 +111,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
     }
 
     @Test
-    void testGteOperatorWithBatching() {
+    void shouldFilterWithGteOperatorAndBatching() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gte";
 
         // Create an age index for this test
@@ -196,7 +196,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
     }
 
     @Test
-    void testGteOperatorWithBatchingReverse() {
+    void shouldFilterWithGteOperatorAndBatchingReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gte-reverse";
 
         // Create an age index for this test
@@ -293,7 +293,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtOperatorWithLimitOn200Documents() {
+    void shouldFilterWithGtOperatorAndLimitOn200Documents() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)
@@ -392,7 +392,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtOperatorWithLimitOn200DocumentsReverse() {
+    void shouldFilterWithGtOperatorAndLimitOn200DocumentsReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs-reverse";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)

@@ -59,7 +59,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Simple valid filter should pass validation")
-        void testSimpleValidFilter() {
+        void shouldPassValidationForSimpleValidFilter() {
             LogicalNode plan = new LogicalFilter("status", Operator.EQ, new StringVal("active"));
 
             ValidationResult result = validator.validate(plan);
@@ -72,7 +72,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Valid AND with multiple filters should pass")
-        void testValidAndWithFilters() {
+        void shouldPassValidationForAndWithMultipleFilters() {
             LogicalNode plan = new LogicalAnd(Arrays.asList(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active")),
                     new LogicalFilter("priority", Operator.GT, new Int32Val(5)),
@@ -88,7 +88,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Valid complex nested structure should pass")
-        void testValidComplexNestedStructure() {
+        void shouldPassValidationForComplexNestedStructure() {
             LogicalNode plan = new LogicalAnd(Arrays.asList(
                     new LogicalFilter("tenant_id", Operator.EQ, new StringVal("123")),
                     new LogicalOr(Arrays.asList(
@@ -105,7 +105,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Valid ElemMatch should pass")
-        void testValidElemMatch() {
+        void shouldPassValidationForElemMatch() {
             LogicalNode plan = new LogicalElemMatch("items",
                     new LogicalAnd(Arrays.asList(
                             new LogicalFilter("price", Operator.GT, new Int32Val(100)),
@@ -130,7 +130,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("LogicalAnd with null children should be invalid")
-        void testAndWithNullChildren() {
+        void shouldRejectAndWithNullChildren() {
             LogicalNode plan = new LogicalAnd(null);
 
             ValidationResult result = validator.validate(plan);
@@ -144,7 +144,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("LogicalAnd with null child should be invalid")
-        void testAndWithNullChild() {
+        void shouldRejectAndWithNullChild() {
             LogicalNode plan = new LogicalAnd(Arrays.asList(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active")),
                     null
@@ -160,7 +160,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("LogicalNot with null child should be invalid")
-        void testNotWithNullChild() {
+        void shouldRejectNotWithNullChild() {
             LogicalNode plan = new LogicalNot(null);
 
             ValidationResult result = validator.validate(plan);
@@ -173,7 +173,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("LogicalFilter with null selector should be invalid")
-        void testFilterWithNullSelector() {
+        void shouldRejectFilterWithNullSelector() {
             LogicalNode plan = new LogicalFilter(null, Operator.EQ, new StringVal("value"));
 
             ValidationResult result = validator.validate(plan);
@@ -186,7 +186,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("LogicalFilter with null operator should be invalid")
-        void testFilterWithNullOperator() {
+        void shouldRejectFilterWithNullOperator() {
             LogicalNode plan = new LogicalFilter("selector", null, new StringVal("value"));
 
             ValidationResult result = validator.validate(plan);
@@ -199,7 +199,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("LogicalFilter with null operand should be invalid")
-        void testFilterWithNullOperand() {
+        void shouldRejectFilterWithNullOperand() {
             LogicalNode plan = new LogicalFilter("selector", Operator.EQ, null);
 
             ValidationResult result = validator.validate(plan);
@@ -212,7 +212,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("LogicalElemMatch with null selector should be invalid")
-        void testElemMatchWithNullSelector() {
+        void shouldRejectElemMatchWithNullSelector() {
             LogicalNode plan = new LogicalElemMatch(null,
                     new LogicalFilter("price", Operator.GT, new Int32Val(100)));
 
@@ -226,7 +226,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("LogicalElemMatch with null subPlan should be invalid")
-        void testElemMatchWithNullSubPlan() {
+        void shouldRejectElemMatchWithNullSubPlan() {
             LogicalNode plan = new LogicalElemMatch("items", null);
 
             ValidationResult result = validator.validate(plan);
@@ -248,7 +248,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("IN operator with non-list operand should be invalid")
-        void testInOperatorWithNonListOperand() {
+        void shouldRejectInOperatorWithNonListOperand() {
             LogicalNode plan = new LogicalFilter("selector", Operator.IN, new StringVal("value"));
 
             ValidationResult result = validator.validate(plan);
@@ -261,7 +261,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("SIZE operator with non-integer operand should be invalid")
-        void testSizeOperatorWithNonIntegerOperand() {
+        void shouldRejectSizeOperatorWithNonIntegerOperand() {
             LogicalNode plan = new LogicalFilter("selector", Operator.SIZE, new StringVal("not_a_number"));
 
             ValidationResult result = validator.validate(plan);
@@ -274,7 +274,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("SIZE operator with negative integer should be invalid")
-        void testSizeOperatorWithNegativeInteger() {
+        void shouldRejectSizeOperatorWithNegativeInteger() {
             LogicalNode plan = new LogicalFilter("selector", Operator.SIZE, new Int32Val(-5));
 
             ValidationResult result = validator.validate(plan);
@@ -287,7 +287,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("EXISTS operator with non-boolean operand should be invalid")
-        void testExistsOperatorWithNonBooleanOperand() {
+        void shouldRejectExistsOperatorWithNonBooleanOperand() {
             LogicalNode plan = new LogicalFilter("selector", Operator.EXISTS, new StringVal("not_boolean"));
 
             ValidationResult result = validator.validate(plan);
@@ -300,7 +300,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("IN operator with empty list should generate warning")
-        void testInOperatorWithEmptyList() {
+        void shouldWarnForInOperatorWithEmptyList() {
             LogicalNode plan = new LogicalFilter("selector", Operator.IN, List.of());
 
             ValidationResult result = validator.validate(plan);
@@ -314,7 +314,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Comparison operator with list should generate warning")
-        void testComparisonOperatorWithList() {
+        void shouldWarnForComparisonOperatorWithList() {
             LogicalNode plan = new LogicalFilter("selector", Operator.GT,
                     Arrays.asList(new Int32Val(1), new Int32Val(2)));
 
@@ -338,7 +338,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Single-child AND should generate optimization warning")
-        void testSingleChildAnd() {
+        void shouldWarnForSingleChildAnd() {
             LogicalNode plan = new LogicalAnd(List.of(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active"))
             ));
@@ -353,7 +353,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Single-child OR should generate optimization warning")
-        void testSingleChildOr() {
+        void shouldWarnForSingleChildOr() {
             LogicalNode plan = new LogicalOr(List.of(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active"))
             ));
@@ -368,7 +368,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Nested AND should generate optimization warning")
-        void testNestedAnd() {
+        void shouldWarnForNestedAnd() {
             LogicalNode plan = new LogicalAnd(Arrays.asList(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active")),
                     new LogicalAnd(List.of(
@@ -386,7 +386,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Double negation should generate optimization warning")
-        void testDoubleNegation() {
+        void shouldWarnForDoubleNegation() {
             LogicalNode plan = new LogicalNot(
                     new LogicalNot(
                             new LogicalFilter("status", Operator.EQ, new StringVal("active"))
@@ -403,7 +403,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Should find optimization issues using convenience method")
-        void testFindOptimizationIssuesMethod() {
+        void shouldFindOptimizationIssues() {
             // Create a plan with patterns that should be optimized away
             LogicalNode plan = new LogicalAnd(List.of(
                     new LogicalFilter("status", Operator.EQ, new StringVal("active"))
@@ -427,7 +427,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Empty AND should generate optimization warning")
-        void testEmptyAnd() {
+        void shouldWarnForEmptyAnd() {
             LogicalNode plan = new LogicalAnd(List.of());
 
             ValidationResult result = validator.validate(plan);
@@ -441,7 +441,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Empty OR should generate optimization warning")
-        void testEmptyOr() {
+        void shouldWarnForEmptyOr() {
             LogicalNode plan = new LogicalOr(List.of());
 
             ValidationResult result = validator.validate(plan);
@@ -465,7 +465,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Valid BQL query should pass validation")
-        void testValidBqlQuery() {
+        void shouldPassValidationForValidBqlQuery() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -485,7 +485,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Contradictory BQL query should be optimized to FALSE and validate successfully")
-        void testContradictoryBqlQuery() {
+        void shouldOptimizeContradictoryBqlQueryToFalse() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -507,7 +507,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("planAndValidate should succeed after optimization eliminates contradictions")
-        void testPlanAndValidateWithOptimizedPlan() {
+        void shouldPlanAndValidateWithOptimizedPlan() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -526,7 +526,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("planAndValidate should throw exception for structural errors")
-        void testPlanAndValidateWithStructuralError() {
+        void shouldThrowExceptionForStructuralError() {
             // Create a plan with structural errors (bypassing optimization)
             LogicalNode invalidPlan = new LogicalFilter(null, Operator.EQ, new StringVal("value"));
 
@@ -547,7 +547,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("planAndValidate should succeed for valid plan")
-        void testPlanAndValidateWithValidPlan() {
+        void shouldPlanAndValidateWithValidPlan() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -566,7 +566,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("isWellFormed should work correctly")
-        void testIsWellFormed() {
+        void shouldDetermineIfPlanIsWellFormed() {
             // Valid plan
             LogicalNode validPlan = new LogicalFilter("status", Operator.EQ, new StringVal("active"));
             assertTrue(planner.isWellFormed(validPlan));
@@ -578,7 +578,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Validator should detect unoptimized patterns in raw plans")
-        void testValidationWithUnoptimizedPlans() {
+        void shouldDetectUnoptimizedPatternsInRawPlans() {
             // Create a planner without optimization transforms 
             LogicalPlanner unoptimizedPlanner = new LogicalPlanner(List.of());
 
@@ -611,7 +611,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("ValidationResult toString should format correctly")
-        void testValidationResultToString() {
+        void shouldFormatValidationResultToString() {
             List<ValidationIssue> issues = Arrays.asList(
                     new ValidationIssue(Severity.ERROR, "Test error", "selector1", null),
                     new ValidationIssue(Severity.WARNING, "Test warning", "selector2", null)
@@ -628,7 +628,7 @@ class LogicalPlanValidatorTest {
 
         @Test
         @DisplayName("Valid ValidationResult toString should be concise")
-        void testValidValidationResultToString() {
+        void shouldFormatValidValidationResultConcisely() {
             ValidationResult result = new ValidationResult(true, List.of());
             String str = result.toString();
 

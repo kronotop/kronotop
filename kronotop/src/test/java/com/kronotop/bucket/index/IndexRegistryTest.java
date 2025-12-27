@@ -73,7 +73,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
 
     @ParameterizedTest
     @MethodSource("statusPolicyTestData")
-    void testGetIndex_AllStatusAndPolicyCombinations(IndexStatus status, IndexSelectionPolicy policy, boolean shouldReturnIndex) {
+    void shouldGetIndexForAllStatusAndPolicyCombinations(IndexStatus status, IndexSelectionPolicy policy, boolean shouldReturnIndex) {
         // Create index definition with the specific status
         IndexDefinition baseDefinition = IndexDefinition.create("test-index", "test.field", BsonType.STRING);
         IndexDefinition definitionWithStatus = baseDefinition.updateStatus(status);
@@ -94,7 +94,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testGetIndex_NonExistentSelector_ReturnsNull() {
+    void shouldReturnNullForNonExistentSelector() {
         // Test with all policies on non-existent selector
         for (IndexSelectionPolicy policy : IndexSelectionPolicy.values()) {
             Index result = indexRegistry.getIndex("non.existent.field", policy);
@@ -103,7 +103,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testGetIndex_ReadOnlyPolicy_OnlyReturnsReadyIndexes() {
+    void shouldOnlyReturnReadyIndexesForReadOnlyPolicy() {
         // Register indexes with different statuses
         IndexDefinition waitingDef = IndexDefinition.create("waiting-index", "waiting.field", BsonType.STRING)
                 .updateStatus(IndexStatus.WAITING);
@@ -131,7 +131,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testGetIndex_ReadWritePolicy_ReturnsWaitingBuildingReady() {
+    void shouldReturnWaitingBuildingReadyForReadWritePolicy() {
         // Register indexes with different statuses
         IndexDefinition waitingDef = IndexDefinition.create("waiting-index", "waiting.field", BsonType.STRING)
                 .updateStatus(IndexStatus.WAITING);
@@ -159,7 +159,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testGetIndex_AllPolicy_ReturnsAllIndexes() {
+    void shouldReturnAllIndexesForAllPolicy() {
         // Register indexes with all statuses
         for (IndexStatus status : IndexStatus.values()) {
             String fieldName = status.name().toLowerCase() + ".field";
@@ -175,7 +175,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testGetIndex_CaseSensitiveSelectors() {
+    void shouldHandleCaseSensitiveSelectors() {
         IndexDefinition lowerCaseDef = IndexDefinition.create("lower-index", "field.name", BsonType.STRING);
         IndexDefinition upperCaseDef = IndexDefinition.create("upper-index", "Field.Name", BsonType.STRING);
         IndexDefinition mixedCaseDef = IndexDefinition.create("mixed-index", "FIELD.name", BsonType.STRING);
@@ -193,13 +193,13 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
 
     @ParameterizedTest
     @EnumSource(IndexSelectionPolicy.class)
-    void testGetIndex_EmptyRegistry_ReturnsNull(IndexSelectionPolicy policy) {
+    void shouldReturnNullForEmptyRegistry(IndexSelectionPolicy policy) {
         Index result = indexRegistry.getIndex("any.field", policy);
         assertNull(result, String.format("Empty registry should return null for policy %s", policy));
     }
 
     @Test
-    void testGetIndex_IndexDefinitionImmutability() {
+    void shouldPreserveIndexDefinitionImmutability() {
         // Create and register an index
         IndexDefinition originalDef = IndexDefinition.create("immutable-index", "immutable.field", BsonType.STRING);
         indexRegistry.register(originalDef, testSubspace);
@@ -213,7 +213,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testRegister_DuplicateSelector_ThrowsException() {
+    void shouldThrowExceptionForDuplicateSelector() {
         // Register an index
         IndexDefinition firstDef = IndexDefinition.create("first-index", "shared.field", BsonType.STRING);
         indexRegistry.register(firstDef, testSubspace);
@@ -238,7 +238,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testDeregister_ExistingIndex_RemovesSuccessfully() {
+    void shouldRemoveExistingIndexOnDeregister() {
         // Register multiple indexes
         IndexDefinition def1 = IndexDefinition.create("index1", "field1", BsonType.STRING);
         IndexDefinition def2 = IndexDefinition.create("index2", "field2", BsonType.INT32);
@@ -263,7 +263,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testDeregister_NonExistentIndex_HandledGracefully() {
+    void shouldHandleDeregisterOfNonExistentIndexGracefully() {
         IndexDefinition nonExistentDef = IndexDefinition.create("non-existent", "non.existent", BsonType.STRING);
 
         // Initialize statistics to avoid NPE in deregister
@@ -274,7 +274,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testUpdateIndexDefinition_ExistingIndex_UpdatesSuccessfully() {
+    void shouldUpdateExistingIndexDefinitionSuccessfully() {
         // Register an index with READY status
         IndexDefinition originalDef = IndexDefinition.create("test-index", "test.field", BsonType.STRING).
                 updateStatus(IndexStatus.READY);
@@ -287,7 +287,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testUpdateIndexDefinition_StatusChanges_AffectsPolicySegregation() {
+    void shouldAffectPolicySegregationOnStatusChanges() {
         // Register indexes with different statuses
         IndexDefinition waitingDef = IndexDefinition.create("waiting-index", "waiting.field", BsonType.STRING);
         IndexDefinition readyDef = IndexDefinition.create("ready-index", "ready.field", BsonType.STRING).
@@ -309,7 +309,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testGetIndexes_PolicySegregation_ReturnsCorrectCounts() {
+    void shouldReturnCorrectCountsForPolicySegregation() {
         // Register indexes with all possible statuses
         IndexDefinition waitingDef = IndexDefinition.create("waiting-index", "waiting.field", BsonType.STRING)
                 .updateStatus(IndexStatus.WAITING);
@@ -349,7 +349,7 @@ class IndexRegistryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void testGetIndexes_ReturnsUnmodifiableCollections() {
+    void shouldReturnUnmodifiableCollections() {
         IndexDefinition def = IndexDefinition.create("test-index", "test.field", BsonType.STRING);
         indexRegistry.register(def, testSubspace);
 

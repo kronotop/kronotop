@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class TimestampValIntegrationTest {
 
     @Test
-    void testTimestampValCreation() {
+    void shouldCreateTimestampVal() {
         long timestamp = System.currentTimeMillis();
         TimestampVal timestampVal = new TimestampVal(timestamp);
 
@@ -36,7 +36,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValWithLogicalPlanner() {
+    void shouldHandleTimestampValInLogicalPlanner() {
         // Test that logical planner handles TimestampVal correctly
         long testTimestamp = 1609459200000L; // 2021-01-01 00:00:00 UTC
         BqlExpr query = new BqlEq("createdAt", new TimestampVal(testTimestamp));
@@ -52,7 +52,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValRangeQuery() {
+    void shouldHandleTimestampValInRangeQuery() {
         // Test timestamp values in range queries
         long startTime = 1609459200000L; // 2021-01-01 00:00:00 UTC
         long endTime = 1640995200000L;   // 2022-01-01 00:00:00 UTC
@@ -73,7 +73,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValComparison() {
+    void shouldHandleTimestampValComparison() {
         // Test timestamp comparison operations
         long now = System.currentTimeMillis();
         long yesterday = now - 24 * 60 * 60 * 1000; // 24 hours ago
@@ -94,7 +94,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValEquality() {
+    void shouldHandleTimestampValEquality() {
         // Test timestamp equality comparisons
         long exactTime = 1577836800000L; // 2020-01-01 00:00:00 UTC
 
@@ -110,7 +110,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValInequality() {
+    void shouldHandleTimestampValInequality() {
         // Test timestamp inequality comparisons  
         long time1 = 1577836800000L; // 2020-01-01 00:00:00 UTC
         long time2 = 1609459200000L; // 2021-01-01 00:00:00 UTC
@@ -131,7 +131,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValContradiction() {
+    void shouldDetectTimestampValContradiction() {
         // Test contradiction detection with same timestamp in EQ and NE
         long testTime = 1672531200000L; // 2023-01-01 00:00:00 UTC
 
@@ -152,7 +152,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValInArrays() {
+    void shouldHandleTimestampValInArrays() {
         // Test TimestampVal in $in operator with arrays
         long time1 = 1577836800000L; // 2020-01-01
         long time2 = 1609459200000L; // 2021-01-01
@@ -174,7 +174,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValNotInArrays() {
+    void shouldHandleTimestampValNotInArrays() {
         // Test TimestampVal in $nin operator
         long excludedTime = 946684800000L; // 2000-01-01 00:00:00 UTC (Y2K)
 
@@ -192,7 +192,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValWithMixedTypes() {
+    void shouldHandleTimestampValWithMixedTypes() {
         // Test timestamp values mixed with other types in logical planning
         long timestamp = 1609459200000L;
 
@@ -213,7 +213,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValInDocuments() {
+    void shouldHandleTimestampValInDocuments() {
         // Test timestamp values within document structures
         long createdAt = System.currentTimeMillis();
         long updatedAt = createdAt + 3600000; // 1 hour later
@@ -239,7 +239,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValJsonSerialization() {
+    void shouldSerializeTimestampValToJson() {
         // Test JSON serialization of timestamp values
         long testTimestamp = 1234567890000L;
         TimestampVal timestampVal = new TimestampVal(testTimestamp);
@@ -254,7 +254,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValNumericOperations() {
+    void shouldHandleTimestampValNumericOperations() {
         // Test that timestamp values work with numeric comparison operations
         long baseTime = 1609459200000L;
         long laterTime = baseTime + 86400000L; // 24 hours later
@@ -275,7 +275,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValSpecialValues() {
+    void shouldHandleTimestampValSpecialValues() {
         // Test timestamp values with special timestamps
         long epochStart = 0L;              // Unix epoch start
         long maxTimestamp = Long.MAX_VALUE; // Far future
@@ -309,7 +309,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValTimeRanges() {
+    void shouldHandleTimestampValTimeRanges() {
         // Test timestamp values in typical time range scenarios
         long dayStart = 1609459200000L;    // 2021-01-01 00:00:00 UTC
         long dayEnd = dayStart + 86399999L; // 2021-01-01 23:59:59.999 UTC
@@ -331,7 +331,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValRedundancyElimination() {
+    void shouldEliminateTimestampValRedundancy() {
         // Test redundancy elimination with timestamp comparisons
         long baseTime = 1609459200000L;
         long laterTime = baseTime + 3600000L; // 1 hour later
@@ -352,7 +352,7 @@ class TimestampValIntegrationTest {
     }
 
     @Test
-    void testTimestampValLogicalEquality() {
+    void shouldCompareTimestampValLogicalEquality() {
         // Test TimestampVal logical equality comparison
         long timestamp1 = 1609459200000L;
         long timestamp2 = 1609459200000L;

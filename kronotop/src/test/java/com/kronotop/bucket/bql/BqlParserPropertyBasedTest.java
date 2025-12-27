@@ -36,7 +36,7 @@ class BqlParserPropertyBasedTest {
 
     @RepeatedTest(100)
     @DisplayName("Random queries should parse without exceptions")
-    void testRandomQueriesParsing() {
+    void shouldParseRandomQueriesWithoutExceptions() {
         String randomQuery = queryGenerator.generateRandomQuery();
 
         assertDoesNotThrow(() -> {
@@ -47,7 +47,7 @@ class BqlParserPropertyBasedTest {
 
     @RepeatedTest(50)
     @DisplayName("Query roundtrip fidelity: parse -> serialize -> parse should be consistent")
-    void testQueryRoundtripFidelity() {
+    void shouldMaintainQueryRoundtripFidelityOnParseSerializeParse() {
         String originalQuery = queryGenerator.generateRandomQuery();
 
         try {
@@ -77,7 +77,7 @@ class BqlParserPropertyBasedTest {
 
     @RepeatedTest(30)
     @DisplayName("Complex nested queries should parse correctly")
-    void testComplexNestedQueries() {
+    void shouldParseComplexNestedQueriesCorrectly() {
         String complexQuery = queryGenerator.generateComplexQuery();
 
         assertDoesNotThrow(() -> {
@@ -94,7 +94,7 @@ class BqlParserPropertyBasedTest {
 
     @RepeatedTest(50)
     @DisplayName("Simple queries should always parse and explain successfully")
-    void testSimpleQueriesWithExplanation() {
+    void shouldParseAndExplainSimpleQueriesSuccessfully() {
         String simpleQuery = queryGenerator.generateSimpleValidQuery();
 
         try {
@@ -119,7 +119,7 @@ class BqlParserPropertyBasedTest {
 
     @Test
     @DisplayName("Stress test: Parse many random queries in sequence")
-    void testStressParsingManyQueries() {
+    void shouldParseManyRandomQueriesInSequenceWithHighSuccessRate() {
         BqlQueryGenerator generator = new BqlQueryGenerator(new Random(12345), 4);
         int queryCount = 1000;
         int successCount = 0;
@@ -145,7 +145,7 @@ class BqlParserPropertyBasedTest {
 
     @RepeatedTest(20)
     @DisplayName("Random queries with different seeds should produce diverse results")
-    void testQueryDiversity() {
+    void shouldProduceDiverseResultsWithDifferentSeeds() {
         // Generate queries with different random seeds to ensure diversity
         long seed = ThreadLocalRandom.current().nextLong();
         BqlQueryGenerator seededGenerator = new BqlQueryGenerator(new Random(seed), 3);
@@ -168,7 +168,7 @@ class BqlParserPropertyBasedTest {
 
     @RepeatedTest(25)
     @DisplayName("Parser should handle edge cases in random generation gracefully")
-    void testEdgeCaseHandling() {
+    void shouldHandleEdgeCasesInRandomGenerationGracefully() {
         // Test with different generator configurations to hit edge cases
         BqlQueryGenerator[] generators = {
                 new BqlQueryGenerator(new Random(1), 1),    // Shallow queries
@@ -196,7 +196,7 @@ class BqlParserPropertyBasedTest {
 
     @Test
     @DisplayName("Memory usage should be reasonable for large number of random queries")
-    void testMemoryUsageWithRandomQueries() {
+    void shouldMaintainReasonableMemoryUsageWithRandomQueries() {
         BqlQueryGenerator generator = new BqlQueryGenerator(new Random(54321), 2);
 
         // Force garbage collection before test

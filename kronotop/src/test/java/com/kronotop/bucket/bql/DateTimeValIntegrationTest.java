@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DateTimeValIntegrationTest {
 
     @Test
-    void testDateTimeValCreation() {
+    void shouldCreateDateTimeVal() {
         long timestamp = System.currentTimeMillis();
         DateTimeVal dateTimeVal = new DateTimeVal(timestamp);
 
@@ -36,7 +36,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValWithLogicalPlanner() {
+    void shouldHandleDateTimeValInLogicalPlanner() {
         // Test that logical planner handles DateTimeVal correctly
         long testTimestamp = 1609459200000L; // 2021-01-01 00:00:00 UTC
         BqlExpr query = new BqlEq("createdAt", new DateTimeVal(testTimestamp));
@@ -52,7 +52,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValRangeQuery() {
+    void shouldHandleDateTimeValInRangeQuery() {
         // Test datetime values in range queries
         long startTime = 1609459200000L; // 2021-01-01 00:00:00 UTC
         long endTime = 1640995200000L;   // 2022-01-01 00:00:00 UTC
@@ -73,7 +73,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValComparison() {
+    void shouldHandleDateTimeValComparison() {
         // Test datetime comparison operations
         long now = System.currentTimeMillis();
         long yesterday = now - 24 * 60 * 60 * 1000; // 24 hours ago
@@ -94,7 +94,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValEquality() {
+    void shouldHandleDateTimeValEquality() {
         // Test datetime equality comparisons
         long exactTime = 1577836800000L; // 2020-01-01 00:00:00 UTC
 
@@ -110,7 +110,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValInequality() {
+    void shouldHandleDateTimeValInequality() {
         // Test datetime inequality comparisons  
         long time1 = 1577836800000L; // 2020-01-01 00:00:00 UTC
         long time2 = 1609459200000L; // 2021-01-01 00:00:00 UTC
@@ -131,7 +131,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValContradiction() {
+    void shouldDetectDateTimeValContradiction() {
         // Test contradiction detection with same datetime in EQ and NE
         long testTime = 1672531200000L; // 2023-01-01 00:00:00 UTC
 
@@ -152,7 +152,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValInArrays() {
+    void shouldHandleDateTimeValInArrays() {
         // Test DateTimeVal in $in operator with arrays
         long time1 = 1577836800000L; // 2020-01-01
         long time2 = 1609459200000L; // 2021-01-01
@@ -174,7 +174,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValNotInArrays() {
+    void shouldHandleDateTimeValNotInArrays() {
         // Test DateTimeVal in $nin operator
         long excludedTime = 946684800000L; // 2000-01-01 00:00:00 UTC (Y2K)
 
@@ -192,7 +192,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValWithMixedTypes() {
+    void shouldHandleDateTimeValWithMixedTypes() {
         // Test datetime values mixed with other types in logical planning
         long dateTime = 1609459200000L;
 
@@ -213,7 +213,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValInDocuments() {
+    void shouldHandleDateTimeValInDocuments() {
         // Test datetime values within document structures
         long createdAt = System.currentTimeMillis();
         long updatedAt = createdAt + 3600000; // 1 hour later
@@ -239,7 +239,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValJsonSerialization() {
+    void shouldSerializeDateTimeValToJson() {
         // Test JSON serialization of datetime values
         long testTimestamp = 1234567890000L;
         DateTimeVal dateTimeVal = new DateTimeVal(testTimestamp);
@@ -254,7 +254,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValNumericOperations() {
+    void shouldHandleDateTimeValNumericOperations() {
         // Test that datetime values work with numeric comparison operations
         long baseTime = 1609459200000L;
         long laterTime = baseTime + 86400000L; // 24 hours later
@@ -275,7 +275,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValSpecialValues() {
+    void shouldHandleDateTimeValSpecialValues() {
         // Test datetime values with special timestamps
         long epochStart = 0L;              // Unix epoch start
         long maxTimestamp = Long.MAX_VALUE; // Far future
@@ -309,7 +309,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValTimeRanges() {
+    void shouldHandleDateTimeValTimeRanges() {
         // Test datetime values in typical time range scenarios
         long dayStart = 1609459200000L;    // 2021-01-01 00:00:00 UTC
         long dayEnd = dayStart + 86399999L; // 2021-01-01 23:59:59.999 UTC
@@ -331,7 +331,7 @@ class DateTimeValIntegrationTest {
     }
 
     @Test
-    void testDateTimeValRedundancyElimination() {
+    void shouldEliminateDateTimeValRedundancy() {
         // Test redundancy elimination with datetime comparisons
         long baseTime = 1609459200000L;
         long laterTime = baseTime + 3600000L; // 1 hour later

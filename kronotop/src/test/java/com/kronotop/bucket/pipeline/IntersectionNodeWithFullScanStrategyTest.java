@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
     @Test
-    void testIntersectionContradiction() {
+    void shouldReturnEmptyResultForContradiction() {
         final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -63,7 +63,7 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testIntersectionWithTwoField() {
+    void shouldIntersectResultsWithTwoFields() {
         final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -99,7 +99,7 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testIntersectionWithTwoHundredDocumentsBatchProcessing() {
+    void shouldProcessTwoHundredDocumentsInBatches() {
         final String TEST_BUCKET_NAME = "test-intersection-200-docs";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -179,7 +179,7 @@ class IntersectionNodeWithFullScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testIntersectionWithTwoHundredDocumentsBatchProcessingReverse() {
+    void shouldProcessTwoHundredDocumentsInBatchesReverse() {
         final String TEST_BUCKET_NAME = "test-intersection-200-docs-reverse";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);

@@ -31,7 +31,7 @@ class BqlParserComplexNestedTest {
 
     @Test
     @DisplayName("Deeply nested AND/OR query should parse correctly")
-    void testDeeplyNestedQuery() {
+    void shouldParseDeeplyNestedAndOrQueryCorrectly() {
         String complexQuery = """
                 {
                   "$and": [
@@ -91,7 +91,7 @@ class BqlParserComplexNestedTest {
 
     @Test
     @DisplayName("Multi-level nested logical operators should parse correctly")
-    void testMultiLevelNestedLogicalOperators() {
+    void shouldParseMultiLevelNestedLogicalOperatorsCorrectly() {
         String nestedQuery = """
                 {
                   "$or": [
@@ -141,7 +141,7 @@ class BqlParserComplexNestedTest {
 
     @Test
     @DisplayName("Complex elemMatch with nested conditions should parse correctly")
-    void testComplexElemMatchNesting() {
+    void shouldParseComplexElemMatchWithNestedConditionsCorrectly() {
         String elemMatchQuery = """
                 {
                   "orders": {
@@ -194,7 +194,7 @@ class BqlParserComplexNestedTest {
 
     @Test
     @DisplayName("Deep nesting with mixed operators should parse correctly")
-    void testDeepNestingMixedOperators() {
+    void shouldParseDeepNestingWithMixedOperatorsCorrectly() {
         String deepQuery = """
                 {
                   "$and": [
@@ -268,7 +268,7 @@ class BqlParserComplexNestedTest {
 
     @Test
     @DisplayName("Complex array operations with nesting should parse correctly")
-    void testComplexArrayOperationsNesting() {
+    void shouldParseComplexArrayOperationsWithNestingCorrectly() {
         String arrayQuery = """
                 {
                   "$or": [
@@ -326,7 +326,7 @@ class BqlParserComplexNestedTest {
 
     @Test
     @DisplayName("Realistic e-commerce query with multiple nesting levels should parse correctly")
-    void testRealisticECommerceQuery() {
+    void shouldParseRealisticECommerceQueryWithMultipleNestingLevelsCorrectly() {
         String ecommerceQuery = """
                 {
                   "$and": [
@@ -408,7 +408,7 @@ class BqlParserComplexNestedTest {
 
     @Test
     @DisplayName("Performance test with very deep nesting should complete within reasonable time")
-    void testPerformanceWithDeepNesting() {
+    void shouldCompleteVeryDeepNestingWithinReasonableTime() {
         // Create a deeply nested query (7 levels deep)
         String deepQuery = """
                 {
@@ -480,7 +480,7 @@ class BqlParserComplexNestedTest {
 
     @Test
     @DisplayName("Mixed operator complexity with real-world patterns should parse correctly")
-    void testMixedOperatorComplexity() {
+    void shouldParseMixedOperatorComplexityWithRealWorldPatternsCorrectly() {
         String mixedQuery = """
                 {
                   "$and": [

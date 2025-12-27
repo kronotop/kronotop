@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
     @Disabled
-    void testAndOperatorWithTwoIndex() {
+    void shouldHandleAndOperatorWithTwoIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-and-index-scan";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
@@ -97,7 +97,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
 
     @Test
     @Disabled
-    void testWithDifferentIndexTypes() {
+    void shouldHandleDifferentIndexTypes() {
         final String TEST_BUCKET_NAME = "test-with-different-index-types";
 
         // Create indexes for age and name
@@ -173,7 +173,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
 
     @Test
     @Disabled
-    void testEqualityWithMultipleDocuments() {
+    void shouldHandleEqualityWithMultipleDocuments() {
         final String TEST_BUCKET_NAME = "test-equality-with-multiple-documents";
 
         // Create indexes for age and name
@@ -251,7 +251,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
 
     @Test
     @Disabled
-    void testAndOperatorWithPriceQuantityRelation() {
+    void shouldHandleAndOperatorWithPriceQuantityRelation() {
         final String TEST_BUCKET_NAME = "test-bucket-price-quantity-relation";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);

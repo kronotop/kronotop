@@ -42,6 +42,11 @@ public class FullScanNode extends AbstractScanNode implements ScanNode {
     }
 
     @Override
+    public IndexDefinition getIndexDefinition() {
+        return index;
+    }
+
+    @Override
     public void execute(QueryContext ctx, Transaction tr) {
         Index indexRecord = ctx.metadata().indexes().getIndex(index.selector(), IndexSelectionPolicy.READ);
         if (indexRecord == null) {

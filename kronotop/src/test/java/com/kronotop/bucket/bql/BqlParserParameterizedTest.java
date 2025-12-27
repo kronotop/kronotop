@@ -33,7 +33,7 @@ class BqlParserParameterizedTest {
 
     @Test
     @DisplayName("Comparison operators should parse correctly with integer values")
-    void testComparisonOperatorsWithIntegers() {
+    void shouldParseComparisonOperatorsWithIntegers() {
         List<String> operators = List.of("$gt", "$lt", "$gte", "$lte", "$ne", "$eq");
 
         for (String operator : operators) {
@@ -66,7 +66,7 @@ class BqlParserParameterizedTest {
 
     @Test
     @DisplayName("Comparison operators should parse correctly with string values")
-    void testComparisonOperatorsWithStrings() {
+    void shouldParseComparisonOperatorsWithStrings() {
         List<String> operators = List.of("$gt", "$lt", "$gte", "$lte", "$ne", "$eq");
 
         for (String operator : operators) {
@@ -88,7 +88,7 @@ class BqlParserParameterizedTest {
 
     @Test
     @DisplayName("Array operators should parse correctly with various array values")
-    void testArrayOperators() {
+    void shouldParseArrayOperators() {
         Map<String, List<String>> testCases = Map.of(
                 "$in", List.of("[1, 2, 3]", "[\"active\", \"pending\"]"),
                 "$nin", List.of("[1, 2, 3]", "[\"draft\", \"archived\"]"),
@@ -125,7 +125,7 @@ class BqlParserParameterizedTest {
 
     @Test
     @DisplayName("Logical operators should parse correctly with multiple conditions")
-    void testLogicalOperators() {
+    void shouldParseLogicalOperators() {
         List<String> operators = List.of("$and", "$or");
 
         for (String operator : operators) {
@@ -159,7 +159,7 @@ class BqlParserParameterizedTest {
 
     @Test
     @DisplayName("Special operators should parse correctly with appropriate values")
-    void testSpecialOperators() {
+    void shouldParseSpecialOperators() {
         Map<String, List<String>> testCases = Map.of(
                 "$exists", List.of("true", "false"),
                 "$size", List.of("0", "5", "100")
@@ -195,7 +195,7 @@ class BqlParserParameterizedTest {
 
     @Test
     @DisplayName("Simple equality queries should parse correctly with different value types")
-    void testSimpleEqualityWithDifferentTypes() {
+    void shouldParseSimpleEqualityWithDifferentTypes() {
         Map<String, String> testCases = Map.of(
                 "\"string_value\"", "string",
                 "42", "integer",
@@ -227,7 +227,7 @@ class BqlParserParameterizedTest {
 
     @Test
     @DisplayName("Multiple queries with different operators should all parse successfully")
-    void testDifferentOperatorCombinations() {
+    void shouldParseDifferentOperatorCombinations() {
         // Test various combinations of single operators (multiple operators on same selector not yet supported)
         List<String> queries = List.of(
                 "{ \"selector1\": { \"$gt\": 10 }, \"selector2\": { \"$lt\": 20 } }",
@@ -257,7 +257,7 @@ class BqlParserParameterizedTest {
 
     @Test
     @DisplayName("ElemMatch queries should parse correctly with various conditions")
-    void testElemMatchQueries() {
+    void shouldParseElemMatchQueries() {
         List<String> queries = List.of(
                 "{ \"results\": { \"$elemMatch\": { \"score\": { \"$gte\": 80 } } } }",
                 "{ \"tags\": { \"$elemMatch\": { \"$eq\": \"urgent\" } } }",
@@ -287,7 +287,7 @@ class BqlParserParameterizedTest {
 
     @Test
     @DisplayName("Invalid queries should throw BqlParseException with specific error messages")
-    void testInvalidQueriesWithSpecificErrors() {
+    void shouldThrowForInvalidQueriesWithSpecificErrors() {
         Map<String, String> invalidQueries = Map.of(
                 "{ \"$invalidOp\": [] }", "Unknown operator: $invalidOp",
                 "{ \"selector\": { \"$unknownSelectorOp\": 5 } }", "Unknown selector operator: $unknownSelectorOp",

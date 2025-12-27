@@ -26,6 +26,10 @@ public class ResidualOrNode implements ResidualPredicateNode {
         this.children = children;
     }
 
+    public List<ResidualPredicateNode> children() {
+        return children;
+    }
+
     @Override
     public boolean test(ByteBuffer document) {
         for (ResidualPredicateNode predicate : children) {

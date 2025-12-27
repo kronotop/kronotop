@@ -40,7 +40,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testLoadWithDefaultValues() {
+    void shouldLoadWithDefaultValues() {
         // Load state without setting any fields - should return defaults
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
@@ -53,7 +53,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testSetAndLoadCursorVersionstamp() {
+    void shouldSetAndLoadCursorVersionstamp() {
         Versionstamp cursorValue = Versionstamp.complete(new byte[10], 0);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -70,7 +70,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testSetAndLoadError() {
+    void shouldSetAndLoadError() {
         String errorMessage = "Test error: index build failed due to invalid document";
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -87,7 +87,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testSetAndLoadStatus() {
+    void shouldSetAndLoadStatus() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
             tr.commit().join();
@@ -101,7 +101,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testFailedTaskWithError() {
+    void shouldHandleFailedTaskWithError() {
         String errorMessage = "Index build failed: document validation error";
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -126,37 +126,37 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testIsTerminalForCompletedStatus() {
+    void shouldBeTerminalForCompletedStatus() {
         assertTrue(IndexBuildingTaskState.isTerminal(IndexTaskStatus.COMPLETED),
                 "COMPLETED should be a terminal status");
     }
 
     @Test
-    void testIsTerminalForFailedStatus() {
+    void shouldBeTerminalForFailedStatus() {
         assertTrue(IndexBuildingTaskState.isTerminal(IndexTaskStatus.FAILED),
                 "FAILED should be a terminal status");
     }
 
     @Test
-    void testIsTerminalForStoppedStatus() {
+    void shouldBeTerminalForStoppedStatus() {
         assertTrue(IndexBuildingTaskState.isTerminal(IndexTaskStatus.STOPPED),
                 "STOPPED should be a terminal status");
     }
 
     @Test
-    void testIsNotTerminalForWaitingStatus() {
+    void shouldNotBeTerminalForWaitingStatus() {
         assertFalse(IndexBuildingTaskState.isTerminal(IndexTaskStatus.WAITING),
                 "WAITING should not be a terminal status");
     }
 
     @Test
-    void testIsNotTerminalForRunningStatus() {
+    void shouldNotBeTerminalForRunningStatus() {
         assertFalse(IndexBuildingTaskState.isTerminal(IndexTaskStatus.RUNNING),
                 "RUNNING should not be a terminal status");
     }
 
     @Test
-    void testStatusTransitionFromWaitingToRunning() {
+    void shouldTransitionStatusFromWaitingToRunning() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuildingTaskState initialState = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.WAITING, initialState.status());
@@ -175,7 +175,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testStatusTransitionFromRunningToCompleted() {
+    void shouldTransitionStatusFromRunningToCompleted() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
             tr.commit().join();
@@ -194,7 +194,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testErrorMessageWithUnicodeCharacters() {
+    void shouldHandleErrorMessageWithUnicodeCharacters() {
         String errorMessage = "Index build failed: 文档验证错误 (Document validation error) - エラー";
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {

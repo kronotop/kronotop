@@ -94,7 +94,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testApplySetOperationsWithEmptyUpdateOps() {
+    void shouldApplySetOperationsWithEmptyUpdateOps() {
         // Create original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
@@ -111,7 +111,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testUpdateExistingStringField() {
+    void shouldUpdateExistingStringField() {
         // Create original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
@@ -133,7 +133,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testAddNewField() {
+    void shouldAddNewField() {
         // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
@@ -150,7 +150,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testMixedOperationsUpdateAndAdd() {
+    void shouldApplyMixedOperationsUpdateAndAdd() {
         // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
@@ -172,7 +172,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testAllBsonDataTypes() {
+    void shouldHandleAllBsonDataTypes() {
         // Create a document with all supported BSON types
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("stringField", new BsonString("original"));
@@ -216,7 +216,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testUpdateWithNullValue() {
+    void shouldUpdateWithNullValue() {
         // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
@@ -235,7 +235,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testConvertToBsonValueWithAllJavaTypes() {
+    void shouldConvertToBsonValueWithAllJavaTypes() {
         // Create the document to test conversion
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("existing", new BsonString("test"));
@@ -272,7 +272,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testEmptyDocument() {
+    void shouldHandleEmptyDocument() {
         // Create an empty document
         BsonDocument originalDoc = new BsonDocument();
         ByteBuffer originalBuffer = createBsonDocument(originalDoc);
@@ -291,7 +291,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testPreservesFieldOrder() {
+    void shouldPreserveFieldOrder() {
         // Create document with multiple fields
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("first", new BsonString("1"));
@@ -315,7 +315,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testNewValuesTracking() {
+    void shouldTrackNewValues() {
         // Create a document with multiple field types
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("stringField", new BsonString("original"));
@@ -371,7 +371,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testNewValuesWithAllBsonTypes() {
+    void shouldTrackNewValuesWithAllBsonTypes() {
         // Create a document with all supported BSON types using fixed values for deterministic tests
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("timestamp", new BsonTimestamp(1000, 1));
@@ -402,7 +402,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testUpdateAndAddFieldsInSameOperation() {
+    void shouldUpdateAndAddFieldsInSameOperation() {
         // Create original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("existingField", new BsonString("original"));
@@ -435,7 +435,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testUnsetSingleField() {
+    void shouldUnsetSingleField() {
         // Create original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
@@ -458,7 +458,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testUnsetMultipleFields() {
+    void shouldUnsetMultipleFields() {
         // Create original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
@@ -483,7 +483,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testUnsetNonExistentField() {
+    void shouldUnsetNonExistentField() {
         // Create original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
@@ -504,7 +504,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testSetAndUnsetInSameOperation() {
+    void shouldSetAndUnsetInSameOperation() {
         // Create original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
@@ -530,7 +530,7 @@ class BSONUpdateUtilTest {
     }
 
     @Test
-    void testUnsetAllFields() {
+    void shouldUnsetAllFields() {
         // Create original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));

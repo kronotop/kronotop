@@ -101,7 +101,7 @@ class IndexScanPredicateTest {
 
     @ParameterizedTest
     @EnumSource(value = Operator.class, names = {"EQ", "GT", "GTE", "LT", "LTE"})
-    void testNonNeOperatorsReturnTrue(Operator operator) {
+    void shouldReturnTrueForNonNeOperators(Operator operator) {
         // Given
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", operator, new StringVal("test"));
         BqlValue anyValue = new StringVal("different");
@@ -115,7 +115,7 @@ class IndexScanPredicateTest {
 
     @ParameterizedTest
     @MethodSource("provideBqlValueTestCases")
-    void testNeOperatorWithMatchingTypes(BqlValue operand, BqlValue matchingValue, BqlValue differentValue) {
+    void shouldFilterNeOperatorWithMatchingTypes(BqlValue operand, BqlValue matchingValue, BqlValue differentValue) {
         // Given
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.NE, operand);
 
@@ -128,7 +128,7 @@ class IndexScanPredicateTest {
 
     @ParameterizedTest
     @MethodSource("provideBqlValueTestCases")
-    void testNeOperatorWithNonMatchingTypes(BqlValue operand, BqlValue matchingValue, BqlValue differentValue) {
+    void shouldFilterNeOperatorWithNonMatchingTypes(BqlValue operand, BqlValue matchingValue, BqlValue differentValue) {
         // Given
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.NE, operand);
 
@@ -140,7 +140,7 @@ class IndexScanPredicateTest {
     }
 
     @Test
-    void testNeOperatorWithNullValues() {
+    void shouldHandleNeOperatorWithNullValues() {
         // Given
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.NE, NullVal.INSTANCE);
 
@@ -152,7 +152,7 @@ class IndexScanPredicateTest {
     }
 
     @Test
-    void testNeOperatorWithComplexTypes() {
+    void shouldHandleNeOperatorWithComplexTypes() {
         // Array test
         List<BqlValue> list1 = List.of(new StringVal("a"), new StringVal("b"));
         List<BqlValue> list2 = List.of(new StringVal("a"), new StringVal("b"));
@@ -173,7 +173,7 @@ class IndexScanPredicateTest {
     }
 
     @Test
-    void testUnsupportedOperandType() {
+    void shouldThrowForUnsupportedOperandType() {
         // Given an unsupported operand type
         Object unsupportedOperand = "raw string instead of BqlValue";
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.NE, unsupportedOperand);

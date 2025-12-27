@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class FullScanNodeTest extends BasePipelineTest {
 
     @Test
-    void testFullScan() {
+    void shouldPerformFullScan() {
         final String TEST_BUCKET_NAME = "test-bucket-full-scan";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -67,7 +67,7 @@ class FullScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testNeOperatorOnPrimaryIndex() {
+    void shouldFilterWithNeOperatorOnPrimaryIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -100,7 +100,7 @@ class FullScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtOperatorFiltersCorrectly() {
+    void shouldFilterWithGtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -132,7 +132,7 @@ class FullScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtOperatorFiltersCorrectlyReverse() {
+    void shouldFilterWithGtOperatorReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -195,7 +195,7 @@ class FullScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testNeOperatorFiltersCorrectly() {
+    void shouldFilterWithNeOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-ne-operator";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -247,7 +247,7 @@ class FullScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testEqOperatorFiltersCorrectly() {
+    void shouldFilterWithEqOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-eq-operator";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -300,7 +300,7 @@ class FullScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testLtOperatorFiltersCorrectly() {
+    void shouldFilterWithLtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-lt-operator";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -352,7 +352,7 @@ class FullScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testGteOperatorFiltersCorrectly() {
+    void shouldFilterWithGteOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-gte-operator";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -404,7 +404,7 @@ class FullScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testLteOperatorFiltersCorrectly() {
+    void shouldFilterWithLteOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-lte-operator";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -456,7 +456,7 @@ class FullScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtOperatorReturnsZeroResults() {
+    void shouldReturnZeroResultsWithGtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-zero-results";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);

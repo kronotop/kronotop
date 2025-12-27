@@ -17,7 +17,9 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.bucket.index.IndexDefinition;
 
 public interface ScanNode extends PipelineNode {
+    IndexDefinition getIndexDefinition();
     void execute(QueryContext ctx, Transaction tr);
 }

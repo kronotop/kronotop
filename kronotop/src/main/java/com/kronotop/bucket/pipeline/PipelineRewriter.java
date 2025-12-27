@@ -236,8 +236,18 @@ public class PipelineRewriter {
         return new UnionNode(ctx.nextId(), otherNodes);
     }
 
+    /**
+     * Converts an intermediate plan with multiple scan nodes into an optimized index scan pipeline.
+     * Selects the most selective index using {@link SelectivityEstimator}, then transforms the
+     * remaining nodes into residual predicates that are evaluated during document retrieval.
+     *
+     * @param ctx               the planner context for ID generation and metadata access
+     * @param intermediatePlan  the intermediate plan containing multiple scan nodes
+     * @param predicateStrategy the strategy for combining residual predicates (AND/OR)
+     * @return the most selective index scan node with residual predicates connected as the next step
+     */
     private static PipelineNode convertToIndexScanNode(PlannerContext ctx, IntermediatePlan intermediatePlan, PredicateEvalStrategy predicateStrategy) {
-        PipelineNode mostSelectiveIndexScan = selectMostSelectiveIndexScan(intermediatePlan.children());
+        PipelineNode mostSelectiveIndexScan = SelectivityEstimator.estimate(ctx, intermediatePlan.children());
 
         List<PipelineNode> otherNodes = new ArrayList<>();
         for (PipelineNode node : intermediatePlan.children()) {
@@ -252,16 +262,16 @@ public class PipelineRewriter {
         return mostSelectiveIndexScan;
     }
 
-    private static PipelineNode selectMostSelectiveIndexScan(List<PipelineNode> children) {
-        // Obviously, this method is a placeholder. It will be replaced with a proper one when we implement the histograms.
-        for (PipelineNode node : children) {
-            if (node instanceof IndexScanNode || node instanceof RangeScanNode) {
-                return node;
-            }
-        }
-        throw new IllegalStateException("No IndexScanNode or RangeScanNode found");
-    }
-
+    /**
+     * Converts an intermediate plan into a full scan node when no suitable indexes are available.
+     * Combines all child predicates into a single residual predicate for document-level filtering.
+     *
+     * @param ctx      the planner context for ID generation
+     * @param id       the node identifier for the resulting full scan node
+     * @param subplan  the intermediate plan containing child nodes to convert
+     * @param strategy the strategy for combining predicates (AND/OR)
+     * @return a full scan node with combined residual predicates
+     */
     private static FullScanNode convertToFullScanNode(PlannerContext ctx, int id, IntermediatePlan subplan, PredicateEvalStrategy strategy) {
         ResidualPredicateNode predicate = transformToResidualPredicate(ctx, subplan.children(), strategy);
         return new FullScanNode(id, predicate);
@@ -276,6 +286,7 @@ public class PipelineRewriter {
      * @throws IllegalStateException if a {@link PhysicalNode} is encountered with an unexpected or invalid state
      */
     public static PipelineNode rewrite(PlannerContext ctx, PhysicalNode plan) {
+        assert ctx.getMetadata() != null : "Bucket metadata must be provided for query planning";
         return switch (plan) {
             case PhysicalAnd physicalAnd -> rewriteLogicalOperator(
                     ctx,
@@ -323,6 +334,17 @@ public class PipelineRewriter {
                     UnionNode::new
             );
             case PhysicalTrue catchAll -> new FullScanNode(catchAll.id(), new AlwaysTruePredicate());
+            case PhysicalIndexIntersection intersection -> {
+                List<PipelineNode> children = new ArrayList<>();
+                for (int i = 0; i < intersection.filters().size(); i++) {
+                    PhysicalFilter filter = intersection.filters().get(i);
+                    IndexScanPredicate predicate = new IndexScanPredicate(
+                            filter.id(), filter.selector(), filter.op(), filter.operand()
+                    );
+                    children.add(new IndexScanNode(ctx.nextId(), intersection.indexes().get(i), predicate));
+                }
+                yield new IntersectionNode(intersection.id(), children);
+            }
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         };
     }

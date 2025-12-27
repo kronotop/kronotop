@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class IndexTaskUtilTest extends BaseBucketHandlerTest {
 
     @Test
-    void testOpenTasksSubspace() {
+    void shouldOpenTasksSubspace() {
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
 
         assertNotNull(taskSubspace, "Task subspace should not be null");
@@ -47,7 +47,7 @@ class IndexTaskUtilTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testOpenTasksSubspaceForMultipleShards() {
+    void shouldOpenTasksSubspaceForMultipleShards() {
         DirectorySubspace subspace0 = IndexTaskUtil.openTasksSubspace(context, 0);
         DirectorySubspace subspace1 = IndexTaskUtil.openTasksSubspace(context, 1);
         DirectorySubspace subspace2 = IndexTaskUtil.openTasksSubspace(context, 2);
@@ -65,7 +65,7 @@ class IndexTaskUtilTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void testOpenTasksSubspaceConsistency() {
+    void shouldOpenTasksSubspaceConsistently() {
         DirectorySubspace subspace1 = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         DirectorySubspace subspace2 = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
 

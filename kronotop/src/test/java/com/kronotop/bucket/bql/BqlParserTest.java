@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BqlParserTest {
 
     @Test
-    void testNeOperator() {
+    void shouldParseNeOperator() {
         String query = "{ status: { $eq: 'ALIVE', $ne: 'DEAD' } }";
         BqlExpr result = BqlParser.parse(query);
 
@@ -70,7 +70,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testStandaloneNeOperator() {
+    void shouldParseStandaloneNeOperator() {
         String query = "{ status: { $ne: 'DEAD' } }";
         BqlExpr result = BqlParser.parse(query);
 
@@ -98,7 +98,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testElemMatchWithRangeOperator() {
+    void shouldParseElemMatchWithRangeOperator() {
         // Test parsing: { results: { $elemMatch: { $gte: 80, $lt: 85 } } }
         String query = "{ results: { $elemMatch: { $gte: 80, $lt: 85 } } }";
 
@@ -151,7 +151,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testElemMatchWithSelectorConditions() {
+    void shouldParseElemMatchWithSelectorConditions() {
         // Test parsing: { results: { $elemMatch: { product: 'xyz', score: { $gte: 8 } } } }
         String query = "{ results: { $elemMatch: { product: 'xyz', score: { $gte: 8 } } } }";
 
@@ -206,7 +206,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testNestedNotOperator() {
+    void shouldParseNestedNotOperator() {
         // Test parsing: { price: { $not: { $gt: 1.99 } } }
         String query = "{ price: { $not: { $gt: 1.99 } } }";
 
@@ -250,7 +250,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testEmptyQuerySelectAll() {
+    void shouldParseEmptyQueryAsSelectAll() {
         // Test parsing empty query: {} - should mean "select all"
         String selectAllQuery = "{}";
 
@@ -280,7 +280,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testInvalidJsonFormat() {
+    void shouldRejectInvalidJsonFormat() {
         // Test parsing invalid JSON
         String invalidQuery = "{ invalid json }";
 
@@ -296,7 +296,7 @@ class BqlParserTest {
 
 
     @Test
-    void testEmptySelectorOperatorDocument() {
+    void shouldRejectEmptySelectorOperatorDocument() {
         // Test parsing with empty selector operator document
         String queryWithEmptyOperator = "{ \"selector\": { } }";
 
@@ -311,7 +311,7 @@ class BqlParserTest {
 
 
     @Test
-    void testExistsOperatorWithNonBoolean() {
+    void shouldRejectExistsOperatorWithNonBoolean() {
         // For now, let's comment out this test since the validation behavior needs more investigation
         // The issue is that BSON type validation happens differently than expected
         // String queryWithInvalidExists = "{ \"selector\": { \"$exists\": 123 } }";
@@ -330,7 +330,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testMalformedJson() {
+    void shouldRejectMalformedJson() {
         // Test parsing completely malformed JSON
         String malformedQuery = "{ selector: value missing quotes }";
 
@@ -344,7 +344,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testEmptyQuery() {
+    void shouldParseEmptyQuery() {
         // Test parsing empty query
         String emptyQuery = "";
 
@@ -358,7 +358,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testMultipleOperatorsInSameSelector() {
+    void shouldParseMultipleOperatorsInSameSelector() {
         // Test parsing multiple different operators in the same selector
         String query = "{ age: { $gt: 18, $lt: 65, $ne: 25 } }";
         BqlExpr result = BqlParser.parse(query);
@@ -389,7 +389,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testNeOperatorWithIntegerValue() {
+    void shouldParseNeOperatorWithIntegerValue() {
         // Test $ne operator with integer values
         String query = "{ count: { $ne: 0 } }";
         BqlExpr result = BqlParser.parse(query);
@@ -404,7 +404,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testNeOperatorWithDoubleValue() {
+    void shouldParseNeOperatorWithDoubleValue() {
         // Test $ne operator with double values
         String query = "{ price: { $ne: 19.99 } }";
         BqlExpr result = BqlParser.parse(query);
@@ -419,7 +419,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testNeOperatorWithBooleanValue() {
+    void shouldParseNeOperatorWithBooleanValue() {
         // Test $ne operator with boolean values
         String query = "{ active: { $ne: false } }";
         BqlExpr result = BqlParser.parse(query);
@@ -434,7 +434,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testMixedEqAndNeOperators() {
+    void shouldParseMixedEqAndNeOperators() {
         // Test parsing with mixed EQ and NE operators (redundant but valid BQL)
         String query = "{ status: { $eq: 'ACTIVE', $ne: 'INACTIVE' } }";
         BqlExpr result = BqlParser.parse(query);
@@ -459,7 +459,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testRangeQueryWithNeOperator() {
+    void shouldParseRangeQueryWithNeOperator() {
         // Test range query combined with NE operator
         String query = "{ score: { $gte: 70, $lt: 100, $ne: 85 } }";
         BqlExpr result = BqlParser.parse(query);
@@ -482,7 +482,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testNeOperatorInComplexQuery() {
+    void shouldParseNeOperatorInComplexQuery() {
         // Test $ne operator in a more complex query with top-level AND
         String query = "{ $and: [{ status: { $ne: 'DELETED' } }, { age: { $gt: 18 } }] }";
         BqlExpr result = BqlParser.parse(query);
@@ -507,7 +507,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testDuplicateFieldWithDifferentOperators() {
+    void shouldWarnForDuplicateFieldWithDifferentOperators() {
         // Test case from the reported issue: {'age': {'$gt': 22}, 'age': {'$lte': 35}}
         // This demonstrates a common user mistake - JSON does not allow duplicate keys
         String invalidQuery = "{ \"age\": { \"$gt\": 22 }, \"age\": { \"$lte\": 35 } }";
@@ -527,7 +527,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testCorrectWayToCombineMultipleConditionsOnSameField() {
+    void shouldCorrectlyCombineMultipleConditionsOnSameField() {
         // The CORRECT way to combine multiple operators on the same field
         String correctQuery = "{ \"age\": { \"$gt\": 22, \"$lte\": 35 } }";
         BqlExpr result = BqlParser.parse(correctQuery);
@@ -552,7 +552,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testExplicitAndForMultipleFieldConditions() {
+    void shouldParseExplicitAndForMultipleFieldConditions() {
         // Another CORRECT way using explicit $and operator  
         String explicitAndQuery = "{ \"$and\": [{ \"age\": { \"$gt\": 22 } }, { \"age\": { \"$lte\": 35 } }] }";
         BqlExpr result = BqlParser.parse(explicitAndQuery);
@@ -577,7 +577,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testParseByteArrayFallbackMode() {
+    void shouldParseByteArrayInFallbackMode() {
         // Test fallback mode when byte array starts with '{' (ASCII 123)
         // This triggers the fallback to parse as JSON string instead of BSON binary
         String jsonQuery = "{\"name\": \"Alice\", \"age\": {\"$gt\": 25}}";
@@ -621,7 +621,7 @@ class BqlParserTest {
     }
 
     @Test
-    void testParseEncodedBsonDocument() {
+    void shouldParseEncodedBsonDocument() {
         // Construct BSON document: {"name": "Alice", "age": {"$gt": 25}}
         Document queryDoc = new Document();
         queryDoc.append("name", "Alice");

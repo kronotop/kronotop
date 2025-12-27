@@ -32,7 +32,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Numeric boundary values should parse correctly")
-    void testNumericBoundaries() {
+    void shouldParseNumericBoundaryValuesCorrectly() {
         Map<String, String> edgeCases = Map.of(
                 "Integer MAX_VALUE", "{ \"selector\": " + Integer.MAX_VALUE + " }",
                 "Integer MIN_VALUE", "{ \"selector\": " + Integer.MIN_VALUE + " }",
@@ -66,7 +66,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Special floating point values should be handled correctly")
-    void testSpecialFloatingPointValues() {
+    void shouldHandleSpecialFloatingPointValuesCorrectly() {
         Map<String, String> specialValues = Map.of(
                 "Very small positive", "{ \"selector\": 4.9e-324 }",
                 "Very large positive", "{ \"selector\": 1.7976931348623157e+308 }",
@@ -94,7 +94,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Unicode and special characters should be handled correctly")
-    void testUnicodeAndSpecialCharacters() {
+    void shouldHandleUnicodeAndSpecialCharactersCorrectly() {
         Map<String, String> testCases = Map.of(
                 "Unicode emoji", "{ \"🔥selector\": \"🎉value\" }",
                 "Unicode text", "{ \"selector\": \"ñáméwithaccénts\" }",
@@ -122,7 +122,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Very long selector names and values should be handled correctly")
-    void testLongSelectorNamesAndValues() {
+    void shouldHandleVeryLongSelectorNamesAndValuesCorrectly() {
         // Test very long selector name (1000 characters)
         String longSelectorName = "a".repeat(1000);
         String longSelectorQuery = "{ \"" + longSelectorName + "\": \"value\" }";
@@ -153,7 +153,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Empty and whitespace-only strings should be handled correctly")
-    void testEmptyAndWhitespaceStrings() {
+    void shouldHandleEmptyAndWhitespaceStringsCorrectly() {
         Map<String, String> testCases = Map.of(
                 "Empty string value", "{ \"selector\": \"\" }",
                 "Whitespace only", "{ \"selector\": \"   \" }",
@@ -184,7 +184,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Array boundary conditions should be handled correctly")
-    void testArrayBoundaryConditions() {
+    void shouldHandleArrayBoundaryConditionsCorrectly() {
         Map<String, String> arrayCases = Map.of(
                 "Empty array", "{ \"selector\": { \"$in\": [] } }",
                 "Single element", "{ \"selector\": { \"$in\": [\"single\"] } }",
@@ -213,7 +213,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Size operator boundary values should be validated")
-    void testSizeOperatorBoundaries() {
+    void shouldValidateSizeOperatorBoundaryValues() {
         Map<String, String> sizeCases = Map.of(
                 "Size zero", "{ \"selector\": { \"$size\": 0 } }",
                 "Size one", "{ \"selector\": { \"$size\": 1 } }",
@@ -239,7 +239,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Deeply nested document structures should be handled correctly")
-    void testDeeplyNestedDocuments() {
+    void shouldHandleDeeplyNestedDocumentStructuresCorrectly() {
         // Create a deeply nested document (10 levels)
         StringBuilder nestedDoc = new StringBuilder();
         nestedDoc.append("{ \"selector\": { \"$eq\": ");
@@ -272,7 +272,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Extreme array sizes in queries should be handled efficiently")
-    void testExtremeArraySizes() {
+    void shouldHandleExtremeArraySizesEfficiently() {
         // Test with large array in $in operator (1000 elements)
         StringBuilder largeArray = new StringBuilder();
         largeArray.append("{ \"selector\": { \"$in\": [");
@@ -301,7 +301,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Boolean edge cases should be handled correctly")
-    void testBooleanEdgeCases() {
+    void shouldHandleBooleanEdgeCasesCorrectly() {
         Map<String, String> booleanCases = Map.of(
                 "True value", "{ \"selector\": true }",
                 "False value", "{ \"selector\": false }",
@@ -332,7 +332,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Null value handling should work correctly")
-    void testNullValueHandling() {
+    void shouldHandleNullValueCorrectly() {
         String nullQuery = "{ \"selector\": null }";
 
         // Note: This might throw an exception if null is not supported
@@ -353,7 +353,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Extreme comparison values should be handled correctly")
-    void testExtremeComparisonValues() {
+    void shouldHandleExtremeComparisonValuesCorrectly() {
         Map<String, String> extremeCases = Map.of(
                 "Very large string comparison", "{ \"selector\": { \"$gt\": \"" + "z".repeat(1000) + "\" } }",
                 "Empty string comparison", "{ \"selector\": { \"$lt\": \"\" } }",
@@ -386,7 +386,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Whitespace variations in JSON should be handled correctly")
-    void testWhitespaceVariations() {
+    void shouldHandleWhitespaceVariationsInJSONCorrectly() {
         Map<String, String> whitespaceCases = Map.of(
                 "No whitespace", "{\"selector\":\"value\"}",
                 "Extra spaces", "{ \"selector\" : \"value\" }",
@@ -414,7 +414,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Selector name edge cases should be handled correctly")
-    void testSelectorNameEdgeCases() {
+    void shouldHandleSelectorNameEdgeCasesCorrectly() {
         Map<String, String> selectorNameCases = Map.of(
                 "Single character", "{ \"a\": \"value\" }",
                 "Numeric-like name", "{ \"123\": \"value\" }",
@@ -442,7 +442,7 @@ class BqlParserEdgeCaseTest {
 
     @Test
     @DisplayName("Invalid numeric formats should be rejected with meaningful errors")
-    void testInvalidNumericFormats() {
+    void shouldRejectInvalidNumericFormatsWithMeaningfulErrors() {
         Map<String, String> invalidNumbers = Map.of(
                 "Leading zeros", "{ \"selector\": 007 }",
                 "Hexadecimal", "{ \"selector\": 0xFF }",

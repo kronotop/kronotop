@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SelectorMatcherTest {
     @Test
-    void testRootLevel() {
+    void shouldMatchRootLevelField() {
         Document document = new Document();
         document.append("key", new BsonString("value"));
         BsonValue matchedValue = SelectorMatcher.match("key", document);
@@ -38,7 +38,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testMatchWithByteBuffer() {
+    void shouldMatchWithByteBuffer() {
         Document document = new Document();
         document.append("key", new BsonString("value"));
         ByteBuffer buffer = ByteBuffer.wrap(BSONUtil.toBytes(document));
@@ -49,7 +49,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testNestedDocument() {
+    void shouldMatchNestedDocument() {
         Document nested = new Document();
         nested.append("innerKey", new BsonString("innerValue"));
 
@@ -62,7 +62,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testArrayAccess() {
+    void shouldMatchArrayAccess() {
         BsonArray array = new BsonArray();
         array.add(new BsonString("first"));
         array.add(new BsonString("second"));
@@ -77,7 +77,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testNestedArrayInDocument() {
+    void shouldMatchNestedArrayInDocument() {
         BsonDocument innerDoc = new BsonDocument();
         innerDoc.append("name", new BsonString("test"));
 
@@ -93,7 +93,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testDeeplyNestedPath() {
+    void shouldMatchDeeplyNestedPath() {
         Document level3 = new Document();
         level3.append("finalKey", new BsonInt32(42));
 
@@ -112,7 +112,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testNonExistentPath() {
+    void shouldReturnNullForNonExistentPath() {
         Document document = new Document();
         document.append("key", new BsonString("value"));
 
@@ -121,7 +121,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testInvalidArrayIndex() {
+    void shouldReturnNullForInvalidArrayIndex() {
         BsonArray array = new BsonArray();
         array.add(new BsonString("first"));
 
@@ -134,7 +134,7 @@ class SelectorMatcherTest {
 
     // Test all BSON types mentioned in JavaDoc
     @Test
-    void testBsonInt64() {
+    void shouldMatchBsonInt64() {
         Document document = new Document();
         document.append("longValue", new BsonInt64(9223372036854775807L));
 
@@ -144,7 +144,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testBsonDouble() {
+    void shouldMatchBsonDouble() {
         Document document = new Document();
         document.append("doubleValue", new BsonDouble(3.14159));
 
@@ -154,7 +154,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testBsonBoolean() {
+    void shouldMatchBsonBoolean() {
         Document document = new Document();
         document.append("boolValue", new BsonBoolean(true));
 
@@ -164,7 +164,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testBsonNull() {
+    void shouldMatchBsonNull() {
         Document document = new Document();
         document.append("nullValue", new BsonNull());
 
@@ -173,7 +173,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testBsonDateTime() {
+    void shouldMatchBsonDateTime() {
         Date now = new Date();
         Document document = new Document();
         document.append("dateValue", new BsonDateTime(now.getTime()));
@@ -184,7 +184,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testBsonObjectId() {
+    void shouldMatchBsonObjectId() {
         ObjectId objectId = new ObjectId();
         Document document = new Document();
         document.append("idValue", new BsonObjectId(objectId));
@@ -195,7 +195,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testNestedBsonDocument() {
+    void shouldMatchNestedBsonDocument() {
         BsonDocument nestedDoc = new BsonDocument();
         nestedDoc.append("innerField", new BsonString("innerValue"));
 
@@ -208,7 +208,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testNestedBsonArray() {
+    void shouldMatchNestedBsonArray() {
         BsonArray nestedArray = new BsonArray();
         nestedArray.add(new BsonString("item1"));
         nestedArray.add(new BsonString("item2"));
@@ -224,7 +224,7 @@ class SelectorMatcherTest {
 
     // Test invalid array index with non-numeric string
     @Test
-    void testNonNumericArrayIndex() {
+    void shouldReturnNullForNonNumericArrayIndex() {
         BsonArray array = new BsonArray();
         array.add(new BsonString("first"));
 
@@ -237,7 +237,7 @@ class SelectorMatcherTest {
 
     // Test complex nested structures from JavaDoc examples
     @Test
-    void testComplexNestedStructure() {
+    void shouldMatchComplexNestedStructure() {
         // Build: company.departments.0.employees.5.address.coordinates.latitude
         BsonDocument coordinates = new BsonDocument();
         coordinates.append("latitude", new BsonDouble(40.7128));
@@ -278,7 +278,7 @@ class SelectorMatcherTest {
 
     // Test the exact example from method JavaDoc
     @Test
-    void testMethodJavaDocExample() {
+    void shouldMatchMethodJavaDocExample() {
         Document user = new Document()
                 .append("name", "Alice")
                 .append("contact", new Document()
@@ -300,7 +300,7 @@ class SelectorMatcherTest {
 
     // Test class JavaDoc usage examples
     @Test
-    void testClassJavaDocExample() {
+    void shouldMatchClassJavaDocExample() {
         Document doc = new Document()
                 .append("user", new Document()
                         .append("name", "John")
@@ -319,7 +319,7 @@ class SelectorMatcherTest {
 
     // Test type mismatch scenarios
     @Test
-    void testTypeMismatchArrayIndexOnPrimitive() {
+    void shouldReturnNullForTypeMismatchArrayIndexOnPrimitive() {
         Document document = new Document();
         document.append("stringField", new BsonString("text"));
 
@@ -329,7 +329,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testTypeMismatchFieldOnArray() {
+    void shouldReturnNullForTypeMismatchFieldOnArray() {
         BsonArray array = new BsonArray();
         array.add(new BsonString("item"));
 
@@ -343,7 +343,7 @@ class SelectorMatcherTest {
 
     // Test input validation as mentioned in JavaDoc throws clauses
     @Test
-    void testNullSelector() {
+    void shouldThrowForNullSelector() {
         Document document = new Document();
         document.append("key", new BsonString("value"));
 
@@ -351,7 +351,7 @@ class SelectorMatcherTest {
     }
 
     @Test
-    void testEmptySelector() {
+    void shouldReturnNullForEmptySelector() {
         Document document = new Document();
         document.append("key", new BsonString("value"));
 
@@ -361,7 +361,7 @@ class SelectorMatcherTest {
 
     // Test arrays within documents within arrays (from JavaDoc example)
     @Test
-    void testArraysWithinDocumentsWithinArrays() {
+    void shouldMatchArraysWithinDocumentsWithinArrays() {
         BsonArray tags = new BsonArray();
         tags.add(new BsonString("tag1"));
         tags.add(new BsonString("tag2"));

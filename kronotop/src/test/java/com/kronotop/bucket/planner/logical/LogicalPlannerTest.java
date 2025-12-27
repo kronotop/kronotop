@@ -82,7 +82,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("EQ operator should convert to LogicalFilter")
-        void testEqualityOperator() {
+        void shouldHandleEqualityOperator() {
             BqlExpr expr = BqlParser.parse("{ \"status\": \"active\" }");
             LogicalNode result = planner.plan(expr);
 
@@ -95,7 +95,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("GT operator should convert to LogicalFilter")
-        void testGreaterThanOperator() {
+        void shouldHandleGreaterThanOperator() {
             BqlExpr expr = BqlParser.parse("{ \"price\": { \"$gt\": 100 } }");
             LogicalNode result = planner.plan(expr);
 
@@ -108,7 +108,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("GTE operator should convert to LogicalFilter")
-        void testGreaterThanOrEqualOperator() {
+        void shouldHandleGreaterThanOrEqualOperator() {
             BqlExpr expr = BqlParser.parse("{ \"age\": { \"$gte\": 18 } }");
             LogicalNode result = planner.plan(expr);
 
@@ -121,7 +121,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("LT operator should convert to LogicalFilter")
-        void testLessThanOperator() {
+        void shouldHandleLessThanOperator() {
             BqlExpr expr = BqlParser.parse("{ \"score\": { \"$lt\": 50.5 } }");
             LogicalNode result = planner.plan(expr);
 
@@ -134,7 +134,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("LTE operator should convert to LogicalFilter")
-        void testLessThanOrEqualOperator() {
+        void shouldHandleLessThanOrEqualOperator() {
             BqlExpr expr = BqlParser.parse("{ \"rating\": { \"$lte\": 5 } }");
             LogicalNode result = planner.plan(expr);
 
@@ -147,7 +147,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("NE operator should convert to LogicalFilter")
-        void testNotEqualOperator() {
+        void shouldHandleNotEqualOperator() {
             BqlExpr expr = BqlParser.parse("{ \"category\": { \"$ne\": \"archived\" } }");
             LogicalNode result = planner.plan(expr);
 
@@ -160,7 +160,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("IN operator should convert to LogicalFilter with list operand")
-        void testInOperator() {
+        void shouldHandleInOperator() {
             BqlExpr expr = BqlParser.parse("{ \"status\": { \"$in\": [\"active\", \"pending\", \"review\"] } }");
             LogicalNode result = planner.plan(expr);
 
@@ -176,7 +176,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("NIN operator should convert to LogicalFilter with list operand")
-        void testNotInOperator() {
+        void shouldHandleNotInOperator() {
             BqlExpr expr = BqlParser.parse("{ \"category\": { \"$nin\": [\"spam\", \"deleted\", \"hidden\"] } }");
             LogicalNode result = planner.plan(expr);
 
@@ -192,7 +192,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("ALL operator should convert to LogicalFilter with list operand")
-        void testAllOperator() {
+        void shouldHandleAllOperator() {
             BqlExpr expr = BqlParser.parse("{ \"tags\": { \"$all\": [\"urgent\", \"important\"] } }");
             LogicalNode result = planner.plan(expr);
 
@@ -208,7 +208,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("SIZE operator should convert to LogicalFilter with integer operand")
-        void testSizeOperator() {
+        void shouldHandleSizeOperator() {
             BqlExpr expr = BqlParser.parse("{ \"items\": { \"$size\": 3 } }");
             LogicalNode result = planner.plan(expr);
 
@@ -221,7 +221,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("EXISTS operator should convert to LogicalFilter with boolean operand")
-        void testExistsOperator() {
+        void shouldHandleExistsOperator() {
             BqlExpr expr = BqlParser.parse("{ \"metadata\": { \"$exists\": true } }");
             LogicalNode result = planner.plan(expr);
 
@@ -234,7 +234,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("EXISTS false should convert correctly")
-        void testExistsOperatorFalse() {
+        void shouldHandleExistsOperatorFalse() {
             BqlExpr expr = BqlParser.parse("{ \"optional_selector\": { \"$exists\": false } }");
             LogicalNode result = planner.plan(expr);
 
@@ -256,7 +256,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("AND operator should convert to LogicalAnd")
-        void testAndOperator() {
+        void shouldHandleAndOperator() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -296,7 +296,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("OR operator should convert to LogicalOr")
-        void testOrOperator() {
+        void shouldHandleOrOperator() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -335,7 +335,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("NOT operator should convert to LogicalNot")
-        void testNotOperator() {
+        void shouldHandleNotOperator() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$not": { "status": "deleted" }
@@ -356,7 +356,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("ELEMMATCH operator should convert to LogicalElemMatch")
-        void testElemMatchOperator() {
+        void shouldHandleElemMatchOperator() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "items": {
@@ -390,7 +390,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Deeply nested AND/OR should convert correctly")
-        void testDeeplyNestedAndOr() {
+        void shouldHandleDeeplyNestedAndOr() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -454,7 +454,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Multiple NOT operators should work correctly")
-        void testMultipleNotOperators() {
+        void shouldHandleMultipleNotOperators() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -476,7 +476,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("ElemMatch with nested logical operators")
-        void testElemMatchWithNestedLogical() {
+        void shouldHandleElemMatchWithNestedLogical() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "products": {
@@ -527,7 +527,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Very deep nesting with mixed operators should work correctly")
-        void testVeryDeepMixedNesting() {
+        void shouldHandleVeryDeepMixedNesting() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -604,7 +604,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Complex ElemMatch with multiple levels should work correctly")
-        void testComplexMultiLevelElemMatch() {
+        void shouldHandleComplexMultiLevelElemMatch() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -661,7 +661,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("FlattenAndOrTransform should flatten nested AND nodes")
-        void testFlattenNestedAnd() {
+        void shouldFlattenNestedAnd() {
             // Create: AND(a, AND(b, c)) which should become AND(a, b, c)
             BqlExpr expr = BqlParser.parse("""
                     {
@@ -692,7 +692,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("FlattenAndOrTransform should flatten nested OR nodes")
-        void testFlattenNestedOr() {
+        void shouldFlattenNestedOr() {
             // Create: OR(a, OR(b, c)) which should become OR(a, b, c)
             BqlExpr expr = BqlParser.parse("""
                     {
@@ -723,7 +723,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("RemoveDoubleNotTransform should eliminate NOT(NOT(x))")
-        void testRemoveDoubleNot() {
+        void shouldRemoveDoubleNot() {
             // Create: NOT(NOT(status = active)) which should become (status = active)
             BqlExpr expr = BqlParser.parse("""
                     {
@@ -744,7 +744,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("RemoveDoubleNotTransform should handle nested double negation")
-        void testRemoveDoubleNotNested() {
+        void shouldRemoveDoubleNotNested() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -770,7 +770,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Transform pipeline should preserve single NOT nodes")
-        void testPreserveSingleNot() {
+        void shouldPreserveSingleNot() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$not": { "deleted": true }
@@ -786,7 +786,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Custom transform pipeline should work correctly")
-        void testCustomTransformPipeline() {
+        void shouldHandleCustomTransformPipeline() {
             // Create planner with empty pipeline (no transforms)
             LogicalPlanner customPlanner = new LogicalPlanner(List.of());
 
@@ -815,7 +815,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Transform pipeline with null transforms list should throw")
-        void testNullTransformPipeline() {
+        void shouldHandleNullTransformPipeline() {
             assertThrows(NullPointerException.class, () -> {
                 new LogicalPlanner(null);
             }, "Should throw NullPointerException for null transform pipeline");
@@ -823,7 +823,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Transform pipeline should handle ElemMatch correctly")
-        void testTransformPipelineWithElemMatch() {
+        void shouldHandleTransformPipelineWithElemMatch() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "items": {
@@ -858,7 +858,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Complex transform interactions should work correctly")
-        void testComplexTransformInteractions() {
+        void shouldHandleComplexTransformInteractions() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -935,7 +935,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Null BqlExpr should throw NullPointerException")
-        void testNullBqlExpr() {
+        void shouldHandleNullBqlExpr() {
             assertThrows(NullPointerException.class, () -> {
                 planner.plan(null);
             });
@@ -943,7 +943,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Empty AND should become TRUE (optimized)")
-        void testEmptyAnd() {
+        void shouldHandleEmptyAnd() {
             BqlExpr expr = BqlParser.parse("{ \"$and\": [] }");
             LogicalNode result = planner.plan(expr);
 
@@ -953,7 +953,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Empty OR should become FALSE (optimized)")
-        void testEmptyOr() {
+        void shouldHandleEmptyOr() {
             BqlExpr expr = BqlParser.parse("{ \"$or\": [] }");
             LogicalNode result = planner.plan(expr);
 
@@ -963,7 +963,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Single child AND should be simplified to child (optimized)")
-        void testSingleChildAnd() {
+        void shouldHandleSingleChildAnd() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -982,7 +982,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Complex numeric values should convert correctly")
-        void testComplexNumericValues() {
+        void shouldHandleComplexNumericValues() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -1026,7 +1026,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Unicode selector names should work correctly")
-        void testUnicodeSelectorNames() {
+        void shouldHandleUnicodeSelectorNames() {
             BqlExpr expr = BqlParser.parse("{ \"名前\": \"テスト\" }");
             LogicalNode result = planner.plan(expr);
 
@@ -1042,7 +1042,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Empty selector name should work correctly")
-        void testEmptySelectorName() {
+        void shouldHandleEmptySelectorName() {
             BqlExpr expr = BqlParser.parse("{ \"\": \"value\" }");
             LogicalNode result = planner.plan(expr);
 
@@ -1054,7 +1054,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Very long selector names should work correctly")
-        void testVeryLongSelectorName() {
+        void shouldHandleVeryLongSelectorName() {
             String longSelector = "a".repeat(1000);
             BqlExpr expr = BqlParser.parse("{ \"" + longSelector + "\": \"value\" }");
             LogicalNode result = planner.plan(expr);
@@ -1067,7 +1067,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Special character selector names should work correctly")
-        void testSpecialCharacterSelectorNames() {
+        void shouldHandleSpecialCharacterSelectorNames() {
             String[] specialSelectors = {
                     "selector.with.dots",
                     "selector-with-dashes",
@@ -1090,7 +1090,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Zero and negative numbers should work correctly")
-        void testZeroAndNegativeNumbers() {
+        void shouldHandleZeroAndNegativeNumbers() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -1154,7 +1154,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("All comparison operators should produce LogicalFilter")
-        void testAllComparisonOperators() {
+        void shouldHandleAllComparisonOperators() {
             String[] queries = {
                     "{ \"selector\": \"value\" }",                    // EQ
                     "{ \"selector\": { \"$ne\": \"value\" } }",       // NE
@@ -1178,7 +1178,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("All array operators should produce LogicalFilter")
-        void testAllArrayOperators() {
+        void shouldHandleAllArrayOperators() {
             String[] queries = {
                     "{ \"selector\": { \"$in\": [\"a\", \"b\"] } }",      // IN
                     "{ \"selector\": { \"$nin\": [\"a\", \"b\"] } }",     // NIN
@@ -1199,7 +1199,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("All logical operators should preserve structure")
-        void testAllLogicalOperators() {
+        void shouldHandleAllLogicalOperators() {
             String[] queries = {
                     "{ \"$and\": [ { \"a\": 1 }, { \"b\": 2 } ] }",
                     "{ \"$or\": [ { \"a\": 1 }, { \"b\": 2 } ] }",
@@ -1220,7 +1220,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Transform pipeline should be idempotent")
-        void testTransformIdempotence() {
+        void shouldBeIdempotent() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -1257,7 +1257,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Large query with many conditions should perform well")
-        void testLargeQueryPerformance() {
+        void shouldHandleLargeQueryPerformance() {
             StringBuilder queryBuilder = new StringBuilder("{ \"$and\": [");
             for (int i = 0; i < 100; i++) {
                 if (i > 0) queryBuilder.append(", ");
@@ -1281,7 +1281,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Deeply nested query should handle recursion efficiently")
-        void testDeeplyNestedQueryPerformance() {
+        void shouldHandleDeeplyNestedQueryPerformance() {
             // Test with different depths to verify double negation elimination
             // Even depth should result in LogicalFilter, odd depth in LogicalNot
             int[] testDepths = {2, 3, 10, 20, 50};
@@ -1334,7 +1334,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Range contradictions should result in LogicalFalse")
-        void testRangeContradictions() {
+        void shouldDetectRangeContradictions() {
             // Test various impossible range combinations
             String[] contradictoryQueries = {
                     "{ price: { $gt: 100, $lt: 50 } }",          // x > 100 AND x < 50
@@ -1354,7 +1354,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("EQ vs NE with same value should result in LogicalFalse")
-        void testEqVsNeContradiction() {
+        void shouldDetectEqVsNeContradiction() {
             // These contradictions should be detected
             String[] contradictoryQueries = {
                     "{ status: { $eq: 'ACTIVE', $ne: 'ACTIVE' } }",    // x = A AND x != A
@@ -1373,7 +1373,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Valid range queries should not be contradictions")
-        void testValidRangeQueries() {
+        void shouldPreserveValidRangeQueries() {
             // These are valid range queries and should NOT result in LogicalFalse
             String[] validQueries = {
                     "{ price: { $gt: 50, $lt: 100 } }",             // x > 50 AND x < 100
@@ -1401,7 +1401,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Complex contradictions in nested structures")
-        void testNestedContradictions() {
+        void shouldDetectNestedContradictions() {
             // Test contradiction detection in nested AND/OR structures
             String query = """
                     {
@@ -1422,7 +1422,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Contradictions in OR should not result in LogicalFalse")
-        void testContradictionsInOr() {
+        void shouldHandleContradictionsInOr() {
             // Contradictions in OR branches should not make the entire query false
             String query = """
                     {
@@ -1458,7 +1458,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("EQ + NE with different values should eliminate redundant NE")
-        void testEqNeRedundancyElimination() {
+        void shouldEliminateEqNeRedundancy() {
             // These queries have redundant NE conditions that should be eliminated
             String[] redundantQueries = {
                     "{ status: { $eq: 'ACTIVE', $ne: 'INACTIVE' } }",   // x = ACTIVE makes x != INACTIVE redundant
@@ -1482,7 +1482,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Numeric range redundancy should eliminate less restrictive conditions")
-        void testNumericRangeRedundancy() {
+        void shouldEliminateNumericRangeRedundancy() {
             // Test specific cases to verify redundancy elimination behavior
             // Note: BSON parsing order may affect which condition is kept
 
@@ -1527,7 +1527,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Non-redundant conditions should be preserved")
-        void testNonRedundantConditionsPreserved() {
+        void shouldPreserveNonRedundantConditions() {
             // These queries have non-redundant conditions that should be preserved
             String[] nonRedundantQueries = {
                     "{ age: { $gt: 18, $lt: 65 } }",                    // Valid range
@@ -1556,7 +1556,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Integer redundancy elimination should work correctly")
-        void testIntegerRedundancyElimination() {
+        void shouldEliminateIntegerRedundancy() {
             // Test the specific integer case that was fixed
             String query = "{ age: { $eq: 25, $ne: 30 } }";
 
@@ -1575,7 +1575,7 @@ class LogicalPlannerTest {
 
         @Test
         @DisplayName("Redundancy elimination in complex nested structures")
-        void testNestedRedundancyElimination() {
+        void shouldEliminateNestedRedundancy() {
             String query = """
                     {
                       "$and": [

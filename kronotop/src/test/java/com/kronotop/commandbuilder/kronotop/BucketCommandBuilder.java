@@ -86,6 +86,19 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
     }
 
+    public final Command<K, V, Map<K, V>> explain(String bucket, String query) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
+        return createCommand(CommandType.BUCKET_EXPLAIN, new MapOutput<>(codec), args);
+    }
+
+    public final Command<K, V, Map<K, V>> explain(String bucket, String query, BucketQueryArgs bucketQueryArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
+        if (bucketQueryArgs != null) {
+            bucketQueryArgs.build(args);
+        }
+        return createCommand(CommandType.BUCKET_EXPLAIN, new MapOutput<>(codec), args);
+    }
+
     public final Command<K, V, Map<K, V>> advanceQuery(int cursorId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add("QUERY").add(cursorId);
         return createCommand(CommandType.BUCKET_ADVANCE, new MapOutput<>(codec), args);
@@ -202,7 +215,8 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         BUCKET_CLOSE("BUCKET.CLOSE"),
         BUCKET_INDEX("BUCKET.INDEX"),
         BUCKET_REMOVE("BUCKET.REMOVE"),
-        BUCKET_PURGE("BUCKET.PURGE");
+        BUCKET_PURGE("BUCKET.PURGE"),
+        BUCKET_EXPLAIN("BUCKET.EXPLAIN");
 
         public final byte[] bytes;
 

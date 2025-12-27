@@ -92,7 +92,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testIDIndexRange() {
+    void shouldScanIdIndexRange() {
         final String TEST_BUCKET_NAME = "test-bucket-id-range-scan-logic-gt";
 
         // Create an age index for this test
@@ -130,7 +130,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtOperatorFiltersCorrectly() {
+    void shouldFilterWithGtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
@@ -164,7 +164,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtOperatorReturnsEmptyResultSet() {
+    void shouldReturnEmptyResultSetWithGtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-range-scan-empty-result-gt";
 
         // Create an age index for this test
@@ -196,7 +196,7 @@ class RangeScanNodeTest extends BasePipelineTest {
 
     @ParameterizedTest
     @MethodSource("provideRangeQueryTestCases")
-    void testRangeQueriesWithAllTypes(String fieldName, BsonType bsonType, List<String> testDocuments,
+    void shouldFilterRangeQueriesWithAllTypes(String fieldName, BsonType bsonType, List<String> testDocuments,
                                       String rangeQuery, int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-range-" + fieldName + "-" + bsonType.name().toLowerCase();
 
@@ -241,7 +241,7 @@ class RangeScanNodeTest extends BasePipelineTest {
 
     @ParameterizedTest
     @MethodSource("provideRangeQueryTestCases")
-    void testRangeQueriesWithAllTypesReverse(String fieldName, BsonType bsonType, List<String> testDocuments,
+    void shouldFilterRangeQueriesWithAllTypesReverse(String fieldName, BsonType bsonType, List<String> testDocuments,
                                              String rangeQuery, int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-range-reverse-" + fieldName + "-" + bsonType.name().toLowerCase();
 
@@ -409,7 +409,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testInt32RangeWithMixedInput() {
+    void shouldFilterInt32RangeWithMixedInput() {
         final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input";
 
         // Create an age index for this test

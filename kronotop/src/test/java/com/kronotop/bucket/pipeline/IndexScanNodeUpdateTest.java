@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class IndexScanNodeUpdateTest extends BasePipelineTest {
     @Test
-    void testUpdateWithGreaterThanFilter() {
+    void shouldUpdateWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -87,7 +87,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     }
 
     @Test
-    void testUpdateWithGreaterThanFilterWithLimit() {
+    void shouldUpdateWithGreaterThanFilterWithLimit() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-limit";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -130,7 +130,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     }
 
     @Test
-    void testUpdateWithGreaterThanFilterWithLimitReverse() {
+    void shouldUpdateWithGreaterThanFilterWithLimitReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-limit-reverse";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -182,7 +182,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     }
 
     @Test
-    void testUpdateWithGreaterThanFilterWithDoubleIndex() {
+    void shouldUpdateWithGreaterThanFilterWithDoubleIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-double-index-update";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
@@ -242,7 +242,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     }
 
     @Test
-    void testUnsetFieldWithGreaterThanFilter() {
+    void shouldUnsetFieldWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-unset-field-scan";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -293,7 +293,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     }
 
     @Test
-    void testUnsetAndSetFieldsWithGreaterThanFilter() {
+    void shouldUnsetAndSetFieldsWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-unset-set-fields-scan";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);

@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     @Test
-    void testUnionWithTwoField() {
+    void shouldUnionWithTwoFields() {
         final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -63,7 +63,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testUnionWithSingleSubQuery() {
+    void shouldUnionWithSingleSubQuery() {
         final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -94,7 +94,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testUnionWithTwoFieldReverse() {
+    void shouldUnionWithTwoFieldsReverse() {
         final String TEST_BUCKET_NAME = "test-intersection-full-scan-strategy";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -135,7 +135,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testUnionWithTwoFieldLargeDatasetBatchAnalysis() {
+    void shouldUnionWithTwoFieldsLargeDatasetBatchAnalysis() {
         final String TEST_BUCKET_NAME = "test-union-large-dataset-batch";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -261,7 +261,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testUnionWithTwoFieldLargeDatasetBatchAnalysisReverse() {
+    void shouldUnionWithTwoFieldsLargeDatasetBatchAnalysisReverse() {
         final String TEST_BUCKET_NAME = "test-union-large-dataset-batch-reverse";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);

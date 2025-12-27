@@ -62,8 +62,8 @@ public final class HistogramUtils {
             count++;
         }
 
-        // Add final bucket if not already covered
-        if (histogram.isEmpty() || !histogram.get(histogram.size() - 1).max().equals(current)) {
+        // Add the final bucket if not already covered
+        if (histogram.isEmpty() || !histogram.getLast().max().equals(current)) {
             histogram.add(new HistogramBucket(bucketStart, current, count % bucketSize));
         }
 
@@ -111,7 +111,7 @@ public final class HistogramUtils {
 
         HistogramBucket bucket = findBucket(histogram, value);
         if (bucket == null) {
-            if (BSONUtil.compareBsonValues(value, histogram.get(0).min()) < 0) return 0.0;
+            if (BSONUtil.compareBsonValues(value, histogram.getFirst().min()) < 0) return 0.0;
             return 100.0;
         }
 

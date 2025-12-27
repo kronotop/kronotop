@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ProbabilisticSelectorTest {
 
     @Test
-    void testDeterminism() {
+    void shouldBeDeterministic() {
         BsonValue value = new BsonString("test-value");
         boolean firstResult = ProbabilisticSelector.match(value);
 
@@ -38,7 +38,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testDeterminismAcrossTypes() {
+    void shouldBeDeterministicAcrossTypes() {
         // Same numeric value in different representations should be deterministic
         BsonValue int32Value = new BsonInt32(12345);
         boolean int32Result = ProbabilisticSelector.match(int32Value);
@@ -50,7 +50,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testProbabilityDistribution() {
+    void shouldHaveCorrectProbabilityDistribution() {
         // Test with 50,000 different values to verify ~1/16,384 probability
         int sampleSize = 50_000;
         int selectedCount = 0;
@@ -72,7 +72,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testInt32Type() {
+    void shouldHandleInt32Type() {
         // Test that INT32 values work correctly
         BsonValue value = new BsonInt32(42);
         boolean result = ProbabilisticSelector.match(value);
@@ -82,7 +82,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testInt64Type() {
+    void shouldHandleInt64Type() {
         BsonValue value = new BsonInt64(123456789012345L);
         boolean result = ProbabilisticSelector.match(value);
 
@@ -90,7 +90,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testDoubleType() {
+    void shouldHandleDoubleType() {
         BsonValue value = new BsonDouble(3.14159);
         boolean result = ProbabilisticSelector.match(value);
 
@@ -98,7 +98,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testBooleanType() {
+    void shouldHandleBooleanType() {
         BsonValue trueValue = new BsonBoolean(true);
         BsonValue falseValue = new BsonBoolean(false);
 
@@ -111,7 +111,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testStringType() {
+    void shouldHandleStringType() {
         BsonValue value = new BsonString("hello-world");
         boolean result = ProbabilisticSelector.match(value);
 
@@ -119,7 +119,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testBinaryType() {
+    void shouldHandleBinaryType() {
         byte[] data = new byte[]{1, 2, 3, 4, 5};
         BsonValue value = new BsonBinary(data);
         boolean result = ProbabilisticSelector.match(value);
@@ -128,7 +128,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testDateTimeType() {
+    void shouldHandleDateTimeType() {
         BsonValue value = new BsonDateTime(1698336000000L);
         boolean result = ProbabilisticSelector.match(value);
 
@@ -136,7 +136,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testTimestampType() {
+    void shouldHandleTimestampType() {
         BsonValue value = new BsonTimestamp(1698336000, 1);
         boolean result = ProbabilisticSelector.match(value);
 
@@ -144,7 +144,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testDecimal128Type() {
+    void shouldHandleDecimal128Type() {
         BsonValue value = new BsonDecimal128(new Decimal128(new BigDecimal("123.456")));
         boolean result = ProbabilisticSelector.match(value);
 
@@ -152,7 +152,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testNullType() {
+    void shouldHandleNullType() {
         BsonValue value = BsonNull.VALUE;
         boolean result = ProbabilisticSelector.match(value);
 
@@ -163,7 +163,7 @@ class ProbabilisticSelectorTest {
 
 
     @Test
-    void testDifferentValuesProduceDifferentResults() {
+    void shouldProduceDifferentResultsForDifferentValues() {
         // Test that different values can produce different results
         // (not all values will be selected)
         boolean foundTrue = false;
@@ -185,7 +185,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testStringDeterminismWithSameContent() {
+    void shouldBeDeterministicForStringsWithSameContent() {
         BsonValue value1 = new BsonString("identical-string");
         BsonValue value2 = new BsonString("identical-string");
 
@@ -198,7 +198,7 @@ class ProbabilisticSelectorTest {
 
 
     @Test
-    void testProbabilityWithStrings() {
+    void shouldHaveCorrectProbabilityWithStrings() {
         // Test probability distribution with strings
         int sampleSize = 100_000;
         int selectedCount = 0;
@@ -218,7 +218,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testEdgeCaseZeroInt32() {
+    void shouldHandleEdgeCaseZeroInt32() {
         BsonValue value = new BsonInt32(0);
         boolean result = ProbabilisticSelector.match(value);
 
@@ -228,7 +228,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testEdgeCaseEmptyString() {
+    void shouldHandleEdgeCaseEmptyString() {
         BsonValue value = new BsonString("");
         boolean result = ProbabilisticSelector.match(value);
 
@@ -236,7 +236,7 @@ class ProbabilisticSelectorTest {
     }
 
     @Test
-    void testEdgeCaseEmptyBinary() {
+    void shouldHandleEdgeCaseEmptyBinary() {
         BsonValue value = new BsonBinary(new byte[0]);
         boolean result = ProbabilisticSelector.match(value);
 

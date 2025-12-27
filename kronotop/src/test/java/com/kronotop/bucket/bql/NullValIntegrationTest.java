@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class NullValIntegrationTest {
 
     @Test
-    void testNullValCreation() {
+    void shouldCreateNullVal() {
         NullVal nullVal = new NullVal();
         assertEquals("null", nullVal.toJson());
 
@@ -35,7 +35,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValSingleton() {
+    void shouldUseSingletonForNullVal() {
         // Verify that INSTANCE is a singleton
         NullVal instance1 = NullVal.INSTANCE;
         NullVal instance2 = NullVal.INSTANCE;
@@ -43,7 +43,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testBqlParserHandlesNull() {
+    void shouldParseNullValues() {
         // Test parsing null values in BQL
         String bqlQuery = "{ field: null }";
         BqlExpr result = BqlParser.parse(bqlQuery);
@@ -58,7 +58,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValInComplexQuery() {
+    void shouldHandleNullValInComplexQuery() {
         // Test null values in comparison queries
         String query = "{ $and: [{ status: null }, { deleted: { $ne: null } }] }";
         BqlExpr result = BqlParser.parse(query);
@@ -81,7 +81,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValWithLogicalPlanner() {
+    void shouldHandleNullValInLogicalPlanner() {
         // Test that logical planner handles NullVal correctly
         String query = "{ field: null }";
 
@@ -97,7 +97,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValEquality() {
+    void shouldHandleNullValEquality() {
         // Test null equality comparisons
         String query = "{ field: { $eq: null } }";
         BqlExpr result = BqlParser.parse(query);
@@ -109,7 +109,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValInequality() {
+    void shouldHandleNullValInequality() {
         // Test null inequality comparisons  
         String query = "{ field: { $ne: null } }";
         BqlExpr result = BqlParser.parse(query);
@@ -121,7 +121,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValContradictionDetection() {
+    void shouldDetectNullValContradiction() {
         // Test contradiction detection with null values
         BqlExpr query = new BqlAnd(java.util.Arrays.asList(
                 new BqlEq("field", NullVal.INSTANCE),
@@ -140,7 +140,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValInArrays() {
+    void shouldHandleNullValInArrays() {
         // Test NullVal in $in operator with arrays
         String query = "{ status: { $in: [\"active\", null, \"inactive\"] } }";
         BqlExpr result = BqlParser.parse(query);
@@ -161,7 +161,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValNotInArrays() {
+    void shouldHandleNullValNotInArrays() {
         // Test NullVal in $nin operator
         String query = "{ field: { $nin: [null] } }";
         BqlExpr result = BqlParser.parse(query);
@@ -174,7 +174,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValWithMixedTypes() {
+    void shouldHandleNullValWithMixedTypes() {
         // Test null values mixed with other types in logical planning
         BqlExpr query = new BqlOr(java.util.Arrays.asList(
                 new BqlEq("field", new StringVal("value")),
@@ -193,7 +193,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValInDocuments() {
+    void shouldHandleNullValInDocuments() {
         // Create a manual DocumentVal with null values since BQL doesn't parse nested documents this way
         java.util.Map<String, BqlValue> fields = new java.util.LinkedHashMap<>();
         fields.put("name", new StringVal("John"));
@@ -213,7 +213,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValJsonSerialization() {
+    void shouldSerializeNullValToJson() {
         // Test JSON serialization of null values
         NullVal nullVal = NullVal.INSTANCE;
         assertEquals("null", nullVal.toJson());
@@ -227,7 +227,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValLogicalTransforms() {
+    void shouldApplyNullValLogicalTransforms() {
         // Test that null values work correctly through logical transforms
         String query1 = "{ $and: [{ field: null }] }";
         String query2 = "{ field: null }";
@@ -250,7 +250,7 @@ class NullValIntegrationTest {
     }
 
     @Test
-    void testNullValNumericOperationHandling() {
+    void shouldHandleNullValNumericOperations() {
         // Test that null values are properly rejected for numeric operations
         // This tests the validator and transformation logic
 

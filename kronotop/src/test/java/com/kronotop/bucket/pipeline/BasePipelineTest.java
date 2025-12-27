@@ -115,12 +115,12 @@ public class BasePipelineTest extends BaseHandlerTest {
     }
 
     protected PipelineNode createExecutionPlan(BucketMetadata metadata, String query) {
-        PlannerContext plannerCtx = new PlannerContext();
+        PlannerContext ctx = new PlannerContext(metadata);
         BqlExpr parsedQuery = BqlParser.parse(query);
         LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
-        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerCtx);
-        PhysicalNode optimizedPlan = optimizer.optimize(metadata, physicalPlan, plannerCtx);
-        return PipelineRewriter.rewrite(plannerCtx, optimizedPlan);
+        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, ctx);
+        PhysicalNode optimizedPlan = optimizer.optimize(metadata, physicalPlan, ctx);
+        return PipelineRewriter.rewrite(ctx, optimizedPlan);
     }
 
 

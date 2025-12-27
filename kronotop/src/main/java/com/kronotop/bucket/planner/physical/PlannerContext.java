@@ -16,6 +16,8 @@
 
 package com.kronotop.bucket.planner.physical;
 
+import com.kronotop.bucket.BucketMetadata;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PlannerContext {
@@ -25,6 +27,18 @@ public class PlannerContext {
     // and continues from there. No exception is thrown — standard
     // Java int overflow semantics apply.
     private final AtomicInteger nextId = new AtomicInteger(1);
+    private BucketMetadata metadata;
+
+    public PlannerContext() {
+    }
+
+    public PlannerContext(BucketMetadata metadata) {
+        this.metadata = metadata;
+    }
+
+    public BucketMetadata getMetadata() {
+        return metadata;
+    }
 
     public int nextId() {
         return nextId.getAndIncrement();

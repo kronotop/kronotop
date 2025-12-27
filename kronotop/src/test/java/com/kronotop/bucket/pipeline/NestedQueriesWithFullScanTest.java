@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class NestedQueriesWithFullScanTest extends BasePipelineTest {
 
     @Test
-    void testNestedAndOrQueryReturnsCorrectIntersection() {
+    void shouldReturnCorrectIntersectionForNestedAndOrQuery() {
         final String TEST_BUCKET_NAME = "test-bucket-nested-investigation";
 
         // Create bucket metadata without any secondary indexes
@@ -99,7 +99,7 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
     }
 
     @Test
-    void testNestedOrWithAndBranchesReturnsCorrectUnion() {
+    void shouldReturnCorrectUnionForNestedOrWithAndBranches() {
         final String TEST_BUCKET_NAME = "test-bucket-nested-or-and";
 
         // Create bucket metadata without any secondary indexes
@@ -154,7 +154,7 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
     }
 
     @Test
-    void testDeepNestedAndOrQueryWithMultipleFields() {
+    void shouldHandleDeepNestedAndOrQueryWithMultipleFields() {
         final String TEST_BUCKET_NAME = "test-bucket-deep-nested";
 
         // Create bucket metadata without any secondary indexes
@@ -258,7 +258,7 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
     }
 
     @Test
-    void testNestedOrWithComplexAndBranchesReturnsCorrectUnion() {
+    void shouldReturnCorrectUnionForNestedOrWithComplexAndBranches() {
         final String TEST_BUCKET_NAME = "test-bucket-nested-or-complex";
 
         // Create bucket metadata without any secondary indexes
@@ -367,7 +367,7 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
     }
 
     @Test
-    void testNestedQueryWithContradictoryAND() {
+    void shouldReturnEmptyForNestedQueryWithContradictoryAnd() {
         final String TEST_BUCKET_NAME = "test-bucket-nested-or-complex";
 
         // Create bucket metadata without any secondary indexes

@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
-    void testOrQueryWithMultipleIndexes() {
+    void shouldHandleOrQueryWithMultipleIndexes() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-multi-index";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
@@ -75,7 +75,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testOrQueryWithAllDocumentsMatching() {
+    void shouldHandleOrQueryWithAllDocumentsMatching() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-all-match";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
@@ -116,7 +116,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testOrQueryWithLimitAndPagination() {
+    void shouldHandleOrQueryWithLimitAndPagination() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-limit-pagination";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
@@ -166,7 +166,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testOrQueryWithRangeScanAndComparison() {
+    void shouldHandleOrQueryWithRangeScanAndComparison() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-range-scan";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
@@ -208,7 +208,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testOrQueryWithIndexedAndNonIndexedFields() {
+    void shouldHandleOrQueryWithIndexedAndNonIndexedFields() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-mixed-strategy";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
@@ -248,7 +248,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testOrQueryWithNonIndexedFieldReturningEmpty() {
+    void shouldHandleOrQueryWithNonIndexedFieldReturningEmpty() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-empty-branch";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
@@ -284,7 +284,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testThreeWayOrQueryWithMixedIndexing() {
+    void shouldHandleThreeWayOrQueryWithMixedIndexing() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-three-way-mixed";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
@@ -327,7 +327,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testThreeWayOrQueryReturningEmptyFromAllBranches() {
+    void shouldReturnEmptyForThreeWayOrQueryWithAllEmptyBranches() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-all-empty-branches";
 
         IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);

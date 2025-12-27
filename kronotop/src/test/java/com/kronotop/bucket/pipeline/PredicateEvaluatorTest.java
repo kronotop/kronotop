@@ -52,7 +52,7 @@ class PredicateEvaluatorTest {
     @ParameterizedTest
     @ValueSource(doubles = {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY})
     @DisplayName("Special double values comparison")
-    void testSpecialDoubleValuesComparison(double specialValue) {
+    void shouldHandleSpecialDoubleValuesComparison(double specialValue) {
         BsonDocument doc = new BsonDocument("value", new BsonDouble(specialValue));
         ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -73,21 +73,21 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("String equality comparison")
-        void testStringEqualityComparison() {
+        void shouldHandleStringEqualityComparison() {
             assertTrue(PredicateEvaluator.evaluateComparison(Operator.EQ, "test", "test"));
             assertFalse(PredicateEvaluator.evaluateComparison(Operator.EQ, "test", "different"));
         }
 
         @Test
         @DisplayName("String inequality comparison")
-        void testStringInequalityComparison() {
+        void shouldHandleStringInequalityComparison() {
             assertFalse(PredicateEvaluator.evaluateComparison(Operator.NE, "test", "test"));
             assertTrue(PredicateEvaluator.evaluateComparison(Operator.NE, "test", "different"));
         }
 
         @Test
         @DisplayName("String ordering comparisons")
-        void testStringOrderingComparisons() {
+        void shouldHandleStringOrderingComparisons() {
             assertTrue(PredicateEvaluator.evaluateComparison(Operator.GT, "z", "a"));
             assertFalse(PredicateEvaluator.evaluateComparison(Operator.GT, "a", "z"));
             assertTrue(PredicateEvaluator.evaluateComparison(Operator.GTE, "z", "z"));
@@ -98,7 +98,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Byte array equality comparison")
-        void testByteArrayEqualityComparison() {
+        void shouldHandleByteArrayEqualityComparison() {
             byte[] bytes1 = {1, 2, 3};
             byte[] bytes2 = {1, 2, 3};
             byte[] bytes3 = {1, 2, 4};
@@ -109,7 +109,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Byte array inequality comparison")
-        void testByteArrayInequalityComparison() {
+        void shouldHandleByteArrayInequalityComparison() {
             byte[] bytes1 = {1, 2, 3};
             byte[] bytes2 = {1, 2, 3};
             byte[] bytes3 = {1, 2, 4};
@@ -120,7 +120,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Byte array ordering comparisons")
-        void testByteArrayOrderingComparisons() {
+        void shouldHandleByteArrayOrderingComparisons() {
             byte[] bytes1 = {1, 2, 3};
             byte[] bytes2 = {1, 2, 4};
 
@@ -132,7 +132,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("IN operator with list")
-        void testInOperatorWithList() {
+        void shouldHandleInOperatorWithList() {
             List<Object> values = List.of("apple", "banana", "cherry");
             assertTrue(PredicateEvaluator.evaluateComparison(Operator.IN, "apple", values));
             assertFalse(PredicateEvaluator.evaluateComparison(Operator.IN, "grape", values));
@@ -140,7 +140,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("NIN operator with list")
-        void testNinOperatorWithList() {
+        void shouldHandleNinOperatorWithList() {
             List<Object> values = List.of("apple", "banana", "cherry");
             assertFalse(PredicateEvaluator.evaluateComparison(Operator.NIN, "apple", values));
             assertTrue(PredicateEvaluator.evaluateComparison(Operator.NIN, "grape", values));
@@ -148,14 +148,14 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Unsupported operator throws exception")
-        void testUnsupportedOperatorThrowsException() {
+        void shouldThrowExceptionForUnsupportedOperator() {
             assertThrows(UnsupportedOperationException.class, () ->
                     PredicateEvaluator.evaluateComparison(Operator.SIZE, "test", "test"));
         }
 
         @Test
         @DisplayName("Unsupported comparison type throws exception")
-        void testUnsupportedComparisonTypeThrowsException() {
+        void shouldThrowExceptionForUnsupportedComparisonType() {
             Integer actual = 5;
             Integer expected = 10;
             assertThrows(UnsupportedOperationException.class, () ->
@@ -164,7 +164,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("IN/NIN operators with non-list throws exception")
-        void testInNinOperatorsWithNonListThrowsException() {
+        void shouldThrowExceptionForInNinOperatorsWithNonList() {
             assertThrows(UnsupportedOperationException.class, () ->
                     PredicateEvaluator.evaluateComparison(Operator.IN, "test", "not-a-list"));
 
@@ -179,7 +179,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("String field equality match")
-        void testStringFieldEqualityMatch() {
+        void shouldMatchStringFieldEquality() {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -190,7 +190,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("String field equality no match")
-        void testStringFieldEqualityNoMatch() {
+        void shouldNotMatchStringFieldEquality() {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -200,7 +200,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Int32 field comparison")
-        void testInt32FieldComparison() {
+        void shouldCompareInt32Field() {
             BsonDocument doc = new BsonDocument("age", new BsonInt32(25));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -210,7 +210,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Int64 field comparison")
-        void testInt64FieldComparison() {
+        void shouldCompareInt64Field() {
             BsonDocument doc = new BsonDocument("timestamp", new BsonInt64(1234567890L));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -220,7 +220,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Double field comparison")
-        void testDoubleFieldComparison() {
+        void shouldCompareDoubleField() {
             BsonDocument doc = new BsonDocument("price", new BsonDouble(19.99));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -230,7 +230,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Decimal128 field comparison")
-        void testDecimal128FieldComparison() {
+        void shouldCompareDecimal128Field() {
             BsonDocument doc = new BsonDocument("amount", new BsonDecimal128(new Decimal128(new BigDecimal("100.50"))));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -240,7 +240,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Boolean field comparison")
-        void testBooleanFieldComparison() {
+        void shouldCompareBooleanField() {
             BsonDocument doc = new BsonDocument("active", new BsonBoolean(true));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -250,7 +250,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Null field comparison")
-        void testNullFieldComparison() {
+        void shouldCompareNullField() {
             BsonDocument doc = new BsonDocument("optional", new BsonNull());
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -260,7 +260,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Binary field comparison")
-        void testBinaryFieldComparison() {
+        void shouldCompareBinaryField() {
             byte[] binaryData = {1, 2, 3, 4, 5};
             BsonDocument doc = new BsonDocument("data", new BsonBinary(BsonBinarySubType.BINARY, binaryData));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
@@ -271,7 +271,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Timestamp field comparison")
-        void testTimestampFieldComparison() {
+        void shouldCompareTimestampField() {
             BsonTimestamp bsonTimestamp = new BsonTimestamp(1000, 1);
             BsonDocument doc = new BsonDocument("created", bsonTimestamp);
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
@@ -283,7 +283,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("DateTime field comparison")
-        void testDateTimeFieldComparison() {
+        void shouldCompareDateTimeField() {
             long dateTime = 1609459200000L; // 2021-01-01 00:00:00 UTC
             BsonDocument doc = new BsonDocument("eventTime", new BsonDateTime(dateTime));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
@@ -294,7 +294,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Versionstamp field comparison")
-        void testVersionstampFieldComparison() {
+        void shouldCompareVersionstampField() {
             byte[] versionstampBytes = new byte[12];
             Arrays.fill(versionstampBytes, (byte) 1);
             Versionstamp versionstamp = Versionstamp.fromBytes(versionstampBytes);
@@ -308,7 +308,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Array field IN operation - current behavior returns false")
-        void testArrayFieldInOperation() {
+        void shouldReturnFalseForArrayFieldInOperation() {
             BsonArray array = new BsonArray(Arrays.asList(
                     new BsonString("apple"),
                     new BsonString("banana"),
@@ -328,7 +328,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Array field SIZE operation")
-        void testArrayFieldSizeOperation() {
+        void shouldHandleArrayFieldSizeOperation() {
             BsonArray array = new BsonArray(Arrays.asList(
                     new BsonString("item1"),
                     new BsonString("item2"),
@@ -344,7 +344,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Array field ALL operation")
-        void testArrayFieldAllOperation() {
+        void shouldHandleArrayFieldAllOperation() {
             BsonArray array = new BsonArray(Arrays.asList(
                     new BsonString("apple"),
                     new BsonString("banana"),
@@ -360,7 +360,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Field type mismatch returns false")
-        void testFieldTypeMismatchReturnsFalse() {
+        void shouldReturnFalseForFieldTypeMismatch() {
             BsonDocument doc = new BsonDocument("age", new BsonString("not-a-number"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -370,7 +370,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Non-existent field returns false")
-        void testNonExistentFieldReturnsFalse() {
+        void shouldReturnFalseForNonExistentField() {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -380,7 +380,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("IN operation with List operand")
-        void testInOperationWithListOperand() {
+        void shouldHandleInOperationWithListOperand() {
             BsonDocument doc = new BsonDocument("category", new BsonString("electronics"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -391,7 +391,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("NIN operation with List operand")
-        void testNinOperationWithListOperand() {
+        void shouldHandleNinOperationWithListOperand() {
             BsonDocument doc = new BsonDocument("category", new BsonString("electronics"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -402,7 +402,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Non-array field with SIZE operation returns false")
-        void testNonArrayFieldWithSizeOperationReturnsFalse() {
+        void shouldReturnFalseForNonArrayFieldWithSizeOperation() {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -413,7 +413,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("DocumentVal operand returns false")
-        void testDocumentValOperandReturnsFalse() {
+        void shouldReturnFalseForDocumentValOperand() {
             BsonDocument doc = new BsonDocument("nested", new BsonDocument("key", new BsonString("value")));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -428,7 +428,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Valid list operand returns list")
-        void testValidListOperandReturnsList() {
+        void shouldReturnListForValidListOperand() {
             List<Object> values = List.of("a", "b", "c");
             List<Object> result = PredicateEvaluator.validateListOperand(values, "TEST");
             assertEquals(values, result);
@@ -436,7 +436,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Non-list operand throws exception")
-        void testNonListOperandThrowsException() {
+        void shouldThrowExceptionForNonListOperand() {
             UnsupportedOperationException exception = assertThrows(
                     UnsupportedOperationException.class,
                     () -> PredicateEvaluator.validateListOperand("not-a-list", "TEST")
@@ -451,7 +451,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Empty array SIZE operation")
-        void testEmptyArraySizeOperation() {
+        void shouldHandleEmptyArraySizeOperation() {
             BsonArray emptyArray = new BsonArray();
             BsonDocument doc = new BsonDocument("items", emptyArray);
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
@@ -463,7 +463,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Empty array ALL operation")
-        void testEmptyArrayAllOperation() {
+        void shouldHandleEmptyArrayAllOperation() {
             BsonArray emptyArray = new BsonArray();
             BsonDocument doc = new BsonDocument("items", emptyArray);
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
@@ -475,7 +475,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Array with mixed types - current implementation behavior")
-        void testArrayWithMixedTypes() {
+        void shouldReturnFalseForArrayWithMixedTypesInOperation() {
             BsonArray mixedArray = new BsonArray(Arrays.asList(
                     new BsonString("text"),
                     new BsonInt32(42),
@@ -495,7 +495,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Null comparison with EXISTS operator")
-        void testNullComparisonWithExistsOperator() {
+        void shouldReturnFalseForNullComparisonWithExistsOperator() {
             BsonDocument doc = new BsonDocument("optional", new BsonNull());
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 
@@ -505,7 +505,7 @@ class PredicateEvaluatorTest {
 
         @Test
         @DisplayName("Non-null field with EXISTS operator")
-        void testNonNullFieldWithExistsOperator() {
+        void shouldReturnTrueForNonNullFieldWithExistsOperator() {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = ByteBuffer.wrap(bsonDocumentToBytes(doc));
 

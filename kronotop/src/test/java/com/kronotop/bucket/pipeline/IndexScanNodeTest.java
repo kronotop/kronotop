@@ -106,7 +106,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testWithPrimaryIndex() {
+    void shouldScanWithPrimaryIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
@@ -141,7 +141,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtWithNegativeIntegers() {
+    void shouldFilterGtWithNegativeIntegers() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
@@ -173,7 +173,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testLtWithNegativeIntegers() {
+    void shouldFilterLtWithNegativeIntegers() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
@@ -205,7 +205,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtOperatorFiltersCorrectly() {
+    void shouldFilterWithGtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
@@ -239,7 +239,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testEqOperatorWithReverseLimit_INT32() {
+    void shouldFilterEqOperatorWithReverseLimitInt32() {
         final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-limit-int32";
 
         // Create an age index for this test
@@ -287,7 +287,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testEqOperatorWithReverseLimit_STRING() {
+    void shouldFilterEqOperatorWithReverseLimitString() {
         final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-limit-string";
 
         // Create an age index for this test
@@ -337,7 +337,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testNeOperatorReverseFilterWithLimit() {
+    void shouldFilterNeOperatorReverseWithLimit() {
         final String TEST_BUCKET_NAME = "test-ne-operator-reverse-filter-with-limit";
 
         // Create an age index for this test
@@ -382,7 +382,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testIndexWithDoubleMaxValue() {
+    void shouldHandleIndexWithDoubleMaxValue() {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-double-max-value";
 
         // Create an age index for this test
@@ -410,7 +410,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testIndexWithInt64MaxValue() {
+    void shouldHandleIndexWithInt64MaxValue() {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-long-max-value";
 
         // Create an age index for this test
@@ -439,7 +439,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testIndexWithInt32MaxValue() {
+    void shouldHandleIndexWithInt32MaxValue() {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-integer-max-value";
 
         // Create an age index for this test
@@ -467,7 +467,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testGtOperatorReturnsEmptyResultSet() {
+    void shouldReturnEmptyResultSetWithGtOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-empty-result-gt";
 
         // Create an age index for this test
@@ -498,7 +498,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void testNeOperatorFiltersCorrectly() {
+    void shouldFilterWithNeOperator() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-ne";
 
         // Create an age index for this test
@@ -535,7 +535,7 @@ class IndexScanNodeTest extends BasePipelineTest {
 
     @ParameterizedTest
     @MethodSource("provideComparisonOperatorTestCases")
-    void testComparisonOperatorsWithAllTypes(String operator, BsonType bsonType, String fieldName,
+    void shouldFilterComparisonOperatorsWithAllTypes(String operator, BsonType bsonType, String fieldName,
                                              List<String> testDocuments, String queryValue,
                                              int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-comparison-" + operator.toLowerCase() + "-" + bsonType.name().toLowerCase();
@@ -577,7 +577,7 @@ class IndexScanNodeTest extends BasePipelineTest {
 
     @ParameterizedTest
     @MethodSource("provideComparisonOperatorTestCases")
-    void testComparisonOperatorsWithAllTypesReverse(String operator, BsonType bsonType, String fieldName,
+    void shouldFilterComparisonOperatorsWithAllTypesReverse(String operator, BsonType bsonType, String fieldName,
                                                     List<String> testDocuments, String queryValue,
                                                     int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-comparison-reverse-" + operator.toLowerCase() + "-" + bsonType.name().toLowerCase();

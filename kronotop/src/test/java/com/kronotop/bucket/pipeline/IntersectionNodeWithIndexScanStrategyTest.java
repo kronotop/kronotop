@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
-    void testIntersectionWithTwoFieldsAndSingleIndex() {
+    void shouldIntersectWithTwoFieldsAndSingleIndex() {
         final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-single-index";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -65,7 +65,7 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testIntersectionWithBatchedIterationAndLimit() {
+    void shouldIntersectWithBatchedIterationAndLimit() {
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -133,7 +133,7 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testIntersectionWithBatchedIterationAndLimitReverse() {
+    void shouldIntersectWithBatchedIterationAndLimitReverse() {
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration-reverse";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -197,7 +197,7 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testIntersectionWithTwoFieldsAndDoubleIndex() {
+    void shouldIntersectWithTwoFieldsAndDoubleIndex() {
         final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-double-index";
 
         IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
@@ -231,7 +231,7 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void testIntersectionWithRangeScanAndDoubleIndex() {
+    void shouldIntersectWithRangeScanAndDoubleIndex() {
         final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-double-index";
 
         IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);

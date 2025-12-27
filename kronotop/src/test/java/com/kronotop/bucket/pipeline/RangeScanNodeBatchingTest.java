@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RangeScanNodeBatchingTest extends BasePipelineTest {
 
     @Test
-    void testBatchingWith200Documents() {
+    void shouldBatchWith200Documents() {
         final String TEST_BUCKET_NAME = "test-bucket-batching-200-docs";
 
         // Create an age index for this test
@@ -106,7 +106,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
 
 
     @Test
-    void testInt32RangeWithMixedInputWithReverseAndLimit() {
+    void shouldFilterInt32RangeWithMixedInputReverseAndLimit() {
         final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input-with-limit-and-reverse";
 
         // Create an age index for this test

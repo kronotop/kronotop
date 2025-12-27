@@ -99,7 +99,6 @@ import java.util.concurrent.*;
  */
 public class BucketEventsWatcher implements Runnable {
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketEventsWatcher.class);
-    private static final HashFunction MURMUR3_32_FIXED = Hashing.murmur3_32_fixed();
     private final String journalName = JournalName.BUCKET_EVENTS.getValue();
     private final Context context;
     private final Consumer consumer;
@@ -293,7 +292,9 @@ public class BucketEventsWatcher implements Runnable {
         shutdown = true;
         keyWatcher.unwatchAll();
         try {
-            shutdownLatch.await(5, TimeUnit.SECONDS);
+            if (!shutdownLatch.await(10, TimeUnit.SECONDS)) {
+                LOGGER.warn("{} watcher cannot be stopped gracefully", JournalName.BUCKET_EVENTS);
+            }
         } catch (InterruptedException exp) {
             Thread.currentThread().interrupt();
             throw new KronotopException(exp);

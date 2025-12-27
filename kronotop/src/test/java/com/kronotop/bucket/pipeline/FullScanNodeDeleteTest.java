@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class FullScanNodeDeleteTest extends BasePipelineTest {
 
     @Test
-    void testDeleteWithGreaterThanFilter() {
+    void shouldDeleteWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-delete-full-scan";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -65,7 +65,7 @@ class FullScanNodeDeleteTest extends BasePipelineTest {
     }
 
     @Test
-    void testLimitedBatchDeleteWithPagination() {
+    void shouldDeleteWithLimitedBatchAndPagination() {
         final String TEST_BUCKET_NAME = "test-bucket-batch-delete";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);

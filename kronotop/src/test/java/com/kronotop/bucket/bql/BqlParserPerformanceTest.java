@@ -36,7 +36,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Simple query parsing performance should be fast")
     @Disabled
-    void testSimpleQueryParsingPerformance() {
+    void shouldCompleteSimpleQueryParsingWithinTimeLimit() {
         String simpleQuery = "{ \"status\": \"active\" }";
         int iterations = 10000;
 
@@ -65,7 +65,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Complex query parsing performance should be reasonable")
     @Disabled
-    void testComplexQueryParsingPerformance() {
+    void shouldCompleteComplexQueryParsingWithinTimeLimit() {
         String complexQuery = """
                 {
                   "$and": [
@@ -115,7 +115,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Large query with many conditions should parse efficiently")
     @Disabled
-    void testLargeQueryPerformance() {
+    void shouldParseLargeQueryEfficiently() {
         // Generate a query with 50 conditions
         StringBuilder largeQueryBuilder = new StringBuilder();
         largeQueryBuilder.append("{ \"$and\": [");
@@ -155,7 +155,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Serialization performance should be fast")
     @Disabled
-    void testSerializationPerformance() {
+    void shouldCompleteSerializationWithinTimeLimit() {
         String complexQuery = """
                 {
                   "$or": [
@@ -206,7 +206,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Explanation generation performance should be reasonable")
     @Disabled
-    void testExplanationPerformance() {
+    void shouldGenerateExplanationsWithinTimeLimit() {
         String complexQuery = """
                 {
                   "$and": [
@@ -257,7 +257,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Memory usage should be reasonable for many queries")
     @Disabled
-    void testMemoryUsage() {
+    void shouldMaintainReasonableMemoryUsageForManyQueries() {
         String testQuery = """
                 {
                   "$and": [
@@ -305,7 +305,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Concurrent parsing should work correctly and efficiently")
     @Disabled
-    void testConcurrentParsing() throws InterruptedException, ExecutionException {
+    void shouldHandleConcurrentParsingCorrectlyAndEfficiently() throws InterruptedException, ExecutionException {
         String[] testQueries = {
                 "{ \"status\": \"active\" }",
                 "{ \"$and\": [ { \"category\": \"electronics\" }, { \"price\": { \"$lt\": 1000 } } ] }",
@@ -372,7 +372,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Stress test with mixed operations should handle high load")
     @Disabled
-    void testStressTestMixedOperations() {
+    void shouldHandleHighLoadWithMixedOperations() {
         BqlQueryGenerator generator = new BqlQueryGenerator();
         int queryCount = 5000;
         long operationCount = 0;
@@ -424,7 +424,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Parser should handle repeated parsing of same query efficiently")
     @Disabled
-    void testRepeatedQueryCaching() {
+    void shouldParseRepeatedQueriesEfficiently() {
         String repeatedQuery = """
                 {
                   "$and": [
@@ -474,7 +474,7 @@ class BqlParserPerformanceTest {
     @Test
     @DisplayName("Throughput test should achieve reasonable queries per second")
     @Disabled
-    void testThroughputBenchmark() {
+    void shouldAchieveReasonableQueriesPerSecondThroughput() {
         String[] benchmarkQueries = {
                 "{ \"id\": 12345 }",
                 "{ \"status\": { \"$in\": [\"active\", \"pending\"] } }",

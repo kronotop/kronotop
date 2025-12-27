@@ -33,7 +33,7 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
 
     @Test
     @Disabled
-    void testIntersectionWith50DocumentsAndLimit() {
+    void shouldProcessIntersectionWith50DocumentsAndLimit() {
         final String TEST_BUCKET_NAME = "test-bucket-intersection-50-docs";
 
         // Create indexes for price and quantity
@@ -112,7 +112,7 @@ public class IntersectionNodeBatchAnalysisTest extends BasePipelineTest {
 
     @Test
     @Disabled
-    void testIntersectionWith350DocumentsAndLimit() {
+    void shouldProcessIntersectionWith350DocumentsAndLimit() {
         final String TEST_BUCKET_NAME = "test-bucket-intersection-350-docs";
 
         // Create indexes for price and quantity

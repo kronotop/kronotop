@@ -61,7 +61,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
     }
 
     @Test
-    void invalidTypeShouldReturnError() {
+    void shouldReturnErrorForInvalidType() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         cmd.indexCreate(TEST_BUCKET, "{\"selector\": {\"bson_type\": \"int322\"}}").encode(buf);
@@ -115,7 +115,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
     }
 
     @Test
-    void invalidIndexDefinition() {
+    void shouldReturnErrorForInvalidIndexDefinition() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         cmd.indexCreate(TEST_BUCKET, "{\"some\": \"key\"}").encode(buf);

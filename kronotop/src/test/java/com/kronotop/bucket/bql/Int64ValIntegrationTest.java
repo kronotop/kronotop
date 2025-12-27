@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class Int64ValIntegrationTest {
 
     @Test
-    void testInt64ValCreation() {
+    void shouldCreateInt64Val() {
         long testValue = Long.MAX_VALUE;
         Int64Val int64Val = new Int64Val(testValue);
 
@@ -34,7 +34,7 @@ class Int64ValIntegrationTest {
     }
 
     @Test
-    void testBqlParserHandlesInt64() {
+    void shouldParseInt64Values() {
         // Test parsing 64-bit integer values in BQL
         String bqlQuery = "{ count: { $eq: " + Long.MAX_VALUE + " } }";
         BqlExpr result = BqlParser.parse(bqlQuery);
@@ -49,7 +49,7 @@ class Int64ValIntegrationTest {
     }
 
     @Test
-    void testInt64ValInComplexQuery() {
+    void shouldHandleInt64ValInComplexQuery() {
         // Test 64-bit values in range queries
         long minValue = 1000000000000L; // 1 trillion
         long maxValue = 2000000000000L; // 2 trillion
@@ -77,7 +77,7 @@ class Int64ValIntegrationTest {
     }
 
     @Test
-    void testInt64ValWithLogicalPlanner() {
+    void shouldHandleInt64ValInLogicalPlanner() {
         // Test that logical planner handles Int64Val correctly
         long testValue = 9223372036854775807L; // Long.MAX_VALUE
         String query = "{ timestamp: { $eq: " + testValue + " } }";
@@ -94,7 +94,7 @@ class Int64ValIntegrationTest {
     }
 
     @Test
-    void testInt64ValRedundancyElimination() {
+    void shouldEliminateInt64ValRedundancy() {
         // Test that redundancy elimination works with Int64Val
         long value1 = 5000000000L; // 5 billion
         long value2 = 6000000000L; // 6 billion
@@ -113,7 +113,7 @@ class Int64ValIntegrationTest {
     }
 
     @Test
-    void testInt64ValContradictionDetection() {
+    void shouldDetectInt64ValContradiction() {
         // Test contradiction detection with same Int64Val in EQ and NE
         long testValue = 123456789012345L;
         String query = String.format("{ id: { $eq: %d, $ne: %d } }", testValue, testValue);
@@ -131,7 +131,7 @@ class Int64ValIntegrationTest {
     }
 
     @Test
-    void testInt64ValNumericComparison() {
+    void shouldCompareInt64ValNumerically() {
         // Test numeric comparison between different integer types
         String query = "{ value: { $gt: 2147483647, $lt: 9223372036854775807 } }"; // > Int32.MAX, < Int64.MAX
         BqlExpr result = BqlParser.parse(query);
@@ -151,7 +151,7 @@ class Int64ValIntegrationTest {
     }
 
     @Test
-    void testInt64ValToJsonAndBack() {
+    void shouldRoundtripInt64ValToJsonAndBack() {
         // Test round-trip: create Int64Val, serialize to JSON, parse back
         long originalValue = -9223372036854775808L; // Long.MIN_VALUE
         Int64Val originalInt64Val = new Int64Val(originalValue);
@@ -173,7 +173,7 @@ class Int64ValIntegrationTest {
     }
 
     @Test
-    void testInt64ValInArrays() {
+    void shouldHandleInt64ValInArrays() {
         // Test Int64Val in $in operator with arrays
         long val1 = 1000000000000L;
         long val2 = 2000000000000L;

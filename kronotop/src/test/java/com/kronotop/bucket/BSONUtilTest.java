@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BSONUtilTest {
 
     @Test
-    void test_toBsonValue_primitiveTypes() {
+    void shouldConvertPrimitiveTypesToBsonValue() {
         // String
         assertEquals(new BsonString("hello"), BSONUtil.toBsonValue("hello"));
 
@@ -53,7 +53,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_dateAndDecimal() {
+    void shouldConvertDateAndDecimalToBsonValue() {
         // Date
         Date date = new Date(1640995200000L); // 2022-01-01
         assertEquals(new BsonDateTime(1640995200000L), BSONUtil.toBsonValue(date));
@@ -68,7 +68,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_binaryAndExistingBsonValue() {
+    void shouldConvertBinaryAndExistingBsonValue() {
         // byte array
         byte[] bytes = {1, 2, 3, 4};
         assertEquals(new BsonBinary(bytes), BSONUtil.toBsonValue(bytes));
@@ -79,7 +79,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_document() {
+    void shouldConvertDocumentToBsonValue() {
         Document doc = new Document("name", "John").append("age", 25);
         BsonValue result = BSONUtil.toBsonValue(doc);
 
@@ -90,7 +90,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_simpleArray() {
+    void shouldConvertSimpleArrayToBsonValue() {
         List<Integer> numbers = Arrays.asList(2, 3, 4);
         BsonValue result = BSONUtil.toBsonValue(numbers);
 
@@ -103,7 +103,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_mixedTypeArray() {
+    void shouldConvertMixedTypeArrayToBsonValue() {
         List<Object> mixed = Arrays.asList("hello", 42, true, null);
         BsonValue result = BSONUtil.toBsonValue(mixed);
 
@@ -117,7 +117,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_nestedArray() {
+    void shouldConvertNestedArrayToBsonValue() {
         List<Object> nested = Arrays.asList(
                 Arrays.asList(1, 2),
                 Arrays.asList("a", "b"),
@@ -146,7 +146,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_objectArray() {
+    void shouldConvertObjectArrayToBsonValue() {
         Object[] array = {"test", 123, false};
         BsonValue result = BSONUtil.toBsonValue(array);
 
@@ -159,7 +159,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_bsonTypes() {
+    void shouldReturnExistingBsonTypesAsIs() {
         // Test that existing BsonValue types are returned as-is
         BsonString bsonString = new BsonString("test");
         BsonInt32 bsonInt32 = new BsonInt32(123);
@@ -174,7 +174,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_binaryTypes() {
+    void shouldConvertBinaryTypesToBsonBinary() {
         // Test org.bson.types.Binary conversion
         Binary binary = new Binary("Hello World".getBytes());
         BsonValue result = BSONUtil.toBsonValue(binary);
@@ -185,7 +185,7 @@ class BSONUtilTest {
     }
 
     @Test
-    void test_toBsonValue_unsupportedType() {
+    void shouldThrowExceptionForUnsupportedType() {
         Object unsupported = new Object();
 
         IllegalArgumentException exception = assertThrows(

@@ -20,6 +20,7 @@ import org.bson.*;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 
 /**
@@ -43,7 +44,7 @@ public class HistogramBucketCodec {
      * Variable-size types (BINARY, STRING) include a 2-byte length prefix.
      *
      * @param buffer the byte buffer to write to
-     * @param value the BSON value to encode
+     * @param value  the BSON value to encode
      * @throws IllegalArgumentException if the BSON type is not supported
      */
     private static void encodeBsonValue(ByteBuffer buffer, BsonValue value) {
@@ -62,7 +63,7 @@ public class HistogramBucketCodec {
                 buffer.put(data);
             }
             case STRING -> {
-                byte[] data = value.asString().getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                byte[] data = value.asString().getValue().getBytes(StandardCharsets.UTF_8);
                 buffer.putShort((short) data.length);
                 buffer.put(data);
             }
@@ -89,8 +90,8 @@ public class HistogramBucketCodec {
         }
 
         if (bsonType == BsonType.STRING) {
-            int minLength = histogramBucket.min().asString().getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
-            int maxLength = histogramBucket.max().asString().getValue().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+            int minLength = histogramBucket.min().asString().getValue().getBytes(StandardCharsets.UTF_8).length;
+            int maxLength = histogramBucket.max().asString().getValue().getBytes(StandardCharsets.UTF_8).length;
             // BsonType(byte) + min-length(short) + min-length-itself + max-length(short) + min-length-itself + int
             return 1 + 2 + minLength + 2 + maxLength + 4;
         }
@@ -220,12 +221,12 @@ public class HistogramBucketCodec {
                 short minLength = buffer.getShort();
                 byte[] minData = new byte[minLength];
                 buffer.get(minData);
-                String minValue = new String(minData, java.nio.charset.StandardCharsets.UTF_8);
+                String minValue = new String(minData, StandardCharsets.UTF_8);
 
                 short maxLength = buffer.getShort();
                 byte[] maxData = new byte[maxLength];
                 buffer.get(maxData);
-                String maxValue = new String(maxData, java.nio.charset.StandardCharsets.UTF_8);
+                String maxValue = new String(maxData, StandardCharsets.UTF_8);
 
                 int count = buffer.getInt();
 

@@ -40,7 +40,7 @@ class BqlParserConcurrencyTest {
 
     @Test
     @DisplayName("Multiple threads parsing different queries should work correctly")
-    void testConcurrentParsingDifferentQueries() throws InterruptedException, ExecutionException {
+    void shouldHandleMultipleThreadsParsingDifferentQueriesCorrectly() throws InterruptedException, ExecutionException {
         String[] queries = {
                 "{ \"status\": \"active\" }",
                 "{ \"price\": { \"$gt\": 100 } }",
@@ -121,7 +121,7 @@ class BqlParserConcurrencyTest {
 
     @Test
     @DisplayName("Multiple threads parsing the same query should work correctly")
-    void testConcurrentParsingSameQuery() throws InterruptedException, ExecutionException {
+    void shouldHandleMultipleThreadsParsingSameQueryCorrectly() throws InterruptedException, ExecutionException {
         String sharedQuery = """
                 {
                   "$and": [
@@ -206,7 +206,7 @@ class BqlParserConcurrencyTest {
 
     @Test
     @DisplayName("Concurrent parsing with mixed valid and invalid queries should handle errors correctly")
-    void testConcurrentParsingWithErrors() throws InterruptedException {
+    void shouldHandleErrorsCorrectlyWithMixedValidAndInvalidQueries() throws InterruptedException {
         String[] validQueries = {
                 "{ \"status\": \"active\" }",
                 "{ \"price\": { \"$gt\": 100 } }",
@@ -290,7 +290,7 @@ class BqlParserConcurrencyTest {
 
     @Test
     @DisplayName("High contention concurrent parsing should maintain performance")
-    void testHighContentionConcurrentParsing() throws InterruptedException, ExecutionException {
+    void shouldMaintainPerformanceUnderHighContentionConcurrentParsing() throws InterruptedException, ExecutionException {
         String[] queries = {
                 "{ \"user_id\": 12345 }",
                 "{ \"status\": { \"$in\": [\"active\", \"pending\"] } }",
@@ -377,7 +377,7 @@ class BqlParserConcurrencyTest {
 
     @Test
     @DisplayName("Concurrent parsing with complex query generation should work correctly")
-    void testConcurrentComplexQueryGeneration() throws InterruptedException, ExecutionException {
+    void shouldHandleConcurrentComplexQueryGenerationCorrectly() throws InterruptedException, ExecutionException {
         BqlQueryGenerator generator = new BqlQueryGenerator();
 
         int threadCount = 8;
@@ -458,7 +458,7 @@ class BqlParserConcurrencyTest {
 
     @Test
     @DisplayName("Concurrent parsing should not cause memory leaks")
-    void testConcurrentParsingMemoryUsage() throws InterruptedException, ExecutionException {
+    void shouldNotCauseMemoryLeaksWithConcurrentParsing() throws InterruptedException, ExecutionException {
         String testQuery = """
                 {
                   "$and": [
@@ -536,7 +536,7 @@ class BqlParserConcurrencyTest {
 
     @Test
     @DisplayName("Thread interruption during parsing should be handled gracefully")
-    void testThreadInterruptionHandling() throws InterruptedException {
+    void shouldHandleThreadInterruptionGracefully() throws InterruptedException {
         String complexQuery = """
                 {
                   "$and": [
@@ -633,7 +633,7 @@ class BqlParserConcurrencyTest {
 
     @Test
     @DisplayName("Concurrent parsing should maintain consistent AST structure")
-    void testConcurrentASTConsistency() throws InterruptedException, ExecutionException {
+    void shouldMaintainConsistentASTStructureWithConcurrentParsing() throws InterruptedException, ExecutionException {
         String testQuery = """
                 {
                   "$or": [
@@ -734,7 +734,7 @@ class BqlParserConcurrencyTest {
 
     @Test
     @DisplayName("Deadlock detection - concurrent parsing should not cause deadlocks")
-    void testDeadlockPrevention() throws InterruptedException {
+    void shouldNotCauseDeadlocksWithConcurrentParsing() throws InterruptedException {
         String[] queries = {
                 "{ \"selector1\": \"value1\" }",
                 "{ \"selector2\": { \"$gt\": 100 } }",

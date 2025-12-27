@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class UpdateOptionsConverterTest {
 
     @Test
-    void test_convertDocumentToUpdateOptions_withSetAndUnsetArrayList() {
+    void shouldConvertDocumentToUpdateOptionsWithSetAndUnsetArrayList() {
         Document updateDoc = new Document();
         Document setDoc = new Document();
         setDoc.append("likes", 2);
@@ -50,7 +50,7 @@ class UpdateOptionsConverterTest {
     }
 
     @Test
-    void test_convertDocumentToUpdateOptions_withBsonArray() {
+    void shouldConvertDocumentToUpdateOptionsWithBsonArray() {
         Document updateDoc = new Document();
         Document setDoc = new Document();
         setDoc.append("status", "active");
@@ -72,7 +72,7 @@ class UpdateOptionsConverterTest {
     }
 
     @Test
-    void test_convertDocumentToUpdateOptions_onlySet() {
+    void shouldConvertDocumentToUpdateOptionsWithOnlySet() {
         Document updateDoc = new Document();
         Document setDoc = new Document();
         setDoc.append("count", 42);
@@ -88,7 +88,7 @@ class UpdateOptionsConverterTest {
     }
 
     @Test
-    void test_convertDocumentToUpdateOptions_onlyUnset() {
+    void shouldConvertDocumentToUpdateOptionsWithOnlyUnset() {
         Document updateDoc = new Document();
         updateDoc.append(UpdateOptions.UNSET, List.of("field1", "field2"));
 
@@ -101,7 +101,7 @@ class UpdateOptionsConverterTest {
     }
 
     @Test
-    void test_convertDocumentToUpdateOptions_invalidUnsetKey() {
+    void shouldThrowExceptionForInvalidUnsetKey() {
         Document updateDoc = new Document();
         updateDoc.append(UpdateOptions.UNSET, List.of(123, "validField"));
 

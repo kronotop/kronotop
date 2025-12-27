@@ -63,7 +63,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Exact duplicate conditions in AND should be eliminated")
-        void testExactDuplicatesInAnd() {
+        void shouldEliminateExactDuplicatesInAnd() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -98,7 +98,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Exact duplicate conditions in OR should be eliminated")
-        void testExactDuplicatesInOr() {
+        void shouldEliminateExactDuplicatesInOr() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -131,7 +131,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Multiple duplicates should be reduced to single condition")
-        void testMultipleDuplicates() {
+        void shouldReduceMultipleDuplicatesToSingle() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -163,7 +163,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("AND with GT redundancy should keep more restrictive condition")
-        void testGtRedundancyInAnd() {
+        void shouldKeepMoreRestrictiveGtInAnd() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -185,7 +185,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("AND with LT redundancy should keep more restrictive condition")
-        void testLtRedundancyInAnd() {
+        void shouldKeepMoreRestrictiveLtInAnd() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -207,7 +207,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("AND with GTE/GT mixed redundancy should work correctly")
-        void testGteGtRedundancyInAnd() {
+        void shouldHandleGteGtRedundancyInAnd() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -229,7 +229,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("AND with LTE/LT mixed redundancy should work correctly")
-        void testLteLtRedundancyInAnd() {
+        void shouldHandleLteLtRedundancyInAnd() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -251,7 +251,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("OR with GT redundancy should keep less restrictive condition")
-        void testGtRedundancyInOr() {
+        void shouldKeepLessRestrictiveGtInOr() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -273,7 +273,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("OR with LT redundancy should keep less restrictive condition")
-        void testLtRedundancyInOr() {
+        void shouldKeepLessRestrictiveLtInOr() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -295,7 +295,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Complex numeric range redundancy should work correctly")
-        void testComplexNumericRangeRedundancy() {
+        void shouldHandleComplexNumericRangeRedundancy() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -339,7 +339,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("AND with IN subset redundancy should keep superset")
-        void testInSubsetRedundancyInAnd() {
+        void shouldKeepSupersetInAndWithInSubset() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -364,7 +364,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("OR with IN subset redundancy should keep superset")
-        void testInSubsetRedundancyInOr() {
+        void shouldKeepSupersetInOrWithInSubset() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -398,7 +398,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("AND with multiple selector redundancies should eliminate all")
-        void testMultipleSelectorRedundanciesInAnd() {
+        void shouldEliminateMultipleSelectorRedundanciesInAnd() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -449,7 +449,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("OR with multiple selector redundancies should eliminate all")
-        void testMultipleSelectorRedundanciesInOr() {
+        void shouldEliminateMultipleSelectorRedundanciesInOr() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -493,7 +493,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Nested structures should preserve redundancy elimination")
-        void testNestedRedundancyElimination() {
+        void shouldEliminateNestedRedundancy() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -541,7 +541,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Non-redundant conditions should be preserved")
-        void testNonRedundantConditionsPreserved() {
+        void shouldPreserveNonRedundantConditions() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -562,7 +562,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Different selectors should not interfere with each other")
-        void testDifferentSelectorsIndependent() {
+        void shouldKeepDifferentSelectorsIndependent() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -582,7 +582,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Empty AND should remain empty")
-        void testEmptyAnd() {
+        void shouldHandleEmptyAnd() {
             BqlExpr expr = BqlParser.parse("{ \"$and\": [] }");
 
             LogicalNode result = planner.plan(expr);
@@ -593,7 +593,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Empty OR should remain empty")
-        void testEmptyOr() {
+        void shouldHandleEmptyOr() {
             BqlExpr expr = BqlParser.parse("{ \"$or\": [] }");
 
             LogicalNode result = planner.plan(expr);
@@ -604,7 +604,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Single condition should remain single")
-        void testSingleCondition() {
+        void shouldHandleSingleCondition() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -624,7 +624,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Complex nested redundancy elimination should work")
-        void testComplexNestedRedundancy() {
+        void shouldHandleComplexNestedRedundancy() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -671,7 +671,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Redundancy elimination should work with other optimizations")
-        void testIntegrationWithOtherOptimizations() {
+        void shouldIntegrateWithOtherOptimizations() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -720,7 +720,7 @@ class RedundantConditionEliminationTest {
 
         @Test
         @DisplayName("Pipeline order should not affect final result")
-        void testPipelineOrderIndependence() {
+        void shouldBeIndependentOfPipelineOrder() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [

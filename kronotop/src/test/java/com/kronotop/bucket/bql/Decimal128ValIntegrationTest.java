@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class Decimal128ValIntegrationTest {
 
     @Test
-    void testDecimal128ValCreation() {
+    void shouldCreateDecimal128Val() {
         BigDecimal testValue = new BigDecimal("123.456789012345678901234567890123456789");
         Decimal128Val decimal128Val = new Decimal128Val(testValue);
 
@@ -36,7 +36,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValPrecisionHandling() {
+    void shouldHandleDecimal128ValPrecision() {
         // Test high precision decimal values
         BigDecimal highPrecision = new BigDecimal("999999999999999999999999999999999.999999999999999999999999999999999");
         Decimal128Val decimal128Val = new Decimal128Val(highPrecision);
@@ -46,7 +46,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValInComplexQuery() {
+    void shouldHandleDecimal128ValInComplexQuery() {
         // Test decimal values in range queries using strings since BSON parser needs special handling
         // In real BSON, these would be DECIMAL128 values
         String query = "{ price: { $gte: 999.99, $lt: 1000.01 } }";
@@ -68,7 +68,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValWithLogicalPlanner() {
+    void shouldHandleDecimal128ValInLogicalPlanner() {
         // Create a BqlExpr manually since BSON parsing from JSON string doesn't create DECIMAL128
         BigDecimal testValue = new BigDecimal("12345.6789012345678901234567890");
         BqlExpr query = new BqlEq("amount", new Decimal128Val(testValue));
@@ -84,7 +84,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValRedundancyElimination() {
+    void shouldEliminateDecimal128ValRedundancy() {
         // Test that redundancy elimination works with Decimal128Val
         BigDecimal value1 = new BigDecimal("100.123456789012345678901234567890");
         BigDecimal value2 = new BigDecimal("200.987654321098765432109876543210");
@@ -106,7 +106,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValContradictionDetection() {
+    void shouldDetectDecimal128ValContradiction() {
         // Test contradiction detection with same Decimal128Val in EQ and NE
         BigDecimal testValue = new BigDecimal("42.123456789012345678901234567890123456");
 
@@ -127,7 +127,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValNumericComparison() {
+    void shouldCompareDecimal128ValNumerically() {
         // Test numeric comparison with Decimal128Val
         BigDecimal minValue = new BigDecimal("0.000000000000000000000000000001");
         BigDecimal maxValue = new BigDecimal("999999999999999999999999999999.999999999999999999999999999999");
@@ -147,7 +147,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValToJsonAndBack() {
+    void shouldRoundtripDecimal128ValToJsonAndBack() {
         // Test round-trip: create Decimal128Val, serialize to JSON representation
         BigDecimal originalValue = new BigDecimal("-123456789.123456789012345678901234567890");
         Decimal128Val originalDecimal128Val = new Decimal128Val(originalValue);
@@ -162,7 +162,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValInArrays() {
+    void shouldHandleDecimal128ValInArrays() {
         // Test Decimal128Val in $in operator with arrays
         BigDecimal val1 = new BigDecimal("1.000000000000000000000000000001");
         BigDecimal val2 = new BigDecimal("2.000000000000000000000000000002");
@@ -184,7 +184,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValSpecialValues() {
+    void shouldHandleDecimal128ValSpecialValues() {
         // Test special decimal values like zero, very small, very large
         BigDecimal zero = BigDecimal.ZERO;
         BigDecimal verySmall = new BigDecimal("0.000000000000000000000000000000000001");
@@ -218,7 +218,7 @@ class Decimal128ValIntegrationTest {
     }
 
     @Test
-    void testDecimal128ValMixedWithOtherNumericTypes() {
+    void shouldHandleDecimal128ValMixedWithOtherNumericTypes() {
         // Test Decimal128Val mixed with other numeric types in logical planning
         BigDecimal decimalValue = new BigDecimal("100.123456789012345678901234567890");
 

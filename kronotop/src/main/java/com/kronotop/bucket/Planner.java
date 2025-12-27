@@ -27,17 +27,40 @@ import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.bucket.planner.physical.PhysicalPlanner;
 import com.kronotop.bucket.planner.physical.PlannerContext;
 
+/**
+ * Orchestrates the query planning pipeline for BQL queries.
+ *
+ * <p>Transforms a raw BQL query into an executable pipeline through these stages:
+ * <ol>
+ *   <li>Parsing: BQL bytes → AST ({@link BqlParser})</li>
+ *   <li>Logical planning: AST → logical plan ({@link LogicalPlanner})</li>
+ *   <li>Physical planning: logical plan → physical plan ({@link PhysicalPlanner})</li>
+ *   <li>Optimization: applies index selection and plan transformations ({@link Optimizer})</li>
+ *   <li>Pipeline rewriting: physical plan → executable pipeline ({@link PipelineRewriter})</li>
+ * </ol>
+ *
+ * @see LogicalPlanner
+ * @see PhysicalPlanner
+ * @see Optimizer
+ */
 public class Planner {
     private final LogicalPlanner logicalPlanner = new LogicalPlanner();
     private final PhysicalPlanner physicalPlanner = new PhysicalPlanner();
     private final Optimizer optimizer = new Optimizer();
-    private final PlannerContext plannerCtx = new PlannerContext();
 
+    /**
+     * Plans and optimizes a BQL query into an executable pipeline.
+     *
+     * @param metadata the bucket metadata containing index information
+     * @param query    the raw BQL query as bytes
+     * @return the executable pipeline node
+     */
     public PipelineNode plan(BucketMetadata metadata, byte[] query) {
+        PlannerContext ctx = new PlannerContext(metadata);
         BqlExpr parsedQuery = BqlParser.parse(query);
         LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
-        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, plannerCtx);
-        PhysicalNode optimizedPlan = optimizer.optimize(metadata, physicalPlan, plannerCtx);
-        return PipelineRewriter.rewrite(plannerCtx, optimizedPlan);
+        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, ctx);
+        PhysicalNode optimizedPlan = optimizer.optimize(metadata, physicalPlan, ctx);
+        return PipelineRewriter.rewrite(ctx, optimizedPlan);
     }
 }

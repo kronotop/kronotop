@@ -45,7 +45,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void testNotExistedField() {
+    void shouldHandleNotExistedField() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -61,7 +61,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void testZeroResultsWhileComparingNull() {
+    void shouldReturnZeroResultsWhenComparingNull() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -77,7 +77,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void testFullScanNodeWithNullValues_EQ() {
+    void shouldHandleFullScanNodeWithNullValuesEq() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -110,7 +110,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void testFullScanNodeWithNullValues_NE() {
+    void shouldHandleFullScanNodeWithNullValuesNe() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -147,7 +147,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void testIndexScanNodeWithNullValues_EQ() {
+    void shouldHandleIndexScanNodeWithNullValuesEq() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -181,7 +181,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void testIndexScanNodeWithNullValues_NE() {
+    void shouldHandleIndexScanNodeWithNullValuesNe() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -219,7 +219,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void testRangeScanNodeWithNullValues_NULL_Boundaries() {
+    void shouldHandleRangeScanNodeWithNullBoundaries() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -247,7 +247,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void testRangeScanNodeNonsenseQuery() {
+    void shouldHandleRangeScanNodeNonsenseQuery() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -275,7 +275,7 @@ class PipelineExecutorIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void testContradictionShouldReturnEmptyResult() {
+    void shouldReturnEmptyResultForContradiction() {
         final String TEST_BUCKET_NAME = "test-bucket-query-not-existed-field";
 
         IndexDefinition ageIndex = IndexDefinition.create("name-index", "name", BsonType.INT32);

@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class HistogramUtilsTest {
 
     @Test
-    void testBuildHistogram_EmptyInput() {
+    void shouldBuildEmptyHistogramForEmptyInput() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         Histogram histogram = HistogramUtils.buildHistogram(values);
 
@@ -37,7 +37,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testBuildHistogram_SingleValue() {
+    void shouldBuildHistogramForSingleValue() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         values.add(new BsonInt32(42));
 
@@ -50,7 +50,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testBuildHistogram_TwoValues() {
+    void shouldBuildHistogramForTwoValues() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         values.add(new BsonInt32(10));
         values.add(new BsonInt32(20));
@@ -63,7 +63,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testBuildHistogram_TenValues() {
+    void shouldBuildHistogramForTenValues() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 1; i <= 10; i++) {
             values.add(new BsonInt32(i));
@@ -77,7 +77,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testBuildHistogram_MaxTenBuckets() {
+    void shouldBuildHistogramWithMaxTenBuckets() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 1; i <= 100; i++) {
             values.add(new BsonInt32(i));
@@ -91,7 +91,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testBuildHistogram_BucketSizeCalculation() {
+    void shouldCalculateBucketSizeCorrectly() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 1; i <= 50; i++) {
             values.add(new BsonInt32(i));
@@ -105,7 +105,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindBucket_EmptyBuckets() {
+    void shouldReturnNullForFindBucketWithEmptyBuckets() {
         Histogram histogram = Histogram.create();
         BsonValue value = new BsonInt32(42);
 
@@ -115,7 +115,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindBucket_ValueInRange() {
+    void shouldFindBucketForValueInRange() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 1; i <= 10; i++) {
             values.add(new BsonInt32(i * 10));
@@ -132,7 +132,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindBucket_ValueBelowRange() {
+    void shouldReturnNullForValueBelowRange() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 10; i <= 20; i++) {
             values.add(new BsonInt32(i));
@@ -147,7 +147,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindBucket_ValueAboveRange() {
+    void shouldReturnNullForValueAboveRange() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 10; i <= 20; i++) {
             values.add(new BsonInt32(i));
@@ -162,7 +162,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindBucket_ValueAtMinBoundary() {
+    void shouldFindBucketForValueAtMinBoundary() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 10; i <= 20; i++) {
             values.add(new BsonInt32(i));
@@ -178,7 +178,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindBucket_ValueAtMaxBoundary() {
+    void shouldFindBucketForValueAtMaxBoundary() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 10; i <= 20; i++) {
             values.add(new BsonInt32(i));
@@ -194,7 +194,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindPercentile_EmptyBuckets() {
+    void shouldReturnZeroPercentileForEmptyBuckets() {
         Histogram histogram = Histogram.create();
         BsonValue value = new BsonInt32(42);
 
@@ -204,7 +204,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindPercentile_ValueBelowRange() {
+    void shouldReturnZeroPercentileForValueBelowRange() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 10; i <= 20; i++) {
             values.add(new BsonInt32(i));
@@ -219,7 +219,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindPercentile_ValueAboveRange() {
+    void shouldReturnFullPercentileForValueAboveRange() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 10; i <= 20; i++) {
             values.add(new BsonInt32(i));
@@ -234,7 +234,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindPercentile_ValueInFirstBucket() {
+    void shouldFindPercentileForValueInFirstBucket() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 1; i <= 100; i++) {
             values.add(new BsonInt32(i));
@@ -249,7 +249,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindPercentile_ValueInLastBucket() {
+    void shouldFindPercentileForValueInLastBucket() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 1; i <= 100; i++) {
             values.add(new BsonInt32(i));
@@ -264,7 +264,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindPercentile_RangeValidation() {
+    void shouldValidatePercentileRange() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparingInt(a -> a.asInt32().getValue()));
         for (int i = 1; i <= 50; i++) {
             values.add(new BsonInt32(i));
@@ -281,7 +281,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testBuildHistogram_WithStringValues() {
+    void shouldBuildHistogramWithStringValues() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparing(a -> a.asString().getValue()));
         values.add(new BsonString("apple"));
         values.add(new BsonString("banana"));
@@ -297,7 +297,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindBucket_WithStringValues() {
+    void shouldFindBucketWithStringValues() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparing(a -> a.asString().getValue()));
         values.add(new BsonString("apple"));
         values.add(new BsonString("banana"));
@@ -314,7 +314,7 @@ class HistogramUtilsTest {
     }
 
     @Test
-    void testFindPercentile_WithStringValues() {
+    void shouldFindPercentileWithStringValues() {
         TreeSet<BsonValue> values = new TreeSet<>(Comparator.comparing(a -> a.asString().getValue()));
         values.add(new BsonString("apple"));
         values.add(new BsonString("banana"));

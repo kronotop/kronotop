@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class IndexScanNodeDeleteTest extends BasePipelineTest {
 
     @Test
-    void testDeleteWithGreaterThanFilter() {
+    void shouldDeleteWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-delete-index-scan";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
@@ -81,7 +81,7 @@ class IndexScanNodeDeleteTest extends BasePipelineTest {
     }
 
     @Test
-    void testLimitedBatchDeleteWithPagination() {
+    void shouldDeleteWithLimitedBatchAndPagination() {
         final String TEST_BUCKET_NAME = "test-bucket-batch-delete";
 
         IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);

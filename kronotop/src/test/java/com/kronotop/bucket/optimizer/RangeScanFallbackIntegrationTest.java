@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
 
     @Test
-    void testRangeScanFallbackInOptimizerPipeline() {
+    void shouldApplyRangeScanFallbackInOptimizerPipeline() {
         // Create a PhysicalRangeScan with null index (simulating no available index)
         PlannerContext context = new PlannerContext();
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
@@ -47,7 +47,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testRangeScanWithIndexRemainsUnchanged() {
+    void shouldKeepRangeScanWithIndexUnchanged() {
         // Create an index for this test
         IndexDefinition ageIndex = IndexDefinition.create(
                 "age-index", "age", org.bson.BsonType.INT32
@@ -71,7 +71,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testComplexPlanWithMixedRangeScans() {
+    void shouldHandleComplexPlanWithMixedRangeScans() {
         // Create an index for one field but not another
         IndexDefinition ageIndex = IndexDefinition.create(
                 "age-index", "age", org.bson.BsonType.INT32
@@ -121,7 +121,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testNestedStructuresWithRangeScanFallback() {
+    void shouldHandleNestedStructuresWithRangeScanFallback() {
         PlannerContext context = new PlannerContext();
 
         // Create a nested structure with range scan that needs fallback
@@ -153,7 +153,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testOptimizerRuleOrderingWithRangeScanFallback() {
+    void shouldApplyOptimizerRuleOrderingWithRangeScanFallback() {
         // Test that the range scan fallback rule works in conjunction with other rules
         PlannerContext context = new PlannerContext();
 
@@ -182,7 +182,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testSingleBoundRangeScanFallback() {
+    void shouldApplySingleBoundRangeScanFallback() {
         PlannerContext context = new PlannerContext();
 
         // Test with only lower bound

@@ -53,7 +53,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Simple equality contradiction should become FALSE")
-        void testSimpleEqualityContradiction() {
+        void shouldDetectSimpleEqualityContradiction() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -71,7 +71,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Equality vs not-equal contradiction should become FALSE")
-        void testEqualityVsNotEqualContradiction() {
+        void shouldDetectEqualityVsNotEqualContradiction() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -88,7 +88,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Numeric range contradiction should become FALSE")
-        void testNumericRangeContradiction() {
+        void shouldDetectNumericRangeContradiction() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -105,7 +105,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Complex numeric contradiction should become FALSE")
-        void testComplexNumericContradiction() {
+        void shouldDetectComplexNumericContradiction() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -122,7 +122,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("AND with contradictory conditions and valid condition should become FALSE")
-        void testMixedContradictionAndValidCondition() {
+        void shouldDetectMixedContradictionAndValidCondition() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -141,7 +141,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Nested contradiction should propagate to root")
-        void testNestedContradiction() {
+        void shouldPropagateNestedContradiction() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -163,7 +163,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("OR with contradictory conditions should remain OR")
-        void testContradictionInOr() {
+        void shouldPreserveContradictionInOr() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -183,7 +183,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("No contradiction between different selectors")
-        void testNoContradictionDifferentSelectors() {
+        void shouldNotDetectContradictionForDifferentSelectors() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -203,7 +203,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Compatible numeric conditions should not become FALSE")
-        void testCompatibleNumericConditions() {
+        void shouldPreserveCompatibleNumericConditions() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -232,7 +232,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("EQ vs NE tautology should become TRUE")
-        void testEqualityVsNotEqualTautology() {
+        void shouldDetectEqualityVsNotEqualTautology() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -251,7 +251,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Numeric range tautology should become TRUE")
-        void testNumericRangeTautology() {
+        void shouldDetectNumericRangeTautology() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -269,7 +269,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("GTE vs LT tautology should become TRUE")
-        void testGteVsLtTautology() {
+        void shouldDetectGteVsLtTautology() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -287,7 +287,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("OR with TRUE child should become TRUE")
-        void testOrWithTrueChild() {
+        void shouldSimplifyOrWithTrueChild() {
             // This tests constant folding in OR context
             BqlExpr expr = BqlParser.parse("""
                     {
@@ -311,7 +311,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("AND with TRUE child should simplify")
-        void testAndWithTrueChild() {
+        void shouldSimplifyAndWithTrueChild() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -337,7 +337,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("No tautology in AND context")
-        void testNoTautologyInAnd() {
+        void shouldNotDetectTautologyInAnd() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -364,7 +364,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("AND with FALSE should become FALSE")
-        void testAndWithFalse() {
+        void shouldFoldAndWithFalse() {
             // Create a plan that would result in AND(condition, FALSE)
             BqlExpr expr = BqlParser.parse("""
                     {
@@ -388,7 +388,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("OR with TRUE should become TRUE")
-        void testOrWithTrue() {
+        void shouldFoldOrWithTrue() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -411,7 +411,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("AND with only TRUE children should become TRUE")
-        void testAndWithOnlyTrueChildren() {
+        void shouldFoldAndWithOnlyTrueChildren() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -439,7 +439,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("OR with only FALSE children should become FALSE")
-        void testOrWithOnlyFalseChildren() {
+        void shouldFoldOrWithOnlyFalseChildren() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -467,7 +467,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("NOT(TRUE) should become FALSE")
-        void testNotTrue() {
+        void shouldFoldNotTrue() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$not": {
@@ -487,7 +487,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("NOT(FALSE) should become TRUE")
-        void testNotFalse() {
+        void shouldFoldNotFalse() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$not": {
@@ -507,7 +507,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("ElemMatch with FALSE condition should become FALSE")
-        void testElemMatchWithFalse() {
+        void shouldFoldElemMatchWithFalse() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "items": {
@@ -529,7 +529,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("ElemMatch with TRUE condition should become TRUE")
-        void testElemMatchWithTrue() {
+        void shouldFoldElemMatchWithTrue() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "items": {
@@ -560,7 +560,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Complex optimization pipeline should work correctly")
-        void testComplexOptimizationPipeline() {
+        void shouldHandleComplexOptimizationPipeline() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -606,7 +606,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Optimization with custom pipeline should work")
-        void testOptimizationWithCustomPipeline() {
+        void shouldOptimizeWithCustomPipeline() {
             // Create planner with only basic transforms (no advanced optimizations)
             // Note: Inner classes are private, so we test the absence of optimization differently
             LogicalPlanner basicPlanner = new LogicalPlanner(List.of());
@@ -631,7 +631,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("All optimization passes should be idempotent")
-        void testOptimizationIdempotence() {
+        void shouldBeIdempotent() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -653,7 +653,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Optimization should preserve semantics")
-        void testOptimizationPreservesSemantics() {
+        void shouldPreserveSemantics() {
             // Test that optimization doesn't change the logical meaning
             BqlExpr expr = BqlParser.parse("""
                     {
@@ -695,7 +695,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Empty AND should become TRUE")
-        void testEmptyAnd() {
+        void shouldHandleEmptyAnd() {
             BqlExpr expr = BqlParser.parse("{ \"$and\": [] }");
 
             LogicalNode result = planner.plan(expr);
@@ -705,7 +705,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Empty OR should become FALSE")
-        void testEmptyOr() {
+        void shouldHandleEmptyOr() {
             BqlExpr expr = BqlParser.parse("{ \"$or\": [] }");
 
             LogicalNode result = planner.plan(expr);
@@ -715,7 +715,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Single child AND should be simplified")
-        void testSingleChildAnd() {
+        void shouldSimplifySingleChildAnd() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [
@@ -735,7 +735,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Single child OR should be simplified")
-        void testSingleChildOr() {
+        void shouldSimplifySingleChildOr() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$or": [
@@ -755,7 +755,7 @@ class LogicalPlannerOptimizationTest {
 
         @Test
         @DisplayName("Very deep nesting should be optimized correctly")
-        void testVeryDeepNesting() {
+        void shouldOptimizeVeryDeepNesting() {
             BqlExpr expr = BqlParser.parse("""
                     {
                       "$and": [

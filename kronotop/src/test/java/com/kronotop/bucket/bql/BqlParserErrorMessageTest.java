@@ -31,7 +31,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Unknown operator errors should be specific and helpful")
-    void testUnknownOperatorErrors() {
+    void shouldProvideSpecificAndHelpfulUnknownOperatorErrors() {
         Map<String, String> invalidOperators = Map.of(
                 "{ \"$unknown\": [] }", "Unknown operator: $unknown",
                 "{ \"$invalid\": [ { \"selector\": \"value\" } ] }", "Unknown operator: $invalid",
@@ -58,7 +58,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Unknown selector operator errors should specify the invalid operator")
-    void testUnknownSelectorOperatorErrors() {
+    void shouldSpecifyInvalidOperatorInUnknownSelectorOperatorErrors() {
         Map<String, String> invalidSelectorOperators = Map.of(
                 "{ \"selector\": { \"$unknownOp\": \"value\" } }", "Unknown selector operator: $unknownOp",
                 "{ \"name\": { \"$badOperator\": 123 } }", "Unknown selector operator: $badOperator",
@@ -83,7 +83,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Type validation errors should specify expected types")
-    void testTypeValidationErrors() {
+    void shouldSpecifyExpectedTypesInTypeValidationErrors() {
         Map<String, String> typeErrors = Map.of(
                 "{ \"selector\": { \"$size\": \"not_an_integer\" } }", "$size expects an integer",
                 "{ \"selector\": { \"$size\": true } }", "$size expects an integer",
@@ -110,7 +110,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Empty selector operator document errors should specify the selector")
-    void testEmptySelectorOperatorErrors() {
+    void shouldSpecifySelectorInEmptySelectorOperatorErrors() {
         Map<String, String> emptyOperatorCases = Map.of(
                 "{ \"selector\": { } }", "Empty selector operator document for: selector",
                 "{ \"name\": { } }", "Empty selector operator document for: name",
@@ -135,7 +135,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("JSON format errors should be clear and helpful")
-    void testJSONFormatErrors() {
+    void shouldProvideClearAndHelpfulJSONFormatErrors() {
         Map<String, String> jsonErrors = Map.of(
                 "{ invalid json }", "Invalid BSON format",
                 "{ \"selector\": \"unclosed string }", "Invalid BSON format",
@@ -161,7 +161,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Null and empty query errors should be descriptive")
-    void testNullAndEmptyQueryErrors() {
+    void shouldProvideDescriptiveNullAndEmptyQueryErrors() {
         String[] invalidQueries = {null, "", "   ", "\t\n"};
 
         for (String invalidQuery : invalidQueries) {
@@ -179,7 +179,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Unsupported value type errors should specify the unsupported type")
-    void testUnsupportedValueTypeErrors() {
+    void shouldSpecifyUnsupportedTypeInUnsupportedValueTypeErrors() {
         // Note: These test cases depend on what value types the parser actually supports
         // We'll test based on the current parser implementation
 
@@ -207,7 +207,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Error messages should provide context about the problematic part")
-    void testErrorContextInformation() {
+    void shouldProvideContextAboutProblematicPartInErrorMessages() {
         Map<String, String[]> contextualErrors = Map.of(
                 "{ \"selector\": { \"$invalidOp\": \"value\" } }",
                 new String[]{"selector", "$invalidOp"},
@@ -238,7 +238,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Error messages should be concise and not overly verbose")
-    void testErrorMessageConciseness() {
+    void shouldBeConciseAndNotOverlyVerboseInErrorMessages() {
         String[] invalidQueries = {
                 "{ \"$unknown\": [] }",
                 "{ \"selector\": { \"$invalidOp\": \"value\" } }",
@@ -271,7 +271,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Error messages should be consistent in format and structure")
-    void testErrorMessageConsistency() {
+    void shouldBeConsistentInFormatAndStructureOfErrorMessages() {
         Map<String, String> errorCategories = Map.of(
                 "Unknown operator", "{ \"$unknownOp\": [] }",
                 "Unknown selector operator", "{ \"selector\": { \"$badOp\": \"value\" } }",
@@ -302,7 +302,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Error messages should help users understand how to fix the problem")
-    void testErrorMessageHelpfulness() {
+    void shouldHelpUsersUnderstandHowToFixTheProblemInErrorMessages() {
         Map<String, String[]> helpfulErrors = Map.of(
                 "{ \"selector\": { \"$size\": \"string\" } }",
                 new String[]{"$size", "expects", "integer"},
@@ -335,7 +335,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Error messages should not leak sensitive internal information")
-    void testErrorMessageSecurity() {
+    void shouldNotLeakSensitiveInternalInformationInErrorMessages() {
         String[] invalidQueries = {
                 "{ \"$unknown\": [] }",
                 "{ invalid json }",
@@ -366,7 +366,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Nested error contexts should provide clear location information")
-    void testNestedErrorContexts() {
+    void shouldProvideClearLocationInformationForNestedErrorContexts() {
         Map<String, String[]> nestedErrors = Map.of(
                 "{ \"$and\": [ { \"selector\": { \"$invalidOp\": \"value\" } } ] }",
                 new String[]{"$invalidOp"},
@@ -397,7 +397,7 @@ class BqlParserErrorMessageTest {
 
     @Test
     @DisplayName("Error messages should handle special characters in selector names correctly")
-    void testErrorMessagesWithSpecialCharacters() {
+    void shouldHandleSpecialCharactersInSelectorNamesCorrectlyInErrorMessages() {
         Map<String, String> specialSelectorErrors = Map.of(
                 "{ \"selector-name_123\": { } }", "selector-name_123",
                 "{ \"selector.with.dots\": { } }", "selector.with.dots",

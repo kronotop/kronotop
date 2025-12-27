@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BinaryValIntegrationTest {
 
     @Test
-    void testBinaryValCreation() {
+    void shouldCreateBinaryVal() {
         byte[] testData = {0x48, 0x65, 0x6c, 0x6c, 0x6f}; // "Hello" in bytes
         BinaryVal binaryVal = new BinaryVal(testData);
 
@@ -37,7 +37,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValEquality() {
+    void shouldCompareBinaryValEquality() {
         byte[] data1 = {1, 2, 3, 4, 5};
         byte[] data2 = {1, 2, 3, 4, 5};
         byte[] data3 = {1, 2, 3, 4, 6};
@@ -53,7 +53,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValBase64Encoding() {
+    void shouldEncodeBinaryValToBase64() {
         byte[] testData = {(byte) 0xFF, (byte) 0xFE, (byte) 0xFD, 0x00, 0x01};
         BinaryVal binaryVal = new BinaryVal(testData);
 
@@ -66,7 +66,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValWithLogicalPlanner() {
+    void shouldHandleBinaryValInLogicalPlanner() {
         // Test that logical planner handles BinaryVal correctly
         byte[] testData = {0x01, 0x02, 0x03};
         BqlExpr query = new BqlEq("data", new BinaryVal(testData));
@@ -82,7 +82,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValLogicalEquality() {
+    void shouldHandleBinaryValLogicalEquality() {
         // Test binary equality comparisons in logical planning
         byte[] data1 = {0x00, 0x01, 0x02};
         byte[] data2 = {0x00, 0x01, 0x02};
@@ -103,7 +103,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValInequality() {
+    void shouldHandleBinaryValInequality() {
         // Test binary inequality comparisons  
         byte[] data1 = {0x01, 0x02, 0x03};
         byte[] data2 = {0x04, 0x05, 0x06};
@@ -124,7 +124,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValContradiction() {
+    void shouldDetectBinaryValContradiction() {
         // Test contradiction detection with same binary data in EQ and NE
         byte[] testData = {0x42, 0x00, (byte) 0xFF};
 
@@ -145,7 +145,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValInArrays() {
+    void shouldHandleBinaryValInArrays() {
         // Test BinaryVal in $in operator with arrays
         byte[] data1 = {0x01};
         byte[] data2 = {0x02};
@@ -167,7 +167,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValNotInArrays() {
+    void shouldHandleBinaryValNotInArrays() {
         // Test BinaryVal in $nin operator
         byte[] excludedData = {(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF};
 
@@ -185,7 +185,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValWithMixedTypes() {
+    void shouldHandleBinaryValWithMixedTypes() {
         // Test binary values mixed with other types in logical planning
         byte[] binaryData = {0x12, 0x34, 0x56, 0x78};
 
@@ -206,7 +206,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValInDocuments() {
+    void shouldHandleBinaryValInDocuments() {
         // Test binary values within document structures
         byte[] thumbnailData = {(byte) 0x89, 0x50, 0x4E, 0x47}; // PNG header bytes
 
@@ -226,7 +226,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValJsonSerialization() {
+    void shouldSerializeBinaryValToJson() {
         // Test JSON serialization of binary values
         byte[] testData = {0x48, 0x65, 0x6C, 0x6C, 0x6F}; // "Hello"
         BinaryVal binaryVal = new BinaryVal(testData);
@@ -242,7 +242,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValEmptyData() {
+    void shouldHandleBinaryValEmptyData() {
         // Test binary values with empty byte arrays
         byte[] emptyData = {};
         BinaryVal emptyBinary = new BinaryVal(emptyData);
@@ -262,7 +262,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValLargeData() {
+    void shouldHandleBinaryValLargeData() {
         // Test binary values with larger data sets
         byte[] largeData = new byte[1024];
         for (int i = 0; i < largeData.length; i++) {
@@ -283,7 +283,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValNumericOperationHandling() {
+    void shouldHandleBinaryValNumericOperations() {
         // Test that binary values are properly rejected for numeric operations
         byte[] testData = {0x01, 0x02, 0x03, 0x04};
 
@@ -303,7 +303,7 @@ class BinaryValIntegrationTest {
     }
 
     @Test
-    void testBinaryValSpecialByteValues() {
+    void shouldHandleBinaryValSpecialByteValues() {
         // Test binary values with special byte values (0, -1, etc.)
         byte[] specialBytes = {0x00, (byte) 0xFF, 0x7F, (byte) 0x80, 0x01, (byte) 0xFE};
         BinaryVal specialBinary = new BinaryVal(specialBytes);

@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class VersionstampValIntegrationTest {
 
     @Test
-    void testVersionstampValCreation() {
+    void shouldCreateVersionstampVal() {
         // Create a sample Versionstamp
         byte[] bytes = new byte[12];
         bytes[0] = 1;
@@ -53,7 +53,7 @@ class VersionstampValIntegrationTest {
     }
 
     @Test
-    void testVersionstampStringDetection() {
+    void shouldDetectVersionstampStrings() {
         // Create a test Versionstamp and encode it
         byte[] bytes = new byte[12];
         bytes[0] = 1;
@@ -84,7 +84,7 @@ class VersionstampValIntegrationTest {
     }
 
     @Test
-    void testVersionstampInLogicalPlanning() {
+    void shouldHandleVersionstampInLogicalPlanning() {
         // Create two different Versionstamps
         byte[] bytes1 = new byte[12];
         bytes1[0] = 1;
@@ -124,7 +124,7 @@ class VersionstampValIntegrationTest {
     }
 
     @Test
-    void testInvalidVersionstampString() {
+    void shouldHandleInvalidVersionstampString() {
         // Test with a string that looks like a Versionstamp but isn't valid
         String invalidQuery = "{ _id: { $eq: \"INVALID_VERSIONSTAMP\" } }";
 
@@ -139,7 +139,7 @@ class VersionstampValIntegrationTest {
     }
 
     @Test
-    void testVersionstampValueExtraction() {
+    void shouldExtractVersionstampValue() {
         // Test the TransformUtils.extractValue functionality
         byte[] bytes = new byte[12];
         bytes[0] = 42;
@@ -163,7 +163,7 @@ class VersionstampValIntegrationTest {
     }
 
     @Test
-    void testVersionstampToJsonAndBack() {
+    void shouldRoundtripVersionstampToJsonAndBack() {
         // Test the full round-trip: Versionstamp -> JSON -> Parse -> Versionstamp
         byte[] bytes = new byte[12];
         bytes[0] = 123;

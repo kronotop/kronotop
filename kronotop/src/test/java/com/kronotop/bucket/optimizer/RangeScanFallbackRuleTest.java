@@ -42,7 +42,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testRangeScanWithBothBoundsConverted() {
+    void shouldConvertRangeScanWithBothBounds() {
         // Create a range scan with both bounds but no index (null)
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "age", 18, 65, true, false, null
@@ -72,7 +72,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testRangeScanWithLowerBoundOnlyConverted() {
+    void shouldConvertRangeScanWithLowerBoundOnly() {
         // Create a range scan with only lower bound
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "score", 50, null, false, false, null
@@ -93,7 +93,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testRangeScanWithUpperBoundOnlyConverted() {
+    void shouldConvertRangeScanWithUpperBoundOnly() {
         // Create a range scan with only upper bound
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "price", null, 100.0, true, true, null
@@ -114,7 +114,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testRangeScanWithInclusiveBounds() {
+    void shouldConvertRangeScanWithInclusiveBounds() {
         // Test inclusive bounds conversion
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "rating", 1, 5, true, true, null
@@ -143,7 +143,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testRangeScanWithValidIndexNotConverted() {
+    void shouldNotConvertRangeScanWithValidIndex() {
         // Create a mock index for this test
         IndexDefinition mockIndex = IndexDefinition.create(
                 "age-index", "age", org.bson.BsonType.INT32
@@ -161,7 +161,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testPhysicalAndWithRangeScanFallback() {
+    void shouldApplyFallbackToPhysicalAndWithRangeScan() {
         // Create an AND with a range scan that needs fallback
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "age", 18, 65, true, false, null
@@ -202,7 +202,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testNestedStructureWithRangeScanFallback() {
+    void shouldApplyFallbackToNestedStructureWithRangeScan() {
         // Test nested structure with range scan that needs fallback
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "score", 50, null, true, false, null
@@ -219,7 +219,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testCanApplyWithRangeScanNullIndex() {
+    void shouldReturnTrueForCanApplyWithRangeScanNullIndex() {
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "age", 18, 65, true, false, null
         );
@@ -228,7 +228,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testCanApplyWithRangeScanValidIndex() {
+    void shouldReturnFalseForCanApplyWithRangeScanValidIndex() {
         // Create a mock index for this test
         IndexDefinition mockIndex = IndexDefinition.create(
                 "age-index", "age", org.bson.BsonType.INT32
@@ -242,7 +242,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testCanApplyWithAndContainingNullIndexRangeScan() {
+    void shouldReturnTrueForCanApplyWithAndContainingNullIndexRangeScan() {
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "age", 18, 65, true, false, null
         );
@@ -253,7 +253,7 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testCanApplyWithAndNotContainingNullIndexRangeScan() {
+    void shouldReturnFalseForCanApplyWithAndNotContainingNullIndexRangeScan() {
         PhysicalFilter filter1 = new PhysicalFilter(1, "name", Operator.EQ, "John");
         PhysicalFilter filter2 = new PhysicalFilter(2, "age", Operator.GT, 18);
         PhysicalAnd and = new PhysicalAnd(3, List.of(filter1, filter2));
@@ -262,17 +262,17 @@ class RangeScanFallbackRuleTest extends BaseOptimizerTest {
     }
 
     @Test
-    void testRulePriority() {
+    void shouldReturnCorrectRulePriority() {
         assertEquals(80, rule.getPriority());
     }
 
     @Test
-    void testRuleName() {
+    void shouldReturnCorrectRuleName() {
         assertEquals("RangeScanFallback", rule.getName());
     }
 
     @Test
-    void testIllegalStateForNoBounds() {
+    void shouldThrowIllegalStateForNoBounds() {
         // This should not happen in practice, but test error handling
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 1, "field", null, null, false, false, null

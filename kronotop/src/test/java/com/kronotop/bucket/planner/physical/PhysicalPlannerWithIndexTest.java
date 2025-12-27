@@ -61,7 +61,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Numeric index with GTE operator should use PhysicalIndexScan")
-        void testWithNumericIndex() {
+        void shouldUsePhysicalIndexScanForNumericIndexWithGTEOperator() {
             createIndex(IndexDefinition.create(
                     "numeric-index", "int32-field", BsonType.INT32
             ));
@@ -80,7 +80,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("String index with EQ operator should use PhysicalIndexScan")
-        void testWithStringIndexEQ() {
+        void shouldUsePhysicalIndexScanForStringIndexWithEQOperator() {
             createIndex(IndexDefinition.create(
                     "string-index", "name", BsonType.STRING
             ));
@@ -99,7 +99,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Numeric index with GT operator should use PhysicalIndexScan")
-        void testWithNumericIndexGT() {
+        void shouldUsePhysicalIndexScanForNumericIndexWithGTOperator() {
             createIndex(IndexDefinition.create(
                     "price-index", "price", BsonType.DOUBLE
             ));
@@ -116,7 +116,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Numeric index with LT operator should use PhysicalIndexScan")
-        void testWithNumericIndexLT() {
+        void shouldUsePhysicalIndexScanForNumericIndexWithLTOperator() {
             createIndex(IndexDefinition.create(
                     "age-index", "age", BsonType.INT32
             ));
@@ -133,7 +133,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Numeric index with LTE operator should use PhysicalIndexScan")
-        void testWithNumericIndexLTE() {
+        void shouldUsePhysicalIndexScanForNumericIndexWithLTEOperator() {
             createIndex(IndexDefinition.create(
                     "score-index", "score", BsonType.INT32
             ));
@@ -150,7 +150,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("String index with NE operator should use PhysicalIndexScan")
-        void testWithStringIndexNE() {
+        void shouldUsePhysicalIndexScanForStringIndexWithNEOperator() {
             createIndex(IndexDefinition.create(
                     "status-index", "status", BsonType.STRING
             ));
@@ -167,7 +167,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("String index with IN operator should use PhysicalIndexScan")
-        void testWithStringIndexIN() {
+        void shouldUsePhysicalIndexScanForStringIndexWithINOperator() {
             createIndex(IndexDefinition.create(
                     "category-index", "category", BsonType.STRING
             ));
@@ -187,7 +187,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("String index with NIN operator should use PhysicalIndexScan")
-        void testWithStringIndexNIN() {
+        void shouldUsePhysicalIndexScanForStringIndexWithNINOperator() {
             createIndex(IndexDefinition.create(
                     "type-index", "type", BsonType.STRING
             ));
@@ -207,7 +207,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Array index with ALL operator should use PhysicalIndexScan")
-        void testWithArrayIndexALL() {
+        void shouldUsePhysicalIndexScanForArrayIndexWithALLOperator() {
             createIndex(IndexDefinition.create(
                     "tags-index", "tags", BsonType.STRING
             ));
@@ -227,7 +227,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Array index with SIZE operator should use PhysicalIndexScan")
-        void testWithArrayIndexSIZE() {
+        void shouldUsePhysicalIndexScanForArrayIndexWithSIZEOperator() {
             createIndex(IndexDefinition.create(
                     "items-index", "items", BsonType.ARRAY
             ));
@@ -244,7 +244,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Field index with EXISTS operator should use PhysicalIndexScan")
-        void testWithFieldIndexEXISTS() {
+        void shouldUsePhysicalIndexScanForFieldIndexWithEXISTSOperator() {
             createIndex(IndexDefinition.create(
                     "metadata-index", "metadata", BsonType.DOCUMENT
             ));
@@ -270,7 +270,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("AND with two indexed fields should use PhysicalAnd with two PhysicalIndexScans")
-        void testAndWithTwoIndexedFields() {
+        void shouldUsePhysicalAndWithTwoPhysicalIndexScansForTwoIndexedFields() {
             createIndexes(
                     IndexDefinition.create("age-index", "age", BsonType.INT32),
                     IndexDefinition.create("status-index", "status", BsonType.STRING)
@@ -296,7 +296,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("AND with indexed and non-indexed fields should mix PhysicalIndexScan and PhysicalFullScan")
-        void testAndWithMixedIndexedFields() {
+        void shouldMixPhysicalIndexScanAndPhysicalFullScanForMixedIndexedFields() {
             createIndex(IndexDefinition.create(
                     "price-index", "price", BsonType.DOUBLE
             ));
@@ -329,7 +329,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("AND with multiple conditions on same indexed field should use single PhysicalIndexScan")
-        void testAndWithMultipleConditionsOnSameIndexedField() {
+        void shouldUseSinglePhysicalIndexScanForMultipleConditionsOnSameField() {
             createIndex(IndexDefinition.create(
                     "age-index", "age", BsonType.INT32
             ));
@@ -363,7 +363,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Complex AND with nested operations and mixed indexes")
-        void testComplexAndWithMixedIndexes() {
+        void shouldHandleComplexAndWithNestedOperationsAndMixedIndexes() {
             createIndexes(
                     IndexDefinition.create("category-index", "category", BsonType.STRING),
                     IndexDefinition.create("price-index", "price", BsonType.DOUBLE)
@@ -407,7 +407,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("OR with two indexed fields should use PhysicalOr with two PhysicalIndexScans")
-        void testOrWithTwoIndexedFields() {
+        void shouldUsePhysicalOrWithTwoPhysicalIndexScansForTwoIndexedFields() {
             createIndexes(
                     IndexDefinition.create("name-index", "name", BsonType.STRING),
                     IndexDefinition.create("email-index", "email", BsonType.STRING)
@@ -433,7 +433,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("OR with indexed and non-indexed fields should mix PhysicalIndexScan and PhysicalFullScan")
-        void testOrWithMixedIndexedFields() {
+        void shouldMixPhysicalIndexScanAndPhysicalFullScanForOrWithMixedFields() {
             createIndex(IndexDefinition.create(
                     "status-index", "status", BsonType.STRING
             ));
@@ -466,7 +466,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("OR with multiple conditions on same indexed field should use multiple PhysicalIndexScans")
-        void testOrWithMultipleConditionsOnSameIndexedField() {
+        void shouldUseMultiplePhysicalIndexScansForOrWithMultipleConditionsOnSameField() {
             createIndex(IndexDefinition.create(
                     "priority-index", "priority", BsonType.INT32
             ));
@@ -500,7 +500,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Complex OR with nested operations and mixed indexes")
-        void testComplexOrWithMixedIndexes() {
+        void shouldHandleComplexOrWithNestedOperationsAndMixedIndexes() {
             createIndexes(
                     IndexDefinition.create("type-index", "type", BsonType.STRING),
                     IndexDefinition.create("score-index", "score", BsonType.INT32)
@@ -544,7 +544,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Nested AND/OR with mixed index usage")
-        void testNestedAndOrWithMixedIndexes() {
+        void shouldHandleNestedAndOrWithMixedIndexUsage() {
             createIndexes(
                     IndexDefinition.create("user-id-index", "user_id", BsonType.STRING),
                     IndexDefinition.create("role-index", "role", BsonType.STRING),
@@ -608,7 +608,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("ElemMatch with indexed field in subplan")
-        void testElemMatchWithIndexedFieldInSubplan() {
+        void shouldHandleElemMatchWithIndexedFieldInSubplan() {
             createIndex(IndexDefinition.create(
                     "items-price-index", "items.price", BsonType.DOUBLE
             ));
@@ -650,7 +650,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("NOT operator with indexed field should use PhysicalNot with PhysicalIndexScan")
-        void testNotWithIndexedField() {
+        void shouldUsePhysicalNotWithPhysicalIndexScanForIndexedField() {
             createIndex(IndexDefinition.create(
                     "status-index", "status", BsonType.STRING
             ));
@@ -683,7 +683,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Multiple indexes should all be utilized in complex query")
-        void testMultipleIndexUtilization() {
+        void shouldUtilizeAllMultipleIndexesInComplexQuery() {
             createIndexes(
                     IndexDefinition.create("user-index", "user_id", BsonType.STRING),
                     IndexDefinition.create("timestamp-index", "timestamp", BsonType.INT64),
@@ -721,7 +721,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Large IN clause with indexed field should use PhysicalIndexScan")
-        void testLargeInClauseWithIndex() {
+        void shouldUsePhysicalIndexScanForLargeINClauseWithIndexedField() {
             createIndex(IndexDefinition.create(
                     "category-index", "category", BsonType.STRING
             ));
@@ -749,7 +749,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Range query with indexed field should use single PhysicalIndexScan")
-        void testRangeQueryWithIndex() {
+        void shouldUseSinglePhysicalIndexScanForRangeQueryWithIndexedField() {
             createIndex(IndexDefinition.create(
                     "date-index", "created_date", BsonType.INT64
             ));
@@ -786,7 +786,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Index on different data types should work correctly")
-        void testDifferentDataTypeIndexes() {
+        void shouldHandleIndexesOnDifferentDataTypesCorrectly() {
             createIndexes(
                     IndexDefinition.create("string-index", "name", BsonType.STRING),
                     IndexDefinition.create("int32-index", "age", BsonType.INT32),

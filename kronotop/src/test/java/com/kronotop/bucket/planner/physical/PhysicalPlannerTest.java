@@ -42,7 +42,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
     @Test
     @DisplayName("Simple status query should work")
-    void testSimpleQuery() {
+    void shouldHandleSimpleQuery() {
         String query = "{status: 'ACTIVE'}";
         BqlExpr expr = BqlParser.parse(query);
 
@@ -69,7 +69,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("LogicalFilter should transpose to PhysicalFullScan with PhysicalFilter")
-        void testLogicalFilterTransposition() {
+        void shouldTransposeLogicalFilterToPhysicalFullScan() {
             LogicalFilter logicalFilter = new LogicalFilter("status", Operator.EQ, "active");
             PhysicalNode result = planLogical(logicalFilter);
 
@@ -87,7 +87,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("LogicalAnd should transpose to PhysicalAnd with child transposition")
-        void testLogicalAndTransposition() {
+        void shouldTransposeLogicalAndToPhysicalAnd() {
             LogicalAnd logicalAnd = new LogicalAnd(Arrays.asList(
                     new LogicalFilter("status", Operator.EQ, "active"),
                     new LogicalFilter("priority", Operator.GT, 5)
@@ -105,7 +105,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("LogicalOr should transpose to PhysicalOr with child transposition")
-        void testLogicalOrTransposition() {
+        void shouldTransposeLogicalOrToPhysicalOr() {
             LogicalOr logicalOr = new LogicalOr(Arrays.asList(
                     new LogicalFilter("category", Operator.EQ, "electronics"),
                     new LogicalFilter("featured", Operator.EQ, true)
@@ -123,7 +123,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("LogicalNot should transpose to PhysicalNot with child transposition")
-        void testLogicalNotTransposition() {
+        void shouldTransposeLogicalNotToPhysicalNot() {
             LogicalNot logicalNot = new LogicalNot(new LogicalFilter("deleted", Operator.EQ, true));
             PhysicalNode result = planLogical(logicalNot);
 
@@ -138,7 +138,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("LogicalElemMatch should transpose to PhysicalElemMatch with subplan transposition")
-        void testLogicalElemMatchTransposition() {
+        void shouldTransposeLogicalElemMatchToPhysicalElemMatch() {
             LogicalElemMatch logicalElemMatch = new LogicalElemMatch("items",
                     new LogicalFilter("price", Operator.GT, 100));
             PhysicalNode result = planLogical(logicalElemMatch);
@@ -153,7 +153,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("LogicalTrue should transpose to PhysicalTrue singleton")
-        void testLogicalTrueTransposition() {
+        void shouldTransposeLogicalTrueToPhysicalTrue() {
             LogicalTrue logicalTrue = LogicalTrue.INSTANCE;
             PhysicalNode result = planLogical(logicalTrue);
 
@@ -163,7 +163,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("LogicalFalse should transpose to PhysicalFalse singleton")
-        void testLogicalFalseTransposition() {
+        void shouldTransposeLogicalFalseToPhysicalFalse() {
             LogicalFalse logicalFalse = LogicalFalse.INSTANCE;
             PhysicalNode result = planLogical(logicalFalse);
 
@@ -182,7 +182,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Filter without index should use FullScan")
-        void testFullScanStrategy() {
+        void shouldUseFullScanForNonIndexedField() {
             // Non-indexed field should use FullScan
             LogicalFilter filter = new LogicalFilter("non_indexed_field", Operator.EQ, "value");
             PhysicalNode result = planLogical(filter);
@@ -200,7 +200,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("All operators should work with FullScan")
-        void testAllOperatorsWithFullScan() {
+        void shouldHandleAllOperatorsWithFullScan() {
             Operator[] operators = {Operator.EQ, Operator.NE, Operator.GT, Operator.GTE,
                     Operator.LT, Operator.LTE, Operator.IN, Operator.NIN,
                     Operator.ALL, Operator.SIZE, Operator.EXISTS};
@@ -238,7 +238,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Deeply nested AND/OR should transpose correctly")
-        void testDeeplyNestedAndOr() {
+        void shouldTransposeDeeplyNestedAndOr() {
             PhysicalNode result = planQuery("""
                     {
                       "$and": [
@@ -283,7 +283,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Multiple NOT operators should transpose correctly")
-        void testMultipleNotOperators() {
+        void shouldTransposeMultipleNotOperators() {
             PhysicalNode result = planQuery("""
                     {
                       "$and": [
@@ -304,7 +304,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("ElemMatch with nested logical operators should transpose correctly")
-        void testElemMatchWithNestedLogical() {
+        void shouldTransposeElemMatchWithNestedLogical() {
             PhysicalNode result = planQuery("""
                     {
                       "products": {
@@ -335,7 +335,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Very deep nesting should transpose correctly")
-        void testVeryDeepMixedNesting() {
+        void shouldTransposeVeryDeepMixedNesting() {
             PhysicalNode result = planQuery("""
                     {
                       "$and": [
@@ -384,7 +384,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("LogicalFilter fields should be reused directly in PhysicalFilter")
-        void testDirectFieldReuse() {
+        void shouldReuseFieldsDirectlyInPhysicalFilter() {
             String selector = "test_selector";
             Operator operator = Operator.GT;
             Object operand = 42;
@@ -406,7 +406,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Complex operands should be reused without copying")
-        void testComplexOperandReuse() {
+        void shouldReuseComplexOperandsWithoutCopying() {
             List<String> complexOperand = Arrays.asList("value1", "value2", "value3");
 
             LogicalFilter logicalFilter = new LogicalFilter("selector", Operator.IN, complexOperand);
@@ -422,7 +422,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Singleton instances should be reused")
-        void testSingletonReuse() {
+        void shouldReuseSingletonInstances() {
             LogicalTrue logicalTrue = LogicalTrue.INSTANCE;
             LogicalFalse logicalFalse = LogicalFalse.INSTANCE;
 
@@ -446,7 +446,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Null LogicalNode should throw NullPointerException")
-        void testNullLogicalNode() {
+        void shouldThrowForNullLogicalNode() {
             assertThrows(NullPointerException.class, () -> {
                 planLogical(null);
             });
@@ -454,7 +454,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Empty AND should transpose to TRUE")
-        void testEmptyAnd() {
+        void shouldTransposeEmptyAndToTrue() {
             PhysicalNode result = planQuery("{ \"$and\": [] }");
 
             // After logical optimization: empty AND becomes TRUE, then transposes to PhysicalTrue
@@ -465,7 +465,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Empty OR should transpose to FALSE")
-        void testEmptyOr() {
+        void shouldTransposeEmptyOrToFalse() {
             PhysicalNode result = planQuery("{ \"$or\": [] }");
 
             // After logical optimization: empty OR becomes FALSE, then transposes to PhysicalFalse
@@ -476,7 +476,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Single child AND should be simplified and transposed")
-        void testSingleChildAnd() {
+        void shouldSimplifyAndTransposeSingleChildAnd() {
             PhysicalNode result = planQuery("""
                     {
                       "$and": [
@@ -494,7 +494,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Complex numeric values should transpose correctly")
-        void testComplexNumericValues() {
+        void shouldTransposeComplexNumericValues() {
             PhysicalNode result = planQuery("""
                     {
                       "$and": [
@@ -519,7 +519,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Unicode values should transpose correctly")
-        void testUnicodeValues() {
+        void shouldTransposeUnicodeValues() {
             PhysicalNode result = planQuery("{ \"名前\": \"テスト\" }");
 
             assertInstanceOf(PhysicalFullScan.class, result);
@@ -540,7 +540,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Large query transposition should be efficient")
-        void testLargeQueryPerformance() {
+        void shouldTransposeLargeQueryEfficiently() {
             // Create logical plan with 100 filters
             List<LogicalNode> filters = new java.util.ArrayList<>();
             for (int i = 0; i < 100; i++) {
@@ -562,7 +562,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Deep nesting transposition should handle recursion efficiently")
-        void testDeepNestingPerformance() {
+        void shouldHandleDeepNestingEfficiently() {
             // Create deeply nested NOT structure via BQL for optimization to work
 
             // Build a nested NOT query: NOT(NOT(NOT(...(selector = value)...)))
@@ -585,7 +585,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Memory efficiency - no intermediate collections")
         @Disabled
-        void testMemoryEfficiency() {
+        void shouldBeMemoryEfficient() {
             // Create nested structure that could create intermediate collections
             LogicalNode complex = new LogicalAnd(Arrays.asList(
                     new LogicalFilter("a", Operator.EQ, "1"),
@@ -626,7 +626,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Complete BQL to Physical pipeline should work")
-        void testCompletePipeline() {
+        void shouldHandleCompleteBqlToPhysicalPipeline() {
             String bqlQuery = """
                     {
                       "$and": [
@@ -675,7 +675,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 
         @Test
         @DisplayName("Transposition should preserve optimization results")
-        void testOptimizationPreservation() {
+        void shouldPreserveOptimizationResults() {
             // Query that will be optimized by logical planner
             String bqlQuery = """
                     {

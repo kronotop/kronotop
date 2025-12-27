@@ -26,6 +26,10 @@ public class TransformWithResidualPredicateNode extends AbstractPipelineNode imp
         this.residualPredicate = residualPredicate;
     }
 
+    public ResidualPredicateNode predicate() {
+        return residualPredicate;
+    }
+
     @Override
     public void transform(QueryContext ctx) {
         int parentId = ctx.getParentId(id());
