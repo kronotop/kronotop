@@ -176,10 +176,10 @@ public class PipelineRewriter {
         IntermediatePlan intermediatePlan = traverseChildren(ctx, children);
 
         return switch (intermediatePlan.strategy()) {
-            case FULL_SCAN, NESTED -> convertToFullScanNode(ctx, id, intermediatePlan, predicateStrategy);
+            case FULL_SCAN, NESTED -> convertToFullScanNode(ctx, id, intermediatePlan.children(), predicateStrategy);
             case MIXED_SCAN -> {
                 if (PredicateEvalStrategy.AND.equals(predicateStrategy)) {
-                    yield convertToIndexScanNode(ctx, intermediatePlan, predicateStrategy);
+                    yield convertToIndexScanNode(ctx, intermediatePlan.children(), predicateStrategy);
                 }
                 yield convertToUnionNode(ctx, intermediatePlan.children());
             }
@@ -237,20 +237,23 @@ public class PipelineRewriter {
     }
 
     /**
-     * Converts an intermediate plan with multiple scan nodes into an optimized index scan pipeline.
-     * Selects the most selective index using {@link SelectivityEstimator}, then transforms the
-     * remaining nodes into residual predicates that are evaluated during document retrieval.
+     * Optimizes a mixed scan scenario by selecting the most selective index and converting
+     * remaining predicates to residual filters.
+     * <p>
+     * Uses {@link SelectivityEstimator} to identify which index will produce the smallest
+     * result set, then chains the other predicates as a {@link TransformWithResidualPredicateNode}
+     * for post-retrieval filtering.
      *
      * @param ctx               the planner context for ID generation and metadata access
-     * @param intermediatePlan  the intermediate plan containing multiple scan nodes
-     * @param predicateStrategy the strategy for combining residual predicates (AND/OR)
-     * @return the most selective index scan node with residual predicates connected as the next step
+     * @param children          the list of scan nodes to optimize
+     * @param predicateStrategy how to combine residual predicates (AND/OR)
+     * @return the most selective scan node with residual predicates connected as next step
      */
-    private static PipelineNode convertToIndexScanNode(PlannerContext ctx, IntermediatePlan intermediatePlan, PredicateEvalStrategy predicateStrategy) {
-        PipelineNode mostSelectiveIndexScan = SelectivityEstimator.estimate(ctx, intermediatePlan.children());
+    private static PipelineNode convertToIndexScanNode(PlannerContext ctx, List<PipelineNode> children, PredicateEvalStrategy predicateStrategy) {
+        PipelineNode mostSelectiveIndexScan = SelectivityEstimator.estimate(ctx, children);
 
         List<PipelineNode> otherNodes = new ArrayList<>();
-        for (PipelineNode node : intermediatePlan.children()) {
+        for (PipelineNode node : children) {
             if (node.id() != mostSelectiveIndexScan.id()) {
                 otherNodes.add(node);
             }
@@ -263,17 +266,19 @@ public class PipelineRewriter {
     }
 
     /**
-     * Converts an intermediate plan into a full scan node when no suitable indexes are available.
-     * Combines all child predicates into a single residual predicate for document-level filtering.
+     * Falls back to a full table scan when no suitable indexes are available.
+     * <p>
+     * Combines all child predicates into a single composite residual predicate
+     * that filters documents during the sequential scan.
      *
      * @param ctx      the planner context for ID generation
      * @param id       the node identifier for the resulting full scan node
-     * @param subplan  the intermediate plan containing child nodes to convert
-     * @param strategy the strategy for combining predicates (AND/OR)
-     * @return a full scan node with combined residual predicates
+     * @param children the list of child nodes whose predicates will be combined
+     * @param strategy how to combine predicates (AND/OR)
+     * @return a full scan node with the combined residual predicate
      */
-    private static FullScanNode convertToFullScanNode(PlannerContext ctx, int id, IntermediatePlan subplan, PredicateEvalStrategy strategy) {
-        ResidualPredicateNode predicate = transformToResidualPredicate(ctx, subplan.children(), strategy);
+    private static FullScanNode convertToFullScanNode(PlannerContext ctx, int id, List<PipelineNode> children, PredicateEvalStrategy strategy) {
+        ResidualPredicateNode predicate = transformToResidualPredicate(ctx, children, strategy);
         return new FullScanNode(id, predicate);
     }
 
@@ -343,7 +348,7 @@ public class PipelineRewriter {
                     );
                     children.add(new IndexScanNode(ctx.nextId(), intersection.indexes().get(i), predicate));
                 }
-                yield new IntersectionNode(intersection.id(), children);
+                yield convertToIndexScanNode(ctx, children, PredicateEvalStrategy.AND);
             }
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         };

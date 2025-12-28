@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SnapshotReadHandlerTest extends BaseHandlerTest {
     @Test
-    void test_SNAPSHOTREAD_ON() {
+    void shouldEnableSnapshotRead() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
@@ -52,7 +52,7 @@ class SnapshotReadHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void test_SNAPSHOTREAD_OFF() {
+    void shouldDisableSnapshotRead() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 

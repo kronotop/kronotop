@@ -286,7 +286,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldExplainAndQueryAsIntersection() {
+    void shouldExplainAndQueryWithTwoIndexes() {
         // Insert initial document to create bucket
         insertDocuments(List.of(DOCUMENT));
 
@@ -324,6 +324,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         // Query with $and on two indexed fields
+        // MIXED_SCAN strategy: picks most selective index, converts others to residual predicates
         ByteBuf buf = Unpooled.buffer();
         cmd.explain(TEST_BUCKET, "{$and: [{age: {$eq: 25}}, {name: {$eq: \"Alice\"}}]}").encode(buf);
         Object msg = runCommand(channel, buf);
@@ -331,9 +332,10 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage mapMessage = (MapRedisMessage) msg;
 
-        assertEquals("Intersection", getStringValue(mapMessage, "nodeType"));
-        assertEquals("INTERSECTION", getStringValue(mapMessage, "operation"));
-        assertTrue(hasKey(mapMessage, "children"));
+        // Planner selects one index and chains residual predicate for the other
+        assertEquals("IndexScan", getStringValue(mapMessage, "nodeType"));
+        assertEquals("INDEX_SCAN", getStringValue(mapMessage, "scanType"));
+        assertTrue(hasKey(mapMessage, "next")); // Residual predicate filter
     }
 
     @Test

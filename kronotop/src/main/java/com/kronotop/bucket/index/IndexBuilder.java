@@ -31,9 +31,42 @@ import com.kronotop.volume.AppendedEntry;
 
 import java.util.List;
 
+/**
+ * Provides static methods for building and maintaining index entries in FoundationDB.
+ * <p>
+ * IndexBuilder handles the lifecycle of index entries including creation, updates, and deletion
+ * for both primary (ID) and secondary indexes. Each secondary index entry consists of two parts:
+ * <ul>
+ *   <li><b>ENTRIES</b>: The forward index mapping (indexValue, versionstamp) → IndexEntry</li>
+ *   <li><b>BACK_POINTER</b>: The reverse mapping (versionstamp, indexValue) → NULL_VALUE</li>
+ * </ul>
+ * <p>
+ * Back pointers enable efficient lookup of all index entries for a given document versionstamp,
+ * which is essential for update and delete operations where all affected index entries must
+ * be located and modified.
+ *
+ * @see IndexEntry for the value stored in index entries
+ * @see IndexSubspaceMagic for subspace key prefixes
+ */
 public class IndexBuilder {
+    /**
+     * Placeholder value used for back pointer entries. The actual indexed value is stored
+     * in the key tuple, so the value can be minimal.
+     */
     public final static byte[] NULL_VALUE = new byte[]{0};
 
+    /**
+     * Sets an index entry using a versionstamped key mutation for newly appended documents.
+     * Uses FoundationDB's atomic versionstamp generation via SET_VERSIONSTAMPED_KEY mutation.
+     *
+     * @param tr             the transaction to mutate
+     * @param definition     the index definition for cardinality tracking
+     * @param indexSubspace  the directory subspace for this index
+     * @param shardId        the shard containing the document
+     * @param metadata       bucket metadata for cardinality updates
+     * @param entryKeyTuple  the pre-constructed key tuple containing the incomplete versionstamp
+     * @param entry          the appended entry with encoded metadata
+     */
     private static void setIndexForBSONType(
             Transaction tr,
             IndexDefinition definition,
@@ -118,6 +151,20 @@ public class IndexBuilder {
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, backPointer, NULL_VALUE);
     }
 
+    /**
+     * Inserts an index entry using an existing versionstamp rather than generating a new one.
+     * Creates both the forward index entry and back pointer for the given document.
+     * Used when reindexing or updating documents where the versionstamp is already known.
+     *
+     * @param tr           the transaction to mutate
+     * @param definition   the index definition
+     * @param metadata     bucket metadata for index lookup and cardinality
+     * @param versionstamp the document's existing versionstamp
+     * @param indexValue   the value to index (extracted from the document field)
+     * @param shardId      the shard containing the document
+     * @param entry        the encoded entry metadata
+     * @throws KronotopException if the index subspace cannot be found
+     */
     public static void insertIndexEntry(
             Transaction tr,
             IndexDefinition definition,
@@ -152,6 +199,15 @@ public class IndexBuilder {
         tr.set(backPointer, NULL_VALUE);
     }
 
+    /**
+     * Removes an entry from the primary (ID) index for a deleted document.
+     * Decrements the index cardinality counter accordingly.
+     *
+     * @param tr           the transaction to mutate
+     * @param versionstamp the versionstamp of the document being deleted
+     * @param metadata     bucket metadata for index lookup and cardinality
+     * @throws KronotopException if the primary index subspace cannot be found
+     */
     public static void dropPrimaryIndexEntry(Transaction tr, Versionstamp versionstamp, BucketMetadata metadata) {
         Index index = metadata.indexes().getIndex(DefaultIndexDefinition.ID.selector(), IndexSelectionPolicy.READWRITE);
         if (index == null) {
@@ -164,6 +220,17 @@ public class IndexBuilder {
         IndexUtil.mutateCardinality(tr, metadata.subspace(), DefaultIndexDefinition.ID.id(), -1);
     }
 
+    /**
+     * Removes all index entries for a document from a secondary index.
+     * Uses back pointers to locate all entries for the given versionstamp, clears both the
+     * forward index entries and back pointers, and decrements the cardinality counter.
+     *
+     * @param tr               the transaction to mutate
+     * @param versionstamp     the versionstamp of the document being removed from this index
+     * @param definition       the index definition for cardinality tracking
+     * @param indexSubspace    the directory subspace for this index
+     * @param metadataSubspace the bucket's metadata subspace for cardinality updates
+     */
     public static void dropIndexEntry(
             Transaction tr,
             Versionstamp versionstamp,
@@ -190,6 +257,16 @@ public class IndexBuilder {
         tr.clear(begin.getKey(), end.getKey());
     }
 
+    /**
+     * Updates the metadata value of all index entries for a document without changing the indexed key.
+     * Uses back pointers to locate all entries for the given versionstamp and overwrites their values.
+     * Used when document metadata (e.g., segment location) changes but the indexed field value remains the same.
+     *
+     * @param tr            the transaction to mutate
+     * @param versionstamp  the versionstamp identifying the document's index entries
+     * @param entryMetadata the new encoded metadata to set on each entry
+     * @param indexSubspace the directory subspace for this index
+     */
     public static void updateEntryMetadata(
             Transaction tr,
             Versionstamp versionstamp,
@@ -209,6 +286,18 @@ public class IndexBuilder {
         }
     }
 
+    /**
+     * Updates the metadata in the primary (ID) index entry for a document.
+     * Overwrites the existing entry value with new metadata while keeping the same versionstamp key.
+     * Used after document updates when the volume location changes.
+     *
+     * @param tr            the transaction to mutate
+     * @param versionstamp  the document's versionstamp
+     * @param metadata      bucket metadata for index lookup
+     * @param shardId       the shard containing the document
+     * @param entryMetadata the new encoded metadata
+     * @throws KronotopException if the primary index subspace cannot be found
+     */
     public static void updatePrimaryIndex(
             Transaction tr,
             Versionstamp versionstamp,

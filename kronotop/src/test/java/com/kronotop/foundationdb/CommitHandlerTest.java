@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class CommitHandlerTest extends BaseHandlerTest {
 
     @Test
-    void test_COMMIT() {
+    void shouldCommitTransaction() {
         TestTransaction tt = new TestTransaction(channel);
         tt.begin();
         tt.commit();
@@ -46,7 +46,7 @@ class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void test_COMMIT_NoTransactionInProgress() {
+    void shouldRejectCommitWhenNoTransactionInProgress() {
         TestTransaction tt = new TestTransaction(channel);
 
         // Start a new transaction
@@ -59,7 +59,7 @@ class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void test_COMMIT_VERSIONSTAMP() {
+    void shouldReturnVersionstampOnCommit() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
@@ -95,7 +95,7 @@ class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void test_COMMIT_COMMITTED_VERSION() {
+    void shouldReturnCommittedVersionOnCommit() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
@@ -124,7 +124,7 @@ class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void test_COMMIT_RETURNING_FUTURES_when_no_async_row() {
+    void shouldReturnEmptyFuturesWhenNoAsyncRow() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 

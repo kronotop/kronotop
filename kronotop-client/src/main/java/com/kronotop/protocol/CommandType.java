@@ -36,12 +36,22 @@ public enum CommandType implements ProtocolKeyword {
     ZMUTATE,
     ZGETRANGESIZE,
     GETAPPROXIMATESIZE,
-    GETREADVERSION;
+    GETREADVERSION,
+    ZINC_I64("ZINC.I64"),
+    ZGET_I64("ZGET.I64"),
+    ZINC_F64("ZINC.F64"),
+    ZGET_F64("ZGET.F64"),
+    ZINC_D128("ZINC.D128"),
+    ZGET_D128("ZGET.D128");
 
     public final byte[] bytes;
 
     CommandType() {
         bytes = name().getBytes(StandardCharsets.US_ASCII);
+    }
+
+    CommandType(String command) {
+        bytes = command.getBytes(StandardCharsets.US_ASCII);
     }
 
     @Override

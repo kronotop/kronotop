@@ -18,9 +18,9 @@ package com.kronotop.server;
 
 import com.kronotop.bucket.handlers.protocol.*;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
-import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
 import com.kronotop.foundationdb.protocol.*;
 import com.kronotop.foundationdb.zmap.protocol.*;
+import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
 import com.kronotop.redis.handlers.client.protocol.ClientMessage;
 import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
 import com.kronotop.redis.handlers.connection.protocol.*;
@@ -93,21 +93,6 @@ public class MessageTypes {
     public static final AttributeKey<UnwatchMessage> UNWATCH = AttributeKey.valueOf(UnwatchMessage.COMMAND);
     public static final AttributeKey<WatchMessage> WATCH = AttributeKey.valueOf(WatchMessage.COMMAND);
     public static final AttributeKey<InfoMessage> INFO = AttributeKey.valueOf(InfoMessage.COMMAND);
-    public static final AttributeKey<BeginMessage> BEGIN = AttributeKey.valueOf(BeginMessage.COMMAND);
-    public static final AttributeKey<CommitMessage> COMMIT = AttributeKey.valueOf(CommitMessage.COMMAND);
-    public static final AttributeKey<GetApproximateSizeMessage> GETAPPROXIMATESIZE = AttributeKey.valueOf(GetApproximateSizeMessage.COMMAND);
-    public static final AttributeKey<GetReadVersionMessage> GETREADVERSION = AttributeKey.valueOf(GetReadVersionMessage.COMMAND);
-    public static final AttributeKey<NamespaceMessage> NAMESPACE = AttributeKey.valueOf(NamespaceMessage.COMMAND);
-    public static final AttributeKey<RollbackMessage> ROLLBACK = AttributeKey.valueOf(RollbackMessage.COMMAND);
-    public static final AttributeKey<SnapshotReadMessage> SNAPSHOTREAD = AttributeKey.valueOf(SnapshotReadMessage.COMMAND);
-    public static final AttributeKey<ZDelMessage> ZDEL = AttributeKey.valueOf(ZDelMessage.COMMAND);
-    public static final AttributeKey<ZDelRangeMessage> ZDELRANGE = AttributeKey.valueOf(ZDelRangeMessage.COMMAND);
-    public static final AttributeKey<ZGetMessage> ZGET = AttributeKey.valueOf(ZGetMessage.COMMAND);
-    public static final AttributeKey<ZGetKeyMessage> ZGETKEY = AttributeKey.valueOf(ZGetKeyMessage.COMMAND);
-    public static final AttributeKey<ZGetRangeMessage> ZGETRANGE = AttributeKey.valueOf(ZGetRangeMessage.COMMAND);
-    public static final AttributeKey<ZGetRangeSizeMessage> ZGETRANGESIZE = AttributeKey.valueOf(ZGetRangeSizeMessage.COMMAND);
-    public static final AttributeKey<ZMutateMessage> ZMUTATE = AttributeKey.valueOf(ZMutateMessage.COMMAND);
-    public static final AttributeKey<ZSetMessage> ZSET = AttributeKey.valueOf(ZSetMessage.COMMAND);
     public static final AttributeKey<HDelMessage> HDEL = AttributeKey.valueOf(HDelMessage.COMMAND);
     public static final AttributeKey<HExistsMessage> HEXISTS = AttributeKey.valueOf(HExistsMessage.COMMAND);
     public static final AttributeKey<HGetAllMessage> HGETALL = AttributeKey.valueOf(HGetAllMessage.COMMAND);
@@ -122,6 +107,33 @@ public class MessageTypes {
     public static final AttributeKey<HValsMessage> HVALS = AttributeKey.valueOf(HValsMessage.COMMAND);
     public static final AttributeKey<HRandFieldMessage> HRANDFIELD = AttributeKey.valueOf(HRandFieldMessage.COMMAND);
     public static final AttributeKey<HMGetMessage> HMGET = AttributeKey.valueOf(HMGetMessage.COMMAND);
+
+    // Transaction management commands
+    public static final AttributeKey<BeginMessage> BEGIN = AttributeKey.valueOf(BeginMessage.COMMAND);
+    public static final AttributeKey<CommitMessage> COMMIT = AttributeKey.valueOf(CommitMessage.COMMAND);
+    public static final AttributeKey<GetApproximateSizeMessage> GETAPPROXIMATESIZE = AttributeKey.valueOf(GetApproximateSizeMessage.COMMAND);
+    public static final AttributeKey<GetReadVersionMessage> GETREADVERSION = AttributeKey.valueOf(GetReadVersionMessage.COMMAND);
+    public static final AttributeKey<RollbackMessage> ROLLBACK = AttributeKey.valueOf(RollbackMessage.COMMAND);
+    public static final AttributeKey<SnapshotReadMessage> SNAPSHOTREAD = AttributeKey.valueOf(SnapshotReadMessage.COMMAND);
+
+    // Namespace commands
+    public static final AttributeKey<NamespaceMessage> NAMESPACE = AttributeKey.valueOf(NamespaceMessage.COMMAND);
+
+    // ZMap commands
+    public static final AttributeKey<ZDelMessage> ZDEL = AttributeKey.valueOf(ZDelMessage.COMMAND);
+    public static final AttributeKey<ZDelRangeMessage> ZDELRANGE = AttributeKey.valueOf(ZDelRangeMessage.COMMAND);
+    public static final AttributeKey<ZGetMessage> ZGET = AttributeKey.valueOf(ZGetMessage.COMMAND);
+    public static final AttributeKey<ZGetKeyMessage> ZGETKEY = AttributeKey.valueOf(ZGetKeyMessage.COMMAND);
+    public static final AttributeKey<ZGetRangeMessage> ZGETRANGE = AttributeKey.valueOf(ZGetRangeMessage.COMMAND);
+    public static final AttributeKey<ZGetRangeSizeMessage> ZGETRANGESIZE = AttributeKey.valueOf(ZGetRangeSizeMessage.COMMAND);
+    public static final AttributeKey<ZMutateMessage> ZMUTATE = AttributeKey.valueOf(ZMutateMessage.COMMAND);
+    public static final AttributeKey<ZSetMessage> ZSET = AttributeKey.valueOf(ZSetMessage.COMMAND);
+    public static final AttributeKey<ZIncI64Message> ZINCI64 = AttributeKey.valueOf(ZIncI64Message.COMMAND);
+    public static final AttributeKey<ZGetI64Message> ZGETI64 = AttributeKey.valueOf(ZGetI64Message.COMMAND);
+    public static final AttributeKey<ZIncF64Message> ZINCF64 = AttributeKey.valueOf(ZIncF64Message.COMMAND);
+    public static final AttributeKey<ZGetF64Message> ZGETF64 = AttributeKey.valueOf(ZGetF64Message.COMMAND);
+    public static final AttributeKey<ZIncD128Message> ZINCD128 = AttributeKey.valueOf(ZIncD128Message.COMMAND);
+    public static final AttributeKey<ZGetD128Message> ZGETD128 = AttributeKey.valueOf(ZGetD128Message.COMMAND);
 
     // Internal commands
     public static final AttributeKey<SegmentInsertMessage> SEGMENTINSERT = AttributeKey.valueOf(SegmentInsertMessage.COMMAND);

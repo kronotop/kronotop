@@ -1,0 +1,56 @@
+/*
+ * Copyright (c) 2023-2025 Burak Sezer
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+
+package com.kronotop.foundationdb.zmap.protocol;
+
+import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.server.ProtocolMessage;
+import com.kronotop.server.Request;
+
+import java.util.List;
+
+public class ZIncD128Message implements ProtocolMessage<byte[]> {
+    public static final String COMMAND = "ZINC.D128";
+    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    private final Request request;
+    private byte[] key;
+    private String value;
+
+    public ZIncD128Message(Request request) {
+        this.request = request;
+        parse();
+    }
+
+    private void parse() {
+        key = ProtocolMessageUtil.readAsByteArray(request.getParams().getFirst());
+        value = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+    }
+
+    @Override
+    public byte[] getKey() {
+        return key;
+    }
+
+    @Override
+    public List<byte[]> getKeys() {
+        return null;
+    }
+
+    public String getValue() {
+        return value;
+    }
+}

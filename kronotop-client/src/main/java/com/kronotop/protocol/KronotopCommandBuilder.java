@@ -20,6 +20,7 @@ package com.kronotop.protocol;
 import com.kronotop.protocol.zmap.*;
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.output.ArrayOutput;
+import io.lettuce.core.output.DoubleOutput;
 import io.lettuce.core.output.IntegerOutput;
 import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.output.ValueOutput;
@@ -366,5 +367,98 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
      */
     public Command<K, V, Long> getreadversion() {
         return createCommand(CommandType.GETREADVERSION, new IntegerOutput<>(codec));
+    }
+
+    /**
+     * Atomically increments a 64-bit integer value stored at the specified key.
+     * If the key does not exist, it is created with the increment value.
+     * Uses FoundationDB's atomic ADD mutation for lock-free concurrent increments.
+     *
+     * @param key   the key whose value should be incremented; must not be null
+     * @param value the increment value (can be negative for decrement)
+     * @return a {@link Command} instance representing the ZINC.I64 operation,
+     * containing OK as the response
+     */
+    public Command<K, V, String> zinci64(K key, long value) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                addKey(key).
+                add(value);
+        return createCommand(CommandType.ZINC_I64, new StatusOutput<>(codec), args);
+    }
+
+    /**
+     * Retrieves a 64-bit integer value stored at the specified key.
+     * Returns the value as a long integer, or NULL if the key does not exist.
+     *
+     * @param key the key whose value should be retrieved; must not be null
+     * @return a {@link Command} instance representing the ZGET.I64 operation,
+     * containing the value as a Long, or null if the key doesn't exist
+     */
+    public Command<K, V, Long> zgeti64(K key) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                addKey(key);
+        return createCommand(CommandType.ZGET_I64, new IntegerOutput<>(codec), args);
+    }
+
+    /**
+     * Increments a 64-bit floating point value stored at the specified key.
+     * If the key does not exist, it is created with the increment value.
+     * Validates that both delta and result are finite IEEE-754 doubles.
+     *
+     * @param key   the key whose value should be incremented; must not be null
+     * @param value the increment value (can be negative for decrement)
+     * @return a {@link Command} instance representing the ZINC.F64 operation,
+     * containing OK as the response
+     */
+    public Command<K, V, String> zincf64(K key, double value) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                addKey(key).
+                add(value);
+        return createCommand(CommandType.ZINC_F64, new StatusOutput<>(codec), args);
+    }
+
+    /**
+     * Retrieves a 64-bit floating point value stored at the specified key.
+     * Returns the value as a double, or NULL if the key does not exist.
+     *
+     * @param key the key whose value should be retrieved; must not be null
+     * @return a {@link Command} instance representing the ZGET.F64 operation,
+     * containing the value as a Double, or null if the key doesn't exist
+     */
+    public Command<K, V, Double> zgetf64(K key) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                addKey(key);
+        return createCommand(CommandType.ZGET_F64, new DoubleOutput<>(codec), args);
+    }
+
+    /**
+     * Increments a 128-bit decimal value stored at the specified key.
+     * If the key does not exist, it is created with the increment value.
+     * Uses IEEE-754 Decimal128 (BID encoding) for arbitrary precision decimals.
+     *
+     * @param key   the key whose value should be incremented; must not be null
+     * @param value the increment value as a decimal string (can be negative for decrement)
+     * @return a {@link Command} instance representing the ZINC.D128 operation,
+     * containing OK as the response
+     */
+    public Command<K, V, String> zincd128(K key, String value) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                addKey(key).
+                add(value);
+        return createCommand(CommandType.ZINC_D128, new StatusOutput<>(codec), args);
+    }
+
+    /**
+     * Retrieves a 128-bit decimal value stored at the specified key.
+     * Returns the value as a plain decimal string, or NULL if the key does not exist.
+     *
+     * @param key the key whose value should be retrieved; must not be null
+     * @return a {@link Command} instance representing the ZGET.D128 operation,
+     * containing the value as a String, or null if the key doesn't exist
+     */
+    public Command<K, V, V> zgetd128(K key) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                addKey(key);
+        return createCommand(CommandType.ZGET_D128, new ValueOutput<>(codec), args);
     }
 }

@@ -67,7 +67,7 @@ public interface Response {
      *
      * @param value the double value to be written
      */
-    void writeDouble(long value);
+    void writeDouble(double value);
 
     /**
      * Writes an array of Redis messages as a response message to the client.

@@ -28,6 +28,15 @@ import java.util.List;
  * Selectivity-Based Ordering Rule that reorders conditions in AND/OR operations
  * based on their estimated selectivity to optimize execution performance.
  * <p>
+ * This rule performs statistics-free ordering of boolean predicates (AND / OR) to optimize execution efficiency via
+ * short-circuiting. It does not change the access path or estimate absolute cardinality; instead, it applies lightweight
+ * heuristics (operator type, index availability, and node kind) to determine the most efficient evaluation order of
+ * physical nodes.
+ * <p>
+ * While histogram-based optimization can provide finer-grained costs, this rule ensures a performant baseline ordering
+ * at the physical plan level, even when statistics are unavailable or stale.
+ *
+ * <p>
  * This rule implements execution order optimization by:
  * <ul>
  * <li>For AND operations: Orders conditions from most selective (lowest cost) to least selective</li>

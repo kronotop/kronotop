@@ -24,11 +24,31 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Unified facade for executing queries against a bucket.
+ * <p>
+ * QueryExecutor provides a single entry point for all query operations (read, delete, update)
+ * by coordinating the pipeline execution infrastructure. It initializes shared components
+ * like document retrieval and cursor management, then delegates to specialized executors
+ * for each operation type.
+ *
+ * @see ReadExecutor for document retrieval
+ * @see DeleteExecutor for document deletion
+ * @see UpdateExecutor for document modification
+ */
 public class QueryExecutor {
     private final ReadExecutor readExecutor;
     private final DeleteExecutor deleteExecutor;
     private final UpdateExecutor updateExecutor;
 
+    /**
+     * Creates a new query executor for the specified bucket service.
+     * <p>
+     * Initializes the pipeline environment with document retrieval and cursor management,
+     * then creates specialized executors for each operation type.
+     *
+     * @param service the bucket service providing storage and index access
+     */
     public QueryExecutor(BucketService service) {
         DocumentRetriever documentRetriever = new DocumentRetriever(service);
         CursorManager cursorManager = new CursorManager();
@@ -39,14 +59,35 @@ public class QueryExecutor {
         this.updateExecutor = new UpdateExecutor(executor);
     }
 
+    /**
+     * Executes a read query and returns matching documents.
+     *
+     * @param tr  the FoundationDB transaction
+     * @param ctx the query context containing the plan and options
+     * @return map of versionstamps to document bodies for matching documents
+     */
     public Map<Versionstamp, ByteBuffer> read(Transaction tr, QueryContext ctx) {
         return readExecutor.execute(tr, ctx);
     }
 
+    /**
+     * Executes a delete query and removes matching documents.
+     *
+     * @param tr  the FoundationDB transaction
+     * @param ctx the query context containing the plan and options
+     * @return list of versionstamps for deleted documents
+     */
     public List<Versionstamp> delete(Transaction tr, QueryContext ctx) {
         return deleteExecutor.execute(tr, ctx);
     }
 
+    /**
+     * Executes an update query and modifies matching documents.
+     *
+     * @param tr  the FoundationDB transaction
+     * @param ctx the query context containing the plan, options, and update specification
+     * @return list of versionstamps for updated documents
+     */
     public List<Versionstamp> update(Transaction tr, QueryContext ctx) {
         return updateExecutor.execute(tr, ctx);
     }

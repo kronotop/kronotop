@@ -92,7 +92,7 @@ public class RESP3Response implements Response {
      * @throws NullPointerException if the value is null
      */
     @Override
-    public void writeDouble(long value) {
+    public void writeDouble(double value) {
         ctx.writeAndFlush(new DoubleRedisMessage(value));
     }
 

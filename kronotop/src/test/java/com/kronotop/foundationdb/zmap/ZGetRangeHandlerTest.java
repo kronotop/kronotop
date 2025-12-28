@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 class ZGetRangeHandlerTest extends BaseHandlerTest {
 
     @Test
-    void test_ZGETRANGE() {
+    void shouldGetRange() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 

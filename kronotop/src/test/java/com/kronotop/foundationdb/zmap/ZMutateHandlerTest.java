@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 class ZMutateHandlerTest extends BaseHandlerTest {
 
     @Test
-    void test_ZMUTATE() {
+    void shouldMutateWithCompareAndClear() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
@@ -74,7 +74,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    public void test_ZMUTATE_ADD_INTEGER() {
+    void shouldMutateWithAddInteger() {
         KronotopCommandBuilder<byte[], byte[]> cmd = new KronotopCommandBuilder<>(ByteArrayCodec.INSTANCE);
         EmbeddedChannel channel = getChannel();
 

@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class BeginHandlerTest extends BaseHandlerTest {
     @Test
-    void test_BEGIN() {
+    void shouldBeginTransaction() {
         TestTransaction tt = new TestTransaction(channel);
         tt.begin();
         Object response = tt.getResponse();
@@ -38,7 +38,7 @@ class BeginHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void test_BEGIN_InProgressTransaction() {
+    void shouldRejectBeginWhenTransactionInProgress() {
         TestTransaction tt = new TestTransaction(channel);
 
         // Start a new transaction

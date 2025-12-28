@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
@@ -262,5 +262,36 @@ class IntersectionNodeWithIndexScanStrategyTest extends BasePipelineTest {
             assertEquals(Set.of("John"), extractNamesFromResults(results));
             assertEquals(Set.of(35, 47), extractIntegerFieldFromResults(results, "age"));
         }
+    }
+
+    @Test
+    void shouldExecuteAndQueryWithTwoEqPredicates() {
+        // Create two secondary indexes
+        IndexDefinition ageIndex = IndexDefinition.create("age_idx", "age", BsonType.INT32);
+        IndexDefinition nameIndex = IndexDefinition.create("name_idx", "name", BsonType.STRING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, ageIndex, nameIndex);
+
+        // Insert documents with both fields
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 30}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Charlie\", \"age\": 25}")
+        );
+        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+
+        // Create an execution plan with $and on two indexed fields
+        String query = "{ $and: [ { age: { $eq: 25 } }, { name: { $eq: \"Alice\" } } ] }";
+        PipelineNode plan = createExecutionPlan(metadata, query);
+
+        assertNotNull(plan);
+
+        // Run the query and verify the result
+        List<String> results = runQueryOnBucket(metadata, query);
+        assertEquals(1, results.size());
+
+        // Verify the returned document is Alice with age 25
+        String resultJson = results.getFirst();
+        assertTrue(resultJson.contains("\"name\": \"Alice\""));
+        assertTrue(resultJson.contains("\"age\": 25"));
     }
 }

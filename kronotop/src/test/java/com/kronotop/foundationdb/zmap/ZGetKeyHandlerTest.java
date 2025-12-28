@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class ZGetKeyHandlerTest extends BaseHandlerTest {
     @Test
-    void test_ZGETKEY() {
+    void shouldGetKey() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 

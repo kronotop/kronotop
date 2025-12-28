@@ -16,32 +16,37 @@
 
 package com.kronotop.bucket.pipeline;
 
-import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.bql.ast.Int32Val;
+import com.kronotop.bucket.bql.ast.Int64Val;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexStatistics;
 import com.kronotop.bucket.index.statistics.Histogram;
 import com.kronotop.bucket.index.statistics.HistogramUtils;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PlannerContext;
+import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
+import com.kronotop.server.RESPVersion;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.codec.StringCodec;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.bson.BsonInt32;
 import org.bson.BsonType;
 import org.bson.BsonValue;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeSet;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.kronotop.bucket.bql.ast.Int64Val;
-
-class SelectivityEstimatorTest extends BaseStandaloneInstanceTest {
+class SelectivityEstimatorTest extends BaseHandlerTest {
 
     private Histogram buildHistogramWithRange(int start, int end) {
         TreeSet<BsonValue> values = new TreeSet<>(BSONUtil::compareBsonValues);
@@ -834,5 +839,70 @@ class SelectivityEstimatorTest extends BaseStandaloneInstanceTest {
         // Verify order matters
         PipelineNode selectedReversed = SelectivityEstimator.estimate(ctx, List.of(scoreNode, ageNode));
         assertSame(scoreNode, selectedReversed);
+    }
+
+    // ==================== Integration Test via BUCKET.EXPLAIN ====================
+
+    @Test
+    void shouldSelectMoreSelectiveIndexViaExplainCommand() {
+        // Insert initial document to create bucket
+        BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf insertBuf = Unpooled.buffer();
+        insertCmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(1),
+                BSONUtil.jsonToDocumentThenBytes("{\"age\": 50, \"score\": 50}")
+        ).encode(insertBuf);
+        runCommand(channel, insertBuf);
+
+        // Create two secondary indexes
+        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        createIndexThenWaitForReadiness(ageIndex, scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        // Build histogram with values 1-100 for both indexes
+        Histogram histogram = buildHistogramWithRange(1, 100);
+
+        // Inject statistics: cardinality=1000 for both indexes
+        Map<Long, IndexStatistics> stats = new HashMap<>();
+        stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
+        stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
+        metadata.indexes().updateStatistics(stats);
+
+        // Use BUCKET.EXPLAIN to verify index selection
+        // Query: age < 10 AND score < 90
+        // age < 10 → ~10% → more selective
+        // score < 90 → ~90% → less selective
+        // Expected: age-index should be selected as the primary scan
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf explainBuf = Unpooled.buffer();
+        cmd.explain(TEST_BUCKET, "{$and: [{age: {$lt: 10}}, {score: {$lt: 90}}]}").encode(explainBuf);
+        Object msg = runCommand(channel, explainBuf);
+
+        assertInstanceOf(MapRedisMessage.class, msg);
+        MapRedisMessage mapMessage = (MapRedisMessage) msg;
+
+        // The plan should use IndexScan on the more selective index (age)
+        assertEquals("IndexScan", getStringValue(mapMessage, "nodeType"));
+        assertEquals("age", getStringValue(mapMessage, "selector"));
+        assertEquals("age-index", getStringValue(mapMessage, "index"));
+    }
+
+    private void switchProtocol(BucketCommandBuilder<?, ?> cmd, RESPVersion version) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.hello(version.getValue()).encode(buf);
+        runCommand(channel, buf);
+    }
+
+    private String getStringValue(MapRedisMessage map, String key) {
+        for (Map.Entry<RedisMessage, RedisMessage> entry : map.children().entrySet()) {
+            if (entry.getKey() instanceof SimpleStringRedisMessage keyMsg && keyMsg.content().equals(key)) {
+                if (entry.getValue() instanceof SimpleStringRedisMessage valueMsg) {
+                    return valueMsg.content();
+                }
+            }
+        }
+        return null;
     }
 }

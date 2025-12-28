@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class ZDelRangeHandlerTest extends BaseHandlerTest {
     @Test
-    void test_ZDELRANGE() {
+    void shouldDeleteKeyRange() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
@@ -92,7 +92,7 @@ class ZDelRangeHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void test_ZDELRANGE_begin_asterisk() {
+    void shouldDeleteRangeWithAsteriskBegin() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
@@ -149,7 +149,7 @@ class ZDelRangeHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void test_ZDELRANGE_end_asterisk() {
+    void shouldDeleteRangeWithAsteriskEnd() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 

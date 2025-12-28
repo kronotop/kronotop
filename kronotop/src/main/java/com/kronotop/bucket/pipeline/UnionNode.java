@@ -25,19 +25,43 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Represents a logical OR operation in the query execution pipeline.
+ * <p>
+ * UnionNode combines results from multiple child scan nodes using set union semantics.
+ * When a query contains an OR condition (e.g., {@code {$or: [{age: 25}, {city: "NYC"}]}}),
+ * each branch executes independently and UnionNode merges their results, ensuring each
+ * matching document appears exactly once in the final output.
+ * <p>
+ * The implementation uses RoaringBitmap for efficient set operations. Each child node
+ * produces a set of entry handles (unique document identifiers), and these sets are
+ * combined via bitwise OR. This approach is significantly faster than naive list merging
+ * for large result sets.
+ * <p>
+ * UnionNode handles heterogeneous child outputs: some children may produce
+ * {@link PersistedEntrySink} (full document data) while others produce
+ * {@link DocumentLocationSink} (location pointers requiring document retrieval).
+ * The node normalizes these into a unified output by fetching documents as needed.
+ *
+ * @see IntersectionNode for AND semantics
+ * @see LogicalNode for the logical node contract
+ */
 public class UnionNode extends AbstractLogicalNode implements LogicalNode {
     public UnionNode(int id, List<PipelineNode> children) {
         super(id, children);
     }
 
     /**
-     * Checks whether all child nodes are exhausted and propagates the exhaustion state
-     * to the current node in the query context. If all child nodes are exhausted, the
-     * current node's state is updated to exhaust.
+     * Determines if all child nodes have completed execution and marks this node
+     * as exhausted accordingly.
+     * <p>
+     * Union semantics require processing all children before producing final results.
+     * This method enables incremental execution by tracking which children still
+     * have data to contribute.
      *
-     * @param ctx the {@link QueryContext} instance that manages execution states and pipeline information
-     * @return true if all child nodes are exhausted and the current node's state is set to exhaust,
-     * false otherwise
+     * @param ctx the query context managing execution state
+     * @return {@code true} if all children are exhausted and this node is now marked exhausted,
+     *         {@code false} if at least one child has more results to produce
      */
     private boolean checkAndPropagateExhaustion(QueryContext ctx) {
         for (PipelineNode child : children()) {
@@ -50,6 +74,16 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
         return true;
     }
 
+    /**
+     * Combines multiple bitmaps into a single bitmap using bitwise OR.
+     * <p>
+     * This aggregates entry handles from all child nodes into one set representing
+     * all documents that match any of the OR conditions. Null bitmaps are safely
+     * skipped, allowing partial results from children that produced no matches.
+     *
+     * @param bitmaps array of bitmaps from child nodes, may contain nulls
+     * @return a new bitmap containing the union of all input bitmaps
+     */
     private Roaring64Bitmap orAll(Roaring64Bitmap[] bitmaps) {
         Roaring64Bitmap result = new Roaring64Bitmap();
         if (bitmaps == null) {
@@ -63,6 +97,27 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
         return result;
     }
 
+    /**
+     * Executes the union operation by merging results from all child nodes.
+     * <p>
+     * The execution proceeds in three phases:
+     * <ol>
+     *   <li><b>Collection</b>: Iterates through each child's data sink, extracting entry handles
+     *       and document metadata. Builds a bitmap per child for efficient set operations,
+     *       while maintaining a map of document pointers for later retrieval.</li>
+     *   <li><b>Union</b>: Combines all child bitmaps via OR operation to produce the final
+     *       set of unique document handles.</li>
+     *   <li><b>Materialization</b>: For each handle in the union, retrieves the document body
+     *       (either from cached data or by fetching from storage) and writes to this node's
+     *       output sink.</li>
+     * </ol>
+     * <p>
+     * Child sinks are cleared after processing to release memory. The method exits early
+     * if all children are exhausted, preventing redundant work in cursor-based pagination.
+     *
+     * @param ctx the query context providing access to sinks, document retriever, and execution state
+     * @throws IllegalStateException if a child node has no associated data sink
+     */
     @Override
     public void execute(QueryContext ctx) {
         if (checkAndPropagateExhaustion(ctx)) {
@@ -144,6 +199,14 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
         }
     }
 
+    /**
+     * Temporary container for aggregating document metadata from multiple sources.
+     * <p>
+     * During union execution, the same document may appear in multiple child results
+     * with different representations (some as persisted entries, others as locations).
+     * DocumentPointer accumulates all available metadata for a document, enabling
+     * the union logic to choose the most efficient retrieval path.
+     */
     private static class DocumentPointer {
         private DocumentLocation location;
         private Versionstamp versionstamp;

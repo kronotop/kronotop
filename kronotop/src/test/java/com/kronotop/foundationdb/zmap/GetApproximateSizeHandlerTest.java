@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GetApproximateSizeHandlerTest extends BaseHandlerTest {
     @Test
-    void test_GETAPPROXIMATESIZE() {
+    void shouldGetApproximateSize() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
         {

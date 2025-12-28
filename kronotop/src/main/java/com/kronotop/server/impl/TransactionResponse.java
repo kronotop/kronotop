@@ -88,7 +88,7 @@ public class TransactionResponse implements Response {
      * @param value the double value to be written
      */
     @Override
-    public void writeDouble(long value) {
+    public void writeDouble(double value) {
         messages.add(new DoubleRedisMessage(value));
     }
 

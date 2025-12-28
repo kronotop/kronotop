@@ -21,10 +21,12 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.index.*;
 import com.kronotop.volume.*;
+import org.bson.BsonNull;
 import org.bson.BsonValue;
 
 import java.io.IOException;
@@ -254,16 +256,24 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             DirectorySubspace affectedIndex = index.subspace();
             IndexDefinition indexDefinition = index.definition();
 
-            BsonValue value = updateResultContainer.getDocumentUpdateResult().newValues().get(selector);
-            IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
-                    ctx.metadata(),
-                    value,
-                    indexDefinition,
-                    affectedIndex,
-                    updateResultContainer.getShardId(),
-                    updateResultContainer.getEntryMetadata()
-            );
-            IndexBuilder.setIndexEntryByVersionstamp(tr, versionstamp, indexEntryContainer);
+            BsonValue bsonValue = updateResultContainer.getDocumentUpdateResult().newValues().get(selector);
+            if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+                Object indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
+                if (indexValue == null) {
+                    // Type mismatch, drop the value and continue
+                    IndexBuilder.dropIndexEntry(tr, versionstamp, indexDefinition, affectedIndex, ctx.metadata().subspace());
+                    continue;
+                }
+                IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
+                        ctx.metadata(),
+                        indexValue,
+                        indexDefinition,
+                        affectedIndex,
+                        updateResultContainer.getShardId(),
+                        updateResultContainer.getEntryMetadata()
+                );
+                IndexBuilder.setIndexEntryByVersionstamp(tr, versionstamp, indexEntryContainer);
+            }
         }
     }
 

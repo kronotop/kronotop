@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 class ZDelHandlerTest extends BaseHandlerTest {
 
     @Test
-    void test_ZDEL() {
+    void shouldDeleteKey() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
@@ -73,7 +73,7 @@ class ZDelHandlerTest extends BaseHandlerTest {
 
 
     @Test
-    void test_ZDEL_KeyNotExists() {
+    void shouldSucceedWhenDeletingNonExistentKey() {
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 

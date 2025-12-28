@@ -47,6 +47,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -634,6 +635,104 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                     String.format("NOSUCHNAMESPACE No such namespace: '%s'", testNamespace),
                     actualMessage.content()
             );
+        }
+    }
+
+    @Test
+    void shouldIndexMissingFieldsAsNull() {
+        // Create an index for the 'age' field
+        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        createIndexThenWaitForReadiness(ageIndexDefinition);
+
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        // Insert documents: one without age field, one with actual value
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 30}")
+        );
+
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), makeDocumentsArray(documents)).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        assertEquals(2, actualMessage.children().size());
+
+        // Fetch all index entries
+        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        assertNotNull(ageIndex, "Age index should exist");
+        List<KeyValue> indexEntries = fetchAllIndexedEntries(ageIndex.subspace());
+
+        // Should have 2 entries: one null (missing field), one with value 30
+        assertEquals(2, indexEntries.size(), "Should have 2 index entries (null and 30)");
+
+        // Extract indexed values
+        List<Object> indexedValues = new ArrayList<>();
+        byte[] prefix = ageIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        for (KeyValue kv : indexEntries) {
+            Tuple keyTuple = Tuple.fromBytes(kv.getKey(), prefix.length, kv.getKey().length - prefix.length);
+            indexedValues.add(keyTuple.get(0));
+        }
+
+        // Verify we have both null (for missing field) and 30L
+        assertTrue(indexedValues.contains(null), "Should have null indexed value for missing field");
+        assertTrue(indexedValues.contains(30L), "Should have 30 indexed value");
+    }
+
+    @Test
+    void shouldIndexExplicitNullValues() {
+        // Create an index for the 'age' field
+        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        createIndexThenWaitForReadiness(ageIndexDefinition);
+
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        // Insert documents: one with explicit null, one with actual value
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": null}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 30}")
+        );
+
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), makeDocumentsArray(documents)).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        assertEquals(2, actualMessage.children().size());
+
+        // Fetch all index entries
+        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        assertNotNull(ageIndex, "Age index should exist");
+        List<KeyValue> indexEntries = fetchAllIndexedEntries(ageIndex.subspace());
+
+        // Should have 2 entries: one null, one with value 30
+        assertEquals(2, indexEntries.size(), "Should have 2 index entries (null and 30)");
+
+        // Extract indexed values
+        List<Object> indexedValues = new ArrayList<>();
+        byte[] prefix = ageIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        for (KeyValue kv : indexEntries) {
+            Tuple keyTuple = Tuple.fromBytes(kv.getKey(), prefix.length, kv.getKey().length - prefix.length);
+            indexedValues.add(keyTuple.get(0));
+        }
+
+        // Verify we have both null and 30L
+        assertTrue(indexedValues.contains(null), "Should have null indexed value for explicit null");
+        assertTrue(indexedValues.contains(30L), "Should have 30 indexed value");
+    }
+
+    private List<KeyValue> fetchAllIndexedEntries(DirectorySubspace indexSubspace) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return tr.getRange(begin, end).asList().join();
         }
     }
 }

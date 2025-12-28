@@ -32,13 +32,15 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
     public FoundationDBService(Context context) {
         super(context, NAME);
 
-        // Register handlers here
+        // Transaction management
         handlerMethod(ServerKind.EXTERNAL, new BeginHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new RollbackHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new CommitHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new SnapshotReadHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new GetReadVersionHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new GetApproximateSizeHandler(this));
+
+        // ZMap
         handlerMethod(ServerKind.EXTERNAL, new ZSetHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZGetHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZDelHandler(this));
@@ -47,5 +49,11 @@ public class FoundationDBService extends CommandHandlerService implements Kronot
         handlerMethod(ServerKind.EXTERNAL, new ZGetKeyHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZMutateHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZGetRangeSizeHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZIncI64Handler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZGetI64Handler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZIncF64Handler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZGetF64Handler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZIncD128Handler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZGetD128Handler(this));
     }
 }
