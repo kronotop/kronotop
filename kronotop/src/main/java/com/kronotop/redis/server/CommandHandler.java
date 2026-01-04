@@ -27,7 +27,9 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,9 +41,8 @@ public class CommandHandler implements Handler {
         this.service = service;
     }
 
-    private FullBulkStringRedisMessage bulkStringReply(Response response, String str) {
-        ByteBuf buf = response.getCtx().channel().alloc().buffer();
-        buf.writeBytes(str.getBytes());
+    private FullBulkStringRedisMessage bulkStringReply(String str) {
+        ByteBuf buf = Unpooled.wrappedBuffer(str.getBytes(StandardCharsets.UTF_8));
         return new FullBulkStringRedisMessage(buf);
     }
 
@@ -50,10 +51,10 @@ public class CommandHandler implements Handler {
         request.attr(MessageTypes.COMMAND).set(new CommandMessage(request));
     }
 
-    private ArrayRedisMessage processCommandInfo(String command, Response response) {
+    private ArrayRedisMessage processCommandInfo(String command) {
         List<RedisMessage> document = new ArrayList<>();
         CommandMetadata commandMetadata = service.getContext().getCommandMetadata().get(command.toUpperCase());
-        document.add(bulkStringReply(response, command.toLowerCase()));
+        document.add(bulkStringReply(command.toLowerCase()));
         document.add(new IntegerRedisMessage(commandMetadata.getArity()));
 
         // FLAGS
@@ -124,7 +125,7 @@ public class CommandHandler implements Handler {
         // TIPS section
         List<RedisMessage> tips = new ArrayList<>();
         for (String tip : commandMetadata.getCommandTips()) {
-            tips.add(bulkStringReply(response, tip.toLowerCase()));
+            tips.add(bulkStringReply(tip.toLowerCase()));
         }
         document.add(new ArrayRedisMessage(tips));
 
@@ -133,12 +134,12 @@ public class CommandHandler implements Handler {
         for (KeySpec keySpec : commandMetadata.getKeySpecs()) {
             List<RedisMessage> keySpecification = new ArrayList<>();
             if (keySpec.getNotes() != null) {
-                keySpecification.add(bulkStringReply(response, "notes"));
-                keySpecification.add(bulkStringReply(response, keySpec.getNotes()));
+                keySpecification.add(bulkStringReply("notes"));
+                keySpecification.add(bulkStringReply(keySpec.getNotes()));
             }
 
             List<RedisMessage> flags = new ArrayList<>();
-            keySpecification.add(bulkStringReply(response, "flags"));
+            keySpecification.add(bulkStringReply("flags"));
             for (String flag : keySpec.getFlags()) {
                 if (flag.equals("RW")) {
                     flags.add(new SimpleStringRedisMessage(flag));
@@ -148,31 +149,31 @@ public class CommandHandler implements Handler {
             }
             keySpecification.add(new ArrayRedisMessage(flags));
 
-            keySpecification.add(bulkStringReply(response, "begin_search"));
+            keySpecification.add(bulkStringReply("begin_search"));
             List<RedisMessage> beginSearch = new ArrayList<>();
-            beginSearch.add(bulkStringReply(response, "type"));
-            beginSearch.add(bulkStringReply(response, "index"));
-            beginSearch.add(bulkStringReply(response, "spec"));
+            beginSearch.add(bulkStringReply("type"));
+            beginSearch.add(bulkStringReply("index"));
+            beginSearch.add(bulkStringReply("spec"));
 
             List<RedisMessage> beginSearchSpec = new ArrayList<>();
-            beginSearchSpec.add(bulkStringReply(response, "index"));
+            beginSearchSpec.add(bulkStringReply("index"));
             beginSearchSpec.add(new IntegerRedisMessage(keySpec.getBeginSearch().getIndex().getPos()));
             beginSearch.add(new ArrayRedisMessage(beginSearchSpec));
 
             keySpecification.add(new ArrayRedisMessage(beginSearch));
 
-            keySpecification.add(bulkStringReply(response, "find_keys"));
+            keySpecification.add(bulkStringReply("find_keys"));
             List<RedisMessage> findKeys = new ArrayList<>();
-            findKeys.add(bulkStringReply(response, "type"));
-            findKeys.add(bulkStringReply(response, "range"));
-            findKeys.add(bulkStringReply(response, "spec"));
+            findKeys.add(bulkStringReply("type"));
+            findKeys.add(bulkStringReply("range"));
+            findKeys.add(bulkStringReply("spec"));
 
             List<RedisMessage> findKeysSpec = new ArrayList<>();
-            findKeysSpec.add(bulkStringReply(response, "lastkey"));
+            findKeysSpec.add(bulkStringReply("lastkey"));
             findKeysSpec.add(new IntegerRedisMessage(keySpec.getFindKeys().getRange().getLastkey()));
-            findKeysSpec.add(bulkStringReply(response, "keystep"));
+            findKeysSpec.add(bulkStringReply("keystep"));
             findKeysSpec.add(new IntegerRedisMessage(keySpec.getFindKeys().getRange().getStep()));
-            findKeysSpec.add(bulkStringReply(response, "limit"));
+            findKeysSpec.add(bulkStringReply("limit"));
             findKeysSpec.add(new IntegerRedisMessage(keySpec.getFindKeys().getRange().getLimit()));
             findKeys.add(new ArrayRedisMessage(findKeysSpec));
 
@@ -198,7 +199,7 @@ public class CommandHandler implements Handler {
         CommandMessage commandMessage = request.attr(MessageTypes.COMMAND).get();
         if (!commandMessage.hasSubcommand()) {
             for (String command : service.getContext().getCommandMetadata().keySet()) {
-                root.add(processCommandInfo(command, response));
+                root.add(processCommandInfo(command));
             }
             response.writeArray(root);
         } else {
@@ -206,11 +207,11 @@ public class CommandHandler implements Handler {
                 case CommandMessage.SUBCOMMAND_INFO:
                     if (commandMessage.getCommands().isEmpty()) {
                         for (String command : service.getContext().getCommandMetadata().keySet()) {
-                            root.add(processCommandInfo(command, response));
+                            root.add(processCommandInfo(command));
                         }
                     } else {
                         for (String command : commandMessage.getCommands()) {
-                            root.add(processCommandInfo(command, response));
+                            root.add(processCommandInfo(command));
                         }
                     }
                     response.writeArray(root);

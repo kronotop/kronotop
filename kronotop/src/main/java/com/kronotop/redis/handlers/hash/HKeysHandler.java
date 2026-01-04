@@ -33,7 +33,9 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -72,8 +74,7 @@ public class HKeysHandler extends BaseHandler implements Handler {
 
             Enumeration<String> keys = container.hash().keys();
             while (keys.hasMoreElements()) {
-                ByteBuf buf = response.getCtx().alloc().buffer();
-                buf.writeBytes(keys.nextElement().getBytes());
+                ByteBuf buf = Unpooled.wrappedBuffer(keys.nextElement().getBytes(StandardCharsets.UTF_8));
                 fields.add(new FullBulkStringRedisMessage(buf));
             }
         } finally {

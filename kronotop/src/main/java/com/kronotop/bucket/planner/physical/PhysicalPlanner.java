@@ -17,9 +17,13 @@
 package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.index.Index;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.logical.*;
+import org.bson.BsonType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,24 +67,64 @@ public class PhysicalPlanner {
     }
 
     /**
-     * Efficiently transposes LogicalFilter to either PhysicalFilter, PhysicalIndexScan,
-     * or PhysicalFullScan based on index availability.
-     * Zero-copy field reuse for optimal performance.
+     * Converts a LogicalFilter to PhysicalIndexScan when an index exists and the operator/type
+     * are compatible, otherwise falls back to PhysicalFullScan.
      */
     private PhysicalNode transposeFilter(BucketMetadata metadata, LogicalFilter filter, PlannerContext context) {
-        // Check for index availability
         Index index = metadata.indexes().getIndex(filter.selector(), IndexSelectionPolicy.READ);
 
-        // Direct field reuse - no object copying
-        PhysicalFilter node = new PhysicalFilter(context.nextId(), filter.selector(), filter.op(), filter.operand());
+        PhysicalFilter node = new PhysicalFilter(
+                context.nextId(),
+                filter.selector(),
+                filter.op(),
+                filter.operand()
+        );
 
-        if (index != null) {
-            // Index available - use index scan with filter pushdown
+        if (index != null && index.definition().id() == DefaultIndexDefinition.ID.id()) {
+            // Index scan on the primary index.
             return new PhysicalIndexScan(context.nextId(), node, index.definition());
         }
 
-        // No index - full scan with filter
+        if (index != null
+                && isIndexableOperator(filter.op())
+                && filter.operand() instanceof BqlValue bqlValue
+                && isTypeMatch(bqlValue, index.definition().bsonType())) {
+
+            // Index available – use index scan with filter pushdown
+            return new PhysicalIndexScan(context.nextId(), node, index.definition());
+        }
+
+        // Fallback: full scan
         return new PhysicalFullScan(context.nextId(), node);
+    }
+
+    /**
+     * Returns true if the operator supports index scan execution.
+     */
+    private boolean isIndexableOperator(Operator op) {
+        return switch (op) {
+            case EQ, NE, GT, GTE, LT, LTE -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * Returns true if the query predicate type matches the index type. NullVal matches any index type.
+     */
+    private boolean isTypeMatch(BqlValue bqlValue, BsonType bsonType) {
+        return switch (bqlValue) {
+            case DoubleVal ignored -> bsonType == BsonType.DOUBLE;
+            case StringVal ignored -> bsonType == BsonType.STRING;
+            case BinaryVal ignored -> bsonType == BsonType.BINARY;
+            case BooleanVal ignored -> bsonType == BsonType.BOOLEAN;
+            case DateTimeVal ignored -> bsonType == BsonType.DATE_TIME;
+            case Int32Val ignored -> bsonType == BsonType.INT32;
+            case TimestampVal ignored -> bsonType == BsonType.TIMESTAMP;
+            case Int64Val ignored -> bsonType == BsonType.INT64;
+            case Decimal128Val ignored -> bsonType == BsonType.DECIMAL128;
+            case NullVal ignored -> true;
+            default -> false;
+        };
     }
 
     /**

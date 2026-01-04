@@ -17,10 +17,13 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.tuple.Versionstamp;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import org.roaringbitmap.longlong.LongIterator;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -173,18 +176,44 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
         }
         Roaring64Bitmap union = orAll(bitmaps);
 
-        // Collect the document bodies from the cluster
-        DataSink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
+        // Phase 1: Identify documents needing retrieval
+        List<Long> handlesNeedingRetrieval = new ArrayList<>();
+        List<DocumentLocation> locationsNeedingRetrieval = new ArrayList<>();
+
         LongIterator it = union.getLongIterator();
         while (it.hasNext()) {
             long entryHandle = it.next();
-            DocumentPointer documentPointer = result.get(entryHandle);
-            if (documentPointer.getPersistedEntry() != null) {
-                ctx.sinks().writePersistedEntry(sink, documentPointer.getVersionstamp(), documentPointer.getPersistedEntry());
+            DocumentPointer pointer = result.get(entryHandle);
+            if (pointer.getPersistedEntry() == null) {
+                handlesNeedingRetrieval.add(entryHandle);
+                locationsNeedingRetrieval.add(pointer.getLocation());
+            }
+        }
+
+        // Phase 2: Batch retrieve missing documents
+        Long2ObjectMap<ByteBuffer> retrievedByHandle = new Long2ObjectOpenHashMap<>();
+        if (!locationsNeedingRetrieval.isEmpty()) {
+            List<ByteBuffer> retrievedDocuments = ctx.env().documentRetriever().retrieveDocuments(
+                    ctx.metadata(), locationsNeedingRetrieval
+            );
+            for (int i = 0; i < handlesNeedingRetrieval.size(); i++) {
+                retrievedByHandle.put((long) handlesNeedingRetrieval.get(i), retrievedDocuments.get(i));
+            }
+        }
+
+        // Phase 3: Write all results
+        DataSink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
+        it = union.getLongIterator();
+        while (it.hasNext()) {
+            long entryHandle = it.next();
+            DocumentPointer pointer = result.get(entryHandle);
+            if (pointer.getPersistedEntry() != null) {
+                ctx.sinks().writePersistedEntry(sink, pointer.getVersionstamp(), pointer.getPersistedEntry());
             } else {
-                ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), documentPointer.getLocation());
-                PersistedEntry entry = new PersistedEntry(documentPointer.getLocation().shardId(), documentPointer.getLocation().entryMetadata().handle(), document);
-                ctx.sinks().writePersistedEntry(sink, documentPointer.getLocation().versionstamp(), entry);
+                ByteBuffer document = retrievedByHandle.get(entryHandle);
+                DocumentLocation loc = pointer.getLocation();
+                PersistedEntry entry = new PersistedEntry(loc.shardId(), loc.entryMetadata().handle(), document);
+                ctx.sinks().writePersistedEntry(sink, loc.versionstamp(), entry);
             }
         }
 

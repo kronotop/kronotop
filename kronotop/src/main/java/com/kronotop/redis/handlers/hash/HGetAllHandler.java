@@ -33,7 +33,9 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -73,13 +75,11 @@ public class HGetAllHandler extends BaseHandler implements Handler {
             Enumeration<String> fields = container.hash().keys();
             while (fields.hasMoreElements()) {
                 String field = fields.nextElement();
-                ByteBuf fieldBuf = response.getCtx().alloc().buffer();
-                fieldBuf.writeBytes(field.getBytes());
+                ByteBuf fieldBuf = Unpooled.wrappedBuffer(field.getBytes(StandardCharsets.UTF_8));
                 result.add(new FullBulkStringRedisMessage(fieldBuf));
 
                 HashFieldValue hashField = container.hash().get(field);
-                ByteBuf valueBuf = response.getCtx().alloc().buffer();
-                valueBuf.writeBytes(hashField.value());
+                ByteBuf valueBuf = Unpooled.wrappedBuffer(hashField.value());
                 result.add(new FullBulkStringRedisMessage(valueBuf));
             }
         } finally {

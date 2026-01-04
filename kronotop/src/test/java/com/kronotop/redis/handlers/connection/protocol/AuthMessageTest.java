@@ -23,6 +23,7 @@ import com.kronotop.server.impl.RESP3Request;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,12 +39,16 @@ public class AuthMessageTest extends BaseProtocolTest {
         cb.auth(expectedUsername, expectedPassword).encode(buf);
 
         channel.writeInbound(buf);
+
         Object msg = channel.readInbound();
+        try {
+            Request request = new RESP3Request(null, msg);
+            AuthMessage authMessage = new AuthMessage(request);
 
-        Request request = new RESP3Request(null, msg);
-        AuthMessage authMessage = new AuthMessage(request);
-
-        assertEquals(expectedUsername, authMessage.getUsername());
-        assertEquals(expectedPassword, authMessage.getPassword());
+            assertEquals(expectedUsername, authMessage.getUsername());
+            assertEquals(expectedPassword, authMessage.getPassword());
+        } finally {
+            ReferenceCountUtil.release(msg);
+        }
     }
 }

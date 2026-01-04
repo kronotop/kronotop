@@ -27,6 +27,12 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
@@ -255,6 +261,49 @@ class ZIncI64HandlerTest extends BaseHandlerTest {
             assertInstanceOf(IntegerRedisMessage.class, response);
             IntegerRedisMessage actualMessage = (IntegerRedisMessage) response;
             assertEquals(Long.MIN_VALUE, actualMessage.value());
+        }
+    }
+
+    @Test
+    void shouldHandleConcurrentIncrementsFromVirtualThreads() throws Exception {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        // Expected total: 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 = 55
+        long expectedTotal = 55;
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<?>> futures = new ArrayList<>();
+
+            // Launch 10 virtual threads, each incrementing with values 1-10
+            for (int i = 1; i <= 10; i++) {
+                final long value = i;
+                futures.add(executor.submit(() -> {
+                    ByteBuf buf = Unpooled.buffer();
+                    cmd.zinci64("concurrent-counter", value).encode(buf);
+
+                    Object response = runCommand(channel, buf);
+                    assertInstanceOf(SimpleStringRedisMessage.class, response);
+                    SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+                    assertEquals(Response.OK, actualMessage.content());
+                }));
+            }
+
+            // Wait for all threads to complete
+            for (Future<?> future : futures) {
+                future.get();
+            }
+        }
+
+        // Verify the accumulated total
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgeti64("concurrent-counter").encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(IntegerRedisMessage.class, response);
+            IntegerRedisMessage actualMessage = (IntegerRedisMessage) response;
+            assertEquals(expectedTotal, actualMessage.value());
         }
     }
 }

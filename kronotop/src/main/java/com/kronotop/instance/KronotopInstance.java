@@ -396,6 +396,8 @@ public class KronotopInstance {
             }
         }
 
+        context.getInternalClientPool().shutdown();
+
         if (journalCleanupTaskFuture != null) {
             journalCleanupTaskFuture.cancel(true);
         }

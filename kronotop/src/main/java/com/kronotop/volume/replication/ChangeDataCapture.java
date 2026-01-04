@@ -89,12 +89,12 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
             Object chunk = chunks.get(i);
             if (shutdown) break;
             if (!(chunk instanceof byte[] data)) {
-                throw new KronotopException("SEGMENTRANGE returned an invalid chunk type");
+                throw new KronotopException("SEGMENT.RANGE returned an invalid chunk type");
             }
             SegmentRange range = ranges.get(i);
             if (data.length != range.length()) {
                 throw new KronotopException(
-                        "SEGMENTRANGE returned " + data.length + " bytes, expected " + range.length()
+                        "SEGMENT.RANGE returned " + data.length + " bytes, expected " + range.length()
                 );
             }
             writeChunks(data, range.position());

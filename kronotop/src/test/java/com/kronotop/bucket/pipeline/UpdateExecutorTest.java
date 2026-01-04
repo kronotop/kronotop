@@ -173,61 +173,6 @@ class UpdateExecutorTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldDropIndexEntryWhenUpdatedWithMismatchedType() {
-        // Create an INT32 index on age field
-        IndexDefinition ageIndex = IndexDefinition.create("age_idx", "age", BsonType.INT32);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, ageIndex);
-
-        // Insert document with valid INT32 age
-        List<byte[]> documents = List.of(
-                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),
-                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 30}")
-        );
-        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
-
-        // Get age index subspace
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
-        DirectorySubspace ageSubspace = ageIdx.subspace();
-
-        // Verify age index has 2 entries before update
-        assertEquals(2, fetchAllIndexedEntries(ageSubspace).size(), "Age index should have 2 entries");
-        assertEquals(2, fetchAllIndexBackPointers(ageSubspace).size(), "Age index should have 2 back pointers");
-
-        Set<Integer> ageValuesBefore = extractAgeValuesFromIndex(ageSubspace);
-        assertTrue(ageValuesBefore.contains(25), "Age index should contain 25");
-        assertTrue(ageValuesBefore.contains(30), "Age index should contain 30");
-
-        // Update Alice's age with a STRING value (type mismatch for INT32 index)
-        PipelineNode plan = createExecutionPlan(metadata, "{name: {$eq: \"Alice\"}}");
-        UpdateOptions update = UpdateOptions.builder().set("age", new BsonString("twenty-five")).build();
-        QueryOptions options = QueryOptions.builder().update(update).build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            updateExecutor.execute(tr, ctx);
-            tr.commit().join();
-        }
-
-        // Verify age index now has only 1 entry (Alice's entry dropped due to type mismatch)
-        assertEquals(1, fetchAllIndexedEntries(ageSubspace).size(), "Age index should have 1 entry after type mismatch update");
-        assertEquals(1, fetchAllIndexBackPointers(ageSubspace).size(), "Age index should have 1 back pointer after type mismatch update");
-
-        // Verify only Bob's age (30) remains in the index
-        Set<Integer> ageValuesAfter = extractAgeValuesFromIndex(ageSubspace);
-        assertFalse(ageValuesAfter.contains(25), "Age index should NOT contain 25 (dropped due to type mismatch)");
-        assertTrue(ageValuesAfter.contains(30), "Age index should still contain 30");
-
-        // Verify Alice's document still exists with the new string value
-        List<String> aliceQuery = runQueryOnBucket(metadata, "{name: {$eq: \"Alice\"}}");
-        assertEquals(1, aliceQuery.size(), "Alice should still exist");
-        assertTrue(aliceQuery.getFirst().contains("\"age\": \"twenty-five\""), "Alice should have string age value");
-
-        // Verify Alice cannot be found via age index query (since her entry was dropped)
-        List<String> ageQuery = runQueryOnBucket(metadata, "{age: {$eq: 25}}");
-        assertTrue(ageQuery.isEmpty(), "Should not find any document with age 25 via index");
-    }
-
-    @Test
     void shouldReplaceNullIndexEntryWhenFieldAddedViaUpdate() {
         // Create an INT32 index on age field BEFORE inserting documents
         IndexDefinition ageIndex = IndexDefinition.create("age_idx", "age", BsonType.INT32);

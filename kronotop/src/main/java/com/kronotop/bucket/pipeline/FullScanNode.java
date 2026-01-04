@@ -27,6 +27,8 @@ import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 public class FullScanNode extends AbstractScanNode implements ScanNode {
     private final IndexDefinition index = DefaultIndexDefinition.ID;
@@ -65,21 +67,42 @@ public class FullScanNode extends AbstractScanNode implements ScanNode {
                 ctx.options().isReverse()
         );
 
-        DataSink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
-        int counter = 0;
+        // Phase 1: Collect all document locations
+        List<DocumentLocation> locations = new ArrayList<>();
         for (KeyValue indexEntry : indexEntries) {
-            counter++;
             DocumentLocation location = ctx.env().documentRetriever().extractDocumentLocationFromIndexScan(idIndexSubspace, indexEntry);
+            locations.add(location);
+        }
+
+        state.setSelector(selectors);
+        state.setExhausted(locations.isEmpty());
+
+        if (locations.isEmpty()) {
+            return;
+        }
+
+        // Phase 2: Batch retrieve all documents
+        List<ByteBuffer> documents = ctx.env().documentRetriever().retrieveDocuments(ctx.metadata(), locations);
+
+        // Phase 3: Filter and write results
+        DataSink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
+        Versionstamp lastVersionstamp = null;
+
+        for (int i = 0; i < documents.size(); i++) {
+            ByteBuffer document = documents.get(i);
+            DocumentLocation location = locations.get(i);
             Versionstamp versionstamp = location.versionstamp();
-            ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), location);
 
             if (predicate.test(document)) {
                 PersistedEntry entry = new PersistedEntry(location.shardId(), location.entryMetadata().handle(), document);
                 ctx.sinks().writePersistedEntry(sink, versionstamp, entry);
             }
-            ctx.env().cursorManager().saveFullScanCheckpoint(ctx, id(), versionstamp);
+            lastVersionstamp = versionstamp;
         }
-        state.setSelector(selectors);
-        state.setExhausted(counter <= 0);
+
+        // Save checkpoint at the end
+        if (lastVersionstamp != null) {
+            ctx.env().cursorManager().saveFullScanCheckpoint(ctx, id(), lastVersionstamp);
+        }
     }
 }

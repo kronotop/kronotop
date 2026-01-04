@@ -22,6 +22,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TestUtil;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
@@ -42,7 +43,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -84,14 +85,6 @@ class IndexBuildingRoutineTest extends BaseBucketHandlerTest {
             tr.commit().join();
         }
 
-        AtomicReference<Versionstamp> taskId = new AtomicReference<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            TaskStorage.tasks(tr, taskSubspace, (id) -> {
-                taskId.set(id);
-                return false; // break;
-            });
-        }
-
         await().atMost(15, TimeUnit.SECONDS).until(() -> {
             List<Long> expectedIndexValues = new ArrayList<>(List.of(32L, 40L));
             List<Long> indexValues = new ArrayList<>();
@@ -111,11 +104,72 @@ class IndexBuildingRoutineTest extends BaseBucketHandlerTest {
             }
         });
 
-        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+        await().atMost(15, TimeUnit.SECONDS).until(() -> {
+            AtomicInteger counter = new AtomicInteger();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                byte[] value = TaskStorage.getDefinition(tr, taskSubspace, taskId.get());
-                return value == null; // swept & dropped task
+                TaskStorage.tasks(tr, taskSubspace, (id) -> {
+                    counter.incrementAndGet();
+                    return true;
+                });
+                return counter.get() == 0; // all swept and cleaned
             }
         });
+    }
+
+    @Test
+    void shouldFailIndexBuildingWhenTypeMismatchOccurs() {
+        // Insert documents with STRING values for the 'age' field
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[][] docs = makeDocumentsArray(
+                List.of(
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": \"thirty-two\"}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": \"forty\"}")
+                ));
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        assertEquals(2, actualMessage.children().size());
+
+        // Create an index expecting INT32 for 'age' field
+        IndexDefinition definition = IndexDefinition.create(
+                "age-index",
+                "age",
+                BsonType.INT32
+        );
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
+            tr.commit().join();
+        }
+
+        Versionstamp taskId = TestUtil.findIndexMaintenanceTaskId(context, taskSubspace, IndexMaintenanceTaskKind.BUILD);
+
+        // Wait for the task to fail due to type mismatch
+        await().atMost(15, TimeUnit.SECONDS).until(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
+                return state.status() == IndexTaskStatus.FAILED;
+            }
+        });
+
+        // Verify an error message contains type mismatch information
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
+            assertEquals(IndexTaskStatus.FAILED, state.status());
+            assertNotNull(state.error(), "Error message should be set");
+            assertTrue(state.error().contains("Index type mismatch"),
+                    "Error message should indicate type mismatch");
+            assertTrue(state.error().contains("age-index"),
+                    "Error message should mention the index name");
+            assertTrue(state.error().contains("INT32"),
+                    "Error message should mention expected type");
+            assertTrue(state.error().contains("STRING"),
+                    "Error message should mention actual type");
+        }
     }
 }

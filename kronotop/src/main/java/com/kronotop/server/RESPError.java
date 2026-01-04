@@ -35,6 +35,7 @@ public enum RESPError {
     NOPROTO,
     REDIRECT,
     OUTOFBOUND,
+    INDEXTYPE_MISMATCH,
     ERR;
 
     public final static String TRANSACTION_TOO_OLD_MESSAGE = "Transaction is too old to perform reads or be committed";

@@ -30,7 +30,9 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -74,8 +76,7 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
         RedisShard shard = service.findShard(shardId, ShardStatus.READONLY);
         try {
             String randomKey = shard.index().random();
-            ByteBuf buf = response.getCtx().alloc().buffer();
-            buf.writeBytes(randomKey.getBytes());
+            ByteBuf buf = Unpooled.wrappedBuffer(randomKey.getBytes(StandardCharsets.UTF_8));
             response.write(buf);
         } catch (NoSuchElementException e) {
             response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);

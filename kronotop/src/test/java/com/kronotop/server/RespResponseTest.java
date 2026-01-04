@@ -22,33 +22,35 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.CharsetUtil;
+import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class RespResponseTest {
+class RespResponseTest {
 
     private MockChannelHandlerContext ctx;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         EmbeddedChannel channel = new EmbeddedChannel();
         ctx = new MockChannelHandlerContext(channel);
     }
 
     @AfterEach
-    public void tearDown() {
+    void tearDown() {
         ctx.embeddedChannel().finishAndReleaseAll();
     }
 
     @Test
-    public void test_writeRedisMessage() {
+    void shouldWriteRedisMessage() {
         // Create a RespResponse object and associate it with the channel
         RESP3Response response = new RESP3Response(ctx);
 
@@ -62,7 +64,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeOK() {
+    void shouldWriteOK() {
         // Create a RespResponse object and associate it with the channel
         RESP3Response response = new RESP3Response(ctx);
 
@@ -77,7 +79,7 @@ public class RespResponseTest {
 
     @Disabled("This test is skipped because EmbeddedChannel.flush doesn't work as expected.")
     @Test
-    public void test_writeQUEUED() {
+    void shouldWriteQUEUED() {
         RESP3Response response = new RESP3Response(ctx);
         response.writeQUEUED();
         response.flush();
@@ -89,7 +91,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeInteger() {
+    void shouldWriteInteger() {
         RESP3Response response = new RESP3Response(ctx);
         response.writeInteger(100);
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -99,7 +101,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeDouble() {
+    void shouldWriteDouble() {
         RESP3Response response = new RESP3Response(ctx);
         response.writeDouble(100);
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -109,7 +111,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeArray() {
+    void shouldWriteArray() {
         RESP3Response response = new RESP3Response(ctx);
         SimpleStringRedisMessage first = new SimpleStringRedisMessage("first message");
         DoubleRedisMessage second = new DoubleRedisMessage(100);
@@ -131,7 +133,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeMap() {
+    void shouldWriteMap() {
         SimpleStringRedisMessage key = new SimpleStringRedisMessage("key");
         SimpleStringRedisMessage value = new SimpleStringRedisMessage("value");
         Map<RedisMessage, RedisMessage> map = new HashMap<>();
@@ -151,7 +153,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeBoolean() {
+    void shouldWriteBoolean() {
         RESP3Response response = new RESP3Response(ctx);
         {
             response.writeBoolean(true);
@@ -171,7 +173,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeNULL() {
+    void shouldWriteNULL() {
         RESP3Response response = new RESP3Response(ctx);
         response.writeNULL();
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -181,7 +183,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeBigNumber() {
+    void shouldWriteBigNumber() {
         RESP3Response response = new RESP3Response(ctx);
         {
             response.writeBigNumber(BigInteger.valueOf(100));
@@ -209,20 +211,33 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeVerbatimString() {
+    void shouldWriteVerbatimString() {
         RESP3Response response = new RESP3Response(ctx);
-        ByteBuf content = Unpooled.buffer().alloc().buffer();
-        content.writeBytes("message".getBytes());
+
+        ByteBuf content = Unpooled.buffer();
+        content.writeBytes("message".getBytes(StandardCharsets.UTF_8));
+
         response.writeVerbatimString(content);
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
-        assertInstanceOf(FullBulkVerbatimStringRedisMessage.class, redisMessage);
-        FullBulkVerbatimStringRedisMessage message = (FullBulkVerbatimStringRedisMessage) redisMessage;
-        assertEquals(content, message.content());
+        try {
+            assertInstanceOf(FullBulkVerbatimStringRedisMessage.class, redisMessage);
+
+            FullBulkVerbatimStringRedisMessage message =
+                    (FullBulkVerbatimStringRedisMessage) redisMessage;
+
+            assertEquals(
+                    "message",
+                    message.content().toString(StandardCharsets.UTF_8)
+            );
+        } finally {
+            ReferenceCountUtil.release(redisMessage);
+        }
     }
 
+
     @Test
-    public void test_writeError() {
+    void shouldWriteError() {
         RESP3Response response = new RESP3Response(ctx);
         response.writeError("error message");
 
@@ -233,7 +248,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeErrorWithPrefix() {
+    void shouldWriteErrorWithPrefix() {
         RESP3Response response = new RESP3Response(ctx);
         response.writeError(RESPError.CROSSSLOT, "error message");
 
@@ -244,33 +259,41 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeBulkError() {
+    void shouldWriteBulkError() {
         RESP3Response response = new RESP3Response(ctx);
         response.writeBulkError("error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
-        assertInstanceOf(FullBulkErrorStringRedisMessage.class, redisMessage);
-        FullBulkErrorStringRedisMessage errorRedisMessage = (FullBulkErrorStringRedisMessage) redisMessage;
-        byte[] data = new byte[errorRedisMessage.content().readableBytes()];
-        errorRedisMessage.content().readBytes(data);
-        assertEquals("ERR error message", new String(data));
+        try {
+            assertInstanceOf(FullBulkErrorStringRedisMessage.class, redisMessage);
+            FullBulkErrorStringRedisMessage errorRedisMessage = (FullBulkErrorStringRedisMessage) redisMessage;
+            byte[] data = new byte[errorRedisMessage.content().readableBytes()];
+            errorRedisMessage.content().readBytes(data);
+            assertEquals("ERR error message", new String(data));
+        } finally {
+            ReferenceCountUtil.release(redisMessage);
+        }
     }
 
     @Test
-    public void test_writeBulkErrorWithPrefix() {
+    void shouldWriteBulkErrorWithPrefix() {
         RESP3Response response = new RESP3Response(ctx);
         response.writeBulkError(RESPError.CROSSSLOT, "error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
-        assertInstanceOf(FullBulkErrorStringRedisMessage.class, redisMessage);
-        FullBulkErrorStringRedisMessage errorRedisMessage = (FullBulkErrorStringRedisMessage) redisMessage;
-        byte[] data = new byte[errorRedisMessage.content().readableBytes()];
-        errorRedisMessage.content().readBytes(data);
-        assertEquals("CROSSSLOT error message", new String(data));
+        try {
+            assertInstanceOf(FullBulkErrorStringRedisMessage.class, redisMessage);
+            FullBulkErrorStringRedisMessage errorRedisMessage = (FullBulkErrorStringRedisMessage) redisMessage;
+            byte[] data = new byte[errorRedisMessage.content().readableBytes()];
+            errorRedisMessage.content().readBytes(data);
+            assertEquals("CROSSSLOT error message", new String(data));
+        } finally {
+            ReferenceCountUtil.release(redisMessage);
+        }
     }
 
     @Test
-    public void test_writeSimpleString() {
+    void shouldWriteSimpleString() {
         // Create a RespResponse object and associate it with the channel
         RESP3Response response = new RESP3Response(ctx);
 
@@ -283,7 +306,7 @@ public class RespResponseTest {
     }
 
     @Test
-    public void test_writeFullBulkString() {
+    void shouldWriteFullBulkString() {
         // Create a RespResponse object and associate it with the channel
         RESP3Response response = new RESP3Response(ctx);
 
@@ -291,16 +314,20 @@ public class RespResponseTest {
         response.writeFullBulkString(new FullBulkStringRedisMessage(content));
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
-        assertInstanceOf(FullBulkStringRedisMessage.class, redisMessage);
-        FullBulkStringRedisMessage fullBulkStringRedisMessage = (FullBulkStringRedisMessage) redisMessage;
+        try {
+            assertInstanceOf(FullBulkStringRedisMessage.class, redisMessage);
+            FullBulkStringRedisMessage fullBulkStringRedisMessage = (FullBulkStringRedisMessage) redisMessage;
 
-        byte[] data = new byte[fullBulkStringRedisMessage.content().readableBytes()];
-        fullBulkStringRedisMessage.content().readBytes(data);
-        assertEquals("message", new String(data));
+            byte[] data = new byte[fullBulkStringRedisMessage.content().readableBytes()];
+            fullBulkStringRedisMessage.content().readBytes(data);
+            assertEquals("message", new String(data));
+        } finally {
+            ReferenceCountUtil.release(redisMessage);
+        }
     }
 
     @Test
-    public void test_write() {
+    void shouldWrite() {
         // Create a RespResponse object and associate it with the channel
         RESP3Response response = new RESP3Response(ctx);
 
@@ -308,16 +335,20 @@ public class RespResponseTest {
         response.write(content);
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
-        assertInstanceOf(FullBulkStringRedisMessage.class, redisMessage);
-        FullBulkStringRedisMessage fullBulkStringRedisMessage = (FullBulkStringRedisMessage) redisMessage;
+        try {
+            assertInstanceOf(FullBulkStringRedisMessage.class, redisMessage);
+            FullBulkStringRedisMessage fullBulkStringRedisMessage = (FullBulkStringRedisMessage) redisMessage;
 
-        byte[] data = new byte[fullBulkStringRedisMessage.content().readableBytes()];
-        fullBulkStringRedisMessage.content().readBytes(data);
-        assertEquals("message", new String(data));
+            byte[] data = new byte[fullBulkStringRedisMessage.content().readableBytes()];
+            fullBulkStringRedisMessage.content().readBytes(data);
+            assertEquals("message", new String(data));
+        } finally {
+            ReferenceCountUtil.release(redisMessage);
+        }
     }
 
     @Test
-    public void test_writeSet() {
+    void shouldWriteSet() {
         RESP3Response response = new RESP3Response(ctx);
 
         Set<RedisMessage> set = new HashSet<>();

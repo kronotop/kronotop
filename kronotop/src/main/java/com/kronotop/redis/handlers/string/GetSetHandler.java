@@ -31,6 +31,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.util.Collections;
 import java.util.List;
@@ -91,8 +92,7 @@ public class GetSetHandler extends BaseStringHandler implements Handler {
             return;
         }
 
-        ByteBuf buf = response.getCtx().alloc().buffer();
-        buf.writeBytes(previous.string().value());
+        ByteBuf buf = Unpooled.wrappedBuffer(previous.string().value());
         response.write(buf);
     }
 }

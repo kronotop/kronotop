@@ -630,4 +630,27 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
     }
+
+    @Test
+    void shouldReturnEmptyResultWhenQueryingIdGreaterThanMax() {
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            documents.add(BSONUtil.jsonToDocumentThenBytes("{\"status\": \"ALIVE\"}"));
+        }
+
+        Map<String, byte[]> insertedDocuments = insertDocuments(documents);
+        String[] keys = insertedDocuments.keySet().toArray(new String[0]);
+        String greatestId = keys[keys.length - 1];
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, String.format("{\"_id\": {\"$gt\": \"%s\"}}", greatestId)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        MapRedisMessage actualMessage = extractEntriesMap(msg);
+        assertEquals(0, actualMessage.children().size());
+    }
 }

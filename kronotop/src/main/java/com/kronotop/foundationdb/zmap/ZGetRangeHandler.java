@@ -36,6 +36,7 @@ import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 
 import java.util.ArrayList;
@@ -95,27 +96,14 @@ public class ZGetRangeHandler extends BaseFoundationDBHandler implements Handler
 
             List<RedisMessage> upperList = new ArrayList<>();
             for (KeyValue keyValue : asyncIterable) {
-                ByteBuf keyBuf = response.getCtx().alloc().buffer();
-                ByteBuf valueBuf = response.getCtx().alloc().buffer();
+                List<RedisMessage> pair = new ArrayList<>();
+                ByteBuf keyBuf = Unpooled.wrappedBuffer(subspace.unpack(keyValue.getKey()).getBytes(0));
+                pair.add(new FullBulkStringRedisMessage(keyBuf));
 
-                try {
-                    List<RedisMessage> pair = new ArrayList<>();
-                    keyBuf.writeBytes(subspace.unpack(keyValue.getKey()).getBytes(0));
-                    pair.add(new FullBulkStringRedisMessage(keyBuf));
+                ByteBuf valueBuf = Unpooled.wrappedBuffer(keyValue.getValue());
+                pair.add(new FullBulkStringRedisMessage(valueBuf));
 
-                    valueBuf.writeBytes(keyValue.getValue());
-                    pair.add(new FullBulkStringRedisMessage(valueBuf));
-
-                    upperList.add(new ArrayRedisMessage(pair));
-                } catch (Exception e) {
-                    if (keyBuf.refCnt() > 0) {
-                        ReferenceCountUtil.release(keyBuf);
-                    }
-                    if (valueBuf.refCnt() > 0) {
-                        ReferenceCountUtil.release(valueBuf);
-                    }
-                    throw e;
-                }
+                upperList.add(new ArrayRedisMessage(pair));
             }
             return upperList;
         }, response::writeArray);

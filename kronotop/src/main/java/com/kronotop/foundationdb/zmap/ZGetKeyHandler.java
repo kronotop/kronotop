@@ -31,6 +31,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 
 import java.util.concurrent.CompletableFuture;
@@ -78,14 +79,8 @@ public class ZGetKeyHandler extends BaseFoundationDBHandler implements Handler {
                 return;
             }
 
-            ByteBuf buf = response.getCtx().alloc().buffer();
-            try {
-                buf.writeBytes(result.subspace().unpack(result.value()).getBytes(0));
-                response.write(buf);
-            } catch (Exception e) {
-                ReferenceCountUtil.release(buf);
-                throw e;
-            }
+            ByteBuf buf = Unpooled.wrappedBuffer(result.subspace().unpack(result.value()).getBytes(0));
+            response.write(buf);
         });
     }
 

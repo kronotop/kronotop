@@ -27,7 +27,10 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.util.Attribute;
+
+import java.nio.charset.StandardCharsets;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -96,8 +99,7 @@ class CommitHandler extends BaseFoundationDBHandler implements Handler {
                             assert versionstamp != null;
                             byte[] versionBytes = versionstamp.join();
                             String encoded = VersionstampUtil.base32HexEncode(Versionstamp.complete(versionBytes));
-                            ByteBuf buf = response.getCtx().alloc().buffer();
-                            buf.writeBytes(encoded.getBytes());
+                            ByteBuf buf = Unpooled.wrappedBuffer(encoded.getBytes(StandardCharsets.UTF_8));
                             children.add(new FullBulkStringRedisMessage(buf));
                         }
                         case FUTURES -> {

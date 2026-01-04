@@ -27,6 +27,7 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -57,8 +58,7 @@ class NodesSubcommand implements SubcommandHandler {
             result.addAll(prepareLineForStandby(slotRange));
         }
 
-        ByteBuf buf = response.getCtx().alloc().buffer();
-        buf.writeBytes(String.join("\n", result).getBytes());
+        ByteBuf buf = Unpooled.wrappedBuffer(String.join("\n", result).getBytes(StandardCharsets.UTF_8));
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
     }
 

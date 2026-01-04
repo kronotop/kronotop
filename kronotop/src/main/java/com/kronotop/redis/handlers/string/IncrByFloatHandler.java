@@ -27,7 +27,9 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -85,8 +87,7 @@ public class IncrByFloatHandler extends BaseStringHandler implements Handler {
             lock.writeLock().unlock();
         }
 
-        ByteBuf buf = response.getCtx().alloc().buffer();
-        buf.writeBytes(result.get().toString().getBytes());
+        ByteBuf buf = Unpooled.wrappedBuffer(result.get().toString().getBytes(StandardCharsets.UTF_8));
         response.write(buf);
     }
 }

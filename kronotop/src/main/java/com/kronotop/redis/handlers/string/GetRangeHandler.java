@@ -30,6 +30,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.util.Arrays;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -43,9 +44,7 @@ public class GetRangeHandler extends BaseStringHandler implements Handler {
     }
 
     private void emptyResponse(Response response) {
-        ByteBuf buf = response.getCtx().alloc().buffer();
-        buf.writeBytes("".getBytes());
-        response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
+        response.writeFullBulkString(new FullBulkStringRedisMessage(Unpooled.EMPTY_BUFFER));
     }
 
     @Override
@@ -99,8 +98,7 @@ public class GetRangeHandler extends BaseStringHandler implements Handler {
 
         try {
             byte[] data = Arrays.copyOfRange(value.value(), start, end);
-            ByteBuf buf = response.getCtx().alloc().buffer();
-            buf.writeBytes(data);
+            ByteBuf buf = Unpooled.wrappedBuffer(data);
             response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
         } catch (IllegalArgumentException e) {
             emptyResponse(response);

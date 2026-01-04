@@ -20,10 +20,12 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
+import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.IndexTypeMismatchException;
 import com.kronotop.bucket.index.*;
 import com.kronotop.volume.*;
 import org.bson.BsonNull;
@@ -55,9 +57,11 @@ import java.util.*;
  * </ul>
  */
 public final class UpdateExecutor extends BaseExecutor implements Executor<List<Versionstamp>> {
+    private final boolean strictTypes;
     private final PipelineExecutor executor;
 
-    public UpdateExecutor(PipelineExecutor executor) {
+    public UpdateExecutor(Context context, PipelineExecutor executor) {
+        this.strictTypes = context.getConfig().getBoolean("bucket.index.strict_types");
         this.executor = executor;
     }
 
@@ -260,9 +264,12 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
                 Object indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
                 if (indexValue == null) {
-                    // Type mismatch, drop the value and continue
-                    IndexBuilder.dropIndexEntry(tr, versionstamp, indexDefinition, affectedIndex, ctx.metadata().subspace());
-                    continue;
+                    if (!strictTypes) {
+                        // Type mismatch, drop the value and continue
+                        IndexBuilder.dropIndexEntry(tr, versionstamp, indexDefinition, affectedIndex, ctx.metadata().subspace());
+                        continue;
+                    }
+                    throw new IndexTypeMismatchException(index.definition(), bsonValue);
                 }
                 IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
                         ctx.metadata(),

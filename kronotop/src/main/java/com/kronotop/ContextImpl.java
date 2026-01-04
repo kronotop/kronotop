@@ -19,6 +19,7 @@ package com.kronotop;
 import com.apple.foundationdb.Database;
 import com.kronotop.bucket.BucketMetadataCache;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.client.InternalClientPool;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.journal.Journal;
@@ -38,7 +39,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The ContextImpl class represents the implementation of the Context interface in the Kronotop system.
+ * Default implementation of the {@link Context} interface. Manages the lifecycle of services,
+ * command handlers, and shared resources for a Kronotop instance. This class is instantiated
+ * once per instance and provides thread-safe access to all registered components.
+ *
+ * <p>Services are stored in insertion order using a {@link LinkedHashMap} to ensure
+ * deterministic shutdown ordering.</p>
  */
 public class ContextImpl implements Context {
     private final Config config;
@@ -57,6 +63,7 @@ public class ContextImpl implements Context {
     private final Path dataDir;
     private final String defaultNamespace;
     private final AttributeMap memberAttributes = new DefaultAttributeMap();
+    private final InternalClientPool internalClientPool;
 
     // Shortcut to CachedTimeService, it's used in the hot path for Bucket and Redis commands
     private volatile CachedTimeService cachedTimeService;
@@ -67,6 +74,15 @@ public class ContextImpl implements Context {
 
     private final SessionStore sessionStore = new SessionStore();
 
+    /**
+     * Creates a new context for a Kronotop instance.
+     *
+     * @param config   the application configuration (must contain "default_namespace" and "cluster.name")
+     * @param member   the cluster member this context belongs to
+     * @param database the FoundationDB database connection
+     * @throws MissingConfigException   if required configuration keys are missing
+     * @throws IllegalArgumentException if default namespace is empty or blank
+     */
     public ContextImpl(Config config, Member member, Database database) {
         if (config.hasPath("default_namespace")) {
             defaultNamespace = config.getString("default_namespace");
@@ -90,6 +106,7 @@ public class ContextImpl implements Context {
         this.workerRegistry = new WorkerRegistry();
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
         this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database);
+        this.internalClientPool = new InternalClientPool();
 
         for (ServerKind kind : ServerKind.values()) {
             this.handlers.put(kind, new CommandHandlerRegistry());
@@ -224,5 +241,10 @@ public class ContextImpl implements Context {
     @Override
     public WorkerRegistry getWorkerRegistry() {
         return workerRegistry;
+    }
+
+    @Override
+    public InternalClientPool getInternalClientPool() {
+        return internalClientPool;
     }
 }

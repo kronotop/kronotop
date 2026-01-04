@@ -28,6 +28,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.util.concurrent.locks.ReadWriteLock;
 
@@ -64,8 +65,7 @@ public class GetHandler extends BaseStringHandler implements Handler {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;
             }
-            ByteBuf buf = response.getCtx().alloc().buffer();
-            buf.writeBytes(container.string().value());
+            ByteBuf buf = Unpooled.wrappedBuffer(container.string().value());
             response.write(buf);
         } finally {
             lock.readLock().unlock();

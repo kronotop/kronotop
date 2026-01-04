@@ -52,8 +52,10 @@ class RangeScanNodeTest extends BasePipelineTest {
 
                 // INT64 range tests
                 Arguments.of("timestamp", BsonType.INT64,
-                        List.of("{\"timestamp\": 1000000000}", "{\"timestamp\": 2000000000}", "{\"timestamp\": 3000000000}", "{\"timestamp\": 4000000000}"),
-                        "{'timestamp': {'$gte': 1500000000, '$lt': 3500000000}}", 2, "Should return 2 documents with 1500000000 <= timestamp < 3500000000"),
+                        List.of("{\"timestamp\": {\"$numberLong\": \"1000000000\"}}", "{\"timestamp\": {\"$numberLong\": \"2000000000\"}}",
+                                "{\"timestamp\": {\"$numberLong\": \"3000000000\"}}", "{\"timestamp\": {\"$numberLong\": \"4000000000\"}}"),
+                        "{'timestamp': {'$gte': {\"$numberLong\": \"1500000000\"}, '$lt': {\"$numberLong\": \"3500000000\"}}}", 2,
+                        "Should return 2 documents with 1500000000 <= timestamp < 3500000000"),
 
                 // DOUBLE range tests
                 Arguments.of("price", BsonType.DOUBLE,
@@ -197,7 +199,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     @ParameterizedTest
     @MethodSource("provideRangeQueryTestCases")
     void shouldFilterRangeQueriesWithAllTypes(String fieldName, BsonType bsonType, List<String> testDocuments,
-                                      String rangeQuery, int expectedCount, String testDescription) {
+                                              String rangeQuery, int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-range-" + fieldName + "-" + bsonType.name().toLowerCase();
 
         // Create index for the test field
@@ -242,7 +244,7 @@ class RangeScanNodeTest extends BasePipelineTest {
     @ParameterizedTest
     @MethodSource("provideRangeQueryTestCases")
     void shouldFilterRangeQueriesWithAllTypesReverse(String fieldName, BsonType bsonType, List<String> testDocuments,
-                                             String rangeQuery, int expectedCount, String testDescription) {
+                                                     String rangeQuery, int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-range-reverse-" + fieldName + "-" + bsonType.name().toLowerCase();
 
         // Create index for the test field

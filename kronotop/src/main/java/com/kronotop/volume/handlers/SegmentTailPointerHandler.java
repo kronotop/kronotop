@@ -37,7 +37,7 @@ import java.util.List;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
-// The SEGMENTTAILPOINTER command attempts to determine:
+// The SEGMENT.TAILPOINTER command attempts to determine:
 // * The exact sequence number for the active segment.
 // * The closest (greatest) sequence number for sealed segments.
 // Returns 0 if the segment contains no data.

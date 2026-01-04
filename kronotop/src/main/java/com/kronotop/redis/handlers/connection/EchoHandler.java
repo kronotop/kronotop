@@ -26,6 +26,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 
@@ -42,8 +43,7 @@ public class EchoHandler implements Handler {
     @Override
     public void execute(Request request, Response response) {
         EchoMessage message = request.attr(MessageTypes.ECHO).get();
-        ByteBuf buf = response.getCtx().alloc().buffer();
-        buf.writeBytes(message.getMessage().getBytes(StandardCharsets.UTF_8));
+        ByteBuf buf = Unpooled.wrappedBuffer(message.getMessage().getBytes(StandardCharsets.UTF_8));
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
     }
 }

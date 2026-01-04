@@ -27,9 +27,10 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.resp3.*;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.util.Attribute;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 
@@ -128,7 +129,8 @@ public class HelloHandler extends BaseHandler implements Handler {
     }
 
     private FullBulkStringRedisMessage makeFullBulkString(String content) {
-        return new FullBulkStringRedisMessage(PooledByteBufAllocator.DEFAULT.buffer(content.length()).writeBytes(content.getBytes()));
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(bytes));
     }
 
     private void resp3Response(Response response) {

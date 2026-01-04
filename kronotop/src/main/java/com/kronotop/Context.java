@@ -19,6 +19,7 @@ package com.kronotop;
 import com.apple.foundationdb.Database;
 import com.kronotop.bucket.BucketMetadataCache;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.client.InternalClientPool;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.journal.Journal;
@@ -36,7 +37,9 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
- * The Context interface represents the context of a Kronotop instance.
+ * Central dependency injection container for a Kronotop instance. Provides access to
+ * configuration, FoundationDB database, registered services, cluster membership,
+ * and shared resources like caches and thread pools.
  */
 public interface Context {
 
@@ -205,7 +208,24 @@ public interface Context {
      */
     long now();
 
+    /**
+     * Returns the session store for managing client sessions.
+     *
+     * @return the {@link SessionStore} instance
+     */
     SessionStore getSessionStore();
 
+    /**
+     * Returns the worker registry for managing background workers.
+     *
+     * @return the {@link WorkerRegistry} instance
+     */
     WorkerRegistry getWorkerRegistry();
+
+    /**
+     * Returns the pool of internal clients used for intra-cluster communication.
+     *
+     * @return the {@link InternalClientPool} instance
+     */
+    InternalClientPool getInternalClientPool();
 }

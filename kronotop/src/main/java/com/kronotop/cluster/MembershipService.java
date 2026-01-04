@@ -503,6 +503,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         Member member = registry.findMember(event.memberId());
         subspaces.remove(member);
         knownMembers.remove(member);
+        context.getInternalClientPool().evict(member);
 
         if (!context.getMember().equals(member)) {
             LOGGER.info("Member left: {}", member.getExternalAddress());

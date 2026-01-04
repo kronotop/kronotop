@@ -25,6 +25,7 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 
@@ -46,8 +47,7 @@ public class PingHandler implements Handler {
         PingMessage pingMessage = request.attr(MessageTypes.PING).get();
         if (pingMessage.getMessage() != null) {
             if (!pingMessage.getMessage().isEmpty() || !pingMessage.getMessage().isBlank()) {
-                ByteBuf buf = response.getCtx().alloc().buffer();
-                buf.writeBytes(pingMessage.getMessage().getBytes(StandardCharsets.UTF_8));
+                ByteBuf buf = Unpooled.wrappedBuffer(pingMessage.getMessage().getBytes(StandardCharsets.UTF_8));
                 response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
                 return;
             }

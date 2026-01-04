@@ -15,6 +15,7 @@
     <modules>
         <module>kronotop</module>
         <module>kronotop-client</module>
+        <module>kronotop-cli</module>
     </modules>
 
     <developers>

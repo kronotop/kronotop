@@ -57,7 +57,7 @@ import java.util.concurrent.*;
  * <p>The watchdog implements a bounded worker pool strategy using {@link KrExecutors#newBoundedExecutor}:
  * <ul>
  *   <li>Dynamic thread scaling from 0 to {@code WORKER_POOL_SIZE} threads (configurable via
- *       {@code bucket.index_maintenance.worker_pool_size}; defaults to number of CPU cores if set to 0)</li>
+ *       {@code bucket.index.maintenance.worker_pool_size}; defaults to number of CPU cores if set to 0)</li>
  *   <li>A maximum of {@code MAX_WORKER_POOL_SIZE} concurrent workers tracked in-memory (2x {@code WORKER_POOL_SIZE})</li>
  *   <li>LinkedBlockingQueue for task buffering when threads are busy</li>
  *   <li>1-minute thread keep-alive time for automatic thread cleanup during idle periods</li>
@@ -98,10 +98,10 @@ public class IndexMaintenanceWatchDog implements Runnable {
      *   <li>Task subspace for the shard's index maintenance tasks</li>
      *   <li>Task sweeper for cross-shard coordination</li>
      *   <li>Bounded worker executor using {@link KrExecutors#newBoundedExecutor} with configurable pool size
-     *       (via {@code bucket.index_maintenance.worker_pool_size}; defaults to CPU cores if 0),
+     *       (via {@code bucket.index.maintenance.worker_pool_size}; defaults to CPU cores if 0),
      *       task buffering via LinkedBlockingQueue, and 1-minute thread keep-alive timeout</li>
      *   <li>Single-threaded scheduled executor for periodic cleanup operations
-     *       (runs at interval configured via {@code bucket.index_maintenance.worker_maintenance_interval})</li>
+     *       (runs at interval configured via {@code bucket.index.maintenance.worker_maintenance_interval})</li>
      * </ul>
      *
      * @param context the application context providing access to services and FoundationDB
@@ -114,7 +114,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
         this.sweeper = new IndexMaintenanceTaskSweeper(context);
         this.trigger = TaskStorage.trigger(subspace);
 
-        int poolSize = context.getConfig().getInt("bucket.index_maintenance.worker_pool_size");
+        int poolSize = context.getConfig().getInt("bucket.index.maintenance.worker_pool_size");
         int WORKER_POOL_SIZE = (poolSize == 0)
                 ? Runtime.getRuntime().availableProcessors()
                 : poolSize;
@@ -376,9 +376,9 @@ public class IndexMaintenanceWatchDog implements Runnable {
      */
     @Override
     public void run() {
-        int maintenanceInterval = context.getConfig().getInt("bucket.index_maintenance.worker_maintenance_interval");
+        int maintenanceInterval = context.getConfig().getInt("bucket.index.maintenance.worker_maintenance_interval");
         if (maintenanceInterval <= 0) {
-            throw new IllegalStateException("bucket.index_maintenance.worker_maintenance_interval must be greater than zero");
+            throw new IllegalStateException("bucket.index.maintenance.worker_maintenance_interval must be greater than zero");
         }
         scheduler.scheduleAtFixedRate(() -> {
             cleanupStaleWorkers();

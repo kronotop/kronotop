@@ -22,6 +22,9 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
+import java.nio.charset.StandardCharsets;
 
 class MyIdSubcommand implements SubcommandHandler {
     private final RedisService service;
@@ -32,9 +35,8 @@ class MyIdSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        ByteBuf buf = response.getCtx().alloc().buffer();
         String id = service.getContext().getMember().getId();
-        buf.writeBytes(id.getBytes());
+        ByteBuf buf = Unpooled.wrappedBuffer(id.getBytes(StandardCharsets.UTF_8));
         response.writeFullBulkString(new FullBulkStringRedisMessage(buf));
     }
 }

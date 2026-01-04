@@ -58,11 +58,15 @@ class IndexScanNodeTest extends BasePipelineTest {
 
                 // INT64 tests
                 Arguments.of("GT", BsonType.INT64, "timestamp",
-                        List.of("{\"timestamp\": 1000000000}", "{\"timestamp\": 2000000000}", "{\"timestamp\": 3000000000}"),
-                        "1500000000", 2, "Should return 2 documents with timestamp > 1500000000"),
+                        List.of("{\"timestamp\": {\"$numberLong\": \"1000000000\"}}",
+                                "{\"timestamp\": {\"$numberLong\": \"2000000000\"}}",
+                                "{\"timestamp\": {\"$numberLong\": \"3000000000\"}}"),
+                        "{\"$numberLong\": \"1500000000\"}", 2, "Should return 2 documents with timestamp > 1500000000"),
                 Arguments.of("EQ", BsonType.INT64, "timestamp",
-                        List.of("{\"timestamp\": 1000000000}", "{\"timestamp\": 2000000000}", "{\"timestamp\": 1000000000}"),
-                        "1000000000", 2, "Should return 2 documents with timestamp = 1000000000"),
+                        List.of("{\"timestamp\": {\"$numberLong\": \"1000000000\"}}",
+                                "{\"timestamp\": {\"$numberLong\": \"2000000000\"}}",
+                                "{\"timestamp\": {\"$numberLong\": \"1000000000\"}}"),
+                        "{\"$numberLong\": \"1000000000\"}", 2, "Should return 2 documents with timestamp = 1000000000"),
 
                 // DOUBLE tests
                 Arguments.of("GT", BsonType.DOUBLE, "price",
@@ -348,7 +352,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Donald'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
-                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20,  'name': 'George'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'age': 21, 'name': 'Alienor'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Alice'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Calvin'}"),
@@ -385,17 +389,15 @@ class IndexScanNodeTest extends BasePipelineTest {
     void shouldHandleIndexWithDoubleMaxValue() {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-double-max-value";
 
-        // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("double-index", "double", BsonType.DOUBLE);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+        IndexDefinition doubleIndex = IndexDefinition.create("double-index", "double", BsonType.DOUBLE);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, doubleIndex);
 
         String document = String.format("{\"double\": %s, \"string\": \"John\"}", Double.MAX_VALUE);
-        // Insert multiple documents with different field types and values
         List<byte[]> documents = List.of(BSONUtil.jsonToDocumentThenBytes(document));
 
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'double': {'$gt': 22}}");
+        PipelineNode plan = createExecutionPlan(metadata, "{'double': {'$gt': 22.0}}");
         QueryOptions config = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
@@ -404,7 +406,8 @@ class IndexScanNodeTest extends BasePipelineTest {
 
             assertEquals(1, results.size());
             for (ByteBuffer buffer : results.values()) {
-                assertEquals(document, BSONUtil.fromBson(buffer.array()).toJson());
+                String expected = String.format("{\"double\": %s, \"string\": \"John\"}", Double.MAX_VALUE);
+                assertEquals(expected, BSONUtil.fromBson(buffer.array()).toJson());
             }
         }
     }
@@ -413,18 +416,15 @@ class IndexScanNodeTest extends BasePipelineTest {
     void shouldHandleIndexWithInt64MaxValue() {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-long-max-value";
 
-        // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("long-index", "long", BsonType.INT64);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+        IndexDefinition longIndex = IndexDefinition.create("long-index", "long", BsonType.INT64);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, longIndex);
 
-        String document = String.format("{\"long\": %s, \"string\": \"John\"}", Long.MAX_VALUE);
-        System.out.println(document);
-        // Insert multiple documents with different field types and values
+        String document = String.format("{\"long\": {\"$numberLong\": \"%s\"}, \"string\": \"John\"}", Long.MAX_VALUE);
         List<byte[]> documents = List.of(BSONUtil.jsonToDocumentThenBytes(document));
 
         insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'long': {'$gt': 22}}");
+        PipelineNode plan = createExecutionPlan(metadata, "{'long': {'$gt': {'$numberLong': '22'}}}");
         QueryOptions config = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(metadata, config, plan);
 
@@ -433,7 +433,8 @@ class IndexScanNodeTest extends BasePipelineTest {
 
             assertEquals(1, results.size());
             for (ByteBuffer buffer : results.values()) {
-                assertEquals(document, BSONUtil.fromBson(buffer.array()).toJson());
+                String expected = String.format("{\"long\": %s, \"string\": \"John\"}", Long.MAX_VALUE);
+                assertEquals(expected, BSONUtil.fromBson(buffer.array()).toJson());
             }
         }
     }
@@ -676,6 +677,10 @@ class IndexScanNodeTest extends BasePipelineTest {
             case INT32:
                 return Integer.parseInt(queryValue);
             case INT64:
+                if (queryValue.contains("$numberLong")) {
+                    String extracted = queryValue.replaceAll(".*\"\\$numberLong\"\\s*:\\s*\"([^\"]+)\".*", "$1");
+                    return Long.parseLong(extracted);
+                }
                 return Long.parseLong(queryValue);
             case DOUBLE:
                 return Double.parseDouble(queryValue);

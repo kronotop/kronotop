@@ -29,6 +29,11 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -345,5 +350,48 @@ class ZIncD128HandlerTest extends BaseHandlerTest {
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
         // Decimal128 throws its own error for out-of-range exponents
         assertEquals("ERR Exponent is out of range for Decimal128 encoding: 6112", actualMessage.content());
+    }
+
+    @Test
+    void shouldHandleConcurrentIncrementsFromVirtualThreads() throws Exception {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        // Expected total: 1.0 + 2.0 + 3.0 + 4.0 + 5.0 + 6.0 + 7.0 + 8.0 + 9.0 + 10.0 = 55.0
+        String expectedTotal = "55.0";
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<?>> futures = new ArrayList<>();
+
+            // Launch 10 virtual threads, each incrementing with values 1.0-10.0
+            for (int i = 1; i <= 10; i++) {
+                final String value = i + ".0";
+                futures.add(executor.submit(() -> {
+                    ByteBuf buf = Unpooled.buffer();
+                    cmd.zincd128("concurrent-counter", value).encode(buf);
+
+                    Object response = runCommand(channel, buf);
+                    assertInstanceOf(SimpleStringRedisMessage.class, response);
+                    SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+                    assertEquals(Response.OK, actualMessage.content());
+                }));
+            }
+
+            // Wait for all threads to complete
+            for (Future<?> future : futures) {
+                future.get();
+            }
+        }
+
+        // Verify the accumulated total
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgetd128("concurrent-counter").encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(FullBulkStringRedisMessage.class, response);
+            FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
+            assertEquals(expectedTotal, actualMessage.content().toString(StandardCharsets.UTF_8));
+        }
     }
 }

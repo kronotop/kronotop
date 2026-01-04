@@ -30,8 +30,6 @@ import com.kronotop.bucket.index.*;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -43,17 +41,10 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
-    private static final String SKIP_WAIT_TRANSACTION_LIMIT_KEY =
-            "__test__.bucket_metadata_convergence.skip_wait_transaction_limit";
 
-    @BeforeAll
-    static void setUp() {
-        System.setProperty(SKIP_WAIT_TRANSACTION_LIMIT_KEY, "false");
-    }
-
-    @AfterAll
-    static void teardown() {
-        System.clearProperty(SKIP_WAIT_TRANSACTION_LIMIT_KEY);
+    @Override
+    protected String getConfigFileName() {
+        return "test-index-maintenance-watchdog.conf";
     }
 
     @Test

@@ -1,0 +1,11 @@
+{
+  "resources": {
+    "includes": [
+      {"pattern": "org/jline/utils/.*"},
+      {"pattern": "org/jline/terminal/.*"},
+      {"pattern": "org/jline/builtins/.*"},
+      {"pattern": "META-INF/native-image/.*"}
+    ]
+  },
+  "bundles": []
+}

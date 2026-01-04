@@ -33,6 +33,7 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -72,8 +73,7 @@ public class HValsHandler extends BaseHandler implements Handler {
 
             Collection<HashFieldValue> hashFields = container.hash().values();
             for (HashFieldValue hashField : hashFields) {
-                ByteBuf buf = response.getCtx().alloc().buffer();
-                buf.writeBytes(hashField.value());
+                ByteBuf buf = Unpooled.wrappedBuffer(hashField.value());
                 result.add(new FullBulkStringRedisMessage(buf));
             }
         } finally {

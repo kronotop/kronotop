@@ -33,7 +33,9 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.locks.ReadWriteLock;
 
@@ -59,14 +61,13 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
         return set.stream().skip(random.nextInt(set.size())).findFirst().orElse(null);
     }
 
-    private FullBulkStringRedisMessage prepareBulkReply(Response response, HashValue hashValue) {
+    private FullBulkStringRedisMessage prepareBulkReply(HashValue hashValue) {
         String field = getRandomSetElement(hashValue.keySet());
-        ByteBuf buf = response.getCtx().alloc().buffer();
-        buf.writeBytes(field.getBytes());
+        ByteBuf buf = Unpooled.wrappedBuffer(field.getBytes(StandardCharsets.UTF_8));
         return new FullBulkStringRedisMessage(buf);
     }
 
-    private List<RedisMessage> prepareArrayReply(Response response, HRandFieldMessage hrandfieldMessage, HashValue hashValue) {
+    private List<RedisMessage> prepareArrayReply(HRandFieldMessage hrandfieldMessage, HashValue hashValue) {
         int count = Math.abs(hrandfieldMessage.getCount());
         if (count > hashValue.size()) {
             count = hashValue.size();
@@ -83,13 +84,11 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
                 }
             }
             set.add(field);
-            ByteBuf fieldBuf = response.getCtx().alloc().buffer();
-            fieldBuf.writeBytes(field.getBytes());
+            ByteBuf fieldBuf = Unpooled.wrappedBuffer(field.getBytes(StandardCharsets.UTF_8));
             upperList.add(new FullBulkStringRedisMessage(fieldBuf));
 
             if (hrandfieldMessage.getWithValues()) {
-                ByteBuf valueBuf = response.getCtx().alloc().buffer();
-                valueBuf.writeBytes(hashValue.get(field).value());
+                ByteBuf valueBuf = Unpooled.wrappedBuffer(hashValue.get(field).value());
                 upperList.add(new FullBulkStringRedisMessage(valueBuf));
             }
 
@@ -116,9 +115,9 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
             checkRedisValueKind(container, RedisValueKind.HASH);
 
             if (hrandfieldMessage.getCount() == null) {
-                bulkReply = prepareBulkReply(response, container.hash());
+                bulkReply = prepareBulkReply(container.hash());
             } else {
-                arrayReply = prepareArrayReply(response, hrandfieldMessage, container.hash());
+                arrayReply = prepareArrayReply(hrandfieldMessage, container.hash());
             }
         } finally {
             lock.readLock().unlock();

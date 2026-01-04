@@ -29,6 +29,7 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 
 import java.util.concurrent.CompletableFuture;
@@ -69,15 +70,9 @@ public class ZGetHandler extends BaseFoundationDBHandler implements Handler {
                 response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
                 return;
             }
-            ByteBuf buf = response.getCtx().alloc().buffer();
-            try {
-                buf.writeBytes(value);
-                FullBulkStringRedisMessage result = new FullBulkStringRedisMessage(buf);
-                response.writeFullBulkString(result);
-            } catch (Exception e) {
-                ReferenceCountUtil.release(buf);
-                throw e;
-            }
+            ByteBuf buf = Unpooled.wrappedBuffer(value);
+            FullBulkStringRedisMessage result = new FullBulkStringRedisMessage(buf);
+            response.writeFullBulkString(result);
         });
     }
 }

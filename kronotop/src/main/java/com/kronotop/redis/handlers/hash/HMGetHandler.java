@@ -32,6 +32,7 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -74,8 +75,7 @@ public class HMGetHandler extends BaseHandler implements Handler {
                         continue;
                     }
 
-                    ByteBuf buf = response.getCtx().alloc().buffer();
-                    buf.writeBytes(hashField.value());
+                    ByteBuf buf = Unpooled.wrappedBuffer(hashField.value());
                     upperList.add(new FullBulkStringRedisMessage(buf));
                 }
             }

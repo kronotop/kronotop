@@ -22,8 +22,11 @@ import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
 import com.kronotop.commandbuilder.kronotop.BucketQueryArgs;
+import io.lettuce.core.codec.ByteArrayCodec;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
@@ -617,5 +620,65 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
+    }
+
+    @Test
+    void shouldThrowIndexTypeMismatchExceptionWhenUpdatingWithWrongType() {
+        // Create an index expecting INT32 for 'age' field
+        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        createIndexThenWaitForReadiness(ageIndexDefinition);
+
+        // Insert a document with correct type
+        BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf insertBuf = Unpooled.buffer();
+        byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"John\", \"age\": 25}");
+        insertCmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(insertBuf);
+        Object insertMsg = runCommand(channel, insertBuf);
+        assertInstanceOf(ArrayRedisMessage.class, insertMsg);
+
+        // Update the document with wrong type (string instead of int)
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"age\": \"twenty-five\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertTrue(errorMessage.content().startsWith("INDEXTYPE_MISMATCH"),
+                "Should return INDEXTYPE_MISMATCH error");
+        assertTrue(errorMessage.content().contains("index 'age-index' expects 'INT32'"),
+                "Error message should mention the index name and expected type");
+        assertTrue(errorMessage.content().contains("selector 'age' matched a value of type 'STRING'"),
+                "Error message should mention the selector and actual type");
+    }
+
+    @Test
+    void shouldThrowIndexTypeMismatchExceptionWhenUpdatingInt32IndexWithDouble() {
+        // Create an index expecting INT32 for 'count' field
+        IndexDefinition countIndexDefinition = IndexDefinition.create("count-index", "count", BsonType.INT32);
+        createIndexThenWaitForReadiness(countIndexDefinition);
+
+        // Insert a document with correct type
+        BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf insertBuf = Unpooled.buffer();
+        byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Test\", \"count\": 10}");
+        insertCmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(insertBuf);
+        Object insertMsg = runCommand(channel, insertBuf);
+        assertInstanceOf(ArrayRedisMessage.class, insertMsg);
+
+        // Update the document with wrong type (double instead of int32)
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"count\": 3.14}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertTrue(errorMessage.content().startsWith("INDEXTYPE_MISMATCH"),
+                "Should return INDEXTYPE_MISMATCH error for DOUBLE value with INT32 index");
     }
 }

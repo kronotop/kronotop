@@ -17,6 +17,8 @@
 package com.kronotop.bucket.pipeline;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TransformWithResidualPredicateNode extends AbstractPipelineNode implements TransformationNode {
     private final ResidualPredicateNode residualPredicate;
@@ -50,13 +52,32 @@ public class TransformWithResidualPredicateNode extends AbstractPipelineNode imp
                     }));
                 }
                 case DocumentLocationSink documentLocationSink -> {
+                    // Phase 1: Collect all locations
+                    List<Long> entryHandles = new ArrayList<>();
+                    List<DocumentLocation> locations = new ArrayList<>();
                     documentLocationSink.forEach((entryHandle, location) -> {
-                        ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), location);
+                        entryHandles.add(entryHandle);
+                        locations.add(location);
+                    });
+
+                    if (locations.isEmpty()) {
+                        break;
+                    }
+
+                    // Phase 2: Batch retrieve all documents
+                    List<ByteBuffer> documents = ctx.env().documentRetriever()
+                            .retrieveDocuments(ctx.metadata(), locations);
+
+                    // Phase 3: Filter and write
+                    for (int i = 0; i < documents.size(); i++) {
+                        ByteBuffer document = documents.get(i);
                         if (residualPredicate.test(document)) {
+                            long entryHandle = entryHandles.get(i);
+                            DocumentLocation location = locations.get(i);
                             PersistedEntry entry = new PersistedEntry(location.shardId(), entryHandle, document);
                             ctx.sinks().writePersistedEntry(newSink, location.versionstamp(), entry);
                         }
-                    });
+                    }
                 }
                 default -> throw new IllegalStateException("Unexpected value: " + sink);
             }

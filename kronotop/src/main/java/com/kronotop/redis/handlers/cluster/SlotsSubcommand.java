@@ -28,7 +28,9 @@ import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,23 +41,18 @@ class SlotsSubcommand implements SubcommandHandler {
         this.service = service;
     }
 
-    private List<RedisMessage> prepareMember(Session session, Member member) {
+    private List<RedisMessage> prepareMember(Member member) {
         List<RedisMessage> result = new ArrayList<>();
         // HOST
-        ByteBuf hostBuf = session.getCtx().alloc().buffer();
-        hostBuf.writeBytes(member.getExternalAddress().getHost().getBytes());
-        FullBulkStringRedisMessage fullBulkStringRedisMessage = new FullBulkStringRedisMessage(hostBuf);
-        result.add(fullBulkStringRedisMessage);
+        ByteBuf hostBuf = Unpooled.wrappedBuffer(member.getExternalAddress().getHost().getBytes(StandardCharsets.UTF_8));
+        result.add(new FullBulkStringRedisMessage(hostBuf));
 
         // PORT
-        IntegerRedisMessage integerRedisMessage = new IntegerRedisMessage(member.getExternalAddress().getPort());
-        result.add(integerRedisMessage);
+        result.add(new IntegerRedisMessage(member.getExternalAddress().getPort()));
 
         // ID
-        ByteBuf idBuf = session.getCtx().alloc().buffer();
-        idBuf.writeBytes(member.getId().getBytes());
-        FullBulkStringRedisMessage idMessage = new FullBulkStringRedisMessage(idBuf);
-        result.add(idMessage);
+        ByteBuf idBuf = Unpooled.wrappedBuffer(member.getId().getBytes(StandardCharsets.UTF_8));
+        result.add(new FullBulkStringRedisMessage(idBuf));
 
         // Replicas, empty.
         result.add(new ArrayRedisMessage(new ArrayList<>()));
@@ -71,7 +68,7 @@ class SlotsSubcommand implements SubcommandHandler {
             List<RedisMessage> children = new ArrayList<>();
             IntegerRedisMessage beginSection = new IntegerRedisMessage(range.getBegin());
             IntegerRedisMessage endSection = new IntegerRedisMessage(range.getEnd());
-            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(request.getSession(), range.getPrimary()));
+            ArrayRedisMessage ownerSection = new ArrayRedisMessage(prepareMember(range.getPrimary()));
             children.add(beginSection);
             children.add(endSection);
             children.add(ownerSection);

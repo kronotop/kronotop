@@ -87,6 +87,7 @@ import org.slf4j.LoggerFactory;
 public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexBuildingRoutine.class);
     private final static int INDEX_SCAN_BATCH_SIZE = 100;
+    private final boolean strictTypes = context.getConfig().getBoolean("bucket.index.maintenance.strict_types");
     private final int shardId;
     private final IndexBuildingTask task;
     private final BucketService service;
@@ -283,7 +284,7 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
                 } else {
                     metrics.incrementProcessedEntries(processedEntries);
                 }
-            } catch (IndexMaintenanceRoutineException exp) {
+            } catch (IndexMaintenanceRoutineException | IndexTypeMismatchException exp) {
                 LOGGER.error("TaskId: {} on Bucket shard: {} has failed due to an error: '{}'",
                         VersionstampUtil.base32HexEncode(taskId),
                         shardId,
@@ -343,14 +344,17 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
             checkForShutdown();
 
             total++;
-            Object indexValue = null;
             versionstamp = pair.key();
+            Object indexValue = null;
             BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), pair.entry());
             if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
                 indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
                 if (indexValue == null) {
-                    // Type mismatch, continue
-                    continue;
+                    if (!strictTypes) {
+                        // Type mismatch, continue
+                        continue;
+                    }
+                    throw new IndexTypeMismatchException(index.definition(), bsonValue);
                 }
             }
 

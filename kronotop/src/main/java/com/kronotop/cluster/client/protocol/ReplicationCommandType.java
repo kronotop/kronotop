@@ -21,10 +21,10 @@ import io.lettuce.core.protocol.ProtocolKeyword;
 import java.nio.charset.StandardCharsets;
 
 public enum ReplicationCommandType implements ProtocolKeyword {
-    SEGMENTRANGE("SEGMENTRANGE"),
-    SEGMENTINSERT("SEGMENTINSERT"),
+    SEGMENTRANGE("SEGMENT.RANGE"),
+    SEGMENTINSERT("SEGMENT.INSERT"),
     CHANGELOGWATCH("CHANGELOG.WATCH"),
-    SEGMENTTAILPOINTER("SEGMENTTAILPOINTER"),
+    SEGMENTTAILPOINTER("SEGMENT.TAILPOINTER"),
     CHANGELOGRANGE("CHANGELOG.RANGE");
 
     public final byte[] bytes;

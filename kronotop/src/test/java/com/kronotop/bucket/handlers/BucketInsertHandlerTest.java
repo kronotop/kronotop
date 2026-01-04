@@ -346,18 +346,100 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldIgnoreTypeMismatchedFields() {
+    void shouldThrowIndexTypeMismatchExceptionWhenStrictTypesEnabled() {
         // Create an index expecting INT32 for 'age' field
         IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
 
         // Create bucket metadata and register the index
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
-        // Refresh bucket metadata to include the new index
-        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-
         // Insert document where 'age' is a STRING instead of INT32
+        // With strict_types=true (default in test.conf), this should throw IndexTypeMismatchException
         String jsonDocument = "{\"name\": \"John\", \"age\": \"twenty-five\"}"; // 'age' is string, not int32
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertTrue(errorMessage.content().startsWith("INDEXTYPE_MISMATCH"),
+                "Should return INDEXTYPE_MISMATCH error");
+        assertTrue(errorMessage.content().contains("index 'age-index' expects 'INT32'"),
+                "Error message should mention the index name and expected type");
+        assertTrue(errorMessage.content().contains("selector 'age' matched a value of type 'STRING'"),
+                "Error message should mention the selector and actual type");
+    }
+
+    @Test
+    void shouldThrowIndexTypeMismatchExceptionForInt64WithInt32Index() {
+        // Create an index expecting INT32 for 'count' field
+        IndexDefinition countIndexDefinition = IndexDefinition.create("count-index", "count", BsonType.INT32);
+        createIndexThenWaitForReadiness(countIndexDefinition);
+
+        // Insert document where 'count' is INT64 instead of INT32
+        String jsonDocument = "{\"name\": \"Test\", \"count\": {\"$numberLong\": \"999999999999\"}}";
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertTrue(errorMessage.content().startsWith("INDEXTYPE_MISMATCH"),
+                "Should return INDEXTYPE_MISMATCH error for INT64 value with INT32 index");
+    }
+
+    @Test
+    void shouldThrowIndexTypeMismatchExceptionForDoubleWithInt32Index() {
+        // Create an index expecting INT32 for 'value' field
+        IndexDefinition valueIndexDefinition = IndexDefinition.create("value-index", "value", BsonType.INT32);
+        createIndexThenWaitForReadiness(valueIndexDefinition);
+
+        // Insert document where 'value' is DOUBLE instead of INT32
+        String jsonDocument = "{\"name\": \"Test\", \"value\": 3.14}";
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertTrue(errorMessage.content().startsWith("INDEXTYPE_MISMATCH"),
+                "Should return INDEXTYPE_MISMATCH error for DOUBLE value with INT32 index");
+    }
+
+    @Test
+    void shouldThrowIndexTypeMismatchExceptionForBooleanWithStringIndex() {
+        // Create an index expecting STRING for 'status' field
+        IndexDefinition statusIndexDefinition = IndexDefinition.create("status-index", "status", BsonType.STRING);
+        createIndexThenWaitForReadiness(statusIndexDefinition);
+
+        // Insert document where 'status' is BOOLEAN instead of STRING
+        String jsonDocument = "{\"name\": \"Test\", \"status\": true}";
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertTrue(errorMessage.content().startsWith("INDEXTYPE_MISMATCH"),
+                "Should return INDEXTYPE_MISMATCH error for BOOLEAN value with STRING index");
+    }
+
+    @Test
+    void shouldSucceedWhenValueTypeMatchesIndexType() {
+        // Create an index expecting INT32 for 'age' field
+        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        createIndexThenWaitForReadiness(ageIndexDefinition);
+
+        // Insert document where 'age' is correctly INT32
+        String jsonDocument = "{\"name\": \"John\", \"age\": 25}";
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
@@ -366,21 +448,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
-        assertEquals(1, actualMessage.children().size());
-
-        // Verify no index entry was created due to type mismatch
-        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
-        assertNotNull(ageIndex, "Age index should exist");
-        DirectorySubspace ageIndexSubspace = ageIndex.subspace();
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            byte[] agePrefix = ageIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
-            List<KeyValue> ageEntries = tr.getRange(
-                    KeySelector.firstGreaterOrEqual(agePrefix),
-                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(agePrefix))
-            ).asList().join();
-            assertEquals(0, ageEntries.size(), "Should have no entries for age index when field type doesn't match");
-        }
+        assertEquals(1, actualMessage.children().size(), "Insert should succeed when types match");
     }
 
     @Test

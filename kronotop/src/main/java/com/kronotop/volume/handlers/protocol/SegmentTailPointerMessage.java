@@ -23,7 +23,7 @@ import com.kronotop.server.Request;
 import java.util.List;
 
 public class SegmentTailPointerMessage extends BaseMessage implements ProtocolMessage<Void> {
-    public static final String COMMAND = "SEGMENTTAILPOINTER";
+    public static final String COMMAND = "SEGMENT.TAILPOINTER";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private String volume;

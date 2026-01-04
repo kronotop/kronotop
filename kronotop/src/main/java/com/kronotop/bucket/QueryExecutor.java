@@ -56,7 +56,7 @@ public class QueryExecutor {
         PipelineExecutor executor = new PipelineExecutor(env);
         this.readExecutor = new ReadExecutor(executor);
         this.deleteExecutor = new DeleteExecutor(executor);
-        this.updateExecutor = new UpdateExecutor(executor);
+        this.updateExecutor = new UpdateExecutor(service.getContext(), executor);
     }
 
     /**

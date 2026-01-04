@@ -34,7 +34,9 @@ import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -46,10 +48,10 @@ public class ScanHandler extends BaseHandler implements Handler {
         super(service);
     }
 
-    private List<RedisMessage> prepareResponse(Response response, long cursor, List<RedisMessage> children) {
+    private List<RedisMessage> prepareResponse(long cursor, List<RedisMessage> children) {
         List<RedisMessage> parent = new ArrayList<>();
-        ByteBuf buf = response.getCtx().alloc().buffer();
-        parent.add(new FullBulkStringRedisMessage(buf.writeBytes(Long.toString(cursor).getBytes())));
+        ByteBuf buf = Unpooled.wrappedBuffer(Long.toString(cursor).getBytes(StandardCharsets.UTF_8));
+        parent.add(new FullBulkStringRedisMessage(buf));
         parent.add(new ArrayRedisMessage(children));
         return parent;
     }
@@ -79,7 +81,7 @@ public class ScanHandler extends BaseHandler implements Handler {
             try {
                 shardId = findHostedShardId(0);
             } catch (NoAvailableShardException e) {
-                response.writeArray(prepareResponse(response, 0, new ArrayList<>()));
+                response.writeArray(prepareResponse( 0, new ArrayList<>()));
                 return;
             }
         } else {
@@ -93,7 +95,7 @@ public class ScanHandler extends BaseHandler implements Handler {
 
         Projection projection = shard.index().getProjection(scanMessage.getCursor(), scanMessage.getCount());
         if (projection.getKeys().isEmpty()) {
-            response.writeArray(prepareResponse(response, projection.getCursor(), children));
+            response.writeArray(prepareResponse( projection.getCursor(), children));
             return;
         }
 
@@ -104,8 +106,7 @@ public class ScanHandler extends BaseHandler implements Handler {
         try {
             for (String key : projection.getKeys()) {
                 if (shard.storage().containsKey(key)) {
-                    ByteBuf buf = response.getCtx().alloc().buffer();
-                    buf.writeBytes(key.getBytes());
+                    ByteBuf buf = Unpooled.wrappedBuffer(key.getBytes(StandardCharsets.UTF_8));
                     children.add(new FullBulkStringRedisMessage(buf));
                 }
             }
@@ -120,15 +121,15 @@ public class ScanHandler extends BaseHandler implements Handler {
                 int nextShardId = findHostedShardId(shardId + 1);
                 RedisShard nextShard = service.findShard(nextShardId, ShardStatus.READONLY);
                 if (nextShard != null) {
-                    response.writeArray(prepareResponse(response, nextShard.index().head(), children));
+                    response.writeArray(prepareResponse( nextShard.index().head(), children));
                     return;
                 }
             } catch (NoAvailableShardException e) {
-                response.writeArray(prepareResponse(response, 0, children));
+                response.writeArray(prepareResponse( 0, children));
                 return;
             }
         }
 
-        response.writeArray(prepareResponse(response, projection.getCursor(), children));
+        response.writeArray(prepareResponse( projection.getCursor(), children));
     }
 }

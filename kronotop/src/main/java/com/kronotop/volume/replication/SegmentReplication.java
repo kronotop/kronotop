@@ -78,11 +78,11 @@ public class SegmentReplication extends AbstractReplication implements Replicati
                 for (Object chunk : chunks) {
                     if (shutdown) break;
                     if (!(chunk instanceof byte[] data)) {
-                        throw new KronotopException("SEGMENTRANGE returned an invalid chunk type");
+                        throw new KronotopException("SEGMENT.RANGE returned an invalid chunk type");
                     }
                     if (data.length != length) {
                         throw new KronotopException(
-                                "SEGMENTRANGE returned " + data.length + " bytes, expected " + length
+                                "SEGMENT.RANGE returned " + data.length + " bytes, expected " + length
                         );
                     }
                     position = writeChunks(data, position);

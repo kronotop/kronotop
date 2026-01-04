@@ -24,7 +24,7 @@ import com.kronotop.volume.SegmentRange;
 import java.util.List;
 
 public class SegmentRangeMessage extends BaseMessage implements ProtocolMessage<Void> {
-    public static final String COMMAND = "SEGMENTRANGE";
+    public static final String COMMAND = "SEGMENT.RANGE";
     public static final int MINIMUM_PARAMETER_COUNT = 4;
     private String volume;
     private long segmentId;

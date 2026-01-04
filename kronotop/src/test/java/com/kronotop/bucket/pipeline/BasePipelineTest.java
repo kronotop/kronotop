@@ -53,6 +53,7 @@ import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -78,7 +79,7 @@ public class BasePipelineTest extends BaseHandlerTest {
         PipelineExecutor executor = new PipelineExecutor(env);
         readExecutor = new ReadExecutor(executor);
         deleteExecutor = new DeleteExecutor(executor);
-        updateExecutor = new UpdateExecutor(executor);
+        updateExecutor = new UpdateExecutor(bucketService.getContext(), executor);
     }
 
     protected List<Versionstamp> insertDocumentsAndGetVersionstamps(String bucketName, List<byte[]> documents) {
@@ -115,6 +116,10 @@ public class BasePipelineTest extends BaseHandlerTest {
     }
 
     protected PipelineNode createExecutionPlan(BucketMetadata metadata, String query) {
+        return createExecutionPlan(metadata, query.getBytes(StandardCharsets.UTF_8));
+    }
+
+    protected PipelineNode createExecutionPlan(BucketMetadata metadata, byte[] query) {
         PlannerContext ctx = new PlannerContext(metadata);
         BqlExpr parsedQuery = BqlParser.parse(query);
         LogicalNode logicalPlan = logicalPlanner.planAndValidate(parsedQuery);
@@ -122,7 +127,6 @@ public class BasePipelineTest extends BaseHandlerTest {
         PhysicalNode optimizedPlan = optimizer.optimize(metadata, physicalPlan, ctx);
         return PipelineRewriter.rewrite(ctx, optimizedPlan);
     }
-
 
     // Helper method to extract names from results
     Set<String> extractNamesFromResults(Map<?, ByteBuffer> results) {

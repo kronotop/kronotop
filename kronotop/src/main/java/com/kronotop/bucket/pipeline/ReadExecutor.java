@@ -20,7 +20,9 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -106,10 +108,26 @@ public final class ReadExecutor extends BaseExecutor implements Executor<Map<Ver
                     yield result;
                 }
                 case DocumentLocationSink documentLocationSink -> {
+                    // Phase 1: Collect all locations
+                    List<Versionstamp> versionstamps = new ArrayList<>();
+                    List<DocumentLocation> locations = new ArrayList<>();
                     documentLocationSink.forEach((entryHandle, location) -> {
-                        ByteBuffer document = ctx.env().documentRetriever().retrieveDocument(ctx.metadata(), location);
-                        result.put(location.versionstamp(), document);
+                        versionstamps.add(location.versionstamp());
+                        locations.add(location);
                     });
+
+                    if (locations.isEmpty()) {
+                        yield result;
+                    }
+
+                    // Phase 2: Batch retrieve all documents
+                    List<ByteBuffer> documents = ctx.env().documentRetriever()
+                            .retrieveDocuments(ctx.metadata(), locations);
+
+                    // Phase 3: Build result map
+                    for (int i = 0; i < documents.size(); i++) {
+                        result.put(versionstamps.get(i), documents.get(i));
+                    }
                     yield result;
                 }
             };

@@ -54,6 +54,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 @Command(BucketInsertMessage.COMMAND)
 @MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
 public class BucketInsertHandler extends AbstractBucketHandler implements Handler {
+    private final boolean strictTypes = context.getConfig().getBoolean("bucket.index.strict_types");
 
     public BucketInsertHandler(BucketService service) {
         super(service);
@@ -124,14 +125,17 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
 
                 // Every insert produces an index entry. Missing values and explicit nulls are both
                 // represented as null in the index. Non-null values are converted to the target type;
-                // if conversion fails due to a type mismatch, the entry is skipped.
+                // if conversion fails due to a type mismatch, the entry is either skipped or an exception has been thrown.
                 Object indexValue = null;
                 BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), entry);
                 if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
                     indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
                     if (indexValue == null) {
-                        // Type mismatch, continue
-                        continue;
+                        if (!strictTypes) {
+                            // Type mismatch, continue
+                            continue;
+                        }
+                        throw new IndexTypeMismatchException(index.definition(), bsonValue);
                     }
                 }
 

@@ -17,10 +17,7 @@
 package com.kronotop.bucket;
 
 import org.bson.*;
-import org.bson.codecs.Codec;
-import org.bson.codecs.DecoderContext;
-import org.bson.codecs.DocumentCodec;
-import org.bson.codecs.EncoderContext;
+import org.bson.codecs.*;
 import org.bson.io.BasicOutputBuffer;
 import org.bson.json.JsonReader;
 import org.bson.types.Binary;
@@ -35,8 +32,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 
-import static org.bson.BsonType.INT32;
-
 /**
  * Utility class for handling BSON {@code Document} serialization and deserialization.
  * Provides methods for converting BSON {@code Document} objects into byte arrays and vice versa.
@@ -47,6 +42,7 @@ import static org.bson.BsonType.INT32;
 public class BSONUtil {
 
     private static final Codec<Document> DOCUMENT_CODEC = new DocumentCodec();
+    private static final Codec<BsonDocument> BSON_DOCUMENT_CODEC = new BsonDocumentCodec();
 
     /**
      * Converts a BSON {@code Document} into its byte array representation.
@@ -120,6 +116,16 @@ public class BSONUtil {
     }
 
     /**
+     * Converts a {@code BsonDocument} into its byte array representation.
+     *
+     * @param document the {@code BsonDocument} to be converted into a byte array
+     * @return a byte array representing the serialized BSON document
+     */
+    public static byte[] toBytes(BsonDocument document) {
+        return new RawBsonDocument(document, BSON_DOCUMENT_CODEC).getByteBuffer().array();
+    }
+
+    /**
      * Converts a Java object to its equivalent BSON value representation.
      *
      * @param value the Java object to convert to BsonValue
@@ -166,25 +172,17 @@ public class BSONUtil {
     }
 
     /**
-     * Converts a given {@link BsonValue} to its corresponding Java object based on the BSON type.
-     * If there is a mismatch between the actual BSON type of the value and the expected BSON type,
-     * null is returned unless the mismatch is specifically allowed (e.g., INT32 values are allowed
-     * where INT64 is expected).
+     * Converts a {@link BsonValue} to its corresponding Java object if it matches the desired type.
+     * Returns null on type mismatch (strict type checking, no implicit conversions).
      *
-     * @param value           the {@link BsonValue} to be converted
-     * @param desiredBsonType the expected {@link BsonType} of the {@code value}
-     * @return a Java object that corresponds to the BSON type of the {@code value},
-     * or null if there is a type mismatch or the BSON type is unsupported
-     * @throws IllegalArgumentException if an unsupported BSON type is encountered
+     * @param value           the {@link BsonValue} to convert
+     * @param desiredBsonType the required {@link BsonType}
+     * @return the Java object, or null if types don't match
+     * @throws IllegalArgumentException if the BSON type is unsupported
      */
     public static Object toObject(BsonValue value, BsonType desiredBsonType) {
-        // Check if the actual BSON type matches the expected type from IndexDefinition
         if (value.getBsonType() != desiredBsonType) {
-            // Int64 covers Int32 values
-            if (!(desiredBsonType.equals(BsonType.INT64) && value.getBsonType().equals(INT32))) {
-                // Type mismatches are not indexed, but documents are still persisted.
-                return null;
-            }
+            return null;
         }
         return switch (value.getBsonType()) {
             case STRING -> value.asString().getValue();
@@ -229,7 +227,7 @@ public class BSONUtil {
      * @param a the first {@link BsonValue} to compare
      * @param b the second {@link BsonValue} to compare
      * @return 0 if the values are equal, a negative integer if {@code a} is less than {@code b},
-     *         or a positive integer if {@code a} is greater than {@code b}
+     * or a positive integer if {@code a} is greater than {@code b}
      * @throws IllegalArgumentException if the type of {@code a} or {@code b} is unsupported for comparison
      */
     public static int compareBsonValues(BsonValue a, BsonValue b) {

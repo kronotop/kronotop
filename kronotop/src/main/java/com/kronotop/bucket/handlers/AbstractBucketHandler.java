@@ -34,7 +34,7 @@ import com.kronotop.network.Address;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import org.bson.Document;
 
 import java.nio.ByteBuffer;
@@ -87,22 +87,21 @@ public abstract class AbstractBucketHandler implements Handler {
      * @param entry   a {@code Map.Entry} containing a {@code Versionstamp} as the key and a {@code ByteBuffer} as the value,
      *                where the value represents the data to be transformed into the {@code ByteBuf}
      * @return a {@code ByteBuf} object containing the serialized data in the format specified by the reply type
-     * @throws KronotopException if the reply type is invalid or not supported
      */
     protected ByteBuf prepareValue(Request request, Map.Entry<Versionstamp, ByteBuffer> entry) {
-        ByteBuf value;
         ReplyType replyType = getReplyType(request);
-        if (replyType.equals(ReplyType.BSON)) {
-            value = PooledByteBufAllocator.DEFAULT.buffer().alloc().
-                    buffer(entry.getValue().remaining()).writeBytes(entry.getValue());
-        } else if (replyType.equals(ReplyType.JSON)) {
-            Document document = BSONUtil.toDocument(entry.getValue().array());
-            byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
-            value = PooledByteBufAllocator.DEFAULT.buffer().alloc().buffer(data.length).writeBytes(data);
-        } else {
-            throw new KronotopException("Invalid reply type: " + replyType);
-        }
-        return value;
+
+        return switch (replyType) {
+            case ReplyType.BSON -> {
+                ByteBuffer bb = entry.getValue();
+                yield Unpooled.wrappedBuffer(bb.slice());
+            }
+            case ReplyType.JSON -> {
+                Document document = BSONUtil.toDocument(entry.getValue().array());
+                byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
+                yield Unpooled.wrappedBuffer(data);
+            }
+        };
     }
 
     /**
