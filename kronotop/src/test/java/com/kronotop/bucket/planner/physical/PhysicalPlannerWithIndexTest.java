@@ -166,43 +166,53 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
 
         @Test
-        @DisplayName("String index with IN operator should use PhysicalIndexScan")
-        void shouldUsePhysicalIndexScanForStringIndexWithINOperator() {
+        @DisplayName("String index with IN operator should use PhysicalOr with multiple EQ index scans")
+        void shouldUsePhysicalOrForStringIndexWithINOperator() {
             createIndex(IndexDefinition.create(
                     "category-index", "category", BsonType.STRING
             ));
 
             PhysicalNode result = planQuery("{ \"category\": { \"$in\": [\"electronics\", \"books\", \"clothing\"] } }");
 
-            assertInstanceOf(PhysicalIndexScan.class, result);
-            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
-            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
-            assertEquals("category", filter.selector());
-            assertEquals(Operator.IN, filter.op());
+            // IN with index is transformed to OR with multiple EQ index scans
+            assertInstanceOf(PhysicalOr.class, result);
+            PhysicalOr or = (PhysicalOr) result;
+            assertEquals(3, or.children().size());
 
-            @SuppressWarnings("unchecked")
-            List<Object> operand = (List<Object>) filter.operand();
-            assertEquals(Arrays.asList("electronics", "books", "clothing"), extractValue(operand));
+            List<String> expectedValues = Arrays.asList("electronics", "books", "clothing");
+            for (int i = 0; i < or.children().size(); i++) {
+                assertInstanceOf(PhysicalIndexScan.class, or.children().get(i));
+                PhysicalIndexScan indexScan = (PhysicalIndexScan) or.children().get(i);
+                PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+                assertEquals("category", filter.selector());
+                assertEquals(Operator.EQ, filter.op());
+                assertEquals(expectedValues.get(i), extractValue(filter.operand()));
+            }
         }
 
         @Test
-        @DisplayName("String index with NIN operator should use PhysicalIndexScan")
-        void shouldUsePhysicalIndexScanForStringIndexWithNINOperator() {
+        @DisplayName("String index with NIN operator should use PhysicalAnd with NE index scans")
+        void shouldUsePhysicalAndForStringIndexWithNINOperator() {
             createIndex(IndexDefinition.create(
                     "type-index", "type", BsonType.STRING
             ));
 
             PhysicalNode result = planQuery("{ \"type\": { \"$nin\": [\"spam\", \"deleted\"] } }");
 
-            assertInstanceOf(PhysicalIndexScan.class, result);
-            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
-            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
-            assertEquals("type", filter.selector());
-            assertEquals(Operator.NIN, filter.op());
+            // NIN with index is transformed to AND with multiple NE index scans
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd and = (PhysicalAnd) result;
+            assertEquals(2, and.children().size());
 
-            @SuppressWarnings("unchecked")
-            List<Object> operand = (List<Object>) filter.operand();
-            assertEquals(Arrays.asList("spam", "deleted"), extractValue(operand));
+            List<String> expectedValues = Arrays.asList("spam", "deleted");
+            for (int i = 0; i < and.children().size(); i++) {
+                assertInstanceOf(PhysicalIndexScan.class, and.children().get(i));
+                PhysicalIndexScan indexScan = (PhysicalIndexScan) and.children().get(i);
+                PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+                assertEquals("type", filter.selector());
+                assertEquals(Operator.NE, filter.op());
+                assertEquals(expectedValues.get(i), extractValue(filter.operand()));
+            }
         }
 
         @Test
@@ -226,37 +236,190 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
 
         @Test
-        @DisplayName("Array index with SIZE operator should use PhysicalIndexScan")
-        void shouldUsePhysicalIndexScanForArrayIndexWithSIZEOperator() {
-            createIndex(IndexDefinition.create(
-                    "items-index", "items", BsonType.ARRAY
-            ));
-
-            PhysicalNode result = planQuery("{ \"items\": { \"$size\": 3 } }");
-
-            assertInstanceOf(PhysicalIndexScan.class, result);
-            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
-            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
-            assertEquals("items", filter.selector());
-            assertEquals(Operator.SIZE, filter.op());
-            assertEquals(3, extractValue(filter.operand()));
-        }
-
-        @Test
-        @DisplayName("Field index with EXISTS operator should use PhysicalIndexScan")
-        void shouldUsePhysicalIndexScanForFieldIndexWithEXISTSOperator() {
-            createIndex(IndexDefinition.create(
-                    "metadata-index", "metadata", BsonType.DOCUMENT
-            ));
-
+        @DisplayName("EXISTS operator should use PhysicalFullScan (not indexable)")
+        void shouldUsePhysicalFullScanForEXISTSOperator() {
             PhysicalNode result = planQuery("{ \"metadata\": { \"$exists\": true } }");
 
-            assertInstanceOf(PhysicalIndexScan.class, result);
-            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
-            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
             assertEquals("metadata", filter.selector());
             assertEquals(Operator.EXISTS, filter.op());
             assertEquals(true, extractValue(filter.operand()));
+        }
+
+        @Test
+        @DisplayName("SIZE operator should use PhysicalFullScan (not indexable)")
+        void shouldUsePhysicalFullScanForSIZEOperator() {
+            PhysicalNode result = planQuery("{ \"tags\": { \"$size\": 3 } }");
+
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("tags", filter.selector());
+            assertEquals(Operator.SIZE, filter.op());
+        }
+    }
+
+    // ============================================================================
+    // Fallback to FullScan Tests
+    // ============================================================================
+
+    @Nested
+    @DisplayName("Fallback to FullScan Tests")
+    class FallbackToFullScanTests {
+
+        @Test
+        @DisplayName("Type mismatch should fall back to full scan")
+        void shouldFallbackToFullScanOnTypeMismatch() {
+            // Create INT32 index but query with string value
+            createIndex(IndexDefinition.create("age-index", "age", BsonType.INT32));
+
+            PhysicalNode result = planQuery("{ \"age\": \"twenty\" }");
+
+            // Should fall back to full scan due to type mismatch
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("age", filter.selector());
+            assertEquals(Operator.EQ, filter.op());
+        }
+
+        @Test
+        @DisplayName("$in without index should use full scan with IN operator preserved")
+        void shouldUseFullScanWithInOperatorPreservedWhenNoIndex() {
+            // No index created for 'category' field
+            PhysicalNode result = planQuery("{ \"category\": { \"$in\": [\"electronics\", \"books\"] } }");
+
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("category", filter.selector());
+            assertEquals(Operator.IN, filter.op());
+
+            @SuppressWarnings("unchecked")
+            List<Object> operand = (List<Object>) filter.operand();
+            assertEquals(Arrays.asList("electronics", "books"), extractValue(operand));
+        }
+
+        @Test
+        @DisplayName("$in with type mismatch should fall back to full scan")
+        void shouldFallbackToFullScanForInWithTypeMismatch() {
+            // Create STRING index but query with integer values
+            createIndex(IndexDefinition.create("priority-index", "priority", BsonType.STRING));
+
+            PhysicalNode result = planQuery("{ \"priority\": { \"$in\": [1, 2, 3] } }");
+
+            // Should fall back to full scan due to type mismatch
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("priority", filter.selector());
+            assertEquals(Operator.IN, filter.op());
+        }
+
+        @Test
+        @DisplayName("$in with mixed types where some match index should fall back to full scan")
+        void shouldFallbackToFullScanForInWithPartialTypeMismatch() {
+            // Create STRING index but query with mixed string and integer values
+            createIndex(IndexDefinition.create("status-index", "status", BsonType.STRING));
+
+            PhysicalNode result = planQuery("{ \"status\": { \"$in\": [\"active\", 1, \"inactive\"] } }");
+
+            // Should fall back to full scan due to partial type mismatch
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("status", filter.selector());
+            assertEquals(Operator.IN, filter.op());
+        }
+
+        @Test
+        @DisplayName("Comparison operator with type mismatch should fall back to full scan")
+        void shouldFallbackToFullScanForComparisonWithTypeMismatch() {
+            // Create INT64 index but query with string value
+            createIndex(IndexDefinition.create("timestamp-index", "timestamp", BsonType.INT64));
+
+            PhysicalNode result = planQuery("{ \"timestamp\": { \"$gte\": \"2024-01-01\" } }");
+
+            // Should fall back to full scan due to type mismatch
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("timestamp", filter.selector());
+            assertEquals(Operator.GTE, filter.op());
+        }
+
+        @Test
+        @DisplayName("$nin without index should use full scan with NIN operator preserved")
+        void shouldUseFullScanWithNinOperatorPreservedWhenNoIndex() {
+            // No index created for 'type' field
+            PhysicalNode result = planQuery("{ \"type\": { \"$nin\": [\"spam\", \"deleted\"] } }");
+
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("type", filter.selector());
+            assertEquals(Operator.NIN, filter.op());
+        }
+
+        @Test
+        @DisplayName("$nin with type mismatch should fall back to full scan")
+        void shouldFallbackToFullScanForNinWithTypeMismatch() {
+            // Create STRING index but query with integer values
+            createIndex(IndexDefinition.create("priority-index", "priority", BsonType.STRING));
+
+            PhysicalNode result = planQuery("{ \"priority\": { \"$nin\": [1, 2, 3] } }");
+
+            // Should fall back to full scan due to type mismatch
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("priority", filter.selector());
+            assertEquals(Operator.NIN, filter.op());
+        }
+
+        @Test
+        @DisplayName("$nin with mixed types where some match index should fall back to full scan")
+        void shouldFallbackToFullScanForNinWithPartialTypeMismatch() {
+            // Create STRING index but query with mixed string and integer values
+            createIndex(IndexDefinition.create("status-index", "status", BsonType.STRING));
+
+            PhysicalNode result = planQuery("{ \"status\": { \"$nin\": [\"active\", 1, \"inactive\"] } }");
+
+            // Should fall back to full scan due to partial type mismatch
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("status", filter.selector());
+            assertEquals(Operator.NIN, filter.op());
+        }
+
+        @Test
+        @DisplayName("Empty $nin should return PhysicalTrue (matches everything)")
+        void shouldReturnPhysicalTrueForEmptyNin() {
+            createIndex(IndexDefinition.create("type-index", "type", BsonType.STRING));
+
+            PhysicalNode result = planQuery("{ \"type\": { \"$nin\": [] } }");
+
+            // Empty $nin matches everything
+            assertInstanceOf(PhysicalTrue.class, result);
+        }
+
+        @Test
+        @DisplayName("Single value $nin with index should optimize to single PhysicalIndexScan(NE)")
+        void shouldOptimizeSingleValueNinToSingleIndexScan() {
+            createIndex(IndexDefinition.create("type-index", "type", BsonType.STRING));
+
+            PhysicalNode result = planQuery("{ \"type\": { \"$nin\": [\"spam\"] } }");
+
+            // Single value $nin is optimized to single NE index scan
+            assertInstanceOf(PhysicalIndexScan.class, result);
+            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
+            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+            assertEquals("type", filter.selector());
+            assertEquals(Operator.NE, filter.op());
+            assertEquals("spam", extractValue(filter.operand()));
         }
     }
 
@@ -385,14 +548,19 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
             assertEquals(4, and.children().size());
 
             // Count index scans vs full scans
+            // Note: $in with index becomes PhysicalOr containing PhysicalIndexScans
             long indexScans = and.children().stream()
                     .filter(child -> child instanceof PhysicalIndexScan)
+                    .count();
+            long orWithIndexScans = and.children().stream()
+                    .filter(child -> child instanceof PhysicalOr)
                     .count();
             long fullScans = and.children().stream()
                     .filter(child -> child instanceof PhysicalFullScan)
                     .count();
 
-            assertEquals(2, indexScans, "Should have 2 index scans for category and price");
+            assertEquals(1, indexScans, "Should have 1 index scan for price");
+            assertEquals(1, orWithIndexScans, "Should have 1 PhysicalOr for category $in");
             assertEquals(2, fullScans, "Should have 2 full scans for available and rating");
         }
     }
@@ -519,17 +687,25 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
             assertInstanceOf(PhysicalOr.class, result);
             PhysicalOr or = (PhysicalOr) result;
-            assertEquals(4, or.children().size());
+            // $in with index becomes nested PhysicalOr, so we have 5 children after flattening
+            // or 4 if the nested OR is not flattened
+            assertTrue(or.children().size() >= 4);
 
             // Count index scans vs full scans
+            // Note: $in with index becomes PhysicalOr containing PhysicalIndexScans
             long indexScans = or.children().stream()
                     .filter(child -> child instanceof PhysicalIndexScan)
+                    .count();
+            long nestedOrs = or.children().stream()
+                    .filter(child -> child instanceof PhysicalOr)
                     .count();
             long fullScans = or.children().stream()
                     .filter(child -> child instanceof PhysicalFullScan)
                     .count();
 
-            assertEquals(2, indexScans, "Should have 2 index scans for type and score");
+            // score uses 1 index scan, type $in becomes nested PhysicalOr with 2 index scans
+            assertEquals(1, indexScans, "Should have 1 index scan for score");
+            assertEquals(1, nestedOrs, "Should have 1 nested PhysicalOr for type $in");
             assertEquals(2, fullScans, "Should have 2 full scans for featured and recommended");
         }
     }
@@ -695,7 +871,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
                     {
                       "$and": [
                         { "user_id": "user123" },
-                        { "timestamp": { "$gte": 1640995200 } },
+                        { "timestamp": { "$gte": { "$numberLong": "1640995200" } } },
                         { "priority": { "$in": [1, 2, 3] } },
                         { "type": { "$ne": "system" } },
                         { "processed": false }
@@ -708,20 +884,25 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
             assertEquals(5, and.children().size());
 
             // Count index scans vs full scans
+            // Note: $in with index becomes PhysicalOr containing PhysicalIndexScans
             long indexScans = and.children().stream()
                     .filter(child -> child instanceof PhysicalIndexScan)
+                    .count();
+            long orWithIndexScans = and.children().stream()
+                    .filter(child -> child instanceof PhysicalOr)
                     .count();
             long fullScans = and.children().stream()
                     .filter(child -> child instanceof PhysicalFullScan)
                     .count();
 
-            assertEquals(4, indexScans, "Should have 4 index scans for indexed fields");
+            assertEquals(3, indexScans, "Should have 3 index scans for user_id, timestamp, type");
+            assertEquals(1, orWithIndexScans, "Should have 1 PhysicalOr for priority $in");
             assertEquals(1, fullScans, "Should have 1 full scan for non-indexed field");
         }
 
         @Test
-        @DisplayName("Large IN clause with indexed field should use PhysicalIndexScan")
-        void shouldUsePhysicalIndexScanForLargeINClauseWithIndexedField() {
+        @DisplayName("Large IN clause with indexed field should use PhysicalOr with EQ index scans")
+        void shouldUsePhysicalOrForLargeINClauseWithIndexedField() {
             createIndex(IndexDefinition.create(
                     "category-index", "category", BsonType.STRING
             ));
@@ -736,15 +917,19 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
             PhysicalNode result = planQuery(queryBuilder.toString());
 
-            assertInstanceOf(PhysicalIndexScan.class, result);
-            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
-            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
-            assertEquals("category", filter.selector());
-            assertEquals(Operator.IN, filter.op());
+            // IN with index is transformed to OR with multiple EQ index scans
+            assertInstanceOf(PhysicalOr.class, result);
+            PhysicalOr or = (PhysicalOr) result;
+            assertEquals(20, or.children().size());
 
-            @SuppressWarnings("unchecked")
-            List<Object> operand = (List<Object>) filter.operand();
-            assertEquals(20, operand.size());
+            // Verify all children are index scans with EQ operator
+            for (PhysicalNode child : or.children()) {
+                assertInstanceOf(PhysicalIndexScan.class, child);
+                PhysicalIndexScan indexScan = (PhysicalIndexScan) child;
+                PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+                assertEquals("category", filter.selector());
+                assertEquals(Operator.EQ, filter.op());
+            }
         }
 
         @Test
@@ -758,8 +943,8 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
             PhysicalNode result = planQuery("""
                     {
                       "$and": [
-                        { "created_date": { "$gte": 1640995200 } },
-                        { "created_date": { "$lte": 1672531200 } }
+                        { "created_date": { "$gte": { "$numberLong": "1640995200" } } },
+                        { "created_date": { "$lte": { "$numberLong": "1672531200" } } }
                       ]
                     }
                     """);

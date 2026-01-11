@@ -18,8 +18,9 @@ package com.kronotop.bucket.bql;
 
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.bql.ast.*;
+import org.bson.BsonDocument;
 import org.bson.BsonInt32;
-import org.bson.Document;
+import org.bson.BsonString;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -124,22 +125,22 @@ class BqlParserTest {
         // Verify the AND has 2 children
         assertEquals(2, andExpr.children().size(), "AND should have 2 children");
 
-        // Verify the first child is a BqlGte node
+        // Verify the first child is a BqlGte node with empty selector (scalar array)
         assertInstanceOf(BqlGte.class, andExpr.children().get(0), "First child should be a BqlGte node");
         BqlGte gteExpr = (BqlGte) andExpr.children().get(0);
-        assertEquals("results", gteExpr.selector(), "First child selector should be 'results'");
+        assertEquals("", gteExpr.selector(), "First child selector should be empty for scalar array");
         assertInstanceOf(Int32Val.class, gteExpr.value(), "First child value should be an Int32Val");
         assertEquals(80, ((Int32Val) gteExpr.value()).value(), "First child value should be 80");
 
-        // Verify the second child is a BqlLt node
+        // Verify the second child is a BqlLt node with empty selector (scalar array)
         assertInstanceOf(BqlLt.class, andExpr.children().get(1), "Second child should be a BqlLt node");
         BqlLt ltExpr = (BqlLt) andExpr.children().get(1);
-        assertEquals("results", ltExpr.selector(), "Second child selector should be 'results'");
+        assertEquals("", ltExpr.selector(), "Second child selector should be empty for scalar array");
         assertInstanceOf(Int32Val.class, ltExpr.value(), "Second child value should be an Int32Val");
         assertEquals(85, ((Int32Val) ltExpr.value()).value(), "Second child value should be 85");
 
-        // Verify the AST can be converted back to JSON
-        String expectedJson = "{\"results\": {\"$elemMatch\": {\"$and\": [{\"results\": {\"$gte\": 80}}, {\"results\": {\"$lt\": 85}}]}}}";
+        // Verify the AST can be converted back to JSON (empty selectors are stripped)
+        String expectedJson = "{\"results\": {\"$elemMatch\": {\"$and\": [{\"$gte\": 80}, {\"$lt\": 85}]}}}";
         assertEquals(expectedJson, result.toJson(), "toJson() should produce correct JSON");
 
         // Verify the explain output (optional - for debugging)
@@ -623,10 +624,10 @@ class BqlParserTest {
     @Test
     void shouldParseEncodedBsonDocument() {
         // Construct BSON document: {"name": "Alice", "age": {"$gt": 25}}
-        Document queryDoc = new Document();
-        queryDoc.append("name", "Alice");
+        BsonDocument queryDoc = new BsonDocument();
+        queryDoc.append("name", new BsonString("Alice"));
 
-        Document ageCondition = new Document();
+        BsonDocument ageCondition = new BsonDocument();
         ageCondition.append("$gt", new BsonInt32(25));
         queryDoc.append("age", ageCondition);
 
@@ -669,5 +670,455 @@ class BqlParserTest {
         // Verify JSON output is identical for both parsing methods
         assertEquals(expected.toJson(), result.toJson(),
                 "BSON parsing should produce identical JSON output as string parsing");
+    }
+
+    @Test
+    void shouldRejectNullValueForGtOperator() {
+        String query = "{ age: { $gt: null } }";
+
+        BqlParseException exception = assertThrows(BqlParseException.class, () -> {
+            BqlParser.parse(query);
+        });
+
+        assertTrue(exception.getMessage().contains("$gt operator does not support null values"));
+    }
+
+    @Test
+    void shouldRejectNullValueForLtOperator() {
+        String query = "{ age: { $lt: null } }";
+
+        BqlParseException exception = assertThrows(BqlParseException.class, () -> {
+            BqlParser.parse(query);
+        });
+
+        assertTrue(exception.getMessage().contains("$lt operator does not support null values"));
+    }
+
+    @Test
+    void shouldRejectNullValueForGteOperator() {
+        String query = "{ age: { $gte: null } }";
+
+        BqlParseException exception = assertThrows(BqlParseException.class, () -> {
+            BqlParser.parse(query);
+        });
+
+        assertTrue(exception.getMessage().contains("$gte operator does not support null values"));
+    }
+
+    @Test
+    void shouldRejectNullValueForLteOperator() {
+        String query = "{ age: { $lte: null } }";
+
+        BqlParseException exception = assertThrows(BqlParseException.class, () -> {
+            BqlParser.parse(query);
+        });
+
+        assertTrue(exception.getMessage().contains("$lte operator does not support null values"));
+    }
+
+    @Test
+    void shouldAllowNullValueForEqOperator() {
+        String query = "{ age: { $eq: null } }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result);
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertEquals("age", eqExpr.selector());
+        assertInstanceOf(NullVal.class, eqExpr.value());
+    }
+
+    @Test
+    void shouldAllowNullValueForNeOperator() {
+        String query = "{ age: { $ne: null } }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result);
+        assertInstanceOf(BqlNe.class, result);
+        BqlNe neExpr = (BqlNe) result;
+        assertEquals("age", neExpr.selector());
+        assertInstanceOf(NullVal.class, neExpr.value());
+    }
+
+    @Test
+    void shouldAllowNullValueInInOperator() {
+        String query = "{ status: { $in: [null, 'active', 'pending'] } }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result);
+        assertInstanceOf(BqlIn.class, result);
+        BqlIn inExpr = (BqlIn) result;
+        assertEquals("status", inExpr.selector());
+        assertEquals(3, inExpr.values().size());
+        assertInstanceOf(NullVal.class, inExpr.values().get(0));
+    }
+
+    @Test
+    void shouldAllowNullValueInNinOperator() {
+        String query = "{ status: { $nin: [null, 'deleted'] } }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result);
+        assertInstanceOf(BqlNin.class, result);
+        BqlNin ninExpr = (BqlNin) result;
+        assertEquals("status", ninExpr.selector());
+        assertEquals(2, ninExpr.values().size());
+        assertInstanceOf(NullVal.class, ninExpr.values().get(0));
+    }
+
+    @Test
+    void shouldAllowNullValueInAllOperator() {
+        String query = "{ status: { $all: [null, 'deleted'] } }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result);
+        assertInstanceOf(BqlAll.class, result);
+        BqlAll allExpr = (BqlAll) result;
+        assertEquals("status", allExpr.selector());
+        assertEquals(2, allExpr.values().size());
+        assertInstanceOf(NullVal.class, allExpr.values().get(0));
+    }
+
+    @Test
+    void shouldParseScalarArrayElemMatchWithEmptySelector() {
+        // For scalar arrays like { tags: ["urgent", "bug"] }, $elemMatch with direct operators
+        // (e.g., $eq, $gt) should use empty selector "" because ResidualElemMatchNode wraps
+        // scalar elements in {"": value} for comparison.
+        //
+        // Query: { tags: { $elemMatch: { $eq: "urgent" } } }
+        // This should match documents where at least one element in 'tags' equals "urgent"
+        String query = "{ tags: { $elemMatch: { $eq: 'urgent' } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("tags", elemMatchNode.selector(), "ElemMatch selector should be 'tags'");
+
+        // The inner expression should be BqlEq with empty selector
+        assertInstanceOf(BqlEq.class, elemMatchNode.expr(), "Inner expression should be BqlEq");
+        BqlEq eqExpr = (BqlEq) elemMatchNode.expr();
+
+        // Critical: selector must be empty for scalar array matching
+        assertEquals("", eqExpr.selector(), "Scalar array $elemMatch operator must use empty selector");
+        assertInstanceOf(StringVal.class, eqExpr.value(), "Value should be StringVal");
+        assertEquals("urgent", ((StringVal) eqExpr.value()).value(), "Value should be 'urgent'");
+    }
+
+    @Test
+    void shouldParseScalarArrayElemMatchWithMultipleOperators() {
+        // Test scalar array $elemMatch with multiple operators (implicit AND)
+        // Query: { scores: { $elemMatch: { $gte: 80, $lt: 90 } } }
+        String query = "{ scores: { $elemMatch: { $gte: 80, $lt: 90 } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("scores", elemMatchNode.selector(), "ElemMatch selector should be 'scores'");
+
+        // Multiple operators create implicit AND
+        assertInstanceOf(BqlAnd.class, elemMatchNode.expr(), "Multiple operators should create BqlAnd");
+        BqlAnd andExpr = (BqlAnd) elemMatchNode.expr();
+        assertEquals(2, andExpr.children().size(), "AND should have 2 children");
+
+        // First child: $gte with empty selector
+        assertInstanceOf(BqlGte.class, andExpr.children().get(0), "First child should be BqlGte");
+        BqlGte gteExpr = (BqlGte) andExpr.children().get(0);
+        assertEquals("", gteExpr.selector(), "Scalar array operator must use empty selector");
+        assertEquals(80, ((Int32Val) gteExpr.value()).value());
+
+        // Second child: $lt with empty selector
+        assertInstanceOf(BqlLt.class, andExpr.children().get(1), "Second child should be BqlLt");
+        BqlLt ltExpr = (BqlLt) andExpr.children().get(1);
+        assertEquals("", ltExpr.selector(), "Scalar array operator must use empty selector");
+        assertEquals(90, ((Int32Val) ltExpr.value()).value());
+    }
+
+    @Test
+    void shouldParseDocumentArrayElemMatchWithFieldSelectors() {
+        // For document arrays like { items: [{price: 50}, {price: 150}] },
+        // $elemMatch with field conditions should use the field name as selector
+        //
+        // Query: { items: { $elemMatch: { price: { $gt: 100 } } } }
+        String query = "{ items: { $elemMatch: { price: { $gt: 100 } } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("items", elemMatchNode.selector(), "ElemMatch selector should be 'items'");
+
+        // The inner expression should be BqlGt with 'price' as selector
+        assertInstanceOf(BqlGt.class, elemMatchNode.expr(), "Inner expression should be BqlGt");
+        BqlGt gtExpr = (BqlGt) elemMatchNode.expr();
+
+        // For document array field conditions, selector is the field name
+        assertEquals("price", gtExpr.selector(), "Document field selector should be 'price'");
+        assertEquals(100, ((Int32Val) gtExpr.value()).value());
+    }
+
+    // Tests for $or/$and/$not inside $elemMatch
+
+    @Test
+    void shouldParseOrInsideElemMatchForScalarArray() {
+        // Query: { tags: { $elemMatch: { $or: [{ $eq: 'urgent' }, { $eq: 'critical' }] } } }
+        String query = "{ tags: { $elemMatch: { $or: [{ $eq: 'urgent' }, { $eq: 'critical' }] } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("tags", elemMatchNode.selector(), "ElemMatch selector should be 'tags'");
+
+        // Inner expression should be BqlOr
+        assertInstanceOf(BqlOr.class, elemMatchNode.expr(), "Inner expression should be BqlOr");
+        BqlOr orExpr = (BqlOr) elemMatchNode.expr();
+        assertEquals(2, orExpr.children().size(), "OR should have 2 children");
+
+        // First child: $eq with empty selector (scalar array)
+        assertInstanceOf(BqlEq.class, orExpr.children().get(0), "First child should be BqlEq");
+        BqlEq eq1 = (BqlEq) orExpr.children().get(0);
+        assertEquals("", eq1.selector(), "Scalar array $eq must use empty selector");
+        assertEquals("urgent", ((StringVal) eq1.value()).value());
+
+        // Second child: $eq with empty selector (scalar array)
+        assertInstanceOf(BqlEq.class, orExpr.children().get(1), "Second child should be BqlEq");
+        BqlEq eq2 = (BqlEq) orExpr.children().get(1);
+        assertEquals("", eq2.selector(), "Scalar array $eq must use empty selector");
+        assertEquals("critical", ((StringVal) eq2.value()).value());
+
+        // Verify roundtrip JSON serialization
+        String expectedJson = "{\"tags\": {\"$elemMatch\": {\"$or\": [{\"$eq\": \"urgent\"}, {\"$eq\": \"critical\"}]}}}";
+        assertEquals(expectedJson, result.toJson(), "toJson() should produce correct JSON");
+    }
+
+    @Test
+    void shouldParseOrInsideElemMatchForDocumentArray() {
+        // Query: { scores: { $elemMatch: { $or: [{ subject: 'math' }, { subject: 'science' }] } } }
+        String query = "{ scores: { $elemMatch: { $or: [{ subject: 'math' }, { subject: 'science' }] } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("scores", elemMatchNode.selector(), "ElemMatch selector should be 'scores'");
+
+        // Inner expression should be BqlOr
+        assertInstanceOf(BqlOr.class, elemMatchNode.expr(), "Inner expression should be BqlOr");
+        BqlOr orExpr = (BqlOr) elemMatchNode.expr();
+        assertEquals(2, orExpr.children().size(), "OR should have 2 children");
+
+        // First child: implicit equality with 'subject' selector
+        assertInstanceOf(BqlEq.class, orExpr.children().get(0), "First child should be BqlEq");
+        BqlEq eq1 = (BqlEq) orExpr.children().get(0);
+        assertEquals("subject", eq1.selector(), "First child selector should be 'subject'");
+        assertEquals("math", ((StringVal) eq1.value()).value());
+
+        // Second child: implicit equality with 'subject' selector
+        assertInstanceOf(BqlEq.class, orExpr.children().get(1), "Second child should be BqlEq");
+        BqlEq eq2 = (BqlEq) orExpr.children().get(1);
+        assertEquals("subject", eq2.selector(), "Second child selector should be 'subject'");
+        assertEquals("science", ((StringVal) eq2.value()).value());
+    }
+
+    @Test
+    void shouldParseAndInsideElemMatchForScalarArray() {
+        // Query: { scores: { $elemMatch: { $and: [{ $gte: 80 }, { $lt: 90 }] } } }
+        String query = "{ scores: { $elemMatch: { $and: [{ $gte: 80 }, { $lt: 90 }] } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("scores", elemMatchNode.selector(), "ElemMatch selector should be 'scores'");
+
+        // Inner expression should be BqlAnd (explicit $and)
+        assertInstanceOf(BqlAnd.class, elemMatchNode.expr(), "Inner expression should be BqlAnd");
+        BqlAnd andExpr = (BqlAnd) elemMatchNode.expr();
+        assertEquals(2, andExpr.children().size(), "AND should have 2 children");
+
+        // First child: $gte with empty selector
+        assertInstanceOf(BqlGte.class, andExpr.children().get(0), "First child should be BqlGte");
+        BqlGte gte = (BqlGte) andExpr.children().get(0);
+        assertEquals("", gte.selector(), "Scalar array operator must use empty selector");
+        assertEquals(80, ((Int32Val) gte.value()).value());
+
+        // Second child: $lt with empty selector
+        assertInstanceOf(BqlLt.class, andExpr.children().get(1), "Second child should be BqlLt");
+        BqlLt lt = (BqlLt) andExpr.children().get(1);
+        assertEquals("", lt.selector(), "Scalar array operator must use empty selector");
+        assertEquals(90, ((Int32Val) lt.value()).value());
+
+        // Verify roundtrip JSON serialization
+        String expectedJson = "{\"scores\": {\"$elemMatch\": {\"$and\": [{\"$gte\": 80}, {\"$lt\": 90}]}}}";
+        assertEquals(expectedJson, result.toJson(), "toJson() should produce correct JSON");
+    }
+
+    @Test
+    void shouldParseOrCombinedWithOtherConditionsInsideElemMatch() {
+        // Query: { scores: { $elemMatch: { $or: [{ subject: 'math' }, { subject: 'science' }], score: { $gt: 80 } } } }
+        String query = "{ scores: { $elemMatch: { $or: [{ subject: 'math' }, { subject: 'science' }], score: { $gt: 80 } } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("scores", elemMatchNode.selector(), "ElemMatch selector should be 'scores'");
+
+        // Multiple conditions at top level create implicit AND
+        assertInstanceOf(BqlAnd.class, elemMatchNode.expr(), "Multiple conditions should create BqlAnd");
+        BqlAnd andExpr = (BqlAnd) elemMatchNode.expr();
+        assertEquals(2, andExpr.children().size(), "AND should have 2 children");
+
+        // First child: $or
+        assertInstanceOf(BqlOr.class, andExpr.children().get(0), "First child should be BqlOr");
+        BqlOr orExpr = (BqlOr) andExpr.children().get(0);
+        assertEquals(2, orExpr.children().size(), "OR should have 2 children");
+
+        // Second child: $gt on 'score' field
+        assertInstanceOf(BqlGt.class, andExpr.children().get(1), "Second child should be BqlGt");
+        BqlGt gtExpr = (BqlGt) andExpr.children().get(1);
+        assertEquals("score", gtExpr.selector(), "Second child selector should be 'score'");
+        assertEquals(80, ((Int32Val) gtExpr.value()).value());
+    }
+
+    @Test
+    void shouldParseNestedOrAndInsideElemMatch() {
+        // Query: { items: { $elemMatch: { $or: [{ $and: [{ type: 'electronics' }, { price: { $gt: 200 } }] }, { type: 'furniture' }] } } }
+        String query = "{ items: { $elemMatch: { $or: [{ $and: [{ type: 'electronics' }, { price: { $gt: 200 } }] }, { type: 'furniture' }] } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("items", elemMatchNode.selector(), "ElemMatch selector should be 'items'");
+
+        // Inner expression should be BqlOr
+        assertInstanceOf(BqlOr.class, elemMatchNode.expr(), "Inner expression should be BqlOr");
+        BqlOr orExpr = (BqlOr) elemMatchNode.expr();
+        assertEquals(2, orExpr.children().size(), "OR should have 2 children");
+
+        // First child: nested $and
+        assertInstanceOf(BqlAnd.class, orExpr.children().get(0), "First OR child should be BqlAnd");
+        BqlAnd andExpr = (BqlAnd) orExpr.children().get(0);
+        assertEquals(2, andExpr.children().size(), "AND should have 2 children");
+
+        // Verify AND children
+        assertInstanceOf(BqlEq.class, andExpr.children().get(0), "First AND child should be BqlEq");
+        BqlEq typeEq = (BqlEq) andExpr.children().get(0);
+        assertEquals("type", typeEq.selector());
+        assertEquals("electronics", ((StringVal) typeEq.value()).value());
+
+        assertInstanceOf(BqlGt.class, andExpr.children().get(1), "Second AND child should be BqlGt");
+        BqlGt priceGt = (BqlGt) andExpr.children().get(1);
+        assertEquals("price", priceGt.selector());
+        assertEquals(200, ((Int32Val) priceGt.value()).value());
+
+        // Second child: simple equality
+        assertInstanceOf(BqlEq.class, orExpr.children().get(1), "Second OR child should be BqlEq");
+        BqlEq furnitureEq = (BqlEq) orExpr.children().get(1);
+        assertEquals("type", furnitureEq.selector());
+        assertEquals("furniture", ((StringVal) furnitureEq.value()).value());
+    }
+
+    @Test
+    void shouldParseNotInsideElemMatchForScalarArray() {
+        // Query: { scores: { $elemMatch: { $not: { $lt: 50 } } } }
+        String query = "{ scores: { $elemMatch: { $not: { $lt: 50 } } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("scores", elemMatchNode.selector(), "ElemMatch selector should be 'scores'");
+
+        // Inner expression should be BqlNot
+        assertInstanceOf(BqlNot.class, elemMatchNode.expr(), "Inner expression should be BqlNot");
+        BqlNot notExpr = (BqlNot) elemMatchNode.expr();
+
+        // NOT child should be $lt with empty selector
+        assertInstanceOf(BqlLt.class, notExpr.expr(), "NOT child should be BqlLt");
+        BqlLt ltExpr = (BqlLt) notExpr.expr();
+        assertEquals("", ltExpr.selector(), "Scalar array operator must use empty selector");
+        assertEquals(50, ((Int32Val) ltExpr.value()).value());
+    }
+
+    @Test
+    void shouldParseNotInsideElemMatchForDocumentArray() {
+        // Query: { reviews: { $elemMatch: { $not: { rating: { $lt: 3 } } } } }
+        String query = "{ reviews: { $elemMatch: { $not: { rating: { $lt: 3 } } } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("reviews", elemMatchNode.selector(), "ElemMatch selector should be 'reviews'");
+
+        // Inner expression should be BqlNot
+        assertInstanceOf(BqlNot.class, elemMatchNode.expr(), "Inner expression should be BqlNot");
+        BqlNot notExpr = (BqlNot) elemMatchNode.expr();
+
+        // NOT child should be $lt with 'rating' selector
+        assertInstanceOf(BqlLt.class, notExpr.expr(), "NOT child should be BqlLt");
+        BqlLt ltExpr = (BqlLt) notExpr.expr();
+        assertEquals("rating", ltExpr.selector(), "Selector should be 'rating'");
+        assertEquals(3, ((Int32Val) ltExpr.value()).value());
+    }
+
+    @Test
+    void shouldParseOrWithOperatorsInsideElemMatchForScalarArray() {
+        // Query: { scores: { $elemMatch: { $or: [{ $gte: 90 }, { $lt: 50 }] } } }
+        // This matches scores that are excellent (>=90) OR failing (<50)
+        String query = "{ scores: { $elemMatch: { $or: [{ $gte: 90 }, { $lt: 50 }] } } }";
+
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("scores", elemMatchNode.selector(), "ElemMatch selector should be 'scores'");
+
+        // Inner expression should be BqlOr
+        assertInstanceOf(BqlOr.class, elemMatchNode.expr(), "Inner expression should be BqlOr");
+        BqlOr orExpr = (BqlOr) elemMatchNode.expr();
+        assertEquals(2, orExpr.children().size(), "OR should have 2 children");
+
+        // First child: $gte with empty selector
+        assertInstanceOf(BqlGte.class, orExpr.children().get(0), "First child should be BqlGte");
+        BqlGte gteExpr = (BqlGte) orExpr.children().get(0);
+        assertEquals("", gteExpr.selector(), "Scalar array operator must use empty selector");
+        assertEquals(90, ((Int32Val) gteExpr.value()).value());
+
+        // Second child: $lt with empty selector
+        assertInstanceOf(BqlLt.class, orExpr.children().get(1), "Second child should be BqlLt");
+        BqlLt ltExpr = (BqlLt) orExpr.children().get(1);
+        assertEquals("", ltExpr.selector(), "Scalar array operator must use empty selector");
+        assertEquals(50, ((Int32Val) ltExpr.value()).value());
+
+        // Verify roundtrip JSON serialization
+        String expectedJson = "{\"scores\": {\"$elemMatch\": {\"$or\": [{\"$gte\": 90}, {\"$lt\": 50}]}}}";
+        assertEquals(expectedJson, result.toJson(), "toJson() should produce correct JSON");
     }
 }

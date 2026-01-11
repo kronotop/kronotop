@@ -48,6 +48,32 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Handles the BUCKET.INDEX CREATE subcommand to create indexes on bucket fields.
+ *
+ * <p>Index schema format:
+ * <pre>
+ * {"field_name": {"bson_type": "type", "multi_key": true/false, "name": "optional_name"}}
+ * </pre>
+ *
+ * <h3>Multi-key Index Behavior and Limitations</h3>
+ *
+ * <p>When {@code multi_key} is set to {@code true}, the index is designed for array fields.
+ * Each element in the array creates a separate index entry, allowing queries to match
+ * documents where any array element satisfies the condition.</p>
+ *
+ * <p><b>Limitations of multi-key indexes:</b></p>
+ * <ul>
+ *   <li><b>Undefined ordering:</b> Result ordering is undefined with multi-key indexes.
+ *       Since each document can have multiple index entries (one per array element),
+ *       the order in which documents are returned cannot be guaranteed. The {@code reverse}
+ *       query option has unpredictable behavior on multi-key indexed fields.</li>
+ *   <li><b>Index size:</b> Multi-key indexes can be significantly larger than regular indexes
+ *       because each array element creates a separate index entry.</li>
+ *   <li><b>Type matching:</b> Only array elements matching the specified {@code bson_type}
+ *       are indexed. Mixed-type arrays will only have matching elements indexed.</li>
+ * </ul>
+ */
 class BucketIndexCreateSubcommand implements SubcommandHandler {
     private final Context context;
 
@@ -79,7 +105,8 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
                         IndexDefinition indexDefinition = IndexDefinition.create(
                                 name,
                                 entry.getKey(),
-                                schema.getBsonType()
+                                schema.getBsonType(),
+                                schema.getMultiKey()
                         );
 
                         IndexUtil.create(
@@ -155,6 +182,13 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
             @JsonDeserialize(using = BsonTypeDeserializer.class)
             private BsonType bsonType;
 
+            /**
+             * When true, creates a multi-key index for array fields. Each array element
+             * generates a separate index entry. Note: result ordering is undefined with
+             * multi-key indexes.
+             */
+            @JsonProperty("multi_key")
+            private Boolean multiKey;
 
             IndexSchema() {
             }
@@ -165,6 +199,14 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
 
             public void setBsonType(BsonType bsonType) {
                 this.bsonType = bsonType;
+            }
+
+            public void setMultiKey(boolean multiKey) {
+                this.multiKey = multiKey;
+            }
+
+            public Boolean getMultiKey() {
+                return multiKey;
             }
 
             public String getName() {

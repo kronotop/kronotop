@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.CachedTimeService;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BsonHelper;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
@@ -29,7 +30,7 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import org.bson.Document;
+import org.bson.BsonDocument;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -308,8 +309,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertNotNull(expectedDoc, "Document should exist in original data");
 
             // The document should contain "Alice" (we inserted 2 such documents)
-            Document doc = BSONUtil.toDocument(expectedDoc);
-            assertEquals("Alice", doc.getString("name"), "Document should have name = 'Alice'");
+            BsonDocument doc = BSONUtil.toBsonDocument(expectedDoc);
+            assertEquals("Alice", BsonHelper.getString(doc, "name"), "Document should have name = 'Alice'");
         }
     }
 
@@ -343,8 +344,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             byte[] expectedDoc = expectedDocuments.get(docId);
             assertNotNull(expectedDoc, "Document should exist in original data");
 
-            Document doc = BSONUtil.toDocument(expectedDoc);
-            int age = doc.getInteger("age");
+            BsonDocument doc = BSONUtil.toBsonDocument(expectedDoc);
+            int age = BsonHelper.getInteger(doc, "age");
             assertTrue(age >= 30, "Document should have age >= 30, but was " + age);
         }
     }
@@ -385,9 +386,9 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         byte[] actualDoc = expectedDocuments.get(docId);
         assertNotNull(actualDoc, "Document should exist");
 
-        Document doc = BSONUtil.toDocument(actualDoc);
-        assertEquals("SPECIAL", doc.getString("category"), "Should be the SPECIAL category document");
-        assertEquals("final-content", doc.getString("data"), "Should be the final document");
+        BsonDocument doc = BSONUtil.toBsonDocument(actualDoc);
+        assertEquals("SPECIAL", BsonHelper.getString(doc, "category"), "Should be the SPECIAL category document");
+        assertEquals("final-content", BsonHelper.getString(doc, "data"), "Should be the final document");
     }
 
     @Test
@@ -418,11 +419,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             String docId = keyMessage.content();
             byte[] expectedDoc = expectedDocuments.get(docId);
 
-            Document doc = BSONUtil.toDocument(expectedDoc);
-            String name = doc.getString("name");
+            BsonDocument doc = BSONUtil.toBsonDocument(expectedDoc);
+            String name = BsonHelper.getString(doc, "name");
             assertTrue("Alice".equals(name) || "Charlie".equals(name),
                     "Should be Alice or Charlie (active=true), but was " + name);
-            assertTrue(doc.getBoolean("active"), "Document should have active=true");
+            assertTrue(BsonHelper.getBoolean(doc, "active"), "Document should have active=true");
         }
     }
 
@@ -457,9 +458,9 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             String docId = keyMessage.content();
             byte[] expectedDoc = expectedDocuments.get(docId);
 
-            Document doc = BSONUtil.toDocument(expectedDoc);
-            String name = doc.getString("name");
-            int score = doc.getInteger("score");
+            BsonDocument doc = BSONUtil.toBsonDocument(expectedDoc);
+            String name = BsonHelper.getString(doc, "name");
+            int score = BsonHelper.getInteger(doc, "score");
             assertTrue(("Alice".equals(name) && score == 75) ||
                             ("Bob".equals(name) && score == 85) ||
                             ("Eve".equals(name) && score == 90),
@@ -517,10 +518,10 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             String docId = keyMessage.content();
             byte[] expectedDoc = expectedDocuments.get(docId);
 
-            Document doc = BSONUtil.toDocument(expectedDoc);
-            Document user = (Document) doc.get("user");
-            String name = user.getString("name");
-            String status = doc.getString("status");
+            BsonDocument doc = BSONUtil.toBsonDocument(expectedDoc);
+            BsonDocument user = BsonHelper.getDocument(doc, "user");
+            String name = BsonHelper.getString(user, "name");
+            String status = BsonHelper.getString(doc, "status");
             assertTrue("Alice".equals(name) || "Charlie".equals(name),
                     "Should be Alice or Charlie (status=active), but was " + name);
             assertEquals("active", status, "Should contain status active");
@@ -555,8 +556,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             String docId = keyMessage.content();
             byte[] expectedDoc = expectedDocuments.get(docId);
 
-            Document doc = BSONUtil.toDocument(expectedDoc);
-            int priority = doc.getInteger("priority");
+            BsonDocument doc = BSONUtil.toBsonDocument(expectedDoc);
+            int priority = BsonHelper.getInteger(doc, "priority");
             assertEquals(1, priority, "Document should have priority = 1");
         }
     }
@@ -595,8 +596,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             FullBulkStringRedisMessage valueMessage = (FullBulkStringRedisMessage) entry.getValue();
 
             byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
-            Document doc = BSONUtil.toDocument(docBytes);
-            assertEquals("GOLD", doc.getString("tier"), "All returned documents should be GOLD tier");
+            BsonDocument doc = BSONUtil.toBsonDocument(docBytes);
+            assertEquals("GOLD", BsonHelper.getString(doc, "tier"), "All returned documents should be GOLD tier");
         }
     }
 

@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.CachedTimeService;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BsonHelper;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.IndexDefinition;
@@ -90,7 +91,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, updatedVersionstamps.size(), "Should have updated 2 documents with age > 30");
 
         // Step 3: Query all documents to verify the update
-        Map<String, Document> allDocuments = new HashMap<>();
+        Map<String, BsonDocument> allDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -105,7 +106,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
                 String versionstamp = keyMessage.content();
                 byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
-                Document document = BSONUtil.toDocument(docBytes);
+                BsonDocument document = BSONUtil.toBsonDocument(docBytes);
                 allDocuments.put(versionstamp, document);
             }
         }
@@ -113,22 +114,22 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(4, allDocuments.size(), "Should retrieve all 4 documents");
 
         // Step 4: Verify the updates
-        for (Map.Entry<String, Document> entry : allDocuments.entrySet()) {
+        for (Map.Entry<String, BsonDocument> entry : allDocuments.entrySet()) {
             String versionstamp = entry.getKey();
-            Document document = entry.getValue();
+            BsonDocument document = entry.getValue();
 
-            int age = document.getInteger("age");
+            int age = BsonHelper.getInteger(document, "age");
             if (age > 30) {
                 // Documents with age > 30 should have the new "status" field
                 assertTrue(updatedVersionstamps.contains(versionstamp),
                         "Document with age " + age + " should be in updated versionstamps");
-                assertEquals("senior", document.getString("status"),
+                assertEquals("senior", BsonHelper.getString(document, "status"),
                         "Document with age " + age + " should have status 'senior'");
             } else {
                 // Documents with age <= 30 should NOT have the "status" field
                 assertFalse(updatedVersionstamps.contains(versionstamp),
                         "Document with age " + age + " should NOT be in updated versionstamps");
-                assertNull(document.getString("status"),
+                assertNull(BsonHelper.getString(document, "status"),
                         "Document with age " + age + " should NOT have status field");
             }
         }
@@ -139,9 +140,9 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         boolean foundAliceWithoutStatus = false;
         boolean foundDianaWithoutStatus = false;
 
-        for (Document doc : allDocuments.values()) {
-            String name = doc.getString("name");
-            String status = doc.getString("status");
+        for (BsonDocument doc : allDocuments.values()) {
+            String name = BsonHelper.getString(doc, "name");
+            String status = BsonHelper.getString(doc, "status");
 
             switch (name) {
                 case "Bob", "Charlie" -> {
@@ -209,7 +210,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, updatedVersionstamps.size(), "Should have updated 2 documents with age > 30");
 
         // Step 3: Query all documents to verify the unset operation
-        Map<String, Document> allDocuments = new HashMap<>();
+        Map<String, BsonDocument> allDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -224,7 +225,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
                 String versionstamp = keyMessage.content();
                 byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
-                Document document = BSONUtil.toDocument(docBytes);
+                BsonDocument document = BSONUtil.toBsonDocument(docBytes);
                 allDocuments.put(versionstamp, document);
             }
         }
@@ -232,22 +233,22 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(4, allDocuments.size(), "Should retrieve all 4 documents");
 
         // Step 4: Verify the unset operations
-        for (Map.Entry<String, Document> entry : allDocuments.entrySet()) {
+        for (Map.Entry<String, BsonDocument> entry : allDocuments.entrySet()) {
             String versionstamp = entry.getKey();
-            Document document = entry.getValue();
+            BsonDocument document = entry.getValue();
 
-            int age = document.getInteger("age");
+            int age = BsonHelper.getInteger(document, "age");
             if (age > 30) {
                 // Documents with age > 30 should have "temp" and "deprecated" fields removed
                 assertTrue(updatedVersionstamps.contains(versionstamp),
                         "Document with age " + age + " should be in updated versionstamps");
-                assertNull(document.getString("temp"),
+                assertNull(BsonHelper.getString(document, "temp"),
                         "Document with age " + age + " should NOT have temp field after unset");
-                assertNull(document.getString("deprecated"),
+                assertNull(BsonHelper.getString(document, "deprecated"),
                         "Document with age " + age + " should NOT have deprecated field after unset");
                 // Other fields should remain
-                assertNotNull(document.getString("name"), "name field should remain");
-                assertNotNull(document.getString("city"), "city field should remain");
+                assertNotNull(BsonHelper.getString(document, "name"), "name field should remain");
+                assertNotNull(BsonHelper.getString(document, "city"), "city field should remain");
             } else {
                 // Documents with age <= 30 should keep their original fields
                 assertFalse(updatedVersionstamps.contains(versionstamp),
@@ -261,10 +262,10 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         boolean foundAliceWithFields = false;
         boolean foundDianaWithDeprecated = false;
 
-        for (Document doc : allDocuments.values()) {
-            String name = doc.getString("name");
-            String temp = doc.getString("temp");
-            String deprecated = doc.getString("deprecated");
+        for (BsonDocument doc : allDocuments.values()) {
+            String name = BsonHelper.getString(doc, "name");
+            String temp = BsonHelper.getString(doc, "temp");
+            String deprecated = BsonHelper.getString(doc, "deprecated");
 
             switch (name) {
                 case "Bob" -> {
@@ -321,7 +322,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             ByteBuf buf = Unpooled.buffer();
 
             // Create update document with native BSON types
-            Document setDoc = new Document()
+            BsonDocument setDoc = new BsonDocument()
                     .append("stringField", new BsonString("Hello World"))
                     .append("intField", new BsonInt32(42))
                     .append("longField", new BsonInt64(9223372036854775807L))
@@ -341,7 +342,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
                     .append("binaryField", new BsonBinary("Hello".getBytes()))
                     .append("decimal128Field", new BsonDecimal128(new Decimal128(new BigDecimal("123.456"))));
 
-            Document updateDoc = new Document("$set", setDoc);
+            BsonDocument updateDoc = new BsonDocument("$set", setDoc);
             byte[] update = BSONUtil.toBytes(updateDoc);
             cmd.update(TEST_BUCKET, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}", update).encode(buf);
             Object msg = runCommand(channel, buf);
@@ -367,7 +368,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertTrue(updatedVersionstamps.contains(targetVersionstamp), "Should have updated the target document");
 
         // Step 3: Query the specific document to verify all BSON types were set
-        Document updatedDocument = null;
+        BsonDocument updatedDocument = null;
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"_id\": {\"$eq\": \"" + targetVersionstamp + "\"}}").encode(buf);
@@ -386,7 +387,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
                 assertEquals(targetVersionstamp, versionstamp, "Should be the target document");
 
                 byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
-                updatedDocument = BSONUtil.toDocument(docBytes);
+                updatedDocument = BSONUtil.toBsonDocument(docBytes);
             }
         }
 
@@ -394,36 +395,36 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         // Step 4: Verify all BSON field types were set correctly
         // Original fields should remain
-        assertEquals("TestDoc", updatedDocument.getString("name"), "Original name field should remain");
-        assertEquals(30, updatedDocument.getInteger("age").intValue(), "Original age field should remain");
+        assertEquals("TestDoc", BsonHelper.getString(updatedDocument, "name"), "Original name field should remain");
+        assertEquals(30, BsonHelper.getInteger(updatedDocument, "age").intValue(), "Original age field should remain");
 
         // New BSON type fields should be set
-        assertEquals("Hello World", updatedDocument.getString("stringField"), "String field should be set");
-        assertEquals(42, updatedDocument.getInteger("intField").intValue(), "Int field should be set");
-        assertEquals(9223372036854775807L, updatedDocument.getLong("longField").longValue(), "Long field should be set");
-        assertEquals(3.14159, updatedDocument.getDouble("doubleField"), 0.00001, "Double field should be set");
-        assertEquals(true, updatedDocument.getBoolean("booleanField"), "Boolean field should be set");
+        assertEquals("Hello World", BsonHelper.getString(updatedDocument, "stringField"), "String field should be set");
+        assertEquals(42, BsonHelper.getInteger(updatedDocument, "intField").intValue(), "Int field should be set");
+        assertEquals(9223372036854775807L, BsonHelper.getLong(updatedDocument, "longField").longValue(), "Long field should be set");
+        assertEquals(3.14159, BsonHelper.getDouble(updatedDocument, "doubleField"), 0.00001, "Double field should be set");
+        assertEquals(true, BsonHelper.getBoolean(updatedDocument, "booleanField"), "Boolean field should be set");
 
-        // Verify date field (should be a Date object)
-        assertNotNull(updatedDocument.getDate("dateField"), "Date field should be set");
+        // Verify date field
+        assertNotNull(BsonHelper.getDateTime(updatedDocument, "dateField"), "Date field should be set");
 
         // Verify array field
-        List<?> arrayField = updatedDocument.getList("arrayField", Object.class);
+        BsonArray arrayField = BsonHelper.getArray(updatedDocument, "arrayField");
         assertNotNull(arrayField, "Array field should be set");
         assertEquals(4, arrayField.size(), "Array should have 4 elements");
-        assertEquals(1, arrayField.get(0), "Array first element should be 1");
-        assertEquals("two", arrayField.get(1), "Array second element should be 'two'");
-        assertEquals(true, arrayField.get(2), "Array third element should be true");
-        assertNull(arrayField.get(3), "Array fourth element should be null");
+        assertEquals(1, arrayField.get(0).asInt32().getValue(), "Array first element should be 1");
+        assertEquals("two", arrayField.get(1).asString().getValue(), "Array second element should be 'two'");
+        assertEquals(true, arrayField.get(2).asBoolean().getValue(), "Array third element should be true");
+        assertTrue(arrayField.get(3).isNull(), "Array fourth element should be null");
 
         // Verify nested object field
-        Document objectField = updatedDocument.get("objectField", Document.class);
+        BsonDocument objectField = BsonHelper.getDocument(updatedDocument, "objectField");
         assertNotNull(objectField, "Object field should be set");
-        assertEquals("value", objectField.getString("nested"), "Nested object should have correct value");
-        assertEquals(5, objectField.getInteger("count").intValue(), "Nested object should have correct count");
+        assertEquals("value", BsonHelper.getString(objectField, "nested"), "Nested object should have correct value");
+        assertEquals(5, BsonHelper.getInteger(objectField, "count").intValue(), "Nested object should have correct count");
 
         // Verify null field
-        assertNull(updatedDocument.get("nullField"), "Null field should be null");
+        assertTrue(updatedDocument.get("nullField").isNull(), "Null field should be null");
 
         // Verify binary field exists
         assertNotNull(updatedDocument.get("binaryField"), "Binary field should be set");
@@ -525,7 +526,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(4, allUpdatedVersionstamps.size(), "Should have updated 4 documents with age > 30");
 
         // Step 4: Query all documents to verify the updates
-        Map<String, Document> allDocuments = new HashMap<>();
+        Map<String, BsonDocument> allDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -540,7 +541,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
                 String versionstamp = keyMessage.content();
                 byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
-                Document document = BSONUtil.toDocument(docBytes);
+                BsonDocument document = BSONUtil.toBsonDocument(docBytes);
                 allDocuments.put(versionstamp, document);
             }
         }
@@ -551,12 +552,12 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         int documentsWithStatus = 0;
         int documentsWithoutStatus = 0;
 
-        for (Map.Entry<String, Document> entry : allDocuments.entrySet()) {
+        for (Map.Entry<String, BsonDocument> entry : allDocuments.entrySet()) {
             String versionstamp = entry.getKey();
-            Document document = entry.getValue();
+            BsonDocument document = entry.getValue();
 
-            int age = document.getInteger("age");
-            String status = document.getString("status");
+            int age = BsonHelper.getInteger(document, "age");
+            String status = BsonHelper.getString(document, "status");
 
             if (age > 30) {
                 // Documents with age > 30 should have been updated
@@ -581,9 +582,9 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         // Verify specific names that should have been updated
         Set<String> updatedNames = new HashSet<>();
-        for (Document doc : allDocuments.values()) {
-            if ("senior".equals(doc.getString("status"))) {
-                updatedNames.add(doc.getString("name"));
+        for (BsonDocument doc : allDocuments.values()) {
+            if ("senior".equals(BsonHelper.getString(doc, "status"))) {
+                updatedNames.add(BsonHelper.getString(doc, "name"));
             }
         }
 
@@ -680,5 +681,47 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertTrue(errorMessage.content().startsWith("INDEXTYPE_MISMATCH"),
                 "Should return INDEXTYPE_MISMATCH error for DOUBLE value with INT32 index");
+    }
+
+    @Test
+    void shouldThrowIndexTypeMismatchExceptionWhenUpdatingWithMixedTypeArray() {
+        // Create an index expecting INT32 for 'values' field
+        IndexDefinition valuesIndexDefinition = IndexDefinition.create("values-index", "values", BsonType.INT32);
+        createIndexThenWaitForReadiness(valuesIndexDefinition);
+
+        // Insert a document with correct type
+        BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf insertBuf = Unpooled.buffer();
+        byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Test\", \"values\": [1, 2, 3]}");
+        insertCmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(insertBuf);
+        Object insertMsg = runCommand(channel, insertBuf);
+        assertInstanceOf(ArrayRedisMessage.class, insertMsg);
+
+        // Update the document with mixed-type array [1, 2, 3, "five"]
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        BsonDocument setDoc = new BsonDocument()
+                .append("values", new BsonArray(Arrays.asList(
+                        new BsonInt32(1),
+                        new BsonInt32(2),
+                        new BsonInt32(3),
+                        new BsonString("five")
+                )));
+        BsonDocument updateDoc = new BsonDocument("$set", setDoc);
+        byte[] update = BSONUtil.toBytes(updateDoc);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.update(TEST_BUCKET, "{}", update).encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertTrue(errorMessage.content().startsWith("INDEXTYPE_MISMATCH"),
+                "Should return INDEXTYPE_MISMATCH error for mixed-type array with INT32 index");
+        assertTrue(errorMessage.content().contains("index 'values-index' expects 'INT32'"),
+                "Error message should mention the index name and expected type");
+        assertTrue(errorMessage.content().contains("selector 'values' matched a value of type 'STRING'"),
+                "Error message should mention the selector and actual type");
     }
 }

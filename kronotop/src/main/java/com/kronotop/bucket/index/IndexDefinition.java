@@ -44,6 +44,10 @@ import static com.google.common.hash.Hashing.sipHash24;
  * This enables background index building and status monitoring. Use {@link #updateStatus(IndexStatus)}
  * to create a new instance with updated status while preserving immutability.
  *
+ * <h3>Multi-Key Indexes</h3>
+ * When {@code multiKey} is true, the index supports array fields by creating separate index entries
+ * for each array element. This enables efficient queries on array contents.
+ *
  * <h3>Supported Data Types</h3>
  * Most BSON types are supported for indexing, with the exception of DECIMAL128 which is not yet implemented.
  * The type constraint ensures index consistency and enables type-specific optimizations.
@@ -68,12 +72,13 @@ import static com.google.common.hash.Hashing.sipHash24;
  * @param name     Human-readable index name, must be unique within a bucket
  * @param selector Document field path in dot notation (e.g., "field.subfield")
  * @param bsonType Expected BSON data type of the indexed field values
+ * @param multiKey If true, indexes array elements individually for efficient array queries
  * @param status   Current operational status of the index (READY, BUILDING, FAILED, etc.)
  * @see IndexUtil#create(com.apple.foundationdb.Transaction, com.apple.foundationdb.directory.DirectorySubspace, IndexDefinition)
  * @see IndexNameGenerator#generate(String, BsonType)
  * @see IndexStatus
  */
-public record IndexDefinition(long id, String name, String selector, BsonType bsonType, IndexStatus status) {
+public record IndexDefinition(long id, String name, String selector, BsonType bsonType, boolean multiKey, IndexStatus status) {
 
     /**
      * Creates a new index definition with the specified name, selector, and BSON type.
@@ -93,24 +98,42 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
     }
 
     /**
-     * Creates a new index definition with a unique ID, specified name, selector, BSON type, and status.
+     * Creates a new index definition with the specified name, selector, BSON type, and multi-key flag.
+     *
+     * @param name     the human-readable name for the index, must be unique within a bucket
+     * @param selector the document field path to index using dot notation (e.g., "user.tags")
+     * @param bsonType the expected BSON data type of the indexed field values
+     * @param multiKey if true, array elements are indexed individually
+     * @return a new IndexDefinition instance with generated unique ID and WAITING status
+     * @throws NotImplementedException if bsonType is DECIMAL128 (not yet supported)
+     */
+    public static IndexDefinition create(String name, String selector, BsonType bsonType, boolean multiKey) {
+        return create(name, selector, bsonType, multiKey, IndexStatus.WAITING);
+    }
+
+    public static IndexDefinition create(String name, String selector, BsonType bsonType, IndexStatus status) {
+       return create(name, selector, bsonType, false, status);
+    }
+
+    /**
+     * Creates a new index definition with a unique ID and specified attributes.
      * Generates a unique identifier using SipHash24 on a random UUID.
-     * Throws an exception if the BSON type is DECIMAL128, as it is not implemented.
      *
      * @param name     the human-readable name for the index, must be unique within a bucket
      * @param selector the document field path to index using dot notation (e.g., "user.address.city")
      * @param bsonType the expected BSON data type of the indexed field values
+     * @param multiKey if true, array elements are indexed individually
      * @param status   the initial status assigned to the index
      * @return a new IndexDefinition instance with a unique ID and the specified attributes
      * @throws NotImplementedException if bsonType is DECIMAL128, which is not currently supported
      */
-    public static IndexDefinition create(String name, String selector, BsonType bsonType, IndexStatus status) {
+    public static IndexDefinition create(String name, String selector, BsonType bsonType, boolean multiKey, IndexStatus status) {
         if (bsonType.equals(BsonType.DECIMAL128)) {
             throw new NotImplementedException("Creating indexes on DECIMAL128 fields not implemented yet");
         }
         UUID uuid = UUID.randomUUID();
         long id = sipHash24().hashBytes(uuid.toString().getBytes()).asLong();
-        return new IndexDefinition(id, name, selector, bsonType, status);
+        return new IndexDefinition(id, name, selector, bsonType, multiKey, status);
     }
 
     /**
@@ -151,15 +174,15 @@ public record IndexDefinition(long id, String name, String selector, BsonType bs
         if (status != IndexStatus.DROPPED && status() == IndexStatus.DROPPED) {
             throw new IllegalStateException("Index '" + name + "' is already dropped and its status cannot be modified.");
         }
-        return new IndexDefinition(id, name, selector, bsonType, status);
+        return new IndexDefinition(id, name, selector, bsonType, multiKey, status);
     }
 
     @Override
     @Nonnull
     public String toString() {
         return "IndexDefinition { id=" + id + ", name=" + name +
-                ", selector=" + selector + ", bsonType="
-                + bsonType + ", status=" + status + " }";
+                ", selector=" + selector + ", bsonType=" + bsonType +
+                ", multiKey=" + multiKey + ", status=" + status + " }";
     }
 
     @Override

@@ -30,7 +30,7 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import org.bson.Document;
+import org.bson.BsonDocument;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -46,14 +46,14 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
-    private void appendDocumentData(MapRedisMessage mapRedisMessage, Map<String, Document> result) {
+    private void appendDocumentData(MapRedisMessage mapRedisMessage, Map<String, BsonDocument> result) {
         for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
             SimpleStringRedisMessage keyMessage = (SimpleStringRedisMessage) entry.getKey();
             FullBulkStringRedisMessage valueMessage = (FullBulkStringRedisMessage) entry.getValue();
 
             String docId = keyMessage.content();
             byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
-            Document doc = BSONUtil.toDocument(docBytes);
+            BsonDocument doc = BSONUtil.toBsonDocument(docBytes);
             result.put(docId, doc);
         }
     }
@@ -150,7 +150,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         int cursorId;
         // BUCKET.QUERY - Filter for type A with limit of 1
-        Map<String, Document> allResults = new LinkedHashMap<>();
+        Map<String, BsonDocument> allResults = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"type\": \"A\"}", BucketQueryArgs.Builder.limit(1)).encode(buf);
@@ -198,8 +198,8 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         assertTrue(allResults.size() <= 3, "Should retrieve at most 3 documents with type A");
 
         // Verify all returned documents have type A
-        for (Document doc : allResults.values()) {
-            assertEquals("A", doc.getString("type"), "All returned documents should have type A");
+        for (BsonDocument doc : allResults.values()) {
+            assertEquals("A", doc.getString("type").getValue(), "All returned documents should have type A");
         }
     }
 
@@ -303,5 +303,165 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
             ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
             assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
         }
+    }
+
+    @Test
+    void shouldAdvanceCursorWithElemMatchOnIndexedArray() {
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        // Create multiKey index on scores array
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"scores\": {\"bson_type\": \"int32\", \"multi_key\": true}}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        }
+
+        // Insert documents with array fields
+        List<byte[]> documents = Arrays.asList(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"scores\": [85, 90, 78]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"scores\": [60, 55, 70]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Charlie\", \"scores\": [95, 88, 92]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Diana\", \"scores\": [72, 68, 75]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Eve\", \"scores\": [91, 87, 93]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Frank\", \"scores\": [45, 50, 55]}") // No score >= 80
+        );
+        insertDocuments(documents);
+
+        int cursorId;
+        // BUCKET.QUERY - $elemMatch for scores >= 80 with limit of 2
+        Map<String, BsonDocument> allResults = new LinkedHashMap<>();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.query(TEST_BUCKET, "{\"scores\": {\"$elemMatch\": {\"$gte\": 80}}}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
+            assertEquals(2, mapRedisMessage.children().size());
+
+            RedisMessage rawCursorId = findInMapMessage(mapRedisMessage, "cursor_id");
+            assertNotNull(rawCursorId);
+            cursorId = Math.toIntExact(((IntegerRedisMessage) rawCursorId).value());
+
+            RedisMessage entries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(entries);
+            assertInstanceOf(MapRedisMessage.class, entries);
+            appendDocumentData((MapRedisMessage) entries, allResults);
+        }
+
+        // BUCKET.ADVANCE - Continue until we get all matching docs
+        int maxAdvanceCalls = 10;
+        int advanceCalls = 0;
+        while (advanceCalls < maxAdvanceCalls) {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.advanceQuery(cursorId).encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
+
+            RedisMessage rawEntries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(rawEntries);
+            assertInstanceOf(MapRedisMessage.class, rawEntries);
+            MapRedisMessage entries = (MapRedisMessage) rawEntries;
+
+            if (entries.children().isEmpty()) {
+                break;
+            }
+
+            assertTrue(entries.children().size() <= 2, "Each batch should have at most 2 documents");
+            appendDocumentData(entries, allResults);
+            advanceCalls++;
+        }
+
+        // Verify results - we expect 5 documents with at least one score >= 80
+        // Alice (85, 90), Bob (none), Charlie (95, 88, 92), Diana (none >= 80... wait 72, 68, 75 all < 80),
+        // Eve (91, 87, 93), Frank (none)
+        // Actually: Alice, Charlie, Eve have scores >= 80. Diana has max 75.
+        assertEquals(3, allResults.size(), "Should retrieve exactly 3 documents with scores >= 80");
+
+        // Verify all returned documents have at least one score >= 80
+        Set<String> expectedNames = Set.of("Alice", "Charlie", "Eve");
+        Set<String> actualNames = new HashSet<>();
+        for (BsonDocument doc : allResults.values()) {
+            actualNames.add(doc.getString("name").getValue());
+        }
+        assertEquals(expectedNames, actualNames, "Should match documents with scores >= 80");
+    }
+
+    @Test
+    void shouldAdvanceCursorWithElemMatchOnNonIndexedArray() {
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        // No index created - this will use FullScanNode
+
+        // Insert documents with array fields
+        List<byte[]> documents = Arrays.asList(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"ratings\": [4.5, 3.8, 4.2]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"ratings\": [2.1, 2.5, 3.0]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Charlie\", \"ratings\": [4.8, 4.9, 5.0]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Diana\", \"ratings\": [3.5, 3.8, 3.9]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Eve\", \"ratings\": [4.1, 4.3, 4.7]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Frank\", \"ratings\": [1.5, 2.0, 2.5]}") // No rating >= 4.0
+        );
+        insertDocuments(documents);
+
+        int cursorId;
+        // BUCKET.QUERY - $elemMatch for ratings >= 4.0 with limit of 2
+        Map<String, BsonDocument> allResults = new LinkedHashMap<>();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.query(TEST_BUCKET, "{\"ratings\": {\"$elemMatch\": {\"$gte\": 4.0}}}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
+            assertEquals(2, mapRedisMessage.children().size());
+
+            RedisMessage rawCursorId = findInMapMessage(mapRedisMessage, "cursor_id");
+            assertNotNull(rawCursorId);
+            cursorId = Math.toIntExact(((IntegerRedisMessage) rawCursorId).value());
+
+            RedisMessage entries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(entries);
+            assertInstanceOf(MapRedisMessage.class, entries);
+            appendDocumentData((MapRedisMessage) entries, allResults);
+        }
+
+        // BUCKET.ADVANCE - Continue until we get all matching docs
+        int maxAdvanceCalls = 10;
+        int advanceCalls = 0;
+        while (advanceCalls < maxAdvanceCalls) {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.advanceQuery(cursorId).encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage mapRedisMessage = (MapRedisMessage) msg;
+
+            RedisMessage rawEntries = findInMapMessage(mapRedisMessage, "entries");
+            assertNotNull(rawEntries);
+            assertInstanceOf(MapRedisMessage.class, rawEntries);
+            MapRedisMessage entries = (MapRedisMessage) rawEntries;
+
+            if (entries.children().isEmpty()) {
+                break;
+            }
+
+            assertTrue(entries.children().size() <= 2, "Each batch should have at most 2 documents");
+            appendDocumentData(entries, allResults);
+            advanceCalls++;
+        }
+
+        // Verify results:
+        // Alice (4.5, 4.2 >= 4.0) ✓, Bob (none >= 4.0), Charlie (4.8, 4.9, 5.0) ✓,
+        // Diana (3.9 max < 4.0), Eve (4.1, 4.3, 4.7) ✓, Frank (none >= 4.0)
+        assertEquals(3, allResults.size(), "Should retrieve exactly 3 documents with ratings >= 4.0");
+
+        Set<String> expectedNames = Set.of("Alice", "Charlie", "Eve");
+        Set<String> actualNames = new HashSet<>();
+        for (BsonDocument doc : allResults.values()) {
+            actualNames.add(doc.getString("name").getValue());
+        }
+        assertEquals(expectedNames, actualNames, "Should match documents with ratings >= 4.0");
     }
 }

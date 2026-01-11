@@ -803,4 +803,197 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             return tr.getRange(begin, end).asList().join();
         }
     }
+
+    @Test
+    void shouldCreateMultikeyIndexEntriesForArrayOfDocuments() {
+        // Create an index on "scores.type" field within the array
+        IndexDefinition typeIndexDefinition = IndexDefinition.create("scores-type-index", "scores.type", BsonType.STRING);
+        createIndexThenWaitForReadiness(typeIndexDefinition);
+
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        // Insert document with array of objects: { scores: [ { type: "math", score: 90 }, { type: "english", score: 70 } ] }
+        String jsonDocument = "{\"name\": \"Alice\", \"scores\": [{\"type\": \"math\", \"score\": 90}, {\"type\": \"english\", \"score\": 70}]}";
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        assertEquals(1, actualMessage.children().size());
+
+        // Fetch all index entries
+        Index typeIndex = metadata.indexes().getIndex("scores.type", IndexSelectionPolicy.READ);
+        assertNotNull(typeIndex, "scores.type index should exist");
+        List<KeyValue> indexEntries = fetchAllIndexedEntries(typeIndex.subspace());
+
+        // Should have 2 entries: "math" and "english"
+        assertEquals(2, indexEntries.size(), "Should have 2 index entries for multikey index");
+
+        // Extract indexed values
+        List<Object> indexedValues = new ArrayList<>();
+        byte[] prefix = typeIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        for (KeyValue kv : indexEntries) {
+            Tuple keyTuple = Tuple.fromBytes(kv.getKey(), prefix.length, kv.getKey().length - prefix.length);
+            indexedValues.add(keyTuple.get(0));
+        }
+
+        assertTrue(indexedValues.contains("math"), "Should have 'math' indexed value");
+        assertTrue(indexedValues.contains("english"), "Should have 'english' indexed value");
+    }
+
+    @Test
+    void shouldDeduplicateMultikeyIndexEntries() {
+        // Create an index on "scores.type" field
+        IndexDefinition typeIndexDefinition = IndexDefinition.create("scores-type-index", "scores.type", BsonType.STRING);
+        createIndexThenWaitForReadiness(typeIndexDefinition);
+
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        // Insert document with duplicate values in array: { scores: [ { type: "math" }, { type: "math" }, { type: "english" } ] }
+        String jsonDocument = "{\"name\": \"Bob\", \"scores\": [{\"type\": \"math\"}, {\"type\": \"math\"}, {\"type\": \"english\"}]}";
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[] documentBytes = BSONUtil.jsonToDocumentThenBytes(jsonDocument);
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), documentBytes).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        assertEquals(1, actualMessage.children().size());
+
+        // Fetch all index entries
+        Index typeIndex = metadata.indexes().getIndex("scores.type", IndexSelectionPolicy.READ);
+        assertNotNull(typeIndex, "scores.type index should exist");
+        List<KeyValue> indexEntries = fetchAllIndexedEntries(typeIndex.subspace());
+
+        // Should have only 2 entries due to deduplication: "math" and "english"
+        assertEquals(2, indexEntries.size(), "Should have 2 index entries after deduplication");
+
+        // Extract indexed values
+        List<Object> indexedValues = new ArrayList<>();
+        byte[] prefix = typeIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        for (KeyValue kv : indexEntries) {
+            Tuple keyTuple = Tuple.fromBytes(kv.getKey(), prefix.length, kv.getKey().length - prefix.length);
+            indexedValues.add(keyTuple.get(0));
+        }
+
+        assertTrue(indexedValues.contains("math"), "Should have 'math' indexed value");
+        assertTrue(indexedValues.contains("english"), "Should have 'english' indexed value");
+        assertEquals(2, indexedValues.size(), "Should only have 2 unique values");
+    }
+
+    @Test
+    void shouldUpdateCardinalityCorrectlyForMultikeyIndex() {
+        // Create an index on "tags" field within array
+        IndexDefinition tagsIndexDefinition = IndexDefinition.create("tags-index", "items.tag", BsonType.STRING);
+        createIndexThenWaitForReadiness(tagsIndexDefinition);
+
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        // Insert first document with 2 unique tags
+        String doc1 = "{\"name\": \"Doc1\", \"items\": [{\"tag\": \"red\"}, {\"tag\": \"blue\"}]}";
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf1 = Unpooled.buffer();
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), BSONUtil.jsonToDocumentThenBytes(doc1)).encode(buf1);
+        runCommand(channel, buf1);
+
+        // Insert second document with 3 unique tags (one overlapping)
+        String doc2 = "{\"name\": \"Doc2\", \"items\": [{\"tag\": \"blue\"}, {\"tag\": \"green\"}, {\"tag\": \"yellow\"}]}";
+        ByteBuf buf2 = Unpooled.buffer();
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), BSONUtil.jsonToDocumentThenBytes(doc2)).encode(buf2);
+        runCommand(channel, buf2);
+
+        // Verify cardinality: 2 from doc1 + 3 from doc2 = 5 total index entries
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics tagsStats = indexStatistics.get(tagsIndexDefinition.id());
+            assertNotNull(tagsStats, "Tags index statistics should exist");
+            assertEquals(5L, tagsStats.cardinality(), "Cardinality should be 5 (2 + 3 entries)");
+        }
+    }
+
+    @Test
+    void shouldDeduplicateAndTrackCardinalityCorrectlyForMultikeyIndex() {
+        // Create an index on the "tags.name" field within an array
+        IndexDefinition tagsIndexDefinition = IndexDefinition.create("tags-name-index", "tags.name", BsonType.STRING);
+        createIndexThenWaitForReadiness(tagsIndexDefinition);
+
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+
+        // Insert the first document with duplicates: 4 array elements but only 2 unique values
+        // Expected: 2 index entries, cardinality = 2
+        String doc1 = "{\"name\": \"Doc1\", \"tags\": [{\"name\": \"java\"}, {\"name\": \"java\"}, {\"name\": \"kotlin\"}, {\"name\": \"java\"}]}";
+        ByteBuf buf1 = Unpooled.buffer();
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), BSONUtil.jsonToDocumentThenBytes(doc1)).encode(buf1);
+        runCommand(channel, buf1);
+
+        // Verify after first document: 2 unique index entries
+        Index tagsIndex = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        assertNotNull(tagsIndex, "tags.name index should exist");
+
+        List<KeyValue> entriesAfterDoc1 = fetchAllIndexedEntries(tagsIndex.subspace());
+        assertEquals(2, entriesAfterDoc1.size(), "Should have 2 index entries after doc1 (deduplicated)");
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics stats = indexStatistics.get(tagsIndexDefinition.id());
+            assertNotNull(stats, "Index statistics should exist after doc1");
+            assertEquals(2L, stats.cardinality(), "Cardinality should be 2 after doc1 (deduplicated)");
+        }
+
+        // Insert a second document with duplicates: 5 array elements but only 3 unique values
+        // Expected: 3 new index entries, total cardinality = 2 + 3 = 5
+        String doc2 = "{\"name\": \"Doc2\", \"tags\": [{\"name\": \"python\"}, {\"name\": \"rust\"}, {\"name\": \"python\"}, {\"name\": \"go\"}, {\"name\": \"rust\"}]}";
+        ByteBuf buf2 = Unpooled.buffer();
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), BSONUtil.jsonToDocumentThenBytes(doc2)).encode(buf2);
+        runCommand(channel, buf2);
+
+        // Verify after second document: 5 total index entries (2 + 3)
+        List<KeyValue> entriesAfterDoc2 = fetchAllIndexedEntries(tagsIndex.subspace());
+        assertEquals(5, entriesAfterDoc2.size(), "Should have 5 index entries after doc2");
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics stats = indexStatistics.get(tagsIndexDefinition.id());
+            assertNotNull(stats, "Index statistics should exist after doc2");
+            assertEquals(5L, stats.cardinality(), "Cardinality should be 5 after doc2 (2 + 3 deduplicated)");
+        }
+
+        // Insert a third document with all duplicates of the same value: 3 array elements, 1 unique value
+        // Expected: 1 new index entry, total cardinality = 5 + 1 = 6
+        String doc3 = "{\"name\": \"Doc3\", \"tags\": [{\"name\": \"scala\"}, {\"name\": \"scala\"}, {\"name\": \"scala\"}]}";
+        ByteBuf buf3 = Unpooled.buffer();
+        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), BSONUtil.jsonToDocumentThenBytes(doc3)).encode(buf3);
+        runCommand(channel, buf3);
+
+        // Verify final state: 6 total index entries
+        List<KeyValue> finalEntries = fetchAllIndexedEntries(tagsIndex.subspace());
+        assertEquals(6, finalEntries.size(), "Should have 6 index entries total");
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics stats = indexStatistics.get(tagsIndexDefinition.id());
+            assertNotNull(stats, "Index statistics should exist after doc3");
+            assertEquals(6L, stats.cardinality(), "Final cardinality should be 6 (2 + 3 + 1 deduplicated)");
+        }
+
+        // Verify all unique values are indexed
+        List<Object> indexedValues = new ArrayList<>();
+        byte[] prefix = tagsIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        for (KeyValue kv : finalEntries) {
+            Tuple keyTuple = Tuple.fromBytes(kv.getKey(), prefix.length, kv.getKey().length - prefix.length);
+            indexedValues.add(keyTuple.get(0));
+        }
+
+        assertTrue(indexedValues.contains("java"), "Should have 'java' indexed");
+        assertTrue(indexedValues.contains("kotlin"), "Should have 'kotlin' indexed");
+        assertTrue(indexedValues.contains("python"), "Should have 'python' indexed");
+        assertTrue(indexedValues.contains("rust"), "Should have 'rust' indexed");
+        assertTrue(indexedValues.contains("go"), "Should have 'go' indexed");
+        assertTrue(indexedValues.contains("scala"), "Should have 'scala' indexed");
+    }
 }

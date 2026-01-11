@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.index;
 
+import com.kronotop.internal.StringUtil;
 import org.bson.*;
 
 import java.nio.ByteBuffer;
@@ -87,17 +88,18 @@ import java.nio.ByteBuffer;
  *
  * <h2>Usage Examples</h2>
  * <pre>{@code
- * Document doc = new Document()
- *     .append("user", new Document()
- *         .append("name", "John")
- *         .append("age", 30))
- *     .append("scores", Arrays.asList(95, 87, 92));
+ * BsonDocument doc = new BsonDocument()
+ *     .append("user", new BsonDocument()
+ *         .append("name", new BsonString("John"))
+ *         .append("age", new BsonInt32(30)))
+ *     .append("scores", new BsonArray(List.of(
+ *         new BsonInt32(95), new BsonInt32(87), new BsonInt32(92))));
  *
  * // Simple field access
- * BsonValue userName = SelectorMatcher.match("user.name", doc);  // "John"
+ * BsonValue userName = SelectorMatcher.match("user.name", doc);  // BsonString("John")
  *
  * // Array access
- * BsonValue firstScore = SelectorMatcher.match("scores.0", doc);  // 95
+ * BsonValue firstScore = SelectorMatcher.match("scores.0", doc);  // BsonInt32(95)
  *
  * // Non-existent path
  * BsonValue missing = SelectorMatcher.match("user.email", doc);  // null
@@ -125,15 +127,19 @@ public class SelectorMatcher {
      *
      * <h3>Examples</h3>
      * <pre>{@code
-     * Document user = new Document()
-     *     .append("name", "Alice")
-     *     .append("contact", new Document()
-     *         .append("email", "alice@example.com")
-     *         .append("phones", Arrays.asList("123-456-7890", "987-654-3210")));
+     * BsonArray phones = new BsonArray();
+     * phones.add(new BsonString("123-456-7890"));
+     * phones.add(new BsonString("987-654-3210"));
      *
-     * BsonValue name = SelectorMatcher.match("name", user);                    // "Alice"
-     * BsonValue email = SelectorMatcher.match("contact.email", user);          // "alice@example.com"
-     * BsonValue firstPhone = SelectorMatcher.match("contact.phones.0", user);  // "123-456-7890"
+     * BsonDocument user = new BsonDocument()
+     *     .append("name", new BsonString("Alice"))
+     *     .append("contact", new BsonDocument()
+     *         .append("email", new BsonString("alice@example.com"))
+     *         .append("phones", phones));
+     *
+     * BsonValue name = SelectorMatcher.match("name", user);                    // BsonString("Alice")
+     * BsonValue email = SelectorMatcher.match("contact.email", user);          // BsonString("alice@example.com")
+     * BsonValue firstPhone = SelectorMatcher.match("contact.phones.0", user);  // BsonString("123-456-7890")
      * BsonValue missing = SelectorMatcher.match("contact.address", user);      // null
      * }</pre>
      *
@@ -144,10 +150,10 @@ public class SelectorMatcher {
      * @throws IllegalArgumentException if selector is null or empty
      * @throws IllegalArgumentException if document is null
      */
-    public static BsonValue match(String selector, Document document) {
-        String[] pathSegments = selector.split("\\.");
+    public static BsonValue match(String selector, BsonDocument document) {
+        String[] pathSegments = StringUtil.split(selector);
 
-        try (BsonReader reader = document.toBsonDocument().asBsonReader()) {
+        try (BsonReader reader = document.asBsonReader()) {
             reader.readStartDocument();
             return findValueInDocument(reader, pathSegments, 0);
         }
@@ -168,7 +174,7 @@ public class SelectorMatcher {
      * @throws NullPointerException     if the input ByteBuffer is null
      */
     public static BsonValue match(String selector, ByteBuffer input) {
-        String[] pathSegments = selector.split("\\.");
+        String[] pathSegments = StringUtil.split(selector);
 
         try (BsonReader reader = new BsonBinaryReader(input)) {
             reader.readStartDocument();
@@ -225,38 +231,61 @@ public class SelectorMatcher {
 
             case ARRAY:
                 String targetKey = pathSegments[currentIndex];
+                reader.readStartArray();
+
+                // Check if targeting a specific array index
+                Integer arrayIndex = null;
                 try {
-                    int arrayIndex = Integer.parseInt(targetKey);
-                    reader.readStartArray();
+                    arrayIndex = Integer.parseInt(targetKey);
+                } catch (NumberFormatException ignored) {
+                }
+
+                if (arrayIndex != null) {
+                    // Numeric index: access specific array element
                     int currentArrayIndex = 0;
                     while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                         if (currentArrayIndex == arrayIndex) {
                             boolean isLastSegment = currentIndex == pathSegments.length - 1;
+                            BsonValue value;
                             if (isLastSegment) {
-                                BsonValue value = readCurrentValue(reader);
-                                // Skip remaining elements
-                                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                                    reader.skipValue();
-                                }
-                                reader.readEndArray();
-                                return value;
+                                value = readCurrentValue(reader);
                             } else {
-                                BsonValue value = traverseToNextLevel(reader, pathSegments, currentIndex + 1);
-                                // Skip remaining elements
-                                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                                    reader.skipValue();
-                                }
-                                reader.readEndArray();
-                                return value;
+                                value = traverseToNextLevel(reader, pathSegments, currentIndex + 1);
                             }
+                            // Skip remaining elements
+                            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                                reader.skipValue();
+                            }
+                            reader.readEndArray();
+                            return value;
                         } else {
                             reader.skipValue();
                         }
                         currentArrayIndex++;
                     }
                     reader.readEndArray();
-                } catch (NumberFormatException e) {
-                    reader.skipValue();
+                } else {
+                    // Non-numeric key: iterate through array elements and collect matching values
+                    BsonArray collectedValues = new BsonArray();
+                    while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                        if (reader.getCurrentBsonType() == BsonType.DOCUMENT) {
+                            reader.readStartDocument();
+                            BsonValue foundValue = findValueInDocument(reader, pathSegments, currentIndex);
+                            reader.readEndDocument();
+                            if (foundValue != null) {
+                                // Flatten nested arrays to support multi-level array traversal
+                                if (foundValue instanceof BsonArray nestedArray) {
+                                    collectedValues.addAll(nestedArray);
+                                } else {
+                                    collectedValues.add(foundValue);
+                                }
+                            }
+                        } else {
+                            reader.skipValue();
+                        }
+                    }
+                    reader.readEndArray();
+                    return collectedValues.isEmpty() ? null : collectedValues;
                 }
                 break;
 
@@ -273,25 +302,30 @@ public class SelectorMatcher {
 
         switch (type) {
             case STRING:
-                return new org.bson.BsonString(reader.readString());
+                return new BsonString(reader.readString());
             case INT32:
-                return new org.bson.BsonInt32(reader.readInt32());
+                return new BsonInt32(reader.readInt32());
             case INT64:
-                return new org.bson.BsonInt64(reader.readInt64());
+                return new BsonInt64(reader.readInt64());
             case DOUBLE:
-                return new org.bson.BsonDouble(reader.readDouble());
+                return new BsonDouble(reader.readDouble());
             case BOOLEAN:
-                return new org.bson.BsonBoolean(reader.readBoolean());
+                return new BsonBoolean(reader.readBoolean());
             case NULL:
                 reader.readNull();
-                return new org.bson.BsonNull();
+                return new BsonNull();
             case DATE_TIME:
-                return new org.bson.BsonDateTime(reader.readDateTime());
-            case OBJECT_ID:
-                return new org.bson.BsonObjectId(reader.readObjectId());
+                return new BsonDateTime(reader.readDateTime());
+            case TIMESTAMP:
+                return new BsonTimestamp(reader.readTimestamp().getValue());
+            case BINARY:
+                BsonBinary binaryData = reader.readBinaryData();
+                return new BsonBinary(binaryData.getType(), binaryData.getData());
+            case DECIMAL128:
+                return new BsonDecimal128(reader.readDecimal128());
             case DOCUMENT:
                 // For nested documents, we need to read it recursively
-                org.bson.BsonDocument nestedDoc = new org.bson.BsonDocument();
+                BsonDocument nestedDoc = new BsonDocument();
                 reader.readStartDocument();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                     String fieldName = reader.readName();
@@ -302,7 +336,7 @@ public class SelectorMatcher {
                 return nestedDoc;
             case ARRAY:
                 // For nested arrays, we need to read it recursively
-                org.bson.BsonArray nestedArray = new org.bson.BsonArray();
+                BsonArray nestedArray = new BsonArray();
                 reader.readStartArray();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
                     BsonValue elementValue = readCurrentValue(reader);

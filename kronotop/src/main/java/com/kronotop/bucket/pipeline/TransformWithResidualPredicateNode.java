@@ -20,6 +20,18 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Pipeline node that applies residual predicates to filter documents after index retrieval.
+ * Residual predicates are query conditions that cannot be evaluated using indexes alone,
+ * such as $elemMatch operators or conditions on non-indexed fields.
+ *
+ * <p>This node processes documents from its parent sink and writes only those that
+ * satisfy the residual predicate to a new sink. It handles two sink types:
+ * <ul>
+ *   <li>{@link PersistedEntrySink} - documents already in memory, filtered directly</li>
+ *   <li>{@link DocumentLocationSink} - document locations requiring batch retrieval before filtering</li>
+ * </ul>
+ */
 public class TransformWithResidualPredicateNode extends AbstractPipelineNode implements TransformationNode {
     private final ResidualPredicateNode residualPredicate;
 

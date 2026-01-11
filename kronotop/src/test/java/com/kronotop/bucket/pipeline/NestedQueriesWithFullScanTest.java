@@ -89,7 +89,7 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
 
             // Extract document names for verification
             List<String> resultNames = results.values().stream()
-                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name"))
+                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
                     .sorted()
                     .toList();
 
@@ -139,17 +139,16 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
             QueryOptions config = QueryOptions.builder().build();
             QueryContext ctx = new QueryContext(metadata, config, plan);
 
-            List<String> expectedResult = List.of(
-                    "{\"name\": \"Phone\", \"quantity\": 2, \"price\": 800, \"category\": \"electronics\"}",
-                    "{\"name\": \"Book D\", \"quantity\": 9, \"price\": 22, \"category\": \"book\"}"
-            );
+            List<String> expectedNames = List.of("Book D", "Phone");
 
-            List<String> actualResult = new ArrayList<>();
             Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
-            }
-            assertEquals(expectedResult, actualResult);
+            assertEquals(2, results.size(), "Should return 2 matching documents");
+
+            List<String> actualNames = results.values().stream()
+                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
+                    .sorted()
+                    .toList();
+            assertEquals(expectedNames, actualNames);
         }
     }
 
@@ -218,7 +217,7 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
 
             // Extract document names for verification
             List<String> resultNames = results.values().stream()
-                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name"))
+                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
                     .sorted()
                     .toList();
 
@@ -318,7 +317,7 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
 
             // Extract document names for verification
             List<String> resultNames = results.values().stream()
-                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name"))
+                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
                     .sorted()
                     .toList();
 
@@ -427,7 +426,7 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
 
             // Extract document names for verification
             List<String> resultNames = results.values().stream()
-                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name"))
+                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
                     .sorted()
                     .toList();
 

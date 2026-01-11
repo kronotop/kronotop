@@ -18,6 +18,11 @@ package com.kronotop.bucket.planner.physical;
 
 import javax.annotation.Nonnull;
 
+/**
+ * Physical plan node representing a condition that matches no documents.
+ * Used for optimization when a query is detected as unsatisfiable, such as
+ * empty {@code $in} operators or logical contradictions.
+ */
 public record PhysicalFalse(int id) implements PhysicalNode {
 
     public static final PhysicalFalse INSTANCE = new PhysicalFalse(-1);

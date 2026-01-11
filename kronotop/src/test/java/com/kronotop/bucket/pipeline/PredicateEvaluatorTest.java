@@ -18,11 +18,11 @@ package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.*;
+import com.kronotop.bucket.bson.BasicOutputBuffer;
 import com.kronotop.bucket.planner.Operator;
 import org.bson.*;
 import org.bson.codecs.BsonDocumentCodec;
 import org.bson.codecs.EncoderContext;
-import org.bson.io.BasicOutputBuffer;
 import org.bson.types.Decimal128;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -809,36 +809,18 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = toBuffer(doc);
 
-            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.EXISTS, NullVal.INSTANCE);
+            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.EXISTS, Boolean.TRUE);
             assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
-        void shouldReturnFalseForNullWithExists() {
+        void shouldReturnTrueForNullFieldWithExists() {
+            // Field exists with null value - $exists: true should return true
             BsonDocument doc = new BsonDocument("optional", new BsonNull());
             ByteBuffer buffer = toBuffer(doc);
 
-            ResidualPredicate predicate = new ResidualPredicate(1, "optional", Operator.EXISTS, NullVal.INSTANCE);
-            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
-        }
-
-        @Test
-        void shouldEvaluateNullComparisonOperators() {
-            BsonDocument doc = new BsonDocument("optional", new BsonNull());
-            ByteBuffer buffer = toBuffer(doc);
-
-            // GT: null is not > null
-            assertFalse(PredicateEvaluator.testResidualPredicate(
-                    new ResidualPredicate(1, "optional", Operator.GT, NullVal.INSTANCE), buffer.duplicate()));
-            // GTE: null >= null
-            assertTrue(PredicateEvaluator.testResidualPredicate(
-                    new ResidualPredicate(1, "optional", Operator.GTE, NullVal.INSTANCE), buffer.duplicate()));
-            // LT: null is not < null
-            assertFalse(PredicateEvaluator.testResidualPredicate(
-                    new ResidualPredicate(1, "optional", Operator.LT, NullVal.INSTANCE), buffer.duplicate()));
-            // LTE: null <= null
-            assertTrue(PredicateEvaluator.testResidualPredicate(
-                    new ResidualPredicate(1, "optional", Operator.LTE, NullVal.INSTANCE), buffer.duplicate()));
+            ResidualPredicate predicate = new ResidualPredicate(1, "optional", Operator.EXISTS, Boolean.TRUE);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -855,6 +837,44 @@ class PredicateEvaluatorTest {
             ByteBuffer bufferWithValue = toBuffer(docWithValue);
             assertTrue(PredicateEvaluator.testResidualPredicate(
                     new ResidualPredicate(1, "optional", Operator.NE, NullVal.INSTANCE), bufferWithValue));
+        }
+
+        @Test
+        void shouldReturnFalseForExistingFieldWithExistsFalse() {
+            BsonDocument doc = new BsonDocument("name", new BsonString("John"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.EXISTS, Boolean.FALSE);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldReturnTrueForMissingFieldWithExistsFalse() {
+            BsonDocument doc = new BsonDocument("name", new BsonString("John"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "nonexistent", Operator.EXISTS, Boolean.FALSE);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldReturnFalseForNullFieldWithExistsFalse() {
+            // Field exists with null value - $exists: false should return false
+            BsonDocument doc = new BsonDocument("optional", new BsonNull());
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "optional", Operator.EXISTS, Boolean.FALSE);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldReturnTrueForMissingFieldWithNeNonNull() {
+            BsonDocument doc = new BsonDocument("name", new BsonString("John"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            // Missing field with NE and non-null operand should return true
+            ResidualPredicate predicate = new ResidualPredicate(1, "nonexistent", Operator.NE, new StringVal("value"));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
     }
 
@@ -1155,6 +1175,239 @@ class PredicateEvaluatorTest {
             ResidualPredicate predicate = new ResidualPredicate(1, "category", Operator.NIN, categories);
             assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
+
+        // Array field matching tests
+
+        @Test
+        void shouldMatchArrayFieldWithInWhenElementInList() {
+            BsonArray tags = new BsonArray(Arrays.asList(
+                    new BsonString("java"),
+                    new BsonString("python"),
+                    new BsonString("go")
+            ));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> searchTags = List.of(new StringVal("python"), new StringVal("rust"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.IN, searchTags);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldNotMatchArrayFieldWithInWhenNoElementInList() {
+            BsonArray tags = new BsonArray(Arrays.asList(
+                    new BsonString("ruby"),
+                    new BsonString("elixir")
+            ));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> searchTags = List.of(new StringVal("python"), new StringVal("rust"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.IN, searchTags);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldNotMatchArrayFieldWithNinWhenElementInList() {
+            BsonArray tags = new BsonArray(Arrays.asList(
+                    new BsonString("java"),
+                    new BsonString("python")
+            ));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> searchTags = List.of(new StringVal("python"), new StringVal("rust"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.NIN, searchTags);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldMatchArrayFieldWithNinWhenNoElementInList() {
+            BsonArray tags = new BsonArray(Arrays.asList(
+                    new BsonString("ruby"),
+                    new BsonString("elixir")
+            ));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> searchTags = List.of(new StringVal("python"), new StringVal("rust"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.NIN, searchTags);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        // Null field handling tests
+
+        @Test
+        void shouldMatchNullFieldWithInContainingNullVal() {
+            BsonDocument doc = new BsonDocument("status", BsonNull.VALUE);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<Object> values = List.of(new StringVal("active"), NullVal.INSTANCE);
+            ResidualPredicate predicate = new ResidualPredicate(1, "status", Operator.IN, values);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldNotMatchNullFieldWithInNotContainingNullVal() {
+            BsonDocument doc = new BsonDocument("status", BsonNull.VALUE);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> values = List.of(new StringVal("active"), new StringVal("inactive"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "status", Operator.IN, values);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldNotMatchNullFieldWithNinContainingNullVal() {
+            BsonDocument doc = new BsonDocument("status", BsonNull.VALUE);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<Object> values = List.of(new StringVal("active"), NullVal.INSTANCE);
+            ResidualPredicate predicate = new ResidualPredicate(1, "status", Operator.NIN, values);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldMatchNullFieldWithNinNotContainingNullVal() {
+            BsonDocument doc = new BsonDocument("status", BsonNull.VALUE);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> values = List.of(new StringVal("active"), new StringVal("inactive"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "status", Operator.NIN, values);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldMatchMissingFieldWithInContainingNullVal() {
+            BsonDocument doc = new BsonDocument("other", new BsonString("value"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<Object> values = List.of(new StringVal("active"), NullVal.INSTANCE);
+            ResidualPredicate predicate = new ResidualPredicate(1, "status", Operator.IN, values);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldNotMatchMissingFieldWithNinContainingNullVal() {
+            BsonDocument doc = new BsonDocument("other", new BsonString("value"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<Object> values = List.of(new StringVal("active"), NullVal.INSTANCE);
+            ResidualPredicate predicate = new ResidualPredicate(1, "status", Operator.NIN, values);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        // Nested array tests - matching nested arrays as top-level elements
+
+        @Test
+        void shouldMatchNestedArrayAsTopLevelElementWithIn() {
+            // Document: {'tags': [['A', 'B'], 'C']}
+            BsonArray nestedArray = new BsonArray(Arrays.asList(new BsonString("A"), new BsonString("B")));
+            BsonArray tags = new BsonArray(Arrays.asList(nestedArray, new BsonString("C")));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            // Query: $in: [['A', 'B']] - should match because ['A', 'B'] is a top-level element
+            List<BqlValue> searchValues = List.of(new ArrayVal(List.of(new StringVal("A"), new StringVal("B"))));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.IN, searchValues);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldNotMatchNestedArrayWithInWhenNotPresent() {
+            // Document: {'tags': ['X', 'Y']}
+            BsonArray tags = new BsonArray(Arrays.asList(new BsonString("X"), new BsonString("Y")));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            // Query: $in: [['A', 'B']] - should NOT match because ['A', 'B'] is not a top-level element
+            List<BqlValue> searchValues = List.of(new ArrayVal(List.of(new StringVal("A"), new StringVal("B"))));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.IN, searchValues);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldExcludeNestedArrayAsTopLevelElementWithNin() {
+            // Document: {'tags': [['A', 'B'], 'C']}
+            BsonArray nestedArray = new BsonArray(Arrays.asList(new BsonString("A"), new BsonString("B")));
+            BsonArray tags = new BsonArray(Arrays.asList(nestedArray, new BsonString("C")));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            // Query: $nin: [['A', 'B']] - should NOT match because ['A', 'B'] IS a top-level element
+            List<BqlValue> searchValues = List.of(new ArrayVal(List.of(new StringVal("A"), new StringVal("B"))));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.NIN, searchValues);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldMatchWithNinWhenNestedArrayNotPresent() {
+            // Document: {'tags': ['X', 'Y']}
+            BsonArray tags = new BsonArray(Arrays.asList(new BsonString("X"), new BsonString("Y")));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            // Query: $nin: [['A', 'B']] - should match because ['A', 'B'] is NOT a top-level element
+            List<BqlValue> searchValues = List.of(new ArrayVal(List.of(new StringVal("A"), new StringVal("B"))));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.NIN, searchValues);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldNotMatchScalarInsideNestedArrayWithIn() {
+            // Document: {'tags': [['A', 'B'], 'C']} - 'A' is inside nested array, not at top level
+            BsonArray nestedArray = new BsonArray(Arrays.asList(new BsonString("A"), new BsonString("B")));
+            BsonArray tags = new BsonArray(Arrays.asList(nestedArray, new BsonString("C")));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            // Query: $in: ['A'] - should NOT match because 'A' is not a top-level element
+            List<BqlValue> searchValues = List.of(new StringVal("A"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.IN, searchValues);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldMatchScalarInsideNestedArrayWithNin() {
+            // Document: {'tags': [['A', 'B'], 'C']} - 'A' is inside nested array, not at top level
+            BsonArray nestedArray = new BsonArray(Arrays.asList(new BsonString("A"), new BsonString("B")));
+            BsonArray tags = new BsonArray(Arrays.asList(nestedArray, new BsonString("C")));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            // Query: $nin: ['A'] - should match because 'A' is NOT a top-level element
+            List<BqlValue> searchValues = List.of(new StringVal("A"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.NIN, searchValues);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldMatchTopLevelScalarInMixedArrayWithIn() {
+            // Document: {'tags': [['A', 'B'], 'C']} - 'C' is at top level
+            BsonArray nestedArray = new BsonArray(Arrays.asList(new BsonString("A"), new BsonString("B")));
+            BsonArray tags = new BsonArray(Arrays.asList(nestedArray, new BsonString("C")));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            // Query: $in: ['C'] - should match because 'C' IS a top-level element
+            List<BqlValue> searchValues = List.of(new StringVal("C"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.IN, searchValues);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldExcludeTopLevelScalarInMixedArrayWithNin() {
+            // Document: {'tags': [['A', 'B'], 'C']} - 'C' is at top level
+            BsonArray nestedArray = new BsonArray(Arrays.asList(new BsonString("A"), new BsonString("B")));
+            BsonArray tags = new BsonArray(Arrays.asList(nestedArray, new BsonString("C")));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            // Query: $nin: ['C'] - should NOT match because 'C' IS a top-level element
+            List<BqlValue> searchValues = List.of(new StringVal("C"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "tags", Operator.NIN, searchValues);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
     }
 
     @Nested
@@ -1171,9 +1424,21 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("items", array);
             ByteBuffer buffer = toBuffer(doc);
 
-            List<BqlValue> expectedSize = List.of(new Int32Val(3));
-            ResidualPredicate predicate = new ResidualPredicate(1, "items", Operator.SIZE, new ArrayVal(expectedSize));
+            ResidualPredicate predicate = new ResidualPredicate(1, "items", Operator.SIZE, 3);
             assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldReturnFalseForSizeMismatch() {
+            BsonArray array = new BsonArray(Arrays.asList(
+                    new BsonString("item1"),
+                    new BsonString("item2")
+            ));
+            BsonDocument doc = new BsonDocument("items", array);
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "items", Operator.SIZE, 3);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
@@ -1181,8 +1446,7 @@ class PredicateEvaluatorTest {
             BsonDocument doc = new BsonDocument("items", new BsonArray());
             ByteBuffer buffer = toBuffer(doc);
 
-            List<BqlValue> expectedSize = List.of(new Int32Val(0));
-            ResidualPredicate predicate = new ResidualPredicate(1, "items", Operator.SIZE, new ArrayVal(expectedSize));
+            ResidualPredicate predicate = new ResidualPredicate(1, "items", Operator.SIZE, 0);
             assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
@@ -1197,7 +1461,7 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = toBuffer(doc);
 
             List<BqlValue> expectedValues = List.of(new StringVal("apple"), new StringVal("banana"));
-            ResidualPredicate predicate = new ResidualPredicate(1, "fruits", Operator.ALL, new ArrayVal(expectedValues));
+            ResidualPredicate predicate = new ResidualPredicate(1, "fruits", Operator.ALL, expectedValues);
             assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
@@ -1211,17 +1475,45 @@ class PredicateEvaluatorTest {
             ByteBuffer buffer = toBuffer(doc);
 
             List<BqlValue> expectedValues = List.of(new StringVal("apple"), new StringVal("cherry"));
-            ResidualPredicate predicate = new ResidualPredicate(1, "fruits", Operator.ALL, new ArrayVal(expectedValues));
+            ResidualPredicate predicate = new ResidualPredicate(1, "fruits", Operator.ALL, expectedValues);
             assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
         @Test
-        void shouldReturnFalseForNonArrayFieldWithSizeOperation() {
+        void shouldReturnFalseForAllOnNonArrayField() {
+            BsonDocument doc = new BsonDocument("name", new BsonString("apple"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> expectedValues = List.of(new StringVal("apple"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.ALL, expectedValues);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldReturnFalseForAllOnMissingField() {
+            BsonDocument doc = new BsonDocument("other", new BsonString("value"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> expectedValues = List.of(new StringVal("apple"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "fruits", Operator.ALL, expectedValues);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldReturnFalseForSizeOnNonArrayField() {
             BsonDocument doc = new BsonDocument("name", new BsonString("John"));
             ByteBuffer buffer = toBuffer(doc);
 
-            List<BqlValue> expectedSize = List.of(new Int32Val(1));
-            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.SIZE, new ArrayVal(expectedSize));
+            ResidualPredicate predicate = new ResidualPredicate(1, "name", Operator.SIZE, 1);
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldReturnFalseForSizeOnMissingField() {
+            BsonDocument doc = new BsonDocument("other", new BsonString("value"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "items", Operator.SIZE, 0);
             assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
 
@@ -1516,6 +1808,114 @@ class PredicateEvaluatorTest {
             // NE with string operand
             assertFalse(PredicateEvaluator.testResidualPredicate(
                     new ResidualPredicate(1, "value", Operator.NE, new StringVal("50")), buffer.duplicate()));
+        }
+    }
+
+    @Nested
+    @DisplayName("testResidualPredicate - Nested Fields")
+    class ResidualPredicateNestedFieldTests {
+
+        @Test
+        void shouldMatchNestedStringField() {
+            BsonDocument nested = new BsonDocument("name", new BsonString("John"));
+            BsonDocument doc = new BsonDocument("user", nested);
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "user.name", Operator.EQ, new StringVal("John"));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldMatchNestedInt32Field() {
+            BsonDocument nested = new BsonDocument("age", new BsonInt32(30));
+            BsonDocument doc = new BsonDocument("user", nested);
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "user.age", Operator.EQ, new Int32Val(30));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldMatchDeeplyNestedField() {
+            BsonDocument city = new BsonDocument("name", new BsonString("London"));
+            BsonDocument address = new BsonDocument("city", city);
+            BsonDocument user = new BsonDocument("address", address);
+            BsonDocument doc = new BsonDocument("data", user);
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "data.address.city.name", Operator.EQ, new StringVal("London"));
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldReturnFalseForNonExistentNestedField() {
+            BsonDocument nested = new BsonDocument("name", new BsonString("John"));
+            BsonDocument doc = new BsonDocument("user", nested);
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "user.email", Operator.EQ, new StringVal("john@example.com"));
+            assertFalse(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldHandleNestedFieldWithNullValue() {
+            BsonDocument nested = new BsonDocument("optional", new BsonNull());
+            BsonDocument doc = new BsonDocument("user", nested);
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate eqPredicate = new ResidualPredicate(1, "user.optional", Operator.EQ, NullVal.INSTANCE);
+            assertTrue(PredicateEvaluator.testResidualPredicate(eqPredicate, buffer));
+
+            ResidualPredicate nePredicate = new ResidualPredicate(1, "user.optional", Operator.NE, NullVal.INSTANCE);
+            assertFalse(PredicateEvaluator.testResidualPredicate(nePredicate, buffer));
+        }
+
+        @Test
+        void shouldHandleNestedFieldComparisonOperators() {
+            BsonDocument nested = new BsonDocument("score", new BsonInt32(85));
+            BsonDocument doc = new BsonDocument("result", nested);
+            ByteBuffer buffer = toBuffer(doc);
+
+            assertTrue(PredicateEvaluator.testResidualPredicate(
+                    new ResidualPredicate(1, "result.score", Operator.GT, new Int32Val(80)), buffer.duplicate()));
+            assertTrue(PredicateEvaluator.testResidualPredicate(
+                    new ResidualPredicate(1, "result.score", Operator.GTE, new Int32Val(85)), buffer.duplicate()));
+            assertTrue(PredicateEvaluator.testResidualPredicate(
+                    new ResidualPredicate(1, "result.score", Operator.LT, new Int32Val(90)), buffer.duplicate()));
+            assertTrue(PredicateEvaluator.testResidualPredicate(
+                    new ResidualPredicate(1, "result.score", Operator.LTE, new Int32Val(85)), buffer.duplicate()));
+        }
+
+        @Test
+        void shouldHandleNestedFieldExistsOperator() {
+            BsonDocument nested = new BsonDocument("name", new BsonString("John"));
+            BsonDocument doc = new BsonDocument("user", nested);
+            ByteBuffer buffer = toBuffer(doc);
+
+            ResidualPredicate predicate = new ResidualPredicate(1, "user.name", Operator.EXISTS, Boolean.TRUE);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldHandleNestedFieldInOperator() {
+            BsonDocument nested = new BsonDocument("status", new BsonString("active"));
+            BsonDocument doc = new BsonDocument("account", nested);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> statuses = List.of(new StringVal("active"), new StringVal("pending"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "account.status", Operator.IN, statuses);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
+        }
+
+        @Test
+        void shouldHandleNestedFieldNinOperator() {
+            BsonDocument nested = new BsonDocument("status", new BsonString("active"));
+            BsonDocument doc = new BsonDocument("account", nested);
+            ByteBuffer buffer = toBuffer(doc);
+
+            List<BqlValue> statuses = List.of(new StringVal("suspended"), new StringVal("deleted"));
+            ResidualPredicate predicate = new ResidualPredicate(1, "account.status", Operator.NIN, statuses);
+            assertTrue(PredicateEvaluator.testResidualPredicate(predicate, buffer));
         }
     }
 }

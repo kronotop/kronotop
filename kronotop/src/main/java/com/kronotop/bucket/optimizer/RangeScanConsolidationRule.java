@@ -67,21 +67,29 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 
             // Check if this is an index scan or full scan with a range condition
             PhysicalFilter extractedFilter = null;
-            if (optimized instanceof PhysicalIndexScan(int indexId, PhysicalNode node, var indexIgnored) &&
+            IndexDefinition existingIndex = null;
+            if (optimized instanceof PhysicalIndexScan(int ignoredIndexId, PhysicalNode node, IndexDefinition index) &&
                     node instanceof PhysicalFilter indexFilter &&
                     isRangeOperator(indexFilter.op())) {
                 extractedFilter = indexFilter;
-            } else if (optimized instanceof PhysicalFullScan(int scanId, PhysicalNode node) &&
+                // Preserve the index from the PhysicalIndexScan (important for $elemMatch scalar arrays
+                // where the filter selector is empty but the index is on the parent field)
+                existingIndex = index;
+            } else if (optimized instanceof PhysicalFullScan(int ignoredScanId, PhysicalNode node) &&
                     node instanceof PhysicalFilter scanFilter &&
                     isRangeOperator(scanFilter.op())) {
                 extractedFilter = scanFilter;
             }
 
             if (extractedFilter != null) {
+                // Use the existing index if available, otherwise look it up from metadata
+                IndexDefinition indexToUse = existingIndex != null ?
+                        existingIndex : getIndexFromMetadata(metadata, extractedFilter.selector());
 
-                // Group range conditions by selector
-                rangeConditions.computeIfAbsent(extractedFilter.selector(), k -> new ArrayList<>())
-                        .add(new RangeCondition(extractedFilter, getIndexFromMetadata(metadata, extractedFilter.selector())));
+                // Group range conditions by selector (use index selector if available for scalar array $elemMatch)
+                String groupKey = indexToUse != null ? indexToUse.selector() : extractedFilter.selector();
+                rangeConditions.computeIfAbsent(groupKey, k -> new ArrayList<>())
+                        .add(new RangeCondition(extractedFilter, indexToUse));
             } else {
                 optimizedChildren.add(optimized);
             }
@@ -89,12 +97,11 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 
         // Consolidate range conditions
         for (Map.Entry<String, List<RangeCondition>> entry : rangeConditions.entrySet()) {
-            String selector = entry.getKey();
             List<RangeCondition> conditions = entry.getValue();
 
             if (conditions.size() > 1) {
                 // Try to consolidate into a range scan
-                PhysicalNode consolidated = consolidateRangeConditions(selector, conditions, context);
+                PhysicalNode consolidated = consolidateRangeConditions(conditions, context);
                 if (consolidated != null) {
                     optimizedChildren.add(consolidated);
                 } else {
@@ -128,12 +135,15 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
         }
     }
 
-    private PhysicalNode consolidateRangeConditions(String selector, List<RangeCondition> conditions, PlannerContext context) {
+    private PhysicalNode consolidateRangeConditions(List<RangeCondition> conditions, PlannerContext context) {
         Object lowerBound = null;
         Object upperBound = null;
         boolean includeLower = false;
         boolean includeUpper = false;
         IndexDefinition index = conditions.get(0).index; // Assume same index for same selector
+        // Use the original filter selector for residual predicate evaluation
+        // (important for a scalar array $elemMatch where the filter selector is empty)
+        String filterSelector = conditions.get(0).filter.selector();
 
         // Note: index can be null for full scan range consolidation
 
@@ -170,8 +180,9 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
         }
 
         // Only create range scan if we have both bounds
+        // Use filterSelector for residual evaluation (empty for scalar arrays), but index is used for actual scanning
         if (lowerBound != null && upperBound != null) {
-            return new PhysicalRangeScan(context.nextId(), selector, lowerBound, upperBound, includeLower, includeUpper, index);
+            return new PhysicalRangeScan(context.nextId(), filterSelector, lowerBound, upperBound, includeLower, includeUpper, index);
         }
 
         return null;
@@ -236,9 +247,9 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     public boolean canApply(PhysicalNode node) {
         return switch (node) {
             case PhysicalAnd and -> and.children().size() > 1 && hasIndexScansWithRangeOperators(and);
-            case PhysicalNot not -> true;
-            case PhysicalElemMatch elemMatch -> true;
-            case PhysicalOr or -> true;
+            case PhysicalNot ignoredNot -> true;
+            case PhysicalElemMatch ignoredElemMatch -> true;
+            case PhysicalOr ignoredOr -> true;
             default -> false;
         };
     }
@@ -246,10 +257,10 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     private boolean hasIndexScansWithRangeOperators(PhysicalAnd and) {
         return and.children().stream()
                 .anyMatch(child ->
-                        (child instanceof PhysicalIndexScan(int indexId, PhysicalNode indexNode, var indexIgnored) &&
+                        (child instanceof PhysicalIndexScan(int ignoredIndexId, PhysicalNode indexNode, var ignoredIndex) &&
                                 indexNode instanceof PhysicalFilter indexFilter &&
                                 isRangeOperator(indexFilter.op())) ||
-                                (child instanceof PhysicalFullScan(int scanId, PhysicalNode scanNode) &&
+                                (child instanceof PhysicalFullScan(int ignoredScanId, PhysicalNode scanNode) &&
                                         scanNode instanceof PhysicalFilter scanFilter &&
                                         isRangeOperator(scanFilter.op()))
                 );

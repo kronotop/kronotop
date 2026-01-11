@@ -18,18 +18,18 @@ package com.kronotop.bucket.bql;
 
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.internal.VersionstampUtil;
-import org.bson.*;
-import org.bson.codecs.*;
+import org.bson.BsonBinaryReader;
+import org.bson.BsonDocument;
+import org.bson.BsonReader;
+import org.bson.BsonType;
+import org.bson.codecs.Codec;
+import org.bson.codecs.DecoderContext;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import static java.util.Arrays.asList;
-import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
-import static org.bson.codecs.configuration.CodecRegistries.withUuidRepresentation;
 
 /**
  * BqlParser is a utility class designed for parsing Bucket Query Language (BQL) expressions.
@@ -45,14 +45,23 @@ import static org.bson.codecs.configuration.CodecRegistries.withUuidRepresentati
  * - Processing BSON documents to build query expressions.
  * - Supporting a wide range of operators, such as `$and`, `$or`, `$not`, and `$elemMatch`.
  * - Handling selector-specific operators like `$gt`, `$lt`, `$eq`, `$in`, and `$exists`.
+ *
+ * <h2>Scalar Array $elemMatch</h2>
+ * For scalar arrays (e.g., {@code tags: ["urgent", "bug"]}), operators inside {@code $elemMatch}
+ * use an empty string {@code ""} as the selector. This is because {@code ResidualElemMatchNode}
+ * wraps scalar elements in {@code {"": value}} during evaluation.
+ * <p>
+ * This is a semantic invariant for scalar array elemMatch.The empty selector represents
+ * "the element itself" and is not a user-visible field name.
+ * <p>
+ * When serialized back to JSON via {@code BqlElemMatch.toJson()}, empty selectors are stripped
+ * to produce clean output like {@code {"$eq": "urgent"}} instead of {@code {"": "urgent"}}.
+ * <p>
+ * Example: {@code { tags: { $elemMatch: { $eq: "urgent" } } }} parses with selector {@code ""}.
  */
 public class BqlParser {
     private static final byte OPENING_BRACE_ASCII_CODE = 123;
-    private static final Codec<Document> DEFAULT_CODEC =
-            withUuidRepresentation(fromProviders(asList(new ValueCodecProvider(),
-                    new CollectionCodecProvider(), new IterableCodecProvider(),
-                    new BsonValueCodecProvider(), new DocumentCodecProvider(), new MapCodecProvider())), UuidRepresentation.STANDARD)
-                    .get(Document.class);
+    private static final Codec<BsonDocument> CODEC = BsonDocument.DEFAULT_CODEC_REGISTRY.get(BsonDocument.class);
 
     public static String explain(BqlExpr expr) {
         return Explain.explain(expr, 0);
@@ -71,9 +80,9 @@ public class BqlParser {
      * @throws BqlParseException if the query string is invalid or cannot be parsed
      */
     public static BqlExpr parse(String query) {
-        Document document;
+        BsonDocument document;
         try {
-            document = Document.parse(query);
+            document = BsonDocument.parse(query);
         } catch (Exception e) {
             throw new BqlParseException("Invalid BSON format", e);
         }
@@ -90,11 +99,7 @@ public class BqlParser {
      * @return true if the first byte indicates a JSON object, false otherwise
      */
     public static boolean isJSON(byte[] query) {
-        if (query.length == 0) {
-            return false;
-        }
-        byte firstByte = query[0];
-        return firstByte == OPENING_BRACE_ASCII_CODE;
+        return query.length != 0 && query[0] == OPENING_BRACE_ASCII_CODE;
     }
 
     /**
@@ -110,10 +115,10 @@ public class BqlParser {
             return parse(new String(query));
         }
 
-        Document document;
+        BsonDocument document;
         try {
             BsonReader reader = new BsonBinaryReader(ByteBuffer.wrap(query));
-            document = DEFAULT_CODEC.decode(reader, DecoderContext.builder().build());
+            document = CODEC.decode(reader, DecoderContext.builder().build());
         } catch (Exception e) {
             throw new BqlParseException("Invalid BSON format", e);
         }
@@ -128,8 +133,8 @@ public class BqlParser {
      * @return a BqlExpr object representing the parsed content of the document.
      * @throws BqlParseException if a parsing error occurs or if there is an issue processing the BSON document.
      */
-    private static BqlExpr parse(Document document) {
-        try (BsonReader reader = document.toBsonDocument().asBsonReader()) {
+    private static BqlExpr parse(BsonDocument document) {
+        try (BsonReader reader = document.asBsonReader()) {
             return new BqlParser().parse(reader);
         } catch (BqlParseException e) {
             // Re-throw our own exceptions as-is
@@ -221,10 +226,13 @@ public class BqlParser {
     private BqlExpr parseSelectorOrOperatorInElemMatch(BsonReader reader, String key, String elemMatchSelector) {
         if (key.startsWith("$")) {
             return switch (key) {
-                case "$and" -> new BqlAnd(readArray(reader));
-                case "$or" -> new BqlOr(readArray(reader));
-                case "$not" -> new BqlNot(readExpr(reader));
-                default -> parseSelectorOperator(reader, key, elemMatchSelector);
+                case "$and" -> new BqlAnd(readArrayInElemMatch(reader, elemMatchSelector));
+                case "$or" -> new BqlOr(readArrayInElemMatch(reader, elemMatchSelector));
+                case "$not" -> new BqlNot(readElemMatchExpr(reader, elemMatchSelector));
+                // For scalar array $elemMatch (e.g., {'tags': {'$elemMatch': {'$eq': 'urgent'}}}),
+                // use empty selector "" because scalar elements are wrapped in {"": value}
+                // This is a semantic invariant of scalar elemMatch.
+                default -> parseSelectorOperator(reader, key, "");
             };
         } else {
             // It's a selector name
@@ -234,6 +242,22 @@ public class BqlParser {
             }
             return new BqlEq(key, readValue(reader));
         }
+    }
+
+    /**
+     * Reads an array of expressions within $elemMatch context.
+     * Each element is parsed with $elemMatch semantics (empty selector for scalar operators).
+     */
+    private List<BqlExpr> readArrayInElemMatch(BsonReader reader, String elemMatchSelector) {
+        reader.readStartArray();
+        List<BqlExpr> list = new ArrayList<>();
+
+        while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            list.add(readElemMatchExpr(reader, elemMatchSelector));
+        }
+
+        reader.readEndArray();
+        return list;
     }
 
     /**
@@ -256,11 +280,11 @@ public class BqlParser {
      */
     private BqlExpr parseSelectorOperator(BsonReader reader, String op, String selector) {
         return switch (op) {
-            case "$gt" -> new BqlGt(selector, readValue(reader));
-            case "$lt" -> new BqlLt(selector, readValue(reader));
+            case "$gt" -> new BqlGt(selector, readNonNullValue(reader, op));
+            case "$lt" -> new BqlLt(selector, readNonNullValue(reader, op));
+            case "$gte" -> new BqlGte(selector, readNonNullValue(reader, op));
+            case "$lte" -> new BqlLte(selector, readNonNullValue(reader, op));
             case "$eq" -> new BqlEq(selector, readValue(reader));
-            case "$gte" -> new BqlGte(selector, readValue(reader));
-            case "$lte" -> new BqlLte(selector, readValue(reader));
             case "$ne" -> new BqlNe(selector, readValue(reader));
             case "$in" -> new BqlIn(selector, readValueArray(reader));
             case "$nin" -> new BqlNin(selector, readValueArray(reader));
@@ -280,6 +304,16 @@ public class BqlParser {
             }
             default -> throw new BqlParseException("Unknown selector operator: " + op);
         };
+    }
+
+    /**
+     * Reads a value that must not be null. Throws BqlParseException if null is encountered.
+     */
+    private BqlValue readNonNullValue(BsonReader reader, String op) {
+        if (reader.getCurrentBsonType() == BsonType.NULL) {
+            throw new BqlParseException(op + " operator does not support null values");
+        }
+        return readValue(reader);
     }
 
     /**

@@ -23,11 +23,10 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.DefaultIndexDefinition;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.*;
+import org.bson.BsonArray;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
 import org.bson.BsonType;
@@ -381,5 +380,386 @@ class UpdateExecutorTest extends BasePipelineTest {
             values.add(keyTuple.getString(0));
         }
         return values;
+    }
+
+    @Test
+    void shouldCreateMultikeyIndexEntriesWhenUpdatingToArrayValue() {
+        // Create a multikey index on "tags.name"
+        IndexDefinition tagsIndex = IndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, tagsIndex);
+
+        // Insert a document without the tags field
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}")
+        );
+        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+
+        // Get tags index subspace
+        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        DirectorySubspace tagsSubspace = tagsIdx.subspace();
+
+        // Verify initial state: 1 null entry
+        assertEquals(1, fetchAllIndexedEntries(tagsSubspace).size(), "Tags index should have 1 null entry initially");
+
+        // Update Alice to add tags array with multiple values
+        BsonArray tagsArray = new BsonArray();
+        tagsArray.add(new BsonString("java"));
+        tagsArray.add(new BsonString("kotlin"));
+        tagsArray.add(new BsonString("scala"));
+
+        PipelineNode plan = createExecutionPlan(metadata, "{name: {$eq: \"Alice\"}}");
+        UpdateOptions update = UpdateOptions.builder().set("tags.name", tagsArray).build();
+        QueryOptions options = QueryOptions.builder().update(update).build();
+        QueryContext ctx = new QueryContext(metadata, options, plan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            updateExecutor.execute(tr, ctx);
+            tr.commit().join();
+        }
+
+        // Verify multikey index has 3 entries (java, kotlin, scala)
+        List<KeyValue> entries = fetchAllIndexedEntries(tagsSubspace);
+        assertEquals(3, entries.size(), "Tags index should have 3 entries after multikey update");
+
+        // Verify all values are indexed
+        Set<String> indexedValues = extractStringValuesFromIndex(tagsSubspace);
+        assertTrue(indexedValues.contains("java"), "Should have 'java' indexed");
+        assertTrue(indexedValues.contains("kotlin"), "Should have 'kotlin' indexed");
+        assertTrue(indexedValues.contains("scala"), "Should have 'scala' indexed");
+    }
+
+    @Test
+    void shouldDeduplicateMultikeyIndexEntriesWhenUpdating() {
+        // Create a multikey index on "tags.name"
+        IndexDefinition tagsIndex = IndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, tagsIndex);
+
+        // Insert a document without the tags field
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}")
+        );
+        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+
+        // Get tags index subspace
+        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        DirectorySubspace tagsSubspace = tagsIdx.subspace();
+
+        // Update Alice with tags array containing duplicates
+        BsonArray tagsArray = new BsonArray();
+        tagsArray.add(new BsonString("java"));
+        tagsArray.add(new BsonString("java"));  // duplicate
+        tagsArray.add(new BsonString("kotlin"));
+        tagsArray.add(new BsonString("java"));  // duplicate
+
+        PipelineNode plan = createExecutionPlan(metadata, "{name: {$eq: \"Alice\"}}");
+        UpdateOptions update = UpdateOptions.builder().set("tags.name", tagsArray).build();
+        QueryOptions options = QueryOptions.builder().update(update).build();
+        QueryContext ctx = new QueryContext(metadata, options, plan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            updateExecutor.execute(tr, ctx);
+            tr.commit().join();
+        }
+
+        // Verify only 2 unique entries (deduplication)
+        List<KeyValue> entries = fetchAllIndexedEntries(tagsSubspace);
+        assertEquals(2, entries.size(), "Tags index should have 2 entries after deduplication");
+
+        Set<String> indexedValues = extractStringValuesFromIndex(tagsSubspace);
+        assertTrue(indexedValues.contains("java"), "Should have 'java' indexed");
+        assertTrue(indexedValues.contains("kotlin"), "Should have 'kotlin' indexed");
+        assertEquals(2, indexedValues.size(), "Should have exactly 2 unique values");
+    }
+
+    @Test
+    void shouldTrackCardinalityCorrectlyForMultikeyIndexUpdate() {
+        // Create a multikey index on "langs.name"
+        IndexDefinition langsIndex = IndexDefinition.create("langs_idx", "langs.name", BsonType.STRING, true);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, langsIndex);
+
+        // Insert two documents without the langs field
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\"}")
+        );
+        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+
+        // Update Alice with 2 unique langs
+        BsonArray aliceLangs = new BsonArray();
+        aliceLangs.add(new BsonString("java"));
+        aliceLangs.add(new BsonString("kotlin"));
+
+        PipelineNode alicePlan = createExecutionPlan(metadata, "{name: {$eq: \"Alice\"}}");
+        UpdateOptions aliceUpdate = UpdateOptions.builder().set("langs.name", aliceLangs).build();
+        QueryOptions aliceOptions = QueryOptions.builder().update(aliceUpdate).build();
+        QueryContext aliceCtx = new QueryContext(metadata, aliceOptions, alicePlan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            updateExecutor.execute(tr, aliceCtx);
+            tr.commit().join();
+        }
+
+        // Verify cardinality after the first update: 2 (from Alice) + 1 (null from Bob) = 3
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics stats = indexStatistics.get(langsIndex.id());
+            assertNotNull(stats, "Index statistics should exist");
+            assertEquals(3L, stats.cardinality(), "Cardinality should be 3 after first update");
+        }
+
+        // Update Bob with 3 unique langs
+        BsonArray bobLangs = new BsonArray();
+        bobLangs.add(new BsonString("python"));
+        bobLangs.add(new BsonString("rust"));
+        bobLangs.add(new BsonString("go"));
+
+        PipelineNode bobPlan = createExecutionPlan(metadata, "{name: {$eq: \"Bob\"}}");
+        UpdateOptions bobUpdate = UpdateOptions.builder().set("langs.name", bobLangs).build();
+        QueryOptions bobOptions = QueryOptions.builder().update(bobUpdate).build();
+        QueryContext bobCtx = new QueryContext(metadata, bobOptions, bobPlan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            updateExecutor.execute(tr, bobCtx);
+            tr.commit().join();
+        }
+
+        // Verify cardinality after second update: 2 (Alice) + 3 (Bob) = 5
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics stats = indexStatistics.get(langsIndex.id());
+            assertNotNull(stats, "Index statistics should exist");
+            assertEquals(5L, stats.cardinality(), "Cardinality should be 5 after second update");
+        }
+    }
+
+    @Test
+    void shouldDeduplicateAndTrackCardinalityCorrectlyForMultikeyIndexUpdate() {
+        // Create a multikey index on "skills.name"
+        IndexDefinition skillsIndex = IndexDefinition.create("skills_idx", "skills.name", BsonType.STRING, true);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, skillsIndex);
+
+        // Insert documents without skills field
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Charlie\"}")
+        );
+        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+
+        Index skillsIdx = metadata.indexes().getIndex("skills.name", IndexSelectionPolicy.READ);
+        DirectorySubspace skillsSubspace = skillsIdx.subspace();
+
+        // Update Alice with 4 elements, 2 unique (java x3, kotlin x1)
+        BsonArray aliceSkills = new BsonArray();
+        aliceSkills.add(new BsonString("java"));
+        aliceSkills.add(new BsonString("java"));
+        aliceSkills.add(new BsonString("kotlin"));
+        aliceSkills.add(new BsonString("java"));
+
+        PipelineNode alicePlan = createExecutionPlan(metadata, "{name: {$eq: \"Alice\"}}");
+        UpdateOptions aliceUpdate = UpdateOptions.builder().set("skills.name", aliceSkills).build();
+        QueryOptions aliceOptions = QueryOptions.builder().update(aliceUpdate).build();
+        QueryContext aliceCtx = new QueryContext(metadata, aliceOptions, alicePlan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            updateExecutor.execute(tr, aliceCtx);
+            tr.commit().join();
+        }
+
+        // Verify 2 entries for Alice + 2 null entries for Bob and Charlie = 4 total
+        assertEquals(4, fetchAllIndexedEntries(skillsSubspace).size(), "Should have 4 entries after Alice update");
+
+        // Update Bob with 5 elements, 3 unique (python x2, rust x2, go x1)
+        BsonArray bobSkills = new BsonArray();
+        bobSkills.add(new BsonString("python"));
+        bobSkills.add(new BsonString("rust"));
+        bobSkills.add(new BsonString("python"));
+        bobSkills.add(new BsonString("go"));
+        bobSkills.add(new BsonString("rust"));
+
+        PipelineNode bobPlan = createExecutionPlan(metadata, "{name: {$eq: \"Bob\"}}");
+        UpdateOptions bobUpdate = UpdateOptions.builder().set("skills.name", bobSkills).build();
+        QueryOptions bobOptions = QueryOptions.builder().update(bobUpdate).build();
+        QueryContext bobCtx = new QueryContext(metadata, bobOptions, bobPlan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            updateExecutor.execute(tr, bobCtx);
+            tr.commit().join();
+        }
+
+        // Verify 2 (Alice) + 3 (Bob) + 1 (Charlie null) = 6 total
+        assertEquals(6, fetchAllIndexedEntries(skillsSubspace).size(), "Should have 6 entries after Bob update");
+
+        // Update Charlie with 3 elements, 1 unique (scala x3)
+        BsonArray charlieSkills = new BsonArray();
+        charlieSkills.add(new BsonString("scala"));
+        charlieSkills.add(new BsonString("scala"));
+        charlieSkills.add(new BsonString("scala"));
+
+        PipelineNode charliePlan = createExecutionPlan(metadata, "{name: {$eq: \"Charlie\"}}");
+        UpdateOptions charlieUpdate = UpdateOptions.builder().set("skills.name", charlieSkills).build();
+        QueryOptions charlieOptions = QueryOptions.builder().update(charlieUpdate).build();
+        QueryContext charlieCtx = new QueryContext(metadata, charlieOptions, charliePlan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            updateExecutor.execute(tr, charlieCtx);
+            tr.commit().join();
+        }
+
+        // Verify final state: 2 (Alice) + 3 (Bob) + 1 (Charlie) = 6 total entries
+        List<KeyValue> finalEntries = fetchAllIndexedEntries(skillsSubspace);
+        assertEquals(6, finalEntries.size(), "Should have 6 entries total");
+
+        // Verify all unique values are present
+        Set<String> indexedValues = extractStringValuesFromIndex(skillsSubspace);
+        assertTrue(indexedValues.contains("java"), "Should have 'java' indexed");
+        assertTrue(indexedValues.contains("kotlin"), "Should have 'kotlin' indexed");
+        assertTrue(indexedValues.contains("python"), "Should have 'python' indexed");
+        assertTrue(indexedValues.contains("rust"), "Should have 'rust' indexed");
+        assertTrue(indexedValues.contains("go"), "Should have 'go' indexed");
+        assertTrue(indexedValues.contains("scala"), "Should have 'scala' indexed");
+        assertEquals(6, indexedValues.size(), "Should have exactly 6 unique values");
+
+        // Verify cardinality
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics stats = indexStatistics.get(skillsIndex.id());
+            assertNotNull(stats, "Index statistics should exist");
+            assertEquals(6L, stats.cardinality(), "Final cardinality should be 6");
+        }
+    }
+
+    private Set<String> extractStringValuesFromIndex(DirectorySubspace indexSubspace) {
+        Set<String> values = new HashSet<>();
+        List<KeyValue> entries = fetchAllIndexedEntries(indexSubspace);
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+
+        for (KeyValue kv : entries) {
+            Tuple keyTuple = Tuple.fromBytes(kv.getKey(), prefix.length, kv.getKey().length - prefix.length);
+            Object value = keyTuple.get(0);
+            if (value instanceof String) {
+                values.add((String) value);
+            }
+        }
+        return values;
+    }
+
+    @Test
+    void shouldDropMultikeyIndexEntriesWhenArrayItemsRemoved() {
+        // Create a multikey index on "tags.name"
+        IndexDefinition tagsIndex = IndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, tagsIndex);
+
+        // Insert a document with tags array
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"tags\": [{\"name\": \"java\"}, {\"name\": \"kotlin\"}, {\"name\": \"scala\"}]}")
+        );
+        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+
+        // Get tags index subspace
+        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        DirectorySubspace tagsSubspace = tagsIdx.subspace();
+
+        // Verify initial state: 3 entries (java, kotlin, scala)
+        assertEquals(3, fetchAllIndexedEntries(tagsSubspace).size(), "Tags index should have 3 entries initially");
+        Set<String> initialValues = extractStringValuesFromIndex(tagsSubspace);
+        assertTrue(initialValues.contains("java"), "Should have 'java' initially");
+        assertTrue(initialValues.contains("kotlin"), "Should have 'kotlin' initially");
+        assertTrue(initialValues.contains("scala"), "Should have 'scala' initially");
+
+        // Update Alice to have only 1 tag (removing kotlin and scala)
+        BsonArray reducedTags = new BsonArray();
+        reducedTags.add(new BsonString("java"));
+
+        PipelineNode plan = createExecutionPlan(metadata, "{name: {$eq: \"Alice\"}}");
+        UpdateOptions update = UpdateOptions.builder().set("tags.name", reducedTags).build();
+        QueryOptions options = QueryOptions.builder().update(update).build();
+        QueryContext ctx = new QueryContext(metadata, options, plan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            updateExecutor.execute(tr, ctx);
+            tr.commit().join();
+        }
+
+        // Verify only 1 entry remains (java)
+        List<KeyValue> entriesAfterUpdate = fetchAllIndexedEntries(tagsSubspace);
+        assertEquals(1, entriesAfterUpdate.size(), "Tags index should have 1 entry after update");
+
+        Set<String> valuesAfterUpdate = extractStringValuesFromIndex(tagsSubspace);
+        assertTrue(valuesAfterUpdate.contains("java"), "Should still have 'java'");
+        assertFalse(valuesAfterUpdate.contains("kotlin"), "Should NOT have 'kotlin' after update");
+        assertFalse(valuesAfterUpdate.contains("scala"), "Should NOT have 'scala' after update");
+
+        // Verify back pointers are also cleaned up
+        assertEquals(1, fetchAllIndexBackPointers(tagsSubspace).size(), "Should have 1 back pointer after update");
+
+        // Verify cardinality is updated correctly: 3 entries dropped, 1 entry added = 1
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics stats = indexStatistics.get(tagsIndex.id());
+            assertNotNull(stats, "Index statistics should exist");
+            assertEquals(1L, stats.cardinality(), "Cardinality should be 1 after reducing array to single item");
+        }
+    }
+
+    @Test
+    void shouldDropAllMultikeyIndexEntriesWhenFieldUnset() {
+        // Create a multikey index on "tags.name"
+        IndexDefinition tagsIndex = IndexDefinition.create("tags_idx", "tags.name", BsonType.STRING, true);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, tagsIndex);
+
+        // Insert a document with tags array
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"tags\": [{\"name\": \"java\"}, {\"name\": \"kotlin\"}, {\"name\": \"scala\"}]}")
+        );
+        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+
+        // Get tags index subspace
+        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        DirectorySubspace tagsSubspace = tagsIdx.subspace();
+
+        // Verify initial state: 3 entries (java, kotlin, scala)
+        assertEquals(3, fetchAllIndexedEntries(tagsSubspace).size(), "Tags index should have 3 entries initially");
+        assertEquals(3, fetchAllIndexBackPointers(tagsSubspace).size(), "Should have 3 back pointers initially");
+
+        Set<String> initialValues = extractStringValuesFromIndex(tagsSubspace);
+        assertTrue(initialValues.contains("java"), "Should have 'java' initially");
+        assertTrue(initialValues.contains("kotlin"), "Should have 'kotlin' initially");
+        assertTrue(initialValues.contains("scala"), "Should have 'scala' initially");
+
+        // Unset the tags.name field entirely
+        PipelineNode plan = createExecutionPlan(metadata, "{name: {$eq: \"Alice\"}}");
+        UpdateOptions update = UpdateOptions.builder().unset("tags.name").build();
+        QueryOptions options = QueryOptions.builder().update(update).build();
+        QueryContext ctx = new QueryContext(metadata, options, plan);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            updateExecutor.execute(tr, ctx);
+            tr.commit().join();
+        }
+
+        // Verify all entries are dropped and replaced with a single null entry
+        List<KeyValue> entriesAfterUnset = fetchAllIndexedEntries(tagsSubspace);
+        assertEquals(1, entriesAfterUnset.size(), "Tags index should have 1 null entry after unset");
+
+        // Verify no string values remain (only null)
+        Set<String> valuesAfterUnset = extractStringValuesFromIndex(tagsSubspace);
+        assertTrue(valuesAfterUnset.isEmpty(), "Should have no string values after unset");
+
+        // Verify back pointers are cleaned up to a single null entry
+        assertEquals(1, fetchAllIndexBackPointers(tagsSubspace).size(), "Should have 1 back pointer after unset");
+
+        // Verify document can be found via null query
+        List<String> nullQuery = runQueryOnBucket(metadata, "{\"tags.name\": {$eq: null}}");
+        assertEquals(1, nullQuery.size(), "Should find 1 document with null tags.name");
+        assertTrue(nullQuery.getFirst().contains("\"name\": \"Alice\""), "Result should be Alice");
+
+        // Verify cardinality is updated correctly: 3 entries dropped, 1 null entry added = 1
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics stats = indexStatistics.get(tagsIndex.id());
+            assertNotNull(stats, "Index statistics should exist");
+            assertEquals(1L, stats.cardinality(), "Cardinality should be 1 after unset (single null entry)");
+        }
     }
 }

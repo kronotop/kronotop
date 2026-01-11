@@ -176,7 +176,7 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
             String query = "{ $and: [" +
                     "{ \"name\": \"john\" }, " +
                     "{ \"age\": 25 }, " +
-                    "{ \"score\": { $gt: 80 } }" +
+                    "{ \"score\": { $gt: 80.0 } }" +
                     "] }";
             PhysicalNode optimized = planAndOptimize(query);
 
@@ -215,7 +215,7 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
             );
 
             // Test: AND(age > 18, score < 100) - no EQ operators
-            String query = "{ $and: [{ \"age\": { $gt: 18 } }, { \"score\": { $lt: 100 } }] }";
+            String query = "{ $and: [{ \"age\": { $gt: 18 } }, { \"score\": { $lt: 100.0 } }] }";
             PhysicalNode optimized = planAndOptimize(query);
 
             // Should remain as AND with two PhysicalIndexScans (no intersection)
@@ -242,7 +242,10 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
                     IndexDefinition.create("score-index", "score", BsonType.DOUBLE)
             );
 
-            // Test: AND(name="john", age > 18, score="high") - only name and score are EQ
+            // Test: AND(name="john", age > 18, score="high")
+            // - name: EQ with STRING index, STRING value → IndexScan
+            // - age: GT with INT32 index, INT32 value → IndexScan
+            // - score: EQ with DOUBLE index, STRING value → FullScan (type mismatch)
             String query = "{ $and: [" +
                     "{ \"name\": \"john\" }, " +
                     "{ \"age\": { $gt: 18 } }, " +
@@ -250,18 +253,18 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
                     "] }";
             PhysicalNode optimized = planAndOptimize(query);
 
-            // Should be AND(PhysicalIndexIntersection, PhysicalIndexScan)
+            // Should be AND with 3 children (no intersection since only one EQ matches index type)
             assertInstanceOf(PhysicalAnd.class, optimized);
             PhysicalAnd and = (PhysicalAnd) optimized;
-            assertEquals(2, and.children().size());
+            assertEquals(3, and.children().size());
 
-            // Should have PhysicalIndexIntersection for name and score (EQ conditions)
-            boolean hasIntersection = and.children().stream()
-                    .anyMatch(child -> child instanceof PhysicalIndexIntersection intersection &&
-                            intersection.indexes().size() == 2 &&
-                            intersection.indexes().stream().anyMatch(idx -> "name".equals(idx.selector())) &&
-                            intersection.indexes().stream().anyMatch(idx -> "score".equals(idx.selector())));
-            assertTrue(hasIntersection, "Should contain PhysicalIndexIntersection for EQ conditions");
+            // Should have PhysicalIndexScan for name (EQ condition with matching type)
+            boolean hasNameScan = and.children().stream()
+                    .anyMatch(child -> child instanceof PhysicalIndexScan indexScan &&
+                            indexScan.node() instanceof PhysicalFilter filter &&
+                            "name".equals(filter.selector()) &&
+                            Operator.EQ == filter.op());
+            assertTrue(hasNameScan, "Should contain PhysicalIndexScan for name EQ condition");
 
             // Should have PhysicalIndexScan for age (GT condition)
             boolean hasAgeScan = and.children().stream()
@@ -269,7 +272,15 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
                             indexScan.node() instanceof PhysicalFilter filter &&
                             "age".equals(filter.selector()) &&
                             Operator.GT == filter.op());
-            assertTrue(hasAgeScan, "Should contain PhysicalIndexScan for GT condition");
+            assertTrue(hasAgeScan, "Should contain PhysicalIndexScan for age GT condition");
+
+            // Should have PhysicalFullScan for score (type mismatch: DOUBLE index, STRING value)
+            boolean hasScoreFullScan = and.children().stream()
+                    .anyMatch(child -> child instanceof PhysicalFullScan fullScan &&
+                            fullScan.node() instanceof PhysicalFilter filter &&
+                            "score".equals(filter.selector()) &&
+                            Operator.EQ == filter.op());
+            assertTrue(hasScoreFullScan, "Should contain PhysicalFullScan for score due to type mismatch");
         }
     }
 
@@ -458,7 +469,7 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
             );
 
             // Test: AND(age > 18, score < 100) - no EQ conditions for intersection
-            String query = "{ $and: [{ \"age\": { $gt: 18 } }, { \"score\": { $lt: 100 } }] }";
+            String query = "{ $and: [{ \"age\": { $gt: 18 } }, { \"score\": { $lt: 100.0 } }] }";
 
             PhysicalNode unoptimized = planWithoutOptimization(query);
             PhysicalNode optimized = planAndOptimize(query);

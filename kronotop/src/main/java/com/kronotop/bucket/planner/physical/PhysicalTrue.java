@@ -18,6 +18,10 @@ package com.kronotop.bucket.planner.physical;
 
 import javax.annotation.Nonnull;
 
+/**
+ * Physical plan node representing a condition that matches all documents.
+ * Used for tautologies or queries with no filter constraints (e.g., empty query {@code {}}).
+ */
 public record PhysicalTrue(int id) implements PhysicalNode {
 
     public static final PhysicalTrue INSTANCE = new PhysicalTrue(-1);

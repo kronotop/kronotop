@@ -19,10 +19,10 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.bql.ast.*;
+import com.kronotop.bucket.index.SelectorMatcher;
 import com.kronotop.bucket.planner.Operator;
-import org.bson.BsonBinaryReader;
-import org.bson.BsonReader;
-import org.bson.BsonType;
+import org.bson.BsonArray;
+import org.bson.BsonValue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -44,109 +44,149 @@ public class PredicateEvaluator {
      * @return true if the document matches the predicate
      */
     public static boolean testResidualPredicate(ResidualPredicate filter, ByteBuffer document) {
-        try (BsonReader reader = new BsonBinaryReader(document)) {
-            reader.readStartDocument();
+        BsonValue bsonValue = SelectorMatcher.match(filter.selector(), document);
 
-            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                String fieldName = reader.readName();
-
-                if (!filter.selector().equals(fieldName)) {
-                    reader.skipValue();
-                    continue;
-                }
-
-                // Field found - evaluate the predicate
-                return evaluateField(reader, filter.op(), filter.operand());
+        // EXISTS performs a physical field presence check
+        if (filter.op() == Operator.EXISTS) {
+            if (!(filter.operand() instanceof Boolean existsOperand)) {
+                throw new KronotopException("EXISTS operator requires boolean operand");
             }
-
-            reader.readEndDocument();
-        } catch (Exception e) {
-            throw new KronotopException(e);
+            return existsOperand == (bsonValue != null);
         }
 
-        // Field not found - matches for null equality or null-inclusive comparisons
-        if (filter.operand() instanceof NullVal) {
-            return switch (filter.op()) {
-                case EQ, GTE, LTE -> true;
-                default -> false;
-            };
+        boolean fieldMissingOrNull = (bsonValue == null || bsonValue.isNull());
+        boolean operandIsNull = filter.operand() instanceof NullVal;
+
+        // Null is only meaningful in EQ / NE context
+        if (operandIsNull) {
+            if (fieldMissingOrNull) {
+                return filter.op() == Operator.EQ;
+            }
+            return filter.op() == Operator.NE;
         }
-        return false;
+
+        // Handle IN/NIN with null field: check if the list contains NullVal
+        if (fieldMissingOrNull && filter.operand() instanceof List<?> list) {
+            boolean listContainsNull = list.stream().anyMatch(v -> v instanceof NullVal);
+            if (filter.op() == Operator.IN) {
+                return listContainsNull;
+            }
+            if (filter.op() == Operator.NIN) {
+                return !listContainsNull;
+            }
+        }
+
+        // Missing or null field never matches other comparison operators
+        if (fieldMissingOrNull) {
+            return filter.op() == Operator.NE;
+        }
+
+        // Both sides are non-null: evaluate normally
+        return evaluateBsonValue(bsonValue, filter.op(), filter.operand());
     }
 
     /**
-     * Evaluates a field value against an operand using the specified operator.
+     * Evaluates a BsonValue against an operand using the specified operator.
      */
-    private static boolean evaluateField(BsonReader reader, Operator op, Object operand) {
+    private static boolean evaluateBsonValue(BsonValue bsonValue, Operator op, Object operand) {
+        // Handle ALL with List<BqlValue> operand
+        if (op == Operator.ALL && operand instanceof List<?> list) {
+            if (!bsonValue.isArray()) {
+                return false;
+            }
+            List<BqlValue> found = new ArrayList<>();
+            for (BsonValue element : bsonValue.asArray()) {
+                BqlValue value = convertBsonValueToBqlValue(element);
+                if (value != null) {
+                    found.add(value);
+                }
+            }
+            return list.stream()
+                    .filter(v -> v instanceof BqlValue)
+                    .map(v -> (BqlValue) v)
+                    .allMatch(expected -> found.stream().anyMatch(actual -> valuesEqual(actual, expected)));
+        }
+
+        // Handle SIZE with int operand
+        if (op == Operator.SIZE && operand instanceof Integer expectedSize) {
+            if (!bsonValue.isArray()) {
+                return false;
+            }
+            return bsonValue.asArray().size() == expectedSize;
+        }
+
         // Handle IN/NIN with List<BqlValue> operand
         if ((op == Operator.IN || op == Operator.NIN) && operand instanceof List<?> list) {
-            boolean matches = matchesAnyInList(reader, list);
+            // If field is an array, check if any element matches any value in the list
+            if (bsonValue.isArray()) {
+                boolean matches = false;
+                for (BsonValue element : bsonValue.asArray()) {
+                    BqlValue elementValue = convertBsonValueToBqlValue(element);
+                    if (elementValue != null) {
+                        for (Object item : list) {
+                            if (item instanceof BqlValue expected && valuesEqual(elementValue, expected)) {
+                                matches = true;
+                                break;
+                            }
+                        }
+                        if (matches) break;
+                    }
+                }
+                return (op == Operator.IN) == matches;
+            }
+
+            // Scalar field: check if the value matches any in the list
+            BqlValue actual = convertBsonValueToBqlValue(bsonValue);
+            if (actual == null) {
+                return op == Operator.NIN;
+            }
+            boolean matches = list.stream()
+                    .filter(v -> v instanceof BqlValue)
+                    .map(v -> (BqlValue) v)
+                    .anyMatch(expected -> valuesEqual(actual, expected));
             return (op == Operator.IN) == matches;
         }
 
+        // Convert BsonValue to comparable value and evaluate
         return switch (operand) {
-            case StringVal(String expected) -> evaluateTypedField(reader, BsonType.STRING, op,
-                    reader::readString, expected);
+            case StringVal(String expected) -> bsonValue.isString() &&
+                    evaluateComparison(op, bsonValue.asString().getValue(), expected);
 
-            case Int32Val(int expected) -> evaluateTypedField(reader, BsonType.INT32, op,
-                    reader::readInt32, expected);
+            case Int32Val(int expected) -> bsonValue.isInt32() &&
+                    evaluateComparison(op, bsonValue.asInt32().getValue(), expected);
 
-            case Int64Val(long expected) -> evaluateTypedField(reader, BsonType.INT64, op,
-                    reader::readInt64, expected);
+            case Int64Val(long expected) -> bsonValue.isInt64() &&
+                    evaluateComparison(op, bsonValue.asInt64().getValue(), expected);
 
-            case DoubleVal(double expected) -> evaluateTypedField(reader, BsonType.DOUBLE, op,
-                    reader::readDouble, expected);
+            case DoubleVal(double expected) -> bsonValue.isDouble() &&
+                    evaluateComparison(op, bsonValue.asDouble().getValue(), expected);
 
-            case Decimal128Val(BigDecimal expected) -> evaluateTypedField(reader, BsonType.DECIMAL128, op,
-                    () -> reader.readDecimal128().bigDecimalValue(), expected);
+            case Decimal128Val(BigDecimal expected) -> bsonValue.isDecimal128() &&
+                    evaluateComparison(op, bsonValue.asDecimal128().decimal128Value().bigDecimalValue(), expected);
 
-            case BooleanVal(boolean expected) -> evaluateBooleanField(reader, op, expected);
+            case BooleanVal(boolean expected) -> bsonValue.isBoolean() &&
+                    evaluateBooleanComparison(op, bsonValue.asBoolean().getValue(), expected);
 
-            case NullVal ignored -> evaluateNullField(reader, op);
+            case BinaryVal(byte[] expected) -> bsonValue.isBinary() &&
+                    evaluateComparison(op, bsonValue.asBinary().getData(), expected);
 
-            case BinaryVal(byte[] expected) -> evaluateTypedField(reader, BsonType.BINARY, op,
-                    () -> reader.readBinaryData().getData(), expected);
+            case TimestampVal(long expected) -> bsonValue.isTimestamp() &&
+                    evaluateComparison(op, bsonValue.asTimestamp().getValue(), expected);
 
-            case TimestampVal(long expected) -> evaluateTypedField(reader, BsonType.TIMESTAMP, op,
-                    () -> reader.readTimestamp().getValue(), expected);
+            case DateTimeVal(long expected) -> bsonValue.isDateTime() &&
+                    evaluateComparison(op, bsonValue.asDateTime().getValue(), expected);
 
-            case DateTimeVal(long expected) -> evaluateTypedField(reader, BsonType.DATE_TIME, op,
-                    reader::readDateTime, expected);
+            case VersionstampVal(Versionstamp expected) -> bsonValue.isBinary() &&
+                    evaluateComparison(op, Versionstamp.fromBytes(bsonValue.asBinary().getData()), expected);
 
-            case VersionstampVal(Versionstamp expected) -> evaluateVersionstampField(reader, op, expected);
+            case ArrayVal(List<BqlValue> expectedValues) -> bsonValue.isArray() &&
+                    evaluateArrayBsonValue(bsonValue.asArray(), op, expectedValues);
 
-            case ArrayVal(List<BqlValue> expectedValues) -> evaluateArrayField(reader, op, expectedValues);
-
-            default -> {
-                reader.skipValue();
-                yield false;
-            }
+            default -> false;
         };
     }
 
-    /**
-     * Evaluates a typed field using the unified comparison logic.
-     */
-    private static <T> boolean evaluateTypedField(BsonReader reader, BsonType expectedType,
-                                                  Operator op, ValueReader<T> valueReader, T expected) {
-        if (reader.getCurrentBsonType() != expectedType) {
-            reader.skipValue();
-            return false;
-        }
-        T actual = valueReader.read();
-        return evaluateComparison(op, actual, expected);
-    }
-
-    /**
-     * Evaluates a boolean field. Booleans only support EQ and NE.
-     */
-    private static boolean evaluateBooleanField(BsonReader reader, Operator op, boolean expected) {
-        if (reader.getCurrentBsonType() != BsonType.BOOLEAN) {
-            reader.skipValue();
-            return false;
-        }
-        boolean actual = reader.readBoolean();
-
+    private static boolean evaluateBooleanComparison(Operator op, boolean actual, boolean expected) {
         return switch (op) {
             case EQ -> actual == expected;
             case NE -> actual != expected;
@@ -154,131 +194,45 @@ public class PredicateEvaluator {
         };
     }
 
-    /**
-     * Evaluates a null field comparison. In BSON ordering, null is the lowest value.
-     */
-    private static boolean evaluateNullField(BsonReader reader, Operator op) {
-        boolean isNull = reader.getCurrentBsonType() == BsonType.NULL;
-        if (isNull) {
-            reader.readNull();
-        } else {
-            reader.skipValue();
-        }
-
+    private static boolean evaluateArrayBsonValue(BsonArray array, Operator op, List<BqlValue> expectedValues) {
         return switch (op) {
-            case EQ, LTE -> isNull;
-            case NE, EXISTS, GT -> !isNull;
-            case GTE -> true;
-            default -> false;
-        };
-    }
-
-    /**
-     * Evaluates a Versionstamp field. Versionstamp is stored as BINARY but compared using Comparable.
-     */
-    private static boolean evaluateVersionstampField(BsonReader reader, Operator op, Versionstamp expected) {
-        if (reader.getCurrentBsonType() != BsonType.BINARY) {
-            reader.skipValue();
-            return false;
-        }
-        byte[] actualBytes = reader.readBinaryData().getData();
-        Versionstamp actual = Versionstamp.fromBytes(actualBytes);
-        return evaluateComparison(op, actual, expected);
-    }
-
-    /**
-     * Evaluates array-specific operators: SIZE, ALL, IN.
-     */
-    private static boolean evaluateArrayField(BsonReader reader, Operator op, List<BqlValue> expectedValues) {
-        if (reader.getCurrentBsonType() != BsonType.ARRAY) {
-            reader.skipValue();
-            return false;
-        }
-
-        return switch (op) {
-            case SIZE -> {
-                reader.readStartArray();
-                int size = 0;
-                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                    reader.skipValue();
-                    size++;
-                }
-                reader.readEndArray();
-
-                if (!expectedValues.isEmpty() && expectedValues.getFirst() instanceof Int32Val(int expectedSize)) {
-                    yield size == expectedSize;
-                }
-                yield false;
-            }
-            case ALL -> {
-                reader.readStartArray();
-                List<BqlValue> found = new ArrayList<>();
-                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                    BqlValue value = readBsonValue(reader);
-                    if (value != null) {
-                        found.add(value);
-                    }
-                }
-                reader.readEndArray();
-
-                yield expectedValues.stream().allMatch(expected ->
-                        found.stream().anyMatch(actual -> valuesEqual(actual, expected)));
-            }
             case IN, NIN -> {
-                reader.readStartArray();
                 boolean matches = false;
-                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-                    BqlValue value = readBsonValue(reader);
+                for (BsonValue element : array) {
+                    BqlValue value = convertBsonValueToBqlValue(element);
                     if (value != null && !matches) {
                         matches = expectedValues.stream().anyMatch(expected -> valuesEqual(value, expected));
                     }
                 }
-                reader.readEndArray();
                 yield (op == Operator.IN) == matches;
             }
-            default -> {
-                reader.skipValue();
-                yield false;
-            }
+            default -> false;
         };
     }
 
-    /**
-     * Checks if a field value matches any value in the list (for IN/NIN operators).
-     */
-    private static boolean matchesAnyInList(BsonReader reader, List<?> expectedValues) {
-        BqlValue actual = readBsonValue(reader);
-        if (actual == null) {
-            return false;
-        }
-        return expectedValues.stream()
-                .filter(v -> v instanceof BqlValue)
-                .map(v -> (BqlValue) v)
-                .anyMatch(expected -> valuesEqual(actual, expected));
-    }
-
-    /**
-     * Reads a BSON value and converts it to a BqlValue.
-     */
-    private static BqlValue readBsonValue(BsonReader reader) {
-        return switch (reader.getCurrentBsonType()) {
-            case STRING -> new StringVal(reader.readString());
-            case INT32 -> new Int32Val(reader.readInt32());
-            case INT64 -> new Int64Val(reader.readInt64());
-            case DOUBLE -> new DoubleVal(reader.readDouble());
-            case DECIMAL128 -> new Decimal128Val(reader.readDecimal128().bigDecimalValue());
-            case BOOLEAN -> new BooleanVal(reader.readBoolean());
-            case NULL -> {
-                reader.readNull();
-                yield NullVal.INSTANCE;
+    private static BqlValue convertBsonValueToBqlValue(BsonValue bsonValue) {
+        return switch (bsonValue.getBsonType()) {
+            case STRING -> new StringVal(bsonValue.asString().getValue());
+            case INT32 -> new Int32Val(bsonValue.asInt32().getValue());
+            case INT64 -> new Int64Val(bsonValue.asInt64().getValue());
+            case DOUBLE -> new DoubleVal(bsonValue.asDouble().getValue());
+            case DECIMAL128 -> new Decimal128Val(bsonValue.asDecimal128().decimal128Value().bigDecimalValue());
+            case BOOLEAN -> new BooleanVal(bsonValue.asBoolean().getValue());
+            case NULL -> NullVal.INSTANCE;
+            case DATE_TIME -> new DateTimeVal(bsonValue.asDateTime().getValue());
+            case TIMESTAMP -> new TimestampVal(bsonValue.asTimestamp().getValue());
+            case BINARY -> new BinaryVal(bsonValue.asBinary().getData());
+            case ARRAY -> {
+                List<BqlValue> elements = new ArrayList<>();
+                for (BsonValue element : bsonValue.asArray()) {
+                    BqlValue converted = convertBsonValueToBqlValue(element);
+                    if (converted != null) {
+                        elements.add(converted);
+                    }
+                }
+                yield new ArrayVal(elements);
             }
-            case TIMESTAMP -> new TimestampVal(reader.readTimestamp().getValue());
-            case DATE_TIME -> new DateTimeVal(reader.readDateTime());
-            case BINARY -> new BinaryVal(reader.readBinaryData().getData());
-            default -> {
-                reader.skipValue();
-                yield null;
-            }
+            default -> null;
         };
     }
 
@@ -459,10 +413,5 @@ public class PredicateEvaluator {
             }
         }
         return false;
-    }
-
-    @FunctionalInterface
-    private interface ValueReader<T> {
-        T read();
     }
 }

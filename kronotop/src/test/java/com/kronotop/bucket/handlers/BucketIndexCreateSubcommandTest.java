@@ -144,6 +144,38 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
     }
 
     @Test
+    void shouldCreateIndexWithMultiKeyTrue() {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexCreate(TEST_BUCKET, "{\"tags\": {\"bson_type\": \"string\", \"multi_key\": true}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertNotNull(actualMessage);
+        assertEquals(Response.OK, actualMessage.content());
+
+        // Verify the index was created with multiKey flag
+        var indexDefinition = loadIndexDefinition("tags");
+        assertNotNull(indexDefinition);
+        assertTrue(indexDefinition.multiKey());
+    }
+
+    @Test
+    void shouldCreateIndexWithMultiKeyFalse() {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexCreate(TEST_BUCKET, "{\"category\": {\"bson_type\": \"string\", \"multi_key\": false}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertNotNull(actualMessage);
+        assertEquals(Response.OK, actualMessage.content());
+
+        // Verify the index was created with multiKey flag set to false
+        var indexDefinition = loadIndexDefinition("category");
+        assertNotNull(indexDefinition);
+        assertFalse(indexDefinition.multiKey());
+    }
+
+    @Test
     void shouldThrowBucketBeingRemovedExceptionWhenCreatingIndexOnRemovedBucket() {
         // First create the bucket by creating an index
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);

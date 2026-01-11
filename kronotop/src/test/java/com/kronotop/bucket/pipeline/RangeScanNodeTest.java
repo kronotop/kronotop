@@ -22,8 +22,7 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.internal.VersionstampUtil;
-import org.bson.BsonType;
-import org.bson.Document;
+import org.bson.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -225,7 +224,7 @@ class RangeScanNodeTest extends BasePipelineTest {
             if (!results.isEmpty()) {
                 List<Object> actualFieldValues = new ArrayList<>();
                 for (ByteBuffer buffer : results.values()) {
-                    Document doc = BSONUtil.fromBson(buffer.array());
+                    BsonDocument doc = BSONUtil.fromBson(buffer.array());
                     actualFieldValues.add(doc.get(fieldName));
                 }
 
@@ -270,18 +269,36 @@ class RangeScanNodeTest extends BasePipelineTest {
             if (!results.isEmpty()) {
                 List<Object> actualFieldValues = new ArrayList<>();
                 for (ByteBuffer buffer : results.values()) {
-                    Document doc = BSONUtil.fromBson(buffer.array());
+                    BsonDocument doc = BSONUtil.fromBson(buffer.array());
                     actualFieldValues.add(doc.get(fieldName));
                 }
 
                 // Check concrete expected results for specific test cases
-                validateReverseResults(fieldName, bsonType, rangeQuery, actualFieldValues, testDescription);
+                validateReverseResults(fieldName, rangeQuery, actualFieldValues, testDescription);
             }
         }
     }
 
-    private void validateReverseResults(String fieldName, BsonType bsonType, String rangeQuery,
-                                        List<Object> actualFieldValues, String testDescription) {
+    private Object extractValue(Object obj) {
+        if (obj == null) return null;
+        return switch (obj) {
+            case BsonInt32 v -> v.getValue();
+            case BsonInt64 v -> v.getValue();
+            case BsonDouble v -> v.getValue();
+            case BsonString v -> v.getValue();
+            case BsonBoolean v -> v.getValue();
+            case BsonDecimal128 v -> v.getValue();
+            case BsonDateTime v -> v.getValue();
+            default -> obj;
+        };
+    }
+
+    private void validateReverseResults(String fieldName, String rangeQuery, List<Object> actualFieldValues, String testDescription) {
+        // Extract Java values from BsonValue types
+        List<Object> extractedActualValues = actualFieldValues.stream()
+                .map(this::extractValue)
+                .toList();
+
         // Calculate expected results in reverse order based on the specific query
         List<Object> expectedValues = new ArrayList<>();
 
@@ -321,14 +338,14 @@ class RangeScanNodeTest extends BasePipelineTest {
             return;
         }
 
-        assertEquals(expectedValues.size(), actualFieldValues.size(),
-                "Expected " + expectedValues.size() + " values but got " + actualFieldValues.size() +
+        assertEquals(expectedValues.size(), extractedActualValues.size(),
+                "Expected " + expectedValues.size() + " values but got " + extractedActualValues.size() +
                         " for reverse query: " + testDescription);
 
         // Check that actual values match expected values in reverse order
         for (int i = 0; i < expectedValues.size(); i++) {
             Object expected = expectedValues.get(i);
-            Object actual = actualFieldValues.get(i);
+            Object actual = extractedActualValues.get(i);
 
             // Handle type conversion issues between Long and Integer for numeric values
             if (expected instanceof Number && actual instanceof Number) {
@@ -347,6 +364,11 @@ class RangeScanNodeTest extends BasePipelineTest {
 
     private void validateForwardResults(String fieldName, BsonType bsonType, String rangeQuery,
                                         List<Object> actualFieldValues, String testDescription) {
+        // Extract Java values from BsonValue types
+        List<Object> extractedActualValues = actualFieldValues.stream()
+                .map(this::extractValue)
+                .toList();
+
         // Calculate expected results in forward order based on the specific query
         List<Object> expectedValues = new ArrayList<>();
 
@@ -386,14 +408,14 @@ class RangeScanNodeTest extends BasePipelineTest {
             return;
         }
 
-        assertEquals(expectedValues.size(), actualFieldValues.size(),
-                "Expected " + expectedValues.size() + " values but got " + actualFieldValues.size() +
+        assertEquals(expectedValues.size(), extractedActualValues.size(),
+                "Expected " + expectedValues.size() + " values but got " + extractedActualValues.size() +
                         " for forward query: " + testDescription);
 
         // Check that actual values match expected values in forward order
         for (int i = 0; i < expectedValues.size(); i++) {
             Object expected = expectedValues.get(i);
-            Object actual = actualFieldValues.get(i);
+            Object actual = extractedActualValues.get(i);
 
             // Handle type conversion issues between Long and Integer for numeric values
             if (expected instanceof Number && actual instanceof Number) {

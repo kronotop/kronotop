@@ -314,6 +314,9 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
             waitForIndexReadiness(nameIndex.subspace());
         }
 
+        // Invalidate metadata cache to ensure EXPLAIN sees the new indexes
+        context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
+
         // Insert documents with both fields
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),
@@ -358,6 +361,9 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
             Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(ageIndex.subspace());
         }
+
+        // Invalidate metadata cache to ensure EXPLAIN sees the new index
+        context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
 
         // Insert documents
         List<byte[]> documents = List.of(

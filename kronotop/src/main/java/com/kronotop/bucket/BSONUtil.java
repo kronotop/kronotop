@@ -16,9 +16,12 @@
 
 package com.kronotop.bucket;
 
+import com.kronotop.bucket.bson.BasicOutputBuffer;
 import org.bson.*;
-import org.bson.codecs.*;
-import org.bson.io.BasicOutputBuffer;
+import org.bson.codecs.BsonDocumentCodec;
+import org.bson.codecs.Codec;
+import org.bson.codecs.DecoderContext;
+import org.bson.codecs.EncoderContext;
 import org.bson.json.JsonReader;
 import org.bson.types.Binary;
 import org.bson.types.Decimal128;
@@ -33,96 +36,94 @@ import java.util.Collection;
 import java.util.Date;
 
 /**
- * Utility class for handling BSON {@code Document} serialization and deserialization.
- * Provides methods for converting BSON {@code Document} objects into byte arrays and vice versa.
+ * Utility class for BSON document serialization and deserialization.
+ * Provides methods for converting {@code BsonDocument} objects to byte arrays and vice versa.
  * <p>
- * This class uses a static {@code DocumentCodec} instance to encode and decode BSON {@code Document} objects.
- * It operates with the BSON binary serialization format for efficient storage and transmission.
+ * Uses {@code BsonDocumentCodec} for encoding and decoding operations.
  */
 public class BSONUtil {
 
-    private static final Codec<Document> DOCUMENT_CODEC = new DocumentCodec();
     private static final Codec<BsonDocument> BSON_DOCUMENT_CODEC = new BsonDocumentCodec();
 
     /**
-     * Converts a BSON {@code Document} into its byte array representation.
+     * Serializes a {@code BsonDocument} to a BSON-encoded byte array.
      *
-     * @param document the {@code Document} to be converted into a byte array
-     * @return a byte array representing the serialized BSON document
+     * @param document the document to serialize
+     * @return the serialized BSON data as a byte array
      */
-    public static byte[] toBytes(Document document) {
+    public static byte[] toBytes(BsonDocument document) {
+       return toByteBuffer(document).array();
+    }
+
+    /**
+     * Serializes a {@code BsonDocument} to a BSON-encoded {@code ByteBuffer}.
+     *
+     * @param document the document to serialize
+     * @return the serialized BSON data as a {@code ByteBuffer} ready for reading
+     */
+    public static ByteBuffer toByteBuffer(BsonDocument document) {
         try (BasicOutputBuffer buffer = new BasicOutputBuffer()) {
             BsonBinaryWriter writer = new BsonBinaryWriter(buffer);
-            DOCUMENT_CODEC.encode(writer, document, EncoderContext.builder().isEncodingCollectibleDocument(true).build());
-            return buffer.toByteArray();
+            BSON_DOCUMENT_CODEC.encode(writer, document, EncoderContext.builder().isEncodingCollectibleDocument(true).build());
+            return buffer.getInternalBuffer();
         }
     }
 
     /**
-     * Converts a byte array representation of a BSON document into its Document object form.
+     * Deserializes a BSON-encoded byte array into a {@code BsonDocument}.
      *
-     * @param bytes the byte array containing the serialized BSON document
-     * @return the decoded {@code Document} object
+     * @param bytes the BSON-encoded byte array
+     * @return the deserialized {@code BsonDocument}
      */
-    public static Document toDocument(byte[] bytes) {
+    public static BsonDocument toBsonDocument(byte[] bytes) {
         try (BsonBinaryReader reader = new BsonBinaryReader(ByteBuffer.wrap(bytes))) {
-            return DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
+            return BSON_DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
         }
     }
 
     /**
-     * Converts a JSON-encoded byte array into a BSON {@code Document}.
+     * Converts a JSON-encoded byte array into a {@code BsonDocument}.
      *
-     * @param bytes the JSON-encoded byte array to be converted into a {@code Document}
-     * @return the BSON {@code Document} decoded from the provided byte array
+     * @param bytes the JSON-encoded byte array
+     * @return the decoded {@code BsonDocument}
      */
-    public static Document fromJson(byte[] bytes) {
+    public static BsonDocument fromJson(byte[] bytes) {
         Reader targetReader = new InputStreamReader(new ByteArrayInputStream(bytes));
         try (JsonReader reader = new JsonReader(targetReader)) {
-            return DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
+            return BSON_DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
         }
     }
 
     /**
-     * Deserializes a byte array containing BSON data into a {@code Document}.
+     * Deserializes a byte array containing BSON data into a {@code BsonDocument}.
      *
-     * @param bytes the byte array containing the serialized BSON data
-     * @return the deserialized {@code Document} object
+     * @param bytes the byte array containing serialized BSON data
+     * @return the deserialized {@code BsonDocument}
      */
-    public static Document fromBson(byte[] bytes) {
+    public static BsonDocument fromBson(byte[] bytes) {
         return fromBson(ByteBuffer.wrap(bytes));
     }
 
     /**
-     * Deserializes a {@code ByteBuffer} containing BSON data into a {@code Document}.
+     * Deserializes a {@code ByteBuffer} containing BSON data into a {@code BsonDocument}.
      *
-     * @param buffer the {@code ByteBuffer} containing the serialized BSON data
-     * @return the deserialized {@code Document} object
+     * @param buffer the {@code ByteBuffer} containing serialized BSON data
+     * @return the deserialized {@code BsonDocument}
      */
-    public static Document fromBson(ByteBuffer buffer) {
+    public static BsonDocument fromBson(ByteBuffer buffer) {
         try (BsonBinaryReader reader = new BsonBinaryReader(buffer)) {
-            return DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
+            return BSON_DOCUMENT_CODEC.decode(reader, DecoderContext.builder().build());
         }
     }
 
     /**
-     * Converts a JSON string into a BSON {@code Document} and then serializes it to a byte array.
+     * Parses a JSON string and serializes it to a BSON byte array.
      *
-     * @param data the JSON string to be parsed and converted into a BSON {@code Document}
-     * @return a byte array representing the serialized BSON document
+     * @param data the JSON string to parse
+     * @return a byte array containing the serialized BSON document
      */
     public static byte[] jsonToDocumentThenBytes(String data) {
-        return BSONUtil.toBytes(Document.parse(data));
-    }
-
-    /**
-     * Converts a {@code BsonDocument} into its byte array representation.
-     *
-     * @param document the {@code BsonDocument} to be converted into a byte array
-     * @return a byte array representing the serialized BSON document
-     */
-    public static byte[] toBytes(BsonDocument document) {
-        return new RawBsonDocument(document, BSON_DOCUMENT_CODEC).getByteBuffer().array();
+        return BSONUtil.toBytes(RawBsonDocument.parse(data));
     }
 
     /**

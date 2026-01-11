@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.CachedTimeService;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BsonHelper;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
@@ -32,7 +33,8 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import org.bson.Document;
+import org.bson.BsonDocument;
+import org.bson.BsonInt32;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
@@ -102,7 +104,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, expectedRemainingVersionstamps.size(), "Should have 2 remaining documents");
 
         // Step 4: Query all remaining documents and verify
-        Map<String, Document> actualRemainingDocuments = new HashMap<>();
+        Map<String, BsonDocument> actualRemainingDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -117,7 +119,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
                 String versionstamp = keyMessage.content();
                 byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
-                Document doc = BSONUtil.toDocument(docBytes);
+                BsonDocument doc = BSONUtil.toBsonDocument(docBytes);
 
                 actualRemainingDocuments.put(versionstamp, doc);
             }
@@ -134,15 +136,15 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Step 6: Verify that remaining documents have age <= 30
-        for (Document doc : actualRemainingDocuments.values()) {
-            Integer age = doc.getInteger("age");
+        for (BsonDocument doc : actualRemainingDocuments.values()) {
+            BsonInt32 age = doc.getInt32("age");
             assertNotNull(age, "Document should have age field");
-            assertTrue(age <= 30, "Remaining document should have age <= 30, but was: " + age);
+            assertTrue(age.getValue() <= 30, "Remaining document should have age <= 30, but was: " + age);
         }
 
         // Verify specific expected documents remain (Alice: 25, Diana: 28)
         Set<String> remainingNames = actualRemainingDocuments.values().stream()
-                .map(doc -> doc.getString("name"))
+                .map(doc -> doc.getString("name").getValue())
                 .collect(Collectors.toSet());
 
         assertEquals(Set.of("Alice", "Diana"), remainingNames,
@@ -323,7 +325,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Step 3: Verify deletion by querying remaining documents
-        Map<String, Document> actualRemainingDocuments = new HashMap<>();
+        Map<String, BsonDocument> actualRemainingDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
             bucketCmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -338,7 +340,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
                 String versionstamp = keyMessage.content();
                 byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
-                Document doc = BSONUtil.toDocument(docBytes);
+                BsonDocument doc = BSONUtil.toBsonDocument(docBytes);
 
                 actualRemainingDocuments.put(versionstamp, doc);
             }
@@ -348,15 +350,15 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, actualRemainingDocuments.size(), "Should have 2 remaining documents after transaction delete");
 
         // Verify that remaining documents have age <= 30
-        for (Document doc : actualRemainingDocuments.values()) {
-            Integer age = doc.getInteger("age");
+        for (BsonDocument doc : actualRemainingDocuments.values()) {
+            Integer age = BsonHelper.getInteger(doc, "age");
             assertNotNull(age, "Document should have age field");
             assertTrue(age <= 30, "Remaining document should have age <= 30, but was: " + age);
         }
 
         // Verify specific expected documents remain (Alice: 25, Diana: 28)
         Set<String> remainingNames = actualRemainingDocuments.values().stream()
-                .map(doc -> doc.getString("name"))
+                .map(doc -> BsonHelper.getString(doc, "name"))
                 .collect(Collectors.toSet());
 
         assertEquals(Set.of("Alice", "Diana"), remainingNames,
@@ -461,7 +463,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Step 4: Query remaining documents to verify only Diana (age=25) remains
-        Map<String, Document> remainingDocuments = new HashMap<>();
+        Map<String, BsonDocument> remainingDocuments = new HashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{}").encode(buf);
@@ -476,7 +478,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
                 String versionstamp = keyMessage.content();
                 byte[] docBytes = ByteBufUtil.getBytes(valueMessage.content());
-                Document document = BSONUtil.toDocument(docBytes);
+                BsonDocument document = BSONUtil.toBsonDocument(docBytes);
                 remainingDocuments.put(versionstamp, document);
             }
         }
@@ -484,9 +486,9 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Step 5: Verify only Diana (age=25) remains
         assertEquals(1, remainingDocuments.size(), "Should have 1 remaining document after delete");
 
-        Document remainingDoc = remainingDocuments.values().iterator().next();
-        assertEquals("Diana", remainingDoc.getString("name"), "Remaining document should be Diana");
-        assertEquals(25, remainingDoc.getInteger("age"), "Remaining document should have age 25");
+        BsonDocument remainingDoc = remainingDocuments.values().iterator().next();
+        assertEquals("Diana", BsonHelper.getString(remainingDoc, "name"), "Remaining document should be Diana");
+        assertEquals(25, BsonHelper.getInteger(remainingDoc, "age"), "Remaining document should have age 25");
 
         // Verify that none of the remaining versionstamps were deleted
         for (String remainingVs : remainingDocuments.keySet()) {

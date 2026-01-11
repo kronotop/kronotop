@@ -35,7 +35,7 @@ import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.bson.Document;
+import org.bson.BsonDocument;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -97,7 +97,7 @@ public abstract class AbstractBucketHandler implements Handler {
                 yield Unpooled.wrappedBuffer(bb.slice());
             }
             case ReplyType.JSON -> {
-                Document document = BSONUtil.toDocument(entry.getValue().array());
+                BsonDocument document = BSONUtil.toBsonDocument(entry.getValue().array());
                 byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
                 yield Unpooled.wrappedBuffer(data);
             }
@@ -252,7 +252,7 @@ public abstract class AbstractBucketHandler implements Handler {
         return buildQueryContext(request, bucket, query, arguments, null);
     }
 
-    Document parseDocument(InputType inputType, byte[] data) {
+    BsonDocument parseDocument(InputType inputType, byte[] data) {
         if (inputType.equals(InputType.JSON)) {
             return BSONUtil.fromJson(data);
         } else if (inputType.equals(InputType.BSON)) {

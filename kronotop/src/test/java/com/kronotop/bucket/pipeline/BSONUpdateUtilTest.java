@@ -16,12 +16,14 @@
 
 package com.kronotop.bucket.pipeline;
 
+import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.bson.BasicOutputBuffer;
 import org.bson.*;
-import org.bson.io.BasicOutputBuffer;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -95,7 +97,7 @@ class BSONUpdateUtilTest {
 
     @Test
     void shouldApplySetOperationsWithEmptyUpdateOps() {
-        // Create original document
+        // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
         originalDoc.put("age", new BsonInt32(25));
@@ -112,7 +114,7 @@ class BSONUpdateUtilTest {
 
     @Test
     void shouldUpdateExistingStringField() {
-        // Create original document
+        // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
         originalDoc.put("age", new BsonInt32(25));
@@ -403,7 +405,7 @@ class BSONUpdateUtilTest {
 
     @Test
     void shouldUpdateAndAddFieldsInSameOperation() {
-        // Create original document
+        // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("existingField", new BsonString("original"));
         originalDoc.put("unchangedField", new BsonInt32(100));
@@ -436,7 +438,7 @@ class BSONUpdateUtilTest {
 
     @Test
     void shouldUnsetSingleField() {
-        // Create original document
+        // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
         originalDoc.put("age", new BsonInt32(25));
@@ -459,7 +461,7 @@ class BSONUpdateUtilTest {
 
     @Test
     void shouldUnsetMultipleFields() {
-        // Create original document
+        // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
         originalDoc.put("age", new BsonInt32(25));
@@ -484,13 +486,13 @@ class BSONUpdateUtilTest {
 
     @Test
     void shouldUnsetNonExistentField() {
-        // Create original document
+        // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
         originalDoc.put("age", new BsonInt32(25));
         ByteBuffer originalBuffer = createBsonDocument(originalDoc);
 
-        // Try to unset non-existent field
+        // Try to unset a non-existent field
         Set<String> unsetOps = Set.of("nonExistent");
         BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
 
@@ -505,7 +507,7 @@ class BSONUpdateUtilTest {
 
     @Test
     void shouldSetAndUnsetInSameOperation() {
-        // Create original document
+        // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
         originalDoc.put("age", new BsonInt32(25));
@@ -531,7 +533,7 @@ class BSONUpdateUtilTest {
 
     @Test
     void shouldUnsetAllFields() {
-        // Create original document
+        // Create the original document
         BsonDocument originalDoc = new BsonDocument();
         originalDoc.put("name", new BsonString("John"));
         originalDoc.put("age", new BsonInt32(25));
@@ -541,11 +543,288 @@ class BSONUpdateUtilTest {
         Set<String> unsetOps = Set.of("name", "age");
         BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
 
-        // Verify document is empty
+        // Verify the document is empty
         BsonDocument updatedDoc = readBsonDocument(result.document());
         assertTrue(updatedDoc.isEmpty());
 
         // Verify all fields in droppedSelectors
         assertEquals(Set.of("name", "age"), result.droppedSelectors());
+    }
+
+    @Test
+    void shouldUnsetFieldWithinArrayOfDocuments() {
+        // Create the document with an array of objects: { tags: [{ name: "java" }, { name: "kotlin" }, { name: "scala" }] }
+        String json = "{\"name\": \"Alice\", \"tags\": [{\"name\": \"java\"}, {\"name\": \"kotlin\"}, {\"name\": \"scala\"}]}";
+        ByteBuffer originalBuffer = ByteBuffer.wrap(BSONUtil.jsonToDocumentThenBytes(json));
+
+        // Unset "tags.name" - should remove the "name" field from each object in the tags array
+        Set<String> unsetOps = Set.of("tags.name");
+        BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
+
+        // Verify the "name" field is removed from each element in the tags array
+        BsonDocument updatedDoc = BSONUtil.fromBson(result.document());
+        assertEquals("Alice", updatedDoc.getString("name").getValue());
+
+        @SuppressWarnings("unchecked")
+        List<BsonDocument> tags = (List<BsonDocument>) updatedDoc.get("tags");
+        assertNotNull(tags);
+        assertEquals(3, tags.size());
+
+        // Each tag object should no longer have the "name" field
+        for (BsonDocument tag : tags) {
+            assertFalse(tag.containsKey("name"), "Each tag should not have 'name' field after unset");
+        }
+
+        // Verify droppedSelectors contains the unset path
+        assertEquals(Set.of("tags.name"), result.droppedSelectors());
+    }
+
+    @Test
+    void shouldUnsetNestedFieldInDocument() {
+        // Create the document with the nested object: { user: { profile: { email: "test@example.com", phone: "123" } } }
+        String json = "{\"user\": {\"profile\": {\"email\": \"test@example.com\", \"phone\": \"123\"}}}";
+        ByteBuffer originalBuffer = ByteBuffer.wrap(BSONUtil.jsonToDocumentThenBytes(json));
+
+        // Unset "user.profile.email" - should remove the email field from the nested profile
+        Set<String> unsetOps = Set.of("user.profile.email");
+        BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
+
+        // Verify the email field is removed
+        BsonDocument updatedDoc = BSONUtil.fromBson(result.document());
+        BsonDocument user = (BsonDocument) updatedDoc.get("user");
+        assertNotNull(user);
+        BsonDocument profile = (BsonDocument) user.get("profile");
+        assertNotNull(profile);
+        assertFalse(profile.containsKey("email"), "email should be removed");
+        assertEquals("123", profile.getString("phone").getValue(), "phone should remain");
+
+        // Verify droppedSelectors
+        assertEquals(Set.of("user.profile.email"), result.droppedSelectors());
+    }
+
+    @Test
+    void shouldUnsetFieldWithinArrayPreservingOtherFields() {
+        // Create the document where array elements have multiple fields
+        String json = "{\"items\": [{\"name\": \"item1\", \"price\": 10}, {\"name\": \"item2\", \"price\": 20}]}";
+        ByteBuffer originalBuffer = ByteBuffer.wrap(BSONUtil.jsonToDocumentThenBytes(json));
+
+        // Unset "items.price" - should remove price but keep the name
+        Set<String> unsetOps = Set.of("items.price");
+        BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
+
+        // Verify price is removed but the name remains
+        BsonDocument updatedDoc = BSONUtil.fromBson(result.document());
+        @SuppressWarnings("unchecked")
+        List<BsonDocument> items = (List<BsonDocument>) updatedDoc.get("items");
+        assertNotNull(items);
+        assertEquals(2, items.size());
+
+        assertEquals("item1", items.get(0).getString("name").getValue());
+        assertFalse(items.get(0).containsKey("price"), "price should be removed from first item");
+
+        assertEquals("item2", items.get(1).getString("name").getValue());
+        assertFalse(items.get(1).containsKey("price"), "price should be removed from second item");
+
+        assertEquals(Set.of("items.price"), result.droppedSelectors());
+    }
+
+    @Test
+    void shouldNotUnsetWhenPathDoesNotExist() {
+        // Create the document without the nested path
+        String json = "{\"name\": \"Alice\", \"tags\": [{\"type\": \"java\"}]}";
+        ByteBuffer originalBuffer = ByteBuffer.wrap(BSONUtil.jsonToDocumentThenBytes(json));
+
+        // Try to unset "tags.name" which doesn't exist
+        Set<String> unsetOps = Set.of("tags.name");
+        BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
+
+        // BsonDocument should be unchanged
+        BsonDocument updatedDoc = BSONUtil.fromBson(result.document());
+        assertEquals("Alice", updatedDoc.getString("name").getValue());
+
+        @SuppressWarnings("unchecked")
+        List<BsonDocument> tags = (List<BsonDocument>) updatedDoc.get("tags");
+        assertEquals("java", tags.getFirst().getString("type").getValue());
+
+        // droppedSelectors should be empty since nothing was actually removed
+        assertTrue(result.droppedSelectors().isEmpty());
+    }
+
+    @Test
+    void shouldUnsetFieldFromSomeArrayElementsOnly() {
+        // Create a document where only some array elements have the field
+        String json = "{\"items\": [{\"name\": \"item1\", \"price\": 10}, {\"name\": \"item2\"}, {\"name\": \"item3\", \"price\": 30}]}";
+        ByteBuffer originalBuffer = ByteBuffer.wrap(BSONUtil.jsonToDocumentThenBytes(json));
+
+        // Unset "items.price" - should remove price from elements that have it
+        Set<String> unsetOps = Set.of("items.price");
+        BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
+
+        // Verify price is removed where it existed
+        BsonDocument updatedDoc = BSONUtil.fromBson(result.document());
+        @SuppressWarnings("unchecked")
+        List<BsonDocument> items = (List<BsonDocument>) updatedDoc.get("items");
+
+        assertEquals("item1", items.get(0).getString("name").getValue());
+        assertFalse(items.get(0).containsKey("price"));
+
+        assertEquals("item2", items.get(1).getString("name").getValue());
+        assertFalse(items.get(1).containsKey("price"));
+
+        assertEquals("item3", items.get(2).getString("name").getValue());
+        assertFalse(items.get(2).containsKey("price"));
+
+        // droppedSelectors should contain the path since some fields were removed
+        assertEquals(Set.of("items.price"), result.droppedSelectors());
+    }
+
+    @Test
+    void shouldUnsetFieldWithinNestedBsonDocument() {
+        // Create a BsonDocument containing a nested BsonDocument
+        BsonDocument doc = new BsonDocument();
+        doc.put("name", new BsonString("Alice"));
+        BsonDocument nestedBsonDoc = new BsonDocument();
+        nestedBsonDoc.put("email", new BsonString("alice@example.com"));
+        nestedBsonDoc.put("phone", new BsonString("123-456"));
+        doc.put("contact", nestedBsonDoc);
+
+        ByteBuffer originalBuffer = ByteBuffer.wrap(BSONUtil.toBytes(doc));
+
+        // Unset "contact.email" - should remove email from the nested BsonDocument
+        Set<String> unsetOps = Set.of("contact.email");
+        BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
+
+        // Verify email is removed but phone remains
+        BsonDocument updatedDoc = BSONUtil.fromBson(result.document());
+        assertEquals("Alice", updatedDoc.getString("name").getValue());
+
+        Object contact = updatedDoc.get("contact");
+        assertNotNull(contact);
+
+        if (contact instanceof BsonDocument bsonContact) {
+            assertFalse(bsonContact.containsKey("email"), "email should be removed from BsonDocument");
+            assertEquals("123-456", bsonContact.getString("phone").getValue(), "phone should remain");
+        } else {
+            fail("contact must be a BsonDocument");
+        }
+
+        assertEquals(Set.of("contact.email"), result.droppedSelectors());
+    }
+
+    @Test
+    void shouldUnsetFieldWithinBsonArray() {
+        // Create a BsonDocument containing a BsonArray with BsonDocuments
+        BsonDocument doc = new BsonDocument();
+        doc.put("name", new BsonString("Bob"));
+
+        BsonArray bsonArray = new BsonArray();
+        BsonDocument item1 = new BsonDocument();
+        item1.put("tag", new BsonString("java"));
+        item1.put("level", new BsonInt32(5));
+        bsonArray.add(item1);
+
+        BsonDocument item2 = new BsonDocument();
+        item2.put("tag", new BsonString("kotlin"));
+        item2.put("level", new BsonInt32(3));
+        bsonArray.add(item2);
+
+        doc.put("skills", bsonArray);
+
+        ByteBuffer originalBuffer = ByteBuffer.wrap(BSONUtil.toBytes(doc));
+
+        // Unset "skills.level" - should remove level from each BsonDocument in the BsonArray
+        Set<String> unsetOps = Set.of("skills.level");
+        BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
+
+        // Verify level is removed but tag remains
+        BsonDocument updatedDoc = BSONUtil.fromBson(result.document());
+        assertEquals("Bob", updatedDoc.getString("name").getValue());
+
+        Object skills = updatedDoc.get("skills");
+        assertNotNull(skills);
+
+        if (skills instanceof BsonArray bsonSkills) {
+            for (BsonValue skill : bsonSkills) {
+                BsonDocument skillDoc = skill.asDocument();
+                assertTrue(skillDoc.containsKey("tag"), "tag should remain");
+                assertFalse(skillDoc.containsKey("level"), "level should be removed");
+            }
+        } else if (skills instanceof List<?> listSkills) {
+            for (Object skill : listSkills) {
+                if (skill instanceof BsonDocument skillDoc) {
+                    assertTrue(skillDoc.containsKey("tag"), "tag should remain");
+                    assertFalse(skillDoc.containsKey("level"), "level should be removed");
+                }
+            }
+        }
+
+        assertEquals(Set.of("skills.level"), result.droppedSelectors());
+    }
+
+    @Test
+    void shouldNotUnsetWhenBsonDocumentDoesNotContainKey() {
+        // Create a BsonDocument containing a nested BsonDocument without the target field
+        BsonDocument doc = new BsonDocument();
+        doc.put("name", new BsonString("Charlie"));
+        BsonDocument nestedBsonDoc = new BsonDocument();
+        nestedBsonDoc.put("phone", new BsonString("999-999"));
+        doc.put("contact", nestedBsonDoc);
+
+        ByteBuffer originalBuffer = ByteBuffer.wrap(BSONUtil.toBytes(doc));
+
+        // Try to unset "contact.email" which doesn't exist
+        Set<String> unsetOps = Set.of("contact.email");
+        BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
+
+        // Verify document unchanged
+        BsonDocument updatedDoc = BSONUtil.fromBson(result.document());
+        assertEquals("Charlie", updatedDoc.getString("name").getValue());
+
+        // droppedSelectors should be empty since nothing was removed
+        assertTrue(result.droppedSelectors().isEmpty());
+    }
+
+    @Test
+    void shouldUnsetDeeplyNestedFieldThroughBsonDocuments() {
+        // Create a deeply nested structure with BsonDocuments
+        BsonDocument doc = new BsonDocument();
+        doc.put("id", new BsonString("doc1"));
+
+        BsonDocument level1 = new BsonDocument();
+        BsonDocument level2 = new BsonDocument();
+        level2.put("target", new BsonString("value_to_remove"));
+        level2.put("keep", new BsonString("should_stay"));
+        level1.put("nested", level2);
+        doc.put("outer", level1);
+
+        ByteBuffer originalBuffer = ByteBuffer.wrap(BSONUtil.toBytes(doc));
+
+        // Unset "outer.nested.target"
+        Set<String> unsetOps = Set.of("outer.nested.target");
+        BSONUpdateUtil.DocumentUpdateResult result = BSONUpdateUtil.applyUpdateOperations(originalBuffer, Map.of(), unsetOps);
+
+        // Verify target is removed but keep remains
+        BsonDocument updatedDoc = BSONUtil.fromBson(result.document());
+        assertEquals("doc1", updatedDoc.getString("id").getValue());
+
+        Object outer = updatedDoc.get("outer");
+        assertNotNull(outer);
+
+        Object nested = null;
+        if (outer instanceof BsonDocument bsonOuter) {
+            nested = bsonOuter.get("nested");
+        } else {
+            fail("nested must be BsonDocument");
+        }
+        assertNotNull(nested);
+
+        if (nested instanceof BsonDocument bsonNested) {
+            assertFalse(bsonNested.containsKey("target"), "target should be removed");
+            assertEquals("should_stay", bsonNested.getString("keep").getValue(), "keep should remain");
+        } else {
+            fail("should_stay must be BsonDocument");
+        }
+
+        assertEquals(Set.of("outer.nested.target"), result.droppedSelectors());
     }
 }

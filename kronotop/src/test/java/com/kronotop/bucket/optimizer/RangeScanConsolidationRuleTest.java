@@ -357,10 +357,10 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
 
             // Test: AND(price >= 10, price < 100, price > 5, price <= 95)
             String query = "{ $and: [" +
-                    "{ \"price\": { $gte: 10 } }, " +
-                    "{ \"price\": { $lt: 100 } }, " +
-                    "{ \"price\": { $gt: 5 } }, " +
-                    "{ \"price\": { $lte: 95 } }" +
+                    "{ \"price\": { $gte: 10.0 } }, " +
+                    "{ \"price\": { $lt: 100.0 } }, " +
+                    "{ \"price\": { $gt: 5.0 } }, " +
+                    "{ \"price\": { $lte: 95.0 } }" +
                     "] }";
 
             PhysicalNode unoptimized = planWithoutOptimization(query);
@@ -401,6 +401,169 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
             // Should not have any PhysicalRangeScan nodes
             int rangeScanCount = countNodeType(optimized, PhysicalRangeScan.class);
             assertEquals(0, rangeScanCount);
+        }
+    }
+
+    @Nested
+    @DisplayName("Scalar Array ElemMatch with Indexed Array Field")
+    class ScalarArrayElemMatchTests {
+
+        @Test
+        @DisplayName("Should preserve index from PhysicalIndexScan when filter has empty selector")
+        void shouldPreserveIndexFromPhysicalIndexScanWithEmptySelector() {
+            // Create index on array field
+            IndexDefinition pricesIndex = IndexDefinition.create("prices-index", "prices", BsonType.DOUBLE);
+            createIndex(pricesIndex);
+
+            // Simulate what PhysicalPlanner produces for scalar array $elemMatch:
+            // PhysicalElemMatch(selector=prices, subPlan=PhysicalAnd([
+            //   PhysicalIndexScan(filter=("", GTE, 10.0), index=prices-index),
+            //   PhysicalIndexScan(filter=("", LTE, 50.0), index=prices-index)
+            // ]))
+
+            // Create filters with empty selector (scalar array behavior)
+            PhysicalFilter gteFilter = createFilter("", Operator.GTE, 10.0);
+            PhysicalFilter lteFilter = createFilter("", Operator.LTE, 50.0);
+
+            // Create index scans with the prices index but empty selector filters
+            PhysicalIndexScan gteScan = new PhysicalIndexScan(nextId(), gteFilter, pricesIndex);
+            PhysicalIndexScan lteScan = new PhysicalIndexScan(nextId(), lteFilter, pricesIndex);
+
+            PhysicalAnd innerAnd = createAnd(gteScan, lteScan);
+            PhysicalElemMatch elemMatch = new PhysicalElemMatch(nextId(), "prices", innerAnd);
+
+            // Optimize
+            PhysicalNode optimized = optimize(elemMatch);
+
+            // Should preserve the index and consolidate to PhysicalRangeScan
+            assertInstanceOf(PhysicalElemMatch.class, optimized);
+            PhysicalElemMatch result = (PhysicalElemMatch) optimized;
+            assertEquals("prices", result.selector());
+
+            // The subPlan should be consolidated to a PhysicalRangeScan with the index preserved
+            assertInstanceOf(PhysicalRangeScan.class, result.subPlan());
+            PhysicalRangeScan rangeScan = (PhysicalRangeScan) result.subPlan();
+
+            // Index should be preserved from the original PhysicalIndexScan nodes
+            assertNotNull(rangeScan.index(), "Index should be preserved, not null");
+            assertEquals("prices", rangeScan.index().selector());
+
+            // Selector should be empty (original filter selector for residual evaluation)
+            assertEquals("", rangeScan.selector());
+
+            // Bounds should be consolidated
+            assertEquals(10.0, extractValue(rangeScan.lowerBound()));
+            assertEquals(50.0, extractValue(rangeScan.upperBound()));
+            assertTrue(rangeScan.includeLower());
+            assertTrue(rangeScan.includeUpper());
+        }
+
+        @Test
+        @DisplayName("Should use empty selector for residual predicate in scalar array $elemMatch")
+        void shouldUseEmptySelectorForResidualPredicateInScalarArrayElemMatch() {
+            // Create index on array field
+            IndexDefinition scoresIndex = IndexDefinition.create("scores-index", "scores", BsonType.INT32);
+            createIndex(scoresIndex);
+
+            // Create filters with empty selector
+            PhysicalFilter gtFilter = createFilter("", Operator.GT, 80);
+            PhysicalFilter ltFilter = createFilter("", Operator.LT, 100);
+
+            // Create index scans with the scores index
+            PhysicalIndexScan gtScan = new PhysicalIndexScan(nextId(), gtFilter, scoresIndex);
+            PhysicalIndexScan ltScan = new PhysicalIndexScan(nextId(), ltFilter, scoresIndex);
+
+            PhysicalAnd innerAnd = createAnd(gtScan, ltScan);
+            PhysicalElemMatch elemMatch = new PhysicalElemMatch(nextId(), "scores", innerAnd);
+
+            // Optimize
+            PhysicalNode optimized = optimize(elemMatch);
+
+            // Verify the structure
+            assertInstanceOf(PhysicalElemMatch.class, optimized);
+            PhysicalElemMatch result = (PhysicalElemMatch) optimized;
+
+            assertInstanceOf(PhysicalRangeScan.class, result.subPlan());
+            PhysicalRangeScan rangeScan = (PhysicalRangeScan) result.subPlan();
+
+            // The selector should be empty string (for scalar array residual evaluation)
+            // This is critical for PredicateEvaluator to work correctly
+            assertEquals("", rangeScan.selector(),
+                    "Selector should be empty for scalar array residual evaluation");
+        }
+
+        @Test
+        @DisplayName("Should group range conditions by index selector not filter selector")
+        void shouldGroupByIndexSelectorNotFilterSelector() {
+            // Create indexes on two array fields
+            IndexDefinition pricesIndex = IndexDefinition.create("prices-index", "prices", BsonType.DOUBLE);
+            IndexDefinition ratingsIndex = IndexDefinition.create("ratings-index", "ratings", BsonType.INT32);
+            createIndexes(pricesIndex, ratingsIndex);
+
+            // Create filters with empty selector but different indexes
+            PhysicalFilter priceGte = createFilter("", Operator.GTE, 10.0);
+            PhysicalFilter priceLte = createFilter("", Operator.LTE, 50.0);
+            PhysicalFilter ratingGt = createFilter("", Operator.GT, 3);
+            PhysicalFilter ratingLt = createFilter("", Operator.LT, 5);
+
+            // Create index scans - note all filters have empty selector
+            PhysicalIndexScan priceGteScan = new PhysicalIndexScan(nextId(), priceGte, pricesIndex);
+            PhysicalIndexScan priceLteScan = new PhysicalIndexScan(nextId(), priceLte, pricesIndex);
+            PhysicalIndexScan ratingGtScan = new PhysicalIndexScan(nextId(), ratingGt, ratingsIndex);
+            PhysicalIndexScan ratingLtScan = new PhysicalIndexScan(nextId(), ratingLt, ratingsIndex);
+
+            // Create AND with all four scans
+            PhysicalAnd and = createAnd(priceGteScan, priceLteScan, ratingGtScan, ratingLtScan);
+
+            // Optimize
+            PhysicalNode optimized = optimize(and);
+
+            // Should group by index selector and create two separate PhysicalRangeScan nodes
+            assertInstanceOf(PhysicalAnd.class, optimized);
+            PhysicalAnd result = (PhysicalAnd) optimized;
+            assertEquals(2, result.children().size());
+
+            // Count range scans
+            long rangeScanCount = result.children().stream()
+                    .filter(child -> child instanceof PhysicalRangeScan)
+                    .count();
+            assertEquals(2, rangeScanCount, "Should have two separate range scans");
+
+            // Verify each range scan has correct properties
+            for (PhysicalNode child : result.children()) {
+                PhysicalRangeScan rangeScan = (PhysicalRangeScan) child;
+                assertNotNull(rangeScan.index());
+                // Selector should be empty (from original filters)
+                assertEquals("", rangeScan.selector());
+            }
+        }
+
+        @Test
+        @DisplayName("Should handle single range operator in scalar array $elemMatch")
+        void shouldHandleSingleRangeOperatorInScalarArrayElemMatch() {
+            // Create index on array field
+            IndexDefinition tagsIndex = IndexDefinition.create("values-index", "values", BsonType.INT32);
+            createIndex(tagsIndex);
+
+            // Single GT operator - should not consolidate to range scan (needs both bounds)
+            PhysicalFilter gtFilter = createFilter("", Operator.GT, 90);
+            PhysicalIndexScan gtScan = new PhysicalIndexScan(nextId(), gtFilter, tagsIndex);
+            PhysicalElemMatch elemMatch = new PhysicalElemMatch(nextId(), "values", gtScan);
+
+            // Optimize
+            PhysicalNode optimized = optimize(elemMatch);
+
+            // Should remain as PhysicalElemMatch with PhysicalIndexScan (no consolidation)
+            assertInstanceOf(PhysicalElemMatch.class, optimized);
+            PhysicalElemMatch result = (PhysicalElemMatch) optimized;
+
+            // Should NOT be consolidated to range scan (single bound only)
+            assertInstanceOf(PhysicalIndexScan.class, result.subPlan());
+            PhysicalIndexScan indexScan = (PhysicalIndexScan) result.subPlan();
+
+            // Verify index is preserved
+            assertNotNull(indexScan.index());
+            assertEquals("values", indexScan.index().selector());
         }
     }
 

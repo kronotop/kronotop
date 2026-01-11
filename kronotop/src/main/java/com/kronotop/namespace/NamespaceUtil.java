@@ -25,6 +25,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.cluster.MemberSubspace;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.namespace.handlers.Namespace;
@@ -48,7 +49,7 @@ import static com.google.common.hash.Hashing.sipHash24;
 public class NamespaceUtil {
 
     private static List<String> splitNamespaceHierarchy(String namespace) {
-        return new ArrayList<>(List.of(namespace.split("\\.")));
+        return new ArrayList<>(List.of(StringUtil.split(namespace)));
     }
 
     public static DirectorySubspace open(Transaction tr, String clusterName, List<String> subpath) {

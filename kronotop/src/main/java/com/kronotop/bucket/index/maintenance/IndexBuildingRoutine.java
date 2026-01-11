@@ -31,8 +31,14 @@ import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
 import io.github.resilience4j.retry.Retry;
+import org.bson.BsonArray;
 import org.bson.BsonNull;
 import org.bson.BsonValue;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -345,21 +351,51 @@ public class IndexBuildingRoutine extends AbstractIndexMaintenanceRoutine {
 
             total++;
             versionstamp = pair.key();
-            Object indexValue = null;
             BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), pair.entry());
-            if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
-                indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
-                if (indexValue == null) {
-                    if (!strictTypes) {
-                        // Type mismatch, continue
+
+            if (bsonValue instanceof BsonArray bsonArray) {
+                // Multikey index: create an index entry for each unique value in the array
+                Set<Object> uniqueIndexValues = new HashSet<>();
+                List<BsonValue> uniqueBsonValues = new ArrayList<>();
+                for (BsonValue element : bsonArray) {
+                    if (element == null || element.equals(BsonNull.VALUE)) {
                         continue;
                     }
-                    throw new IndexTypeMismatchException(index.definition(), bsonValue);
+                    Object indexValue = BSONUtil.toObject(element, index.definition().bsonType());
+                    if (indexValue == null) {
+                        if (strictTypes) {
+                            throw new IndexTypeMismatchException(index.definition(), element);
+                        }
+                        continue;
+                    }
+                    if (uniqueIndexValues.add(indexValue)) {
+                        uniqueBsonValues.add(element);
+                    }
                 }
-            }
+                for (Object indexValue : uniqueIndexValues) {
+                    IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, versionstamp, indexValue, shardId, pair.metadata());
+                }
+                // Track stats for each unique element
+                for (BsonValue element : uniqueBsonValues) {
+                    IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, element);
+                }
+            } else {
+                // Single value index
+                Object indexValue = null;
+                if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+                    indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
+                    if (indexValue == null) {
+                        if (!strictTypes) {
+                            // Type mismatch, continue
+                            continue;
+                        }
+                        throw new IndexTypeMismatchException(index.definition(), bsonValue);
+                    }
+                }
 
-            IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, versionstamp, indexValue, shardId, pair.metadata());
-            IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, bsonValue);
+                IndexBuilder.insertIndexEntry(tr, index.definition(), metadata, versionstamp, indexValue, shardId, pair.metadata());
+                IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, bsonValue);
+            }
         }
 
         if (!state.bootstrapped()) {

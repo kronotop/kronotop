@@ -21,20 +21,22 @@ import com.kronotop.bucket.pipeline.UpdateOptions;
 import org.bson.*;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 class UpdateOptionsConverterTest {
 
     @Test
     void shouldConvertDocumentToUpdateOptionsWithSetAndUnsetArrayList() {
-        Document updateDoc = new Document();
-        Document setDoc = new Document();
-        setDoc.append("likes", 2);
-        setDoc.append("name", "John");
+        BsonDocument updateDoc = new BsonDocument();
+        BsonDocument setDoc = new BsonDocument();
+        setDoc.append("likes", new BsonInt32(2));
+        setDoc.append("name", new BsonString("John"));
         updateDoc.append(UpdateOptions.SET, setDoc);
-        updateDoc.append(UpdateOptions.UNSET, List.of("oldField", "deprecatedField"));
+
+        BsonArray unsetArray = new BsonArray();
+        unsetArray.add(new BsonString("oldField"));
+        unsetArray.add(new BsonString("deprecatedField"));
+        updateDoc.append(UpdateOptions.UNSET, unsetArray);
 
         UpdateOptions result = UpdateOptionsConverter.fromDocument(updateDoc);
 
@@ -51,9 +53,9 @@ class UpdateOptionsConverterTest {
 
     @Test
     void shouldConvertDocumentToUpdateOptionsWithBsonArray() {
-        Document updateDoc = new Document();
-        Document setDoc = new Document();
-        setDoc.append("status", "active");
+        BsonDocument updateDoc = new BsonDocument();
+        BsonDocument setDoc = new BsonDocument();
+        setDoc.append("status", new BsonString("active"));
         updateDoc.append(UpdateOptions.SET, setDoc);
 
         BsonArray unsetArray = new BsonArray();
@@ -73,10 +75,10 @@ class UpdateOptionsConverterTest {
 
     @Test
     void shouldConvertDocumentToUpdateOptionsWithOnlySet() {
-        Document updateDoc = new Document();
-        Document setDoc = new Document();
-        setDoc.append("count", 42);
-        setDoc.append("enabled", true);
+        BsonDocument updateDoc = new BsonDocument();
+        BsonDocument setDoc = new BsonDocument();
+        setDoc.append("count", new BsonInt32(42));
+        setDoc.append("enabled", new BsonBoolean(true));
         updateDoc.append(UpdateOptions.SET, setDoc);
 
         UpdateOptions result = UpdateOptionsConverter.fromDocument(updateDoc);
@@ -89,8 +91,11 @@ class UpdateOptionsConverterTest {
 
     @Test
     void shouldConvertDocumentToUpdateOptionsWithOnlyUnset() {
-        Document updateDoc = new Document();
-        updateDoc.append(UpdateOptions.UNSET, List.of("field1", "field2"));
+        BsonDocument updateDoc = new BsonDocument();
+        BsonArray unsetArray = new BsonArray();
+        unsetArray.add(new BsonString("field1"));
+        unsetArray.add(new BsonString("field2"));
+        updateDoc.append(UpdateOptions.UNSET, unsetArray);
 
         UpdateOptions result = UpdateOptionsConverter.fromDocument(updateDoc);
 
@@ -102,8 +107,11 @@ class UpdateOptionsConverterTest {
 
     @Test
     void shouldThrowExceptionForInvalidUnsetKey() {
-        Document updateDoc = new Document();
-        updateDoc.append(UpdateOptions.UNSET, List.of(123, "validField"));
+        BsonDocument updateDoc = new BsonDocument();
+        BsonArray unsetArray = new BsonArray();
+        unsetArray.add(new BsonInt32(123));
+        unsetArray.add(new BsonString("validField"));
+        updateDoc.append(UpdateOptions.UNSET, unsetArray);
 
         assertThrows(IllegalArgumentException.class, () -> {
             UpdateOptionsConverter.fromDocument(updateDoc);

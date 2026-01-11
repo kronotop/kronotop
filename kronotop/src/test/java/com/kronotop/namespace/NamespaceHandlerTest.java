@@ -42,6 +42,7 @@ import com.kronotop.volume.PrefixUtil;
 import com.kronotop.bucket.index.maintenance.IndexBuildingTask;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.worker.Worker;
 import io.lettuce.core.codec.StringCodec;
@@ -856,7 +857,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         }
 
         // Verify namespace no longer exists
-        assertFalse(NamespaceUtil.exists(context, List.of(namespace.split("\\."))));
+        assertFalse(NamespaceUtil.exists(context, List.of(StringUtil.split(namespace))));
     }
 
     @Test
@@ -982,7 +983,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         }
 
         // Verify namespace no longer exists
-        assertFalse(NamespaceUtil.exists(context, List.of(namespace.split("\\."))));
+        assertFalse(NamespaceUtil.exists(context, List.of(StringUtil.split(namespace))));
     }
 
     @Test

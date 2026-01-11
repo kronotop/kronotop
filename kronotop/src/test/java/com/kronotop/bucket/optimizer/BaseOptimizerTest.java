@@ -38,6 +38,7 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
     protected PhysicalPlanner physicalPlanner;
     protected LogicalPlanner logicalPlanner;
     protected BucketMetadata metadata;
+    private int nodeIdCounter = 0;
 
     @BeforeEach
     void setUp() {
@@ -45,6 +46,14 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
         physicalPlanner = new PhysicalPlanner();
         logicalPlanner = new LogicalPlanner();
         metadata = getBucketMetadata(TEST_BUCKET);
+        nodeIdCounter = 0;
+    }
+
+    /**
+     * Helper method to generate unique node IDs for manual plan construction
+     */
+    protected int nextId() {
+        return ++nodeIdCounter;
     }
 
     /**
@@ -127,28 +136,28 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
      * Helper method to create a manual PhysicalFilter for testing
      */
     PhysicalFilter createFilter(String selector, Operator op, Object operand) {
-        return new PhysicalFilter(1, selector, op, operand);
+        return new PhysicalFilter(nextId(), selector, op, operand);
     }
 
     /**
      * Helper method to create a manual PhysicalIndexScan for testing
      */
     PhysicalIndexScan createIndexScan(PhysicalFilter filter) {
-        return new PhysicalIndexScan(1, filter, null);
+        return new PhysicalIndexScan(nextId(), filter, null);
     }
 
     /**
      * Helper method to create a manual PhysicalAnd for testing
      */
     PhysicalAnd createAnd(PhysicalNode... children) {
-        return new PhysicalAnd(1, List.of(children));
+        return new PhysicalAnd(nextId(), List.of(children));
     }
 
     /**
      * Helper method to create a manual PhysicalOr for testing
      */
     PhysicalOr createOr(PhysicalNode... children) {
-        return new PhysicalOr(1, List.of(children));
+        return new PhysicalOr(nextId(), List.of(children));
     }
 
     /**

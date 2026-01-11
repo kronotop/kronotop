@@ -32,7 +32,7 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import org.bson.Document;
+import org.bson.BsonDocument;
 
 import java.util.List;
 
@@ -59,7 +59,7 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
      * @param input the input byte array containing the data to be parsed, expected to be in JSON or BSON format
      * @return a Document object obtained by parsing the input byte array
      */
-    private Document parseUpdateDocument(byte[] input) {
+    private BsonDocument parseUpdateDocument(byte[] input) {
         if (BqlParser.isJSON(input)) {
             // Assume that the input is a valid JSON
             return BSONUtil.fromJson(input);
@@ -76,7 +76,7 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
 
             Session session = request.getSession();
 
-            Document updateDocument = parseUpdateDocument(message.getUpdate());
+            BsonDocument updateDocument = parseUpdateDocument(message.getUpdate());
             UpdateOptions updateOptions = UpdateOptionsConverter.fromDocument(updateDocument);
 
             QueryContext ctx = buildQueryContext(

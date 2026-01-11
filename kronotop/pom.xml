@@ -197,7 +197,57 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <native.maven.plugin.version>0.10.3</native.maven.plugin.version>
     </properties>
+
+    <profiles>
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <version>${native.maven.plugin.version}</version>
+                        <extensions>true</extensions>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <goals>
+                                    <goal>compile-no-fork</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <imageName>kronotop</imageName>
+                            <mainClass>com.kronotop.instance.KronotopInstanceStarter</mainClass>
+                            <metadataRepository>
+                                <enabled>true</enabled>
+                            </metadataRepository>
+                            <agent>
+                                <enabled>true</enabled>
+                                <defaultMode>standard</defaultMode>
+                                <metadataCopy>
+                                    <merge>true</merge>
+                                    <outputDirectory>${project.basedir}/src/main/resources/META-INF/native-image/com.kronotop/kronotop</outputDirectory>
+                                </metadataCopy>
+                            </agent>
+                            <buildArgs>
+                                <buildArg>--no-fallback</buildArg>
+                                <buildArg>-Djava.awt.headless=true</buildArg>
+                                <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                                <buildArg>--enable-native-access=ALL-UNNAMED</buildArg>
+                                <buildArg>--initialize-at-run-time=io.netty</buildArg>
+                                <buildArg>--initialize-at-run-time=com.apple.foundationdb</buildArg>
+                                <buildArg>--initialize-at-run-time=ch.qos.logback</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
     <repositories>
         <repository>

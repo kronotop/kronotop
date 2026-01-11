@@ -17,8 +17,9 @@
 package com.kronotop.namespace.handlers.protocol;
 
 import com.kronotop.KronotopException;
-import com.kronotop.namespace.handlers.Namespace;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
+import com.kronotop.namespace.handlers.Namespace;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
@@ -68,7 +69,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
                 );
             }
 
-            for (String sb : item.split("\\.")) {
+            for (String sb : StringUtil.split(item)) {
                 createMessage.addToSubpath(sb);
             }
 
@@ -88,7 +89,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         while (iterator.hasNext()) {
             ByteBuf rawItem = iterator.next();
             String item = ProtocolMessageUtil.readAsString(rawItem);
-            for (String sb : item.split("\\.")) {
+            for (String sb : StringUtil.split(item)) {
                 listMessage.addToSubpath(sb);
             }
         }
@@ -103,13 +104,13 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         moveMessage = new MoveMessage();
         ByteBuf oldPath = request.getParams().get(1);
         String oldPathStr = ProtocolMessageUtil.readAsString(oldPath);
-        for (String sb : oldPathStr.split("\\.")) {
+        for (String sb : StringUtil.split(oldPathStr)) {
             moveMessage.addToOldPath(sb);
         }
 
         ByteBuf newPath = request.getParams().get(2);
         String newPathStr = ProtocolMessageUtil.readAsString(newPath);
-        for (String sb : newPathStr.split("\\.")) {
+        for (String sb : StringUtil.split(newPathStr)) {
             moveMessage.addToNewPath(sb);
         }
         validateSubpath(moveMessage.oldPath);
@@ -124,7 +125,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         removeMessage = new RemoveMessage();
         ByteBuf path = request.getParams().get(1);
         String pathStr = ProtocolMessageUtil.readAsString(path);
-        for (String sb : pathStr.split("\\.")) {
+        for (String sb : StringUtil.split(pathStr)) {
             removeMessage.addToPath(sb);
         }
         validateSubpath(removeMessage.subpath);
@@ -138,7 +139,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         purgeMessage = new PurgeMessage();
         ByteBuf path = request.getParams().get(1);
         String pathStr = ProtocolMessageUtil.readAsString(path);
-        for (String sb : pathStr.split("\\.")) {
+        for (String sb : StringUtil.split(pathStr)) {
             purgeMessage.addToPath(sb);
         }
         validateSubpath(purgeMessage.subpath);
@@ -152,7 +153,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         existsMessage = new ExistsMessage();
         ByteBuf path = request.getParams().get(1);
         String pathStr = ProtocolMessageUtil.readAsString(path);
-        for (String sb : pathStr.split("\\.")) {
+        for (String sb : StringUtil.split(pathStr)) {
             existsMessage.addToPath(sb);
         }
         validateSubpath(existsMessage.subpath);
@@ -166,7 +167,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
         useMessage = new UseMessage();
         ByteBuf path = request.getParams().get(1);
         String pathStr = ProtocolMessageUtil.readAsString(path);
-        for (String sb : pathStr.split("\\.")) {
+        for (String sb : StringUtil.split(pathStr)) {
             useMessage.addToPath(sb);
         }
         validateSubpath(useMessage.subpath);

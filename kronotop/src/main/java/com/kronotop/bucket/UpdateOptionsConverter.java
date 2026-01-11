@@ -17,16 +17,13 @@
 package com.kronotop.bucket;
 
 import com.kronotop.bucket.pipeline.UpdateOptions;
-import org.bson.BsonArray;
-import org.bson.BsonString;
-import org.bson.BsonValue;
-import org.bson.Document;
+import org.bson.*;
 
 import java.util.List;
 
 public class UpdateOptionsConverter {
 
-    public static UpdateOptions fromDocument(Document updateDoc) {
+    public static UpdateOptions fromDocument(BsonDocument updateDoc) {
         UpdateOptions.Builder builder = UpdateOptions.builder();
 
         for (String key : updateDoc.keySet()) {
@@ -34,7 +31,7 @@ public class UpdateOptionsConverter {
 
             switch (key.toLowerCase()) {
                 case UpdateOptions.SET -> {
-                    if (value instanceof Document setDoc) {
+                    if (value instanceof BsonDocument setDoc) {
                         // Handle Document format: Document{{likes=2}}
                         for (String field : setDoc.keySet()) {
                             Object fieldValue = setDoc.get(field);

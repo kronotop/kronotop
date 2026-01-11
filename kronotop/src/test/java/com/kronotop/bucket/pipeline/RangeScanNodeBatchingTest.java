@@ -21,8 +21,8 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
+import org.bson.BsonDocument;
 import org.bson.BsonType;
-import org.bson.Document;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
@@ -74,8 +74,8 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
 
                     // Extract ages from this batch
                     for (ByteBuffer buffer : batch.values()) {
-                        Document doc = BSONUtil.fromBson(buffer.array());
-                        allAges.add(doc.getInteger("age"));
+                        BsonDocument doc = BSONUtil.fromBson(buffer.array());
+                        allAges.add(doc.getInt32("age").getValue());
                         totalDocuments++;
                     }
 

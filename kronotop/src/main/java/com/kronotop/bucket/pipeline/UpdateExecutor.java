@@ -28,6 +28,7 @@ import com.kronotop.bucket.DefaultIndexDefinition;
 import com.kronotop.bucket.IndexTypeMismatchException;
 import com.kronotop.bucket.index.*;
 import com.kronotop.volume.*;
+import org.bson.BsonArray;
 import org.bson.BsonNull;
 import org.bson.BsonValue;
 
@@ -230,6 +231,34 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             );
             dropStaleEntriesOnAffectedIndexes(ctx, tr, versionstamp, updateResultContainer);
             setIndexEntriesOnAffectedIndexes(ctx, tr, versionstamp, updateResultContainer);
+            setNullIndexEntriesForDroppedSelectors(ctx, tr, versionstamp, updateResultContainer);
+        }
+    }
+
+    /**
+     * Creates null index entries for fields that were unset (dropped) from the document.
+     * This ensures that documents with missing indexed fields are still queryable via null queries.
+     */
+    private void setNullIndexEntriesForDroppedSelectors(QueryContext ctx, Transaction tr, Versionstamp versionstamp, UpdateResultContainer updateResultContainer) {
+        Set<String> droppedSelectors = updateResultContainer.getDocumentUpdateResult().droppedSelectors();
+        for (String selector : droppedSelectors) {
+            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READ);
+            if (index == null) {
+                continue;
+            }
+            DirectorySubspace affectedIndex = index.subspace();
+            IndexDefinition indexDefinition = index.definition();
+
+            // Create a null index entry for the dropped field
+            IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
+                    ctx.metadata(),
+                    null, // null value for dropped field
+                    indexDefinition,
+                    affectedIndex,
+                    updateResultContainer.getShardId(),
+                    updateResultContainer.getEntryMetadata()
+            );
+            IndexBuilder.setIndexEntryByVersionstamp(tr, versionstamp, indexEntryContainer);
         }
     }
 
@@ -261,7 +290,39 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             IndexDefinition indexDefinition = index.definition();
 
             BsonValue bsonValue = updateResultContainer.getDocumentUpdateResult().newValues().get(selector);
-            if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+            if (bsonValue == null || bsonValue.equals(BsonNull.VALUE)) {
+                continue;
+            }
+
+            if (bsonValue instanceof BsonArray bsonArray) {
+                // Multikey index: create an index entry for each unique value in the array
+                Set<Object> uniqueIndexValues = new HashSet<>();
+                for (BsonValue element : bsonArray) {
+                    if (element == null || element.equals(BsonNull.VALUE)) {
+                        continue;
+                    }
+                    Object indexValue = BSONUtil.toObject(element, index.definition().bsonType());
+                    if (indexValue == null) {
+                        if (strictTypes) {
+                            throw new IndexTypeMismatchException(index.definition(), element);
+                        }
+                        continue;
+                    }
+                    uniqueIndexValues.add(indexValue);
+                }
+                for (Object indexValue : uniqueIndexValues) {
+                    IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
+                            ctx.metadata(),
+                            indexValue,
+                            indexDefinition,
+                            affectedIndex,
+                            updateResultContainer.getShardId(),
+                            updateResultContainer.getEntryMetadata()
+                    );
+                    IndexBuilder.setIndexEntryByVersionstamp(tr, versionstamp, indexEntryContainer);
+                }
+            } else {
+                // Single value index
                 Object indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
                 if (indexValue == null) {
                     if (!strictTypes) {

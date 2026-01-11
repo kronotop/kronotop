@@ -22,8 +22,8 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.internal.VersionstampUtil;
-import org.bson.BsonType;
-import org.bson.Document;
+import org.bson.*;
+import org.bson.types.Decimal128;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -565,7 +565,7 @@ class IndexScanNodeTest extends BasePipelineTest {
             if (!results.isEmpty()) {
                 List<Object> actualFieldValues = new ArrayList<>();
                 for (ByteBuffer buffer : results.values()) {
-                    Document doc = BSONUtil.fromBson(buffer.array());
+                    BsonDocument doc = BSONUtil.fromBson(buffer.array());
                     actualFieldValues.add(doc.get(fieldName));
                 }
 
@@ -607,7 +607,7 @@ class IndexScanNodeTest extends BasePipelineTest {
             if (!results.isEmpty()) {
                 List<Object> actualFieldValues = new ArrayList<>();
                 for (ByteBuffer buffer : results.values()) {
-                    Document doc = BSONUtil.fromBson(buffer.array());
+                    BsonDocument doc = BSONUtil.fromBson(buffer.array());
                     actualFieldValues.add(doc.get(fieldName));
                 }
 
@@ -627,7 +627,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         // Parse the test documents to get all field values
         List<Object> allFieldValues = new ArrayList<>();
         for (String docJson : testDocuments) {
-            Document doc = Document.parse(docJson);
+            BsonDocument doc = BsonDocument.parse(docJson);
             allFieldValues.add(doc.get(fieldName));
         }
 
@@ -694,8 +694,8 @@ class IndexScanNodeTest extends BasePipelineTest {
                 if (queryValue.contains("$numberDecimal")) {
                     // Parse from JSON format like {"$numberDecimal": "100.50"}
                     try {
-                        Document decimalDoc = Document.parse(queryValue);
-                        String decimalStr = decimalDoc.getString("$numberDecimal");
+                        BsonDocument decimalDoc = BsonDocument.parse(queryValue);
+                        String decimalStr = decimalDoc.getString("$numberDecimal").getValue();
                         return Double.parseDouble(decimalStr);
                     } catch (Exception e) {
                         // If document parsing fails, try to extract the value directly
@@ -727,27 +727,45 @@ class IndexScanNodeTest extends BasePipelineTest {
 
     @SuppressWarnings("unchecked")
     private int compareValues(Object a, Object b) {
+        // Extract Java values from BsonValue types
+        Object aValue = extractValue(a);
+        Object bValue = extractValue(b);
+
         // Handle DECIMAL128 values specially
-        if (a != null && a.getClass().getSimpleName().equals("Decimal128")) {
-            double aDouble = convertDecimal128ToDouble(a);
-            double bDouble = (b instanceof Number) ? ((Number) b).doubleValue() : convertDecimal128ToDouble(b);
+        if (aValue != null && aValue.getClass().getSimpleName().equals("Decimal128")) {
+            double aDouble = convertDecimal128ToDouble(aValue);
+            double bDouble = (bValue instanceof Number) ? ((Number) bValue).doubleValue() : convertDecimal128ToDouble(bValue);
             return Double.compare(aDouble, bDouble);
-        } else if (b != null && b.getClass().getSimpleName().equals("Decimal128")) {
-            double aDouble = (a instanceof Number) ? ((Number) a).doubleValue() : convertDecimal128ToDouble(a);
-            double bDouble = convertDecimal128ToDouble(b);
+        } else if (bValue != null && bValue.getClass().getSimpleName().equals("Decimal128")) {
+            double aDouble = (aValue instanceof Number) ? ((Number) aValue).doubleValue() : convertDecimal128ToDouble(aValue);
+            double bDouble = convertDecimal128ToDouble(bValue);
             return Double.compare(aDouble, bDouble);
-        } else if (a instanceof Number && b instanceof Number) {
-            double aDouble = ((Number) a).doubleValue();
-            double bDouble = ((Number) b).doubleValue();
+        } else if (aValue instanceof Number && bValue instanceof Number) {
+            double aDouble = ((Number) aValue).doubleValue();
+            double bDouble = ((Number) bValue).doubleValue();
             return Double.compare(aDouble, bDouble);
-        } else if (a instanceof String && b instanceof String) {
-            return ((String) a).compareTo((String) b);
-        } else if (a instanceof Boolean && b instanceof Boolean) {
-            return ((Boolean) a).compareTo((Boolean) b);
-        } else if (a instanceof Comparable && b instanceof Comparable) {
-            return ((Comparable<Object>) a).compareTo(b);
+        } else if (aValue instanceof String && bValue instanceof String) {
+            return ((String) aValue).compareTo((String) bValue);
+        } else if (aValue instanceof Boolean && bValue instanceof Boolean) {
+            return ((Boolean) aValue).compareTo((Boolean) bValue);
+        } else if (aValue instanceof Comparable && bValue instanceof Comparable) {
+            return ((Comparable<Object>) aValue).compareTo(bValue);
         }
         return 0;
+    }
+
+    private Object extractValue(Object obj) {
+        if (obj == null) return null;
+        return switch (obj) {
+            case BsonInt32 v -> v.getValue();
+            case BsonInt64 v -> v.getValue();
+            case BsonDouble v -> v.getValue();
+            case BsonString v -> v.getValue();
+            case BsonBoolean v -> v.getValue();
+            case BsonDecimal128 v -> v.getValue();
+            case BsonDateTime v -> v.getValue();
+            default -> obj;
+        };
     }
 
     private double convertDecimal128ToDouble(Object decimal128) {

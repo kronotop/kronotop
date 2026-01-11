@@ -226,7 +226,7 @@ class IndexPredicateResolverTest {
     @Test
     void shouldConvertDecimal128ValForDecimal128Index() {
         BigDecimal value = new BigDecimal("12345.6789");
-        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, null);
+        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null);
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Decimal128Val(value));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
@@ -239,7 +239,7 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithDecimal128Index() {
-        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, null);
+        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null);
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int32Val(42));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
@@ -468,7 +468,7 @@ class IndexPredicateResolverTest {
     void shouldResolveDecimal128RangeForDecimal128Index() {
         BigDecimal lower = new BigDecimal("100.50");
         BigDecimal upper = new BigDecimal("999.99");
-        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, null);
+        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false,null);
         RangeScanPredicate predicate = new RangeScanPredicate("field", new Decimal128Val(lower), new Decimal128Val(upper), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
@@ -483,7 +483,7 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithDecimal128RangeIndex() {
-        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, null);
+        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null);
         RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(10), new Int32Val(50), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
