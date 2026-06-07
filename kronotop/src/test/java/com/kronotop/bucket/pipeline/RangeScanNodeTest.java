@@ -119,7 +119,6 @@ class RangeScanNodeTest extends BasePipelineTest {
                 objectIds.getFirst().toHexString(),
                 objectIds.getLast().toHexString()
         );
-        System.out.println(query);
         PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions config = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
@@ -237,9 +236,7 @@ class RangeScanNodeTest extends BasePipelineTest {
                 validateForwardResults(fieldName, bsonType, rangeQuery, actualFieldValues, testDescription);
             }
         } catch (RuntimeException e) {
-            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
-                System.out.println("Skipping test due to infrastructure issues: " + testDescription);
-            } else {
+            if (!(e.getMessage().contains("Shard not found") || e.getMessage().contains("not found"))) {
                 throw e;
             }
         }

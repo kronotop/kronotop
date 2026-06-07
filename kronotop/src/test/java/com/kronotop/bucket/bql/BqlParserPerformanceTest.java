@@ -58,8 +58,6 @@ class BqlParserPerformanceTest {
 
         assertTrue(totalDurationMs < 1000, "10K simple queries should complete within 1 second, took: " + totalDurationMs + "ms");
         assertTrue(avgTimePerQueryMs < 0.1, "Average time per simple query should be < 0.1ms, was: " + avgTimePerQueryMs + "ms");
-
-        System.out.println("Simple query performance: " + iterations + " queries in " + totalDurationMs + "ms (avg: " + String.format("%.4f", avgTimePerQueryMs) + "ms per query)");
     }
 
     @Test
@@ -108,8 +106,6 @@ class BqlParserPerformanceTest {
 
         assertTrue(totalDurationMs < 5000, "1K complex queries should complete within 5 seconds, took: " + totalDurationMs + "ms");
         assertTrue(avgTimePerQueryMs < 5.0, "Average time per complex query should be < 5ms, was: " + avgTimePerQueryMs + "ms");
-
-        System.out.println("Complex query performance: " + iterations + " queries in " + totalDurationMs + "ms (avg: " + String.format("%.4f", avgTimePerQueryMs) + "ms per query)");
     }
 
     @Test
@@ -148,8 +144,6 @@ class BqlParserPerformanceTest {
 
         assertTrue(totalDurationMs < 2000, "100 large queries should complete within 2 seconds, took: " + totalDurationMs + "ms");
         assertTrue(avgTimePerQueryMs < 20.0, "Average time per large query should be < 20ms, was: " + avgTimePerQueryMs + "ms");
-
-        System.out.println("Large query performance: " + iterations + " queries with 50 conditions each in " + totalDurationMs + "ms (avg: " + String.format("%.4f", avgTimePerQueryMs) + "ms per query)");
     }
 
     @Test
@@ -199,8 +193,6 @@ class BqlParserPerformanceTest {
 
         assertTrue(totalDurationMs < 1000, "5K serializations should complete within 1 second, took: " + totalDurationMs + "ms");
         assertTrue(avgTimePerSerializationMs < 0.2, "Average serialization time should be < 0.2ms, was: " + avgTimePerSerializationMs + "ms");
-
-        System.out.println("Serialization performance: " + iterations + " serializations in " + totalDurationMs + "ms (avg: " + String.format("%.4f", avgTimePerSerializationMs) + "ms per serialization)");
     }
 
     @Test
@@ -250,8 +242,6 @@ class BqlParserPerformanceTest {
 
         assertTrue(totalDurationMs < 2000, "2K explanations should complete within 2 seconds, took: " + totalDurationMs + "ms");
         assertTrue(avgTimePerExplanationMs < 1.0, "Average explanation time should be < 1ms, was: " + avgTimePerExplanationMs + "ms");
-
-        System.out.println("Explanation performance: " + iterations + " explanations in " + totalDurationMs + "ms (avg: " + String.format("%.4f", avgTimePerExplanationMs) + "ms per explanation)");
     }
 
     @Test
@@ -297,9 +287,6 @@ class BqlParserPerformanceTest {
         assertTrue(memoryIncrease < maxReasonableIncrease,
                 String.format("Memory increase should be reasonable. Increased by %d bytes (%.2f MB)",
                         memoryIncrease, memoryIncrease / (1024.0 * 1024.0)));
-
-        System.out.println("Memory usage: " + queryCount + " queries increased memory by " +
-                String.format("%.2f MB", memoryIncrease / (1024.0 * 1024.0)));
     }
 
     @Test
@@ -364,9 +351,6 @@ class BqlParserPerformanceTest {
         assertTrue(avgThreadDurationMs < 5000, "Average thread duration should be reasonable, was: " + avgThreadDurationMs + "ms");
 
         executor.shutdown();
-
-        System.out.println("Concurrent parsing: " + totalOperations + " operations across " + threadCount +
-                " threads completed in " + totalTestDurationMs + "ms (avg thread time: " + avgThreadDurationMs + "ms)");
     }
 
     @Test
@@ -416,9 +400,6 @@ class BqlParserPerformanceTest {
 
         assertTrue(totalDurationMs < 30000, "Stress test should complete within 30 seconds, took: " + totalDurationMs + "ms");
         assertTrue(operationsPerSecond > 100, "Should handle at least 100 operations per second, achieved: " + operationsPerSecond);
-
-        System.out.println("Stress test: " + operationCount + " operations in " + totalDurationMs + "ms (" +
-                String.format("%.1f", operationsPerSecond) + " ops/sec)");
     }
 
     @Test
@@ -466,9 +447,6 @@ class BqlParserPerformanceTest {
 
         assertTrue(firstRunDurationMs < 3000, "First run should complete within 3 seconds, took: " + firstRunDurationMs + "ms");
         assertTrue(secondRunDurationMs < 3000, "Second run should complete within 3 seconds, took: " + secondRunDurationMs + "ms");
-
-        System.out.println("Repeated query performance: First run: " + firstRunDurationMs + "ms, Second run: " +
-                secondRunDurationMs + "ms (variance: " + String.format("%.1f", variance * 100) + "%)");
     }
 
     @Test
@@ -505,8 +483,5 @@ class BqlParserPerformanceTest {
         double queriesPerSecond = (queryCount * 1000.0) / actualDurationMs;
 
         assertTrue(queriesPerSecond > 1000, "Should achieve at least 1000 queries/sec, achieved: " + queriesPerSecond);
-
-        System.out.println("Throughput benchmark: " + queryCount + " queries in " + actualDurationMs + "ms (" +
-                String.format("%.1f", queriesPerSecond) + " queries/sec)");
     }
 }

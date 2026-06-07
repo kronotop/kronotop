@@ -78,9 +78,6 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
             QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results) {
-                System.out.println("Result >> " + TestUtil.bsonToJsonWithoutId(buffer));
-            }
 
             // Verify correct intersection: should return exactly Laptop and Book A
             assertEquals(2, results.size(),
@@ -303,9 +300,6 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
             QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results) {
-                System.out.println("Result >> " + TestUtil.bsonToJsonWithoutId(buffer));
-            }
 
             // Verify correct union: should return exactly Math Textbook, Mouse Pad, Printer Paper, and Standing Desk
             assertEquals(4, results.size(),
@@ -412,9 +406,6 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
             QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results) {
-                System.out.println("Result >> " + TestUtil.bsonToJsonWithoutId(buffer));
-            }
 
             // Verify correct union: should return exactly Math Textbook, Mouse Pad, Printer Paper
             assertEquals(3, results.size(),

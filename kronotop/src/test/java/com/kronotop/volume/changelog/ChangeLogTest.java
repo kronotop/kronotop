@@ -56,8 +56,6 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         while (changeLog.getSafeWatermark() <= threshold && System.nanoTime() < deadline) {
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(10));
         }
-        System.out.println("eski " + threshold);
-        System.out.println("yeni " + changeLog.getSafeWatermark());
         assertTrue(changeLog.getSafeWatermark() > threshold);
     }
 

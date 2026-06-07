@@ -114,9 +114,6 @@ class BqlParserConcurrencyTest {
         // Verify all operations succeeded
         int expectedTotal = threadCount * iterationsPerThread;
         assertEquals(expectedTotal, totalSuccessCount, "All parsing operations should succeed");
-
-        System.out.println("Concurrent parsing: " + expectedTotal + " operations across " + threadCount +
-                " threads completed successfully");
     }
 
     @Test
@@ -199,9 +196,6 @@ class BqlParserConcurrencyTest {
         assertNull(firstException.get(), "No exceptions should occur");
         int expectedTotal = threadCount * iterationsPerThread;
         assertEquals(expectedTotal, totalSuccessCount, "All operations should succeed");
-
-        System.out.println("Same query concurrent parsing: " + expectedTotal + " operations across " + threadCount +
-                " threads with consistent results");
     }
 
     @Test
@@ -283,9 +277,6 @@ class BqlParserConcurrencyTest {
         assertTrue(Math.abs(invalidCaughtCount.get() - expectedInvalidOperations) <= 1,
                 "Invalid operations should be approximately " + expectedInvalidOperations + ", was " + invalidCaughtCount.get());
         assertEquals(0, unexpectedExceptionCount.get(), "Should have no unexpected exceptions");
-
-        System.out.println("Mixed valid/invalid concurrent parsing: " + validSuccessCount.get() +
-                " valid successes, " + invalidCaughtCount.get() + " expected errors caught");
     }
 
     @Test
@@ -370,9 +361,6 @@ class BqlParserConcurrencyTest {
 
         double operationsPerSecond = (totalOperations.get() * 1000.0) / totalTestDurationMs;
         assertTrue(operationsPerSecond > 100, "Should maintain reasonable throughput under contention: " + operationsPerSecond + " ops/sec");
-
-        System.out.println("High contention parsing: " + totalOperations.get() + " operations across " + threadCount +
-                " threads in " + totalTestDurationMs + "ms (" + String.format("%.1f", operationsPerSecond) + " ops/sec)");
     }
 
     @Test
@@ -451,9 +439,6 @@ class BqlParserConcurrencyTest {
         // At least 50% of randomly generated queries should be valid
         assertTrue(successCount.get() >= totalOperations * 0.5,
                 "At least 50% of generated queries should be valid, got " + successCount.get() + "/" + totalOperations);
-
-        System.out.println("Concurrent complex query generation: " + successCount.get() + " successful parses, " +
-                failureCount.get() + " expected failures out of " + totalOperations + " total operations");
     }
 
     @Test
@@ -529,9 +514,6 @@ class BqlParserConcurrencyTest {
         assertTrue(memoryIncrease < maxReasonableIncrease,
                 String.format("Memory increase should be reasonable. Increased by %d bytes (%.2f MB)",
                         memoryIncrease, memoryIncrease / (1024.0 * 1024.0)));
-
-        System.out.println("Concurrent memory usage: " + totalOperations.get() + " operations increased memory by " +
-                String.format("%.2f MB", memoryIncrease / (1024.0 * 1024.0)));
     }
 
     @Test
@@ -624,8 +606,6 @@ class BqlParserConcurrencyTest {
 
         // At least one thread should have been interrupted, but if the operations are too fast,
         // we can accept that all threads completed normally
-        System.out.println("Thread interruption handling: " + completedCount.get() + " completed, " +
-                interruptedCount.get() + " interrupted gracefully");
 
         // This test is primarily about ensuring graceful handling, not forcing interruptions
         assertTrue(completedCount.get() >= 0, "Some threads should have completed");
@@ -710,8 +690,6 @@ class BqlParserConcurrencyTest {
 
         int expectedOperations = threadCount * iterationsPerThread;
         assertEquals(expectedOperations, totalOperations.get(), "All operations should complete");
-
-        System.out.println("AST consistency test: " + totalOperations.get() + " operations with 0 consistency violations");
     }
 
     private boolean verifyASTStructure(BqlExpr actual, BqlExpr expected) {
@@ -807,8 +785,5 @@ class BqlParserConcurrencyTest {
         // No single operation should take excessively long
         assertTrue(maxExecutionTime.get() < 1000,
                 "No single operation should take more than 1 second, max was: " + maxExecutionTime.get() + "ms");
-
-        System.out.println("Deadlock prevention test: " + completedOperations.get() + " operations completed in " +
-                totalTestTime + "ms (max single operation: " + maxExecutionTime.get() + "ms)");
     }
 }

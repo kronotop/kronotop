@@ -70,9 +70,6 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
         int totalDocumentsReturned = 0;
         List<Integer> allReturnedAges = new ArrayList<>();
 
-        System.out.printf("=== Expected: %d total matches, %d iterations with batch size %d ===%n",
-                expectedTotalMatches, expectedIterations, batchSize);
-
         // Iterate through all batches using cursor-based pagination
         while (true) {
             try (Transaction tr = createTransaction()) {
@@ -80,7 +77,6 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
                 actualIterations++;
 
                 if (results.isEmpty()) {
-                    System.out.printf("Batch %d: No more results, terminating%n", actualIterations);
                     break;
                 }
 
@@ -92,9 +88,6 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
                     assertTrue(age > 22, "All returned documents should have age > 22, but found: " + age);
                     allReturnedAges.add(age);
                 }
-
-                System.out.printf("Batch %d: returned %d documents, ages: %s%n",
-                        actualIterations, results.size(), batchAges);
 
                 // Each batch should return at most 'batchSize' documents
                 assertTrue(results.size() <= batchSize,
@@ -108,9 +101,6 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
                 }
             }
         }
-
-        System.out.printf("=== Final Results: %d iterations, %d total documents ===%n",
-                actualIterations, totalDocumentsReturned);
 
         // Final validations
         assertTrue(totalDocumentsReturned >= expectedTotalMatches,
@@ -128,15 +118,10 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
         assertTrue(minAge >= 23, String.format("Minimum age should be >= 23, got %d", minAge));
         assertTrue(maxAge <= 199, String.format("Maximum age should be <= 199, got %d", maxAge));
 
-        System.out.printf("Age range: %d to %d, Total unique ages: %d%n",
-                minAge, maxAge, allReturnedAges.size());
-
         // Verify no duplicates (since we're using a List, check for unique values)
         Set<Integer> uniqueAges = new HashSet<>(allReturnedAges);
         assertEquals(allReturnedAges.size(), uniqueAges.size(),
                 "Should not have duplicate ages in results");
-
-        System.out.println("=== Test completed successfully! ===");
     }
 
     @Test
@@ -169,9 +154,6 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
         int totalDocumentsReturned = 0;
         List<Integer> allReturnedAges = new ArrayList<>();
 
-        System.out.printf("=== REVERSE: Expected %d total matches, %d iterations with batch size %d ===%n",
-                expectedTotalMatches, expectedIterations, batchSize);
-
         // Iterate through all batches using cursor-based pagination in reverse order
         while (true) {
             try (Transaction tr = createTransaction()) {
@@ -179,7 +161,6 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
                 actualIterations++;
 
                 if (results.isEmpty()) {
-                    System.out.printf("Batch %d: No more results, terminating%n", actualIterations);
                     break;
                 }
 
@@ -191,9 +172,6 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
                     assertTrue(age > 22, "All returned documents should have age > 22, but found: " + age);
                     allReturnedAges.add(age);
                 }
-
-                System.out.printf("Batch %d: returned %d documents, ages: %s%n",
-                        actualIterations, results.size(), batchAges);
 
                 // Each batch should return at most 'batchSize' documents
                 assertTrue(results.size() <= batchSize,
@@ -208,9 +186,6 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
             }
         }
 
-        System.out.printf("=== REVERSE Final Results: %d iterations, %d total documents ===%n",
-                actualIterations, totalDocumentsReturned);
-
         // Final validations
         assertTrue(totalDocumentsReturned >= expectedTotalMatches,
                 String.format("Should return at least %d documents, got %d", expectedTotalMatches, totalDocumentsReturned));
@@ -223,9 +198,6 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
         // First document should be the highest age (199), last should be the lowest (23)
         int firstAge = allReturnedAges.get(0);
         int lastAge = allReturnedAges.get(allReturnedAges.size() - 1);
-
-        System.out.printf("REVERSE order: First age: %d, Last age: %d, Total unique ages: %d%n",
-                firstAge, lastAge, new HashSet<>(allReturnedAges).size());
 
         // In reverse order, we should start from highest age (199) and go down
         assertTrue(firstAge >= lastAge, String.format("In reverse order, first age %d should be >= last age %d", firstAge, lastAge));
@@ -245,7 +217,5 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
                     String.format("In reverse order, age at position %d (%d) should be >= age at position %d (%d)",
                             i - 1, prevAge, i, currAge));
         }
-
-        System.out.println("=== REVERSE Test completed successfully! ===");
     }
 }

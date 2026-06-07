@@ -528,8 +528,6 @@ class BqlParserTest {
         assertEquals("age", lteExpr.selector(), "Selector should be 'age'");
         assertEquals(35, ((Int32Val) lteExpr.value()).value(), "Value should be 35 (the $gt: 22 is discarded by JSON parser)");
 
-        String explanation = BqlParser.explain(result);
-        System.out.println("Result after JSON duplicate key handling: " + explanation);
     }
 
     @Test

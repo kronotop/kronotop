@@ -430,9 +430,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             assertEquals(expectedAges, actualAges, "Should return document with age 25");
 
         } catch (RuntimeException e) {
-            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
-                System.out.println("Skipping AND logic test due to infrastructure issues");
-            } else {
+            if (!(e.getMessage().contains("Shard not found") || e.getMessage().contains("not found"))) {
                 throw e;
             }
         }
@@ -509,9 +507,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             assertEquals(expectedAges, actualAges, "Should return documents with specific ages");
 
         } catch (RuntimeException e) {
-            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
-                System.out.println("Skipping AND multiple match test due to infrastructure issues");
-            } else {
+            if (!(e.getMessage().contains("Shard not found") || e.getMessage().contains("not found"))) {
                 throw e;
             }
         }
@@ -591,9 +587,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             assertEquals(350, maxPrice, "Maximum price in results should be 350");
 
         } catch (RuntimeException e) {
-            if (e.getMessage().contains("Shard not found") || e.getMessage().contains("not found")) {
-                System.out.println("Skipping price-quantity relation test due to infrastructure issues");
-            } else {
+            if (!(e.getMessage().contains("Shard not found") || e.getMessage().contains("not found"))) {
                 throw e;
             }
         }
