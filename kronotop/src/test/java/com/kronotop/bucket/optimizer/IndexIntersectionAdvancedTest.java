@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;
 import com.kronotop.bucket.planner.physical.PhysicalIndexIntersection;
@@ -36,12 +37,12 @@ class IndexIntersectionAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldCreateIntersectionInNestedAndOperations() {
         // Create indexes for name and age
-        IndexDefinition nameIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create(
                 "name-index", "name", BsonType.STRING
-        );
-        IndexDefinition ageIndex = IndexDefinition.create(
+                , false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
                 "age-index", "age", BsonType.INT32
-        );
+                , false, IndexStatus.WAITING);
         createIndexes(nameIndex, ageIndex);
 
         // Test nested AND: { $and: [{ $and: [{ name: "john" }, { age: 25 }] }] }
@@ -58,9 +59,9 @@ class IndexIntersectionAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldHandleSingleChildGracefully() {
         // Create index for name
-        IndexDefinition nameIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create(
                 "name-index", "name", BsonType.STRING
-        );
+                , false, IndexStatus.WAITING);
         createIndex(nameIndex);
 
         // Test query with single condition in AND

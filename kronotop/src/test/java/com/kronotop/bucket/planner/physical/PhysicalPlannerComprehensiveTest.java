@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.optimizer.Optimizer;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.logical.LogicalNode;
@@ -52,34 +53,35 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         logicalPlanner = new LogicalPlanner();
         physicalPlanner = new PhysicalPlanner();
         optimizer = new Optimizer();
+        createBucket(TEST_BUCKET);
         metadata = getBucketMetadata(TEST_BUCKET);
     }
 
-    private void createIndex(IndexDefinition definition) {
+    private void createIndex(SingleFieldIndexDefinition definition) {
         createIndexThenWaitForReadiness(definition);
         // Refresh the index registry
         metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
     }
 
-    private void createIndexes(IndexDefinition... definitions) {
-        for (IndexDefinition definition : definitions) {
+    private void createIndexes(SingleFieldIndexDefinition... definitions) {
+        for (SingleFieldIndexDefinition definition : definitions) {
             createIndex(definition);
         }
     }
 
     private void setupEcommerceIndexes() {
         createIndexes(
-                IndexDefinition.create("category-index", "category", BsonType.STRING),
-                IndexDefinition.create("brand-index", "brand", BsonType.STRING),
-                IndexDefinition.create("stock-index", "inStock", BsonType.BOOLEAN)
+                SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING),
+                SingleFieldIndexDefinition.create("brand-index", "brand", BsonType.STRING, false, IndexStatus.WAITING),
+                SingleFieldIndexDefinition.create("stock-index", "inStock", BsonType.BOOLEAN, false, IndexStatus.WAITING)
         );
     }
 
     private void setupSocialMediaIndexes() {
         createIndexes(
-                IndexDefinition.create("country-index", "country", BsonType.STRING),
-                IndexDefinition.create("age-index", "age", BsonType.INT32),
-                IndexDefinition.create("verified-index", "verified", BsonType.BOOLEAN)
+                SingleFieldIndexDefinition.create("country-index", "country", BsonType.STRING, false, IndexStatus.WAITING),
+                SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
+                SingleFieldIndexDefinition.create("verified-index", "verified", BsonType.BOOLEAN, false, IndexStatus.WAITING)
         );
     }
 
@@ -87,20 +89,20 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
 
     private void setupOptimizationIndexes() {
         createIndexes(
-                IndexDefinition.create("status-index", "status", BsonType.STRING),
-                IndexDefinition.create("type-index", "type", BsonType.STRING)
+                SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING),
+                SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING)
         );
     }
 
     private PhysicalNode planBqlOnly(String bql) {
         BqlExpr expr = BqlParser.parse(bql);
         LogicalNode logicalPlan = logicalPlanner.plan(expr);
-        return physicalPlanner.plan(metadata, logicalPlan, new PlannerContext());
+        return physicalPlanner.plan(new PlannerContext(metadata), logicalPlan);
     }
 
     private PhysicalNode planAndOptimizeBql(String bql) {
         PhysicalNode physicalPlan = planBqlOnly(bql);
-        return optimizer.optimize(metadata, physicalPlan, new PlannerContext());
+        return optimizer.optimize(new PlannerContext(metadata), physicalPlan);
     }
 
     private boolean containsNodeType(PhysicalNode plan, Class<? extends PhysicalNode> nodeType) {
@@ -207,7 +209,7 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         @DisplayName("Should process simple indexed query end-to-end")
         void shouldProcessSimpleIndexedQueryEndToEnd() {
             // Create index
-            createIndex(IndexDefinition.create("user-index", "userId", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("user-index", "userId", BsonType.STRING, false, IndexStatus.WAITING));
 
             String bql = "{ \"userId\": \"user123\" }";
 
@@ -230,8 +232,8 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         void shouldProcessComplexAndQueryWithOptimization() {
             // Setup multiple indexes
             createIndexes(
-                    IndexDefinition.create("user-index", "userId", BsonType.STRING),
-                    IndexDefinition.create("status-index", "status", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("user-index", "userId", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             String bql = "{ $and: [" +
@@ -255,7 +257,7 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         @Test
         @DisplayName("Should process range query with consolidation")
         void shouldProcessRangeQueryWithConsolidation() {
-            createIndex(IndexDefinition.create("timestamp-index", "timestamp", BsonType.DATE_TIME));
+            createIndex(SingleFieldIndexDefinition.create("timestamp-index", "timestamp", BsonType.DATE_TIME, false, IndexStatus.WAITING));
 
             String bql = "{ $and: [" +
                     "{ \"timestamp\": { $gte: \"2024-01-01\" } }, " +
@@ -278,7 +280,7 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         @DisplayName("Should handle mixed indexed and non-indexed conditions")
         void shouldHandleMixedIndexedAndNonIndexedConditions() {
             // Create partial indexes
-            createIndex(IndexDefinition.create("category-index", "category", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING));
 
             String bql = "{ $and: [" +
                     "{ \"category\": \"electronics\" }, " +  // Indexed
@@ -347,7 +349,7 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         @Test
         @DisplayName("Should handle nested OR within AND")
         void shouldHandleNestedOrWithinAnd() {
-            createIndex(IndexDefinition.create("type-index", "type", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING));
 
             String bql = "{ $and: [" +
                     "{ \"type\": \"user\" }, " +
@@ -397,8 +399,8 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         @DisplayName("Should prioritize indexed operations")
         void shouldPrioritizeIndexedOperations() {
             createIndexes(
-                    IndexDefinition.create("id-index", "id", BsonType.STRING),
-                    IndexDefinition.create("category-index", "category", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("id-index", "id", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             String bql = "{ $and: [" +
@@ -427,7 +429,7 @@ public class PhysicalPlannerComprehensiveTest extends BaseStandaloneInstanceTest
         @Test
         @DisplayName("Should handle single field query")
         void shouldHandleSingleFieldQuery() {
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING));
 
             String bql = "{ \"name\": \"John\" }";
 

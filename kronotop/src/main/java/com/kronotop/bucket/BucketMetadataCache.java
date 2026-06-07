@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@
 
 package com.kronotop.bucket;
 
-import com.kronotop.CachedTimeService;
 import com.kronotop.Context;
 
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
+import java.util.function.LongSupplier;
 
 /**
  * BucketMetadataCache is responsible for managing and caching metadata associated
@@ -134,15 +134,14 @@ public class BucketMetadataCache {
      * Creates a new eviction worker that performs periodic cleanup of expired bucket metadata
      * from the {@link BucketMetadataCache}.
      *
-     * @param cachedTime the {@link CachedTimeService} used to provide efficient, cached,
-     *                   and up-to-date system time for determining expiration.
-     * @param ttl        the time-to-live (TTL) duration in milliseconds, which determines how long
-     *                   bucket metadata entries are retained before becoming eligible for eviction.
+     * @param timeSupplier a supplier for the current time in milliseconds
+     * @param ttl          the time-to-live (TTL) duration in milliseconds, which determines how long
+     *                     bucket metadata entries are retained before becoming eligible for eviction.
      * @return a {@link Runnable} instance of {@link EvictionWorker}, configured with the
-     * specified {@link CachedTimeService} and TTL value.
+     * specified time supplier and TTL value.
      */
-    public Runnable createEvictionWorker(CachedTimeService cachedTime, long ttl) {
-        return new EvictionWorker(cachedTime, ttl);
+    public Runnable createEvictionWorker(LongSupplier timeSupplier, long ttl) {
+        return new EvictionWorker(timeSupplier, ttl);
     }
 
     /**
@@ -160,17 +159,14 @@ public class BucketMetadataCache {
      * minus the TTL value.
      * - A maximum of 10,000 entries are cleaned up in a single call to the
      * {@code cleanupBucketMetadataRegistry} method to avoid excessive processing.
-     * <p>
-     * This worker relies on the {@link CachedTimeService} to provide the current system
-     * time in a cached and efficient manner.
      */
     class EvictionWorker implements Runnable {
         private static final int MAX_ENTRIES_PER_CLEANUP = 10000;
-        private final CachedTimeService cachedTimeService;
+        private final LongSupplier timeSupplier;
         private final long ttl;
 
-        private EvictionWorker(CachedTimeService cachedTimeService, long ttl) {
-            this.cachedTimeService = cachedTimeService;
+        private EvictionWorker(LongSupplier timeSupplier, long ttl) {
+            this.timeSupplier = timeSupplier;
             this.ttl = ttl;
         }
 
@@ -179,7 +175,7 @@ public class BucketMetadataCache {
             int total = 0;
             while (it.hasNext() && total < MAX_ENTRIES_PER_CLEANUP) {
                 Map.Entry<String, BucketMetadataRegistry.BucketMetadataWrapper> entry = it.next();
-                if (entry.getValue().getLastAccess() < cachedTimeService.getCurrentTimeInMilliseconds() - ttl) {
+                if (entry.getValue().getLastAccess() < timeSupplier.getAsLong() - ttl) {
                     it.remove();
                     total++;
                 }

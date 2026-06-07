@@ -34,6 +34,65 @@ public class CommandLineParser {
         this.quotedInput = quotedInput;
     }
 
+    public static String parseDelimiter(String input) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            if (c == '\\' && i + 1 < input.length()) {
+                char next = input.charAt(++i);
+                switch (next) {
+                    case 'n' -> sb.append('\n');
+                    case 'r' -> sb.append('\r');
+                    case 't' -> sb.append('\t');
+                    case '\\' -> sb.append('\\');
+                    default -> sb.append(next);
+                }
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    private static int parseEscape(String line, int i, StringBuilder current) {
+        char next = line.charAt(++i);
+        switch (next) {
+            case 'n' -> current.append('\n');
+            case 'r' -> current.append('\r');
+            case 't' -> current.append('\t');
+            case 'x' -> {
+                if (i + 2 < line.length()) {
+                    String hex = line.substring(i + 1, i + 3);
+                    try {
+                        current.append((char) Integer.parseInt(hex, 16));
+                        i += 2;
+                    } catch (NumberFormatException e) {
+                        // Invalid hex: keep original \x as literal
+                        current.append('\\').append(next);
+                    }
+                } else {
+                    // Incomplete hex: keep original \x as literal
+                    current.append('\\').append(next);
+                }
+            }
+            default -> current.append(next);
+        }
+        return i;
+    }
+
+    public static String processEscapes(String value) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == '\\' && i + 1 < value.length()) {
+                i = parseEscape(value, i, sb);
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
     public List<String> parse(String line) {
         List<String> args = new ArrayList<>();
         StringBuilder current = new StringBuilder();
@@ -74,51 +133,5 @@ public class CommandLineParser {
         }
 
         return args;
-    }
-
-    public static String parseDelimiter(String input) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
-            if (c == '\\' && i + 1 < input.length()) {
-                char next = input.charAt(++i);
-                switch (next) {
-                    case 'n' -> sb.append('\n');
-                    case 'r' -> sb.append('\r');
-                    case 't' -> sb.append('\t');
-                    case '\\' -> sb.append('\\');
-                    default -> sb.append(next);
-                }
-            } else {
-                sb.append(c);
-            }
-        }
-        return sb.toString();
-    }
-
-    private int parseEscape(String line, int i, StringBuilder current) {
-        char next = line.charAt(++i);
-        switch (next) {
-            case 'n' -> current.append('\n');
-            case 'r' -> current.append('\r');
-            case 't' -> current.append('\t');
-            case 'x' -> {
-                if (i + 2 < line.length()) {
-                    String hex = line.substring(i + 1, i + 3);
-                    try {
-                        current.append((char) Integer.parseInt(hex, 16));
-                        i += 2;
-                    } catch (NumberFormatException e) {
-                        // Invalid hex: keep original \x as literal
-                        current.append('\\').append(next);
-                    }
-                } else {
-                    // Incomplete hex: keep original \x as literal
-                    current.append('\\').append(next);
-                }
-            }
-            default -> current.append(next);
-        }
-        return i;
     }
 }

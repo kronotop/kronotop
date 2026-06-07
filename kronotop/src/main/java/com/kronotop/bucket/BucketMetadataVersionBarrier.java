@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,12 +18,12 @@ package com.kronotop.bucket;
 
 import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BarrierNotSatisfiedException;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import io.github.resilience4j.core.functions.CheckedRunnable;
@@ -34,6 +34,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -92,7 +93,7 @@ public class BucketMetadataVersionBarrier {
                 shard(shardId).
                 lastSeenVersions();
         return subspaces.computeIfAbsent(shardId,
-                (ignored) -> DirectoryLayer.getDefault().open(tr, directory.toList()).join()
+                (ignored) -> context.getDirectoryLayer().open(tr, directory.toList()).join()
         );
     }
 
@@ -107,7 +108,7 @@ public class BucketMetadataVersionBarrier {
      * @param maxAttempts   maximum number of polling attempts before failing
      * @param waitDuration  duration to wait between polling attempts
      * @throws BarrierNotSatisfiedException if not all shards observe the target version within maxAttempts
-     * @throws KronotopException if other errors occur during barrier synchronization
+     * @throws KronotopException            if other errors occur during barrier synchronization
      */
     public void await(long targetVersion, int maxAttempts, Duration waitDuration) {
         RetryConfig config = RetryConfig.custom()
@@ -116,7 +117,8 @@ public class BucketMetadataVersionBarrier {
                 .retryExceptions(BarrierNotSatisfiedException.class)
                 .build();
         final Retry retry = Retry.of("versionBarrier", config);
-        int shards = context.getConfig().getInt("bucket.shards");
+        List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
+        int shards = shardIds.size();
 
         AtomicInteger attempts = new AtomicInteger();
         CheckedRunnable runnable = Retry.decorateCheckedRunnable(retry, () -> {
@@ -124,9 +126,9 @@ public class BucketMetadataVersionBarrier {
             int satisfies = 0;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 ReadTransaction readTr = tr.snapshot();
-                for (int shardId = 0; shardId < shards; shardId++) {
+                for (int shardId : shardIds) {
                     DirectorySubspace subspace = openLastSeenVersionsSubspace(readTr, shardId);
-                    byte[] key = subspace.pack(Tuple.from(metadata.id()));
+                    byte[] key = subspace.pack(Tuple.from(metadata.uuid()));
                     byte[] value = readTr.get(key).join();
                     if (value == null) {
                         continue;

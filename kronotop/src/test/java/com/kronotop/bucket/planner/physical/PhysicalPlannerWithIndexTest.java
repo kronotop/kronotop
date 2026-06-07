@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import org.bson.BsonType;
 import org.junit.jupiter.api.DisplayName;
@@ -36,7 +37,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
     /**
      * Helper method to create an index
      */
-    void createIndex(IndexDefinition definition) {
+    void createIndex(SingleFieldIndexDefinition definition) {
         createIndexThenWaitForReadiness(definition);
         // Refresh the index registry
         metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
@@ -45,8 +46,8 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
     /**
      * Helper method to create multiple indexes at once
      */
-    void createIndexes(IndexDefinition... definitions) {
-        for (IndexDefinition definition : definitions) {
+    void createIndexes(SingleFieldIndexDefinition... definitions) {
+        for (SingleFieldIndexDefinition definition : definitions) {
             createIndex(definition);
         }
     }
@@ -62,9 +63,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Numeric index with GTE operator should use PhysicalIndexScan")
         void shouldUsePhysicalIndexScanForNumericIndexWithGTEOperator() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "numeric-index", "int32-field", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ 'int32-field': { $gte: 20 } }");
 
@@ -81,9 +82,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("String index with EQ operator should use PhysicalIndexScan")
         void shouldUsePhysicalIndexScanForStringIndexWithEQOperator() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "string-index", "name", BsonType.STRING
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"name\": \"john\" }");
 
@@ -100,9 +101,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Numeric index with GT operator should use PhysicalIndexScan")
         void shouldUsePhysicalIndexScanForNumericIndexWithGTOperator() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "price-index", "price", BsonType.DOUBLE
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"price\": { \"$gt\": 99.99 } }");
 
@@ -117,9 +118,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Numeric index with LT operator should use PhysicalIndexScan")
         void shouldUsePhysicalIndexScanForNumericIndexWithLTOperator() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "age-index", "age", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"age\": { \"$lt\": 65 } }");
 
@@ -134,9 +135,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Numeric index with LTE operator should use PhysicalIndexScan")
         void shouldUsePhysicalIndexScanForNumericIndexWithLTEOperator() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "score-index", "score", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"score\": { \"$lte\": 100 } }");
 
@@ -151,9 +152,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("String index with NE operator should use PhysicalIndexScan")
         void shouldUsePhysicalIndexScanForStringIndexWithNEOperator() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "status-index", "status", BsonType.STRING
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"status\": { \"$ne\": \"deleted\" } }");
 
@@ -168,9 +169,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("String index with IN operator should use PhysicalOr with multiple EQ index scans")
         void shouldUsePhysicalOrForStringIndexWithINOperator() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "category-index", "category", BsonType.STRING
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"category\": { \"$in\": [\"electronics\", \"books\", \"clothing\"] } }");
 
@@ -193,9 +194,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("String index with NIN operator should use PhysicalAnd with NE index scans")
         void shouldUsePhysicalAndForStringIndexWithNINOperator() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "type-index", "type", BsonType.STRING
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"type\": { \"$nin\": [\"spam\", \"deleted\"] } }");
 
@@ -216,17 +217,17 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
 
         @Test
-        @DisplayName("Array index with ALL operator should use PhysicalIndexScan")
-        void shouldUsePhysicalIndexScanForArrayIndexWithALLOperator() {
-            createIndex(IndexDefinition.create(
+        @DisplayName("Array index with ALL operator should use PhysicalFullScan (not indexable)")
+        void shouldUsePhysicalFullScanForArrayIndexWithALLOperator() {
+            createIndex(SingleFieldIndexDefinition.create(
                     "tags-index", "tags", BsonType.STRING
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"tags\": { \"$all\": [\"urgent\", \"important\"] } }");
 
-            assertInstanceOf(PhysicalIndexScan.class, result);
-            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
-            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
             assertEquals("tags", filter.selector());
             assertEquals(Operator.ALL, filter.op());
 
@@ -273,7 +274,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("Type mismatch should fall back to full scan")
         void shouldFallbackToFullScanOnTypeMismatch() {
             // Create INT32 index but query with string value
-            createIndex(IndexDefinition.create("age-index", "age", BsonType.INT32));
+            createIndex(SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"age\": \"twenty\" }");
 
@@ -306,7 +307,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("$in with type mismatch should fall back to full scan")
         void shouldFallbackToFullScanForInWithTypeMismatch() {
             // Create STRING index but query with integer values
-            createIndex(IndexDefinition.create("priority-index", "priority", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("priority-index", "priority", BsonType.STRING, false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"priority\": { \"$in\": [1, 2, 3] } }");
 
@@ -322,7 +323,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("$in with mixed types where some match index should fall back to full scan")
         void shouldFallbackToFullScanForInWithPartialTypeMismatch() {
             // Create STRING index but query with mixed string and integer values
-            createIndex(IndexDefinition.create("status-index", "status", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"status\": { \"$in\": [\"active\", 1, \"inactive\"] } }");
 
@@ -338,7 +339,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("Comparison operator with type mismatch should fall back to full scan")
         void shouldFallbackToFullScanForComparisonWithTypeMismatch() {
             // Create INT64 index but query with string value
-            createIndex(IndexDefinition.create("timestamp-index", "timestamp", BsonType.INT64));
+            createIndex(SingleFieldIndexDefinition.create("timestamp-index", "timestamp", BsonType.INT64, false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"timestamp\": { \"$gte\": \"2024-01-01\" } }");
 
@@ -364,10 +365,49 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         }
 
         @Test
+        @DisplayName("$ne on multikey index should fall back to full scan")
+        void shouldFallbackToFullScanForNeOnMultikeyIndex() {
+            // Behavior: $ne on multikey indexes must use FullScan because index scan finds
+            // "any element != value" but $ne requires "no element == value".
+            createIndex(SingleFieldIndexDefinition.create(
+                    "grades-index", "grades", BsonType.INT32, true, IndexStatus.WAITING // multiKey = true
+            ));
+
+            PhysicalNode result = planQuery("{ \"grades\": { \"$ne\": 100 } }");
+
+            // Should fall back to full scan due to multikey index
+            assertInstanceOf(PhysicalFullScan.class, result);
+            PhysicalFullScan fullScan = (PhysicalFullScan) result;
+            PhysicalFilter filter = (PhysicalFilter) fullScan.node();
+            assertEquals("grades", filter.selector());
+            assertEquals(Operator.NE, filter.op());
+            assertEquals(100, extractValue(filter.operand()));
+        }
+
+        @Test
+        @DisplayName("$ne on non-multikey index should use index scan")
+        void shouldUseIndexScanForNeOnNonMultikeyIndex() {
+            // Behavior: $ne on regular (non-multikey) indexes can safely use index scan.
+            createIndex(SingleFieldIndexDefinition.create(
+                    "age-index", "age", BsonType.INT32, false, IndexStatus.WAITING // multiKey = false
+            ));
+
+            PhysicalNode result = planQuery("{ \"age\": { \"$ne\": 30 } }");
+
+            // Should use index scan for non-multikey index
+            assertInstanceOf(PhysicalIndexScan.class, result);
+            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
+            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+            assertEquals("age", filter.selector());
+            assertEquals(Operator.NE, filter.op());
+            assertEquals(30, extractValue(filter.operand()));
+        }
+
+        @Test
         @DisplayName("$nin with type mismatch should fall back to full scan")
         void shouldFallbackToFullScanForNinWithTypeMismatch() {
             // Create STRING index but query with integer values
-            createIndex(IndexDefinition.create("priority-index", "priority", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("priority-index", "priority", BsonType.STRING, false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"priority\": { \"$nin\": [1, 2, 3] } }");
 
@@ -383,7 +423,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("$nin with mixed types where some match index should fall back to full scan")
         void shouldFallbackToFullScanForNinWithPartialTypeMismatch() {
             // Create STRING index but query with mixed string and integer values
-            createIndex(IndexDefinition.create("status-index", "status", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"status\": { \"$nin\": [\"active\", 1, \"inactive\"] } }");
 
@@ -398,7 +438,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Empty $nin should return PhysicalTrue (matches everything)")
         void shouldReturnPhysicalTrueForEmptyNin() {
-            createIndex(IndexDefinition.create("type-index", "type", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"type\": { \"$nin\": [] } }");
 
@@ -409,7 +449,7 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Single value $nin with index should optimize to single PhysicalIndexScan(NE)")
         void shouldOptimizeSingleValueNinToSingleIndexScan() {
-            createIndex(IndexDefinition.create("type-index", "type", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("{ \"type\": { \"$nin\": [\"spam\"] } }");
 
@@ -435,8 +475,8 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("AND with two indexed fields should use PhysicalAnd with two PhysicalIndexScans")
         void shouldUsePhysicalAndWithTwoPhysicalIndexScansForTwoIndexedFields() {
             createIndexes(
-                    IndexDefinition.create("age-index", "age", BsonType.INT32),
-                    IndexDefinition.create("status-index", "status", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             PhysicalNode result = planQuery("""
@@ -460,9 +500,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("AND with indexed and non-indexed fields should mix PhysicalIndexScan and PhysicalFullScan")
         void shouldMixPhysicalIndexScanAndPhysicalFullScanForMixedIndexedFields() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "price-index", "price", BsonType.DOUBLE
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("""
                     {
@@ -493,9 +533,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("AND with multiple conditions on same indexed field should use single PhysicalIndexScan")
         void shouldUseSinglePhysicalIndexScanForMultipleConditionsOnSameField() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "age-index", "age", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("""
                     {
@@ -528,8 +568,8 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("Complex AND with nested operations and mixed indexes")
         void shouldHandleComplexAndWithNestedOperationsAndMixedIndexes() {
             createIndexes(
-                    IndexDefinition.create("category-index", "category", BsonType.STRING),
-                    IndexDefinition.create("price-index", "price", BsonType.DOUBLE)
+                    SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING)
             );
 
             PhysicalNode result = planQuery("""
@@ -577,8 +617,8 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("OR with two indexed fields should use PhysicalOr with two PhysicalIndexScans")
         void shouldUsePhysicalOrWithTwoPhysicalIndexScansForTwoIndexedFields() {
             createIndexes(
-                    IndexDefinition.create("name-index", "name", BsonType.STRING),
-                    IndexDefinition.create("email-index", "email", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("email-index", "email", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             PhysicalNode result = planQuery("""
@@ -602,9 +642,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("OR with indexed and non-indexed fields should mix PhysicalIndexScan and PhysicalFullScan")
         void shouldMixPhysicalIndexScanAndPhysicalFullScanForOrWithMixedFields() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "status-index", "status", BsonType.STRING
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("""
                     {
@@ -635,9 +675,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("OR with multiple conditions on same indexed field should use multiple PhysicalIndexScans")
         void shouldUseMultiplePhysicalIndexScansForOrWithMultipleConditionsOnSameField() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "priority-index", "priority", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("""
                     {
@@ -670,8 +710,8 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("Complex OR with nested operations and mixed indexes")
         void shouldHandleComplexOrWithNestedOperationsAndMixedIndexes() {
             createIndexes(
-                    IndexDefinition.create("type-index", "type", BsonType.STRING),
-                    IndexDefinition.create("score-index", "score", BsonType.INT32)
+                    SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING)
             );
 
             PhysicalNode result = planQuery("""
@@ -722,9 +762,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("Nested AND/OR with mixed index usage")
         void shouldHandleNestedAndOrWithMixedIndexUsage() {
             createIndexes(
-                    IndexDefinition.create("user-id-index", "user_id", BsonType.STRING),
-                    IndexDefinition.create("role-index", "role", BsonType.STRING),
-                    IndexDefinition.create("active-index", "active", BsonType.BOOLEAN)
+                    SingleFieldIndexDefinition.create("user-id-index", "user_id", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("role-index", "role", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING)
             );
 
             PhysicalNode result = planQuery("""
@@ -785,9 +825,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("ElemMatch with indexed field in subplan")
         void shouldHandleElemMatchWithIndexedFieldInSubplan() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "items-price-index", "items.price", BsonType.DOUBLE
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("""
                     {
@@ -827,9 +867,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("NOT operator with indexed field should use PhysicalNot with PhysicalIndexScan")
         void shouldUsePhysicalNotWithPhysicalIndexScanForIndexedField() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "status-index", "status", BsonType.STRING
-            ));
+                    , false, IndexStatus.WAITING));
 
             PhysicalNode result = planQuery("""
                     {
@@ -861,10 +901,10 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("Multiple indexes should all be utilized in complex query")
         void shouldUtilizeAllMultipleIndexesInComplexQuery() {
             createIndexes(
-                    IndexDefinition.create("user-index", "user_id", BsonType.STRING),
-                    IndexDefinition.create("timestamp-index", "timestamp", BsonType.INT64),
-                    IndexDefinition.create("priority-index", "priority", BsonType.INT32),
-                    IndexDefinition.create("type-index", "type", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("user-index", "user_id", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("timestamp-index", "timestamp", BsonType.INT64, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("priority-index", "priority", BsonType.INT32, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             PhysicalNode result = planQuery("""
@@ -903,9 +943,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Large IN clause with indexed field should use PhysicalOr with EQ index scans")
         void shouldUsePhysicalOrForLargeINClauseWithIndexedField() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "category-index", "category", BsonType.STRING
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Create large IN clause with 20 values
             StringBuilder queryBuilder = new StringBuilder("{ \"category\": { \"$in\": [");
@@ -935,9 +975,9 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @Test
         @DisplayName("Range query with indexed field should use single PhysicalIndexScan")
         void shouldUseSinglePhysicalIndexScanForRangeQueryWithIndexedField() {
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "date-index", "created_date", BsonType.INT64
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Range query: date >= start AND date <= end
             PhysicalNode result = planQuery("""
@@ -973,10 +1013,10 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
         @DisplayName("Index on different data types should work correctly")
         void shouldHandleIndexesOnDifferentDataTypesCorrectly() {
             createIndexes(
-                    IndexDefinition.create("string-index", "name", BsonType.STRING),
-                    IndexDefinition.create("int32-index", "age", BsonType.INT32),
-                    IndexDefinition.create("double-index", "score", BsonType.DOUBLE),
-                    IndexDefinition.create("boolean-index", "active", BsonType.BOOLEAN)
+                    SingleFieldIndexDefinition.create("string-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("int32-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("double-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("boolean-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING)
             );
 
             PhysicalNode result = planQuery("""
@@ -996,6 +1036,178 @@ class PhysicalPlannerWithIndexTest extends BasePhysicalPlannerTest {
 
             // All should be index scans
             for (PhysicalNode child : and.children()) {
+                assertInstanceOf(PhysicalIndexScan.class, child);
+            }
+        }
+    }
+
+    // ============================================================================
+    // Primary Index IN/NIN Tests
+    // ============================================================================
+
+    @Nested
+    @DisplayName("Primary Index IN/NIN Tests")
+    class PrimaryIndexInNinTests {
+
+        @Test
+        @DisplayName("$in on _id should use PhysicalOr with multiple EQ index scans")
+        void shouldUsePhysicalOrForPrimaryIndexWithIN() {
+            // Behavior: $in on _id produces PhysicalOr with EQ index scans, one per ObjectId value.
+            PhysicalNode result = planQuery("""
+                    { "_id": { "$in": [{"$oid": "507f1f77bcf86cd799439011"}, {"$oid": "507f1f77bcf86cd799439012"}] } }
+                    """);
+
+            assertInstanceOf(PhysicalOr.class, result);
+            PhysicalOr or = (PhysicalOr) result;
+            assertEquals(2, or.children().size());
+
+            for (PhysicalNode child : or.children()) {
+                assertInstanceOf(PhysicalIndexScan.class, child);
+                PhysicalIndexScan indexScan = (PhysicalIndexScan) child;
+                assertInstanceOf(PhysicalFilter.class, indexScan.node());
+                PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+                assertEquals("_id", filter.selector());
+                assertEquals(Operator.EQ, filter.op());
+            }
+        }
+
+        @Test
+        @DisplayName("$nin on _id should use PhysicalAnd with multiple NE index scans")
+        void shouldUsePhysicalAndForPrimaryIndexWithNIN() {
+            // Behavior: $nin on _id produces PhysicalAnd with NE index scans, one per ObjectId value.
+            PhysicalNode result = planQuery("""
+                    { "_id": { "$nin": [{"$oid": "507f1f77bcf86cd799439011"}, {"$oid": "507f1f77bcf86cd799439012"}] } }
+                    """);
+
+            assertInstanceOf(PhysicalAnd.class, result);
+            PhysicalAnd and = (PhysicalAnd) result;
+            assertEquals(2, and.children().size());
+
+            for (PhysicalNode child : and.children()) {
+                assertInstanceOf(PhysicalIndexScan.class, child);
+                PhysicalIndexScan indexScan = (PhysicalIndexScan) child;
+                assertInstanceOf(PhysicalFilter.class, indexScan.node());
+                PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+                assertEquals("_id", filter.selector());
+                assertEquals(Operator.NE, filter.op());
+            }
+        }
+
+        @Test
+        @DisplayName("Single value $in on _id should optimize to single PhysicalIndexScan(EQ)")
+        void shouldOptimizeSingleValueInOnPrimaryIndex() {
+            // Behavior: $in with a single ObjectId on _id is optimized to a single EQ index scan.
+            PhysicalNode result = planQuery("""
+                    { "_id": { "$in": [{"$oid": "507f1f77bcf86cd799439011"}] } }
+                    """);
+
+            assertInstanceOf(PhysicalIndexScan.class, result);
+            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
+            assertInstanceOf(PhysicalFilter.class, indexScan.node());
+            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+            assertEquals("_id", filter.selector());
+            assertEquals(Operator.EQ, filter.op());
+        }
+
+        @Test
+        @DisplayName("Single value $nin on _id should optimize to single PhysicalIndexScan(NE)")
+        void shouldOptimizeSingleValueNinOnPrimaryIndex() {
+            // Behavior: $nin with a single ObjectId on _id is optimized to a single NE index scan.
+            PhysicalNode result = planQuery("""
+                    { "_id": { "$nin": [{"$oid": "507f1f77bcf86cd799439011"}] } }
+                    """);
+
+            assertInstanceOf(PhysicalIndexScan.class, result);
+            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
+            assertInstanceOf(PhysicalFilter.class, indexScan.node());
+            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+            assertEquals("_id", filter.selector());
+            assertEquals(Operator.NE, filter.op());
+        }
+    }
+
+    // ============================================================================
+    // Numeric Widening Tests
+    // ============================================================================
+
+    @Nested
+    @DisplayName("Numeric Widening Tests")
+    class NumericWideningTests {
+
+        @Test
+        void shouldUseIndexScanWhenInt32PredicateMatchesInt64Index() {
+            // Behavior: INT32 query value (42) should use INT64 index via lossless widening
+            createIndex(SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT64, false, IndexStatus.WAITING));
+
+            PhysicalNode result = planQuery("{ 'age': 42 }");
+
+            assertInstanceOf(PhysicalIndexScan.class, result);
+            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
+            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+            assertEquals("age", filter.selector());
+            assertEquals(Operator.EQ, filter.op());
+        }
+
+        @Test
+        void shouldUseIndexScanWhenInt32PredicateMatchesDoubleIndex() {
+            // Behavior: INT32 query value (42) should use DOUBLE index via lossless widening
+            createIndex(SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING));
+
+            PhysicalNode result = planQuery("{ 'price': 42 }");
+
+            assertInstanceOf(PhysicalIndexScan.class, result);
+            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
+            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+            assertEquals("price", filter.selector());
+            assertEquals(Operator.EQ, filter.op());
+        }
+
+        @Test
+        void shouldFallbackToFullScanWhenInt64PredicateMatchesDoubleIndex() {
+            // Behavior: INT64 -> DOUBLE is lossy (64-bit integer exceeds double's 53-bit mantissa),
+            // so the planner must NOT use the index
+            createIndex(SingleFieldIndexDefinition.create("score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING));
+
+            PhysicalNode result = planQuery("{ 'score': { '$numberLong': '42' } }");
+
+            assertInstanceOf(PhysicalFullScan.class, result);
+        }
+
+        @Test
+        void shouldFallbackToFullScanWhenDoublePredicateMatchesInt64Index() {
+            // Behavior: DOUBLE -> INT64 is not a valid widening path, must fall back to full scan
+            createIndex(SingleFieldIndexDefinition.create("count-index", "count", BsonType.INT64, false, IndexStatus.WAITING));
+
+            PhysicalNode result = planQuery("{ 'count': 42.5 }");
+
+            assertInstanceOf(PhysicalFullScan.class, result);
+        }
+
+        @Test
+        void shouldUseIndexScanWhenInt32GtPredicateMatchesInt64Index() {
+            // Behavior: INT32 range predicate should use INT64 index via lossless widening
+            createIndex(SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT64, false, IndexStatus.WAITING));
+
+            PhysicalNode result = planQuery("{ 'age': { '$gt': 18 } }");
+
+            assertInstanceOf(PhysicalIndexScan.class, result);
+            PhysicalIndexScan indexScan = (PhysicalIndexScan) result;
+            PhysicalFilter filter = (PhysicalFilter) indexScan.node();
+            assertEquals("age", filter.selector());
+            assertEquals(Operator.GT, filter.op());
+        }
+
+        @Test
+        void shouldUseIndexScanWhenInt32InPredicateMatchesInt64Index() {
+            // Behavior: $in with INT32 values should use INT64 index via lossless widening
+            createIndex(SingleFieldIndexDefinition.create("status-index", "status", BsonType.INT64, false, IndexStatus.WAITING));
+
+            PhysicalNode result = planQuery("{ 'status': { '$in': [1, 2, 3] } }");
+
+            assertInstanceOf(PhysicalOr.class, result);
+            PhysicalOr or = (PhysicalOr) result;
+            assertEquals(3, or.children().size());
+            for (PhysicalNode child : or.children()) {
                 assertInstanceOf(PhysicalIndexScan.class, child);
             }
         }

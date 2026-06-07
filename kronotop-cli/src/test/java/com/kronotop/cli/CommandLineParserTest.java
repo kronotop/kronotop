@@ -180,4 +180,80 @@ class CommandLineParserTest {
     void shouldParseDelimiterTrailingBackslash() {
         assertEquals("test\\", CommandLineParser.parseDelimiter("test\\"));
     }
+
+    @Test
+    void shouldProcessEscapesHexByte() {
+        // Behavior: \x01 is converted to char with value 1
+        String result = CommandLineParser.processEscapes("\\x01");
+        assertEquals(1, result.length());
+        assertEquals('\u0001', result.charAt(0));
+    }
+
+    @Test
+    void shouldProcessEscapesNullByte() {
+        // Behavior: \x00 is converted to null character
+        String result = CommandLineParser.processEscapes("\\x00");
+        assertEquals(1, result.length());
+        assertEquals('\u0000', result.charAt(0));
+    }
+
+    @Test
+    void shouldProcessEscapesMultipleHex() {
+        // Behavior: 8 hex escape sequences produce 8 raw bytes
+        String input = "\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00";
+        String result = CommandLineParser.processEscapes(input);
+        assertEquals(8, result.length());
+        assertEquals('\u0001', result.charAt(0));
+        for (int i = 1; i < 8; i++) {
+            assertEquals('\u0000', result.charAt(i));
+        }
+    }
+
+    @Test
+    void shouldProcessEscapesNewline() {
+        // Behavior: \n is converted to newline
+        assertEquals("hello\nworld", CommandLineParser.processEscapes("hello\\nworld"));
+    }
+
+    @Test
+    void shouldProcessEscapesTab() {
+        // Behavior: \t is converted to tab
+        assertEquals("hello\tworld", CommandLineParser.processEscapes("hello\\tworld"));
+    }
+
+    @Test
+    void shouldProcessEscapesBackslash() {
+        // Behavior: \\ is converted to single backslash
+        assertEquals("hello\\world", CommandLineParser.processEscapes("hello\\\\world"));
+    }
+
+    @Test
+    void shouldProcessEscapesNoEscape() {
+        // Behavior: string without escapes is returned unchanged
+        assertEquals("hello", CommandLineParser.processEscapes("hello"));
+    }
+
+    @Test
+    void shouldProcessEscapesIncompleteHex() {
+        // Behavior: incomplete hex escape is kept as literal
+        assertEquals("hello\\x4", CommandLineParser.processEscapes("hello\\x4"));
+    }
+
+    @Test
+    void shouldProcessEscapesInvalidHex() {
+        // Behavior: invalid hex escape is kept as literal
+        assertEquals("hello\\xGG", CommandLineParser.processEscapes("hello\\xGG"));
+    }
+
+    @Test
+    void shouldProcessEscapesMixed() {
+        // Behavior: mixed escape sequences are all processed
+        String result = CommandLineParser.processEscapes("a\\x01b\\nc");
+        assertEquals(5, result.length());
+        assertEquals('a', result.charAt(0));
+        assertEquals('\u0001', result.charAt(1));
+        assertEquals('b', result.charAt(2));
+        assertEquals('\n', result.charAt(3));
+        assertEquals('c', result.charAt(4));
+    }
 }

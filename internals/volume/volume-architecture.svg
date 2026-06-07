@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520"
+     font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+    <defs>
+        <marker id="arrow-down" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="5" refY="8" orient="auto"
+                markerUnits="userSpaceOnUse" overflow="visible">
+            <path d="M0,0 L5,8 L10,0 Z" fill="#00c5d1"/>
+        </marker>
+        <marker id="arrow-up" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="5" refY="0" orient="auto"
+                markerUnits="userSpaceOnUse" overflow="visible">
+            <path d="M0,8 L5,0 L10,8 Z" fill="#00c5d1"/>
+        </marker>
+        <marker id="arrow-green-down" viewBox="0 0 10 8" markerWidth="10" markerHeight="8" refX="5" refY="8"
+                orient="auto" markerUnits="userSpaceOnUse" overflow="visible">
+            <path d="M0,0 L5,8 L10,0 Z" fill="#c6ff3a"/>
+        </marker>
+        <marker id="arrow-right-cyan" viewBox="0 0 8 10" markerWidth="8" markerHeight="10" refX="8" refY="5"
+                orient="auto" markerUnits="userSpaceOnUse" overflow="visible">
+            <path d="M0,0 L8,5 L0,10 Z" fill="#00c5d1"/>
+        </marker>
+        <marker id="arrow-right-green" viewBox="0 0 8 10" markerWidth="8" markerHeight="10" refX="8" refY="5"
+                orient="auto" markerUnits="userSpaceOnUse" overflow="visible">
+            <path d="M0,0 L8,5 L0,10 Z" fill="#c6ff3a"/>
+        </marker>
+        <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.30"/>
+        </filter>
+    </defs>
+
+    <!-- Background -->
+    <rect width="900" height="520" rx="12" fill="#061827"/>
+
+    <!-- ═══════════ TITLE ═══════════ -->
+    <text x="450" y="36" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">Volume Storage Engine
+    </text>
+    <line x1="320" y1="46" x2="580" y2="46" stroke="#00c5d1" stroke-width="1" opacity="0.4"/>
+
+    <!-- ═══════════ WRITE PATH (left) ═══════════ -->
+    <rect x="40" y="64" width="390" height="80" rx="10" fill="#0e3040" stroke="#c6ff3a" stroke-width="2"
+          filter="url(#shadow)"/>
+    <rect x="40" y="64" width="390" height="26" rx="10" fill="#0a2030"/>
+    <rect x="40" y="84" width="390" height="6" fill="#0a2030"/>
+    <text x="235" y="82" text-anchor="middle" font-size="12" font-weight="700" fill="#c6ff3a">Write Path</text>
+
+    <rect x="60" y="100" width="90" height="32" rx="5" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1.2"/>
+    <text x="105" y="120" text-anchor="middle" font-size="11" font-weight="600" fill="#c6ff3a">Append</text>
+
+    <line x1="150" y1="116" x2="172" y2="116" stroke="#c6ff3a" stroke-width="1.5" marker-end="url(#arrow-right-green)"/>
+
+    <rect x="180" y="100" width="90" height="32" rx="5" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1.2"/>
+    <text x="225" y="120" text-anchor="middle" font-size="11" font-weight="600" fill="#c6ff3a">Sync</text>
+
+    <line x1="270" y1="116" x2="292" y2="116" stroke="#c6ff3a" stroke-width="1.5" marker-end="url(#arrow-right-green)"/>
+
+    <rect x="300" y="100" width="114" height="32" rx="5" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1.2"/>
+    <text x="357" y="120" text-anchor="middle" font-size="11" font-weight="600" fill="#c6ff3a">Commit</text>
+
+    <!-- ═══════════ READ PATH (right) ═══════════ -->
+    <rect x="470" y="64" width="390" height="80" rx="10" fill="#0e3040" stroke="#00c5d1" stroke-width="2"
+          filter="url(#shadow)"/>
+    <rect x="470" y="64" width="390" height="26" rx="10" fill="#0a2030"/>
+    <rect x="470" y="84" width="390" height="6" fill="#0a2030"/>
+    <text x="665" y="82" text-anchor="middle" font-size="12" font-weight="700" fill="#00c5d1">Read Path</text>
+
+    <rect x="500" y="100" width="140" height="32" rx="5" fill="#0a3a4a" stroke="#00c5d1" stroke-width="1.2"/>
+    <text x="570" y="120" text-anchor="middle" font-size="11" font-weight="600" fill="#00c5d1">Lookup Metadata</text>
+
+    <line x1="640" y1="116" x2="672" y2="116" stroke="#00c5d1" stroke-width="1.5" marker-end="url(#arrow-right-cyan)"/>
+
+    <rect x="680" y="100" width="160" height="32" rx="5" fill="#0a3a4a" stroke="#00c5d1" stroke-width="1.2"/>
+    <text x="760" y="120" text-anchor="middle" font-size="11" font-weight="600" fill="#00c5d1">Read from Segment</text>
+
+    <!-- ═══════════ ARROWS: paths to volume ═══════════ -->
+    <line x1="235" y1="144" x2="235" y2="178" stroke="#c6ff3a" stroke-width="1.5" marker-end="url(#arrow-green-down)"/>
+    <line x1="665" y1="178" x2="665" y2="144" stroke="#00c5d1" stroke-width="1.5" marker-end="url(#arrow-up)"/>
+
+    <!-- ═══════════ VOLUME (large container) ═══════════ -->
+    <rect x="40" y="184" width="820" height="210" rx="10" fill="#0d2a3d" stroke="#00c5d1" stroke-width="2"
+          filter="url(#shadow)"/>
+    <rect x="40" y="184" width="820" height="30" rx="10" fill="#0a2030"/>
+    <rect x="40" y="208" width="820" height="6" fill="#0a2030"/>
+    <text x="450" y="204" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">Volume</text>
+
+    <!-- ═══════════ Segments area ═══════════ -->
+    <!-- Segment 0 -->
+    <rect x="70" y="228" width="220" height="146" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"/>
+    <rect x="70" y="228" width="220" height="24" rx="6" fill="#0a3a4a"/>
+    <rect x="70" y="246" width="220" height="6" fill="#0a3a4a"/>
+    <text x="180" y="244" text-anchor="middle" font-size="10" font-weight="700" fill="#00c5d1">Segment 0</text>
+
+    <!-- Entries -->
+    <rect x="85" y="264" width="60" height="28" rx="3" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1"/>
+    <text x="115" y="282" text-anchor="middle" font-size="9" fill="#c6ff3a">entry</text>
+    <rect x="151" y="264" width="60" height="28" rx="3" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1"/>
+    <text x="181" y="282" text-anchor="middle" font-size="9" fill="#c6ff3a">entry</text>
+    <rect x="217" y="264" width="60" height="28" rx="3" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1"/>
+    <text x="247" y="282" text-anchor="middle" font-size="9" fill="#c6ff3a">entry</text>
+
+    <!-- More entries row -->
+    <rect x="85" y="298" width="60" height="28" rx="3" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1"/>
+    <text x="115" y="316" text-anchor="middle" font-size="9" fill="#c6ff3a">entry</text>
+    <text x="200" y="316" text-anchor="middle" font-size="14" fill="#c6ff3a" opacity="0.5">...</text>
+
+    <!-- Free space -->
+    <rect x="85" y="334" width="192" height="28" rx="3" fill="#061827" stroke="#00c5d1" stroke-width="1"
+          stroke-dasharray="4,2" opacity="0.4"/>
+    <text x="181" y="352" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.5">free space</text>
+
+    <!-- Segment 1 -->
+    <rect x="310" y="228" width="220" height="146" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"/>
+    <rect x="310" y="228" width="220" height="24" rx="6" fill="#0a3a4a"/>
+    <rect x="310" y="246" width="220" height="6" fill="#0a3a4a"/>
+    <text x="420" y="244" text-anchor="middle" font-size="10" font-weight="700" fill="#00c5d1">Segment 1</text>
+
+    <rect x="325" y="264" width="60" height="28" rx="3" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1"/>
+    <text x="355" y="282" text-anchor="middle" font-size="9" fill="#c6ff3a">entry</text>
+    <rect x="391" y="264" width="60" height="28" rx="3" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1"/>
+    <text x="421" y="282" text-anchor="middle" font-size="9" fill="#c6ff3a">entry</text>
+    <text x="480" y="282" text-anchor="middle" font-size="14" fill="#c6ff3a" opacity="0.5">...</text>
+
+    <rect x="325" y="304" width="192" height="58" rx="3" fill="#061827" stroke="#00c5d1" stroke-width="1"
+          stroke-dasharray="4,2" opacity="0.4"/>
+    <text x="421" y="338" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.5">free space</text>
+
+    <!-- Dots between segments -->
+    <text x="556" y="310" text-anchor="middle" font-size="24" font-weight="700" fill="#ffffff" opacity="0.2">...</text>
+
+    <!-- Segment N (dashed) -->
+    <rect x="590" y="228" width="220" height="146" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"
+          stroke-dasharray="8,4"/>
+    <rect x="590" y="228" width="220" height="24" rx="6" fill="#0a3a4a" opacity="0.6"/>
+    <rect x="590" y="246" width="220" height="6" fill="#0a3a4a" opacity="0.6"/>
+    <text x="700" y="244" text-anchor="middle" font-size="10" font-weight="700" fill="#00c5d1" opacity="0.7">Segment N
+    </text>
+
+    <rect x="605" y="264" width="60" height="28" rx="3" fill="#1a3a1a" stroke="#c6ff3a" stroke-width="1" opacity="0.5"/>
+    <text x="635" y="282" text-anchor="middle" font-size="9" fill="#c6ff3a" opacity="0.5">entry</text>
+    <text x="700" y="282" text-anchor="middle" font-size="14" fill="#c6ff3a" opacity="0.3">...</text>
+
+    <rect x="605" y="304" width="192" height="58" rx="3" fill="#061827" stroke="#00c5d1" stroke-width="1"
+          stroke-dasharray="4,2" opacity="0.3"/>
+    <text x="701" y="338" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.3">free space</text>
+
+    <!-- ═══════════ ARROWS: Volume to FDB ═══════════ -->
+    <line x1="180" y1="394" x2="180" y2="430" stroke="#c6ff3a" stroke-width="1.5" marker-end="url(#arrow-green-down)"/>
+    <line x1="420" y1="394" x2="420" y2="430" stroke="#c6ff3a" stroke-width="1.5" marker-end="url(#arrow-green-down)"/>
+    <line x1="700" y1="394" x2="700" y2="430" stroke="#c6ff3a" stroke-width="1.5" stroke-dasharray="5,3"
+          marker-end="url(#arrow-green-down)"/>
+
+    <!-- ═══════════ FOUNDATIONDB BAR ═══════════ -->
+    <rect x="40" y="436" width="820" height="64" rx="10" fill="#0e3040" stroke="#00c5d1" stroke-width="2"
+          filter="url(#shadow)"/>
+    <text x="450" y="464" text-anchor="middle" font-size="14" font-weight="700" fill="#00c5d1">FoundationDB</text>
+    <text x="450" y="484" text-anchor="middle" font-size="10" fill="#ffffff" opacity="0.6">Entry Metadata · Segment
+        Tracking · Change Log · Replication State
+    </text>
+</svg>

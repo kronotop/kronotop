@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,10 +19,6 @@ package com.kronotop.bucket;
 import com.kronotop.KronotopException;
 
 public class BucketMetadataConvergenceException extends KronotopException {
-    public BucketMetadataConvergenceException(String message) {
-        super(message);
-    }
-
     public BucketMetadataConvergenceException(Throwable t) {
         super(t);
     }

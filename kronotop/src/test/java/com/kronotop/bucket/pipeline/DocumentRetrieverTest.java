@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,32 +17,32 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseClusterTestWithTCPServer;
 import com.kronotop.Context;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.bucket.*;
+import com.kronotop.TestUtil;
+import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.index.*;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
-import com.kronotop.internal.VersionstampUtil;
-import com.kronotop.server.MockChannelHandlerContext;
-import com.kronotop.server.Session;
+import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.EntryMetadata;
-import com.kronotop.volume.Prefix;
-import com.kronotop.volume.Subspaces;
 import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonType;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -54,28 +54,27 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
 
-    private static final String BUCKET_NAME = "test-bucket";
     private static final int SHARD_ID = 0;
+    private static final String TEST_BUCKET = "test-bucket";
 
-    private KronotopTestInstance primaryInstance;
     private Context primaryContext;
     private EmbeddedChannel primaryChannel;
     private BucketService primaryBucketService;
 
     @BeforeEach
-    void setupInstances() {
-        primaryInstance = getInstances().getFirst();
+    void setUp() {
+        KronotopTestInstance primaryInstance = getInstances().getFirst();
         primaryContext = primaryInstance.getContext();
         primaryChannel = primaryInstance.getChannel();
         primaryBucketService = primaryContext.getService(BucketService.NAME);
+        createBucket(TEST_BUCKET);
     }
 
     @Test
     void shouldReturnEmptyListForEmptyLocations() {
-        BucketMetadata metadata = createBucket(BUCKET_NAME);
         DocumentRetriever retriever = new DocumentRetriever(primaryBucketService);
 
-        List<ByteBuffer> results = retriever.retrieveDocuments(metadata, List.of());
+        List<ByteBuffer> results = retriever.retrieveDocuments(List.of());
 
         assertTrue(results.isEmpty());
     }
@@ -85,13 +84,13 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Alice', 'age': 30}")
         );
-        List<Versionstamp> versionstamps = insertDocuments(BUCKET_NAME, documents);
-        BucketMetadata metadata = createBucket(BUCKET_NAME);
+        List<ObjectId> objectIds = insertDocuments(TEST_BUCKET, documents);
+        BucketMetadata metadata = openBucketMetadata(TEST_BUCKET);
 
-        List<DocumentLocation> locations = buildDocumentLocations(metadata, versionstamps);
+        List<DocumentLocation> locations = buildDocumentLocations(metadata, objectIds);
         DocumentRetriever retriever = new DocumentRetriever(primaryBucketService);
 
-        List<ByteBuffer> results = retriever.retrieveDocuments(metadata, locations);
+        List<ByteBuffer> results = retriever.retrieveDocuments(locations);
 
         assertEquals(1, results.size());
         assertDocumentHasName(results.getFirst(), "Alice");
@@ -104,13 +103,13 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Bob', 'age': 25}"),
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Charlie', 'age': 35}")
         );
-        List<Versionstamp> versionstamps = insertDocuments(BUCKET_NAME, documents);
-        BucketMetadata metadata = createBucket(BUCKET_NAME);
+        List<ObjectId> objectIds = insertDocuments(TEST_BUCKET, documents);
+        BucketMetadata metadata = openBucketMetadata(TEST_BUCKET);
 
-        List<DocumentLocation> locations = buildDocumentLocations(metadata, versionstamps);
+        List<DocumentLocation> locations = buildDocumentLocations(metadata, objectIds);
         DocumentRetriever retriever = new DocumentRetriever(primaryBucketService);
 
-        List<ByteBuffer> results = retriever.retrieveDocuments(metadata, locations);
+        List<ByteBuffer> results = retriever.retrieveDocuments(locations);
 
         assertEquals(3, results.size());
         assertDocumentHasName(results.get(0), "Alice");
@@ -127,17 +126,17 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Fourth'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Fifth'}")
         );
-        List<Versionstamp> versionstamps = insertDocuments(BUCKET_NAME, documents);
-        BucketMetadata metadata = createBucket(BUCKET_NAME);
+        List<ObjectId> objectIds = insertDocuments(TEST_BUCKET, documents);
+        BucketMetadata metadata = openBucketMetadata(TEST_BUCKET);
 
-        List<DocumentLocation> locations = buildDocumentLocations(metadata, versionstamps);
+        List<DocumentLocation> locations = buildDocumentLocations(metadata, objectIds);
 
         // Reverse order to test preservation
         List<DocumentLocation> reversed = new ArrayList<>(locations);
         java.util.Collections.reverse(reversed);
 
         DocumentRetriever retriever = new DocumentRetriever(primaryBucketService);
-        List<ByteBuffer> results = retriever.retrieveDocuments(metadata, reversed);
+        List<ByteBuffer> results = retriever.retrieveDocuments(reversed);
 
         assertEquals(5, results.size());
         assertDocumentHasName(results.get(0), "Fifth");
@@ -155,13 +154,13 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
                     String.format("{'name': 'Doc%d', 'index': %d}", i, i)
             ));
         }
-        List<Versionstamp> versionstamps = insertDocuments(BUCKET_NAME, documents);
-        BucketMetadata metadata = createBucket(BUCKET_NAME);
+        List<ObjectId> objectIds = insertDocuments(TEST_BUCKET, documents);
+        BucketMetadata metadata = openBucketMetadata(TEST_BUCKET);
 
-        List<DocumentLocation> locations = buildDocumentLocations(metadata, versionstamps);
+        List<DocumentLocation> locations = buildDocumentLocations(metadata, objectIds);
         DocumentRetriever retriever = new DocumentRetriever(primaryBucketService);
 
-        List<ByteBuffer> results = retriever.retrieveDocuments(metadata, locations);
+        List<ByteBuffer> results = retriever.retrieveDocuments(locations);
 
         assertEquals(20, results.size());
         for (int i = 0; i < 20; i++) {
@@ -177,8 +176,8 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'RemoteDoc2'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'RemoteDoc3'}")
         );
-        List<Versionstamp> versionstamps = insertDocuments(BUCKET_NAME, documents);
-        BucketMetadata metadata = createBucket(BUCKET_NAME);
+        List<ObjectId> objectIds = insertDocuments(TEST_BUCKET, documents);
+        BucketMetadata metadata = openBucketMetadata(TEST_BUCKET);
 
         // Add a second node that will query remotely
         KronotopTestInstance secondInstance = addNewInstance(true);
@@ -192,11 +191,11 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
                 "Shard should be owned by primary, not second instance");
 
         // Build locations (using primary's metadata)
-        List<DocumentLocation> locations = buildDocumentLocations(metadata, versionstamps);
+        List<DocumentLocation> locations = buildDocumentLocations(metadata, objectIds);
 
-        // Retrieve from second node (should use fetchRemote)
+        // Retrieve from the second node (should use fetchRemote)
         DocumentRetriever retriever = new DocumentRetriever(secondBucketService);
-        List<ByteBuffer> results = retriever.retrieveDocuments(metadata, locations);
+        List<ByteBuffer> results = retriever.retrieveDocuments(locations);
 
         assertEquals(3, results.size());
         assertDocumentHasName(results.get(0), "RemoteDoc1");
@@ -213,17 +212,17 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
                     String.format("{'name': 'Remote%d'}", i)
             ));
         }
-        List<Versionstamp> versionstamps = insertDocuments(BUCKET_NAME, documents);
-        BucketMetadata metadata = createBucket(BUCKET_NAME);
+        List<ObjectId> objectIds = insertDocuments(TEST_BUCKET, documents);
+        BucketMetadata metadata = openBucketMetadata(TEST_BUCKET);
 
-        // Second node retrieves remotely
+        // The second node retrieves remotely
         KronotopTestInstance secondInstance = addNewInstance(true);
         BucketService secondBucketService = secondInstance.getContext().getService(BucketService.NAME);
 
-        List<DocumentLocation> locations = buildDocumentLocations(metadata, versionstamps);
+        List<DocumentLocation> locations = buildDocumentLocations(metadata, objectIds);
         DocumentRetriever retriever = new DocumentRetriever(secondBucketService);
 
-        List<ByteBuffer> results = retriever.retrieveDocuments(metadata, locations);
+        List<ByteBuffer> results = retriever.retrieveDocuments(locations);
 
         assertEquals(15, results.size());
         for (int i = 0; i < 15; i++) {
@@ -239,20 +238,20 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'C'}"),
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'D'}")
         );
-        List<Versionstamp> versionstamps = insertDocuments(BUCKET_NAME, documents);
-        BucketMetadata metadata = createBucket(BUCKET_NAME);
+        List<ObjectId> objectIds = insertDocuments(TEST_BUCKET, documents);
+        BucketMetadata metadata = openBucketMetadata(TEST_BUCKET);
 
         KronotopTestInstance secondInstance = addNewInstance(true);
         BucketService secondBucketService = secondInstance.getContext().getService(BucketService.NAME);
 
-        List<DocumentLocation> locations = buildDocumentLocations(metadata, versionstamps);
+        List<DocumentLocation> locations = buildDocumentLocations(metadata, objectIds);
 
         // Reverse order
         List<DocumentLocation> reversed = new ArrayList<>(locations);
         java.util.Collections.reverse(reversed);
 
         DocumentRetriever retriever = new DocumentRetriever(secondBucketService);
-        List<ByteBuffer> results = retriever.retrieveDocuments(metadata, reversed);
+        List<ByteBuffer> results = retriever.retrieveDocuments(reversed);
 
         assertEquals(4, results.size());
         assertDocumentHasName(results.get(0), "D");
@@ -261,21 +260,25 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
         assertDocumentHasName(results.get(3), "A");
     }
 
-    private Session getSession(KronotopTestInstance instance) {
-        MockChannelHandlerContext ctx = new MockChannelHandlerContext(instance.getChannel());
-        Session.registerSession(instance.getContext(), ctx);
-        return Session.extractSessionFromChannel(ctx.channel());
+    private void createBucket(String bucketName) {
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.create(bucketName).encode(buf);
+        Object response = runCommand(primaryChannel, buf);
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
     }
 
-    private BucketMetadata createBucket(String bucketName) {
-        Session session = getSession(primaryInstance);
-        return BucketMetadataUtil.createOrOpen(primaryContext, session, bucketName);
+    private BucketMetadata openBucketMetadata(String bucketName) {
+        try (Transaction tr = primaryContext.getFoundationDB().createTransaction()) {
+            String namespace = primaryContext.getConfig().getString("default_namespace");
+            return BucketMetadataUtil.open(primaryContext, tr, namespace, bucketName);
+        }
     }
 
-    private List<Versionstamp> insertDocuments(String bucketName, List<byte[]> documents) {
+    private List<ObjectId> insertDocuments(String bucketName, List<byte[]> documents) {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.insert(bucketName, BucketInsertArgs.Builder.shard(SHARD_ID), documents).encode(buf);
+        cmd.insert(bucketName, documents).encode(buf);
 
         Object msg = runCommand(primaryChannel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -283,38 +286,36 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
 
         assertEquals(documents.size(), response.children().size());
 
-        List<Versionstamp> versionstamps = new ArrayList<>();
+        List<ObjectId> objectIds = new ArrayList<>();
         for (int i = 0; i < documents.size(); i++) {
-            SimpleStringRedisMessage message = (SimpleStringRedisMessage) response.children().get(i);
-            assertNotNull(message.content());
-            Versionstamp versionstamp = assertDoesNotThrow(() -> VersionstampUtil.base32HexDecode(message.content()));
-            versionstamps.add(versionstamp);
+            FullBulkStringRedisMessage message = (FullBulkStringRedisMessage) response.children().get(i);
+            objectIds.add(TestUtil.bulkStringToObjectId(message));
         }
-        return versionstamps;
+        return objectIds;
     }
 
     private List<DocumentLocation> buildDocumentLocations(
             BucketMetadata metadata,
-            List<Versionstamp> versionstamps
+            List<ObjectId> objectIds
     ) {
         List<DocumentLocation> locations = new ArrayList<>();
-        Prefix prefix = metadata.volumePrefix();
 
-        // Get the volume's subspace from the bucket shard
-        BucketShard shard = primaryBucketService.getShard(SHARD_ID);
-        assertNotNull(shard, "Bucket shard should exist");
-        DirectorySubspace volumeSubspace = shard.volume().getConfig().subspace();
+        // Get the primary index subspace
+        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        assertNotNull(primaryIndex, "Primary index should exist");
 
         try (Transaction tr = primaryContext.getFoundationDB().createTransaction()) {
-            for (Versionstamp versionstamp : versionstamps) {
-                byte[] entryKey = volumeSubspace.pack(
-                        Tuple.from(Subspaces.ENTRY_SUBSPACE, prefix.asBytes(), versionstamp)
+            for (ObjectId objectId : objectIds) {
+                // Look up the index entry by ObjectId: (ENTRIES, ObjectId) -> IndexEntry
+                byte[] indexKey = primaryIndex.subspace().pack(
+                        Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), objectId.toByteArray())
                 );
-                byte[] entryMetadataBytes = tr.get(entryKey).join();
-                assertNotNull(entryMetadataBytes, "Entry metadata should exist for " + versionstamp);
+                byte[] indexEntryBytes = tr.get(indexKey).join();
+                assertNotNull(indexEntryBytes, "Index entry should exist for " + objectId);
 
-                EntryMetadata entryMetadata = EntryMetadata.decode(entryMetadataBytes);
-                locations.add(new DocumentLocation(versionstamp, SHARD_ID, entryMetadata));
+                IndexEntry indexEntry = IndexEntry.decode(indexEntryBytes);
+                EntryMetadata entryMetadata = EntryMetadata.decode(indexEntry.entryMetadata());
+                locations.add(new DocumentLocation(objectId, indexEntry.shardId(), entryMetadata));
             }
         }
 

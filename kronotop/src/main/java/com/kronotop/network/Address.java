@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.kronotop.network;
 
+import com.google.common.net.HostAndPort;
 import com.kronotop.KronotopException;
 
 import java.io.IOException;
@@ -91,7 +92,6 @@ public final class Address {
     }
 
     public static Address parseString(String hostPort) throws UnknownHostException {
-        hostPort = hostPort.replace("[", "").replace("]", "");
         String[] parsed = hostPort.split(":");
         if (parsed.length != 2) {
             throw new IllegalArgumentException(String.format("Illegal Address format: %s", hostPort));
@@ -139,6 +139,6 @@ public final class Address {
 
     @Override
     public String toString() {
-        return '[' + host + "]:" + port;
+        return HostAndPort.fromParts(host, port).toString();
     }
 }

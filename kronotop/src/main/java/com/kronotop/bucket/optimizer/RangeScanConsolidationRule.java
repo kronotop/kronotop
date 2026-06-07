@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 
@@ -38,37 +38,39 @@ import java.util.Map;
 public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 
     @Override
-    public PhysicalNode apply(PhysicalNode node, BucketMetadata metadata, PlannerContext context) {
+    public PhysicalNode apply(PlannerContext context, PhysicalNode node) {
         return switch (node) {
-            case PhysicalAnd and -> optimizeAnd(and, metadata, context);
-            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(not.child(), metadata, context));
+            case PhysicalAnd and -> optimizeAnd(context, and);
+            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(context, not.child()));
             case PhysicalElemMatch elemMatch -> new PhysicalElemMatch(
                     context.nextId(),
                     elemMatch.selector(),
-                    apply(elemMatch.subPlan(), metadata, context)
+                    apply(context, elemMatch.subPlan())
             );
             case PhysicalOr or -> new PhysicalOr(
                     context.nextId(),
                     or.children().stream()
-                            .map(child -> apply(child, metadata, context))
+                            .map(child -> apply(context, child))
                             .toList()
             );
             default -> node; // No optimization for other nodes
         };
     }
 
-    private PhysicalNode optimizeAnd(PhysicalAnd and, BucketMetadata metadata, PlannerContext context) {
+    private PhysicalNode optimizeAnd(PlannerContext context, PhysicalAnd and) {
         List<PhysicalNode> optimizedChildren = new ArrayList<>();
         Map<String, List<RangeCondition>> rangeConditions = new HashMap<>();
 
         // First, recursively optimize children
         for (PhysicalNode child : and.children()) {
-            PhysicalNode optimized = apply(child, metadata, context);
+            PhysicalNode optimized = apply(context, child);
 
             // Check if this is an index scan or full scan with a range condition
             PhysicalFilter extractedFilter = null;
-            IndexDefinition existingIndex = null;
-            if (optimized instanceof PhysicalIndexScan(int ignoredIndexId, PhysicalNode node, IndexDefinition index) &&
+            SingleFieldIndexDefinition existingIndex = null;
+            if (optimized instanceof PhysicalIndexScan(
+                    int ignoredIndexId, PhysicalNode node, SingleFieldIndexDefinition index
+            ) &&
                     node instanceof PhysicalFilter indexFilter &&
                     isRangeOperator(indexFilter.op())) {
                 extractedFilter = indexFilter;
@@ -83,10 +85,10 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 
             if (extractedFilter != null) {
                 // Use the existing index if available, otherwise look it up from metadata
-                IndexDefinition indexToUse = existingIndex != null ?
-                        existingIndex : getIndexFromMetadata(metadata, extractedFilter.selector());
+                SingleFieldIndexDefinition indexToUse = existingIndex != null ?
+                        existingIndex : getIndexFromMetadata(context.getMetadata(), extractedFilter.selector());
 
-                // Group range conditions by selector (use index selector if available for scalar array $elemMatch)
+                // Group range conditions by selector (use index selector if available for a scalar array $elemMatch)
                 String groupKey = indexToUse != null ? indexToUse.selector() : extractedFilter.selector();
                 rangeConditions.computeIfAbsent(groupKey, k -> new ArrayList<>())
                         .add(new RangeCondition(extractedFilter, indexToUse));
@@ -101,7 +103,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 
             if (conditions.size() > 1) {
                 // Try to consolidate into a range scan
-                PhysicalNode consolidated = consolidateRangeConditions(conditions, context);
+                PhysicalNode consolidated = consolidateRangeConditions(context, conditions);
                 if (consolidated != null) {
                     optimizedChildren.add(consolidated);
                 } else {
@@ -116,7 +118,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
                 }
             } else {
                 // Single condition, just add it back
-                RangeCondition condition = conditions.get(0);
+                RangeCondition condition = conditions.getFirst();
                 if (condition.index != null) {
                     optimizedChildren.add(new PhysicalIndexScan(context.nextId(), condition.filter, condition.index));
                 } else {
@@ -127,7 +129,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 
         // Return simplified structure
         if (optimizedChildren.size() == 1) {
-            return optimizedChildren.get(0);
+            return optimizedChildren.getFirst();
         } else if (optimizedChildren.size() != and.children().size()) {
             return new PhysicalAnd(context.nextId(), optimizedChildren);
         } else {
@@ -135,15 +137,15 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
         }
     }
 
-    private PhysicalNode consolidateRangeConditions(List<RangeCondition> conditions, PlannerContext context) {
+    private PhysicalNode consolidateRangeConditions(PlannerContext context, List<RangeCondition> conditions) {
         Object lowerBound = null;
         Object upperBound = null;
         boolean includeLower = false;
         boolean includeUpper = false;
-        IndexDefinition index = conditions.get(0).index; // Assume same index for same selector
+        SingleFieldIndexDefinition index = conditions.getFirst().index; // Assume same index for same selector
         // Use the original filter selector for residual predicate evaluation
         // (important for a scalar array $elemMatch where the filter selector is empty)
-        String filterSelector = conditions.get(0).filter.selector();
+        String filterSelector = conditions.getFirst().filter.selector();
 
         // Note: index can be null for full scan range consolidation
 
@@ -192,7 +194,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
         return op == Operator.GT || op == Operator.GTE || op == Operator.LT || op == Operator.LTE;
     }
 
-    private IndexDefinition getIndexFromMetadata(BucketMetadata metadata, String selector) {
+    private SingleFieldIndexDefinition getIndexFromMetadata(BucketMetadata metadata, String selector) {
         Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READ);
         if (index == null) {
             return null;
@@ -257,7 +259,9 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     private boolean hasIndexScansWithRangeOperators(PhysicalAnd and) {
         return and.children().stream()
                 .anyMatch(child ->
-                        (child instanceof PhysicalIndexScan(int ignoredIndexId, PhysicalNode indexNode, var ignoredIndex) &&
+                        (child instanceof PhysicalIndexScan(
+                                int ignoredIndexId, PhysicalNode indexNode, var ignoredIndex
+                        ) &&
                                 indexNode instanceof PhysicalFilter indexFilter &&
                                 isRangeOperator(indexFilter.op())) ||
                                 (child instanceof PhysicalFullScan(int ignoredScanId, PhysicalNode scanNode) &&
@@ -269,6 +273,6 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     /**
      * Helper record to group range conditions by selector
      */
-    private record RangeCondition(PhysicalFilter filter, IndexDefinition index) {
+    private record RangeCondition(PhysicalFilter filter, SingleFieldIndexDefinition index) {
     }
 }

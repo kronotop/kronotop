@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,35 +24,35 @@ import java.net.UnknownHostException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-public class AddressTest {
+class AddressTest {
     @Test
-    public void testAddress() throws UnknownHostException {
+    void shouldCreateAddressWithHostAndPort() throws UnknownHostException {
         Address addr = new Address("localhost", 5484);
         assertEquals("localhost", addr.getHost());
         assertEquals(5484, addr.getPort());
     }
 
     @Test
-    public void testFindAvailablePort() throws UnknownHostException {
+    void shouldFindAvailablePort() throws UnknownHostException {
         Address addr = new Address("localhost", 0);
         assertNotEquals(0, addr.getPort());
     }
 
     @Test
-    public void testHashCode() throws UnknownHostException {
+    void shouldComputeHashCode() throws UnknownHostException {
         Address addr = new Address("localhost", 0);
         assertNotEquals(0, addr.hashCode());
     }
 
     @Test
-    public void testEquals() throws UnknownHostException {
+    void shouldBeEqualForSameHostAndPort() throws UnknownHostException {
         Address one = new Address("localhost", 5484);
         Address two = new Address("localhost", 5484);
         assertEquals(one, two);
     }
 
     @Test
-    public void testResolve() {
+    void shouldResolveFromInetSocketAddress() {
         InetSocketAddress sockAddr = new InetSocketAddress(5484);
         Address addr = new Address(sockAddr);
         assertEquals(5484, addr.getPort());

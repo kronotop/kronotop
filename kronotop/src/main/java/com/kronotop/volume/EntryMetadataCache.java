@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ public class EntryMetadataCache {
     public LoadingCache<Versionstamp, EntryMetadata> load(Prefix prefix) {
         return cache.computeIfAbsent(prefix.asLong(), prefixId -> CacheBuilder.
                 newBuilder().
+                maximumSize(10_000).
                 expireAfterAccess(EntryMetadataCacheLoader.EXPIRE_AFTER_ACCESS).
                 build(new EntryMetadataCacheLoader(context, subspace, prefix)));
     }

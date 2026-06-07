@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,52 +16,59 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.tuple.Tuple;
+import java.nio.ByteBuffer;
 
 /**
  * EntryMetadata represents metadata for a storage entry within a segmented storage system.
  * Contains segment identifier, prefix, position, length, and unique entry handle.
  */
 public record EntryMetadata(long segmentId, byte[] prefix, long position, long length, long handle) {
+    public static final int ENCODED_SIZE = 40;
     public static int ENTRY_PREFIX_SIZE = 8;
 
     /**
-     * Decodes entry metadata from packed tuple bytes.
+     * Decodes entry metadata from a fixed-size byte array.
      *
-     * @param data packed tuple bytes containing entry metadata
+     * @param data 40-byte array containing entry metadata
      * @return decoded EntryMetadata instance
      */
     public static EntryMetadata decode(byte[] data) {
-        Tuple tuple = Tuple.fromBytes(data);
-        long segmentId = tuple.getLong(0);
-        byte[] prefix = tuple.getBytes(1);
-        long position = tuple.getLong(2);
-        long length = tuple.getLong(3);
-        long handle = tuple.getLong(4);
+        ByteBuffer buffer = ByteBuffer.wrap(data);
+        long segmentId = buffer.getLong();
+        byte[] prefix = new byte[ENTRY_PREFIX_SIZE];
+        buffer.get(prefix);
+        long position = buffer.getLong();
+        long length = buffer.getLong();
+        long handle = buffer.getLong();
         return new EntryMetadata(segmentId, prefix, position, length, handle);
     }
 
     /**
-     * Extracts the handle from packed tuple bytes.
+     * Extracts the handle from a fixed-size byte array.
      *
-     * @param data packed tuple bytes containing entry metadata
+     * @param data 40-byte array containing entry metadata
      * @return the entry handle
      */
     public static long extractHandle(byte[] data) {
-        Tuple tuple = Tuple.fromBytes(data);
-        return tuple.getLong(4);
+        return ByteBuffer.wrap(data).getLong(32);
     }
 
     /**
-     * Encodes entry metadata into packed tuple bytes.
+     * Encodes entry metadata into a fixed-size byte array.
      *
-     * @return packed tuple bytes
-     * @throws IllegalArgumentException if prefix length is invalid
+     * @return 40-byte array
+     * @throws IllegalArgumentException if the prefix length is invalid
      */
     public byte[] encode() {
         if (prefix.length != ENTRY_PREFIX_SIZE) {
             throw new IllegalArgumentException("Invalid prefix length");
         }
-        return Tuple.from(segmentId, prefix, position, length, handle).pack();
+        ByteBuffer buffer = ByteBuffer.allocate(ENCODED_SIZE);
+        buffer.putLong(segmentId);
+        buffer.put(prefix);
+        buffer.putLong(position);
+        buffer.putLong(length);
+        buffer.putLong(handle);
+        return buffer.array();
     }
 }

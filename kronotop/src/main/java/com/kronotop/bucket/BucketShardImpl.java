@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package com.kronotop.bucket;
 
 import com.kronotop.Context;
-import com.kronotop.KronotopException;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.impl.AbstractShard;
@@ -31,7 +30,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Implementation of the {@link BucketShard} interface, representing a specific type of shard
@@ -90,9 +88,9 @@ public class BucketShardImpl extends AbstractShard implements BucketShard {
     @Override
     public void close() {
         closed = true;
-        volume.close();
         worker.shutdown();
         executor.shutdownNow();
         ExecutorServiceUtil.shutdownNowThenAwaitTermination(executor);
+        volume.close();
     }
 }

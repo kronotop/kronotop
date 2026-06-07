@@ -16,7 +16,7 @@
 
 package com.kronotop.cli;
 
-import com.kronotop.cli.resp.RespValue;
+import com.kronotop.resp.RespValue;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;

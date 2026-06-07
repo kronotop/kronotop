@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import java.util.Map;
  * <p><strong>Boundary Task Purpose:</strong>
  * <ul>
  *   <li>Wait for cluster-wide bucket metadata convergence</li>
- *   <li>Scan primary and secondary indexes to determine versionstamp boundaries</li>
+ *   <li>Scan primary and single field indexes to determine versionstamp boundaries</li>
  *   <li>Create BUILD tasks for each shard with calculated boundaries</li>
  *   <li>Mark index as READY if bucket is empty (optimization)</li>
  * </ul>
@@ -67,7 +67,7 @@ public class IndexBoundaryTaskState extends AbstractTaskState {
      * Creates a new boundary task state with the specified status and error.
      *
      * @param status current task status
-     * @param error error message if failed, null otherwise
+     * @param error  error message if failed, null otherwise
      */
     public IndexBoundaryTaskState(IndexTaskStatus status, String error) {
         super(status, error);
@@ -80,9 +80,9 @@ public class IndexBoundaryTaskState extends AbstractTaskState {
      * {@link AbstractTaskState#loadCommonFields}. No additional fields are loaded
      * as boundary tasks only track execution status.
      *
-     * @param tr transaction for reading state
+     * @param tr       transaction for reading state
      * @param subspace task subspace
-     * @param taskId task identifier
+     * @param taskId   task identifier
      * @return loaded boundary task state
      */
     public static IndexBoundaryTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {

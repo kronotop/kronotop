@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,29 @@
 package com.kronotop.bucket;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.bucket.index.IndexRegistry;
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.cache.Cache;
+import com.kronotop.bucket.index.CompoundIndexRegistry;
+import com.kronotop.bucket.index.SingleFieldIndexRegistry;
+import com.kronotop.bucket.index.VectorIndexRegistry;
 import com.kronotop.volume.Prefix;
+import org.bson.types.ObjectId;
 
-public record BucketMetadata(long id,
+import java.util.List;
+import java.util.UUID;
+
+public record BucketMetadata(UUID uuid,
                              String namespace,
                              String name,
                              long version,
                              boolean removed,
                              DirectorySubspace subspace,
-                             Prefix volumePrefix,
-                             IndexRegistry indexes) {
+                             DirectorySubspace pointerSubspace,
+                             Prefix prefix,
+                             SingleFieldIndexRegistry indexes,
+                             CompoundIndexRegistry compoundIndexes,
+                             VectorIndexRegistry vectorIndexes,
+                             List<Integer> shards,
+                             Collation collation,
+                             Cache<ObjectId, Versionstamp> volumePointerCache) {
 }

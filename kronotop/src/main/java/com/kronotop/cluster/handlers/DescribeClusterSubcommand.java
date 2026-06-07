@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,13 +21,13 @@ import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.MetadataVersion;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.transaction.TransactionUtil;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -42,17 +42,17 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
     public void execute(Request request, Response response) {
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-            try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 String version = MetadataVersion.read(context, tr);
-                result.put(new SimpleStringRedisMessage("metadata_version"), new SimpleStringRedisMessage(version));
-                for (ShardKind kind : ShardKind.values()) {
+                result.put(bulkString("metadata_version"), bulkString(version));
+                result.put(bulkString("cluster_name"), bulkString(context.getClusterName()));
+                for (ShardKind kind : context.getShardRegistry().getShardKinds()) {
                     Map<RedisMessage, RedisMessage> shardsByKind = new LinkedHashMap<>();
-                    int numberOfShards = getNumberOfShards(kind);
-                    for (int shardId = 0; shardId < numberOfShards; shardId++) {
+                    for (int shardId : getShardIds(kind)) {
                         Map<RedisMessage, RedisMessage> shard = describeShard(tr, kind, shardId);
                         shardsByKind.put(new IntegerRedisMessage(shardId), new MapRedisMessage(shard));
                     }
-                    result.put(new SimpleStringRedisMessage(kind.toString().toLowerCase()), new MapRedisMessage(shardsByKind));
+                    result.put(bulkString(kind.toString().toLowerCase()), new MapRedisMessage(shardsByKind));
                 }
             }
             return result;

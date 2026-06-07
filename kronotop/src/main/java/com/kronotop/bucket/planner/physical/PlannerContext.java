@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,13 @@
 package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.Collation;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Context passed through the query planning pipeline containing metadata and configuration.
+ */
 public class PlannerContext {
     // Note: AtomicInteger uses a 32-bit signed int under the hood.
     // When incrementing past Integer.MAX_VALUE (2_147_483_647),
@@ -27,10 +31,9 @@ public class PlannerContext {
     // and continues from there. No exception is thrown — standard
     // Java int overflow semantics apply.
     private final AtomicInteger nextId = new AtomicInteger(1);
-    private BucketMetadata metadata;
-
-    public PlannerContext() {
-    }
+    private final BucketMetadata metadata;
+    private String sortByField;
+    private Collation collation;
 
     public PlannerContext(BucketMetadata metadata) {
         this.metadata = metadata;
@@ -38,6 +41,26 @@ public class PlannerContext {
 
     public BucketMetadata getMetadata() {
         return metadata;
+    }
+
+    /**
+     * Returns the field to sort by, or null if not specified.
+     * Used by the planner to prefer indexes matching the sort field.
+     */
+    public String getSortByField() {
+        return sortByField;
+    }
+
+    public void setSortByField(String sortByField) {
+        this.sortByField = sortByField;
+    }
+
+    public Collation getCollation() {
+        return collation;
+    }
+
+    public void setCollation(Collation collation) {
+        this.collation = collation;
     }
 
     public int nextId() {

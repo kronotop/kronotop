@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package com.kronotop.bucket.pipeline;
 
-import java.util.function.Function;
+import java.util.List;
 
 public sealed interface DataSink permits PersistedEntrySink, DocumentLocationSink {
     int parentNodeId();
@@ -25,13 +25,9 @@ public sealed interface DataSink permits PersistedEntrySink, DocumentLocationSin
 
     void clear();
 
-    default <R> R match(
-            Function<PersistedEntrySink, R> onBuffer,
-            Function<DocumentLocationSink, R> onDocLoc
-    ) {
-        return switch (this) {
-            case PersistedEntrySink b -> onBuffer.apply(b);
-            case DocumentLocationSink d -> onDocLoc.apply(d);
-        };
-    }
+    void dedupByObjectId();
+
+    void trimTo(int size);
+
+    List<? extends DocumentRef> entries();
 }

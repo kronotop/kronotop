@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,17 +19,25 @@ package com.kronotop.bucket;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import org.bson.BsonType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketMetadataConvergenceTest extends BaseBucketHandlerTest {
 
+    @BeforeEach
+    void setUp() {
+        createBucket(TEST_BUCKET);
+    }
+
     @Test
     void shouldAwaitSuccessfullyWhenBucketExists() {
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), TEST_BUCKET);
+        createBucket(TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -42,7 +50,8 @@ class BucketMetadataConvergenceTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldAwaitSuccessfullyAfterMetadataUpdate() {
-        BucketMetadata initialMetadata = BucketMetadataUtil.createOrOpen(context, getSession(), TEST_BUCKET);
+        createBucket(TEST_BUCKET);
+        BucketMetadata initialMetadata = getBucketMetadata(TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -53,7 +62,7 @@ class BucketMetadataConvergenceTest extends BaseBucketHandlerTest {
         long initialVersion = initialMetadata.version();
 
         // Update metadata by adding an index
-        IndexDefinition indexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition indexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(indexDefinition);
 
         // Get updated metadata
@@ -66,7 +75,7 @@ class BucketMetadataConvergenceTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldThrowExceptionWhenBucketDoesNotExist() {
-        assertThrows(BucketMetadataConvergenceException.class,
+        assertThrows(NoSuchBucketException.class,
                 () -> BucketMetadataConvergence.await(context, TEST_NAMESPACE, "non-existent-bucket"));
     }
 }

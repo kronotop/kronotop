@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,6 @@ import com.kronotop.bucket.planner.Operator;
 import java.util.Objects;
 
 public record PhysicalFilter(int id, String selector, Operator op, Object operand) implements PhysicalNode {
-    @Override
-    public <R> R accept(PhysicalPlanVisitor<R> visitor) {
-        return visitor.visitFilter(this);
-    }
-
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;

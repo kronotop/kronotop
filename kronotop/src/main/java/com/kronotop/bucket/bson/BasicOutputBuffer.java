@@ -65,6 +65,7 @@ public class BasicOutputBuffer extends OutputBuffer {
         buffer = ByteBuffer.allocate(initialSize).order(LITTLE_ENDIAN);
     }
 
+    // Kronotop needs this for zero-copy operation.
     public ByteBuffer getInternalBuffer() {
         ensureOpen();
         buffer.flip();

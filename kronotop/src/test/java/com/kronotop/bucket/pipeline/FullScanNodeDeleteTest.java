@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,13 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -44,22 +43,22 @@ class FullScanNodeDeleteTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            List<Versionstamp> results = deleteExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ObjectId> results = deleteExecutor.execute(tr, ctx);
 
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
             tr.commit().join();
         }
 
         // age > 22 deleted
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(0, results.size());
         }
     }
@@ -86,19 +85,19 @@ class FullScanNodeDeleteTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 95, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().limit(2).build();
-        QueryContext deleteCtx = new QueryContext(metadata, config, plan);
+        QueryContext deleteCtx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         int expectedBatchCount = 6;
         int iterationCount = 0;
 
         while (true) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = createTransaction()) {
                 iterationCount++;
-                List<Versionstamp> results = deleteExecutor.execute(tr, deleteCtx);
+                List<ObjectId> results = deleteExecutor.execute(tr, deleteCtx);
                 if (results.isEmpty()) {
                     break;
                 }
@@ -110,9 +109,9 @@ class FullScanNodeDeleteTest extends BasePipelineTest {
         }
         assertEquals(7, iterationCount);
 
-        QueryContext readCtx = new QueryContext(metadata, config, plan);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, readCtx);
+        QueryContext readCtx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, readCtx);
             assertEquals(0, results.size());
         }
     }

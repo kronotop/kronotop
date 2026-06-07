@@ -1,0 +1,13 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "META-INF/native-image/.*"
+      },
+      {
+        "pattern": "application\\.properties"
+      }
+    ]
+  },
+  "bundles": []
+}

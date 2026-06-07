@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,6 @@ import javax.annotation.Nonnull;
 public record PhysicalFalse(int id) implements PhysicalNode {
 
     public static final PhysicalFalse INSTANCE = new PhysicalFalse(-1);
-
-    @Override
-    public <R> R accept(PhysicalPlanVisitor<R> visitor) {
-        return visitor.visitFalse(this);
-    }
 
     @Override
     public boolean equals(Object obj) {

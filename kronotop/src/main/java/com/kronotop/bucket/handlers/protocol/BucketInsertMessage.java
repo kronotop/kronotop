@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,32 +21,28 @@ import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-import java.util.LinkedList;
-import java.util.List;
-
 public class BucketInsertMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.INSERT";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private final List<byte[]> documents = new LinkedList<>();
     private String bucket;
-    private InsertArguments arguments;
+    private byte[][] documents;
 
     public BucketInsertMessage(Request request) {
         this.request = request;
         parse();
     }
 
-    private void readDocuments(int index) {
-        for (int i = index; i < request.getParams().size(); i++) {
-            byte[] document = ProtocolMessageUtil.readAsByteArray(request.getParams().get(i));
-            documents.add(document);
+    private void readDocuments(int startIndex) {
+        int count = request.getParams().size() - startIndex;
+        documents = new byte[count][];
+        for (int i = 0; i < count; i++) {
+            documents[i] = ProtocolMessageUtil.readAsByteArray(request.getParams().get(startIndex + i));
         }
     }
 
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
-        int shard = -1;
         for (int i = 1; i < request.getParams().size(); i++) {
             String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
             try {
@@ -55,30 +51,18 @@ public class BucketInsertMessage extends AbstractBucketMessage implements Protoc
                     readDocuments(i + 1);
                     break;
                 }
-
-                if (argument.equals(InsertArgumentKey.SHARD)) {
-                    if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandArgumentException("SHARD argument must be followed by a positive integer");
-                    }
-                    shard = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
-                    if (shard < 0) {
-                        throw new IllegalCommandArgumentException("SHARD argument must be a non-negative integer");
-                    }
-                    i++;
-                }
             } catch (IllegalArgumentException e) {
                 throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
             }
         }
-        arguments = new InsertArguments(shard);
     }
 
-    public InsertArguments getArguments() {
-        return arguments;
+    public int getDocumentCount() {
+        return documents != null ? documents.length : 0;
     }
 
-    public List<byte[]> getDocuments() {
-        return documents;
+    public byte[] getDocument(int index) {
+        return documents[index];
     }
 
     public String getBucket() {

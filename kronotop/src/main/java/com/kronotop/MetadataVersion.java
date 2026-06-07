@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.directory.KronotopDirectory;
@@ -42,7 +41,7 @@ public class MetadataVersion {
      */
     public static String read(Context context, Transaction tr) {
         KronotopDirectoryNode directory = KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata();
-        DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr.snapshot(), directory.toList()).join();
+        DirectorySubspace subspace = context.getDirectoryLayer().open(tr.snapshot(), directory.toList()).join();
         byte[] key = subspace.pack(Tuple.from(METADATA_VERSION));
         byte[] value = tr.snapshot().get(key).join();
         if (value == null) {
@@ -62,7 +61,7 @@ public class MetadataVersion {
      */
     public static void write(Context context, Transaction tr, String version) {
         KronotopDirectoryNode directory = KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata();
-        DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+        DirectorySubspace subspace = context.getDirectoryLayer().open(tr, directory.toList()).join();
         byte[] key = subspace.pack(Tuple.from(METADATA_VERSION));
         tr.set(key, version.getBytes());
     }

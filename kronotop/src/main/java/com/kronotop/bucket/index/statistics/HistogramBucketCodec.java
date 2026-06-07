@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.kronotop.bucket.index.statistics;
 
 import org.bson.*;
+import org.bson.types.ObjectId;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -37,6 +38,7 @@ public class HistogramBucketCodec {
         FIXED_CAPACITY.put(BsonType.DOUBLE, 21);
         FIXED_CAPACITY.put(BsonType.DATE_TIME, 21);
         FIXED_CAPACITY.put(BsonType.TIMESTAMP, 21);
+        FIXED_CAPACITY.put(BsonType.OBJECT_ID, 29); // 1(type) + 12(min) + 12(max) + 4(count)
     }
 
     /**
@@ -57,6 +59,7 @@ public class HistogramBucketCodec {
                 buffer.putInt(value.asTimestamp().getTime());
                 buffer.putInt(value.asTimestamp().getInc());
             }
+            case OBJECT_ID -> buffer.put(value.asObjectId().getValue().toByteArray());
             case BINARY -> {
                 byte[] data = value.asBinary().getData();
                 buffer.putShort((short) data.length);
@@ -197,6 +200,19 @@ public class HistogramBucketCodec {
                 return new HistogramBucket(
                         new BsonTimestamp(minTime, minInc),
                         new BsonTimestamp(maxTime, maxInc),
+                        count
+                );
+            }
+            case OBJECT_ID -> {
+                byte[] minBytes = new byte[12];
+                buffer.get(minBytes);
+                byte[] maxBytes = new byte[12];
+                buffer.get(maxBytes);
+                int count = buffer.getInt();
+
+                return new HistogramBucket(
+                        new BsonObjectId(new ObjectId(minBytes)),
+                        new BsonObjectId(new ObjectId(maxBytes)),
                         count
                 );
             }

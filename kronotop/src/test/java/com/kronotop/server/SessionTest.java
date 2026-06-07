@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,6 @@ class SessionTest extends BaseHandlerTest {
             assertEquals(true, session.attr(SessionAttributes.BEGIN).get());
             assertNull(session.attr(SessionAttributes.AUTO_COMMIT).get());
             assertEquals(0, session.attr(SessionAttributes.POST_COMMIT_HOOKS).get().size());
-            assertEquals(0, session.attr(SessionAttributes.ASYNC_RETURNING).get().size());
             assertEquals(0, session.attr(SessionAttributes.USER_VERSION_COUNTER).get().get());
             assertNotNull(session.attr(SessionAttributes.TRANSACTION).get());
         }
@@ -57,16 +56,15 @@ class SessionTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldUnsetTransaction() {
+    void shouldCloseAndCleanupTransaction() {
         Session session = Session.extractSessionFromChannel(channel);
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             session.setTransaction(tr);
-            assertDoesNotThrow(session::unsetTransaction);
+            assertDoesNotThrow(session::closeAndCleanupTransaction);
 
             assertEquals(false, session.attr(SessionAttributes.BEGIN).get());
             assertEquals(false, session.attr(SessionAttributes.AUTO_COMMIT).get());
             assertEquals(0, session.attr(SessionAttributes.POST_COMMIT_HOOKS).get().size());
-            assertEquals(0, session.attr(SessionAttributes.ASYNC_RETURNING).get().size());
             assertEquals(0, session.attr(SessionAttributes.USER_VERSION_COUNTER).get().get());
             assertNull(session.attr(SessionAttributes.TRANSACTION).get());
         }
@@ -103,7 +101,6 @@ class SessionTest extends BaseHandlerTest {
             assertEquals(false, session.attr(SessionAttributes.BEGIN).get());
             assertEquals(false, session.attr(SessionAttributes.AUTO_COMMIT).get());
             assertEquals(0, session.attr(SessionAttributes.POST_COMMIT_HOOKS).get().size());
-            assertEquals(0, session.attr(SessionAttributes.ASYNC_RETURNING).get().size());
             assertEquals(0, session.attr(SessionAttributes.USER_VERSION_COUNTER).get().get());
             assertNull(session.attr(SessionAttributes.TRANSACTION).get());
         }

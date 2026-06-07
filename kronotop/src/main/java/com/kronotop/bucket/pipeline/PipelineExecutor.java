@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@ package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
+import com.kronotop.transaction.InstrumentedTransaction;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.time.Duration;
+import java.util.*;
 
 /*
 CASE: Endurance's rotation is 67, 68 RPM.
@@ -33,22 +33,23 @@ Cooper: No. It's necessary.
 /**
  * Executes query plans by traversing the pipeline node tree.
  * <p>
- * PipelineExecutor is the runtime engine that interprets and executes {@link PipelineNode}
- * trees produced by the query planner. It handles three distinct node categories:
- * <ul>
- *   <li>{@link ScanNode}: Leaf nodes that fetch data from indexes or perform full scans</li>
- *   <li>{@link LogicalNode}: Composite nodes (Union, Intersection) that combine child results</li>
- *   <li>{@link TransformationNode}: Filter nodes that apply residual predicates</li>
- * </ul>
+ * Dispatches the root node to the appropriate visitor; then each visitor drives
+ * execution through {@link #executePipelineNode} which recursively walks the
+ * node chain (scan, logical, transformation, and any chained {@code next} nodes).
  * <p>
- * The executor implements batched execution to support LIMIT clauses efficiently.
- * Rather than fetching all matching documents, it iteratively requests batches until
- * the limit is satisfied or all sources are exhausted.
+ * Scan and union nodes share an adaptive budgeting loop that decouples the
+ * user-facing LIMIT from the FDB getRange limit. The budget starts at the user
+ * limit and grows when residual filtering yields few results, bounded by a
+ * per-transaction time budget. This reduces FDB round-trips for low-selectivity
+ * queries while preventing runaway scans.
  *
  * @see PipelineNode for the node hierarchy
  * @see QueryContext for execution state management
+ * @see ScanBudget for the adaptive budgeting algorithm
  */
 public class PipelineExecutor {
+    private static final long TX_TIME_BUDGET_NANOS = Duration.ofSeconds(4).toNanos();
+
     private final PipelineEnv env;
 
     public PipelineExecutor(PipelineEnv env) {
@@ -58,14 +59,9 @@ public class PipelineExecutor {
     /**
      * Recursively executes a pipeline node and its chain.
      * <p>
-     * Dispatches execution based on node type:
-     * <ul>
-     *   <li>{@link ScanNode}: Executes the scan with the current transaction</li>
-     *   <li>{@link LogicalNode}: Recursively executes non-exhausted children, then combines results</li>
-     *   <li>{@link TransformationNode}: Applies transformation (e.g., residual predicate filtering)</li>
-     * </ul>
-     * After executing the current node, follows the {@code next} pointer to continue
-     * the pipeline chain if present.
+     * Dispatches to the node's own execute/transform method, then follows the
+     * {@code next} pointer to continue the chain. For logical nodes, recursively
+     * executes non-exhausted children first.
      *
      * @param tr   the FoundationDB transaction for data access
      * @param ctx  the query context tracking execution state
@@ -75,22 +71,33 @@ public class PipelineExecutor {
     private void executePipelineNode(Transaction tr, QueryContext ctx, PipelineNode node) {
         ctx.setCurrentNodeId(node.id());
         switch (node) {
-            case ScanNode scanNode -> {
-                scanNode.execute(ctx, tr);
-            }
+            case ScanNode scanNode -> scanNode.execute(ctx, tr);
             case LogicalNode logicalNode -> {
-                for (PipelineNode child : logicalNode.children()) {
-                    ExecutionState state = ctx.getOrCreateExecutionState(child.id());
-                    if (state.isExhausted()) {
-                        continue;
+                // Save child checkpoints before execution for UnionNode rewind support
+                if (logicalNode instanceof UnionNode unionNode) {
+                    saveChildCheckpoints(ctx, unionNode);
+                }
+
+                if (logicalNode instanceof OrderedConcatNode concat) {
+                    for (PipelineNode child : concat.getOrderedChildren(ctx)) {
+                        ExecutionState state = ctx.getOrCreateExecutionState(child.id());
+                        if (!state.isExhausted()) {
+                            executePipelineNode(tr, ctx, child);
+                            break;
+                        }
                     }
-                    executePipelineNode(tr, ctx, child);
+                } else {
+                    for (PipelineNode child : logicalNode.children()) {
+                        ExecutionState state = ctx.getOrCreateExecutionState(child.id());
+                        if (state.isExhausted()) {
+                            continue;
+                        }
+                        executePipelineNode(tr, ctx, child);
+                    }
                 }
                 logicalNode.execute(ctx);
             }
-            case TransformationNode transformationNode -> {
-                transformationNode.transform(ctx);
-            }
+            case TransformationNode transformationNode -> transformationNode.transform(ctx);
             default -> throw new IllegalStateException("Unexpected PipelineNode: " + node);
         }
 
@@ -102,60 +109,104 @@ public class PipelineExecutor {
     }
 
     /**
-     * Executes a scan node with batched fetching to satisfy the requested limit.
+     * Shared adaptive budgeting loop used by scan and union visitors.
      * <p>
-     * Repeatedly executes the scan until either the limit is reached or the scan
-     * is exhausted. After each batch, adjusts the remaining limit based on how
-     * many documents were retrieved.
+     * Iteratively executes the node in growing batches until the user limit is
+     * satisfied, the data source is exhausted, or the time budget runs out.
+     * Two optional hooks customize per-node-type behavior:
+     * {@code beforeExecute} runs each iteration before execution (e.g., distributing
+     * limits to union children), and {@code onLimitReached} runs when results meet
+     * or exceed the user limit (e.g., trimming excess entries and rewinding cursors).
      *
-     * @param tr       the FoundationDB transaction
-     * @param ctx      the query context
-     * @param scanNode the scan node to execute
+     * @param tr             the FoundationDB transaction
+     * @param ctx            the query context
+     * @param node           the pipeline node to execute
+     * @param beforeExecute  optional hook invoked each iteration before execution
+     * @param onLimitReached optional hook invoked when results reach the user limit
      */
-    private void visitScanNode(Transaction tr, QueryContext ctx, ScanNode scanNode) {
-        ExecutionState state = ctx.getOrCreateExecutionState(scanNode.id());
-        state.initializeLimit(ctx.options().limit());
+    private void executeWithAdaptiveBudget(
+            Transaction tr, QueryContext ctx, PipelineNode node,
+            Runnable beforeExecute, OnLimitReached onLimitReached) {
+        ExecutionState state = ctx.getOrCreateExecutionState(node.id());
+        int userLimit = ctx.options().limit();
+        ScanBudget budget = tr == null
+                ? ScanBudget.unbounded(userLimit)
+                : new ScanBudget(userLimit, getTransactionDeadline(tr));
+        int sinkNodeId = getLastNodeId(node);
 
         do {
-            executePipelineNode(tr, ctx, scanNode);
-            DataSink sink = ctx.sinks().load(ctx.currentNodeId());
-            if (sink == null) {
-                if (state.isExhausted()) {
+            state.setLimit(Math.max(1, budget.current()));
+            if (beforeExecute != null) {
+                beforeExecute.run();
+            }
+
+            int sinkSizeBefore = getSinkSize(ctx, sinkNodeId);
+
+            executePipelineNode(tr, ctx, node);
+
+            DataSink sink = ctx.sinks().load(sinkNodeId);
+            int sinkSizeAfter = sink != null ? sink.size() : 0;
+
+            budget.recordScanned(state.isExhausted()
+                    ? (sinkSizeAfter - sinkSizeBefore)
+                    : budget.current());
+
+            if (sink == null || sinkSizeAfter == 0) {
+                if (state.isExhausted() || budget.anyBudgetExhausted()) {
                     break;
                 }
+                budget.grow();
                 continue;
             }
-            if (sink.size() < ctx.options().limit()) {
-                if (state.isExhausted()) {
-                    break;
+
+            if (sinkSizeAfter >= userLimit) {
+                if (onLimitReached != null) {
+                    onLimitReached.apply(sink, userLimit);
                 }
-                state.setLimit(ctx.options().limit() - sink.size());
-                continue; // fetch another batch
+                break;
             }
-            break;
+
+            if (state.isExhausted() || budget.anyBudgetExhausted()) {
+                break;
+            }
+            budget.grow();
         } while (true);
     }
 
-    /**
-     * Executes an intersection node.
-     * <p>
-     * Delegates to the standard pipeline execution. Intersection nodes handle
-     * their own child coordination internally via {@link IntersectionNode#execute}.
-     *
-     * @param tr   the FoundationDB transaction
-     * @param ctx  the query context
-     * @param node the intersection node to execute
-     */
-    private void visitIntersectionNode(Transaction tr, QueryContext ctx, PipelineNode node) {
-        executePipelineNode(tr, ctx, node);
+    private void trimAndRewindCursor(QueryContext ctx, ScanNode scanNode, DataSink sink, int limit) {
+        DocumentRef lastKept = sink.entries().get(limit - 1);
+        sink.trimTo(limit);
+
+        ExecutionState scanState = ctx.getOrCreateExecutionState(scanNode.id());
+        ctx.env().cursorManager().rewindCursor(ctx, scanNode.id(), lastKept, scanState.isScanReversed());
+    }
+
+    private int getLastNodeId(PipelineNode node) {
+        PipelineNode current = node;
+        while (current.next() != null) {
+            current = current.next();
+        }
+        return current.id();
+    }
+
+    private long getTransactionDeadline(Transaction tr) {
+        if (tr == null) {
+            return 0;
+        }
+        if (tr instanceof InstrumentedTransaction itx) {
+            return itx.getMetrics().getStartNanos() + TX_TIME_BUDGET_NANOS;
+        }
+        throw new IllegalArgumentException("Transaction must be an InstrumentedTransaction");
+    }
+
+    private int getSinkSize(QueryContext ctx, int nodeId) {
+        DataSink sink = ctx.sinks().load(nodeId);
+        return sink != null ? sink.size() : 0;
     }
 
     /**
-     * Distributes the parent's remaining limit across non-exhausted union children.
-     * <p>
-     * Divides the limit evenly among children that still have data. Any remainder
-     * from integer division is assigned to the first child to ensure all requested
-     * documents are fetched.
+     * Distributes the parent's remaining limit evenly across non-exhausted union children.
+     * Any remainder from the integer division is assigned to the first child.
      *
      * @param ctx         the query context
      * @param parentState the union node's execution state containing the remaining limit
@@ -175,63 +226,100 @@ public class PipelineExecutor {
             return;
         }
 
-        int reminder = parentState.getLimit() % childrenStillHasData.size();
-        int childLimit = (parentState.getLimit() - reminder) / childrenStillHasData.size();
+        int limit = parentState.getLimit();
+        int childCount = childrenStillHasData.size();
+        int remainder = limit % childCount;
 
-        for (int index = 0; index < childrenStillHasData.size(); index++) {
+        // Ensure childLimit is at least 1 to avoid FDB's "limit=0 means unlimited" behavior
+        int childLimit = Math.max(1, (limit - remainder) / childCount);
+
+        for (int index = 0; index < childCount; index++) {
             PipelineNode child = childrenStillHasData.get(index);
             ExecutionState childState = ctx.getOrCreateExecutionState(child.id());
             if (index == 0) {
-                childState.setLimit(childLimit + reminder);
+                childState.setLimit(childLimit + remainder);
             } else {
                 childState.setLimit(childLimit);
             }
         }
     }
 
-    /**
-     * Executes a union node with batched fetching across all children.
-     * <p>
-     * Distributes the limit across children, executes them, and collects results.
-     * Continues fetching in batches until the limit is satisfied or all children
-     * are exhausted. Each iteration recalculates child limits based on remaining
-     * quota and which children still have data.
-     *
-     * @param tr   the FoundationDB transaction
-     * @param ctx  the query context
-     * @param node the union node to execute
-     */
+    private void saveChildCheckpoints(QueryContext ctx, UnionNode unionNode) {
+        ExecutionState unionState = ctx.getOrCreateExecutionState(unionNode.id());
+        Map<Integer, ExecutionState.SavedCursorCheckpoint> checkpoints = new HashMap<>();
+
+        for (PipelineNode child : unionNode.children()) {
+            ExecutionState childState = ctx.getOrCreateExecutionState(child.id());
+            checkpoints.put(child.id(), new ExecutionState.SavedCursorCheckpoint(
+                    childState.getLower(),
+                    childState.getUpper(),
+                    childState.getSelector()
+            ));
+        }
+        unionState.setSavedChildCheckpoints(checkpoints);
+    }
+
+    private void visitScanNode(Transaction tr, QueryContext ctx, ScanNode scanNode) {
+        executeWithAdaptiveBudget(tr, ctx, scanNode, null,
+                (sink, limit) -> {
+                    if (sink.size() > limit) {
+                        trimAndRewindCursor(ctx, scanNode, sink, limit);
+                    }
+                });
+    }
+
+    private void visitOrderedConcatNode(Transaction tr, QueryContext ctx, OrderedConcatNode node) {
+        ExecutionState state = ctx.getOrCreateExecutionState(node.id());
+        int[] activeChildId = {-1};
+
+        executeWithAdaptiveBudget(tr, ctx, node,
+                () -> {
+                    ScanNode active = findActiveScanChild(ctx, node);
+                    if (active != null) {
+                        activeChildId[0] = active.id();
+                        ExecutionState childState = ctx.getOrCreateExecutionState(active.id());
+                        childState.setLimit(state.getLimit());
+                    }
+                },
+                (sink, limit) -> {
+                    if (sink.size() > limit && activeChildId[0] >= 0) {
+                        ScanNode activeChild = (ScanNode) findChildById(node, activeChildId[0]);
+                        if (activeChild != null) {
+                            trimAndRewindCursor(ctx, activeChild, sink, limit);
+                        }
+                    }
+                });
+    }
+
+    private ScanNode findActiveScanChild(QueryContext ctx, OrderedConcatNode node) {
+        for (PipelineNode child : node.getOrderedChildren(ctx)) {
+            ExecutionState childState = ctx.getOrCreateExecutionState(child.id());
+            if (!childState.isExhausted() && child instanceof ScanNode scanNode) {
+                return scanNode;
+            }
+        }
+        return null;
+    }
+
+    private PipelineNode findChildById(OrderedConcatNode node, int id) {
+        for (PipelineNode child : node.children()) {
+            if (child.id() == id) {
+                return child;
+            }
+        }
+        return null;
+    }
+
     private void visitUnionNode(Transaction tr, QueryContext ctx, UnionNode node) {
         ExecutionState state = ctx.getOrCreateExecutionState(node.id());
-        state.initializeLimit(ctx.options().limit());
-
-        do {
-            setChildrenLimits(ctx, state, node);
-            executePipelineNode(tr, ctx, node);
-            DataSink sink = ctx.sinks().load(node.id());
-            if (sink == null) {
-                if (state.isExhausted()) {
-                    break;
-                }
-                continue;
-            }
-            if (sink.size() < ctx.options().limit()) {
-                if (state.isExhausted()) {
-                    break;
-                }
-                state.setLimit(ctx.options().limit() - sink.size());
-                continue; // fetch another batch
-            }
-            break;
-        } while (true);
+        executeWithAdaptiveBudget(tr, ctx, node,
+                () -> setChildrenLimits(ctx, state, node), null);
     }
 
     /**
-     * Executes the query plan stored in the context.
-     * <p>
      * Entry point for query execution. Dispatches to the appropriate visitor
-     * based on the root node type. A null plan (from PhysicalFalse) represents
-     * a contradictory query and returns immediately with no results.
+     * based on the root node type. A null plan (from PhysicalFalse) produces
+     * no results.
      *
      * @param tr  the FoundationDB transaction for all data access
      * @param ctx the query context containing the plan and execution options
@@ -246,9 +334,14 @@ public class PipelineExecutor {
         ctx.setEnvironment(env);
         switch (ctx.plan()) {
             case ScanNode node -> visitScanNode(tr, ctx, node);
-            case IntersectionNode node -> visitIntersectionNode(tr, ctx, node);
             case UnionNode node -> visitUnionNode(tr, ctx, node);
+            case OrderedConcatNode node -> visitOrderedConcatNode(tr, ctx, node);
             default -> throw new KronotopException("Unknown PipelineNode type");
         }
+    }
+
+    @FunctionalInterface
+    private interface OnLimitReached {
+        void apply(DataSink sink, int limit);
     }
 }

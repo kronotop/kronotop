@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,15 +17,13 @@
 package com.kronotop.internal;
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
 
-import java.io.IOException;
-
-public class VersionstampSerializer extends JsonSerializer<Versionstamp> {
+public class VersionstampSerializer extends ValueSerializer<Versionstamp> {
     @Override
-    public void serialize(Versionstamp value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+    public void serialize(Versionstamp value, JsonGenerator gen, SerializationContext ctxt) {
         gen.writeBinary(value.getBytes());
     }
 }

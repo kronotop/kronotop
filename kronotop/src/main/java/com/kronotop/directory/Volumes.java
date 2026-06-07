@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,17 +27,17 @@ public class Volumes extends KronotopDirectoryNode {
         layout.add("volumes");
     }
 
-    public Redis redis() {
-        return new Redis(layout);
+    public Stash stash() {
+        return new Stash(layout);
     }
 
     public Bucket bucket() {
         return new Bucket(layout);
     }
 
-    public static class Redis extends ShardKindCommon {
-        public Redis(List<String> layout) {
-            super(layout, ShardKind.REDIS);
+    public static class Stash extends ShardKindCommon {
+        public Stash(List<String> layout) {
+            super(layout, ShardKind.STASH);
         }
     }
 

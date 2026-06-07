@@ -1,0 +1,347 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kronotop Script",
+  "scopeName": "source.kr",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#dot-command"
+    },
+    {
+      "include": "#command-line"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "match": "#.*$",
+      "name": "comment.line.number-sign.kr"
+    },
+    "dot-command": {
+      "match": "^\\s*(\\.(?:echo|sleep))\\b(.*)$",
+      "captures": {
+        "1": {
+          "name": "keyword.control.dot-command.kr"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#string-double"
+            },
+            {
+              "include": "#string-single"
+            },
+            {
+              "include": "#variable"
+            }
+          ]
+        }
+      }
+    },
+    "command-line": {
+      "match": "^\\s*([A-Za-z][A-Za-z0-9.]*)(.*)$",
+      "captures": {
+        "1": {
+          "name": "keyword.other.command.kr"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#arguments"
+            }
+          ]
+        }
+      }
+    },
+    "arguments": {
+      "patterns": [
+        {
+          "include": "#quoted-json-single"
+        },
+        {
+          "include": "#quoted-json-double"
+        },
+        {
+          "include": "#string-double"
+        },
+        {
+          "include": "#string-single"
+        },
+        {
+          "include": "#json-object"
+        },
+        {
+          "include": "#json-array"
+        },
+        {
+          "include": "#variable"
+        },
+        {
+          "include": "#number"
+        }
+      ]
+    },
+    "quoted-json-single": {
+      "comment": "Single-quoted JSON: '{...}' or '[...]'",
+      "begin": "'(?=[{\\[])",
+      "end": "'",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.kr"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.kr"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#json-object"
+        },
+        {
+          "include": "#json-array"
+        }
+      ]
+    },
+    "quoted-json-double": {
+      "comment": "Double-quoted JSON: \"{...}\" or \"[...]\"",
+      "begin": "\"(?=[{\\[])",
+      "end": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.kr"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.kr"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#json-object"
+        },
+        {
+          "include": "#json-array"
+        }
+      ]
+    },
+    "variable": {
+      "match": "\\$[A-Z_][A-Z0-9_]*",
+      "name": "variable.other.kr"
+    },
+    "number": {
+      "match": "-?\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?\\b",
+      "name": "constant.numeric.kr"
+    },
+    "string-double": {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.kr",
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.kr"
+        },
+        {
+          "include": "#variable"
+        }
+      ]
+    },
+    "string-single": {
+      "begin": "'",
+      "end": "'",
+      "name": "string.quoted.single.kr",
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.kr"
+        },
+        {
+          "include": "#variable"
+        }
+      ]
+    },
+    "json-object": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.dictionary.begin.kr"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.dictionary.end.kr"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#json-key"
+        },
+        {
+          "include": "#json-value"
+        },
+        {
+          "include": "#json-object"
+        },
+        {
+          "include": "#json-array"
+        }
+      ]
+    },
+    "json-array": {
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.array.begin.kr"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.array.end.kr"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#json-value"
+        },
+        {
+          "include": "#json-object"
+        },
+        {
+          "include": "#json-array"
+        }
+      ]
+    },
+    "json-key": {
+      "patterns": [
+        {
+          "comment": "Query operator key like \"$eq\", \"$gt\", etc.",
+          "match": "(\")(\\$(?:eq|gt|lt|gte|lte|ne|in|nin|and|or|not|exists|type|regex|set|unset|inc))(\")(\\s*:)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.string.begin.kr"
+            },
+            "2": {
+              "name": "keyword.operator.query.kr"
+            },
+            "3": {
+              "name": "punctuation.definition.string.end.kr"
+            },
+            "4": {
+              "name": "punctuation.separator.dictionary.key-value.kr"
+            }
+          }
+        },
+        {
+          "comment": "Unquoted query operator key like $eq:",
+          "match": "(\\$(?:eq|gt|lt|gte|lte|ne|in|nin|and|or|not|exists|type|regex|set|unset|inc))(\\s*:)",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.query.kr"
+            },
+            "2": {
+              "name": "punctuation.separator.dictionary.key-value.kr"
+            }
+          }
+        },
+        {
+          "comment": "Double-quoted JSON key",
+          "match": "(\"[^\"]*\")(\\s*:)",
+          "captures": {
+            "1": {
+              "name": "support.type.property-name.json"
+            },
+            "2": {
+              "name": "punctuation.separator.dictionary.key-value.kr"
+            }
+          }
+        },
+        {
+          "comment": "Single-quoted JSON key",
+          "match": "('[^']*')(\\s*:)",
+          "captures": {
+            "1": {
+              "name": "support.type.property-name.json"
+            },
+            "2": {
+              "name": "punctuation.separator.dictionary.key-value.kr"
+            }
+          }
+        },
+        {
+          "comment": "Unquoted JSON key",
+          "match": "([A-Za-z_][A-Za-z0-9_]*)(\\s*:)",
+          "captures": {
+            "1": {
+              "name": "support.type.property-name.json"
+            },
+            "2": {
+              "name": "punctuation.separator.dictionary.key-value.kr"
+            }
+          }
+        }
+      ]
+    },
+    "json-value": {
+      "patterns": [
+        {
+          "comment": "Query operator in string value position",
+          "match": "\"(\\$(?:eq|gt|lt|gte|lte|ne|in|nin|and|or|not|exists|type|regex|set|unset|inc))\"",
+          "captures": {
+            "0": {
+              "name": "keyword.operator.query.kr"
+            }
+          }
+        },
+        {
+          "include": "#json-string-double"
+        },
+        {
+          "include": "#json-string-single"
+        },
+        {
+          "match": "\\btrue\\b",
+          "name": "constant.language.boolean.kr"
+        },
+        {
+          "match": "\\bfalse\\b",
+          "name": "constant.language.boolean.kr"
+        },
+        {
+          "match": "\\bnull\\b",
+          "name": "constant.language.null.kr"
+        },
+        {
+          "include": "#number"
+        }
+      ]
+    },
+    "json-string-double": {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.kr",
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.kr"
+        }
+      ]
+    },
+    "json-string-single": {
+      "begin": "'",
+      "end": "'",
+      "name": "string.quoted.single.kr",
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.kr"
+        }
+      ]
+    }
+  }
+}

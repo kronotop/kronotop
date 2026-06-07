@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.kronotop.directory;
 
 import java.util.List;
+import java.util.UUID;
 
 public class Buckets extends KronotopDirectoryNode {
     public Buckets(List<String> layout) {
@@ -26,6 +27,10 @@ public class Buckets extends KronotopDirectoryNode {
 
     public Maintenance maintenance() {
         return new Maintenance(layout);
+    }
+
+    public Registry registry(UUID uuid) {
+        return new Registry(layout, uuid);
     }
 
     public static class Maintenance extends KronotopDirectoryNode {
@@ -43,6 +48,14 @@ public class Buckets extends KronotopDirectoryNode {
                 super(layout);
                 layout.add("index");
             }
+        }
+    }
+
+    public static class Registry extends KronotopDirectoryNode {
+        public Registry(List<String> layout, UUID uuid) {
+            super(layout);
+            layout.add("registry");
+            layout.add(uuid.toString());
         }
     }
 }

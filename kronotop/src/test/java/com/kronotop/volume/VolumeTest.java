@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,12 @@ import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TestUtil;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.volume.changelog.ChangeLogCoordinate;
+import com.kronotop.volume.changelog.ChangeLogEntry;
+import com.kronotop.volume.changelog.ChangeLogIterable;
 import com.kronotop.volume.handlers.PackedEntry;
-import com.kronotop.volume.segment.Segment;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,15 +34,14 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static com.kronotop.volume.SegmentStatsSubspaces.CARDINALITY;
+import static com.kronotop.volume.Subspaces.ENTRY_SUBSPACE;
+import static com.kronotop.volume.Subspaces.SEGMENT_STATS_SUBSPACE;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeTest extends BaseVolumeIntegrationTest {
@@ -49,7 +51,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(2);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -59,7 +61,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldThrowIllegalArgumentExceptionWhenAppendingWithoutEntries() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(IllegalArgumentException.class, () -> volume.append(session));
         }
     }
@@ -70,7 +72,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -78,14 +80,14 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
         List<ByteBuffer> retrievedEntries = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             for (Versionstamp versionstamp : versionstampedKeys) {
                 ByteBuffer buffer = volume.get(session, versionstamp);
                 retrievedEntries.add(buffer);
             }
         }
         for (int i = 0; i < retrievedEntries.size(); i++) {
-            assertArrayEquals(entries[i].array(), retrievedEntries.get(i).array());
+            assertEquals(entries[i].rewind(), retrievedEntries.get(i));
         }
     }
 
@@ -94,7 +96,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(2);
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
         }
@@ -102,14 +104,14 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         DeleteResult deleteResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             deleteResult = volume.delete(session, versionstampedKeys);
             tr.commit().join();
         }
         deleteResult.complete();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             for (Versionstamp versionstamp : versionstampedKeys) {
                 assertNull(volume.get(session, versionstamp));
             }
@@ -123,9 +125,9 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void shouldThrowIllegalArgumentExceptionWhenDeletingWithoutKeys() throws IOException {
+    void shouldThrowIllegalArgumentExceptionWhenDeletingWithoutKeys() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(IllegalArgumentException.class, () -> volume.delete(session));
         }
     }
@@ -141,7 +143,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             };
             AppendResult result;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 result = volume.append(session, entries);
                 tr.commit().join();
             }
@@ -154,7 +156,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
             UpdateResult result;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 result = volume.update(session, entries);
                 tr.commit().join();
             }
@@ -162,22 +164,22 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 for (Versionstamp versionstamp : versionstampedKeys) {
                     ByteBuffer buffer = volume.get(session, versionstamp);
                     retrievedEntries.add(buffer);
                 }
             }
             for (int i = 0; i < retrievedEntries.size(); i++) {
-                assertArrayEquals(entries[i].entry().array(), retrievedEntries.get(i).array());
+                assertEquals(entries[i].entry().rewind(), retrievedEntries.get(i));
             }
         }
     }
 
     @Test
-    void shouldThrowIllegalArgumentExceptionWhenUpdatingWithoutEntries() throws IOException {
+    void shouldThrowIllegalArgumentExceptionWhenUpdatingWithoutEntries() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(IllegalArgumentException.class, () -> volume.update(session));
         }
     }
@@ -189,7 +191,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         // First, append a small entry to get a key
         ByteBuffer smallEntry = ByteBuffer.allocate(10).put("small".getBytes()).flip();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, smallEntry);
             tr.commit().join();
             versionstampedKey = result.getVersionstampedKeys()[0];
@@ -200,7 +202,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         KeyEntry oversizedPair = new KeyEntry(versionstampedKey, oversizedEntry);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(EntrySizeExceedsLimitException.class, () -> volume.update(session, oversizedPair));
         }
     }
@@ -209,7 +211,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     void shouldFlushWithoutError() {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertDoesNotThrow(() -> volume.append(session, entries));
             tr.commit().join();
         }
@@ -220,7 +222,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     void shouldCloseWithoutError() {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertDoesNotThrow(() -> volume.append(session, entries));
             tr.commit().join();
         }
@@ -234,7 +236,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         {
             AppendResult result;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 result = volume.append(session, entries);
                 tr.commit().join();
             }
@@ -247,14 +249,14 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             Volume reopenedVolume = service.newVolume(volume.getConfig());
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 for (Versionstamp versionstamp : versionstampedKeys) {
                     ByteBuffer buffer = reopenedVolume.get(session, versionstamp);
                     retrievedEntries.add(buffer);
                 }
             }
             for (int i = 0; i < retrievedEntries.size(); i++) {
-                assertArrayEquals(entries[i].array(), retrievedEntries.get(i).array());
+                assertEquals(entries[i].rewind(), retrievedEntries.get(i));
             }
         }
     }
@@ -263,7 +265,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     void shouldDetermineSegmentWritePositionFromPersistedMetadata() throws IOException {
         byte[] data = new byte[]{0x01, 0x02, 0x03};
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             volume.append(session, ByteBuffer.wrap(data));
             tr.commit().join();
         }
@@ -273,7 +275,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         volume.close();
 
         SegmentAnalysis segmentAnalysis = analysis.getFirst();
-        long position = SegmentUtil.findNextPosition(context, volume.getConfig().subspace(), segmentAnalysis.segmentId());
+        long position = SegmentSubspaceUtil.findNextPosition(context, volume.getConfig().subspace(), segmentAnalysis.segmentId());
         assertEquals(data.length, position);
     }
 
@@ -285,7 +287,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         {
             AppendResult result;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 result = volume.append(session, firstEntries);
                 tr.commit().join();
             }
@@ -301,7 +303,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             ByteBuffer[] secondEntries = getEntries(2);
             AppendResult result;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 result = reopenedVolume.append(session, secondEntries);
                 tr.commit().join();
             }
@@ -309,7 +311,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
             List<ByteBuffer> retrievedEntries = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 for (Versionstamp versionstamp : versionstampedKeys) {
                     ByteBuffer buffer = reopenedVolume.get(session, versionstamp);
                     retrievedEntries.add(buffer);
@@ -317,11 +319,11 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             }
 
             for (int i = 0; i < firstEntries.length; i++) {
-                assertArrayEquals(firstEntries[i].array(), retrievedEntries.get(i).array());
+                assertEquals(firstEntries[i].rewind(), retrievedEntries.get(i));
             }
 
             for (int i = 0; i < secondEntries.length; i++) {
-                assertArrayEquals(secondEntries[i].array(), retrievedEntries.get(i).array());
+                assertEquals(secondEntries[i].rewind(), retrievedEntries.get(i));
             }
         }
     }
@@ -334,7 +336,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 1; i <= numIterations; i++) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 volume.append(session, randomBytes((int) bufferSize));
             }
             tr.commit().join();
@@ -361,7 +363,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             public void run() {
                 AppendResult result;
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                    VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                     result = volume.append(session, entries);
                     tr.commit().join();
                     Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
@@ -387,10 +389,10 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         assertEquals(numberOfThreads * entriesPerThread, pairs.size());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             for (Map.Entry<Versionstamp, ByteBuffer> entry : pairs.entrySet()) {
                 ByteBuffer buffer = volume.get(session, entry.getKey());
-                assertArrayEquals(entry.getValue().array(), buffer.array());
+                assertEquals(entry.getValue().rewind(), buffer);
             }
         }
     }
@@ -402,7 +404,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         long numIterations = 2 * (segmentSize / bufferSize);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             for (int i = 1; i <= numIterations; i++) {
                 volume.append(session, randomBytes((int) bufferSize));
             }
@@ -415,7 +417,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
             int cardinality = 0;
             for (SegmentAnalysis analysis : segmentAnalysis) {
-                assertEquals(0.0, analysis.garbageRatio());
+                assertEquals(0.0, analysis.garbagePercentage());
                 assertEquals(segmentSize, analysis.size());
                 assertEquals(analysis.freeBytes(), analysis.size() - analysis.usedBytes());
                 assertTrue(analysis.cardinality() > 0);
@@ -426,10 +428,71 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void shouldCalculateGarbageRatioAfterDeletingEntries() throws IOException {
+    void shouldAnalyzeEmptyWritableSegment() {
+        // Behavior: A fresh volume with no appends has one writable segment
+        // with zero cardinality, zero usedBytes, and full freeBytes.
+        List<SegmentAnalysis> analysis = volume.analyze();
+        assertEquals(1, analysis.size());
+
+        SegmentAnalysis segmentAnalysis = analysis.getFirst();
+        assertEquals(0, segmentAnalysis.cardinality());
+        assertEquals(0, segmentAnalysis.usedBytes());
+        assertEquals(segmentAnalysis.size(), segmentAnalysis.freeBytes());
+        assertEquals(0.0, segmentAnalysis.garbagePercentage());
+    }
+
+    @Test
+    void shouldAnalyzeSingleWritableSegment() throws IOException {
+        // Behavior: After a single small append, analyze returns exactly one segment
+        // with correct cardinality, usedBytes, freeBytes, and zero garbage.
+        byte[] data = new byte[]{1, 2, 3, 4, 5};
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            volume.append(session, ByteBuffer.wrap(data));
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<SegmentAnalysis> analysis = volume.analyze(tr);
+            assertEquals(1, analysis.size());
+
+            SegmentAnalysis segmentAnalysis = analysis.getFirst();
+            assertEquals(1, segmentAnalysis.cardinality());
+            assertEquals(data.length, segmentAnalysis.usedBytes());
+            assertEquals(segmentAnalysis.size() - data.length, segmentAnalysis.freeBytes());
+            assertEquals(0.0, segmentAnalysis.garbagePercentage());
+        }
+    }
+
+    @Test
+    void shouldReportCorrectUsedBytesAcrossMultipleSegments() throws IOException {
+        // Behavior: Total usedBytes across all segments equals the sum of bytes actually written.
+        long bufferSize = 100480;
+        long segmentSize = VolumeConfiguration.segmentSize;
+        long numIterations = 2 * (segmentSize / bufferSize);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            for (int i = 1; i <= numIterations; i++) {
+                volume.append(session, randomBytes((int) bufferSize));
+            }
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<SegmentAnalysis> segmentAnalysis = volume.analyze(tr);
+            assertEquals(2, segmentAnalysis.size());
+
+            long totalUsedBytes = segmentAnalysis.stream().mapToLong(SegmentAnalysis::usedBytes).sum();
+            assertEquals(numIterations * bufferSize, totalUsedBytes);
+        }
+    }
+
+    @Test
+    void shouldCalculateGarbagePercentageAfterDeletingEntries() throws IOException {
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             appendResult = volume.append(session, getEntries(10));
             tr.commit().join();
         }
@@ -438,7 +501,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
         Versionstamp[] keys = Arrays.copyOfRange(versionstampedKeys, 3, 7);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             deleteResult = volume.delete(session, keys);
             tr.commit().join();
         }
@@ -447,7 +510,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<SegmentAnalysis> analysis = volume.analyze(tr);
             SegmentAnalysis segmentAnalysis = analysis.getFirst();
-            assertTrue(segmentAnalysis.garbageRatio() > 0);
+            assertTrue(segmentAnalysis.garbagePercentage() > 0);
             long garbageBytes = segmentAnalysis.size() - segmentAnalysis.freeBytes() - segmentAnalysis.usedBytes();
             assertEquals(40, garbageBytes); // We deleted 4 items and the test entry size is 10.
         }
@@ -457,7 +520,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     void shouldThrowEntrySizeExceedsLimitExceptionWhenEntryTooLarge() {
         ByteBuffer oversizedEntry = randomBytes(Volume.ENTRY_SIZE_LIMIT + 1);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(EntrySizeExceedsLimitException.class, () -> volume.append(session, oversizedEntry));
         }
     }
@@ -466,7 +529,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     void shouldThrowTooManyEntriesExceptionWhenExceedingMaxEntries() {
         ByteBuffer[] entries = getEntries(UserVersion.MAX_VALUE + 1);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(TooManyEntriesException.class, () -> volume.append(session, entries));
         }
     }
@@ -474,7 +537,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldThrowTooManyEntriesExceptionWhenExceedingSessionLimit() throws IOException {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             int batchSize = UserVersion.MAX_VALUE / 5;
             for (int i = 0; i < 5; i++) {
                 ByteBuffer[] entries = getEntries(batchSize);
@@ -497,7 +560,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             for (int i = 1; i <= numIterations; i++) {
                 entries[i - 1] = randomBytes((int) bufferSize);
             }
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -510,7 +573,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 pairs[index] = new KeyEntry(versionstampedKey, randomBytes((int) bufferSize));
                 index++;
             }
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             UpdateResult updateResult = volume.update(session, pairs);
             tr.commit().join();
             updateResult.complete();
@@ -519,50 +582,13 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         List<SegmentAnalysis> segmentAnalysis = volume.analyze();
         assertEquals(4, segmentAnalysis.size());
 
-        // Cardinality should be zero for the first two segments.
-        for (int i = 0; i < 2; i++) {
-            SegmentAnalysis analysis = segmentAnalysis.get(i);
-            assertEquals(0, analysis.cardinality());
-        }
+        long staleCount = segmentAnalysis.stream().filter(a -> a.cardinality() == 0).count();
+        long liveCount = segmentAnalysis.stream().filter(a -> a.cardinality() > 0).count();
+        assertEquals(2, staleCount);
+        assertEquals(2, liveCount);
 
-        // All keys moved to the new segments and the first two segments will be vacuumed.
-        for (int i = 2; i < 4; i++) {
-            SegmentAnalysis analysis = segmentAnalysis.get(i);
-            assertEquals(10, analysis.cardinality());
-        }
-    }
-
-    @Test
-    void shouldVacuumSegmentAndMoveEntries() throws IOException {
-        long bufferSize = 100480;
-        long segmentSize = VolumeConfiguration.segmentSize;
-        long numIterations = 2 * (segmentSize / bufferSize);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            for (int i = 1; i <= numIterations; i++) {
-                volume.append(session, randomBytes((int) bufferSize));
-            }
-            tr.commit().join();
-        }
-
-        {
-            List<SegmentAnalysis> segmentAnalysis = volume.analyze();
-            long firstSegmentId = segmentAnalysis.getFirst().segmentId();
-            VacuumContext vacuumContext = new VacuumContext(firstSegmentId, new AtomicBoolean());
-            volume.vacuumSegment(vacuumContext);
-        }
-
-        {
-            List<SegmentAnalysis> segmentAnalysis = volume.analyze();
-            assertEquals(3, segmentAnalysis.size());
-
-            // Cardinality should be zero for the first segment.
-            assertEquals(0, segmentAnalysis.getFirst().cardinality());
-
-            // All keys moved to the new segments.
-            for (int i = 1; i < 3; i++) {
-                SegmentAnalysis analysis = segmentAnalysis.get(i);
+        for (SegmentAnalysis analysis : segmentAnalysis) {
+            if (analysis.cardinality() > 0) {
                 assertEquals(10, analysis.cardinality());
             }
         }
@@ -573,7 +599,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -584,7 +610,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] retrievedKeys = new Versionstamp[10];
         ByteBuffer[] retrievedEntries = new ByteBuffer[10];
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             int index = 0;
             Iterable<VolumeEntry> iterable = volume.getRange(session);
             for (VolumeEntry keyEntry : iterable) {
@@ -595,10 +621,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         assertArrayEquals(versionstampedKeys, retrievedKeys);
         for (int i = 0; i < entries.length; i++) {
-            ByteBuffer expected = entries[i];
-            expected.flip();
-            ByteBuffer actual = retrievedEntries[i];
-            assertArrayEquals(expected.array(), actual.array());
+            assertEquals(entries[i].flip(), retrievedEntries[i]);
         }
     }
 
@@ -607,7 +630,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -620,7 +643,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] retrievedKeys = new Versionstamp[limit];
         ByteBuffer[] retrievedEntries = new ByteBuffer[limit];
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             int index = 0;
             Iterable<VolumeEntry> iterable = volume.getRange(session, limit);
             for (VolumeEntry keyEntry : iterable) {
@@ -632,10 +655,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         assertArrayEquals(Arrays.copyOfRange(versionstampedKeys, 0, limit), retrievedKeys);
         for (int i = 0; i < limit; i++) {
-            ByteBuffer expected = entries[i];
-            expected.flip();
-            ByteBuffer actual = retrievedEntries[i];
-            assertArrayEquals(expected.array(), actual.array());
+            assertEquals(entries[i].flip(), retrievedEntries[i]);
         }
     }
 
@@ -644,7 +664,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -656,7 +676,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] retrievedKeys = new Versionstamp[10];
         ByteBuffer[] retrievedEntries = new ByteBuffer[10];
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             int index = 0;
             Iterable<VolumeEntry> iterable = volume.getRange(session, true);
             for (VolumeEntry keyEntry : iterable) {
@@ -672,10 +692,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         assertArrayEquals(versionstampedKeys, retrievedKeys);
         for (int i = 0; i < 10; i++) {
-            ByteBuffer expected = entries[i];
-            expected.flip();
-            ByteBuffer actual = retrievedEntries[i];
-            assertArrayEquals(expected.array(), actual.array());
+            assertEquals(entries[i].flip(), retrievedEntries[i]);
         }
     }
 
@@ -684,7 +701,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -692,7 +709,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp[] expectedKeys = Arrays.copyOfRange(result.getVersionstampedKeys(), 3, 7);
         ByteBuffer[] expectedEntries = new ByteBuffer[expectedKeys.length];
 
-        VolumeSession sessionWithoutTransaction = new VolumeSession(redisVolumeSyncerPrefix);
+        VolumeSession sessionWithoutTransaction = new VolumeSession(stashVolumeSyncerPrefix);
         for (int i = 0; i < expectedKeys.length; i++) {
             Versionstamp key = expectedKeys[i];
             ByteBuffer entry = volume.get(sessionWithoutTransaction, key);
@@ -705,7 +722,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(expectedKeys[0]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(expectedKeys[expectedKeys.length - 1]);
 
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end);
             int index = 0;
             for (VolumeEntry keyEntry : iterable) {
@@ -717,10 +734,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         assertArrayEquals(expectedKeys, retrievedKeys);
         for (int i = 0; i < expectedEntries.length; i++) {
-            ByteBuffer expected = expectedEntries[i];
-            expected.flip();
-            ByteBuffer actual = retrievedEntries[i];
-            assertArrayEquals(expected.array(), actual.array());
+            assertEquals(expectedEntries[i], retrievedEntries[i]);
         }
     }
 
@@ -761,7 +775,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
             entry = volume.get(session, keyOne);
             assertNotNull(entry);
-            assertEquals(dataOne, new String(entry.array()));
+            assertEquals(ByteBuffer.wrap(dataOne.getBytes()), entry);
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -771,7 +785,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
             entry = volume.get(session, keyTwo);
             assertNotNull(entry);
-            assertEquals(dataTwo, new String(entry.array()));
+            assertEquals(ByteBuffer.wrap(dataTwo.getBytes()), entry);
         }
 
         {
@@ -786,7 +800,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 VolumeSession session = new VolumeSession(tr, prefixTwo);
                 ByteBuffer entry = volume.get(session, keyTwo);
                 assertNotNull(entry);
-                assertEquals(dataTwo, new String(entry.array()));
+                assertEquals(ByteBuffer.wrap(dataTwo.getBytes()), entry);
             }
         }
     }
@@ -796,7 +810,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(10);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -807,9 +821,9 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         {
             int index = 0;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 Iterable<VolumeEntry> iterable = volume.getRange(session);
-                for (VolumeEntry keyEntry : iterable) {
+                for (VolumeEntry ignored : iterable) {
                     index++;
                 }
             }
@@ -821,7 +835,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 VolumeSession session = new VolumeSession(tr, new Prefix("test"));
                 Iterable<VolumeEntry> iterable = volume.getRange(session);
-                for (VolumeEntry keyEntry : iterable) {
+                for (VolumeEntry ignored : iterable) {
                     index++;
                 }
             }
@@ -834,13 +848,13 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(3);
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             volume.clearPrefix(session);
             tr.commit().join();
         }
@@ -848,7 +862,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 SegmentAnalysis analysis = volume.analyze(tr).getFirst();
-                byte[] begin = SegmentUtil.prefixOfVolumePrefix(volume.getConfig().subspace(), analysis.segmentId(), redisVolumeSyncerPrefix);
+                byte[] begin = SegmentSubspaceUtil.prefixOfVolumePrefix(volume.getConfig().subspace(), analysis.segmentId(), stashVolumeSyncerPrefix);
                 Range range = Range.startsWith(begin);
                 List<KeyValue> survivedEntries = tr.getRange(range).asList().join();
                 assertEquals(0, survivedEntries.size());
@@ -857,7 +871,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             for (Versionstamp versionstamp : versionstampedKeys) {
                 assertNull(volume.get(session, versionstamp));
             }
@@ -945,10 +959,10 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             Versionstamp[] versionstamps = result.getVersionstampedKeys();
 
             ByteBuffer firstBuffer = standby.get(session, versionstamps[0]);
-            assertArrayEquals(first, firstBuffer.array());
+            assertEquals(ByteBuffer.wrap(first), firstBuffer);
 
             ByteBuffer secondBuffer = standby.get(session, versionstamps[1]);
-            assertArrayEquals(second, secondBuffer.array());
+            assertEquals(ByteBuffer.wrap(second), secondBuffer);
         }
     }
 
@@ -989,19 +1003,18 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         assertEquals(VolumeStatus.READONLY, volume.getStatus());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeMetadata.compute(tr, volume.getConfig().subspace(), (volumeMetadata -> {
-                assertEquals(VolumeStatus.READONLY, volumeMetadata.getStatus());
-            }));
+            VolumeStatus status = VolumeMetadataUtil.readVolumeStatus(tr, volume.getSubspace());
+            assertEquals(VolumeStatus.READONLY, status);
         }
     }
 
     @Test
-    void shouldThrowVolumeReadOnlyExceptionWhenAppendingToReadOnlyVolume() throws IOException {
+    void shouldThrowVolumeReadOnlyExceptionWhenAppendingToReadOnlyVolume() {
         volume.setStatus(VolumeStatus.READONLY);
 
         ByteBuffer[] entries = getEntries(1);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(VolumeReadOnlyException.class, () -> volume.append(session, entries));
         }
     }
@@ -1011,7 +1024,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(1);
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
         }
@@ -1019,13 +1032,13 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         volume.setStatus(VolumeStatus.READONLY);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(VolumeReadOnlyException.class, () -> volume.delete(session, versionstampedKeys));
         }
     }
 
     @Test
-    void shouldThrowVolumeReadOnlyExceptionWhenUpdatingReadOnlyVolume() throws IOException, KeyNotFoundException {
+    void shouldThrowVolumeReadOnlyExceptionWhenUpdatingReadOnlyVolume() throws IOException {
         Versionstamp[] versionstampedKeys;
 
         {
@@ -1035,7 +1048,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             };
             AppendResult result;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 result = volume.append(session, entries);
                 tr.commit().join();
             }
@@ -1048,7 +1061,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         entries[0] = new KeyEntry(versionstampedKeys[0], ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
         entries[1] = new KeyEntry(versionstampedKeys[1], ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(VolumeReadOnlyException.class, () -> volume.update(session, entries));
         }
     }
@@ -1056,16 +1069,15 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldThrowVolumeReadOnlyExceptionWhenClearingPrefixOnReadOnlyVolume() throws IOException {
         ByteBuffer[] entries = getEntries(3);
-        AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            result = volume.append(session, entries);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            volume.append(session, entries);
             tr.commit().join();
         }
 
         volume.setStatus(VolumeStatus.READONLY);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             assertThrows(VolumeReadOnlyException.class, () -> volume.clearPrefix(session));
         }
     }
@@ -1119,7 +1131,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldHandleHighConcurrencyAppendsAndRetrieveAll() throws IOException, InterruptedException {
         int PARALLEL_APPENDS = 100;
-        ConcurrentHashMap<String, String> expected = new ConcurrentHashMap<>();
+        ConcurrentHashMap<String, ByteBuffer> expected = new ConcurrentHashMap<>();
 
         class Append implements Runnable {
             final CountDownLatch latch;
@@ -1140,13 +1152,13 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 }
 
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                    VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                     AppendResult result = volume.append(session, entries);
                     tr.commit().join();
                     Versionstamp[] keys = result.getVersionstampedKeys();
                     for (int i = 0; i < keys.length; i++) {
                         Versionstamp key = keys[i];
-                        expected.put(VersionstampUtil.base32HexEncode(key), values.get(i));
+                        expected.put(VersionstampUtil.base32HexEncode(key), ByteBuffer.wrap(values.get(i).getBytes()));
                     }
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
@@ -1162,13 +1174,13 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         latch.await();
 
-        ConcurrentHashMap<String, String> result = new ConcurrentHashMap<>();
+        ConcurrentHashMap<String, ByteBuffer> result = new ConcurrentHashMap<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (String key : expected.keySet()) {
-                VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
                 ByteBuffer buffer = volume.get(session, VersionstampUtil.base32HexDecode(key));
                 assertNotNull(buffer);
-                result.put(key, new String(buffer.array()));
+                result.put(key, buffer);
             }
         }
         assertEquals(expected, result);
@@ -1178,17 +1190,13 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     void shouldSetNonZeroIdDuringVolumeInitialization() {
         // Test that volume initialization correctly sets a non-zero ID in VolumeMetadata
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeMetadata metadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+            long volumeId = VolumeMetadataUtil.readVolumeId(tr, new VolumeSubspace(subspace));
 
             // The initialize() method should have set a non-zero ID during volume construction
-            assertNotEquals(0, metadata.getVolumeId(), "Volume ID should not be 0 after initialization");
+            assertNotEquals(0, volumeId, "Volume ID should not be 0 after initialization");
 
             // Verify the ID is actually a valid integer (not zero)
-            assertTrue(metadata.getVolumeId() != 0, "Volume ID must be set to a non-zero value");
-
-            // Test that the ID persists across metadata loads
-            VolumeMetadata reloadedMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            assertEquals(metadata.getVolumeId(), reloadedMetadata.getVolumeId(), "Volume ID should be consistent across loads");
+            assertTrue(volumeId != 0, "Volume ID must be set to a non-zero value");
         }
     }
 
@@ -1201,15 +1209,15 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         List<Long> segmentsAfterInitialAppend;
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             volume.append(session, initialEntries);
             tr.commit().join();
         }
 
-        // Check how many segments exist after initial append
+        // Check how many segments exist after the initial append.
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeMetadata metadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
-            segmentsAfterInitialAppend = new ArrayList<>(metadata.getSegments());
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
+            segmentsAfterInitialAppend = new ArrayList<>(segmentIds);
         }
 
         assertFalse(segmentsAfterInitialAppend.isEmpty(), "Initial append should create at least one segment");
@@ -1223,15 +1231,15 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         // Append new data to the reopened volume
         ByteBuffer[] newEntries = getEntries(3);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             reopenedVolume.append(session, newEntries);
             tr.commit().join();
         }
 
         List<Long> segmentsAfterReopen;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeMetadata metadata = VolumeMetadata.load(tr, reopenedVolume.getConfig().subspace());
-            segmentsAfterReopen = new ArrayList<>(metadata.getSegments());
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(reopenedVolume.getConfig().subspace()));
+            segmentsAfterReopen = new ArrayList<>(segmentIds);
         }
 
         // Verify that openSegments prevented unnecessary segment creation
@@ -1241,7 +1249,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         // Verify that we can still read the original data
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
 
             // Get all data using range scan to verify both old and new data are accessible
             List<ByteBuffer> allRetrievedEntries = new ArrayList<>();
@@ -1290,9 +1298,9 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] retrievedEntries = volume.getSegmentRange(segmentId, segmentRanges);
 
         assertEquals(3, retrievedEntries.length);
-        assertArrayEquals(first, retrievedEntries[0].array());
-        assertArrayEquals(second, retrievedEntries[1].array());
-        assertArrayEquals(third, retrievedEntries[2].array());
+        assertEquals(ByteBuffer.wrap(first), retrievedEntries[0]);
+        assertEquals(ByteBuffer.wrap(second), retrievedEntries[1]);
+        assertEquals(ByteBuffer.wrap(third), retrievedEntries[2]);
     }
 
     @Test
@@ -1325,7 +1333,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         AppendResult result;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             result = volume.append(session, entries);
             tr.commit().join();
         }
@@ -1371,7 +1379,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 long length = valueTuple.getLong(2);
                 assertEquals(i == 0 ? first.length : second.length, length);
 
-                assertEquals(redisVolumeSyncerPrefix.asLong(), valueTuple.getLong(3));
+                assertEquals(stashVolumeSyncerPrefix.asLong(), valueTuple.getLong(3));
             }
         }
     }
@@ -1384,7 +1392,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
         }
@@ -1394,7 +1402,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         DeleteResult deleteResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             deleteResult = volume.delete(session, versionstamps);
             tr.commit().join();
         }
@@ -1453,7 +1461,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                     assertEquals((i - 2) == 0 ? first.length : second.length, length);
                 }
 
-                assertEquals(redisVolumeSyncerPrefix.asLong(), valueTuple.getLong(3));
+                assertEquals(stashVolumeSyncerPrefix.asLong(), valueTuple.getLong(3));
             }
         }
     }
@@ -1462,7 +1470,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     void shouldTriggerWatchers_onAppendOperation() throws IOException {
         ByteBuffer[] entries = getEntries(2);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             volume.append(session, entries);
             tr.commit().join();
         }
@@ -1478,7 +1486,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(2);
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
         }
@@ -1491,7 +1499,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         DeleteResult deleteResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             deleteResult = volume.delete(session, appendResult.getVersionstampedKeys());
             tr.commit().join();
         }
@@ -1509,7 +1517,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = {ByteBuffer.allocate(6).put("foobar".getBytes()).flip()};
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
         }
@@ -1524,7 +1532,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         KeyEntry keyEntry = new KeyEntry(versionstamp, ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
         UpdateResult updateResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             updateResult = volume.update(session, keyEntry);
             tr.commit().join();
         }
@@ -1544,7 +1552,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             appendResult = volume.append(session, entries);
             tr.commit().join();
         }
@@ -1555,7 +1563,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         KeyEntry keyEntry = new KeyEntry(versionstamp, ByteBuffer.wrap(updated));
         UpdateResult updateResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             updateResult = volume.update(session, keyEntry);
             tr.commit().join();
         }
@@ -1596,7 +1604,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                     assertEquals(segmentId, valueTuple.getLong(0));
                     assertEquals(0, valueTuple.getLong(1));
                     assertEquals(original.length, valueTuple.getLong(2));
-                    assertEquals(redisVolumeSyncerPrefix.asLong(), valueTuple.getLong(3));
+                    assertEquals(stashVolumeSyncerPrefix.asLong(), valueTuple.getLong(3));
                 } else {
                     // Second entry: UPDATE containing both prev and current metadata
                     assertEquals(OperationKind.UPDATE, operationKind);
@@ -1608,207 +1616,1027 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                     assertEquals(segmentId, valueTuple.getLong(3));
                     assertEquals(0, valueTuple.getLong(4));
                     assertEquals(original.length, valueTuple.getLong(5));
-                    assertEquals(redisVolumeSyncerPrefix.asLong(), valueTuple.getLong(6));
+                    assertEquals(stashVolumeSyncerPrefix.asLong(), valueTuple.getLong(6));
                 }
             }
         }
     }
 
     @Test
-    void shouldCleanupStaleSegmentsWithZeroCardinality() throws IOException {
-        long bufferSize = 100480;
-        long segmentSize = VolumeConfiguration.segmentSize;
-        long numIterations = 2 * (segmentSize / bufferSize);
-
-        // Fill two segments with data
+    void shouldDeleteEntriesByVersionstampedEntry() throws IOException {
+        // Behavior: Appends two entries, retrieves their key and metadata via getRange, deletes them
+        // using deleteByVersionstampedEntry, and verifies entries are no longer readable.
+        ByteBuffer[] entries = {
+                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+        };
+        AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            for (int i = 1; i <= numIterations; i++) {
-                volume.append(session, randomBytes((int) bufferSize));
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+
+        List<VersionstampedEntry> versionstampedEntries = new ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            for (VolumeEntry volumeEntry : volume.getRange(session)) {
+                versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
             }
+        }
+        assertEquals(2, versionstampedEntries.size());
+
+        DeleteResult deleteResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            deleteResult = volume.deleteByVersionstampedEntry(session, versionstampedEntries.toArray(new VersionstampedEntry[0]));
             tr.commit().join();
         }
+        deleteResult.complete();
 
-        // Verify we have 2 segments
-        List<SegmentAnalysis> initialAnalysis = volume.analyze();
-        assertEquals(2, initialAnalysis.size());
-
-        // Get the first segment's file path before vacuum
-        long firstSegmentId = initialAnalysis.getFirst().segmentId();
-        Path segmentFilePath = Segment.getSegmentFilePath(volume.getConfig().dataDir(), firstSegmentId);
-        assertTrue(Files.exists(segmentFilePath), "Segment file should exist before cleanup");
-
-        // Vacuum the first segment - this moves all entries to a new segment
-        VacuumContext vacuumContext = new VacuumContext(firstSegmentId, new AtomicBoolean());
-        volume.vacuumSegment(vacuumContext);
-
-        // Verify the first segment now has zero cardinality
-        List<SegmentAnalysis> afterVacuumAnalysis = volume.analyze();
-        assertEquals(3, afterVacuumAnalysis.size()); // 2 originals + 1 new from vacuum
-        afterVacuumAnalysis.sort(Comparator.comparing(SegmentAnalysis::segmentId));
-        assertEquals(0, afterVacuumAnalysis.getFirst().cardinality(), "First segment should have zero cardinality after vacuum");
-
-        // Cleanup stale segments
-        List<String> deletedFiles = volume.cleanupStaleSegments();
-
-        // Verify the stale segment was deleted
-        assertEquals(1, deletedFiles.size());
-        assertTrue(deletedFiles.getFirst().contains(String.valueOf(firstSegmentId)));
-
-        // Verify segment file is deleted from disk
-        assertFalse(Files.exists(segmentFilePath), "Segment file should be deleted after cleanup");
-
-        // Verify a segment is removed from volume analysis
-        List<SegmentAnalysis> afterCleanupAnalysis = volume.analyze();
-        assertEquals(2, afterCleanupAnalysis.size());
-        for (SegmentAnalysis analysis : afterCleanupAnalysis) {
-            assertNotEquals(firstSegmentId, analysis.segmentId(), "Stale segment should be removed");
-        }
-    }
-
-    @Test
-    void shouldNotCleanupLatestSegmentEvenWithZeroCardinality() throws IOException {
-        // Append a small entry to create a single segment
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            volume.append(session, ByteBuffer.wrap(new byte[]{1, 2, 3}));
-            tr.commit().join();
-        }
-
-        // Verify we have exactly 1 segment
-        List<SegmentAnalysis> initialAnalysis = volume.analyze();
-        assertEquals(1, initialAnalysis.size());
-
-        long segmentId = initialAnalysis.getFirst().segmentId();
-        Path segmentFilePath = Segment.getSegmentFilePath(volume.getConfig().dataDir(), segmentId);
-
-        // Delete all entries to make cardinality = 0
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            volume.clearPrefix(session);
-            tr.commit().join();
-        }
-
-        // Verify segment now has zero cardinality
-        List<SegmentAnalysis> afterDeleteAnalysis = volume.analyze();
-        assertEquals(1, afterDeleteAnalysis.size());
-        assertEquals(0, afterDeleteAnalysis.getFirst().cardinality(), "Segment should have zero cardinality");
-
-        // Cleanup stale segments - should NOT delete the latest segment
-        List<String> deletedFiles = volume.cleanupStaleSegments();
-
-        // Verify no segments were deleted
-        assertTrue(deletedFiles.isEmpty(), "Latest segment should not be deleted even with zero cardinality");
-
-        // Verify segment file still exists
-        assertTrue(Files.exists(segmentFilePath), "Latest segment file should still exist");
-
-        // Verify the segment is still in volume analysis
-        List<SegmentAnalysis> afterCleanupAnalysis = volume.analyze();
-        assertEquals(1, afterCleanupAnalysis.size());
-        assertEquals(segmentId, afterCleanupAnalysis.getFirst().segmentId());
-    }
-
-    @Test
-    void shouldReturnEmptyListWhenNoStaleSegments() throws IOException {
-        long bufferSize = 100480;
-        long segmentSize = VolumeConfiguration.segmentSize;
-        long numIterations = 2 * (segmentSize / bufferSize);
-
-        // Fill two segments with data
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            for (int i = 1; i <= numIterations; i++) {
-                volume.append(session, randomBytes((int) bufferSize));
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            for (Versionstamp versionstamp : versionstampedKeys) {
+                assertNull(volume.get(session, versionstamp));
             }
-            tr.commit().join();
         }
-
-        // Verify we have 2 segments with entries
-        List<SegmentAnalysis> initialAnalysis = volume.analyze();
-        assertEquals(2, initialAnalysis.size());
-        for (SegmentAnalysis analysis : initialAnalysis) {
-            assertTrue(analysis.cardinality() > 0, "All segments should have entries");
-        }
-
-        // Cleanup stale segments - should return empty list since no stale segments
-        List<String> deletedFiles = volume.cleanupStaleSegments();
-
-        // Verify no segments were deleted
-        assertTrue(deletedFiles.isEmpty(), "No segments should be deleted when none are stale");
-
-        // Verify all segments still exist
-        List<SegmentAnalysis> afterCleanupAnalysis = volume.analyze();
-        assertEquals(2, afterCleanupAnalysis.size());
     }
 
     @Test
-    void shouldCleanupMultipleStaleSegments() throws IOException, KeyNotFoundException {
+    void shouldThrowIllegalArgumentExceptionWhenDeletingByVersionstampedEntryWithoutEntries() {
+        // Behavior: Calling deleteByVersionstampedEntry with zero entries throws IllegalArgumentException.
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertThrows(IllegalArgumentException.class, () -> volume.deleteByVersionstampedEntry(session));
+        }
+    }
+
+    @Test
+    void shouldInsertEntriesWithKnownVersionstamps() throws IOException, VersionstampAlreadyExistsException {
+        // Behavior: Inserts two entries with caller-provided complete versionstamps,
+        // reads them back, and verifies the data matches.
+        Versionstamp key1 = TestUtil.generateVersionstamp(0);
+        Versionstamp key2 = TestUtil.generateVersionstamp(1);
+
+        byte[] data1 = "hello".getBytes();
+        byte[] data2 = "world".getBytes();
+
+        KeyEntry[] pairs = {
+                new KeyEntry(key1, ByteBuffer.wrap(data1)),
+                new KeyEntry(key2, ByteBuffer.wrap(data2)),
+        };
+
+        InsertResult insertResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            insertResult = volume.insert(session, pairs);
+            tr.commit().join();
+        }
+        insertResult.complete();
+
+        assertEquals(2, insertResult.entries().length);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            ByteBuffer result1 = volume.get(session, key1);
+            assertNotNull(result1);
+            assertEquals(ByteBuffer.wrap(data1), result1);
+
+            ByteBuffer result2 = volume.get(session, key2);
+            assertNotNull(result2);
+            assertEquals(ByteBuffer.wrap(data2), result2);
+        }
+    }
+
+    @Test
+    void shouldThrowExceptionWhenInsertingDuplicateVersionstamp() throws IOException, VersionstampAlreadyExistsException {
+        // Behavior: Inserting an entry with a versionstamp that already exists throws VersionstampAlreadyExistsException.
+        Versionstamp key = TestUtil.generateVersionstamp(0);
+        byte[] data = "hello".getBytes();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            volume.insert(session, new KeyEntry(key, ByteBuffer.wrap(data)));
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertThrows(VersionstampAlreadyExistsException.class,
+                    () -> volume.insert(session, new KeyEntry(key, ByteBuffer.wrap("other".getBytes()))));
+        }
+    }
+
+    @Test
+    void shouldThrowIllegalArgumentExceptionWhenInsertingEmptyPairs() {
+        // Behavior: Calling insert with zero pairs throws IllegalArgumentException.
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertThrows(IllegalArgumentException.class, () -> volume.insert(session));
+        }
+    }
+
+    @Test
+    void shouldThrowEntrySizeExceedsLimitExceptionOnInsert() {
+        // Behavior: Inserting an entry larger than ENTRY_SIZE_LIMIT throws EntrySizeExceedsLimitException.
+        Versionstamp key = TestUtil.generateVersionstamp(0);
+        ByteBuffer oversizedEntry = randomBytes(Volume.ENTRY_SIZE_LIMIT + 1);
+        KeyEntry pair = new KeyEntry(key, oversizedEntry);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertThrows(EntrySizeExceedsLimitException.class, () -> volume.insert(session, pair));
+        }
+    }
+
+    @Test
+    void shouldThrowVolumeReadOnlyExceptionOnInsert() {
+        // Behavior: Inserting into a read-only volume throws VolumeReadOnlyException.
+        volume.setStatus(VolumeStatus.READONLY);
+
+        Versionstamp key = TestUtil.generateVersionstamp(0);
+        KeyEntry pair = new KeyEntry(key, ByteBuffer.wrap("data".getBytes()));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertThrows(VolumeReadOnlyException.class, () -> volume.insert(session, pair));
+        }
+    }
+
+    @Test
+    void shouldInsertAndDeleteEntries() throws IOException, VersionstampAlreadyExistsException {
+        // Behavior: Inserts entries with known versionstamps, deletes them, and verifies they return null on read.
+        Versionstamp key1 = TestUtil.generateVersionstamp(0);
+        Versionstamp key2 = TestUtil.generateVersionstamp(1);
+
+        KeyEntry[] pairs = {
+                new KeyEntry(key1, ByteBuffer.wrap("hello".getBytes())),
+                new KeyEntry(key2, ByteBuffer.wrap("world".getBytes())),
+        };
+
+        InsertResult insertResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            insertResult = volume.insert(session, pairs);
+            tr.commit().join();
+        }
+        insertResult.complete();
+
+        DeleteResult deleteResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            deleteResult = volume.delete(session, key1, key2);
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertNull(volume.get(session, key1));
+            assertNull(volume.get(session, key2));
+        }
+    }
+
+    @Test
+    void shouldInsertAndUpdateEntries() throws IOException, VersionstampAlreadyExistsException, KeyNotFoundException {
+        // Behavior: Inserts entries with known versionstamps, updates them with new data,
+        // and verifies the updated data is readable.
+        Versionstamp key = TestUtil.generateVersionstamp(0);
+        byte[] originalData = "original".getBytes();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            InsertResult insertResult = volume.insert(session, new KeyEntry(key, ByteBuffer.wrap(originalData)));
+            tr.commit().join();
+            insertResult.complete();
+        }
+
+        byte[] updatedData = "updated".getBytes();
+        UpdateResult updateResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            updateResult = volume.update(session, new KeyEntry(key, ByteBuffer.wrap(updatedData)));
+            tr.commit().join();
+        }
+        updateResult.complete();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            ByteBuffer result = volume.get(session, key);
+            assertNotNull(result);
+            assertEquals(ByteBuffer.wrap(updatedData), result);
+        }
+    }
+
+    @Test
+    void shouldUpdateSegmentCardinalityAndUsedBytesOnInsert() throws IOException, VersionstampAlreadyExistsException {
+        // Behavior: Inserting entries with known versionstamps correctly updates segment
+        // cardinality and used bytes, with a zero garbage percentage.
+        byte[] data = "hello".getBytes(); // 5 bytes each
+        int entryCount = 3;
+
+        KeyEntry[] entries = new KeyEntry[entryCount];
+        for (int i = 0; i < entryCount; i++) {
+            entries[i] = new KeyEntry(TestUtil.generateVersionstamp(i), ByteBuffer.wrap(data));
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            InsertResult insertResult = volume.insert(session, entries);
+            tr.commit().join();
+            insertResult.complete();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<SegmentAnalysis> analysis = volume.analyze(tr);
+            assertEquals(1, analysis.size());
+
+            SegmentAnalysis segmentAnalysis = analysis.getFirst();
+            assertEquals(entryCount, segmentAnalysis.cardinality());
+            assertEquals((long) entryCount * data.length, segmentAnalysis.usedBytes());
+            assertEquals(0.0, segmentAnalysis.garbagePercentage());
+            assertEquals(segmentAnalysis.size() - segmentAnalysis.usedBytes(), segmentAnalysis.freeBytes());
+        }
+    }
+
+    @Test
+    void shouldUpdateSegmentCardinalityWhenDeletingByVersionstampedEntry() throws IOException {
+        // Behavior: Deleting entries correctly decreases segment cardinality and used bytes.
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            volume.append(session, getEntries(10));
+            tr.commit().join();
+        }
+
+        List<VersionstampedEntry> versionstampedEntries = new ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            for (VolumeEntry volumeEntry : volume.getRange(session)) {
+                versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
+            }
+        }
+
+        // Delete entries at indices 3-6 (4 entries)
+        VersionstampedEntry[] toDelete = versionstampedEntries.subList(3, 7).toArray(new VersionstampedEntry[0]);
+        DeleteResult deleteResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            deleteResult = volume.deleteByVersionstampedEntry(session, toDelete);
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<SegmentAnalysis> analysis = volume.analyze(tr);
+            SegmentAnalysis segmentAnalysis = analysis.getFirst();
+            assertTrue(segmentAnalysis.garbagePercentage() > 0);
+            long garbageBytes = segmentAnalysis.size() - segmentAnalysis.freeBytes() - segmentAnalysis.usedBytes();
+            assertEquals(40, garbageBytes); // Deleted 4 items, test entry size is 10.
+        }
+    }
+
+    @Test
+    void shouldUpdateEntriesByVersionstampedEntryUpdate() throws IOException {
+        // Behavior: Appends two entries, retrieves their versionstamps and metadata, updates them with new data
+        // using updateByVersionstampedEntryUpdate, and verifies the new data is readable via volume.get.
+        Versionstamp[] versionstampedKeys;
+
+        {
+            ByteBuffer[] entries = {
+                    ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                    ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+            };
+            AppendResult result;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+                result = volume.append(session, entries);
+                tr.commit().join();
+            }
+            versionstampedKeys = result.getVersionstampedKeys();
+        }
+
+        {
+            List<EntryMetadata> metadataList = new ArrayList<>();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+                for (VolumeEntry volumeEntry : volume.getRange(session)) {
+                    metadataList.add(EntryMetadata.decode(volumeEntry.metadata()));
+                }
+            }
+            assertEquals(2, metadataList.size());
+
+            VersionstampedEntryUpdate[] updates = new VersionstampedEntryUpdate[2];
+            updates[0] = new VersionstampedEntryUpdate(versionstampedKeys[0], metadataList.get(0), ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
+            updates[1] = new VersionstampedEntryUpdate(versionstampedKeys[1], metadataList.get(1), ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
+
+            UpdateResult result;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+                result = volume.updateByVersionstampedEntryUpdate(session, updates);
+                tr.commit().join();
+            }
+            result.complete();
+
+            List<ByteBuffer> retrievedEntries = new ArrayList<>();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+                for (Versionstamp versionstamp : versionstampedKeys) {
+                    ByteBuffer buffer = volume.get(session, versionstamp);
+                    retrievedEntries.add(buffer);
+                }
+            }
+            assertEquals(ByteBuffer.wrap("FOOBAR".getBytes()), retrievedEntries.get(0));
+            assertEquals(ByteBuffer.wrap("BARFOO".getBytes()), retrievedEntries.get(1));
+        }
+    }
+
+    @Test
+    void shouldThrowIllegalArgumentExceptionWhenUpdatingByVersionstampedEntryUpdateWithoutEntries() {
+        // Behavior: Calling updateByVersionstampedEntryUpdate with zero entries throws IllegalArgumentException.
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertThrows(IllegalArgumentException.class, () -> volume.updateByVersionstampedEntryUpdate(session));
+        }
+    }
+
+    @Test
+    void shouldThrowEntrySizeExceedsLimitExceptionWhenUpdatingByVersionstampedEntryUpdateWithOversizedEntry() throws IOException {
+        // Behavior: Updating with an entry larger than ENTRY_SIZE_LIMIT throws EntrySizeExceedsLimitException.
+        ByteBuffer smallEntry = ByteBuffer.allocate(10).put("small".getBytes()).flip();
+        Versionstamp versionstampedKey;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            AppendResult result = volume.append(session, smallEntry);
+            tr.commit().join();
+            versionstampedKey = result.getVersionstampedKeys()[0];
+        }
+
+        EntryMetadata metadata;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            Iterable<VolumeEntry> iterable = volume.getRange(session);
+            VolumeEntry volumeEntry = iterable.iterator().next();
+            metadata = EntryMetadata.decode(volumeEntry.metadata());
+        }
+
+        ByteBuffer oversizedEntry = randomBytes(Volume.ENTRY_SIZE_LIMIT + 1);
+        VersionstampedEntryUpdate update = new VersionstampedEntryUpdate(versionstampedKey, metadata, oversizedEntry);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertThrows(EntrySizeExceedsLimitException.class, () -> volume.updateByVersionstampedEntryUpdate(session, update));
+        }
+    }
+
+    @Test
+    void shouldUpdateSegmentCardinalityWhenUpdatingByVersionstampedEntryUpdate() throws IOException {
+        // Behavior: When entries move to new segments during the update, cardinality is correctly adjusted —
+        // old segments get cardinality 0, new segments get the entries.
         long bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
-        // Fill two segments with data
-        AppendResult result;
         ByteBuffer[] entries = new ByteBuffer[(int) numIterations];
+        AppendResult appendResult;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 0; i < numIterations; i++) {
                 entries[i] = randomBytes((int) bufferSize);
             }
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            result = volume.append(session, entries);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
             tr.commit().join();
         }
 
-        // Update all entries - this moves them to new segments, leaving original segments with zero cardinality
-        Versionstamp[] versionstampedKeys = result.getVersionstampedKeys();
-        KeyEntry[] pairs = new KeyEntry[versionstampedKeys.length];
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+
+        List<EntryMetadata> metadataList = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            int index = 0;
-            for (Versionstamp versionstampedKey : versionstampedKeys) {
-                pairs[index] = new KeyEntry(versionstampedKey, randomBytes((int) bufferSize));
-                index++;
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            for (VolumeEntry volumeEntry : volume.getRange(session)) {
+                metadataList.add(EntryMetadata.decode(volumeEntry.metadata()));
             }
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
-            UpdateResult updateResult = volume.update(session, pairs);
+        }
+
+        VersionstampedEntryUpdate[] updates = new VersionstampedEntryUpdate[metadataList.size()];
+        for (int i = 0; i < metadataList.size(); i++) {
+            updates[i] = new VersionstampedEntryUpdate(versionstampedKeys[i], metadataList.get(i), randomBytes((int) bufferSize));
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            UpdateResult updateResult = volume.updateByVersionstampedEntryUpdate(session, updates);
             tr.commit().join();
             updateResult.complete();
         }
 
-        // Verify we have 4 segments (2 original + 2 new from updates)
-        List<SegmentAnalysis> afterUpdateAnalysis = volume.analyze();
-        assertEquals(4, afterUpdateAnalysis.size());
+        List<SegmentAnalysis> segmentAnalysis = volume.analyze();
+        assertEquals(4, segmentAnalysis.size());
 
-        // Verify first two segments have zero cardinality
-        afterUpdateAnalysis.sort(Comparator.comparing(SegmentAnalysis::segmentId));
-        long firstStaleSegmentId = afterUpdateAnalysis.get(0).segmentId();
-        long secondStaleSegmentId = afterUpdateAnalysis.get(1).segmentId();
-        assertEquals(0, afterUpdateAnalysis.get(0).cardinality());
-        assertEquals(0, afterUpdateAnalysis.get(1).cardinality());
+        long staleCount = segmentAnalysis.stream().filter(a -> a.cardinality() == 0).count();
+        long liveCount = segmentAnalysis.stream().filter(a -> a.cardinality() > 0).count();
+        assertEquals(2, staleCount);
+        assertEquals(2, liveCount);
 
-        // Get file paths for stale segments
-        Path firstSegmentFilePath = Segment.getSegmentFilePath(volume.getConfig().dataDir(), firstStaleSegmentId);
-        Path secondSegmentFilePath = Segment.getSegmentFilePath(volume.getConfig().dataDir(), secondStaleSegmentId);
-        assertTrue(Files.exists(firstSegmentFilePath));
-        assertTrue(Files.exists(secondSegmentFilePath));
-
-        // Cleanup stale segments
-        List<String> deletedFiles = volume.cleanupStaleSegments();
-
-        // Verify both stale segments were deleted
-        assertEquals(2, deletedFiles.size());
-
-        // Verify segment files are deleted from disk
-        assertFalse(Files.exists(firstSegmentFilePath), "First stale segment file should be deleted");
-        assertFalse(Files.exists(secondSegmentFilePath), "Second stale segment file should be deleted");
-
-        // Verify only 2 segments remain (the ones with data)
-        List<SegmentAnalysis> afterCleanupAnalysis = volume.analyze();
-        assertEquals(2, afterCleanupAnalysis.size());
-        for (SegmentAnalysis analysis : afterCleanupAnalysis) {
-            assertNotEquals(firstStaleSegmentId, analysis.segmentId());
-            assertNotEquals(secondStaleSegmentId, analysis.segmentId());
-            assertTrue(analysis.cardinality() > 0, "Remaining segments should have entries");
+        for (SegmentAnalysis analysis : segmentAnalysis) {
+            if (analysis.cardinality() > 0) {
+                assertEquals(10, analysis.cardinality());
+            }
         }
+    }
+
+    @Test
+    void shouldPreserveVersionstampKeysWhenUpdatingByVersionstampedEntryUpdate() throws IOException {
+        // Behavior: After the update, the same versionstamp keys still point to the updated entries
+        // (the keys don't change, only the data and metadata do).
+        ByteBuffer[] originalEntries = {
+                ByteBuffer.allocate(6).put("foobar".getBytes()).flip(),
+                ByteBuffer.allocate(6).put("barfoo".getBytes()).flip(),
+        };
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, originalEntries);
+            tr.commit().join();
+        }
+        Versionstamp[] originalKeys = appendResult.getVersionstampedKeys();
+
+        List<EntryMetadata> metadataList = new ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            for (VolumeEntry volumeEntry : volume.getRange(session)) {
+                metadataList.add(EntryMetadata.decode(volumeEntry.metadata()));
+            }
+        }
+
+        VersionstampedEntryUpdate[] updates = new VersionstampedEntryUpdate[2];
+        updates[0] = new VersionstampedEntryUpdate(originalKeys[0], metadataList.get(0), ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip());
+        updates[1] = new VersionstampedEntryUpdate(originalKeys[1], metadataList.get(1), ByteBuffer.allocate(6).put("BARFOO".getBytes()).flip());
+
+        UpdateResult updateResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            updateResult = volume.updateByVersionstampedEntryUpdate(session, updates);
+            tr.commit().join();
+        }
+        updateResult.complete();
+
+        UpdatedEntry[] updatedEntries = updateResult.entries();
+        assertEquals(2, updatedEntries.length);
+        assertEquals(originalKeys[0], updatedEntries[0].versionstamp());
+        assertEquals(originalKeys[1], updatedEntries[1].versionstamp());
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            ByteBuffer first = volume.get(session, originalKeys[0]);
+            assertEquals(ByteBuffer.wrap("FOOBAR".getBytes()), first);
+            ByteBuffer second = volume.get(session, originalKeys[1]);
+            assertEquals(ByteBuffer.wrap("BARFOO".getBytes()), second);
+        }
+    }
+
+    @Test
+    void shouldRecordUpdateOperationInChangeLog_updateByVersionstampedEntryUpdate() throws IOException {
+        // Behavior: Appends entries via Volume, updates some via Volume.updateByVersionstampedEntryUpdate,
+        // and verifies the ChangeLog contains UPDATE entries with correct before/after coordinates,
+        // versionstamps, and prefix.
+        ByteBuffer[] entries = getEntries(3);
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+
+        List<EntryMetadata> metadataList = new ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            for (VolumeEntry volumeEntry : volume.getRange(session)) {
+                metadataList.add(EntryMetadata.decode(volumeEntry.metadata()));
+            }
+        }
+        assertEquals(3, metadataList.size());
+
+        EntryMetadata prevMeta0 = metadataList.get(0);
+        EntryMetadata prevMeta1 = metadataList.get(1);
+        VersionstampedEntryUpdate[] updates = {
+                new VersionstampedEntryUpdate(versionstampedKeys[0], prevMeta0, ByteBuffer.allocate(10).put("updated-00".getBytes()).flip()),
+                new VersionstampedEntryUpdate(versionstampedKeys[1], prevMeta1, ByteBuffer.allocate(10).put("updated-01".getBytes()).flip()),
+        };
+        UpdateResult updateResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            updateResult = volume.updateByVersionstampedEntryUpdate(session, updates);
+            tr.commit().join();
+        }
+        updateResult.complete();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
+            List<ChangeLogEntry> changeLogEntries = new ArrayList<>();
+            for (ChangeLogEntry entry : iterable) {
+                changeLogEntries.add(entry);
+            }
+
+            // 3 APPENDs + 2 UPDATEs = 5 entries
+            assertEquals(5, changeLogEntries.size());
+
+            for (int i = 0; i < 3; i++) {
+                assertEquals(OperationKind.APPEND, changeLogEntries.get(i).getKind());
+            }
+
+            EntryMetadata[] prevMetadatas = {prevMeta0, prevMeta1};
+            UpdatedEntry[] updatedEntries = updateResult.entries();
+
+            for (int i = 3; i < 5; i++) {
+                ChangeLogEntry updateEntry = changeLogEntries.get(i);
+                assertEquals(OperationKind.UPDATE, updateEntry.getKind());
+
+                assertTrue(updateEntry.hasBefore());
+                assertTrue(updateEntry.hasAfter());
+
+                int updatedIndex = i - 3;
+                EntryMetadata prevMetadata = prevMetadatas[updatedIndex];
+                EntryMetadata newMetadata = updatedEntries[updatedIndex].metadata();
+
+                ChangeLogCoordinate before = updateEntry.getBefore().orElseThrow();
+                assertEquals(prevMetadata.segmentId(), before.segmentId());
+                assertEquals(prevMetadata.position(), before.position());
+                assertEquals(prevMetadata.length(), before.length());
+
+                ChangeLogCoordinate after = updateEntry.getAfter().orElseThrow();
+                assertEquals(newMetadata.segmentId(), after.segmentId());
+                assertEquals(newMetadata.position(), after.position());
+                assertEquals(newMetadata.length(), after.length());
+
+                assertEquals(versionstampedKeys[updatedIndex], updateEntry.getVersionstamp());
+
+                assertEquals(stashVolumeSyncerPrefix.asLong(), updateEntry.getPrefix());
+            }
+        }
+    }
+
+    @Test
+    void shouldRecordDeleteOperationInChangeLog_deleteByVersionstampedEntry() throws IOException {
+        // Behavior: Appends entries via Volume, deletes some via Volume.deleteByVersionstampedEntry,
+        // and verifies the ChangeLog contains DELETE entries with correct metadata, versionstamps,
+        // and coordinates.
+        ByteBuffer[] entries = getEntries(3);
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+
+        List<VersionstampedEntry> versionstampedEntries = new ArrayList<>();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            for (VolumeEntry volumeEntry : volume.getRange(session)) {
+                versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
+            }
+        }
+        assertEquals(3, versionstampedEntries.size());
+
+        // Delete the first 2 entries via Volume.deleteByVersionstampedEntry
+        VersionstampedEntry[] toDelete = versionstampedEntries.subList(0, 2).toArray(new VersionstampedEntry[0]);
+        DeleteResult deleteResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            deleteResult = volume.deleteByVersionstampedEntry(session, toDelete);
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        // Read ChangeLog and verify DELETE entries
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
+            List<ChangeLogEntry> changeLogEntries = new ArrayList<>();
+            for (ChangeLogEntry entry : iterable) {
+                changeLogEntries.add(entry);
+            }
+
+            // 3 APPENDs + 2 DELETEs = 5 entries
+            assertEquals(5, changeLogEntries.size());
+
+            // First 3 are APPENDs
+            for (int i = 0; i < 3; i++) {
+                assertEquals(OperationKind.APPEND, changeLogEntries.get(i).getKind());
+            }
+
+            // Last 2 are DELETEs
+            for (int i = 3; i < 5; i++) {
+                ChangeLogEntry deleteEntry = changeLogEntries.get(i);
+                assertEquals(OperationKind.DELETE, deleteEntry.getKind());
+
+                // DELETE: before present, after absent
+                assertTrue(deleteEntry.hasBefore());
+                assertFalse(deleteEntry.hasAfter());
+
+                // Verify coordinates match the deleted entry's metadata
+                int deletedIndex = i - 3;
+                EntryMetadata deletedMetadata = toDelete[deletedIndex].metadata();
+                ChangeLogCoordinate before = deleteEntry.getBefore().orElseThrow();
+                assertEquals(deletedMetadata.segmentId(), before.segmentId());
+                assertEquals(deletedMetadata.position(), before.position());
+                assertEquals(deletedMetadata.length(), before.length());
+
+                // Verify versionstamp matches the original appended entry
+                assertEquals(versionstampedKeys[deletedIndex], deleteEntry.getVersionstamp());
+
+                // Verify prefix
+                assertEquals(stashVolumeSyncerPrefix.asLong(), deleteEntry.getPrefix());
+            }
+        }
+    }
+
+    @Test
+    void shouldFindCorrectSegmentPositionWithMultiplePrefixes() throws IOException {
+        // Behavior: When multiple prefixes write to the same segment in an interleaved order, closing
+        // and reopening the Volume must recover the correct (highest) write position, and subsequent
+        // appends must not corrupt previously written data.
+
+        Prefix prefixA = new Prefix("prefix-a");
+        Prefix prefixB = new Prefix("prefix-b");
+
+        ByteBuffer entryA1 = getEntry();
+        ByteBuffer entryB1 = getEntry();
+        ByteBuffer entryA2 = getEntry();
+
+        List<Versionstamp> allKeys = new ArrayList<>();
+
+        // Tx1: Append entry to prefix A (lands at position 0)
+        {
+            AppendResult result;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, prefixA);
+                result = volume.append(session, entryA1);
+                tr.commit().join();
+            }
+            allKeys.add(result.getVersionstampedKeys()[0]);
+        }
+
+        // Tx2: Append entry to prefix B (lands after A's entry)
+        {
+            AppendResult result;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, prefixB);
+                result = volume.append(session, entryB1);
+                tr.commit().join();
+            }
+            allKeys.add(result.getVersionstampedKeys()[0]);
+        }
+
+        // Tx3: Append entry to prefix A again (lands at the highest position)
+        {
+            AppendResult result;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, prefixA);
+                result = volume.append(session, entryA2);
+                tr.commit().join();
+            }
+            allKeys.add(result.getVersionstampedKeys()[0]);
+        }
+
+        List<SegmentAnalysis> analysis = volume.analyze();
+        assertEquals(1, analysis.size());
+        long segmentId = analysis.getFirst().segmentId();
+
+        // Close the volume
+        volume.close();
+
+        // Verify the tail pointer reflects the last (third) entry written
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SegmentTailPointer tailPointer = SegmentSubspaceUtil.locateTailPointer(tr, volume.getConfig().subspace(), segmentId);
+            assertEquals(allKeys.get(2), tailPointer.versionstamp());
+            assertEquals(entryA1.capacity() + entryB1.capacity(), tailPointer.position());
+            assertEquals(entryA2.capacity(), tailPointer.length());
+
+            long expectedNextPosition = entryA1.capacity() + entryB1.capacity() + entryA2.capacity();
+            assertEquals(expectedNextPosition, tailPointer.nextPosition());
+        }
+
+        // Reopen the volume
+        Volume reopenedVolume = service.newVolume(volume.getConfig());
+
+        // Append a new entry to prefix A on the reopened volume
+        ByteBuffer entryA3 = getEntry();
+        {
+            AppendResult result;
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VolumeSession session = new VolumeSession(tr, prefixA);
+                result = reopenedVolume.append(session, entryA3);
+                tr.commit().join();
+            }
+            allKeys.add(result.getVersionstampedKeys()[0]);
+        }
+
+        // Verify all 4 entries are readable and contain correct data
+        ByteBuffer[] expectedEntries = {entryA1, entryB1, entryA2, entryA3};
+        Prefix[] prefixes = {prefixA, prefixB, prefixA, prefixA};
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int i = 0; i < allKeys.size(); i++) {
+                VolumeSession session = new VolumeSession(tr, prefixes[i]);
+                ByteBuffer retrieved = reopenedVolume.get(session, allKeys.get(i));
+                assertNotNull(retrieved, "Entry " + i + " should be readable");
+                assertEquals(expectedEntries[i].rewind(), retrieved,
+                        "Entry " + i + " data should match");
+            }
+        }
+    }
+
+    @Test
+    void shouldPreserveOtherPrefixDataWhenClearingPrefix() throws IOException {
+        // Behavior: When clearPrefix is called for one prefix, entries, cardinality, and
+        // usedBytes belonging to a different prefix in the same segment are preserved.
+        Prefix prefixA = new Prefix("prefix-a");
+        Prefix prefixB = new Prefix("prefix-b");
+
+        ByteBuffer[] entriesA = getEntries(3);
+        ByteBuffer[] entriesB = getEntries(3);
+
+        // Append entries under both prefixes
+        AppendResult resultB;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession sessionA = new VolumeSession(tr, prefixA);
+            volume.append(sessionA, entriesA);
+
+            VolumeSession sessionB = new VolumeSession(tr, prefixB);
+            resultB = volume.append(sessionB, entriesB);
+            tr.commit().join();
+        }
+
+        List<SegmentAnalysis> analysis = volume.analyze();
+        assertEquals(1, analysis.size());
+        long segmentId = analysis.getFirst().segmentId();
+
+        // Clear prefix A
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession sessionA = new VolumeSession(tr, prefixA);
+            volume.clearPrefix(sessionA);
+            tr.commit().join();
+        }
+
+        // Verify prefix B's ENTRY_SUBSPACE entries are intact
+        byte[] entryPrefixB = volume.getConfig().subspace().pack(
+                Tuple.from(ENTRY_SUBSPACE, prefixB.asBytes()));
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> entryEntries = tr.getRange(Range.startsWith(entryPrefixB)).asList().join();
+            assertEquals(3, entryEntries.size(),
+                    "Prefix B's ENTRY_SUBSPACE entries should be preserved");
+        }
+
+        // Verify prefix B's entries are still readable
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession sessionB = new VolumeSession(tr, prefixB);
+            for (Versionstamp key : resultB.getVersionstampedKeys()) {
+                ByteBuffer retrieved = volume.get(sessionB, key);
+                assertNotNull(retrieved, "Prefix B entry should still be readable");
+            }
+        }
+
+        // Verify prefix B's cardinality and usedBytes are intact
+        VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession sessionB = new VolumeSession(tr, prefixB);
+            SegmentMetadata metadata = new SegmentMetadata(volumeSubspace, segmentId);
+            assertEquals(3, metadata.cardinality(sessionB),
+                    "Prefix B's cardinality should be preserved");
+            assertTrue(metadata.usedBytes(sessionB) > 0,
+                    "Prefix B's usedBytes should be preserved");
+        }
+
+        // Verify prefix A's ENTRY_SUBSPACE entries are gone
+        byte[] entryPrefixA = volume.getConfig().subspace().pack(
+                Tuple.from(ENTRY_SUBSPACE, prefixA.asBytes()));
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> entryEntries = tr.getRange(Range.startsWith(entryPrefixA)).asList().join();
+            assertTrue(entryEntries.isEmpty(),
+                    "Prefix A's ENTRY_SUBSPACE entries should be cleared");
+        }
+
+        // Verify prefix A's cardinality is gone (key should not exist)
+        byte[] cardinalityKeyA = volume.getConfig().subspace().pack(
+                Tuple.from(SEGMENT_STATS_SUBSPACE, segmentId, prefixA.asBytes(), CARDINALITY));
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] value = tr.get(cardinalityKeyA).join();
+            assertNull(value, "Prefix A's cardinality should be cleared");
+        }
+    }
+
+    @Test
+    void shouldWriteNewReverseIndexAfterUpdate() throws IOException, KeyNotFoundException {
+        // Behavior: After updating an entry via volume.update, the ENTRY_METADATA_SUBSPACE reverse
+        // index contains the new metadata key pointing back to the versionstamp.
+        ByteBuffer[] entries = {ByteBuffer.allocate(6).put("foobar".getBytes()).flip()};
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+        Versionstamp key = appendResult.getVersionstampedKeys()[0];
+
+        // Update the entry with new data
+        KeyEntry[] updateEntries = {new KeyEntry(key, ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip())};
+        UpdateResult updateResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            updateResult = volume.update(session, updateEntries);
+            tr.commit().join();
+        }
+        updateResult.complete();
+
+        // Read the new EntryMetadata from ENTRY_SUBSPACE
+        byte[] newEncodedMetadata;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+            byte[] packedKey = volumeSubspace.packEntryKey(stashVolumeSyncerPrefix, key);
+            newEncodedMetadata = tr.get(packedKey).join();
+            assertNotNull(newEncodedMetadata, "Updated entry metadata should exist in ENTRY_SUBSPACE");
+        }
+
+        // Verify the reverse index (ENTRY_METADATA_SUBSPACE) has an entry for the new metadata
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+            byte[] reverseKey = volumeSubspace.packEntryMetadataKey(newEncodedMetadata);
+            byte[] reverseValue = tr.get(reverseKey).join();
+            assertNotNull(reverseValue, "ENTRY_METADATA_SUBSPACE should contain the new reverse index entry");
+
+            Versionstamp decoded = VersionstampUtil.decodeVersionstampedValue(reverseValue);
+            assertEquals(key, decoded, "Reverse index should point back to the original versionstamp");
+        }
+    }
+
+    @Test
+    void shouldTrackUsedBytesCorrectlyAfterSameSegmentUpdate() throws IOException, KeyNotFoundException {
+        // Behavior: After updating an entry with different-sized data in the same segment,
+        // usedBytes correctly reflects the new size (old bytes subtracted, new bytes added).
+        byte[] smallData = "hi".getBytes(); // 2 bytes
+        ByteBuffer[] entries = {ByteBuffer.allocate(smallData.length).put(smallData).flip()};
+
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+        Versionstamp key = appendResult.getVersionstampedKeys()[0];
+
+        long usedBytesBeforeUpdate;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<SegmentAnalysis> analysis = volume.analyze(tr);
+            assertEquals(1, analysis.size());
+            usedBytesBeforeUpdate = analysis.getFirst().usedBytes();
+            assertEquals(smallData.length, usedBytesBeforeUpdate);
+        }
+
+        // Update with larger data
+        byte[] largerData = "hello world!".getBytes(); // 12 bytes
+        KeyEntry[] updateEntries = {new KeyEntry(key, ByteBuffer.allocate(largerData.length).put(largerData).flip())};
+        UpdateResult updateResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            updateResult = volume.update(session, updateEntries);
+            tr.commit().join();
+        }
+        updateResult.complete();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<SegmentAnalysis> analysis = volume.analyze(tr);
+            assertEquals(1, analysis.size());
+            SegmentAnalysis segmentAnalysis = analysis.getFirst();
+            assertEquals(largerData.length, segmentAnalysis.usedBytes(),
+                    "usedBytes should reflect the new entry size after same-segment update");
+        }
+    }
+
+    @Test
+    void shouldAllowDeleteByVersionstampedEntryAfterUpdate() throws IOException, KeyNotFoundException {
+        // Behavior: After updating an entry, deleteByVersionstampedEntry with the new metadata
+        // successfully deletes the entry.
+        ByteBuffer[] entries = {ByteBuffer.allocate(6).put("foobar".getBytes()).flip()};
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+        Versionstamp key = appendResult.getVersionstampedKeys()[0];
+
+        // Update the entry
+        KeyEntry[] updateEntries = {new KeyEntry(key, ByteBuffer.allocate(6).put("FOOBAR".getBytes()).flip())};
+        UpdateResult updateResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            updateResult = volume.update(session, updateEntries);
+            tr.commit().join();
+        }
+        updateResult.complete();
+
+        // Read the updated VersionstampedEntry
+        VersionstampedEntry updatedEntry;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            List<VersionstampedEntry> versionstampedEntries = new ArrayList<>();
+            for (VolumeEntry volumeEntry : volume.getRange(session)) {
+                versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
+            }
+            assertEquals(1, versionstampedEntries.size());
+            updatedEntry = versionstampedEntries.getFirst();
+        }
+
+        // Delete by the updated entry
+        DeleteResult deleteResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            deleteResult = volume.deleteByVersionstampedEntry(session, updatedEntry);
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        // Verify the entry is no longer readable
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertNull(volume.get(session, key), "Entry should be deleted");
+        }
+    }
+
+    @Test
+    void shouldThrowClosedVolumeExceptionOnAppendAfterClose() {
+        // Behavior: append on a closed volume must throw ClosedVolumeException immediately
+        volume.close();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            assertThrows(ClosedVolumeException.class, () -> volume.append(session, getEntries(1)));
+        }
+    }
+
+    @Test
+    void shouldThrowClosedVolumeExceptionOnUpdateAfterClose() throws IOException {
+        // Behavior: update on a closed volume must throw ClosedVolumeException immediately
+        Versionstamp key;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            AppendResult result = volume.append(session, getEntries(1));
+            tr.commit().join();
+            key = result.getVersionstampedKeys()[0];
+        }
+
+        volume.close();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            KeyEntry pair = new KeyEntry(key, getEntry());
+            assertThrows(ClosedVolumeException.class, () -> volume.update(session, pair));
+        }
+    }
+
+    @Test
+    void shouldThrowClosedVolumeExceptionOnInsertAfterClose() {
+        // Behavior: insert on a closed volume must throw ClosedVolumeException immediately
+        volume.close();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            Versionstamp key = TestUtil.generateVersionstamp(0);
+            KeyEntry pair = new KeyEntry(key, getEntry());
+            assertThrows(ClosedVolumeException.class, () -> volume.insert(session, pair));
+        }
+    }
+
+    @Test
+    void shouldNotBusySpinWhenClosedDuringAppend() throws InterruptedException {
+        // Behavior: a concurrent close must terminate an in-flight append promptly, not busy-spin
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(1);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+
+        Thread.ofVirtual().start(() -> {
+            started.countDown();
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                        VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+                        volume.append(session, getEntries(1));
+                        tr.commit().join();
+                    }
+                }
+            } catch (ClosedVolumeException e) {
+                // Expected
+            } catch (Throwable t) {
+                failure.set(t);
+            } finally {
+                done.countDown();
+            }
+        });
+
+        started.await();
+        Thread.sleep(50);
+        volume.close();
+        assertTrue(done.await(5, TimeUnit.SECONDS), "Writer did not terminate after volume close");
+        assertNull(failure.get(), "Writer failed with unexpected exception");
     }
 }

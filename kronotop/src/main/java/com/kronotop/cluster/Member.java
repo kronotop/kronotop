@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,19 +17,15 @@
 package com.kronotop.cluster;
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.kronotop.internal.VersionstampDeserializer;
 import com.kronotop.internal.VersionstampSerializer;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
+import tools.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonSerialize;
 
 import javax.annotation.Nonnull;
-import java.nio.charset.StandardCharsets;
-
-import static com.google.common.hash.Hashing.sipHash24;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Member {
@@ -37,7 +33,6 @@ public class Member {
     private MemberStatus status = MemberStatus.UNKNOWN;
     private Address externalAddress;
     private Address internalAddress;
-    private int hashCode;
     @JsonSerialize(using = VersionstampSerializer.class)
     @JsonDeserialize(using = VersionstampDeserializer.class)
     private Versionstamp processId;
@@ -58,7 +53,6 @@ public class Member {
         this.externalAddress = externalAddress;
         this.internalAddress = internalAddress;
         this.processId = processId;
-        this.hashCode = sipHash24().hashString(id, StandardCharsets.US_ASCII).asInt();
     }
 
     public Address getExternalAddress() {
@@ -87,11 +81,7 @@ public class Member {
 
     @Override
     public int hashCode() {
-        if (hashCode == 0) {
-            // Hacky?
-            hashCode = sipHash24().hashString(id, StandardCharsets.US_ASCII).asInt();
-        }
-        return hashCode;
+        return id.hashCode();
     }
 
     @Override

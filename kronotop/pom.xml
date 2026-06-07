@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <name>Kronotop</name>
+    <name>Kronotop Server</name>
     <artifactId>kronotop</artifactId>
     <description>Core Kronotop Module</description>
     <packaging>jar</packaging>
@@ -12,7 +12,7 @@
     <parent>
         <groupId>com.kronotop</groupId>
         <artifactId>kronotop-root</artifactId>
-        <version>0.13-SNAPSHOT</version>
+        <version>2026.06-1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -32,21 +32,28 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-common</artifactId>
-            <version>4.2.7.Final</version>
+            <version>4.2.12.Final</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport</artifactId>
-            <version>4.2.7.Final</version>
+            <version>4.2.12.Final</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+            <version>4.2.12.Final</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-epoll</artifactId>
-            <version>4.2.7.Final</version>
+            <version>4.2.12.Final</version>
             <classifier>linux-x86_64</classifier>
         </dependency>
 
@@ -63,15 +70,15 @@
         </dependency>
 
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.18.3</version>
+            <version>3.0.0-rc4</version>
         </dependency>
 
         <dependency>
             <groupId>com.kronotop</groupId>
-            <artifactId>kronotop-client</artifactId>
-            <version>0.13-SNAPSHOT</version>
+            <artifactId>kronotop-commands</artifactId>
+            <version>2026.06-1</version>
             <scope>test</scope>
         </dependency>
 
@@ -82,10 +89,17 @@
             <version>5.6.1</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/com.ibm.icu/icu4j -->
+        <dependency>
+            <groupId>com.ibm.icu</groupId>
+            <artifactId>icu4j</artifactId>
+            <version>78.3</version>
+        </dependency>
+
         <dependency>
             <groupId>io.lettuce</groupId>
             <artifactId>lettuce-core</artifactId>
-            <version>7.1.0.RELEASE</version>
+            <version>7.5.1.RELEASE</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.junit.platform/junit-platform-launcher -->
@@ -106,14 +120,22 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.5.0-jre</version>
+            <version>33.6.0-jre</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- Source: https://mvnrepository.com/artifact/io.github.jbellis/jvector -->
+        <dependency>
+            <groupId>io.github.jbellis</groupId>
+            <artifactId>jvector</artifactId>
+            <version>4.0.0-rc.8</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.27.4</version>
+            <version>3.27.7</version>
             <scope>test</scope>
         </dependency>
 
@@ -133,6 +155,13 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+
         <extensions>
             <extension>
                 <groupId>kr.motd.maven</groupId>
@@ -147,9 +176,18 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.3</version>
                 <configuration>
-                    <excludes>
-                        <exclude>com.kronotop.bucket.executor</exclude>
-                    </excludes>
+                    <argLine>--sun-misc-unsafe-memory-access=allow --add-opens java.base/sun.misc=ALL-UNNAMED
+                        --enable-native-access=ALL-UNNAMED --add-modules jdk.incubator.vector
+                    </argLine>
+                    <!--
+                        Run tests in parallel across multiple JVM forks. Each fork is sequential
+                        internally and every test instance scopes its FoundationDB DirectoryLayer
+                        under a per-cluster prefix (directory.root), so forks share no directory
+                        keys and never contend on the global allocator. Override with
+                        -DforkCount=<n> (e.g. 0 or 1 to run sequentially).
+                    -->
+                    <forkCount>${forkCount}</forkCount>
+                    <reuseForks>true</reuseForks>
                 </configuration>
             </plugin>
             <plugin>
@@ -194,10 +232,12 @@
     </build>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <native.maven.plugin.version>0.10.3</native.maven.plugin.version>
+        <!-- Number of parallel test JVM forks; 0.5C means half the available CPU cores. -->
+        <forkCount>0.5C</forkCount>
     </properties>
 
     <profiles>
@@ -230,7 +270,9 @@
                                 <defaultMode>standard</defaultMode>
                                 <metadataCopy>
                                     <merge>true</merge>
-                                    <outputDirectory>${project.basedir}/src/main/resources/META-INF/native-image/com.kronotop/kronotop</outputDirectory>
+                                    <outputDirectory>
+                                        ${project.basedir}/src/main/resources/META-INF/native-image/com.kronotop/kronotop
+                                    </outputDirectory>
                                 </metadataCopy>
                             </agent>
                             <buildArgs>
@@ -238,6 +280,7 @@
                                 <buildArg>-Djava.awt.headless=true</buildArg>
                                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                                 <buildArg>--enable-native-access=ALL-UNNAMED</buildArg>
+                                <buildArg>--add-modules jdk.incubator.vector</buildArg>
                                 <buildArg>--initialize-at-run-time=io.netty</buildArg>
                                 <buildArg>--initialize-at-run-time=com.apple.foundationdb</buildArg>
                                 <buildArg>--initialize-at-run-time=ch.qos.logback</buildArg>

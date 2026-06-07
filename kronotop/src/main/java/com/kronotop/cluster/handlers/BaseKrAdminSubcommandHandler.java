@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,14 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.VolumeNames;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class BaseKrAdminSubcommandHandler {
@@ -43,6 +45,10 @@ public class BaseKrAdminSubcommandHandler {
         this.routing = service;
         // Membership service has been started before RoutingService.
         this.membership = service.getContext().getService(MembershipService.NAME);
+    }
+
+    protected static FullBulkStringRedisMessage bulkString(String input) {
+        return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(input.getBytes(StandardCharsets.UTF_8)));
     }
 
     /**
@@ -61,47 +67,41 @@ public class BaseKrAdminSubcommandHandler {
         DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardKind, shardId);
         Map<RedisMessage, RedisMessage> shard = new LinkedHashMap<>();
 
-        String primaryRouteMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
+        String primaryRouteMemberId = MembershipUtil.loadPrimaryMemberId(tr, shardSubspace);
         if (primaryRouteMemberId == null) {
             primaryRouteMemberId = "";
         }
-        shard.put(new SimpleStringRedisMessage("primary"), new SimpleStringRedisMessage(primaryRouteMemberId));
+        shard.put(bulkString("primary"), bulkString(primaryRouteMemberId));
 
         List<RedisMessage> standbyMessages = new ArrayList<>();
-        Set<String> standbys = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
+        Set<String> standbys = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
         if (standbys != null) {
             for (String standby : standbys) {
-                standbyMessages.add(new SimpleStringRedisMessage(standby));
+                standbyMessages.add(bulkString(standby));
             }
         }
-        shard.put(new SimpleStringRedisMessage("standbys"), new ArrayRedisMessage(standbyMessages));
+        shard.put(bulkString("standbys"), new ArrayRedisMessage(standbyMessages));
 
-        ShardStatus status = ShardUtils.getShardStatus(tr, shardSubspace);
-        shard.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(status.name()));
+        ShardStatus status = ShardUtil.getShardStatus(tr, shardSubspace);
+        shard.put(bulkString("status"), bulkString(status.name()));
 
         // TODO: This is not sufficient but it works for now.
         // Ideally, we should get this info from FDB, re-generating the volume name is not good.
         List<RedisMessage> linkedVolumes = new ArrayList<>();
-        linkedVolumes.add(new SimpleStringRedisMessage(VolumeNames.format(shardKind, shardId)));
-        shard.put(new SimpleStringRedisMessage("linked_volumes"), new ArrayRedisMessage(linkedVolumes));
+        linkedVolumes.add(bulkString(VolumeNames.format(shardKind, shardId)));
+        shard.put(bulkString("linked_volumes"), new ArrayRedisMessage(linkedVolumes));
 
         return shard;
     }
 
     /**
-     * Retrieves the number of shards for a given shard kind.
+     * Returns the list of shard IDs for the given kind from the ShardRegistry.
      *
-     * @param kind The type of shard whose number is to be retrieved. Must be of type {@link ShardKind}.
-     * @return The number of shards for the specified shard kind.
-     * @throws IllegalArgumentException if the specified shard kind is not recognized.
+     * @param kind the shard kind
+     * @return sorted list of shard IDs
      */
-    protected int getNumberOfShards(ShardKind kind) {
-        if (kind.equals(ShardKind.REDIS)) {
-            return membership.getContext().getConfig().getInt("redis.shards");
-        } else if (kind.equals(ShardKind.BUCKET)) {
-            return membership.getContext().getConfig().getInt("bucket.shards");
-        }
-        throw new IllegalArgumentException("Unknown shard kind: " + kind);
+    protected List<Integer> getShardIds(ShardKind kind) {
+        return context.getShardRegistry().getShardIds(kind);
     }
 
     /**
@@ -149,18 +149,18 @@ public class BaseKrAdminSubcommandHandler {
      * @param current The map to store the converted key-value pairs, where both keys and values are of type {@link RedisMessage}.
      */
     protected void memberToRedisMessage(Member member, Map<RedisMessage, RedisMessage> current) {
-        current.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(member.getStatus().toString()));
+        current.put(bulkString("status"), bulkString(member.getStatus().toString()));
 
         String processId = VersionstampUtil.base32HexEncode(member.getProcessId());
-        current.put(new SimpleStringRedisMessage("process_id"), new SimpleStringRedisMessage(processId));
+        current.put(bulkString("process_id"), bulkString(processId));
 
-        current.put(new SimpleStringRedisMessage("external_host"), new SimpleStringRedisMessage(member.getExternalAddress().getHost()));
-        current.put(new SimpleStringRedisMessage("external_port"), new IntegerRedisMessage(member.getExternalAddress().getPort()));
+        current.put(bulkString("external_host"), bulkString(member.getExternalAddress().getHost()));
+        current.put(bulkString("external_port"), new IntegerRedisMessage(member.getExternalAddress().getPort()));
 
-        current.put(new SimpleStringRedisMessage("internal_host"), new SimpleStringRedisMessage(member.getInternalAddress().getHost()));
-        current.put(new SimpleStringRedisMessage("internal_port"), new IntegerRedisMessage(member.getInternalAddress().getPort()));
+        current.put(bulkString("internal_host"), bulkString(member.getInternalAddress().getHost()));
+        current.put(bulkString("internal_port"), new IntegerRedisMessage(member.getInternalAddress().getPort()));
 
         long latestHeartbeat = membership.getLatestHeartbeat(member);
-        current.put(new SimpleStringRedisMessage("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
+        current.put(bulkString("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
     }
 }

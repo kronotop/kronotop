@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,15 +19,13 @@ package com.kronotop.volume.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.volume.Volume;
-import com.kronotop.volume.VolumeConfig;
-import com.kronotop.volume.VolumeMetadata;
-import com.kronotop.volume.VolumeService;
+import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.*;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -49,9 +47,8 @@ public class ListSegments extends BaseSubcommandHandler implements SubcommandHan
             VolumeConfig config = volume.getConfig();
 
             List<RedisMessage> children = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeMetadata metadata = VolumeMetadata.load(tr, config.subspace());
-                List<Long> segmentIds = metadata.getSegments();
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(config.subspace()));
                 for (long segmentId : segmentIds) {
                     children.add(new IntegerRedisMessage(segmentId));
                 }

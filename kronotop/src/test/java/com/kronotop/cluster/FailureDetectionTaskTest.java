@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,12 @@
 
 package com.kronotop.cluster;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.directory.KronotopDirectoryNode;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
@@ -168,29 +172,114 @@ class FailureDetectionTaskTest extends BaseClusterTest {
     }
 
     @Test
-    void shouldSkipAlreadyDeadMembers() {
+    void shouldDetectMultipleDeadMembersInSingleCheck() {
+        // Behavior: A single checkClusterMembers call processes ALL members,
+        // not just the first one that exceeds the silent period threshold.
+        KronotopTestInstance second = addNewInstance();
+        KronotopTestInstance third = addNewInstance();
+
+        KronotopTestInstance first = getInstances().getFirst();
+        MembershipService membership = first.getContext().getService(MembershipService.NAME);
+
+        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                membership.getKnownMembers().containsKey(second.getMember()) &&
+                        membership.getKnownMembers().containsKey(third.getMember())
+        );
+
+        MemberView secondView = membership.getKnownMembers().get(second.getMember());
+        MemberView thirdView = membership.getKnownMembers().get(third.getMember());
+        assertTrue(secondView.isAlive());
+        assertTrue(thirdView.isAlive());
+
+        // With maxSilentPeriod=0, any member with silentPeriod > 0 is marked dead.
+        // After computeIfPresent, silentPeriod is always >= 1.
+        // A single call should mark ALL members as dead, not just the first one.
+        membership.checkClusterMembers(0);
+
+        assertFalse(secondView.isAlive());
+        assertFalse(thirdView.isAlive());
+    }
+
+    @Test
+    void shouldReincarnateOrganicallyDeadMember() {
+        // Behavior: A member marked dead due to heartbeat timeout should be reincarnated
+        // when its FDB heartbeat resumes changing. This tests that dead members' heartbeat
+        // values are updated from FDB (enabling reincarnation), while increaseExpectedHeartbeat
+        // is not called for dead members.
         KronotopTestInstance second = addNewInstance();
 
         KronotopTestInstance first = getInstances().getFirst();
         MembershipService membership = first.getContext().getService(MembershipService.NAME);
 
-        // Wait for the second member to appear in others
         await().atMost(5, TimeUnit.SECONDS).until(() ->
                 membership.getKnownMembers().containsKey(second.getMember())
         );
 
         MemberView view = membership.getKnownMembers().get(second.getMember());
+        assertTrue(view.isAlive());
 
-        // Manually mark member as dead
+        // Simulate organic death: inflate expectedHeartbeat so silentPeriod exceeds threshold
+        for (int i = 0; i < 50; i++) {
+            view.increaseExpectedHeartbeat();
+        }
+        view.setAlive(false);
+        assertFalse(view.isAlive());
+
+        long deadSilentPeriod = view.getExpectedHeartbeat() - view.getLatestHeartbeat();
+        assertTrue(deadSilentPeriod > 10);
+
+        // The second member is still alive and sending heartbeats to FDB.
+        // Wait for a heartbeat update to ensure FDB value differs from the view's frozen value.
+        long frozenHeartbeat = view.getLatestHeartbeat();
+        await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            KronotopDirectoryNode directory = KronotopDirectory.kronotop()
+                    .cluster(first.getContext().getClusterName())
+                    .metadata().members().member(second.getMember().getId());
+            try (Transaction tr = first.getContext().getFoundationDB().createTransaction()) {
+                DirectorySubspace subspace = first.getContext().getDirectoryLayer().open(tr, directory.toList()).join();
+                return Heartbeat.get(tr, subspace) > frozenHeartbeat;
+            }
+        });
+
+        // checkClusterMembers should read the new FDB heartbeat, update the dead member's
+        // view (resetting silentPeriod to 1), and reincarnate it.
+        membership.checkClusterMembers(10);
+
+        assertTrue(view.isAlive());
+    }
+
+    @Test
+    void shouldNotIncrementExpectedHeartbeatForDeadMembers() {
+        // Behavior: When a dead member's FDB heartbeat has not changed,
+        // increaseExpectedHeartbeat should not be called.
+        KronotopTestInstance second = addNewInstance();
+
+        KronotopTestInstance first = getInstances().getFirst();
+        MembershipService membership = first.getContext().getService(MembershipService.NAME);
+
+        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                membership.getKnownMembers().containsKey(second.getMember())
+        );
+
+        // Stop the second member so its FDB heartbeat freezes
+        second.shutdownWithoutCleanup();
+        kronotopInstances.remove(second.getMember());
+
+        MemberView view = membership.getKnownMembers().get(second.getMember());
+
+        // Sync the view with the frozen FDB heartbeat value
+        membership.checkClusterMembers(100);
+
+        // Mark member as dead
         view.setAlive(false);
 
         long initialExpectedHeartbeat = view.getExpectedHeartbeat();
         long initialLatestHeartbeat = view.getLatestHeartbeat();
 
-        // Call checkClusterMembers - dead members should be skipped
+        // Call checkClusterMembers - dead member with unchanged FDB heartbeat
+        // should not have increaseExpectedHeartbeat called
         membership.checkClusterMembers(100);
 
-        // expectedHeartbeat and latestHeartbeat should NOT change for dead members
         assertEquals(initialExpectedHeartbeat, view.getExpectedHeartbeat());
         assertEquals(initialLatestHeartbeat, view.getLatestHeartbeat());
     }

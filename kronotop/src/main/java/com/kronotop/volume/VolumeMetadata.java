@@ -1,105 +1,29 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.kronotop.internal.JSONUtil;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.function.Consumer;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class VolumeMetadata {
-    @JsonIgnore
-    private static final String VOLUME_METADATA_KEY = "volume-metadata";
-    private final List<Long> segments = new ArrayList<>();
-    private long volumeId;
-    private VolumeStatus status = VolumeStatus.READWRITE; // Default status is readwrite
-
-    public static VolumeMetadata load(Transaction tr, DirectorySubspace subspace) {
-        byte[] key = subspace.pack(VOLUME_METADATA_KEY);
-        byte[] value = tr.get(key).join();
-        if (value == null) {
-            return new VolumeMetadata();
-        }
-        return JSONUtil.readValue(value, VolumeMetadata.class);
-    }
-
-    public static VolumeMetadata compute(Transaction tr, DirectorySubspace subspace, Consumer<VolumeMetadata> remappingFunction) {
-        byte[] key = subspace.pack(VOLUME_METADATA_KEY);
-        VolumeMetadata volumeMetadata;
-        byte[] value = tr.get(key).join();
-        if (value == null) {
-            volumeMetadata = new VolumeMetadata();
-        } else {
-            volumeMetadata = JSONUtil.readValue(value, VolumeMetadata.class);
-        }
-        remappingFunction.accept(volumeMetadata);
-        tr.set(key, volumeMetadata.toByte());
-        return volumeMetadata;
-    }
-
-    public void addSegment(long segmentId) {
-        for (long id : segments) {
-            if (id == segmentId) {
-                throw new IllegalArgumentException("Duplicate segment");
-            }
-        }
-        segments.add(segmentId);
-        segments.sort(Comparator.naturalOrder());
-    }
-
-    public void removeSegment(long segmentId) {
-        for (int i = 0; i < segments.size(); i++) {
-            if (segments.get(i) == segmentId) {
-                segments.remove(i);
-                return;
-            }
-        }
-        throw new IllegalArgumentException("No such segment");
-    }
-
-    public List<Long> getSegments() {
-        return Collections.unmodifiableList(segments);
-    }
-
-    public VolumeStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(VolumeStatus status) {
-        this.status = status;
-    }
-
-    public long getVolumeId() {
-        return volumeId;
-    }
-
-    public void setVolumeId(long id) {
-        this.volumeId = id;
-    }
-
-    public byte[] toByte() {
-        return JSONUtil.writeValueAsBytes(this);
-    }
+/**
+ * Immutable snapshot of a volume's metadata: its unique identifier, current status, and registered segment IDs.
+ *
+ * @param id         unique volume identifier derived from a SipHash24 of a random UUID
+ * @param status     current read/write status of the volume
+ * @param segmentIds sorted list of segment IDs belonging to this volume
+ */
+public record VolumeMetadata(long id, VolumeStatus status, List<Long> segmentIds) {
 }

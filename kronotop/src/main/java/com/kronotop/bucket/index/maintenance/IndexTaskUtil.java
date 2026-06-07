@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -29,44 +29,26 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 
 import static com.kronotop.bucket.BucketMetadataUtil.NULL_BYTES;
 
-
-/**
- * Utility class for managing index maintenance task operations in FoundationDB.
- * Provides methods for opening task subspaces and listing task identifiers.
- *
- * @see IndexBuildingTask
- * @see IndexDropTask
- * @see com.kronotop.internal.task.TaskStorage
- */
 public class IndexTaskUtil {
+    private static final Random random = new Random(System.nanoTime());
+
     /**
-     * Opens the DirectorySubspace for index maintenance tasks for a specific shard.
-     * <p>
-     * This method retrieves the task subspace from the directory cache using the standard
-     * Kronotop directory layout for shard-level index maintenance tasks. The subspace must
-     * have been previously created during cluster initialization.
+     * Opens the directory subspace used to store index maintenance tasks for a given shard.
      *
-     * <p>The directory path follows the structure:
-     * <pre>
-     * kronotop/{cluster}/metadata/shards/bucket/shard/{shardId}/maintenance/index/tasks
-     * </pre>
-     *
-     * <p>Each shard maintains its own task queue in this subspace, allowing parallel
-     * index maintenance operations across all shards in the cluster.
-     *
-     * @param context the application context providing access to cluster configuration and directory cache
-     * @param shardId the ID of the shard whose task subspace should be opened
-     * @return the DirectorySubspace for the shard's index maintenance tasks
-     * @see com.kronotop.internal.task.TaskStorage
-     * @see KronotopDirectory
+     * @param context the application context
+     * @param shardId the shard identifier
+     * @return the directory subspace for index maintenance tasks
      */
     public static DirectorySubspace openTasksSubspace(Context context, int shardId) {
         // Task subspace has already been created during initialization
@@ -78,19 +60,13 @@ public class IndexTaskUtil {
     }
 
     /**
-     * Retrieves all task identifiers associated with a specific index.
-     * <p>
-     * This method scans the index subspace for task entries and returns their versionstamp
-     * identifiers. Tasks are created during index operations such as background index building
-     * and are stored in the index subspace with the {@link IndexSubspaceMagic#TASKS} prefix.
+     * Retrieves all task IDs associated with an index by scanning the TASKS subspace within that index.
      *
-     * @param tx        the transactional context providing access to both the transaction and application context
+     * @param tx        the transactional context
      * @param namespace the namespace containing the bucket
-     * @param bucket    the name of the bucket containing the index
-     * @param index     the name of the index whose tasks should be listed
-     * @return a list of versionstamp identifiers for all tasks associated with the index
-     * @see IndexUtil#create(TransactionalContext, String, String, com.kronotop.bucket.index.IndexDefinition)
-     * @see IndexSubspaceMagic#TASKS
+     * @param bucket    the bucket name
+     * @param index     the index name
+     * @return list of versionstamp task IDs found in the index
      */
     public static List<Versionstamp> getTaskIds(TransactionalContext tx, String namespace, String bucket, String index) {
         BucketMetadata metadata = BucketMetadataUtil.open(tx.context(), tx.tr(), namespace, bucket);
@@ -112,14 +88,11 @@ public class IndexTaskUtil {
     }
 
     /**
-     * Removes task back pointer from index subspace.
+     * Clears the back-pointer entry for a specific task from the index subspace.
      *
-     * <p>Clears all keys with prefix TASKS/{taskId} using range clear operation.
-     * This removes the back pointer marker created during task creation.
-     *
-     * @param tr            transaction for clear operation
-     * @param indexSubspace index subspace containing the back pointer
-     * @param taskId        task identifier
+     * @param tr            the FoundationDB transaction
+     * @param indexSubspace the directory subspace of the index
+     * @param taskId        the versionstamp identifying the task
      */
     public static void clearTaskBackPointer(Transaction tr, DirectorySubspace indexSubspace, Versionstamp taskId) {
         byte[] prefix = indexSubspace.pack(Tuple.from(
@@ -129,32 +102,13 @@ public class IndexTaskUtil {
     }
 
     /**
-     * Creates a task back pointer in the index subspace using versionstamped keys.
+     * Writes a back-pointer into the index subspace that links the index to its maintenance task.
+     * Uses an incomplete versionstamp that FoundationDB resolves at commit time.
      *
-     * <p>Back pointers establish a link from the index subspace to tasks in shard-specific
-     * task subspaces. They enable efficient validation of task completion status and index
-     * readiness checking without scanning all shard task queues.
-     *
-     * <p><strong>Key Structure:</strong>
-     * <pre>
-     * Key: TASKS/{versionstamp}/{shardId}
-     * Tuple: [TASKS, Versionstamp.incomplete(userVersion), shardId]
-     * Value: Empty (NULL_BYTES)
-     * </pre>
-     *
-     * <p><strong>Versionstamp Mechanics:</strong> The incomplete versionstamp is replaced
-     * by FoundationDB with the actual transaction versionstamp during commit, ensuring
-     * the taskId matches the task definition created in the same transaction.
-     *
-     * <p>Used by {@link IndexUtil#createIndexBuildingTasks} to establish back pointers
-     * when creating BUILD tasks across multiple shards.
-     *
-     * @param tr            transaction for versionstamped mutation
-     * @param indexSubspace index subspace where back pointer is stored
-     * @param userVersion   user-defined component of the incomplete versionstamp
-     * @param shardId       shard identifier for the task
-     * @see #scanTaskBackPointers(Transaction, DirectorySubspace, BiFunction)
-     * @see #clearTaskBackPointer(Transaction, DirectorySubspace, Versionstamp)
+     * @param tr            the FoundationDB transaction
+     * @param indexSubspace the directory subspace of the index
+     * @param userVersion   the user version for the incomplete versionstamp
+     * @param shardId       the shard where the task is stored
      */
     public static void setBackPointer(Transaction tr, DirectorySubspace indexSubspace, int userVersion, int shardId) {
         byte[] backPointer = indexSubspace.packWithVersionstamp(
@@ -164,41 +118,13 @@ public class IndexTaskUtil {
     }
 
     /**
-     * Scans all task back pointers in an index subspace and invokes a callback for each.
+     * Scans all task back-pointers in the index subspace and invokes the given action for each one.
+     * The action receives the task ID and shard ID, and returns {@code true} to continue scanning
+     * or {@code false} to stop early.
      *
-     * <p>Iterates through all entries under the TASKS/ prefix in the index subspace,
-     * unpacks the versionstamp taskId and shard identifier, and invokes the provided
-     * callback function. The callback can control iteration by returning true (continue)
-     * or false (stop).
-     *
-     * <p><strong>Back Pointer Structure:</strong>
-     * <pre>
-     * Key: TASKS/{taskId}/{shardId}
-     * Unpacked tuple: [TASKS, versionstamp, shardId]
-     * Position 0: TASKS magic value (ignored)
-     * Position 1: Versionstamp taskId
-     * Position 2: Long shardId (cast to int)
-     * </pre>
-     *
-     * <p><strong>Callback Semantics:</strong> The BiFunction receives (taskId, shardId)
-     * and returns a boolean:
-     * <ul>
-     *   <li>true: Continue scanning next back pointer</li>
-     *   <li>false: Stop scanning immediately</li>
-     * </ul>
-     *
-     * <p><strong>Usage Example:</strong> {@link IndexUtil#markIndexAsReadyIfBuildDone}
-     * uses this method to validate all BUILD tasks have completed before marking an
-     * index as READY. It stops scanning early if any incomplete task is found.
-     *
-     * <p>Range scan: (TASKS/, strinc(TASKS/)] to retrieve all back pointers.
-     *
-     * @param tr            transaction for range scan operation
-     * @param indexSubspace index subspace containing back pointers
-     * @param action        callback function receiving (taskId, shardId) and returning true to continue
-     * @see IndexUtil#markIndexAsReadyIfBuildDone(TransactionalContext, String, String, long)
-     * @see #setBackPointer(Transaction, DirectorySubspace, int, int)
-     * @see #clearTaskBackPointer(Transaction, DirectorySubspace, Versionstamp)
+     * @param tr            the FoundationDB transaction
+     * @param indexSubspace the directory subspace of the index
+     * @param action        callback invoked per back-pointer; return false to stop iteration
      */
     public static void scanTaskBackPointers(Transaction tr, DirectorySubspace indexSubspace, BiFunction<Versionstamp, Integer, Boolean> action) {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.TASKS.getValue()));
@@ -215,16 +141,11 @@ public class IndexTaskUtil {
     }
 
     /**
-     * Clears all index tasks associated with a bucket.
+     * Removes all index maintenance tasks for every index in the given bucket.
+     * Drops each task from the task storage and clears its corresponding back-pointer.
      *
-     * <p>This method iterates through all indexes in the bucket, scans their task back pointers,
-     * and removes both the tasks from shard task subspaces and the back pointers from index subspaces.
-     *
-     * <p>Used during bucket purge to clean up orphaned tasks that would otherwise remain
-     * in shard task subspaces after the bucket directory is removed.
-     *
-     * @param tx       transactional context providing access to transaction and application context
-     * @param metadata bucket metadata containing the subspace to scan for indexes
+     * @param tx       the transactional context
+     * @param metadata the bucket metadata identifying the bucket and its indexes
      */
     public static void clearBucketTasks(TransactionalContext tx, BucketMetadata metadata) {
         Transaction tr = tx.tr();
@@ -249,23 +170,53 @@ public class IndexTaskUtil {
         }
     }
 
-    public static void changeTaskStatus(Transaction tr,
-                                        DirectorySubspace taskSubspace,
-                                        IndexMaintenanceTaskKind kind,
-                                        Versionstamp taskId,
-                                        IndexTaskStatus status
-    ) {
-        switch (kind) {
-            case BOUNDARY -> {
-                IndexBoundaryTaskState state = IndexBoundaryTaskState.load(tr, taskSubspace, taskId);
-                if (state.status() == IndexTaskStatus.COMPLETED) {
-                    throw new IllegalStateException("task is already completed");
-                }
-                if (state.status() == IndexTaskStatus.STOPPED) {
-                    throw new IllegalStateException("cannot change status of already stopped task");
-                }
-                IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, status);
+    /**
+     * Checks whether the index has any active maintenance tasks that are not of kind BOUNDARY.
+     *
+     * @param tx            the transactional context
+     * @param indexSubspace the directory subspace of the index
+     * @return {@code true} if at least one active non-boundary task exists
+     */
+    public static boolean hasActiveNonBoundaryTasks(TransactionalContext tx, DirectorySubspace indexSubspace) {
+        AtomicBoolean found = new AtomicBoolean();
+        scanTaskBackPointers(tx.tr(), indexSubspace, (taskId, shardId) -> {
+            DirectorySubspace taskSubspace = openTasksSubspace(tx.context(), shardId);
+            byte[] definition = TaskStorage.getDefinition(tx.tr(), taskSubspace, taskId);
+            if (definition == null) {
+                return true;
             }
-        }
+            IndexMaintenanceTask task = JSONUtil.readValue(definition, IndexMaintenanceTask.class);
+            if (task.getKind() == IndexMaintenanceTaskKind.BOUNDARY) {
+                return true;
+            }
+            found.set(true);
+            return false;
+        });
+        return found.get();
+    }
+
+    /**
+     * Schedules an index drop task on a randomly selected shard. Creates the task in the task storage,
+     * sets a back-pointer in the index subspace, and triggers task watchers to pick it up.
+     *
+     * @param tx            the transactional context
+     * @param metadata      the bucket metadata
+     * @param indexId       the unique identifier of the index to drop
+     * @param indexSubspace the directory subspace of the index
+     */
+    public static void scheduleDropTask(TransactionalContext tx, BucketMetadata metadata, long indexId, DirectorySubspace indexSubspace) {
+        BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
+
+        IndexDropTask task = new IndexDropTask(metadata.namespace(), metadata.name(), indexId);
+        byte[] definition = JSONUtil.writeValueAsBytes(task);
+
+        int shardId = metadata.shards().get(random.nextInt(metadata.shards().size()));
+
+        DirectorySubspace taskSubspace = openTasksSubspace(tx.context(), shardId);
+        int userVersion = tx.getAndIncreaseUserVersion();
+        TaskStorage.create(tx.tr(), userVersion, taskSubspace, definition);
+        setBackPointer(tx.tr(), indexSubspace, userVersion, shardId);
+
+        TaskStorage.triggerWatchers(tx.tr(), taskSubspace);
     }
 }

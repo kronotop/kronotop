@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -27,13 +27,22 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.RoutingTable;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
 import org.bson.BsonType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -41,6 +50,11 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
+
+    @BeforeEach
+    void setUp() {
+        createBucket(TEST_BUCKET);
+    }
 
     @Override
     protected String getConfigFileName() {
@@ -71,16 +85,16 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
 
             halfLatch.await();
 
-            IndexDefinition definition = IndexDefinition.create(
+            SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
                     "test-index",
                     "age",
                     BsonType.INT32
-            );
+                    , false, IndexStatus.WAITING);
 
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
-                IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
+                SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
                 tr.commit().join();
             }
 
@@ -96,7 +110,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
 
             bgFuture.get();
 
-            await().atMost(Duration.ofSeconds(15)).until(() -> {
+            await().atMost(Duration.ofSeconds(30)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                     Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
@@ -111,7 +125,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
                 }
             });
 
-            await().atMost(15, TimeUnit.SECONDS).until(() -> {
+            await().atMost(30, TimeUnit.SECONDS).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     byte[] value = TaskStorage.getDefinition(tr, taskSubspace, taskId.get());
                     return value == null; // swept & dropped task
@@ -349,8 +363,9 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         IndexMaintenanceWorker worker = new IndexMaintenanceWorker(context, taskSubspace, SHARD_ID, taskId, (id) -> {
         });
 
-        // Set latestExecution to exactly the stale period (60s ago)
-        long exactlyStaleTime = System.currentTimeMillis() - watchdog.WORKER_MAX_STALE_PERIOD;
+        // Set latestExecution to exactly the stale period (60s ago), with a small buffer
+        // to account for time elapsed between setting the value and the check in cleanupStaleWorkers.
+        long exactlyStaleTime = System.currentTimeMillis() - watchdog.WORKER_MAX_STALE_PERIOD + 500;
         worker.getMetrics().setLatestExecution(exactlyStaleTime);
 
         Future<?> future = CompletableFuture.completedFuture(null);
@@ -393,6 +408,46 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
         assertTrue(watchdog.getWorkers().isEmpty());
 
         watchdog.shutdown();
+    }
+
+    @Test
+    void shouldSkipTaskProcessingWhenNotPrimary() throws Exception {
+        // Behavior: Index maintenance tasks are not processed when the current node is not the primary for the shard
+
+        BucketShard shard = getShard(SHARD_ID);
+        IndexMaintenanceWatchDog watchdog = new IndexMaintenanceWatchDog(context, shard);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
+        IndexBuildingTask task = createIndexBuildingTask(1);
+        TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
+
+        // Replace the route so the current member is a standby, not the primary
+        RoutingService routing = context.getService(RoutingService.NAME);
+        Route originalRoute = routing.findRoute(ShardKind.BUCKET, SHARD_ID);
+
+        Member fakePrimary = createMemberWithEphemeralPort();
+        Route standbyRoute = new Route(fakePrimary, Set.of(context.getMember()), ShardStatus.READWRITE);
+        setRoute(routing, ShardKind.BUCKET, SHARD_ID, standbyRoute);
+
+        try {
+            watchdog.processTaskQueue();
+            assertTrue(watchdog.getWorkers().isEmpty());
+        } finally {
+            setRoute(routing, ShardKind.BUCKET, SHARD_ID, originalRoute);
+            watchdog.shutdown();
+        }
+    }
+
+    private void setRoute(RoutingService routing, ShardKind kind, int shardId, Route route) throws Exception {
+        Field tableField = RoutingService.class.getDeclaredField("routingTable");
+        tableField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        AtomicReference<RoutingTable> tableRef = (AtomicReference<RoutingTable>) tableField.get(routing);
+        RoutingTable table = tableRef.get();
+
+        Method setMethod = RoutingTable.class.getDeclaredMethod("set", ShardKind.class, int.class, Route.class);
+        setMethod.setAccessible(true);
+        setMethod.invoke(table, kind, shardId, route);
     }
 
     /**

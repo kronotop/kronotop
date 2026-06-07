@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,24 +17,37 @@
 package com.kronotop.bucket.pipeline;
 
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import org.bson.*;
 import org.bson.types.Decimal128;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexPredicateResolverTest {
+
+    private static Operand lit(BqlValue v) {
+        return new Operand.Literal(v);
+    }
+
+    private static Operand param(int index) {
+        return new Operand.Param(new ParamRef(index));
+    }
+
     @Test
     void shouldConvertInt32ValForInt32Index() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.INT32);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int32Val(42));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonInt32.class, result);
@@ -43,22 +56,22 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt64ValUsedWithInt32Index() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.INT32);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int64Val(42L));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int64Val(42L)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNull(result);
     }
 
     @Test
     void shouldConvertInt64ValForInt64Index() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.INT64);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int64Val(42L));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT64, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int64Val(42L)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonInt64.class, result);
@@ -66,23 +79,26 @@ class IndexPredicateResolverTest {
     }
 
     @Test
-    void shouldReturnNullWhenInt32ValUsedWithInt64Index() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.INT64);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int32Val(42));
+    void shouldWidenInt32ValToInt64ForInt64Index() {
+        // Behavior: INT32 predicate value is losslessly widened to INT64 for an INT64 index.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT64, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
-        assertNull(result);
+        assertNotNull(result);
+        assertInstanceOf(BsonInt64.class, result);
+        assertEquals(42L, ((BsonInt64) result).getValue());
     }
 
     @Test
     void shouldConvertStringValForStringIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.STRING);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new StringVal("hello"));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.STRING, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new StringVal("hello")));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonString.class, result);
@@ -91,22 +107,22 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithStringIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.STRING);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int32Val(42));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.STRING, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNull(result);
     }
 
     @Test
     void shouldConvertDoubleValForDoubleIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.DOUBLE);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new DoubleVal(3.14));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new DoubleVal(3.14)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonDouble.class, result);
@@ -114,24 +130,27 @@ class IndexPredicateResolverTest {
     }
 
     @Test
-    void shouldReturnNullWhenInt32ValUsedWithDoubleIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.DOUBLE);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int32Val(42));
+    void shouldWidenInt32ValToDoubleForDoubleIndex() {
+        // Behavior: INT32 predicate value is losslessly widened to DOUBLE for a DOUBLE index.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
-        assertNull(result);
+        assertNotNull(result);
+        assertInstanceOf(BsonDouble.class, result);
+        assertEquals(42.0, ((BsonDouble) result).getValue());
     }
 
     @Test
     void shouldConvertBinaryValForBinaryIndex() {
         byte[] data = new byte[]{0x01, 0x02, 0x03, 0x04};
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.BINARY);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new BinaryVal(data));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.BINARY, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new BinaryVal(data)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonBinary.class, result);
@@ -140,22 +159,22 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithBinaryIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.BINARY);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int32Val(42));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.BINARY, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNull(result);
     }
 
     @Test
     void shouldConvertBooleanValForBooleanIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.BOOLEAN);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.EQ, new BooleanVal(true));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.EQ, lit(new BooleanVal(true)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonBoolean.class, result);
@@ -164,11 +183,11 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithBooleanIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.BOOLEAN);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.EQ, new Int32Val(42));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.EQ, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNull(result);
     }
@@ -176,11 +195,11 @@ class IndexPredicateResolverTest {
     @Test
     void shouldConvertDateTimeValForDateTimeIndex() {
         long timestamp = 1703462400000L; // 2023-12-25 00:00:00 UTC
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.DATE_TIME);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new DateTimeVal(timestamp));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.DATE_TIME, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new DateTimeVal(timestamp)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonDateTime.class, result);
@@ -189,11 +208,11 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithDateTimeIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.DATE_TIME);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int32Val(42));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.DATE_TIME, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNull(result);
     }
@@ -201,11 +220,11 @@ class IndexPredicateResolverTest {
     @Test
     void shouldConvertTimestampValForTimestampIndex() {
         long timestamp = 7215996951904567296L;
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.TIMESTAMP);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new TimestampVal(timestamp));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.TIMESTAMP, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new TimestampVal(timestamp)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonTimestamp.class, result);
@@ -214,11 +233,11 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithTimestampIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.TIMESTAMP);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int32Val(42));
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.TIMESTAMP, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNull(result);
     }
@@ -226,37 +245,70 @@ class IndexPredicateResolverTest {
     @Test
     void shouldConvertDecimal128ValForDecimal128Index() {
         BigDecimal value = new BigDecimal("12345.6789");
-        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Decimal128Val(value));
+        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Decimal128Val(value)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonDecimal128.class, result);
         assertEquals(new Decimal128(value), ((BsonDecimal128) result).getValue());
     }
 
+    // resolveIndexKeyRange tests
+
     @Test
-    void shouldReturnNullWhenInt32ValUsedWithDecimal128Index() {
-        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null);
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, new Int32Val(42));
+    void shouldWidenInt32ValToDecimal128ForDecimal128Index() {
+        // Behavior: INT32 predicate value is losslessly widened to DECIMAL128 for a DECIMAL128 index.
+        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
-        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node);
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, Collections.emptyList());
+
+        assertNotNull(result);
+        assertInstanceOf(BsonDecimal128.class, result);
+        assertEquals(new Decimal128(BigDecimal.valueOf(42)), ((BsonDecimal128) result).getValue());
+    }
+
+    @Test
+    void shouldResolveObjectIdRangeForObjectIdIndex() {
+        // Behavior: ObjectIdVal bounds are converted to BsonObjectId for OBJECT_ID range scans.
+        ObjectId lower = new ObjectId();
+        ObjectId upper = new ObjectId();
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.OBJECT_ID, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new ObjectIdVal(lower)), lit(new ObjectIdVal(upper)), true, false);
+        RangeScanNode node = new RangeScanNode(1, def, predicate);
+
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
+
+        assertNotNull(result);
+        assertInstanceOf(BsonObjectId.class, result.lower());
+        assertInstanceOf(BsonObjectId.class, result.upper());
+        assertEquals(lower, ((BsonObjectId) result.lower()).getValue());
+        assertEquals(upper, ((BsonObjectId) result.upper()).getValue());
+    }
+
+    @Test
+    void shouldReturnNullWhenStringValUsedWithObjectIdRangeIndex() {
+        // Behavior: StringVal bounds do not match OBJECT_ID index type, so null is returned.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.OBJECT_ID, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new StringVal("abc")), lit(new StringVal("xyz")), true, false);
+        RangeScanNode node = new RangeScanNode(1, def, predicate);
+
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNull(result);
     }
 
-    // resolveIndexKeyRange tests
-
     @Test
     void shouldResolveInt32RangeForInt32Index() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.INT32);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(10), new Int32Val(50), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), lit(new Int32Val(50)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonInt32.class, result.lower());
@@ -267,22 +319,22 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt64ValUsedWithInt32RangeIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.INT32);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int64Val(10L), new Int64Val(50L), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int64Val(10L)), lit(new Int64Val(50L)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNull(result);
     }
 
     @Test
     void shouldResolveInt64RangeForInt64Index() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.INT64);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int64Val(100L), new Int64Val(500L), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT64, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int64Val(100L)), lit(new Int64Val(500L)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonInt64.class, result.lower());
@@ -292,23 +344,28 @@ class IndexPredicateResolverTest {
     }
 
     @Test
-    void shouldReturnNullWhenInt32ValUsedWithInt64RangeIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.INT64);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(10), new Int32Val(50), true, false);
+    void shouldWidenInt32BoundsToInt64ForInt64RangeIndex() {
+        // Behavior: INT32 range bounds are losslessly widened to INT64 for an INT64 range index.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT64, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), lit(new Int32Val(50)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
-        assertNull(result);
+        assertNotNull(result);
+        assertInstanceOf(BsonInt64.class, result.lower());
+        assertInstanceOf(BsonInt64.class, result.upper());
+        assertEquals(10L, ((BsonInt64) result.lower()).getValue());
+        assertEquals(50L, ((BsonInt64) result.upper()).getValue());
     }
 
     @Test
     void shouldResolveStringRangeForStringIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.STRING);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new StringVal("apple"), new StringVal("orange"), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.STRING, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new StringVal("apple")), lit(new StringVal("orange")), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonString.class, result.lower());
@@ -319,22 +376,22 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithStringRangeIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.STRING);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(10), new Int32Val(50), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.STRING, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), lit(new Int32Val(50)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNull(result);
     }
 
     @Test
     void shouldResolveDoubleRangeForDoubleIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.DOUBLE);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new DoubleVal(1.5), new DoubleVal(9.9), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new DoubleVal(1.5)), lit(new DoubleVal(9.9)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonDouble.class, result.lower());
@@ -344,25 +401,30 @@ class IndexPredicateResolverTest {
     }
 
     @Test
-    void shouldReturnNullWhenInt32ValUsedWithDoubleRangeIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.DOUBLE);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(10), new Int32Val(50), true, false);
+    void shouldWidenInt32BoundsToDoubleForDoubleRangeIndex() {
+        // Behavior: INT32 range bounds are losslessly widened to DOUBLE for a DOUBLE range index.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), lit(new Int32Val(50)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
-        assertNull(result);
+        assertNotNull(result);
+        assertInstanceOf(BsonDouble.class, result.lower());
+        assertInstanceOf(BsonDouble.class, result.upper());
+        assertEquals(10.0, ((BsonDouble) result.lower()).getValue());
+        assertEquals(50.0, ((BsonDouble) result.upper()).getValue());
     }
 
     @Test
     void shouldResolveBinaryRangeForBinaryIndex() {
         byte[] lower = new byte[]{0x01, 0x02};
         byte[] upper = new byte[]{0x0A, 0x0B};
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.BINARY);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new BinaryVal(lower), new BinaryVal(upper), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.BINARY, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new BinaryVal(lower)), lit(new BinaryVal(upper)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonBinary.class, result.lower());
@@ -373,22 +435,22 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithBinaryRangeIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.BINARY);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(10), new Int32Val(50), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.BINARY, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), lit(new Int32Val(50)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNull(result);
     }
 
     @Test
     void shouldResolveBooleanRangeForBooleanIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.BOOLEAN);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new BooleanVal(false), new BooleanVal(true), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new BooleanVal(false)), lit(new BooleanVal(true)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonBoolean.class, result.lower());
@@ -399,11 +461,11 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithBooleanRangeIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.BOOLEAN);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(0), new Int32Val(1), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(0)), lit(new Int32Val(1)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNull(result);
     }
@@ -412,11 +474,11 @@ class IndexPredicateResolverTest {
     void shouldResolveDateTimeRangeForDateTimeIndex() {
         long lower = 1703462400000L; // 2023-12-25 00:00:00 UTC
         long upper = 1703548800000L; // 2023-12-26 00:00:00 UTC
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.DATE_TIME);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new DateTimeVal(lower), new DateTimeVal(upper), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.DATE_TIME, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new DateTimeVal(lower)), lit(new DateTimeVal(upper)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonDateTime.class, result.lower());
@@ -427,11 +489,11 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithDateTimeRangeIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.DATE_TIME);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(10), new Int32Val(50), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.DATE_TIME, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), lit(new Int32Val(50)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNull(result);
     }
@@ -440,11 +502,11 @@ class IndexPredicateResolverTest {
     void shouldResolveTimestampRangeForTimestampIndex() {
         long lower = 7215996951904567296L;
         long upper = 7215996951904567300L;
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.TIMESTAMP);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new TimestampVal(lower), new TimestampVal(upper), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.TIMESTAMP, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new TimestampVal(lower)), lit(new TimestampVal(upper)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonTimestamp.class, result.lower());
@@ -455,11 +517,11 @@ class IndexPredicateResolverTest {
 
     @Test
     void shouldReturnNullWhenInt32ValUsedWithTimestampRangeIndex() {
-        IndexDefinition def = IndexDefinition.create("test-index", "field", BsonType.TIMESTAMP);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(10), new Int32Val(50), true, false);
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.TIMESTAMP, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), lit(new Int32Val(50)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNull(result);
     }
@@ -468,11 +530,11 @@ class IndexPredicateResolverTest {
     void shouldResolveDecimal128RangeForDecimal128Index() {
         BigDecimal lower = new BigDecimal("100.50");
         BigDecimal upper = new BigDecimal("999.99");
-        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false,null);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Decimal128Val(lower), new Decimal128Val(upper), true, false);
+        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Decimal128Val(lower)), lit(new Decimal128Val(upper)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
 
         assertNotNull(result);
         assertInstanceOf(BsonDecimal128.class, result.lower());
@@ -481,14 +543,91 @@ class IndexPredicateResolverTest {
         assertEquals(new Decimal128(upper), ((BsonDecimal128) result.upper()).getValue());
     }
 
+    // Parameterized predicate tests
+
     @Test
-    void shouldReturnNullWhenInt32ValUsedWithDecimal128RangeIndex() {
-        IndexDefinition def = new IndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null);
-        RangeScanPredicate predicate = new RangeScanPredicate("field", new Int32Val(10), new Int32Val(50), true, false);
+    void shouldWidenInt32BoundsToDecimal128ForDecimal128RangeIndex() {
+        // Behavior: INT32 range bounds are losslessly widened to DECIMAL128 for a DECIMAL128 range index.
+        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), lit(new Int32Val(50)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
-        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node);
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(def, node, Collections.emptyList());
+
+        assertNotNull(result);
+        assertInstanceOf(BsonDecimal128.class, result.lower());
+        assertInstanceOf(BsonDecimal128.class, result.upper());
+        assertEquals(new Decimal128(BigDecimal.valueOf(10)), ((BsonDecimal128) result.lower()).getValue());
+        assertEquals(new Decimal128(BigDecimal.valueOf(50)), ((BsonDecimal128) result.upper()).getValue());
+    }
+
+    @Test
+    void shouldResolveParamOperand() {
+        // Behavior: Param(0) resolves to the first element in the parameters list.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.EQ, param(0));
+        IndexScanNode node = new IndexScanNode(1, def, predicate);
+
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, List.of(new Int32Val(42)));
+
+        assertNotNull(result);
+        assertInstanceOf(BsonInt32.class, result);
+        assertEquals(42, ((BsonInt32) result).getValue());
+    }
+
+    @Test
+    void shouldReturnNullWhenResolvedParamTypeMismatches() {
+        // Behavior: When a Param resolves to a value with wrong type, null is returned.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.EQ, param(0));
+        IndexScanNode node = new IndexScanNode(1, def, predicate);
+
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, List.of(new StringVal("wrong-type")));
 
         assertNull(result);
+    }
+
+    @Test
+    void shouldResolveNonZeroParamIndex() {
+        // Behavior: Param(1) resolves to the second element in the parameters list.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.STRING, false, IndexStatus.WAITING);
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.EQ, param(1));
+        IndexScanNode node = new IndexScanNode(1, def, predicate);
+
+        BsonValue result = IndexPredicateResolver.resolveIndexKeyValue(def, node, List.of(new Int32Val(100), new StringVal("target")));
+
+        assertNotNull(result);
+        assertInstanceOf(BsonString.class, result);
+        assertEquals("target", ((BsonString) result).getValue());
+    }
+
+    @Test
+    void shouldResolveParamBoundsForRangeScan() {
+        // Behavior: Both lower and upper bounds can be Param operands resolved from parameters.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", param(0), param(1), true, false);
+        RangeScanNode node = new RangeScanNode(1, def, predicate);
+
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(
+                def, node, List.of(new Int32Val(10), new Int32Val(50)));
+
+        assertNotNull(result);
+        assertEquals(10, ((BsonInt32) result.lower()).getValue());
+        assertEquals(50, ((BsonInt32) result.upper()).getValue());
+    }
+
+    @Test
+    void shouldResolveMixedLiteralAndParamBounds() {
+        // Behavior: Lower bound can be a Literal while upper bound is a Param.
+        SingleFieldIndexDefinition def = SingleFieldIndexDefinition.create("test-index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), param(0), true, false);
+        RangeScanNode node = new RangeScanNode(1, def, predicate);
+
+        IndexPredicateResolver.IndexKeyRange result = IndexPredicateResolver.resolveIndexKeyRange(
+                def, node, List.of(new Int32Val(50)));
+
+        assertNotNull(result);
+        assertEquals(10, ((BsonInt32) result.lower()).getValue());
+        assertEquals(50, ((BsonInt32) result.upper()).getValue());
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,16 @@
 
 package com.kronotop.bucket.bql;
 
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.bql.ast.*;
+import com.kronotop.internal.VersionstampUtil;
+import org.bson.BsonBinary;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -1120,5 +1125,372 @@ class BqlParserTest {
         // Verify roundtrip JSON serialization
         String expectedJson = "{\"scores\": {\"$elemMatch\": {\"$or\": [{\"$gte\": 90}, {\"$lt\": 50}]}}}";
         assertEquals(expectedJson, result.toJson(), "toJson() should produce correct JSON");
+    }
+
+    @Test
+    void shouldFallbackToStringValWhenStringLengthDoesNotMatchVersionstamp() {
+        // Behavior: Strings with length != 24 (EncodedVersionstampSize) are not attempted
+        // as versionstamps and are parsed as regular StringVal.
+
+        String query = "{ _id: { $eq: 'short-string' } }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertInstanceOf(StringVal.class, eqExpr.value(),
+                "String with wrong length should yield StringVal");
+        assertEquals("short-string", ((StringVal) eqExpr.value()).value());
+    }
+
+    @Test
+    void shouldFallbackToStringValWhenBase32HexDecodingFails() {
+        // Behavior: Strings with correct length (24 chars) but invalid Base32Hex characters
+        // fail decoding and fall back to StringVal.
+
+        // 24 characters but contains invalid Base32Hex chars (lowercase, special chars)
+        String invalidBase32Hex = "invalid!base32hex!value!";
+        assertEquals(VersionstampUtil.EncodedVersionstampSize, invalidBase32Hex.length());
+
+        String query = String.format("{ _id: { $eq: '%s' } }", invalidBase32Hex);
+        BqlExpr result = BqlParser.parse(query);
+
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertInstanceOf(StringVal.class, eqExpr.value(),
+                "Invalid Base32Hex string should yield StringVal");
+        assertEquals(invalidBase32Hex, ((StringVal) eqExpr.value()).value());
+    }
+
+    @Test
+    void shouldFallbackToStringValWhenVersionstampIsIncomplete() {
+        // Behavior: Strings that decode to an incomplete versionstamp (all zeros in transaction bytes)
+        // fall back to StringVal since incomplete versionstamps are not valid for queries.
+
+        // Create an incomplete versionstamp and encode it
+        Versionstamp incomplete = TestUtil.generateIncompleteVersionstamp(1);
+        assertFalse(incomplete.isComplete(), "Sanity check: versionstamp should be incomplete");
+
+        String encoded = VersionstampUtil.base32HexEncode(incomplete);
+        assertEquals(VersionstampUtil.EncodedVersionstampSize, encoded.length());
+
+        String query = String.format("{ _id: { $eq: '%s' } }", encoded);
+        BqlExpr result = BqlParser.parse(query);
+
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertInstanceOf(StringVal.class, eqExpr.value(),
+                "Incomplete versionstamp string should yield StringVal");
+    }
+
+    @Test
+    void shouldFallbackToBinaryValWhenBinaryLengthDoesNotMatchVersionstamp() {
+        // Behavior: Binary data with length != 12 (Versionstamp.LENGTH) is not attempted
+        // as a versionstamp and is parsed as regular BinaryVal.
+
+        byte[] shortData = {0x01, 0x02, 0x03, 0x04, 0x05};
+        assertNotEquals(Versionstamp.LENGTH, shortData.length);
+
+        BsonDocument query = new BsonDocument("data",
+                new BsonDocument("$eq", new BsonBinary(shortData)));
+        BqlExpr result = BqlParser.parse(BSONUtil.toBytes(query));
+
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertInstanceOf(BinaryVal.class, eqExpr.value(),
+                "Binary with wrong length should yield BinaryVal");
+        assertArrayEquals(shortData, ((BinaryVal) eqExpr.value()).value());
+    }
+
+    @Test
+    void shouldFallbackToBinaryValWhenVersionstampIsIncomplete() {
+        // Behavior: 12-byte binary data that represents an incomplete versionstamp
+        // (all zeros in transaction bytes) falls back to BinaryVal.
+
+        Versionstamp incomplete = TestUtil.generateIncompleteVersionstamp(1);
+        assertFalse(incomplete.isComplete(), "Sanity check: versionstamp should be incomplete");
+
+        BsonDocument query = new BsonDocument("_id",
+                new BsonDocument("$eq", new BsonBinary(incomplete.getBytes())));
+        BqlExpr result = BqlParser.parse(BSONUtil.toBytes(query));
+
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertInstanceOf(BinaryVal.class, eqExpr.value(),
+                "Incomplete versionstamp binary should yield BinaryVal");
+    }
+
+    @Test
+    void shouldParseCompleteBinaryVersionstampAsVersionstampVal() {
+        // Behavior: 12-byte binary data representing a complete versionstamp
+        // is parsed as VersionstampVal for use with primary index queries.
+
+        Versionstamp complete = Versionstamp.complete(new byte[]{
+                0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A
+        });
+        assertTrue(complete.isComplete(), "Sanity check: versionstamp should be complete");
+
+        BsonDocument query = new BsonDocument("_id",
+                new BsonDocument("$gte", new BsonBinary(complete.getBytes())));
+        BqlExpr result = BqlParser.parse(BSONUtil.toBytes(query));
+
+        assertInstanceOf(BqlGte.class, result);
+        BqlGte gteExpr = (BqlGte) result;
+        assertInstanceOf(VersionstampVal.class, gteExpr.value(),
+                "Complete versionstamp binary should yield VersionstampVal");
+    }
+
+    // Tests for $nor operator
+
+    @Test
+    void shouldParseNorOperatorWithTwoConditions() {
+        // Behavior: $nor is syntactic sugar for $not($or(...)), selecting documents
+        // that fail ALL query expressions.
+        String query = "{ $nor: [{ price: 1.99 }, { qty: { $lt: 20 } }] }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+
+        // $nor is transformed to $not($or(...))
+        assertInstanceOf(BqlNot.class, result, "Result should be a BqlNot node");
+        BqlNot notExpr = (BqlNot) result;
+
+        assertInstanceOf(BqlOr.class, notExpr.expr(), "NOT child should be BqlOr");
+        BqlOr orExpr = (BqlOr) notExpr.expr();
+        assertEquals(2, orExpr.children().size(), "OR should have 2 children");
+
+        // First child: price = 1.99
+        assertInstanceOf(BqlEq.class, orExpr.children().getFirst(), "First child should be BqlEq");
+        BqlEq priceEq = (BqlEq) orExpr.children().getFirst();
+        assertEquals("price", priceEq.selector());
+        assertEquals(1.99, ((DoubleVal) priceEq.value()).value(), 0.001);
+
+        // Second child: qty < 20
+        assertInstanceOf(BqlLt.class, orExpr.children().get(1), "Second child should be BqlLt");
+        BqlLt qtyLt = (BqlLt) orExpr.children().get(1);
+        assertEquals("qty", qtyLt.selector());
+        assertEquals(20, ((Int32Val) qtyLt.value()).value());
+    }
+
+    @Test
+    void shouldParseNorOperatorWithMultipleConditions() {
+        // Behavior: $nor with multiple conditions transforms to $not($or([...]))
+        String query = "{ $nor: [{ status: 'active' }, { status: 'pending' }, { status: 'review' }] }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+
+        assertInstanceOf(BqlNot.class, result, "Result should be a BqlNot node");
+        BqlNot notExpr = (BqlNot) result;
+
+        assertInstanceOf(BqlOr.class, notExpr.expr(), "NOT child should be BqlOr");
+        BqlOr orExpr = (BqlOr) notExpr.expr();
+        assertEquals(3, orExpr.children().size(), "OR should have 3 children");
+
+        // Verify all children are equality checks
+        for (int i = 0; i < 3; i++) {
+            assertInstanceOf(BqlEq.class, orExpr.children().get(i));
+            BqlEq eqExpr = (BqlEq) orExpr.children().get(i);
+            assertEquals("status", eqExpr.selector());
+        }
+
+        // Verify values
+        assertEquals("active", ((StringVal) ((BqlEq) orExpr.children().get(0)).value()).value());
+        assertEquals("pending", ((StringVal) ((BqlEq) orExpr.children().get(1)).value()).value());
+        assertEquals("review", ((StringVal) ((BqlEq) orExpr.children().get(2)).value()).value());
+    }
+
+    @Test
+    void shouldParseNorWithNestedOperators() {
+        // Behavior: $nor works with nested comparison operators
+        String query = "{ $nor: [{ price: { $gt: 100 } }, { sale: true }] }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+
+        assertInstanceOf(BqlNot.class, result, "Result should be a BqlNot node");
+        BqlNot notExpr = (BqlNot) result;
+
+        assertInstanceOf(BqlOr.class, notExpr.expr(), "NOT child should be BqlOr");
+        BqlOr orExpr = (BqlOr) notExpr.expr();
+        assertEquals(2, orExpr.children().size(), "OR should have 2 children");
+
+        // First child: price > 100
+        assertInstanceOf(BqlGt.class, orExpr.children().get(0), "First child should be BqlGt");
+        BqlGt priceGt = (BqlGt) orExpr.children().get(0);
+        assertEquals("price", priceGt.selector());
+        assertEquals(100, ((Int32Val) priceGt.value()).value());
+
+        // Second child: sale = true
+        assertInstanceOf(BqlEq.class, orExpr.children().get(1), "Second child should be BqlEq");
+        BqlEq saleEq = (BqlEq) orExpr.children().get(1);
+        assertEquals("sale", saleEq.selector());
+        assertTrue(((BooleanVal) saleEq.value()).value());
+    }
+
+    @Test
+    void shouldParseNorInsideElemMatchForScalarArray() {
+        // Behavior: $nor inside $elemMatch uses empty selectors for scalar array elements
+        String query = "{ scores: { $elemMatch: { $nor: [{ $lt: 30 }, { $gt: 90 }] } } }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("scores", elemMatchNode.selector(), "ElemMatch selector should be 'scores'");
+
+        // Inner expression should be BqlNot (from $nor)
+        assertInstanceOf(BqlNot.class, elemMatchNode.expr(), "Inner expression should be BqlNot");
+        BqlNot notExpr = (BqlNot) elemMatchNode.expr();
+
+        assertInstanceOf(BqlOr.class, notExpr.expr(), "NOT child should be BqlOr");
+        BqlOr orExpr = (BqlOr) notExpr.expr();
+        assertEquals(2, orExpr.children().size(), "OR should have 2 children");
+
+        // First child: $lt with empty selector (scalar array)
+        assertInstanceOf(BqlLt.class, orExpr.children().get(0), "First child should be BqlLt");
+        BqlLt ltExpr = (BqlLt) orExpr.children().get(0);
+        assertEquals("", ltExpr.selector(), "Scalar array operator must use empty selector");
+        assertEquals(30, ((Int32Val) ltExpr.value()).value());
+
+        // Second child: $gt with empty selector (scalar array)
+        assertInstanceOf(BqlGt.class, orExpr.children().get(1), "Second child should be BqlGt");
+        BqlGt gtExpr = (BqlGt) orExpr.children().get(1);
+        assertEquals("", gtExpr.selector(), "Scalar array operator must use empty selector");
+        assertEquals(90, ((Int32Val) gtExpr.value()).value());
+    }
+
+    // Tests for ObjectId auto-detection from string values
+
+    @Test
+    void shouldParseValidObjectIdStringAsObjectIdVal() {
+        // Behavior: A 24-character hex string that passes ObjectId.isValid is parsed as ObjectIdVal
+        // instead of StringVal.
+        ObjectId objectId = new ObjectId();
+        String hex = objectId.toHexString();
+
+        String query = String.format("{ _id: { $eq: '%s' } }", hex);
+        BqlExpr result = BqlParser.parse(query);
+
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertEquals("_id", eqExpr.selector());
+        assertInstanceOf(ObjectIdVal.class, eqExpr.value(),
+                "Valid ObjectId hex string should yield ObjectIdVal");
+        assertEquals(objectId, ((ObjectIdVal) eqExpr.value()).value());
+    }
+
+    @Test
+    void shouldParseObjectIdStringWithImplicitEq() {
+        // Behavior: Implicit equality with a valid ObjectId string produces ObjectIdVal.
+        ObjectId objectId = new ObjectId();
+        String hex = objectId.toHexString();
+
+        String query = String.format("{ _id: '%s' }", hex);
+        BqlExpr result = BqlParser.parse(query);
+
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertEquals("_id", eqExpr.selector());
+        assertInstanceOf(ObjectIdVal.class, eqExpr.value(),
+                "Implicit eq with ObjectId hex string should yield ObjectIdVal");
+        assertEquals(objectId, ((ObjectIdVal) eqExpr.value()).value());
+    }
+
+    @Test
+    void shouldParseObjectIdStringInComparisonOperators() {
+        // Behavior: ObjectId auto-detection works across comparison operators ($gt, $lt, $gte, $lte, $ne).
+        ObjectId objectId = new ObjectId();
+        String hex = objectId.toHexString();
+
+        String query = String.format("{ _id: { $gte: '%s' } }", hex);
+        BqlExpr result = BqlParser.parse(query);
+
+        assertInstanceOf(BqlGte.class, result);
+        BqlGte gteExpr = (BqlGte) result;
+        assertInstanceOf(ObjectIdVal.class, gteExpr.value(),
+                "ObjectId string in $gte should yield ObjectIdVal");
+        assertEquals(objectId, ((ObjectIdVal) gteExpr.value()).value());
+    }
+
+    @Test
+    void shouldParseObjectIdStringInInOperator() {
+        // Behavior: ObjectId auto-detection works for values inside $in arrays.
+        ObjectId id1 = new ObjectId();
+        ObjectId id2 = new ObjectId();
+
+        String query = String.format("{ _id: { $in: ['%s', '%s'] } }", id1.toHexString(), id2.toHexString());
+        BqlExpr result = BqlParser.parse(query);
+
+        assertInstanceOf(BqlIn.class, result);
+        BqlIn inExpr = (BqlIn) result;
+        assertEquals(2, inExpr.values().size());
+        assertInstanceOf(ObjectIdVal.class, inExpr.values().get(0));
+        assertInstanceOf(ObjectIdVal.class, inExpr.values().get(1));
+        assertEquals(id1, ((ObjectIdVal) inExpr.values().get(0)).value());
+        assertEquals(id2, ((ObjectIdVal) inExpr.values().get(1)).value());
+    }
+
+    @Test
+    void shouldNotParseNonHexStringAsObjectId() {
+        // Behavior: A regular string that is not a valid ObjectId hex string remains StringVal.
+        String query = "{ name: { $eq: 'hello-world' } }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertInstanceOf(StringVal.class, eqExpr.value(),
+                "Non-hex string should remain StringVal");
+        assertEquals("hello-world", ((StringVal) eqExpr.value()).value());
+    }
+
+    @Test
+    void shouldPreferObjectIdOverVersionstampForValidHex() {
+        // Behavior: A 24-character hex string that is a valid ObjectId is parsed as ObjectIdVal
+        // even though it also has the correct length for a Base32Hex versionstamp candidate.
+        // ObjectId check runs before the versionstamp check.
+        String hex = "aabbccddee0011223344aabb"; // 24 hex chars, valid ObjectId
+        assertTrue(ObjectId.isValid(hex), "Sanity check: string should be a valid ObjectId");
+
+        String query = String.format("{ _id: { $eq: '%s' } }", hex);
+        BqlExpr result = BqlParser.parse(query);
+
+        assertInstanceOf(BqlEq.class, result);
+        BqlEq eqExpr = (BqlEq) result;
+        assertInstanceOf(ObjectIdVal.class, eqExpr.value(),
+                "Valid ObjectId hex string should be parsed as ObjectIdVal, not VersionstampVal or StringVal");
+    }
+
+    @Test
+    void shouldParseNorInsideElemMatchForDocumentArray() {
+        // Behavior: $nor inside $elemMatch uses field selectors for document arrays
+        String query = "{ items: { $elemMatch: { $nor: [{ type: 'expired' }, { qty: 0 }] } } }";
+        BqlExpr result = BqlParser.parse(query);
+
+        assertNotNull(result, "Parsed result should not be null");
+        assertInstanceOf(BqlElemMatch.class, result, "Result should be a BqlElemMatch node");
+
+        BqlElemMatch elemMatchNode = (BqlElemMatch) result;
+        assertEquals("items", elemMatchNode.selector(), "ElemMatch selector should be 'items'");
+
+        // Inner expression should be BqlNot (from $nor)
+        assertInstanceOf(BqlNot.class, elemMatchNode.expr(), "Inner expression should be BqlNot");
+        BqlNot notExpr = (BqlNot) elemMatchNode.expr();
+
+        assertInstanceOf(BqlOr.class, notExpr.expr(), "NOT child should be BqlOr");
+        BqlOr orExpr = (BqlOr) notExpr.expr();
+        assertEquals(2, orExpr.children().size(), "OR should have 2 children");
+
+        // First child: type = 'expired' with field selector
+        assertInstanceOf(BqlEq.class, orExpr.children().get(0), "First child should be BqlEq");
+        BqlEq typeEq = (BqlEq) orExpr.children().get(0);
+        assertEquals("type", typeEq.selector(), "Document field selector should be 'type'");
+        assertEquals("expired", ((StringVal) typeEq.value()).value());
+
+        // Second child: qty = 0 with field selector
+        assertInstanceOf(BqlEq.class, orExpr.children().get(1), "Second child should be BqlEq");
+        BqlEq qtyEq = (BqlEq) orExpr.children().get(1);
+        assertEquals("qty", qtyEq.selector(), "Document field selector should be 'qty'");
+        assertEquals(0, ((Int32Val) qtyEq.value()).value());
     }
 }

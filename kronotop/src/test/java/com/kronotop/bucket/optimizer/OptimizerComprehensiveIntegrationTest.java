@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -159,11 +160,11 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         void shouldApplyAllOptimizationsToComplexEcommerceQuery() {
             // Setup indexes for an e-commerce scenario
             createIndexes(
-                    IndexDefinition.create("product-name-index", "product.name", BsonType.STRING),
-                    IndexDefinition.create("price-index", "price", BsonType.DOUBLE),
-                    IndexDefinition.create("category-index", "category", BsonType.STRING),
-                    IndexDefinition.create("brand-index", "brand", BsonType.STRING),
-                    IndexDefinition.create("status-index", "status", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("product-name-index", "product.name", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("brand-index", "brand", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             // Complex e-commerce query with multiple optimization opportunities:
@@ -212,10 +213,10 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         void shouldOptimizeSocialMediaUserQueryWithAllRules() {
             // Setup indexes for social media scenario
             createIndexes(
-                    IndexDefinition.create("username-index", "username", BsonType.STRING),
-                    IndexDefinition.create("age-index", "age", BsonType.INT32),
-                    IndexDefinition.create("country-index", "location.country", BsonType.STRING),
-                    IndexDefinition.create("verified-index", "verified", BsonType.BOOLEAN)
+                    SingleFieldIndexDefinition.create("username-index", "username", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("country-index", "location.country", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("verified-index", "verified", BsonType.BOOLEAN, false, IndexStatus.WAITING)
             );
 
             // Build complex query manually to test all optimizations
@@ -297,9 +298,9 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should optimize complex OR-heavy query with all rules")
         void shouldOptimizeComplexOrHeavyQueryWithAllRules() {
             createIndexes(
-                    IndexDefinition.create("type-index", "type", BsonType.STRING),
-                    IndexDefinition.create("priority-index", "priority", BsonType.INT32),
-                    IndexDefinition.create("status-index", "status", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("priority-index", "priority", BsonType.INT32, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             // Create OR-heavy structure with optimization opportunities
@@ -350,9 +351,9 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should integrate selectivity ordering with other optimizations")
         void shouldIntegrateSelectivityOrderingWithOtherOptimizations() {
             createIndexes(
-                    IndexDefinition.create("id-index", "id", BsonType.STRING),
-                    IndexDefinition.create("timestamp-index", "timestamp", BsonType.DATE_TIME),
-                    IndexDefinition.create("user-index", "userId", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("id-index", "id", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("timestamp-index", "timestamp", BsonType.DATE_TIME, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("user-index", "userId", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             // Create query that benefits from multiple optimizations
@@ -390,8 +391,8 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should order complex nested structures by selectivity after other optimizations")
         void shouldOrderComplexNestedStructuresBySelectivityAfterOtherOptimizations() {
             createIndexes(
-                    IndexDefinition.create("level-index", "level", BsonType.INT32),
-                    IndexDefinition.create("module-index", "module", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("level-index", "level", BsonType.INT32, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("module-index", "module", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             // Create nested structure with various selectivities
@@ -445,8 +446,8 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should reduce total node count through optimizations")
         void shouldReduceTotalNodeCountThroughOptimizations() {
             createIndexes(
-                    IndexDefinition.create("field1-index", "field1", BsonType.STRING),
-                    IndexDefinition.create("field2-index", "field2", BsonType.INT32)
+                    SingleFieldIndexDefinition.create("field1-index", "field1", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("field2-index", "field2", BsonType.INT32, false, IndexStatus.WAITING)
             );
 
             // Query with redundancy and inefficiencies
@@ -473,9 +474,9 @@ public class OptimizerComprehensiveIntegrationTest extends BaseOptimizerTest {
         @DisplayName("Should create efficient execution plan for complex queries")
         void shouldCreateEfficientExecutionPlanForComplexQueries() {
             createIndexes(
-                    IndexDefinition.create("pk-index", "pk", BsonType.STRING),
-                    IndexDefinition.create("sk-index", "sk", BsonType.STRING),
-                    IndexDefinition.create("gsi1pk-index", "gsi1pk", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("pk-index", "pk", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("sk-index", "sk", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("gsi1pk-index", "gsi1pk", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             // DynamoDB-style query pattern

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -27,7 +27,8 @@ public class HoldJvmAfterTests implements AfterAllCallback {
             try {
                 System.out.println("=== JVM SHUTDOWN HOOK FIRED; HOLDING FOR 60 SECONDS ===");
                 Thread.sleep(60_000);
-            } catch (InterruptedException ignored) {}
+            } catch (InterruptedException ignored) {
+            }
         }));
     }
 }

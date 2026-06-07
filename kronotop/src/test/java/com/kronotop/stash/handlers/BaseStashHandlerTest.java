@@ -1,0 +1,33 @@
+/*
+ * Copyright (c) 2023-2026 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.kronotop.stash.handlers;
+
+import com.kronotop.BaseHandlerTest;
+import com.kronotop.volume.Prefix;
+import org.junit.jupiter.api.BeforeEach;
+
+import java.net.UnknownHostException;
+
+public class BaseStashHandlerTest extends BaseHandlerTest {
+    protected Prefix stashVolumeSyncerPrefix;
+
+    @BeforeEach
+    public void setup() throws UnknownHostException, InterruptedException {
+        super.setup();
+        stashVolumeSyncerPrefix = new Prefix(config.getString("stash.volume_syncer.prefix").getBytes());
+    }
+}

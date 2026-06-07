@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,11 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 
 import java.util.Objects;
 
-public record PhysicalIndexScan(int id, PhysicalNode node, IndexDefinition index) implements PhysicalNode {
-    @Override
-    public <R> R accept(PhysicalPlanVisitor<R> visitor) {
-        return visitor.visitIndexScan(this);
-    }
-
+public record PhysicalIndexScan(int id, PhysicalNode node, SingleFieldIndexDefinition index) implements PhysicalNode {
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;

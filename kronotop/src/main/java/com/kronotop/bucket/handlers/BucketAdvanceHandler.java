@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,19 +17,22 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.*;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketObjectIdArrayResponse;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketAdvanceMessage;
 import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.pipeline.QueryContext;
-import com.kronotop.internal.TransactionUtils;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.transaction.TransactionUtil;
+import org.bson.types.ObjectId;
 
+import java.nio.ByteBuffer;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -85,9 +88,11 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         public void execute(Request request, Response response) {
             supplyAsync(context, response, () -> {
                 BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
-                Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+                Transaction tr = TransactionUtil.getOrCreateTransaction(service.getContext(), request.getSession());
                 QueryContext ctx = getQueryContextAndValidate(tr, request);
-                return new BucketEntriesMapResponse(message.getCursorId(), service.getQueryExecutor().read(tr, ctx));
+                List<ByteBuffer> entries = service.getQueryExecutor().read(tr, ctx);
+                entries = applyProjection(entries, ctx);
+                return new BucketEntriesMapResponse(message.getCursorId(), entries);
             }, (readResponse) -> {
                 RESPVersion protoVer = request.getSession().protocolVersion();
                 if (protoVer.equals(RESPVersion.RESP3)) {
@@ -112,26 +117,26 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
         public void execute(Request request, Response response) {
             supplyAsync(context, response, () -> {
                 BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
-                Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), request.getSession());
+                Transaction tr = TransactionUtil.getOrCreateTransaction(service.getContext(), request.getSession());
                 QueryContext ctx = getQueryContextAndValidate(tr, request);
-                List<Versionstamp> versionstamps;
+                List<ObjectId> objectIds;
                 if (BucketOperation.UPDATE.equals(operation)) {
-                    versionstamps = service.getQueryExecutor().update(tr, ctx);
+                    objectIds = service.getQueryExecutor().update(tr, ctx);
                 } else if (BucketOperation.DELETE.equals(operation)) {
-                    versionstamps = service.getQueryExecutor().delete(tr, ctx);
+                    objectIds = service.getQueryExecutor().delete(tr, ctx);
                 } else {
                     throw new IllegalArgumentException("Unsupported operation: " + operation);
                 }
 
-                TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());
-                TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
-                return new BucketVersionstampArrayResponse(message.getCursorId(), versionstamps);
-            }, (readResponse) -> {
+                TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());
+                return new BucketObjectIdArrayResponse(message.getCursorId(), objectIds);
+            }, (objectIdResponse) -> {
+                ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();
                 RESPVersion protoVer = request.getSession().protocolVersion();
                 if (protoVer.equals(RESPVersion.RESP3)) {
-                    resp3VersionstampArrayResponse(response, readResponse);
+                    resp3ObjectIdArrayResponse(response, format, objectIdResponse);
                 } else if (protoVer.equals(RESPVersion.RESP2)) {
-                    resp2VersionstampArrayResponse(response, readResponse);
+                    resp2ObjectIdArrayResponse(response, format, objectIdResponse);
                 } else {
                     throw new KronotopException("Unknown protocol version " + protoVer.getValue());
                 }

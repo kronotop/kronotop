@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,12 @@ package com.kronotop.bucket.index;
 public enum IndexSubspaceMagic {
     ENTRIES((byte) 0x01),
     BACK_POINTER((byte) 0x02),
-    TASKS((byte) 0x03),
-    STAT_HINTS((byte) 0x04);
+    VOLUME_POINTER((byte) 0x03),
+    VOLUME_POINTER_BACK_REF((byte) 0x04),
+    STAT_HINTS((byte) 0x05),
+    TASKS((byte) 0x06),
+    MUTATION_LOG((byte) 0x07),
+    WATERMARK((byte) 0x08);
 
     public final byte value;
 

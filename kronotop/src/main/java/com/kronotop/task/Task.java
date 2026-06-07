@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,11 +26,11 @@ package com.kronotop.task;
  * <ul>
  *   <li>{@link #task()} - Execute the work (may be blocking)</li>
  *   <li>{@link #shutdown()} - Signal graceful stop (metadata preserved in FDB for restart)</li>
- *   <li>{@link #complete()} - Mark finished and remove metadata from FDB</li>
+ *   <li>{@link #cleanupMetadata()} - Remove persistent metadata from FDB after completion</li>
  * </ul>
  *
  * <p><b>Metadata Persistence:</b> Tasks may store metadata in FoundationDB for crash recovery.
- * {@link #shutdown()} preserves this metadata (allowing restart), while {@link #complete()}
+ * {@link #shutdown()} preserves this metadata (allowing restart), while {@link #cleanupMetadata()}
  * removes it (task finished successfully).</p>
  *
  * @see BaseTask
@@ -55,19 +55,19 @@ public interface Task extends Runnable {
     void task();
 
     /**
-     * Returns true if the task completed successfully and removed its metadata from FDB.
+     * Returns true if the task's execution thread has stopped.
      */
-    boolean isCompleted();
+    boolean isFinished();
 
     /**
-     * Marks the task as completed and removes its metadata from FoundationDB.
+     * Removes the task's persistent metadata from FoundationDB.
      * Call this when the task finishes its work successfully.
      */
-    void complete();
+    void cleanupMetadata();
 
     /**
      * Signals the task to stop gracefully. Metadata remains in FDB, allowing the task
-     * to be restarted later. Use {@link #complete()} to fully terminate and clean up.
+     * to be restarted later. Use {@link #cleanupMetadata()} to fully terminate and clean up.
      */
     void shutdown();
 }

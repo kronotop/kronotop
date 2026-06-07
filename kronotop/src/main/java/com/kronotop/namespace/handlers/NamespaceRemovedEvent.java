@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,15 +21,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kronotop.cluster.BaseBroadcastEvent;
 import com.kronotop.cluster.BroadcastEventKind;
 
+import java.util.UUID;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class NamespaceRemovedEvent extends BaseBroadcastEvent {
     private String namespace;
-    private Long id;
+    private UUID id;
 
     NamespaceRemovedEvent() {
     }
 
-    public NamespaceRemovedEvent(Long id, String namespace) {
+    public NamespaceRemovedEvent(UUID id, String namespace) {
         super(BroadcastEventKind.NAMESPACE_REMOVED_EVENT);
         this.namespace = namespace;
         this.id = id;
@@ -41,7 +43,7 @@ public class NamespaceRemovedEvent extends BaseBroadcastEvent {
     }
 
     @JsonProperty
-    public Long id() {
+    public UUID id() {
         return id;
     }
 

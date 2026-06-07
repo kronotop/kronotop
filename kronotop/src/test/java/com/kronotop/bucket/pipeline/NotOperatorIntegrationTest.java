@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,10 +23,10 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class NotOperatorIntegrationTest extends BasePipelineTest {
 
@@ -43,19 +43,19 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana', 'status': 'pending'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents where status is NOT 'active'
-        PipelineNode plan = createExecutionPlan(metadata, "{'status': {'$not': {'$eq': 'active'}}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'status': {'$not': {'$eq': 'active'}}}");
 
         // $not always uses FullScanNode
-        assertInstanceOf(FullScanNode.class, plan, "Should use FullScanNode for $not operator");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan(), "Should use FullScanNode for $not operator");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: status='active' - NOT matches = false
             // Bob: status='inactive' - NOT matches = true ✓
@@ -79,17 +79,17 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana', 'age': 20}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents where age is NOT greater than 25 (i.e., age <= 25)
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$not': {'$gt': 25}}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$not': {'$gt': 25}}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: age=25, NOT(25 > 25) = NOT(false) = true ✓
             // Bob: age=30, NOT(30 > 25) = NOT(true) = false
@@ -113,17 +113,17 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana', 'role': 'admin'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents where role is NOT in ['admin', 'editor']
-        PipelineNode plan = createExecutionPlan(metadata, "{'role': {'$not': {'$in': ['admin', 'editor']}}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'role': {'$not': {'$in': ['admin', 'editor']}}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: role='admin' in list - NOT matches = false
             // Bob: role='user' not in list - NOT matches = true ✓
@@ -147,18 +147,18 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana', 'score': null}")  // score is null
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents where score is NOT >= 80
         // Documents with missing/null fields: the inner condition fails, so NOT succeeds
-        PipelineNode plan = createExecutionPlan(metadata, "{'score': {'$not': {'$gte': 80}}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'score': {'$not': {'$gte': 80}}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: score=85 >= 80, NOT matches = false
             // Bob: score missing, inner $gte fails, NOT matches = true ✓
@@ -182,17 +182,17 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana', 'status': 'pending', 'priority': 1}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents where status is NOT 'active' AND priority is 1
-        PipelineNode plan = createExecutionPlan(metadata,
+        PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$and': [{'status': {'$not': {'$eq': 'active'}}}, {'priority': 1}]}");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: NOT active=false, priority=1 -> false AND true = false
             // Bob: NOT active=true, priority=2 -> true AND false = false
@@ -216,18 +216,18 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'items': [{'status': 'pending'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item where status is NOT 'cancelled'
-        PipelineNode plan = createExecutionPlan(metadata,
+        PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'items': {'$elemMatch': {'status': {'$not': {'$eq': 'cancelled'}}}}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: has 'shipped' and 'pending', neither is 'cancelled' ✓
             // Order2: both items are 'cancelled', no item NOT cancelled
@@ -250,18 +250,18 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Charlie', 'active': true}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: NOT(NOT(active = true)) should be equivalent to (active = true)
         // The RemoveDoubleNotTransform should optimize this
-        PipelineNode plan = createExecutionPlan(metadata,
+        PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$not': {'$not': {'active': true}}}");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // After double negation elimination, should match active=true
             assertEquals(2, results.size(), "Should return 2 documents with active=true");
@@ -282,17 +282,17 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana', 'status': 'inactive'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents where status is NOT null
-        PipelineNode plan = createExecutionPlan(metadata, "{'status': {'$not': {'$eq': null}}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'status': {'$not': {'$eq': null}}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: status='active', NOT(status == null) = true ✓
             // Bob: status=null, NOT(status == null) = false
@@ -317,17 +317,17 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Eve', 'value': null}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: NOT(value == null) - should exclude documents with null or missing value
-        PipelineNode plan = createExecutionPlan(metadata, "{'value': {'$not': {'$eq': null}}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'value': {'$not': {'$eq': null}}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: value=100, NOT null = true ✓
             // Bob: value=null, NOT null = false
@@ -352,18 +352,18 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana', 'status': 'pending'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Top-level $not: {"$not": {"status": "active"}}
         // Should match documents where status is NOT 'active'
-        PipelineNode plan = createExecutionPlan(metadata, "{'$not': {'status': 'active'}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'$not': {'status': 'active'}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // NOT(status == 'active') should return Bob, Diana
             assertEquals(2, results.size(), "Should return 2 documents");
@@ -384,18 +384,18 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana', 'email': 'diana@example.com'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents where email field does NOT exist
         // {"email": {"$not": {"$exists": true}}} should be equivalent to {"email": {"$exists": false}}
-        PipelineNode plan = createExecutionPlan(metadata, "{'email': {'$not': {'$exists': true}}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'email': {'$not': {'$exists': true}}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Alice: email exists = true, NOT exists = false
             // Bob: email missing, exists = false, NOT exists = true ✓
@@ -419,18 +419,18 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana', 'role': 'guest'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: NOT(role != 'admin') should be equivalent to (role == 'admin')
         // Double negation: $not with $ne
-        PipelineNode plan = createExecutionPlan(metadata, "{'role': {'$not': {'$ne': 'admin'}}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'role': {'$not': {'$ne': 'admin'}}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // NOT(role != 'admin') = (role == 'admin')
             // Alice: role='admin', NOT(admin != admin) = NOT(false) = true ✓
@@ -456,19 +456,19 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Eve', 'age': 20}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: age NOT > 30 AND age < 40
         // This means: age <= 30 AND age < 40, which is age <= 30
         // Using separate conditions in $and to avoid parser issues
-        PipelineNode plan = createExecutionPlan(metadata,
+        PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$and': [{'age': {'$not': {'$gt': 30}}}, {'age': {'$lt': 40}}]}");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // NOT(age > 30) AND age < 40
             // Alice: NOT(25 > 30) AND 25 < 40 = true AND true = true ✓
@@ -494,17 +494,17 @@ class NotOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Diana'}")  // no phone
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: NOT(phone doesn't exist) = phone exists
-        PipelineNode plan = createExecutionPlan(metadata, "{'phone': {'$not': {'$exists': false}}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'phone': {'$not': {'$exists': false}}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // NOT(phone doesn't exist) = phone exists
             // Alice: phone exists, NOT(false) = true ✓

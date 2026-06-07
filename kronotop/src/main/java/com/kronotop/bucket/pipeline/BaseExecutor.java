@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 package com.kronotop.bucket.pipeline;
 
-import com.apple.foundationdb.tuple.Versionstamp;
-
 import java.util.*;
 
 public class BaseExecutor {
@@ -28,31 +26,25 @@ public class BaseExecutor {
 
         PipelineNode head = node;
         while (head.next() != null) {
-            head = node.next();
+            head = head.next();
         }
         return head;
     }
 
-    Map<Integer, List<Versionstamp>> accumulateAndGroupVersionstampsByShardId(DataSink sink) {
-        Map<Integer, List<Versionstamp>> byShardId = new HashMap<>();
-        switch (sink) {
-            case PersistedEntrySink persistedEntrySink -> persistedEntrySink.forEach((versionstamp, entry) -> {
-                byShardId.compute(entry.shardId(), (k, versionstamps) -> {
-                    if (versionstamps == null) {
-                        versionstamps = new ArrayList<>();
-                    }
-                    versionstamps.add(versionstamp);
-                    return versionstamps;
-                });
-            });
-            case DocumentLocationSink documentLocationSink -> documentLocationSink.forEach((ignored, entry) -> {
-                byShardId.compute(entry.shardId(), (k, versionstamps) -> {
-                    if (versionstamps == null) {
-                        versionstamps = new ArrayList<>();
-                    }
-                    versionstamps.add(entry.versionstamp());
-                    return versionstamps;
-                });
+    Map<Integer, List<DocumentRef>> accumulateDocumentRefsByShardId(QueryContext ctx, DataSink sink) {
+        // Deduplicate by ObjectId only when a multi-key index produced the results
+        if (ctx.isScannedIndexMultiKey()) {
+            sink.dedupByObjectId();
+        }
+
+        Map<Integer, List<DocumentRef>> byShardId = new HashMap<>();
+        for (DocumentRef ref : sink.entries()) {
+            byShardId.compute(ref.shardId(), (k, refs) -> {
+                if (refs == null) {
+                    refs = new ArrayList<>();
+                }
+                refs.add(ref);
+                return refs;
             });
         }
         return byShardId;

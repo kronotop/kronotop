@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -30,7 +30,9 @@ import com.kronotop.volume.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.StampedLock;
 
 import static com.kronotop.volume.Subspaces.CHANGELOG_BACK_POINTER_SUBSPACE;
 import static com.kronotop.volume.Subspaces.CHANGELOG_SUBSPACE;
@@ -44,6 +46,9 @@ public class ChangeLog {
     private final Context context;
     private final DirectorySubspace subspace;
     private final HybridLogicalClock hlc = new HybridLogicalClock();
+    private final ConcurrentSkipListSet<Long> inFlightSequenceNumbers = new ConcurrentSkipListSet<>();
+    private final StampedLock watermarkLock = new StampedLock();
+    private long lastGeneratedSequenceNumber;
 
     /**
      * Creates a new ChangeLog instance.
@@ -54,6 +59,9 @@ public class ChangeLog {
     public ChangeLog(Context context, DirectorySubspace subspace) {
         this.context = context;
         this.subspace = subspace;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            this.lastGeneratedSequenceNumber = ChangeLog.getLatestSequenceNumber(tr, subspace);
+        }
     }
 
     /**
@@ -99,7 +107,7 @@ public class ChangeLog {
      * @param segmentId the segment identifier to match
      * @param pointer   the tail pointer containing position, length, and versionstamp
      * @return the sequence number aligned with the pointer, or -1 if no matching entry is found
-     * @throws InconsistentVolumeMetadataException if position matches but versionstamp does not
+     * @throws InconsistentVolumeMetadataException if the position matches but the versionstamp does not
      */
     public static long resolveTailSequenceNumber(Transaction tr,
                                                  DirectorySubspace subspace,
@@ -274,6 +282,67 @@ public class ChangeLog {
     }
 
     /**
+     * Generates the next HLC sequence number and registers it as in-flight.
+     */
+    private long nextSequenceNumber(Transaction tr) {
+        long stamp = watermarkLock.writeLock();
+        try {
+            long seq = hlc.next(context.now());
+            inFlightSequenceNumbers.add(seq);
+            lastGeneratedSequenceNumber = seq;
+            registerCompletion(tr, seq);
+            return seq;
+        } finally {
+            watermarkLock.unlockWrite(stamp);
+        }
+    }
+
+    /**
+     * Registers a callback to remove the sequence number from the in-flight set when the transaction completes.
+     *
+     * <p>{@code getVersionstamp()} only resolves after a successful commit. If the transaction is
+     * rolled back (closed without committing), the future never completes. {@code orTimeout} acts
+     * as a safety net: FDB transactions cannot exceed 5 seconds, so any future still pending after
+     * that must belong to a rolled-back transaction.</p>
+     */
+    private void registerCompletion(Transaction tr, long sequenceNumber) {
+        tr.getVersionstamp().orTimeout(10, TimeUnit.SECONDS).whenComplete((result, error) -> {
+            long stamp = watermarkLock.writeLock();
+            try {
+                inFlightSequenceNumbers.remove(sequenceNumber);
+            } finally {
+                watermarkLock.unlockWrite(stamp);
+            }
+        });
+    }
+
+    private long computeWatermark() {
+        // protected by watermarkLock
+        if (!inFlightSequenceNumbers.isEmpty()) {
+            return inFlightSequenceNumbers.first() - 1;
+        }
+        return lastGeneratedSequenceNumber;
+    }
+
+    /**
+     * Returns the safe watermark: all sequence numbers up to and including this value are committed.
+     * Returns 0 before any operations have been generated.
+     */
+    public long getSafeWatermark() {
+        long stamp = watermarkLock.tryOptimisticRead();
+        long result = computeWatermark();
+        if (watermarkLock.validate(stamp)) {
+            return result;
+        }
+        stamp = watermarkLock.readLock();
+        try {
+            return computeWatermark();
+        } finally {
+            watermarkLock.unlockRead(stamp);
+        }
+    }
+
+    /**
      * Records an append operation for a new entry with an incomplete versionstamp.
      *
      * @param tr          the transaction to use
@@ -282,23 +351,23 @@ public class ChangeLog {
      * @param userVersion the user version for the versionstamp
      */
     public void appendOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, int userVersion) {
-        long sequenceNumber = hlc.next(context.now());
+        long sequenceNumber = nextSequenceNumber(tr);
         Tuple primaryKeyTuple = getPrimaryKeyTuple(sequenceNumber, ParentOperationKind.LIFECYCLE, OperationKind.APPEND, Versionstamp.incomplete(userVersion));
         emitChangeWithMutation(tr, metadata, prefix, primaryKeyTuple);
         setBackPointer(tr, metadata.segmentId(), metadata.position(), sequenceNumber);
     }
 
     /**
-     * Records an append operation for an existing entry with a complete versionstamp.
+     * Records an insert operation for an existing entry with a complete versionstamp.
      *
      * @param tr           the transaction to use
      * @param metadata     the entry metadata
      * @param prefix       the prefix associated with the entry
      * @param versionstamp the complete versionstamp
      */
-    public void appendOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, Versionstamp versionstamp) {
-        long sequenceNumber = hlc.next(context.now());
-        Tuple primaryKeyTuple = getPrimaryKeyTuple(sequenceNumber, ParentOperationKind.LIFECYCLE, OperationKind.APPEND, versionstamp);
+    public void insertOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, Versionstamp versionstamp) {
+        long sequenceNumber = nextSequenceNumber(tr);
+        Tuple primaryKeyTuple = getPrimaryKeyTuple(sequenceNumber, ParentOperationKind.LIFECYCLE, OperationKind.INSERT, versionstamp);
         emitChange(tr, metadata, prefix, primaryKeyTuple);
         setBackPointer(tr, metadata.segmentId(), metadata.position(), sequenceNumber);
     }
@@ -312,7 +381,7 @@ public class ChangeLog {
      * @param versionstamp the complete versionstamp
      */
     public void deleteOperation(Transaction tr, EntryMetadata metadata, Prefix prefix, Versionstamp versionstamp) {
-        long sequenceNumber = hlc.next(context.now());
+        long sequenceNumber = nextSequenceNumber(tr);
         Tuple primaryKeyTuple = getPrimaryKeyTuple(sequenceNumber, ParentOperationKind.FINALIZATION, OperationKind.DELETE, versionstamp);
         emitChange(tr, metadata, prefix, primaryKeyTuple);
         setBackPointer(tr, metadata.segmentId(), metadata.position(), sequenceNumber);
@@ -332,7 +401,7 @@ public class ChangeLog {
                                 EntryMetadata metadata,
                                 Prefix prefix,
                                 Versionstamp versionstamp) {
-        long sequenceNumber = hlc.next(context.now());
+        long sequenceNumber = nextSequenceNumber(tr);
         Tuple primaryKeyTuple = getPrimaryKeyTuple(sequenceNumber, ParentOperationKind.LIFECYCLE, OperationKind.UPDATE, versionstamp);
         byte[] key = subspace.pack(primaryKeyTuple);
         byte[] value = packValueForUpdate(metadata, prevMetadata, prefix);

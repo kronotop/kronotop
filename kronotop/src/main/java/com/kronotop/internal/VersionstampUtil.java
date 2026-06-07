@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,10 @@
 
 package com.kronotop.internal;
 
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.io.BaseEncoding;
+
 
 /**
  * The VersionstampUtils class provides utility methods for encoding and decoding
@@ -54,5 +56,26 @@ public class VersionstampUtil {
      */
     public static Versionstamp base32HexDecode(String versionstamp) {
         return Versionstamp.fromBytes(BASE32_HEX.decode(versionstamp));
+    }
+
+    /**
+     * Decodes a Versionstamp from the raw bytes stored by a {@code SET_VERSIONSTAMPED_VALUE} mutation.
+     *
+     * @param value the raw FDB value containing a committed versionstamp
+     * @return the decoded Versionstamp
+     */
+    public static Versionstamp decodeVersionstampedValue(byte[] value) {
+        return Tuple.fromBytes(value).getVersionstamp(0);
+    }
+
+    /**
+     * Encodes a complete Versionstamp into the Tuple format consistent with committed
+     * {@code SET_VERSIONSTAMPED_VALUE} mutations.
+     *
+     * @param versionstamp the complete Versionstamp to encode
+     * @return the encoded byte array suitable for versionstamped value storage
+     */
+    public static byte[] encodeVersionstampedValue(Versionstamp versionstamp) {
+        return Tuple.from(versionstamp).pack();
     }
 }

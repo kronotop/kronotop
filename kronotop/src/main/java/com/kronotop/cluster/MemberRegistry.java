@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package com.kronotop.cluster;
 
 import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Tuple;
@@ -27,7 +26,12 @@ import com.kronotop.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.transaction.TransactionUtil;
+import io.github.resilience4j.retry.Retry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.TreeSet;
@@ -39,6 +43,7 @@ import java.util.concurrent.CompletionException;
  * and retrieving member details from a FoundationDB backend.
  */
 class MemberRegistry {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MemberRegistry.class);
     private static final String MEMBER_KEY = "member";
     private final Context context;
 
@@ -72,7 +77,7 @@ class MemberRegistry {
      */
     boolean isAdded(Transaction tr, String memberId) {
         KronotopDirectoryNode directory = getDirectoryNode(memberId);
-        return DirectoryLayer.getDefault().exists(tr, directory.toList()).join();
+        return context.getDirectoryLayer().exists(tr, directory.toList()).join();
     }
 
     /**
@@ -96,33 +101,57 @@ class MemberRegistry {
      * @throws MemberAlreadyRegisteredException if the member is already registered
      */
     DirectorySubspace add(Member member) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            if (isAdded(tr, member.getId())) {
-                throw new MemberAlreadyRegisteredException(
-                        String.format("Member: %s already registered", member.getId())
-                );
-            }
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
+        return retry.executeSupplier(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                if (isAdded(tr, member.getId())) {
+                    throw new MemberAlreadyRegisteredException(
+                            String.format("Member: %s already registered", member.getId())
+                    );
+                }
 
-            KronotopDirectoryNode directory = getDirectoryNode(member.getId());
-            DirectorySubspace subspace = DirectoryLayer.getDefault().create(tr, directory.toList()).join();
-            tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtil.writeValueAsBytes(member));
-            tr.commit().join();
-            return subspace;
-        }
+                KronotopDirectoryNode directory = getDirectoryNode(member.getId());
+                DirectorySubspace subspace = context.getDirectoryLayer().create(tr, directory.toList()).join();
+                tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtil.writeValueAsBytes(member));
+                tr.commit().join();
+                return subspace;
+            }
+        });
     }
 
     /**
-     * Updates the member information in the database. If the member is not registered,
-     * a MemberNotRegisteredException is thrown.
+     * Atomically registers a new member or updates an existing one.
      *
-     * @param member the member whose information is to be updated
-     * @throws MemberNotRegisteredException if the member is not registered
+     * @param member              the member to register or update
+     * @param forceInitialization if true, allows re-registration of a RUNNING member
+     * @throws MemberAlreadyRunningException if the member is already RUNNING and forceInitialization is false
      */
-    void update(Member member) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            update(tr, member);
-            tr.commit().join();
-        }
+    void registerOrUpdate(Member member, boolean forceInitialization) {
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
+        retry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                KronotopDirectoryNode directory = getDirectoryNode(member.getId());
+                if (isAdded(tr, member.getId())) {
+                    DirectorySubspace subspace = context.getDirectoryLayer().open(tr, directory.toList()).join();
+                    byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
+                    byte[] data = tr.get(key).join();
+                    Member existing = JSONUtil.readValue(data, Member.class);
+
+                    if (existing.getStatus().equals(MemberStatus.RUNNING) && !forceInitialization) {
+                        LOGGER.warn("Member: {} is already in {} status", member.getId(), MemberStatus.RUNNING);
+                        throw new MemberAlreadyRunningException(member.getId());
+                    }
+
+                    LOGGER.debug("Updating existing member: {}, previous status: {}", member.getId(), existing.getStatus());
+                    tr.set(key, JSONUtil.writeValueAsBytes(member));
+                } else {
+                    DirectorySubspace subspace = context.getDirectoryLayer().create(tr, directory.toList()).join();
+                    tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtil.writeValueAsBytes(member));
+                    LOGGER.info("Member: {} has been registered", member.getId());
+                }
+                tr.commit().join();
+            }
+        });
     }
 
     /**
@@ -139,7 +168,7 @@ class MemberRegistry {
         }
 
         KronotopDirectoryNode directory = getDirectoryNode(member.getId());
-        DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+        DirectorySubspace subspace = context.getDirectoryLayer().open(tr, directory.toList()).join();
         tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtil.writeValueAsBytes(member));
     }
 
@@ -151,10 +180,13 @@ class MemberRegistry {
      * @throws MemberNotRegisteredException if the specified member is not registered
      */
     void remove(String memberId) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            remove(tr, memberId);
-            tr.commit().join();
-        }
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
+        retry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                remove(tr, memberId);
+                tr.commit().join();
+            }
+        });
     }
 
     /**
@@ -168,7 +200,7 @@ class MemberRegistry {
     void remove(Transaction tr, String memberId) {
         try {
             KronotopDirectoryNode directory = getDirectoryNode(memberId);
-            DirectoryLayer.getDefault().remove(tr, directory.toList()).join();
+            context.getDirectoryLayer().remove(tr, directory.toList()).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
                 throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
@@ -188,22 +220,25 @@ class MemberRegistry {
      * @throws CompletionException          if there is an exception during the transaction completion
      */
     Member setStatus(String memberId, MemberStatus status) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Member member = findMember(tr, memberId);
-            member.setStatus(status);
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
+        return retry.executeSupplier(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                Member member = findMember(tr, memberId);
+                member.setStatus(status);
 
-            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, getDirectoryNode(memberId).toList()).join();
-            byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
-            tr.set(key, JSONUtil.writeValueAsBytes(member));
-            tr.commit().join();
+                DirectorySubspace subspace = context.getDirectoryLayer().open(tr, getDirectoryNode(memberId).toList()).join();
+                byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
+                tr.set(key, JSONUtil.writeValueAsBytes(member));
+                tr.commit().join();
 
-            return member;
-        } catch (CompletionException e) {
-            if (e.getCause() instanceof NoSuchDirectoryException) {
-                throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
+                return member;
+            } catch (CompletionException e) {
+                if (e.getCause() instanceof NoSuchDirectoryException) {
+                    throw new MemberNotRegisteredException(String.format("Member: %s not registered", memberId));
+                }
+                throw e;
             }
-            throw e;
-        }
+        });
     }
 
     /**
@@ -217,7 +252,7 @@ class MemberRegistry {
         KronotopDirectoryNode directory = getDirectoryNode(memberId);
 
         try {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+            DirectorySubspace subspace = context.getDirectoryLayer().open(tr, directory.toList()).join();
             byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
             byte[] data = tr.get(key).join();
             if (data == null) {
@@ -270,9 +305,9 @@ class MemberRegistry {
                 cluster(context.getClusterName()).
                 metadata().
                 members();
-        List<String> memberIds = DirectoryLayer.getDefault().list(tr, directory.toList()).join();
+        List<String> memberIds = context.getDirectoryLayer().list(tr, directory.toList()).join();
         for (String memberId : memberIds) {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, getDirectoryNode(memberId).toList()).join();
+            DirectorySubspace subspace = context.getDirectoryLayer().open(tr, getDirectoryNode(memberId).toList()).join();
             byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
             byte[] value = tr.get(key).join();
             Member member = JSONUtil.readValue(value, Member.class);

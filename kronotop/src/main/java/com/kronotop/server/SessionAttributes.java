@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import com.kronotop.namespace.handlers.Namespace;
 import io.netty.util.AttributeKey;
 
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,8 +48,6 @@ public class SessionAttributes {
 
     public static final AttributeKey<Map<String, Namespace>> OPEN_NAMESPACES = AttributeKey.valueOf("open_namespaces");
 
-    public static final AttributeKey<LinkedList<Integer>> ASYNC_RETURNING = AttributeKey.valueOf("async_returning");
-
     public static final AttributeKey<List<Request>> QUEUED_COMMANDS = AttributeKey.valueOf("queued_commands");
 
     public static final AttributeKey<Boolean> MULTI = AttributeKey.valueOf("multi");
@@ -73,9 +70,9 @@ public class SessionAttributes {
 
     public static final AttributeKey<ReplyType> REPLY_TYPE = AttributeKey.valueOf("reply_type");
 
-    public static final AttributeKey<Integer> LIMIT = AttributeKey.valueOf("limit");
+    public static final AttributeKey<ObjectIdFormat> OBJECT_ID_FORMAT = AttributeKey.valueOf("object_id_format");
 
-    public static final AttributeKey<Boolean> PIN_READ_VERSION = AttributeKey.valueOf("pin_read_version");
+    public static final AttributeKey<Integer> LIMIT = AttributeKey.valueOf("limit");
 
     public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_READ_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_read_query_contexts");
 

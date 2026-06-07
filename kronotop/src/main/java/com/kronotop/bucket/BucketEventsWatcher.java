@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,14 +17,13 @@
 package com.kronotop.bucket;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.kronotop.Context;
 import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.vector.VectorGraphIndexGroup;
+import com.kronotop.bucket.vector.VectorGraphIndexRegistry;
 import com.kronotop.cluster.BaseBroadcastEvent;
 import com.kronotop.cluster.BroadcastEventKind;
 import com.kronotop.cluster.Route;
@@ -32,12 +31,15 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.internal.DirectoryUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.journal.Consumer;
 import com.kronotop.journal.ConsumerConfig;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
+import com.kronotop.namespace.NamespaceBeingRemovedException;
+import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.worker.Worker;
 import com.kronotop.worker.WorkerTag;
 import com.kronotop.worker.WorkerUtil;
@@ -47,11 +49,13 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.*;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * Watches bucket metadata change events and maintains version tracking for shards.
@@ -77,7 +81,7 @@ import java.util.concurrent.*;
  * For each metadata change event, the watcher:
  * <ol>
  *   <li>Loads the current BucketMetadata to get the latest version number
- *   <li>Iterates through all bucket shards (0 to numberOfShards-1)
+ *   <li>Iterates through all bucket shards
  *   <li>For shards where this member is the primary, updates lastSeenVersions/[metadataId]
  *   <li>Stores the version as an 8-byte little-endian long value
  * </ol>
@@ -92,10 +96,11 @@ import java.util.concurrent.*;
  * unwatches all keys and stops the consumer, ensuring clean resource cleanup.
  *
  * <p><b>Error Handling:</b>
- * Individual event processing errors are logged but do not halt the watcher. Events that
- * fail processing are marked as consumed and skipped. Transaction operations use automatic
- * retries via Resilience4j. If a bucket no longer exists, NoSuchBucketException is silently
- * ignored since the metadata change may have been a deletion.
+ * Individual event processing errors break the inner consumption loop, leaving the failed
+ * event unconsumed so it will be retried on the next watcher trigger. The outer watcher loop
+ * applies a 1-second backoff on errors to prevent tight spinning. Transaction operations use
+ * automatic retries via Resilience4j. If a bucket no longer exists, NoSuchBucketException is
+ * silently ignored since the metadata change may have been a deletion.
  */
 public class BucketEventsWatcher implements Runnable {
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketEventsWatcher.class);
@@ -105,8 +110,8 @@ public class BucketEventsWatcher implements Runnable {
     private final Map<Integer, DirectorySubspace> subspaces = new HashMap<>();
     private final KeyWatcher keyWatcher = new KeyWatcher();
     private final CountDownLatch shutdownLatch = new CountDownLatch(1);
-    private final int numberOfShards;
-    private final RoutingService routingService;
+    private final RoutingService routing;
+    private final PlanCache planCache;
     private volatile boolean shutdown;
 
     /**
@@ -114,10 +119,10 @@ public class BucketEventsWatcher implements Runnable {
      *
      * @param context the system context providing services and configuration
      */
-    public BucketEventsWatcher(Context context) {
+    public BucketEventsWatcher(Context context, PlanCache planCache) {
         this.context = context;
-        this.routingService = context.getService(RoutingService.NAME);
-        this.numberOfShards = context.getConfig().getInt("bucket.shards");
+        this.planCache = planCache;
+        this.routing = context.getService(RoutingService.NAME);
 
         String consumerId = String.format("%s-member:%s",
                 journalName,
@@ -147,7 +152,7 @@ public class BucketEventsWatcher implements Runnable {
                 shard(shardId).
                 lastSeenVersions();
         return subspaces.computeIfAbsent(shardId,
-                (ignored) -> DirectoryLayer.getDefault().open(tr, directory.toList()).join()
+                (ignored) -> context.getDirectoryLayer().open(tr, directory.toList()).join()
         );
     }
 
@@ -158,9 +163,9 @@ public class BucketEventsWatcher implements Runnable {
      * @param metadataId the bucket metadata identifier
      * @param value      the version number encoded as 8-byte little-endian
      */
-    private void updateLastSeenVersion(Transaction tr, long metadataId, byte[] value) {
-        for (int shardId = 0; shardId < numberOfShards; shardId++) {
-            Route route = routingService.findRoute(ShardKind.BUCKET, shardId);
+    private void updateLastSeenVersion(Transaction tr, UUID metadataId, byte[] value) {
+        for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
+            Route route = routing.findRoute(ShardKind.BUCKET, shardId);
             if (route == null) {
                 LOGGER.error("Bucket shard '{}' could not be found", shardId);
                 continue;
@@ -173,21 +178,11 @@ public class BucketEventsWatcher implements Runnable {
         }
     }
 
-    private boolean isShardOwnerFor(long indexId) {
-        // numberOfShards is a small value, there is no overflow risk here.
-        int shardId = Math.toIntExact(indexId % (long) numberOfShards);
-        Route route = routingService.findRoute(ShardKind.BUCKET, shardId);
-        if (route == null) {
-            return false;
-        }
-        return route.primary().equals(context.getMember());
-    }
-
     private void updateLastSeenVersionIfNoWorkers(Transaction tr, BucketMetadata metadata, String tag) {
         List<Worker> workers = context.getWorkerRegistry().get(metadata.namespace(), tag);
         if (workers.isEmpty()) {
             byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(metadata.version()).array();
-            updateLastSeenVersion(tr, metadata.id(), value);
+            updateLastSeenVersion(tr, metadata.uuid(), value);
         }
     }
 
@@ -202,26 +197,68 @@ public class BucketEventsWatcher implements Runnable {
         if (Objects.requireNonNull(base.kind()) == BroadcastEventKind.BUCKET_METADATA_UPDATED_EVENT) {
             BucketMetadataUpdatedEvent evt = JSONUtil.readValue(event.value(), BucketMetadataUpdatedEvent.class);
             try {
-                // forceOpen will cache the BucketMetadata again
-                BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, evt.namespace(), evt.bucket());
+                // forceOpen will cache the BucketMetadata again if it's not removed.
+                BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr.snapshot(), evt.namespace(), evt.bucket());
                 byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(metadata.version()).array();
-                updateLastSeenVersion(tr, metadata.id(), value);
-            } catch (NoSuchBucketException ignored) {
+                updateLastSeenVersion(tr, metadata.uuid(), value);
+                planCache.invalidateBucket(evt.namespace(), evt.id());
+            } catch (NoSuchBucketException | NoSuchNamespaceException | NamespaceBeingRemovedException ignored) {
+                // BucketBeingRemovedException cannot occur here: forceOpen passes force=true,
+                // which bypasses the removed-bucket check in doOpen.
             }
         } else if (Objects.requireNonNull(base.kind()) == BroadcastEventKind.BUCKET_REMOVED_EVENT) {
             BucketRemovedEvent evt = JSONUtil.readValue(event.value(), BucketRemovedEvent.class);
             try {
-                // forceOpen will cache the BucketMetadata again
-                BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, evt.namespace(), evt.bucket());
+                BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr.snapshot(), evt.namespace(), evt.bucket());
+
+                // Clean up all in-memory vector indexes for this bucket
+                BucketService bucketService = context.getService(BucketService.NAME);
+                VectorGraphIndexRegistry registry = bucketService.getVectorGraphRegistry();
+                registry.remove(evt.namespace(), evt.bucket());
+
+                // Delete vector index disk files for the entire bucket
+                Path bucketVectorDir = VectorGraphIndexGroup.resolveVectorDir(bucketService.getBucketDataDir())
+                        .resolve(metadata.uuid().toString());
+                DirectoryUtil.deleteRecursively(bucketVectorDir);
+
                 String tag = WorkerTag.generate(DataStructureKind.BUCKET, metadata.name());
                 List<Worker> workers = context.getWorkerRegistry().get(metadata.namespace(), tag);
+                planCache.invalidateBucket(evt.namespace(), evt.id());
+
+                // Try to reduce entropy
+                // Invalidate bucket metadata cache to prevent stale prefix on recreation
+                context.getBucketMetadataCache().invalidate(evt.namespace(), evt.bucket());
 
                 // This may fail, no worries. The operator should call bucket.purge <bucket-name> command again.
-                WorkerUtil.shutdownThenAwait(metadata.namespace(), workers);
+                WorkerUtil.shutdownThenAwait(context.getWorkerRegistry(), metadata.namespace(), workers);
 
                 updateLastSeenVersionIfNoWorkers(tr, metadata, tag);
-            } catch (NoSuchBucketException ignored) {
+            } catch (NoSuchBucketException | NoSuchNamespaceException | NamespaceBeingRemovedException ignored) {
+                // BucketBeingRemovedException cannot occur here: forceOpen passes force=true,
+                // which bypasses the removed-bucket check in doOpen.
             }
+        } else if (Objects.requireNonNull(base.kind()) == BroadcastEventKind.VECTOR_INDEX_DROPPED_EVENT) {
+            VectorIndexDroppedEvent evt = JSONUtil.readValue(event.value(), VectorIndexDroppedEvent.class);
+            try {
+                BucketService bucketService = context.getService(BucketService.NAME);
+                VectorGraphIndexRegistry registry = bucketService.getVectorGraphRegistry();
+                registry.remove(evt.namespace(), evt.bucket(), evt.indexId());
+
+                Path indexDir = VectorGraphIndexGroup.resolveVectorDir(bucketService.getBucketDataDir())
+                        .resolve(evt.bucketId().toString())
+                        .resolve(Long.toString(evt.indexId()));
+                DirectoryUtil.deleteRecursively(indexDir);
+
+                BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr.snapshot(), evt.namespace(), evt.bucket());
+                byte[] value = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(metadata.version()).array();
+                updateLastSeenVersion(tr, metadata.uuid(), value);
+                planCache.invalidateBucket(evt.namespace(), evt.id());
+            } catch (NoSuchBucketException | NoSuchNamespaceException | NamespaceBeingRemovedException ignored) {
+            }
+        } else if (Objects.requireNonNull(base.kind()) == BroadcastEventKind.INDEX_STATISTICS_UPDATED_EVENT) {
+            IndexStatisticsUpdatedEvent evt = JSONUtil.readValue(event.value(), IndexStatisticsUpdatedEvent.class);
+            planCache.invalidateBucket(evt.namespace(), evt.id());
+            context.getBucketMetadataCache().invalidate(evt.namespace(), evt.bucket());
         } else {
             throw new KronotopException(String.format("Unknown %s kind: %s", JournalName.BUCKET_EVENTS, base.kind()));
         }
@@ -245,7 +282,8 @@ public class BucketEventsWatcher implements Runnable {
                         processBucketEvent(tr, event);
                         consumer.markConsumed(tr, event);
                     } catch (Exception e) {
-                        LOGGER.error("Failed to process a Bucket metadata event, passing it", e);
+                        LOGGER.error("Bucket event processing failed – will retry on next trigger", e);
+                        break;
                     }
                 }
                 tr.commit().join();
@@ -272,12 +310,21 @@ public class BucketEventsWatcher implements Runnable {
                         watcher.join();
                     } catch (CancellationException e) {
                         LOGGER.debug("{} watcher has been cancelled", JournalName.BUCKET_EVENTS);
+                        // Drain any pending events before exiting. During shutdown,
+                        // BucketService calls flushAll() after this watcher stops.
+                        // Without this drain, a VectorIndexDroppedEvent could remain
+                        // unprocessed, leaving the dropped index in the registry —
+                        // flushAll() would then re-persist its on-heap data to disk
+                        // as stale files.
+                        LOGGER.debug("Draining remaining {} events before shutdown", JournalName.BUCKET_EVENTS);
+                        fetchBucketEvents();
                         return;
                     }
                     // A new event is ready to read
                     fetchBucketEvents();
                 } catch (Exception e) {
                     LOGGER.error("Error while watching journal: {}", JournalName.BUCKET_EVENTS, e);
+                    LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
                 }
             }
         } finally {

@@ -16,13 +16,13 @@
 
 package com.kronotop.cli;
 
-import com.kronotop.cli.resp.RespValue;
+import com.kronotop.resp.RespValue;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Formats RESP values as CSV output matching redis-cli behavior.
+ * Formats RESP values as CSV output matching valkey-cli behavior.
  */
 public class CsvResponseFormatter {
 
@@ -40,7 +40,7 @@ public class CsvResponseFormatter {
             case RespValue.BlobError be -> fields.add(quoteString(be.code() + " " + be.message()));
             case RespValue.Number n -> fields.add(String.valueOf(n.value()));
             case RespValue.Double d -> fields.add(String.valueOf(d.value()));
-            case RespValue.Boolean b -> fields.add(quoteString(b.value() ? "true" : "false"));
+            case RespValue.Boolean b -> fields.add(quoteString(Boolean.toString(b.value())));
             case RespValue.Null ignored -> fields.add("");
             case RespValue.BigNumber bn -> fields.add(bn.value().toString());
             case RespValue.VerbatimString vs -> fields.add(quoteString(vs.value()));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,28 +20,31 @@ import com.apple.foundationdb.FDBException;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.MemberAttributes;
+import com.kronotop.instance.KronotopInstanceStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.RedisService;
-import com.kronotop.redis.handlers.transactions.protocol.DiscardMessage;
-import com.kronotop.redis.handlers.transactions.protocol.ExecMessage;
-import com.kronotop.redis.handlers.transactions.protocol.MultiMessage;
-import com.kronotop.redis.handlers.transactions.protocol.WatchMessage;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.impl.RESP3Request;
 import com.kronotop.server.impl.RESP3Response;
 import com.kronotop.server.impl.TransactionResponse;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.stash.StashService;
+import com.kronotop.stash.handlers.transactions.protocol.DiscardMessage;
+import com.kronotop.stash.handlers.transactions.protocol.ExecMessage;
+import com.kronotop.stash.handlers.transactions.protocol.MultiMessage;
+import com.kronotop.stash.handlers.transactions.protocol.WatchMessage;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.watcher.Watcher;
 import com.typesafe.config.Config;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.ssl.NotSslRecordException;
 import io.netty.util.Attribute;
 import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLHandshakeException;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -92,16 +95,18 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private final Context context;
     private final ReadWriteLock transactionLock = new ReentrantReadWriteLock(true);
     private final Watcher watcher;
-    private final RedisService redisService;
+    private final StashService stashService;
     private final CommandHandlerRegistry commands;
+    private final ServerKind serverKind;
     private final boolean logCommandForDebugging;
     private boolean authEnabled = false;
 
-    public KronotopChannelDuplexHandler(Context context, CommandHandlerRegistry commands) {
+    public KronotopChannelDuplexHandler(Context context, CommandHandlerRegistry commands, ServerKind serverKind) {
         this.context = context;
         this.commands = commands;
+        this.serverKind = serverKind;
         this.watcher = context.getService(Watcher.NAME);
-        this.redisService = context.getService(RedisService.NAME);
+        this.stashService = context.getService(StashService.NAME);
 
         Config config = context.getConfig();
         this.logCommandForDebugging = config.hasPath("log_command_for_debugging") && config.getBoolean("log_command_for_debugging");
@@ -111,10 +116,9 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         }
     }
 
-    private void checkMaximumParameterCount(Handler handler, Request request) throws WrongNumberOfArgumentsException {
-        MaximumParameterCount annotation = handler.getClass().getAnnotation(MaximumParameterCount.class);
-        if (annotation != null) {
-            if (request.getParams().size() > annotation.value()) {
+    private void checkMaximumParameterCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
+        if (entry.hasMaximumParameterCount()) {
+            if (request.getParams().size() > entry.maximumParameterCount()) {
                 throw new WrongNumberOfArgumentsException(
                         String.format("wrong number of arguments for '%s' command", request.getCommand())
                 );
@@ -122,10 +126,9 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         }
     }
 
-    private void checkMinimumParameterCount(Handler handler, Request request) throws WrongNumberOfArgumentsException {
-        MinimumParameterCount annotation = handler.getClass().getAnnotation(MinimumParameterCount.class);
-        if (annotation != null) {
-            if (request.getParams().size() < annotation.value()) {
+    private void checkMinimumParameterCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
+        if (entry.hasMinimumParameterCount()) {
+            if (request.getParams().size() < entry.minimumParameterCount()) {
                 throw new WrongNumberOfArgumentsException(
                         String.format("wrong number of arguments for '%s' command", request.getCommand())
                 );
@@ -149,44 +152,51 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     private void exceptionToRespError(Request request, Response response, Exception exception) {
-        if (exception instanceof KronotopException exp) {
-            if (exp.getCause() != null) {
-                response.writeError(exp.getPrefix(), exp.getCause().getMessage());
-            } else {
-                response.writeError(exp.getPrefix(), exp.getMessage());
-            }
-        } else if (exception instanceof CompletionException) {
-            if (exception.getCause() instanceof FDBException) {
-                String message = RESPError.decapitalize(exception.getCause().getMessage());
-                if (message.equalsIgnoreCase(RESPError.TRANSACTION_TOO_OLD_MESSAGE)) {
-                    response.writeError(RESPError.TRANSACTIONOLD, message);
-                } else if (message.equalsIgnoreCase(RESPError.TRANSACTION_BYTE_LIMIT_MESSAGE)) {
-                    response.writeError(RESPError.TRANSACTION, message);
+        switch (exception) {
+            case KronotopException exp -> {
+                if (exp.getCause() != null) {
+                    response.writeError(exp.getPrefix(), exp.getCause().getMessage());
                 } else {
+                    response.writeError(exp.getPrefix(), exp.getMessage());
+                }
+            }
+            case CompletionException compExp -> {
+                Throwable cause = TransactionUtil.getRootCause(compExp);
+                if (cause instanceof FDBException fdbEx) {
+                    RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
+                    response.writeError(result.prefix(), result.message());
+                } else if (cause instanceof KronotopException krEx) {
+                    response.writeError(krEx.getPrefix(), krEx.getMessage());
+                } else {
+                    String message;
+                    message = RESPError.decapitalize(Objects.requireNonNullElse(cause, compExp).getMessage());
                     response.writeError(message);
                 }
-                return;
             }
-            throw new KronotopException(exception);
-        } else {
-            StringBuilder command = new StringBuilder();
-            command.append(request.getCommand()).append(" ");
-            for (ByteBuf buf : request.getParams()) {
-                byte[] rawParam = new byte[buf.readableBytes()];
-                buf.readBytes(rawParam);
-                String param = new String(rawParam);
-                command.append(param).append(" ");
+            case FDBException fdbEx -> {
+                RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
+                response.writeError(result.prefix(), result.message());
             }
-            LOGGER.debug("Unhandled error while serving command: {}", command, exception);
-            response.writeError(exception.getMessage());
+            default -> {
+                StringBuilder command = new StringBuilder();
+                command.append(request.getCommand()).append(" ");
+                for (ByteBuf buf : request.getParams()) {
+                    byte[] rawParam = ProtocolMessageUtil.readAsByteArray(buf);
+                    buf.resetReaderIndex();
+                    String param = new String(rawParam);
+                    command.append(param).append(" ");
+                }
+                LOGGER.debug("Unhandled error while serving command: {}: '{}'", command, exception.getMessage());
+                response.writeError(exception.getMessage());
+            }
         }
     }
 
-    private void beforeExecute(Handler handler, Request request) {
-        checkMinimumParameterCount(handler, request);
-        checkMaximumParameterCount(handler, request);
+    private void beforeExecute(HandlerEntry entry, Request request) {
+        checkMinimumParameterCount(entry, request);
+        checkMaximumParameterCount(entry, request);
         try {
-            handler.beforeExecute(request);
+            entry.handler().beforeExecute(request);
         } catch (Exception e) {
             for (ByteBuf param : request.getParams()) {
                 // Reset the reader index to re-construct the received command for debugging purposes.
@@ -259,11 +269,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
 
             Attribute<List<Request>> queuedCommands = session.attr(SessionAttributes.QUEUED_COMMANDS);
             for (Request request : queuedCommands.get()) {
-                Handler handler = commands.get(request.getCommand());
-                if (!handler.isRedisCompatible()) {
+                HandlerEntry entry = commands.get(request.getCommand());
+                if (!entry.handler().isRedisCompatible()) {
                     throw new KronotopException("Redis compatibility required");
                 }
-                executeCommand(handler, request, transactionResponse);
+                executeCommand(entry.handler(), request, transactionResponse);
             }
             transactionResponse.flush();
         } catch (ExecAbortException e) {
@@ -281,8 +291,8 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         transactionLock.readLock().lock();
         try {
             try {
-                Handler handler = commands.get(request.getCommand());
-                beforeExecute(handler, request);
+                HandlerEntry entry = commands.get(request.getCommand());
+                beforeExecute(entry, request);
             } catch (Exception e) {
                 Attribute<Boolean> redisMultiDiscarded = request.getSession().attr(SessionAttributes.MULTI_DISCARDED);
                 redisMultiDiscarded.set(true);
@@ -341,7 +351,9 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
                 try {
                     executeRedisTransaction(session);
                 } finally {
-                    redisService.cleanupRedisTransaction(request.getSession());
+                    if (stashService != null) {
+                        stashService.cleanupRedisTransaction(request.getSession());
+                    }
                 }
                 break;
             default:
@@ -360,13 +372,16 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      *
      * @param request  the request object containing the command, its parameters, and context
      * @param response the response object used to send back the result or error to the client
-     * @param handler  the handler responsible for processing the specific command
+     * @param entry    the handler entry containing the handler and cached metadata
      */
-    private void executeRedisCompatibleCommand(Request request, Response response, Handler handler) {
+    private void executeRedisCompatibleCommand(Request request, Response response, HandlerEntry entry) {
         transactionLock.readLock().lock();
-        beforeExecute(handler, request);
-        executeCommand(handler, request, response);
-        transactionLock.readLock().unlock();
+        try {
+            beforeExecute(entry, request);
+            executeCommand(entry.handler(), request, response);
+        } finally {
+            transactionLock.readLock().unlock();
+        }
     }
 
     /**
@@ -375,11 +390,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      *
      * @param request  the request object containing the command information and parameters
      * @param response the response object used to send the result or error back to the client
-     * @param handler  the handler responsible for processing the specific command
+     * @param entry    the handler entry containing the handler and cached metadata
      */
-    private void executeKronotopCommand(Request request, Response response, Handler handler) {
-        beforeExecute(handler, request);
-        executeCommand(handler, request, response);
+    private void executeKronotopCommand(Request request, Response response, HandlerEntry entry) {
+        beforeExecute(entry, request);
+        executeCommand(entry.handler(), request, response);
     }
 
     private void channelRead0(ChannelHandlerContext ctx, Object message) {
@@ -396,12 +411,20 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
         if (clusterInitialized.get() == null || !clusterInitialized.get()) {
             try {
-                Handler handler = commands.get(request.getCommand());
-                if (handler.requiresClusterInitialization()) {
+                HandlerEntry entry = commands.get(request.getCommand());
+                if (entry.handler().requiresClusterInitialization()) {
                     throw new ClusterNotInitializedException();
                 }
             } catch (Exception e) {
                 exceptionToRespError(request, response, e);
+                return;
+            }
+        }
+
+        if (serverKind == ServerKind.EXTERNAL) {
+            Attribute<KronotopInstanceStatus> instanceStatus = context.getMemberAttributes().attr(MemberAttributes.INSTANCE_STATUS);
+            if (instanceStatus.get() != null && instanceStatus.get().equals(KronotopInstanceStatus.STOPPED)) {
+                exceptionToRespError(request, response, new ServerShuttingDownException());
                 return;
             }
         }
@@ -414,11 +437,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         }
 
         try {
-            Handler handler = commands.get(request.getCommand());
-            if (handler.isRedisCompatible()) {
-                executeRedisCompatibleCommand(request, response, handler);
+            HandlerEntry entry = commands.get(request.getCommand());
+            if (entry.handler().isRedisCompatible()) {
+                executeRedisCompatibleCommand(request, response, entry);
             } else {
-                executeKronotopCommand(request, response, handler);
+                executeKronotopCommand(request, response, entry);
             }
         } catch (Exception e) {
             exceptionToRespError(request, response, e);
@@ -436,7 +459,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        if (!(Objects.requireNonNull(cause) instanceof SocketException)) {
+        if (cause instanceof DecoderException && cause.getCause() instanceof NotSslRecordException) {
+            LOGGER.warn("Rejected non-TLS connection from {}", ctx.channel().remoteAddress());
+        } else if (cause instanceof DecoderException && cause.getCause() instanceof SSLHandshakeException) {
+            LOGGER.warn("TLS handshake failed from {}: {}", ctx.channel().remoteAddress(), cause.getCause().getMessage());
+        } else if (!(Objects.requireNonNull(cause) instanceof SocketException)) {
             LOGGER.error("Unhandled exception caught in channel handler", cause);
         }
         ctx.close();

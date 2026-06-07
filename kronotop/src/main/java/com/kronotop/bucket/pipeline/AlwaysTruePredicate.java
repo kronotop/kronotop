@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@
 
 package com.kronotop.bucket.pipeline;
 
-import java.nio.ByteBuffer;
+import com.kronotop.bucket.CollatorCache;
+import com.kronotop.bucket.bql.ast.BqlValue;
+
+import java.util.List;
 
 /**
  * A predicate that always returns true for any document.
@@ -27,7 +30,7 @@ import java.nio.ByteBuffer;
  */
 public record AlwaysTruePredicate() implements ResidualPredicateNode {
     @Override
-    public boolean test(ByteBuffer document) {
+    public boolean test(DocumentView view, List<BqlValue> parameters, CollatorCache collatorCache) {
         return true;
     }
 }

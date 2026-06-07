@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,6 +32,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchDocumentsWithElemMatchOnArrayOfDocuments() {
+        // Behavior: $elemMatch on an array of documents matches documents where at least one
+        // array element satisfies the specified condition (e.g., price > 100).
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-basic";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -43,16 +46,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order3', 'items': [{'price': 30, 'category': 'toys'}, {'price': 40, 'category': 'toys'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders where at least one item has price > 100
         String query = "{'items': {'$elemMatch': {'price': {'$gt': 100}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Order2"), extractNamesFromResults(results));
@@ -61,6 +64,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithMultipleConditionsInElemMatch() {
+        // Behavior: $elemMatch with multiple conditions requires a SINGLE array element to satisfy
+        // ALL conditions simultaneously. Different elements satisfying different conditions won't match.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multi-cond";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -72,16 +78,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order3', 'items': [{'price': 30, 'category': 'electronics'}, {'price': 40, 'category': 'toys'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item that is electronics AND price > 100
         String query = "{'items': {'$elemMatch': {'price': {'$gt': 100}, 'category': 'electronics'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Order2"), extractNamesFromResults(results));
@@ -90,6 +96,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldReturnEmptyWhenNoElementMatchesAllConditions() {
+        // Behavior: When no single array element satisfies all $elemMatch conditions, the document
+        // is not matched even if different elements satisfy individual conditions separately.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-no-match";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -99,17 +108,17 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order1', 'items': [{'price': 50, 'category': 'electronics'}, {'price': 150, 'category': 'toys'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item that is electronics AND price > 100
         // Neither element satisfies both conditions
         String query = "{'items': {'$elemMatch': {'price': {'$gt': 100}, 'category': 'electronics'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertTrue(results.isEmpty(), "Should return no documents");
         }
@@ -117,6 +126,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldHandleEmptyArrayField() {
+        // Behavior: Documents with empty arrays never match $elemMatch queries since there are
+        // no elements to evaluate against the conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-empty-array";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -126,15 +138,15 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order2', 'items': [{'price': 150}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         String query = "{'items': {'$elemMatch': {'price': {'$gt': 100}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Order2"), extractNamesFromResults(results));
@@ -143,6 +155,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldHandleMissingArrayField() {
+        // Behavior: Documents missing the array field specified in $elemMatch do not match,
+        // as there is no array to evaluate.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-missing-field";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -152,15 +167,15 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order2', 'items': [{'price': 150}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         String query = "{'items': {'$elemMatch': {'price': {'$gt': 100}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Order2"), extractNamesFromResults(results));
@@ -169,6 +184,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithNestedDocumentFields() {
+        // Behavior: $elemMatch supports dot notation to access nested fields within array
+        // elements (e.g., 'details.amount' accesses amount inside nested details object).
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-nested";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -178,15 +196,15 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order2', 'orders': [{'details': {'amount': 200}}, {'details': {'amount': 150}}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         String query = "{'orders': {'$elemMatch': {'details.amount': {'$gte': 150}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Order2"), extractNamesFromResults(results));
@@ -195,6 +213,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithEqOperatorInElemMatch() {
+        // Behavior: Implicit equality in $elemMatch (without explicit $eq) matches array
+        // elements where the specified field equals the given value exactly.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-eq";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -205,15 +226,15 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order3', 'items': [{'status': 'pending'}, {'status': 'pending'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         String query = "{'items': {'$elemMatch': {'status': 'delivered'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Order2"), extractNamesFromResults(results));
@@ -224,6 +245,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchScalarStringArrayWithEq() {
+        // Behavior: $elemMatch with $eq on scalar string arrays matches documents where at least
+        // one string element exactly equals the specified value.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-string-eq";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -234,16 +258,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task3', 'tags': ['documentation', 'help-wanted']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one 'urgent' tag
         String query = "{'tags': {'$elemMatch': {'$eq': 'urgent'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Task2"), extractNamesFromResults(results));
@@ -252,6 +276,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchScalarNumberArrayWithGt() {
+        // Behavior: $elemMatch with $gt on scalar number arrays matches documents where at least
+        // one numeric element exceeds the specified threshold.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-number-gt";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -262,16 +289,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Student3', 'scores': [65, 70, 72]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find students with at least one score > 90
         String query = "{'scores': {'$elemMatch': {'$gt': 90}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Student2"), extractNamesFromResults(results));
@@ -280,6 +307,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchScalarNumberArrayWithLte() {
+        // Behavior: $elemMatch with $lte on scalar number arrays matches documents where at least
+        // one numeric element is less than or equal to the specified value.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-number-lte";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -290,16 +320,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product3', 'prices': [99.99, 149.99, 199.99]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with at least one price <= 10.0
         String query = "{'prices': {'$elemMatch': {'$lte': 10.0}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Product2"), extractNamesFromResults(results));
@@ -308,6 +338,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchScalarBooleanArray() {
+        // Behavior: $elemMatch with $eq on scalar boolean arrays matches documents where at least
+        // one boolean element equals the specified true/false value.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-boolean";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -318,16 +351,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Config3', 'flags': [false, false, false]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find configs with at least one true flag
         String query = "{'flags': {'$elemMatch': {'$eq': true}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Config2"), extractNamesFromResults(results));
@@ -336,6 +369,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldNotMatchScalarArrayWhenNoElementSatisfiesCondition() {
+        // Behavior: When no element in a scalar array satisfies the $elemMatch condition,
+        // the document is excluded from results.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-no-match";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -345,16 +381,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Item2', 'values': [40, 50, 60]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find items with at least one value > 100 (none exist)
         String query = "{'values': {'$elemMatch': {'$gt': 100}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertTrue(results.isEmpty(), "Should return no documents");
         }
@@ -362,6 +398,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldHandleEmptyScalarArray() {
+        // Behavior: Empty scalar arrays never match $elemMatch queries since there are no
+        // elements to evaluate against the conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-empty";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -371,15 +410,15 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'NonEmpty', 'tags': ['urgent']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         String query = "{'tags': {'$elemMatch': {'$eq': 'urgent'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("NonEmpty"), extractNamesFromResults(results));
@@ -388,6 +427,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchScalarStringArrayWithNe() {
+        // Behavior: $elemMatch with $ne on scalar string arrays matches documents where at least
+        // one element does NOT equal the specified value.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-string-ne";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -398,16 +440,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task3', 'statuses': ['pending', 'pending']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one status != 'pending'
         String query = "{'statuses': {'$elemMatch': {'$ne': 'pending'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Task2"), extractNamesFromResults(results));
@@ -418,6 +460,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithInOperatorInsideElemMatch() {
+        // Behavior: $in inside $elemMatch matches documents where at least one array element
+        // has a field value that exists in the specified list of values.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-inside";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -428,16 +473,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order3', 'items': [{'status': 'cancelled'}, {'status': 'refunded'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item with status in ['shipped', 'delivered']
         String query = "{'items': {'$elemMatch': {'status': {'$in': ['shipped', 'delivered']}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Order2"), extractNamesFromResults(results));
@@ -446,6 +491,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchScalarArrayWithInOperatorInsideElemMatch() {
+        // Behavior: $in inside $elemMatch on scalar arrays matches documents where at least
+        // one array element exists in the specified list of values.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-in";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -456,16 +504,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task3', 'tags': ['documentation', 'help-wanted']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one tag in ['urgent', 'critical', 'blocker']
         String query = "{'tags': {'$elemMatch': {'$in': ['urgent', 'critical', 'blocker']}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Task2"), extractNamesFromResults(results));
@@ -476,6 +524,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithNinOperatorInsideElemMatch() {
+        // Behavior: $nin inside $elemMatch matches documents where at least one array element
+        // has a field value that does NOT exist in the specified exclusion list.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-nin-inside";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -486,16 +537,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order3', 'items': [{'status': 'pending'}, {'status': 'processing'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item with status NOT in ['cancelled', 'refunded', 'failed']
         String query = "{'items': {'$elemMatch': {'status': {'$nin': ['cancelled', 'refunded', 'failed']}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Order1", "Order3"), extractNamesFromResults(results));
@@ -504,6 +555,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchScalarArrayWithNinOperatorInsideElemMatch() {
+        // Behavior: $nin inside $elemMatch on scalar arrays matches documents where at least
+        // one array element is NOT in the specified exclusion list.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-nin";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -514,16 +568,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task3', 'priorities': [1, 1, 1]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one priority NOT in [1, 2, 3]
         String query = "{'priorities': {'$elemMatch': {'$nin': [1, 2, 3]}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Task2"), extractNamesFromResults(results));
@@ -534,6 +588,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldHandleNullValuesInArrayOfDocuments() {
+        // Behavior: Null field values within array elements are properly handled. Comparison
+        // operators like $gt skip null values; only non-null values are evaluated.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-null-docs";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -544,16 +601,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc3', 'items': [{'value': 50}, {'value': 60}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents with at least one item where value > 20
         String query = "{'items': {'$elemMatch': {'value': {'$gt': 20}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Doc1", "Doc3"), extractNamesFromResults(results));
@@ -562,6 +619,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldHandleNullValuesInScalarArray() {
+        // Behavior: Null values in scalar arrays are properly handled. Comparison operators
+        // skip null elements; only non-null elements are evaluated against conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-null-scalar";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -572,16 +632,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Item3', 'values': [50, 60]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find items with at least one value > 25
         String query = "{'values': {'$elemMatch': {'$gt': 25}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Item1", "Item3"), extractNamesFromResults(results));
@@ -592,6 +652,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchSingleElementArrayOfDocuments() {
+        // Behavior: $elemMatch works correctly with single-element arrays of documents,
+        // matching if the sole element satisfies all specified conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-single-doc";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -602,16 +665,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order3', 'items': [{'price': 200}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item with price > 100
         String query = "{'items': {'$elemMatch': {'price': {'$gt': 100}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Order1", "Order3"), extractNamesFromResults(results));
@@ -620,6 +683,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchSingleElementScalarArray() {
+        // Behavior: $elemMatch works correctly with single-element scalar arrays, matching
+        // if the sole element satisfies the specified condition.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-single-scalar";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -630,16 +696,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task3', 'scores': [85]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one score >= 80
         String query = "{'scores': {'$elemMatch': {'$gte': 80}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Task1", "Task3"), extractNamesFromResults(results));
@@ -648,6 +714,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldNotMatchSingleElementArrayWhenConditionNotSatisfied() {
+        // Behavior: Single-element arrays that don't satisfy the $elemMatch condition result
+        // in the document being excluded from results.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-single-no-match";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -657,16 +726,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Item2', 'values': [60]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find items with at least one value > 100 (none exist)
         String query = "{'values': {'$elemMatch': {'$gt': 100}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertTrue(results.isEmpty(), "Should return no documents");
         }
@@ -676,6 +745,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithExistsInsideElemMatch() {
+        // Behavior: $exists: true inside $elemMatch matches documents where at least one array
+        // element contains the specified field, regardless of its value.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-exists";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -686,16 +758,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product3', 'variants': [{'color': 'black', 'size': 'L'}, {'color': 'white', 'size': 'S'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with at least one variant that has a 'size' field
         String query = "{'variants': {'$elemMatch': {'size': {'$exists': true}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Product1", "Product3"), extractNamesFromResults(results));
@@ -704,6 +776,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithExistsFalseInsideElemMatch() {
+        // Behavior: $exists: false inside $elemMatch matches documents where at least one
+        // array element is MISSING the specified field.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-exists-false";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -714,16 +789,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product3', 'variants': [{'color': 'black'}, {'color': 'white'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with at least one variant that does NOT have a 'size' field
         String query = "{'variants': {'$elemMatch': {'size': {'$exists': false}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Product1", "Product3"), extractNamesFromResults(results));
@@ -732,6 +807,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldCombineExistsWithOtherConditionsInsideElemMatch() {
+        // Behavior: $exists can be combined with other operators on the same field. The element
+        // must satisfy ALL conditions (e.g., field exists AND value > threshold).
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-exists-combined";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -742,16 +820,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product3', 'variants': [{'color': 'black', 'price': 150}, {'color': 'white', 'price': 80}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with at least one variant that has a 'price' field AND price > 120
         String query = "{'variants': {'$elemMatch': {'price': {'$exists': true, '$gt': 120}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Product2", "Product3"), extractNamesFromResults(results));
@@ -762,6 +840,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithOrInsideElemMatchOnDocumentArray() {
+        // Behavior: $or inside $elemMatch allows matching elements that satisfy ANY of the
+        // specified conditions, combined with other conditions using implicit AND.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-doc";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -773,16 +854,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Student4', 'scores': [{'subject': 'math', 'score': 92}, {'subject': 'science', 'score': 85}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find students with at least one score where (subject is 'math' OR subject is 'science') AND score > 80
         String query = "{'scores': {'$elemMatch': {'$or': [{'subject': 'math'}, {'subject': 'science'}], 'score': {'$gt': 80}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Student1: math=85 > 80 ✓
             // Student2: science=90 > 80 ✓
@@ -795,6 +876,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithOrInsideElemMatchOnScalarArray() {
+        // Behavior: $or inside $elemMatch on scalar arrays matches elements where the value
+        // satisfies ANY of the specified conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-scalar";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -806,16 +890,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task4', 'tags': ['documentation', 'help-wanted']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one tag that is 'critical' OR 'urgent'
         String query = "{'tags': {'$elemMatch': {'$or': [{'$eq': 'critical'}, {'$eq': 'urgent'}]}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Task1", "Task3"), extractNamesFromResults(results));
@@ -824,6 +908,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithNestedOrAndInsideElemMatch() {
+        // Behavior: Nested $or and $and operators inside $elemMatch support complex boolean
+        // logic where the element must match the entire logical expression.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-nested-or-and";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -835,17 +922,17 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'items': [{'type': 'furniture', 'price': 800, 'inStock': true}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item that is:
         // (type='electronics' AND price > 200) OR (type='furniture' AND inStock=true)
         String query = "{'items': {'$elemMatch': {'$or': [{'$and': [{'type': 'electronics'}, {'price': {'$gt': 200}}]}, {'$and': [{'type': 'furniture'}, {'inStock': true}]}]}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: electronics, price=500 > 200 ✓
             // Order2: books - no match
@@ -860,6 +947,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithAndInsideElemMatchOnDocumentArray() {
+        // Behavior: Explicit $and inside $elemMatch requires the same array element to satisfy
+        // ALL specified conditions simultaneously.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-and-doc";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -871,16 +961,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product4', 'reviews': [{'rating': 5, 'verified': true}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with at least one review that has rating >= 5 AND verified = true
         String query = "{'reviews': {'$elemMatch': {'$and': [{'rating': {'$gte': 5}}, {'verified': true}]}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Product1: rating=5, verified=true ✓
             // Product2: rating=4 < 5 - no match
@@ -895,6 +985,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithAllInsideElemMatchOnDocumentArray() {
+        // Behavior: $all inside $elemMatch requires that an array field within the matched
+        // element contains ALL specified values.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-all-doc";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -906,16 +999,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product4', 'variants': [{'tags': ['red', 'large', 'sale', 'clearance']}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with at least one variant that has ALL of ['red', 'large', 'sale'] tags
         String query = "{'variants': {'$elemMatch': {'tags': {'$all': ['red', 'large', 'sale']}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Product1: first variant has all three ✓
             // Product2: no variant has all three
@@ -928,6 +1021,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithAllInsideElemMatchCombinedWithOtherConditions() {
+        // Behavior: $all can be combined with other conditions inside $elemMatch. The element
+        // must have an array containing all specified values AND satisfy other conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-all-combined";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -939,16 +1035,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Item4', 'items': [{'categories': ['electronics', 'sale', 'clearance'], 'price': 75}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find items with at least one item that has ALL of ['electronics', 'sale'] AND price < 200
         String query = "{'items': {'$elemMatch': {'categories': {'$all': ['electronics', 'sale']}, 'price': {'$lt': 200}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Item1: first item has both categories AND price=100 < 200 ✓
             // Item2: first item has both categories BUT price=500 >= 200
@@ -963,6 +1059,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithSizeInsideElemMatchOnDocumentArray() {
+        // Behavior: $size inside $elemMatch matches elements where an array field has exactly
+        // the specified number of elements.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-size-doc";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -974,16 +1073,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'items': [{'tags': []}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item that has exactly 3 tags
         String query = "{'items': {'$elemMatch': {'tags': {'$size': 3}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: first item has 3 tags ✓
             // Order2: no item has 3 tags
@@ -996,6 +1095,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithSizeZeroInsideElemMatch() {
+        // Behavior: $size: 0 inside $elemMatch matches elements that contain an empty array
+        // for the specified field.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-size-zero";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1007,16 +1109,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc4', 'entries': [{'values': [1, 2, 3]}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents with at least one entry that has empty values array
         String query = "{'entries': {'$elemMatch': {'values': {'$size': 0}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Doc1: first entry has empty values ✓
             // Doc2: no entry has empty values
@@ -1029,6 +1131,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithSizeCombinedWithOtherConditionsInsideElemMatch() {
+        // Behavior: $size can be combined with other conditions inside $elemMatch. The element
+        // must have an array of the exact size AND satisfy all other conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-size-combined";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1040,16 +1145,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task4', 'assignees': [{'users': ['helen'], 'priority': 'high'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one assignee group that has exactly 2 users AND high priority
         String query = "{'assignees': {'$elemMatch': {'users': {'$size': 2}, 'priority': 'high'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Task1: first assignee has 2 users AND high priority ✓
             // Task2: has 2 users but low priority
@@ -1064,6 +1169,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithAllAndSizeCombinedInsideElemMatch() {
+        // Behavior: Combining $all and $size inside $elemMatch requires the array field to
+        // contain ALL specified values AND have exactly the specified length.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-all-size";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1081,20 +1189,20 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product5', 'items': [{'tags': ['red', 'large']}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with at least one item where tags contains ALL of ['red', 'large'] AND has exactly 3 elements
         String query = "{'items': {'$elemMatch': {'tags': {'$all': ['red', 'large'], '$size': 3}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // $all and $size operators cannot use indexes, so FullScanNode is expected
-        assertInstanceOf(FullScanNode.class, plan, "Should use FullScanNode for $all + $size combination");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan(), "Should use FullScanNode for $all + $size combination");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Product1: first item has ['red', 'large', 'sale'] - has both AND size=3 ✓
             // Product2: has ['red', 'large', 'sale', 'clearance'] - has both BUT size=4
@@ -1108,6 +1216,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithNinAndExistsCombinedInsideElemMatch() {
+        // Behavior: Combining $nin and $exists inside $elemMatch matches elements where the
+        // field exists AND its value is NOT in the exclusion list.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-nin-exists";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1125,20 +1236,20 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order5', 'items': [{'qty': 1}, {'status': 'pending', 'qty': 2}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item where status exists AND is NOT in ['cancelled', 'deleted']
         String query = "{'items': {'$elemMatch': {'status': {'$exists': true, '$nin': ['cancelled', 'deleted']}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // $nin and $exists operators cannot use indexes, so FullScanNode is expected
-        assertInstanceOf(FullScanNode.class, plan, "Should use FullScanNode for $nin + $exists combination");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan(), "Should use FullScanNode for $nin + $exists combination");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: first item has status='active' which exists and not in excluded list ✓
             // Order2: all items have status in excluded list ['cancelled', 'deleted']
@@ -1153,6 +1264,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
     // Nested $elemMatch
     @Test
     void shouldMatchWithNestedElemMatch() {
+        // Behavior: Nested $elemMatch allows querying arrays within arrays. The outer $elemMatch
+        // finds elements, and the inner $elemMatch evaluates nested arrays within those elements.
+
         final String TEST_BUCKET_NAME = "test-bucket-nested-elemmatch";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1164,16 +1278,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Store4', 'departments': [{'name': 'Electronics', 'products': [{'sku': 'CAM1', 'price': 300}, {'sku': 'CAM2', 'price': 450}]}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find stores with at least one department that has at least one product with price > 400
         String query = "{'departments': {'$elemMatch': {'products': {'$elemMatch': {'price': {'$gt': 400}}}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Store1: Electronics has TV1=500 and TV2=800 > 400 ✓
             // Store2: Electronics has PC1=1200 > 400 ✓
@@ -1186,6 +1300,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithNestedElemMatchAndMultipleConditions() {
+        // Behavior: Nested $elemMatch with multiple conditions requires a nested element to
+        // satisfy ALL conditions (e.g., role='engineer' AND level >= 4).
+
         final String TEST_BUCKET_NAME = "test-bucket-nested-elemmatch-multi";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1197,16 +1314,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Company4', 'teams': [{'name': 'Support', 'members': [{'role': 'support', 'level': 2}]}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find companies with at least one team that has at least one member who is an engineer with level >= 4
         String query = "{'teams': {'$elemMatch': {'members': {'$elemMatch': {'role': 'engineer', 'level': {'$gte': 4}}}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Company1: Dev team has engineer level 5 >= 4 ✓
             // Company2: Dev team has engineer level 2 < 4
@@ -1219,6 +1336,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithTripleNestedElemMatch() {
+        // Behavior: Triple-nested $elemMatch traverses three levels of arrays, finding documents
+        // where each nesting level has at least one element satisfying the conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-triple-nested-elemmatch";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1230,16 +1350,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Org4', 'divisions': [{'units': [{'groups': [{'score': 50}]}]}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orgs with a division that has a unit that has a group with score > 90
         String query = "{'divisions': {'$elemMatch': {'units': {'$elemMatch': {'groups': {'$elemMatch': {'score': {'$gt': 90}}}}}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Org1: has group with score 95 > 90 ✓
             // Org2: max score is 65 < 90
@@ -1252,7 +1372,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithMultipleElemMatchOnSameField() {
-        // Multiple $elemMatch on same field
+        // Behavior: Multiple $elemMatch on the same field allows conditions to be satisfied by
+        // DIFFERENT elements (unlike single $elemMatch where same element must satisfy all).
+
         final String TEST_BUCKET_NAME = "test-bucket-multi-elemmatch-same-field";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1264,17 +1386,17 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'items': [{'price': 120, 'qty': 6}, {'price': 90, 'qty': 8}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: items has element with price > 100 AND items has element with qty > 5
         // These can be DIFFERENT elements (unlike single $elemMatch which requires same element)
         String query = "{'items': {'$elemMatch': {'price': {'$gt': 100}}}, 'items': {'$elemMatch': {'qty': {'$gt': 5}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: price 150 > 100 ✓, qty 5 not > 5
             // Order2: price 200 > 100 ✓, qty 10 > 5 ✓
@@ -1287,7 +1409,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithDeeplyNestedFieldInsideElemMatch() {
-        // Deeply nested fields inside $elemMatch
+        // Behavior: Deeply nested dot notation paths (e.g., 'details.info.value') inside $elemMatch
+        // navigate through multiple levels of embedded documents within array elements.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-deep-nested";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1299,16 +1423,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Record4', 'items': [{'details': {'info': {'value': 150}}}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find records with at least one item where details.info.value > 120
         String query = "{'items': {'$elemMatch': {'details.info.value': {'$gt': 120}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Record1: max value 100 < 120
             // Record2: value 200 > 120 ✓
@@ -1321,6 +1445,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithMultipleDeeplyNestedFieldsInsideElemMatch() {
+        // Behavior: Multiple deeply nested field conditions inside $elemMatch require the same
+        // array element to satisfy all nested path conditions simultaneously.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multi-deep";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1332,16 +1459,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Data4', 'entries': [{'meta': {'stats': {'count': 120, 'total': 1500}}}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find data with entry where meta.stats.count > 70 AND meta.stats.total > 1000
         String query = "{'entries': {'$elemMatch': {'meta.stats.count': {'$gt': 70}, 'meta.stats.total': {'$gt': 1000}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Data1: count 50 < 70
             // Data2: count 100 > 70 ✓, total 800 < 1000
@@ -1354,7 +1481,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithCompoundRangeInsideElemMatchOnDocumentArray() {
-        // Compound range queries inside $elemMatch
+        // Behavior: Compound range conditions ($gte + $lte) on the same field inside $elemMatch
+        // require the value to fall within the specified range, combined with other conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-compound-range";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1366,16 +1495,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product4', 'variants': [{'price': 90, 'stock': 75}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with variant where price is between 60 and 130 AND stock > 40
         String query = "{'variants': {'$elemMatch': {'price': {'$gte': 60, '$lte': 130}, 'stock': {'$gt': 40}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Product1: price 50 not in [60,130] for first, price 150 not in range for second
             // Product2: price 80 in [60,130] ✓, stock 50 > 40 ✓
@@ -1388,6 +1517,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithCompoundRangeInsideElemMatchOnScalarArray() {
+        // Behavior: Compound range conditions on scalar arrays match elements where the value
+        // falls within the specified range (e.g., >= 30 AND <= 50).
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-compound-range";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1399,16 +1531,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Sensor4', 'readings': [5, 10, 15]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find sensors with at least one reading between 30 and 50 (inclusive)
         String query = "{'readings': {'$elemMatch': {'$gte': 30, '$lte': 50}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Sensor1: 35 in [30,50] ✓
             // Sensor2: 45 in [30,50] ✓
@@ -1421,7 +1553,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithNeInsideElemMatchOnDocumentArray() {
-        // $ne inside $elemMatch
+        // Behavior: $ne inside $elemMatch on document arrays matches documents where at least
+        // one element has a field value that is NOT equal to the specified value.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-ne-doc";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1433,16 +1567,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'items': [{'status': 'cancelled'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item with status != 'cancelled'
         String query = "{'items': {'$elemMatch': {'status': {'$ne': 'cancelled'}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: pending and shipped != cancelled ✓
             // Order2: all cancelled
@@ -1455,6 +1589,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithNeInsideElemMatchOnScalarArray() {
+        // Behavior: $ne inside $elemMatch on scalar arrays matches documents where at least
+        // one element is NOT equal to the specified value.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-ne-scalar";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1466,16 +1603,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Config4', 'values': [0, 0]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find configs with at least one value != 0
         String query = "{'values': {'$elemMatch': {'$ne': 0}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Config1: all zeros
             // Config2: 1 != 0 ✓
@@ -1488,6 +1625,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldCombineNeWithOtherConditionsInsideElemMatch() {
+        // Behavior: $ne can be combined with equality conditions inside $elemMatch. The element
+        // must satisfy ALL conditions (e.g., user='alice' AND role != 'viewer').
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-ne-combined";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1499,16 +1639,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task4', 'assignments': [{'user': 'alice', 'role': 'editor'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one assignment where user = 'alice' AND role != 'viewer'
         String query = "{'assignments': {'$elemMatch': {'user': 'alice', 'role': {'$ne': 'viewer'}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Task1: alice with owner role != viewer ✓
             // Task2: no alice
@@ -1521,7 +1661,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithLargeArrays() {
-        // Large arrays
+        // Behavior: $elemMatch correctly handles large arrays (50+ elements), efficiently
+        // scanning until a matching element is found.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-large-array";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1551,16 +1693,16 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes(largeArray3.toString())
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents with at least one value > 90
         String query = "{'values': {'$elemMatch': {'$gt': 90}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Data1: max is 49 < 90
             // Data2: has values 91-99 > 90 ✓
@@ -1572,7 +1714,9 @@ class ElemMatchNodeTest extends BasePipelineTest {
 
     @Test
     void shouldMatchWithMinimalConditionInsideElemMatch() {
-        // Empty condition in $elemMatch (just checking array exists and has elements)
+        // Behavior: A simple boolean condition inside $elemMatch matches documents where at
+        // least one array element has the specified field value.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-minimal";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -1584,19 +1728,54 @@ class ElemMatchNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc4', 'items': []}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents with at least one item where active = true
         String query = "{'items': {'$elemMatch': {'active': true}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Doc1", "Doc2"), extractNamesFromResults(results));
+        }
+    }
+
+    @Test
+    void shouldMatchScalarObjectIdArrayWithEq() {
+        // Behavior: $elemMatch with $eq on scalar ObjectId arrays matches documents where at least
+        // one ObjectId element exactly equals the specified value.
+
+        final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-objectid-eq";
+
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
+
+        ObjectId oid1 = new ObjectId();
+        ObjectId oid2 = new ObjectId();
+        ObjectId oid3 = new ObjectId();
+        ObjectId target = new ObjectId();
+
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc1', 'refs': [{\"$oid\": \"" + oid1.toHexString() + "\"}, {\"$oid\": \"" + target.toHexString() + "\"}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc2', 'refs': [{\"$oid\": \"" + oid2.toHexString() + "\"}, {\"$oid\": \"" + oid3.toHexString() + "\"}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc3', 'refs': [{\"$oid\": \"" + oid3.toHexString() + "\"}, {\"$oid\": \"" + oid1.toHexString() + "\"}]}")
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        String query = "{'refs': {'$elemMatch': {'$eq': '" + target.toHexString() + "'}}}";
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        QueryOptions options = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+
+            assertEquals(1, results.size(), "Should return exactly 1 document");
+            assertEquals(Set.of("Doc1"), extractNamesFromResults(results));
         }
     }
 }

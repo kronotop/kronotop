@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,59 +16,29 @@
 
 package com.kronotop.bucket.pipeline;
 
-import com.kronotop.CommitHook;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.bql.ast.BqlExpr;
+import com.kronotop.bucket.bql.ast.BqlValue;
+import com.kronotop.server.Session;
+import org.bson.BsonDocument;
 
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.Map;
+import java.util.function.IntSupplier;
 
 /**
- * Context object that holds all necessary information and state for executing
- * a query in the pipeline system. This class manages query execution state,
- * configuration options, metadata access, and intermediate results.
+ * Central coordination point for a single query execution in the pipeline system.
+ * Holds bucket metadata, query options, the execution plan, per-node execution state,
+ * data sinks, and post-commit hooks.
  *
- * <p>QueryContext serves as the central coordination point during query execution,
- * providing access to:
- * <ul>
- *   <li>Bucket metadata and schema information</li>
- *   <li>Query configuration options (limits, sorting, etc.)</li>
- *   <li>Execution plan (PipelineNode tree)</li>
- *   <li>Per-node execution state management</li>
- *   <li>Pipeline environment and services</li>
- *   <li>Query output and intermediate results</li>
- * </ul>
- *
- * <h2>Thread Safety:</h2>
- * <p>QueryContext is designed to be used by a single query execution thread,
- * though it uses thread-safe collections for execution state management
- * to support concurrent access patterns within the pipeline.
- *
- * <h2>Usage Example:</h2>
- * <pre>{@code
- * // Create query plan
- * PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 25}}");
- *
- * // Configure query options
- * QueryOptions options = QueryOptions.builder()
- *     .limit(50)
- *     .reverse(true)
- *     .build();
- *
- * // Create execution context
- * QueryContext context = new QueryContext(metadata, options, plan);
- *
- * // Execute query
- * Map<Versionstamp, ByteBuffer> results = executor.execute(transaction, context);
- * }</pre>
+ * <p>Designed to be used by a single query execution thread; all internal collections
+ * are non-concurrent.
  *
  * @see QueryOptions
  * @see PipelineNode
- * @see BucketMetadata
  * @see PipelineExecutor
- * @since 1.0
  */
 public class QueryContext {
     /**
@@ -82,18 +52,11 @@ public class QueryContext {
      * Provides a reasonable balance between performance and memory usage.
      */
     public static final int DEFAULT_LIMIT = 100;
-
-    private volatile BucketMetadata metadata;
-
     /**
-     * Thread-safe map of the execution state keyed by pipeline node ID.
+     * Execution state keyed by pipeline node ID.
      */
-    private final ConcurrentHashMap<Integer, ExecutionState> executionStates = new ConcurrentHashMap<>();
-
-    private final ConcurrentHashMap<Integer, Integer> relations = new ConcurrentHashMap<>();
-
-    private final Lock postCommitHooksLock = new ReentrantLock(true);
-    private final List<CommitHook> postCommitHooks = new ArrayList<>();
+    private final Map<Integer, ExecutionState> executionStates = new HashMap<>();
+    private final Map<Integer, Integer> relations = new HashMap<>();
     /**
      * The execution plan as a tree of pipeline nodes.
      */
@@ -107,8 +70,7 @@ public class QueryContext {
      * The registry provides access to existing sinks related to specific pipeline nodes
      * or creates new sinks for handling byte buffers or document locations as needed.
      * <p>
-     * The sinks are stored and accessed in a thread-safe manner using a concurrent map.
-     * This field is immutable after creation, ensuring consistent state throughout
+     * This field is immutable after creation, ensuring the consistent state throughout
      * the lifecycle of the query context.
      * <p>
      * The {@link DataSinkRegistry} supports operations such as:
@@ -117,37 +79,75 @@ public class QueryContext {
      * - Writing entries or locations to the appropriate sink type.
      */
     private final DataSinkRegistry sinks = new DataSinkRegistry();
-    private volatile int currentNodeId;
+    /**
+     * Parameter values extracted from the query for resolving Operand.Param references.
+     */
+    private final List<BqlValue> parameters;
+    private final Session session;
+    private BucketMetadata metadata;
+    private int currentNodeId;
     /**
      * Pipeline environment providing access to services and utilities.
      * Set lazily during execution and cached for reuse.
      */
-    private volatile PipelineEnv env;
+    private PipelineEnv env;
+    /**
+     * The field used by the driving index scan. Used to determine if in-memory sorting is needed
+     * when the SORTBY field differs from the scanned field.
+     */
+    private String scannedIndexField;
+    /**
+     * Tracks whether any scan node used a multi-key index. Used to conditionally
+     * enable ObjectId deduplication in executors.
+     */
+    private boolean scannedIndexIsMultiKey;
+    /**
+     * Raw query bytes for upsert document construction.
+     * Stored when upsert is enabled to extract equality conditions.
+     */
+    private byte[] queryBytes;
+    /**
+     * Holds the result of an upsert operation for versionstamp resolution after commit.
+     */
+    private UpsertResult upsertResult;
+    /**
+     * Whether index scans should use snapshot isolation (no read conflict ranges).
+     */
+    private boolean snapshotRead;
+    /**
+     * Supplier for generating unique user versions within a transaction.
+     */
+    private IntSupplier userVersionSupplier;
+    /**
+     * Parsed projection specification for field-level projection.
+     */
+    private BsonDocument projectionSpec;
+    /**
+     * Parsed BQL expression, stored for positional {@code $} operator resolution in projection.
+     */
+    private BqlExpr parsedQuery;
 
     /**
-     * Constructs a new QueryContext with the specified metadata, options, and execution plan.
+     * Constructs a new QueryContext with parameters for parameterized query execution.
      *
-     * <p>The context is immutable once created, ensuring thread-safe access to
-     * configuration during query execution.
-     *
-     * @param metadata the bucket metadata containing schema and configuration information
-     * @param options  the query configuration options (limits, sorting, etc.)
-     * @param plan     the execution plan as a tree of pipeline nodes
-     * @throws IllegalArgumentException if any parameter is null
+     * @param session    the client session for registering post-commit hooks
+     * @param metadata   the bucket metadata containing schema and configuration information
+     * @param options    the query configuration options (limits, sorting, etc.)
+     * @param plan       the execution plan as a tree of pipeline nodes
+     * @param parameters the parameter values for resolving Operand.Param references
      */
-    public QueryContext(BucketMetadata metadata, QueryOptions options, PipelineNode plan) {
+    public QueryContext(Session session, BucketMetadata metadata, QueryOptions options, PipelineNode plan, List<BqlValue> parameters) {
+        this.session = session;
         this.metadata = metadata;
         this.plan = plan;
         this.options = options;
+        this.parameters = parameters != null ? parameters : Collections.emptyList();
     }
 
     /**
      * Retrieves or creates an execution state for the specified pipeline node.
      * Each pipeline node maintains its own execution state to track progress,
      * cursors, and other execution-specific information.
-     *
-     * <p>This method is thread-safe and will atomically create a new ExecutionState
-     * if one doesn't already exist for the given node ID.
      *
      * @param nodeId the unique identifier of the pipeline node
      * @return the ExecutionState for the specified node (never null)
@@ -191,11 +191,7 @@ public class QueryContext {
 
     /**
      * Sets the pipeline environment if not already initialized.
-     * This method implements lazy initialization with thread-safe semantics
-     * to ensure the environment is set exactly once during query execution.
-     *
-     * <p>Subsequent calls with different environments are ignored to maintain
-     * consistency during query execution.
+     * Subsequent calls are ignored to ensure the environment is set once.
      *
      * @param env the pipeline environment to set (must not be null)
      */
@@ -243,25 +239,135 @@ public class QueryContext {
         return currentNodeId;
     }
 
-    public void registerPostCommitHook(CommitHook hook) {
-        postCommitHooksLock.lock();
-        try {
-            postCommitHooks.add(hook);
-        } finally {
-            postCommitHooksLock.unlock();
+    /**
+     * Returns the session associated with this query context.
+     */
+    public Session getSession() {
+        return session;
+    }
+
+    /**
+     * Returns the field used by the driving index scan, or null if not set.
+     */
+    public String getScannedIndexField() {
+        return scannedIndexField;
+    }
+
+    /**
+     * Sets the field used by the driving index scan. Should only be set once
+     * by the first executing scan node.
+     */
+    public void setScannedIndexField(String field) {
+        if (this.scannedIndexField == null) {
+            this.scannedIndexField = field;
         }
     }
 
-    public void runPostCommitHooks() {
-        postCommitHooksLock.lock();
-        try {
-            for (CommitHook hook : postCommitHooks) {
-                hook.run();
-            }
-            postCommitHooks.clear();
-        } finally {
-            postCommitHooksLock.unlock();
+    /**
+     * Returns whether any scan node used a multi-key index.
+     */
+    public boolean isScannedIndexMultiKey() {
+        return scannedIndexIsMultiKey;
+    }
+
+    /**
+     * Sets the multi-key flag. Uses OR-latch semantics: once true, stays true.
+     */
+    public void setScannedIndexIsMultiKey(boolean multiKey) {
+        if (multiKey) {
+            this.scannedIndexIsMultiKey = true;
         }
+    }
+
+    /**
+     * Returns the raw query bytes for upsert document construction.
+     */
+    public byte[] queryBytes() {
+        return queryBytes;
+    }
+
+    /**
+     * Sets the raw query bytes for upsert document construction.
+     */
+    public void setQueryBytes(byte[] queryBytes) {
+        this.queryBytes = queryBytes;
+    }
+
+    /**
+     * Returns the upsert result for versionstamp resolution after commit.
+     */
+    public UpsertResult upsertResult() {
+        return upsertResult;
+    }
+
+    /**
+     * Sets the upsert result for versionstamp resolution after commit.
+     */
+    public void setUpsertResult(UpsertResult upsertResult) {
+        this.upsertResult = upsertResult;
+    }
+
+    /**
+     * Returns the parameter values for resolving Operand.Param references during query execution.
+     */
+    public List<BqlValue> getParameters() {
+        return parameters;
+    }
+
+    /**
+     * Returns whether index scans should use snapshot isolation.
+     */
+    public boolean isSnapshotRead() {
+        return snapshotRead;
+    }
+
+    /**
+     * Sets whether index scans should use snapshot isolation.
+     */
+    public void setSnapshotRead(boolean snapshotRead) {
+        this.snapshotRead = snapshotRead;
+    }
+
+    /**
+     * Sets the supplier used to generate unique user versions within a transaction.
+     */
+    public void setUserVersionSupplier(IntSupplier userVersionSupplier) {
+        this.userVersionSupplier = userVersionSupplier;
+    }
+
+    /**
+     * Returns the next user version from the supplier.
+     */
+    public int getAndIncrementUserVersion() {
+        return userVersionSupplier.getAsInt();
+    }
+
+    /**
+     * Returns the parsed projection specification, or null if not specified.
+     */
+    public BsonDocument getProjectionSpec() {
+        return projectionSpec;
+    }
+
+    /**
+     * Sets the parsed projection specification.
+     */
+    public void setProjectionSpec(BsonDocument projectionSpec) {
+        this.projectionSpec = projectionSpec;
+    }
+
+    /**
+     * Returns the parsed BQL expression for positional {@code $} operator resolution.
+     */
+    public BqlExpr getParsedQuery() {
+        return parsedQuery;
+    }
+
+    /**
+     * Sets the parsed BQL expression.
+     */
+    public void setParsedQuery(BqlExpr parsedQuery) {
+        this.parsedQuery = parsedQuery;
     }
 }
 

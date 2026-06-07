@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 
 package com.kronotop.volume.handlers;
 
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.VolumeService;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static com.kronotop.server.RESPUtil.bulkString;
 
 class ListSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
@@ -39,7 +39,7 @@ class ListSubcommand extends BaseSubcommandHandler implements SubcommandHandler 
         supplyAsync(context, response, () -> {
             List<RedisMessage> volumes = new ArrayList<>();
             service.list().forEach(volume -> {
-                volumes.add(new SimpleStringRedisMessage(volume.getConfig().name()));
+                volumes.add(bulkString(volume.getConfig().name()));
             });
             return volumes;
         }, response::writeArray);

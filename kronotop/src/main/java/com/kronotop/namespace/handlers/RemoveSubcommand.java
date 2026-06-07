@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,14 +21,15 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
+import com.kronotop.journal.JournalName;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
-import com.kronotop.namespace.NamespaceUtil;
-import com.kronotop.journal.JournalName;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.transaction.TransactionUtil;
 
 import java.util.concurrent.CompletionException;
 
@@ -42,12 +43,12 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     private void remove(String namespace, NamespaceMessage.RemoveMessage message) {
         // Remove namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            NamespaceMetadata metadata = NamespaceUtil.readMetadata(tr, context.getClusterName(), message.getSubpath());
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            NamespaceMetadata metadata = NamespaceUtil.readMetadata(tr, context, message.getSubpath());
             if (metadata.removed()) {
                 throw new NamespaceBeingRemovedException(namespace);
             }
-            NamespaceUtil.setRemoved(tr, context.getClusterName(), message.getSubpath());
+            NamespaceUtil.setRemoved(tr, context, message.getSubpath());
             context.getJournal().getPublisher().publish(tr, JournalName.NAMESPACE_EVENTS, new NamespaceRemovedEvent(metadata.id(), namespace));
             tr.commit().join();
         } catch (CompletionException e) {

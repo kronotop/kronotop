@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package com.kronotop.task;
 
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
-import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.server.ServerKind;
@@ -30,6 +29,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TaskService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Task";
@@ -61,13 +61,20 @@ public class TaskService extends CommandHandlerService implements KronotopServic
 
     /**
      * Executes the given task by wrapping it in a TaskRunner and submitting it to the scheduler.
+     * Rejects duplicate registration unless the existing task has already completed.
      *
      * @param task the task to be executed; must not be null
+     * @throws TaskAlreadyExistsException if a task with the same name is already registered and not completed
      */
     public void execute(@Nonnull Task task) {
         TaskRunner runner = new TaskRunner(task);
+        tasks.compute(task.name(), (name, existing) -> {
+            if (existing != null && !existing.task.isFinished()) {
+                throw new TaskAlreadyExistsException(name);
+            }
+            return runner;
+        });
         scheduler.execute(runner);
-        tasks.put(task.name(), runner);
     }
 
     /**
@@ -81,13 +88,11 @@ public class TaskService extends CommandHandlerService implements KronotopServic
      * @return a {@link ScheduledFuture} representing the scheduled task
      */
     public ScheduledFuture<?> scheduleAtFixedRate(@Nonnull Task task, long initialDelay, long period, TimeUnit unit) {
-        if (tasks.get(task.name()) != null) {
+        TaskRunner runner = new TaskRunner(task);
+        if (tasks.putIfAbsent(task.name(), runner) != null) {
             throw new IllegalArgumentException("Task with name " + task.name() + " already exists");
         }
-        TaskRunner runner = new TaskRunner(task);
-        ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(runner, initialDelay, period, unit);
-        tasks.put(task.name(), runner);
-        return future;
+        return scheduler.scheduleAtFixedRate(runner, initialDelay, period, unit);
     }
 
     public List<ObservedTask> tasks() {
@@ -96,7 +101,7 @@ public class TaskService extends CommandHandlerService implements KronotopServic
             ObservedTask observedTask = new ObservedTask(
                     name,
                     runner.task.stats().isRunning(),
-                    runner.task.isCompleted(),
+                    runner.task.isFinished(),
                     runner.task.stats().getStartedAt(),
                     runner.task.stats().getLastRun()
             );
@@ -122,18 +127,20 @@ public class TaskService extends CommandHandlerService implements KronotopServic
     }
 
     /**
-     * Shuts down and removes the task identified by the specified name. This method retrieves the task
-     * corresponding to the given name, shuts it down, waits for its termination, and removes it from
-     * the internal task collection. If the task's termination is interrupted, a {@link RuntimeException}
-     * is thrown.
+     * Shuts down and removes the task identified by the specified name. Shuts down the task first
+     * to ensure it is fully drained before removing it from the registry. Uses identity-based
+     * removal to avoid accidentally removing a replacement task registered during shutdown.
      *
      * @param name the name of the task to be shut down and removed; must not be null
      * @throws TaskNotFoundException if no task with the specified name exists
      */
     public void shutdownAndRemoveTask(@Nonnull String name) {
-        Task task = getTask(name);
-        task.shutdown();
-        tasks.remove(name);
+        TaskRunner runner = tasks.get(name);
+        if (runner == null) {
+            throw new TaskNotFoundException(name);
+        }
+        runner.task.shutdown();
+        tasks.remove(name, runner);
     }
 
     /**
@@ -150,10 +157,9 @@ public class TaskService extends CommandHandlerService implements KronotopServic
     public void shutdown() {
         tasks.forEach((name, runner) -> {
             LOGGER.debug("Shutting down task {}", name);
-            runner.task.stats().setRunning(false);
             runner.task.shutdown();
         });
-        
+
         if (!ExecutorServiceUtil.shutdownNowThenAwaitTermination(scheduler)) {
             LOGGER.warn("{} service cannot be stopped gracefully", NAME);
         }
@@ -161,6 +167,7 @@ public class TaskService extends CommandHandlerService implements KronotopServic
 
     static class TaskRunner implements Runnable {
         private final Task task;
+        private final AtomicBoolean running = new AtomicBoolean(false);
 
         TaskRunner(Task task) {
             this.task = task;
@@ -168,20 +175,28 @@ public class TaskService extends CommandHandlerService implements KronotopServic
 
         @Override
         public void run() {
-            String name = String.format("TaskRunner-%d", System.currentTimeMillis() / 1000L);
-            Thread.ofVirtual().name(name).start(task);
+            if (!running.compareAndSet(false, true)) {
+                return; // previous execution still running, skip this invocation
+            }
+            Thread.ofVirtual().name("kr.task-" + task.name()).start(() -> {
+                try {
+                    task.run();
+                } finally {
+                    running.set(false);
+                }
+            });
         }
     }
 
     class Cleanup implements Runnable {
         @Override
         public void run() {
-            tasks.entrySet().iterator().forEachRemaining(entry -> {
-                if (entry.getValue().task.isCompleted()) {
+            tasks.entrySet().removeIf(entry -> {
+                if (entry.getValue().task.isFinished()) {
                     LOGGER.debug("Cleaning up completed task {}", entry.getKey());
-                    entry.getValue().task.shutdown();
-                    tasks.remove(entry.getKey());
+                    return true;
                 }
+                return false;
             });
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,13 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+
+import javax.net.ssl.SSLException;
 
 /**
- * This abstract class represents a RESP server that implements the KronotopService interface.
- * It provides the basic functionality for starting and shutting down a server.
+ * Abstract RESP server with optional one-way TLS support.
  */
 public abstract class RESPServer implements KronotopService {
     private final CommandHandlerRegistry commands;
@@ -35,23 +38,47 @@ public abstract class RESPServer implements KronotopService {
     private final EventLoopGroup childGroup;
     private final Context context;
     private final Class<? extends ServerSocketChannel> channel;
+    private final TLSConfig tlsConfig;
+    private final NettyConfig nettyConfig;
+    private final ServerKind serverKind;
     private ChannelFuture channelFuture;
 
     public RESPServer(
             Context context,
             CommandHandlerRegistry commands,
+            TLSConfig tlsConfig,
+            NettyConfig nettyConfig,
             Class<? extends ServerSocketChannel> channel,
             EventLoopGroup parentGroup,
-            EventLoopGroup childGroup
+            EventLoopGroup childGroup,
+            ServerKind serverKind
     ) {
         this.commands = commands;
         this.context = context;
+        this.serverKind = serverKind;
+        this.tlsConfig = tlsConfig;
+        this.nettyConfig = nettyConfig;
         this.parentGroup = parentGroup;
         this.childGroup = childGroup;
         this.channel = channel;
     }
 
+    private SslContext buildSslContext() throws SSLException {
+        return SslContextBuilder.forServer(tlsConfig.certFile(), tlsConfig.keyFile()).build();
+    }
+
     public void start(Address address) throws InterruptedException {
+        final SslContext sslContext;
+        if (tlsConfig.enabled()) {
+            try {
+                sslContext = buildSslContext();
+            } catch (SSLException e) {
+                throw new RuntimeException("Failed to initialize TLS for RESP server", e);
+            }
+        } else {
+            sslContext = null;
+        }
+
         ServerBootstrap b = new ServerBootstrap();
         b.group(parentGroup, childGroup)
                 .channel(channel)
@@ -59,18 +86,23 @@ public abstract class RESPServer implements KronotopService {
                     @Override
                     public void initChannel(SocketChannel ch) {
                         ChannelPipeline p = ch.pipeline();
+                        if (sslContext != null) {
+                            p.addLast(sslContext.newHandler(ch.alloc()));
+                        }
                         p.addLast(new RedisDecoder());
                         p.addLast(new RedisBulkStringAggregator());
                         p.addLast(new RedisArrayAggregator());
                         p.addLast(new RedisMapAggregator());
                         p.addLast(new RedisEncoder());
-                        p.addLast(new KronotopChannelDuplexHandler(context, commands));
+                        p.addLast(new KronotopChannelDuplexHandler(context, commands, serverKind));
                     }
                 })
-                .option(ChannelOption.SO_BACKLOG, 1 << 9)
+                .option(ChannelOption.SO_BACKLOG, nettyConfig.soBacklog())
                 .option(ChannelOption.SO_REUSEADDR, true)
                 .childOption(ChannelOption.TCP_NODELAY, true)
                 .childOption(ChannelOption.SO_KEEPALIVE, true);
+
+        configureBootstrap(b);
 
         channelFuture = b.bind(address.getHost(), address.getPort()).sync();
     }
@@ -83,6 +115,13 @@ public abstract class RESPServer implements KronotopService {
     @Override
     public Context getContext() {
         return context;
+    }
+
+    /**
+     * Hook for subclasses to apply transport-specific bootstrap options.
+     */
+    protected void configureBootstrap(ServerBootstrap b) {
+        // No-op by default
     }
 
     public void shutdown() {

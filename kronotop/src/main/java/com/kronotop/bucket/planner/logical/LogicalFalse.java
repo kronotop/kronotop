@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,6 @@ package com.kronotop.bucket.planner.logical;
 public record LogicalFalse() implements LogicalNode {
 
     public static final LogicalFalse INSTANCE = new LogicalFalse();
-
-    @Override
-    public <R> R accept(LogicalPlanVisitor<R> visitor) {
-        return visitor.visitFalse(this);
-    }
 
     @Override
     public String toString() {

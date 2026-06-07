@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -168,12 +168,12 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
         CleanupJournalTask task = new CleanupJournalTask(journal, 1, TimeUnit.HOURS);
 
         // Before running
-        assertFalse(task.isCompleted());
+        assertFalse(task.isFinished());
 
         task.run();
 
         // After running - still not completed (perpetual task)
-        assertFalse(task.isCompleted());
+        assertFalse(task.isFinished());
     }
 
     @Test

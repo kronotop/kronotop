@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ import java.nio.ByteBuffer;
  * <h2>Performance Characteristics</h2>
  * <ul>
  *   <li>Uses streaming BSON reader for memory efficiency</li>
- *   <li>Short-circuits traversal when target is found</li>
+ *   <li>Short-circuits traversal when the target is found</li>
  *   <li>Skips unneeded values to minimize processing</li>
  *   <li>Recursive implementation handles arbitrary nesting depth</li>
  * </ul>
@@ -115,7 +115,7 @@ public class SelectorMatcher {
      *
      * <p>This method traverses the document using the provided selector string, which follows
      * JSONPath-like dot notation. The selector can navigate through nested documents and arrays
-     * using field names and numeric indices respectively.</p>
+     * using field names and numeric indices, respectively.</p>
      *
      * <h3>Selector Syntax</h3>
      * <ul>
@@ -147,12 +147,21 @@ public class SelectorMatcher {
      * @param document the BSON document to search within
      * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist,
      * contains invalid array indices, or encounters type mismatches
-     * @throws IllegalArgumentException if selector is null or empty
-     * @throws IllegalArgumentException if document is null
+     * @throws IllegalArgumentException if the selector is null or empty
+     * @throws IllegalArgumentException if a document is null
      */
     public static BsonValue match(String selector, BsonDocument document) {
-        String[] pathSegments = StringUtil.split(selector);
+        return match(StringUtil.split(selector), document);
+    }
 
+    /**
+     * Matches pre-split path segments against a BSON document and returns the corresponding value.
+     *
+     * @param pathSegments the pre-split selector path segments
+     * @param document     the BSON document to search within
+     * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist
+     */
+    public static BsonValue match(String[] pathSegments, BsonDocument document) {
         try (BsonReader reader = document.asBsonReader()) {
             reader.readStartDocument();
             return findValueInDocument(reader, pathSegments, 0);
@@ -174,8 +183,17 @@ public class SelectorMatcher {
      * @throws NullPointerException     if the input ByteBuffer is null
      */
     public static BsonValue match(String selector, ByteBuffer input) {
-        String[] pathSegments = StringUtil.split(selector);
+        return match(StringUtil.split(selector), input);
+    }
 
+    /**
+     * Matches pre-split path segments against a BSON document represented as a ByteBuffer.
+     *
+     * @param pathSegments the pre-split selector path segments
+     * @param input        the ByteBuffer containing the BSON document to search within
+     * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist
+     */
+    public static BsonValue match(String[] pathSegments, ByteBuffer input) {
         try (BsonReader reader = new BsonBinaryReader(input)) {
             reader.readStartDocument();
             return findValueInDocument(reader, pathSegments, 0);
@@ -323,8 +341,10 @@ public class SelectorMatcher {
                 return new BsonBinary(binaryData.getType(), binaryData.getData());
             case DECIMAL128:
                 return new BsonDecimal128(reader.readDecimal128());
+            case OBJECT_ID:
+                return new BsonObjectId(reader.readObjectId());
             case DOCUMENT:
-                // For nested documents, we need to read it recursively
+                // For nested documents, we need to read them recursively
                 BsonDocument nestedDoc = new BsonDocument();
                 reader.readStartDocument();
                 while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {

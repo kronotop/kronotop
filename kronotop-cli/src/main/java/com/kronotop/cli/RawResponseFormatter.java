@@ -16,13 +16,13 @@
 
 package com.kronotop.cli;
 
-import com.kronotop.cli.resp.RespValue;
+import com.kronotop.resp.RespValue;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Formats RESP values as raw output matching redis-cli behavior.
+ * Formats RESP values as raw output matching valkey-cli behavior.
  */
 public class RawResponseFormatter {
 
@@ -50,7 +50,7 @@ public class RawResponseFormatter {
             case RespValue.BlobError be -> lines.add(be.code() + " " + be.message());
             case RespValue.Number n -> lines.add(String.valueOf(n.value()));
             case RespValue.Double d -> lines.add(String.valueOf(d.value()));
-            case RespValue.Boolean b -> lines.add(b.value() ? "true" : "false");
+            case RespValue.Boolean b -> lines.add(Boolean.toString(b.value()));
             case RespValue.Null ignored -> lines.add("");
             case RespValue.BigNumber bn -> lines.add(bn.value().toString());
             case RespValue.VerbatimString vs -> lines.add(vs.value());
@@ -129,10 +129,9 @@ public class RawResponseFormatter {
             case RespValue.BlobString bs -> bs.value();
             case RespValue.Number n -> String.valueOf(n.value());
             case RespValue.Double d -> String.valueOf(d.value());
-            case RespValue.Boolean b -> b.value() ? "true" : "false";
+            case RespValue.Boolean b -> Boolean.toString(b.value());
             case RespValue.BigNumber bn -> bn.value().toString();
             case RespValue.VerbatimString vs -> vs.value();
-            case RespValue.Null ignored -> "";
             default -> "";
         };
     }

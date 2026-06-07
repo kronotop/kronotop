@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ public enum OperationKind {
     APPEND((byte) 0x01),
     DELETE((byte) 0x02),
     UPDATE((byte) 0x03),
-    VACUUM((byte) 0x04);
+    INSERT((byte) 0x04);
 
     private final byte value;
 
@@ -33,7 +33,7 @@ public enum OperationKind {
             case 0x01 -> APPEND;
             case 0x02 -> DELETE;
             case 0x03 -> UPDATE;
-            case 0x04 -> VACUUM;
+            case 0x04 -> INSERT;
             default -> throw new IllegalArgumentException();
         };
     }
@@ -48,7 +48,7 @@ public enum OperationKind {
             case APPEND -> "APPEND";
             case DELETE -> "DELETE";
             case UPDATE -> "UPDATE";
-            case VACUUM -> "VACUUM";
+            case INSERT -> "INSERT";
         };
     }
 }

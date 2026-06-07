@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,4 +22,7 @@ public enum BroadcastEventKind {
     BUCKET_METADATA_UPDATED_EVENT,
     NAMESPACE_REMOVED_EVENT,
     BUCKET_REMOVED_EVENT,
+    NAMESPACE_MOVED_EVENT,
+    VECTOR_INDEX_DROPPED_EVENT,
+    INDEX_STATISTICS_UPDATED_EVENT,
 }

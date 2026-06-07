@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,8 @@ public class DirectorySubspaceCacheTest extends BaseClusterTest {
         KronotopTestInstance instance = getInstances().getFirst();
         DirectorySubspaceCache cache = new DirectorySubspaceCache(
                 instance.getContext().getClusterName(),
-                instance.getContext().getFoundationDB()
+                instance.getContext().getFoundationDB(),
+                instance.getContext().getDirectoryLayer()
         );
         DirectorySubspace subspace = assertDoesNotThrow(() -> cache.get(DirectorySubspaceCache.Key.CLUSTER_METADATA));
         assertNotNull(subspace);
@@ -43,9 +44,10 @@ public class DirectorySubspaceCacheTest extends BaseClusterTest {
         KronotopTestInstance instance = getInstances().getFirst();
         DirectorySubspaceCache cache = new DirectorySubspaceCache(
                 instance.getContext().getClusterName(),
-                instance.getContext().getFoundationDB()
+                instance.getContext().getFoundationDB(),
+                instance.getContext().getDirectoryLayer()
         );
-        DirectorySubspace subspace = assertDoesNotThrow(() -> cache.get(ShardKind.REDIS, 1));
+        DirectorySubspace subspace = assertDoesNotThrow(() -> cache.get(ShardKind.STASH, 1));
         assertNotNull(subspace);
     }
 }

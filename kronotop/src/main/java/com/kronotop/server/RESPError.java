@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,19 @@
 
 package com.kronotop.server;
 
+import com.apple.foundationdb.FDBException;
+import com.kronotop.internal.FDBErrorInfo;
+import com.kronotop.internal.FDBErrorRegistry;
 
 public enum RESPError {
     NOAUTH,
     WRONGPASS,
     TRANSACTION,
-    TRANSACTIONOLD,
     NAMESPACEALREADYEXISTS,
     NOSUCHNAMESPACE,
     NAMESPACEBEINGREMOVED,
     NOSUCHINDEX,
+    BUCKETALREADYEXISTS,
     NOSUCHBUCKET,
     BUCKETBEINGREMOVED,
     WRONGTYPE,
@@ -33,13 +36,14 @@ public enum RESPError {
     MOVED,
     CROSSSLOT,
     NOPROTO,
-    REDIRECT,
+    REJECT,
     OUTOFBOUND,
     INDEXTYPE_MISMATCH,
+    DUPLICATEKEY,
+    BARRIERNOTSATISFIED,
+    VECTORINDEXNOTREADY,
     ERR;
 
-    public final static String TRANSACTION_TOO_OLD_MESSAGE = "Transaction is too old to perform reads or be committed";
-    public final static String TRANSACTION_BYTE_LIMIT_MESSAGE = "Transaction exceeds byte limit";
     public final static String WRONGTYPE_MESSAGE = "Operation against a key holding the wrong kind of value";
     public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_LONG = "value is not a long or out of range";
     public final static String NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER = "value is not an integer or out of range";
@@ -60,7 +64,24 @@ public enum RESPError {
         return new String(c);
     }
 
+    /**
+     * Extracts RESP error information from an FDBException.
+     *
+     * @param fdbEx the FoundationDB exception
+     * @return a record containing the error prefix and message
+     */
+    public static FDBErrorResult extractFDBError(FDBException fdbEx) {
+        FDBErrorInfo errInfo = FDBErrorRegistry.lookup(fdbEx.getCode());
+        if (errInfo == null) {
+            return new FDBErrorResult(ERR.name(), decapitalize(fdbEx.getMessage()));
+        }
+        return new FDBErrorResult(errInfo.prefix(), errInfo.message());
+    }
+
     public String toString() {
         return this.name();
+    }
+
+    public record FDBErrorResult(String prefix, String message) {
     }
 }

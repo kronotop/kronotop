@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,22 @@
 
 package com.kronotop.bucket;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.kronotop.*;
+import com.kronotop.Context;
+import com.kronotop.KronotopException;
+import com.kronotop.KronotopService;
+import com.kronotop.ShardOwnerService;
 import com.kronotop.bucket.handlers.*;
+import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.VectorIndex;
+import com.kronotop.bucket.index.VectorIndexDefinition;
+import com.kronotop.bucket.vector.*;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingEventKind;
@@ -29,7 +42,12 @@ import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.*;
+import java.util.stream.Stream;
 
 /*
 We have been given the scientific knowledge, the technical ability and the materials to pursue the exploration of the universe.
@@ -40,7 +58,6 @@ To ignore these great resources would be a corruption of a God-given ability.
 public class BucketService extends ShardOwnerService<BucketShard> implements KronotopService {
     public static final String NAME = "Bucket";
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
-    private final int numberOfShards;
     private final RoutingService routing;
     private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(
             1,
@@ -50,17 +67,36 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final BucketEventsWatcher bucketEventsWatcher;
     // The default ShardSelector is RoundRobinShardSelector.
     private final ShardSelector shardSelector = new RoundRobinShardSelector();
+    private final VectorGraphIndexRegistry vectorGraphRegistry = new VectorGraphIndexRegistry();
+    private final ExecutorService vectorGraphExecutor = Executors.newFixedThreadPool(
+            Runtime.getRuntime().availableProcessors(),
+            new ThreadFactoryBuilder().setNameFormat("kr.vector-%d").build()
+    );
+    private final CollatorCache collatorCache = new CollatorCache();
     private final QueryExecutor queryExecutor;
+    private final PlanCache planCache = new PlanCache();
     private final Planner planner;
-    private volatile boolean shutdown;
+    private final long vectorFlushThresholdBytes;
+    private final int pqTrainingThreshold;
+    private final int pqSubspaceDivisor;
+    private final int maxScanCandidates;
+    private final float defaultOverquery;
+    private final Path bucketDataDir;
+    private volatile boolean shuttingDown = false;
 
     public BucketService(Context context) {
         super(context, NAME);
         this.routing = context.getService(RoutingService.NAME);
-        this.numberOfShards = context.getConfig().getInt("bucket.shards");
+        this.vectorFlushThresholdBytes = context.getConfig().getLong("bucket.vector.flush_threshold_bytes");
+        this.pqTrainingThreshold = context.getConfig().getInt("bucket.vector.pq_training_threshold");
+        this.pqSubspaceDivisor = context.getConfig().getInt("bucket.vector.pq_subspace_divisor");
+        this.maxScanCandidates = context.getConfig().getInt("bucket.vector.max_scan_candidates");
+        this.defaultOverquery = (float) context.getConfig().getDouble("bucket.vector.default_overquery");
+        this.bucketDataDir = context.getDataDir().resolve("bucket");
 
         context.setBucketMetadataCache(new BucketMetadataCache(context));
 
+        handlerMethod(ServerKind.EXTERNAL, new BucketCreateHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketInsertHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketQueryHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketExplainHandler(this));
@@ -69,16 +105,24 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         handlerMethod(ServerKind.EXTERNAL, new BucketDeleteHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketUpdateHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketCloseHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketCursorsHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketIndexHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketRemoveHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new BucketPurgeHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketLocateHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketListHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new BucketVectorHandler(this));
 
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
 
-        this.bucketEventsWatcher = new BucketEventsWatcher(context);
-        this.planner = new Planner();
+        this.bucketEventsWatcher = new BucketEventsWatcher(context, planCache);
+        this.planner = new Planner(planCache);
         this.queryExecutor = new QueryExecutor(this);
+    }
+
+    public PlanCache getPlanCache() {
+        return planCache;
     }
 
     public Route findRoute(int shardId) {
@@ -87,6 +131,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     public QueryExecutor getQueryExecutor() {
         return queryExecutor;
+    }
+
+    public CollatorCache getCollatorCache() {
+        return collatorCache;
     }
 
     public Planner getPlanner() {
@@ -102,6 +150,42 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         return shardSelector;
     }
 
+    public VectorGraphIndexRegistry getVectorGraphRegistry() {
+        return vectorGraphRegistry;
+    }
+
+    public ExecutorService getVectorGraphExecutor() {
+        return vectorGraphExecutor;
+    }
+
+    public long getVectorFlushThresholdBytes() {
+        return vectorFlushThresholdBytes;
+    }
+
+    public int getPqTrainingThreshold() {
+        return pqTrainingThreshold;
+    }
+
+    public int getPqSubspaceDivisor() {
+        return pqSubspaceDivisor;
+    }
+
+    public int getMaxScanCandidates() {
+        return maxScanCandidates;
+    }
+
+    public float getDefaultOverquery() {
+        return defaultOverquery;
+    }
+
+    public Path getBucketDataDir() {
+        return bucketDataDir;
+    }
+
+    public boolean isShuttingDown() {
+        return shuttingDown;
+    }
+
     /**
      * Retrieves the BucketShard instance associated with the specified shard ID.
      *
@@ -111,15 +195,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
      */
     public BucketShard getShard(int shardId) {
         return getServiceContext().shards().get(shardId);
-    }
-
-    /**
-     * Returns the number of shards managed by the service.
-     *
-     * @return the total number of shards.
-     */
-    public int getNumberOfShards() {
-        return numberOfShards;
     }
 
     /**
@@ -142,21 +217,102 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         }
     }
 
+    /**
+     * Loads a vector graph index group from the disk and replays mutation log entries for crash recovery.
+     * If no disk data and no mutation log entries exist, returns an immediately ready group (fast-path).
+     * Otherwise, returns a not-yet-ready group and runs bootstrap in the background (slow-path).
+     * Called exactly once per index because ConcurrentHashMap.computeIfAbsent guarantees a single
+     * supplier invocation for a given key.
+     */
+    public VectorGraphIndexGroup bootstrapVectorGroup(BucketMetadata metadata, VectorIndex vectorIndex) {
+        if (!hasOnDiskIndexes(metadata, vectorIndex) && !hasMutationLogEntries(vectorIndex)) {
+            return new VectorGraphIndexGroup(context, metadata, vectorIndex);
+        }
+
+        CompletableFuture<Void> bootstrapFuture = new CompletableFuture<>();
+        VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex, bootstrapFuture);
+
+        vectorGraphExecutor.submit(() -> {
+            try {
+                VectorIndexDefinition definition = vectorIndex.definition();
+                List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
+                        bucketDataDir,
+                        metadata.uuid(),
+                        definition.id(),
+                        OnHeapVectorGraphIndex.toSimilarityFunction(definition.distance())
+                );
+                for (OnDiskVectorGraphIndex onDisk : onDiskIndexes) {
+                    group.addOnDisk(onDisk);
+                }
+
+                OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+                        context.getFoundationDB(),
+                        vectorIndex.subspace(),
+                        group,
+                        definition.dimensions(),
+                        OnHeapVectorGraphIndex.toSimilarityFunction(definition.distance()),
+                        vectorGraphExecutor,
+                        pqTrainingThreshold,
+                        pqSubspaceDivisor
+                );
+                if (recovered != null) {
+                    group.addOnHeap(recovered);
+                }
+
+                group.markReady();
+            } catch (Exception e) {
+                LOGGER.error("Vector index bootstrap failed for bucket={}, indexId={}",
+                        metadata.name(), vectorIndex.definition().id(), e);
+                group.markFailed(e);
+            }
+        });
+
+        return group;
+    }
+
+    private boolean hasOnDiskIndexes(BucketMetadata metadata, VectorIndex vectorIndex) {
+        Path indexDir = VectorGraphIndexGroup
+                .resolveVectorDir(bucketDataDir)
+                .resolve(metadata.uuid().toString())
+                .resolve(Long.toString(vectorIndex.definition().id()));
+        if (!Files.isDirectory(indexDir)) {
+            return false;
+        }
+        try (Stream<Path> stream = Files.list(indexDir)) {
+            return stream.anyMatch(p -> p.toString().endsWith(".complete"));
+        } catch (IOException e) {
+            // Assume data exists so bootstrapVectorGroup takes the slow-path rather than skipping recovery.
+            return true;
+        }
+    }
+
+    private boolean hasMutationLogEntries(VectorIndex vectorIndex) {
+        DirectorySubspace indexSubspace = vectorIndex.subspace();
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> result = tr.getRange(
+                    KeySelector.firstGreaterOrEqual(prefix),
+                    KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix)),
+                    1
+            ).asList().join();
+            return !result.isEmpty();
+        }
+    }
+
     public void start() {
-        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+        for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
             initializeBucketShardsIfOwned(shardId);
         }
 
         executor.submit(bucketEventsWatcher);
-        CachedTimeService cachedTimeService = context.getService(CachedTimeService.NAME);
-        Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(cachedTimeService, 1000 * 5 * 60);
+        Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(context::now, 1000 * 5 * 60);
         scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
     }
 
     @Override
     public void shutdown() {
+        shuttingDown = true;
         try {
-            shutdown = true;
             bucketEventsWatcher.shutdown();
 
             for (BucketShard shard : getServiceContext().shards().values()) {
@@ -178,6 +334,22 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             )) {
                 LOGGER.warn("{} service cannot be stopped gracefully (scheduler)", NAME);
             }
+
+            vectorGraphExecutor.shutdown();
+            if (!vectorGraphExecutor.awaitTermination(
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+            )) {
+                LOGGER.warn("{} service cannot be stopped gracefully (vectorGraphPool)", NAME);
+            }
+
+            try {
+                vectorGraphRegistry.flushAll(bucketDataDir);
+            } catch (Exception e) {
+                LOGGER.error("Failed to flush vector graph indexes on shutdown", e);
+            }
+
+            vectorGraphRegistry.closeAll();
         } catch (InterruptedException exp) {
             Thread.currentThread().interrupt();
             throw new KronotopException(exp);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package com.kronotop.bucket.pipeline;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -53,41 +52,46 @@ public class TransformWithResidualPredicateNode extends AbstractPipelineNode imp
             return;
         }
 
-        DataSink newSink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
+        PersistedEntrySink newSink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
+        DocumentView view = new DocumentView();
         try {
             switch (sink) {
                 case PersistedEntrySink persistedEntrySink -> {
-                    persistedEntrySink.forEach(((versionstamp, entry) -> {
-                        if (residualPredicate.test(entry.document())) {
-                            ctx.sinks().writePersistedEntry(newSink, versionstamp, entry);
+                    for (PersistedEntry entry : persistedEntrySink.entries()) {
+                        view.reset(entry.objectId(), entry.document());
+                        if (residualPredicate.test(view, ctx.getParameters(), ctx.env().collatorCache())) {
+                            newSink.append(entry);
                         }
-                    }));
+                    }
                 }
                 case DocumentLocationSink documentLocationSink -> {
-                    // Phase 1: Collect all locations
-                    List<Long> entryHandles = new ArrayList<>();
-                    List<DocumentLocation> locations = new ArrayList<>();
-                    documentLocationSink.forEach((entryHandle, location) -> {
-                        entryHandles.add(entryHandle);
-                        locations.add(location);
-                    });
+                    // Deduplicate by ObjectId only when a multi-key index produced the results
+                    if (ctx.isScannedIndexMultiKey()) {
+                        documentLocationSink.dedupByObjectId();
+                    }
 
-                    if (locations.isEmpty()) {
+                    if (documentLocationSink.size() == 0) {
                         break;
                     }
 
                     // Phase 2: Batch retrieve all documents
                     List<ByteBuffer> documents = ctx.env().documentRetriever()
-                            .retrieveDocuments(ctx.metadata(), locations);
+                            .retrieveDocuments(documentLocationSink.entries());
 
                     // Phase 3: Filter and write
                     for (int i = 0; i < documents.size(); i++) {
                         ByteBuffer document = documents.get(i);
-                        if (residualPredicate.test(document)) {
-                            long entryHandle = entryHandles.get(i);
-                            DocumentLocation location = locations.get(i);
-                            PersistedEntry entry = new PersistedEntry(location.shardId(), entryHandle, document);
-                            ctx.sinks().writePersistedEntry(newSink, location.versionstamp(), entry);
+                        DocumentLocation location = documentLocationSink.entries().get(i);
+                        view.reset(location.objectId(), document);
+                        if (residualPredicate.test(view, ctx.getParameters(), ctx.env().collatorCache())) {
+                            PersistedEntry entry = new PersistedEntry(
+                                    location.objectId(),
+                                    location.shardId(),
+                                    location.entryMetadata(),
+                                    document,
+                                    location.cursorIndexValue()
+                            );
+                            newSink.append(entry);
                         }
                     }
                 }

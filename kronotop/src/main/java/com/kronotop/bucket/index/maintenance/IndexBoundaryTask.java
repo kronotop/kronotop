@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,14 +18,27 @@ package com.kronotop.bucket.index.maintenance;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kronotop.bucket.index.IndexType;
 
 public class IndexBoundaryTask extends IndexMaintenanceTask {
+    private final IndexType indexType;
+
     @JsonCreator
     public IndexBoundaryTask(
             @JsonProperty("namespace") String namespace,
             @JsonProperty("bucket") String bucket,
             @JsonProperty("indexId") long indexId,
-            @JsonProperty("shardId") int shardId) {
+            @JsonProperty("shardId") int shardId,
+            @JsonProperty("indexType") IndexType indexType) {
         super(IndexMaintenanceTaskKind.BOUNDARY, namespace, bucket, indexId, shardId);
+        this.indexType = indexType;
+    }
+
+    public IndexBoundaryTask(String namespace, String bucket, long indexId, int shardId) {
+        this(namespace, bucket, indexId, shardId, IndexType.SINGLE_FIELD);
+    }
+
+    public IndexType getIndexType() {
+        return indexType;
     }
 }

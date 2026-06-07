@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,12 @@ public enum VolumeAdminSubcommand {
     LIST("list"),
     DESCRIBE("describe"),
     SET_STATUS("set-status"),
-    VACUUM("vacuum"),
-    STOP_VACUUM("stop-vacuum"),
     CLEANUP_ORPHAN_FILES("cleanup-orphan-files"),
     MARK_STALE_PREFIXES("mark-stale-prefixes"),
     LIST_SEGMENTS("list-segments"),
-    START_REPLICATION("start-replication"),
-    STOP_REPLICATION("stop-replication"),
-    PRUNE_CHANGELOG("prune-changelog");
+    REPLICATION("replication"),
+    PRUNE_CHANGELOG("prune-changelog"),
+    VACUUM("vacuum");
 
     private final String value;
 

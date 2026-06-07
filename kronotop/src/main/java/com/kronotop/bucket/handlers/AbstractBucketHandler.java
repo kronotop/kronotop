@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,42 +17,81 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.CommitHook;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
+import com.kronotop.bucket.bql.BqlParser;
+import com.kronotop.bucket.bql.ParameterExtractor;
+import com.kronotop.bucket.bql.ast.BqlExpr;
+import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.handlers.protocol.QueryArguments;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.QueryOptions;
 import com.kronotop.bucket.pipeline.UpdateOptions;
+import com.kronotop.bucket.vector.VectorGraphIndexGroup;
+import com.kronotop.bucket.vector.VectorIndexNotReadyException;
 import com.kronotop.cluster.Route;
-import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonDocument;
+import org.bson.types.ObjectId;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
+/**
+ * Base class for bucket command handlers providing common functionality for query execution,
+ * response formatting, and shard management.
+ *
+ * <p>Subclasses implement specific bucket operations (QUERY, DELETE, UPDATE, INSERT, EXPLAIN) while
+ * inheriting shared utilities for RESP2/RESP3 response formatting, query context building,
+ * and document parsing.</p>
+ */
 public abstract class AbstractBucketHandler implements Handler {
-    private final static RedisMessage CURSOR_ID_MESSAGE_KEY = new SimpleStringRedisMessage("cursor_id");
-    private final static RedisMessage ENTRIES_MESSAGE_KEY = new SimpleStringRedisMessage("entries");
-    private final static RedisMessage VERSIONSTAMPS_MESSAGE_KEY = new SimpleStringRedisMessage("versionstamps");
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractBucketHandler.class);
+    private static final byte[] CURSOR_ID_BYTES = "cursor_id".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] ENTRIES_BYTES = "entries".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] OBJECT_IDS_BYTES = "object_ids".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] SCORE_BYTES = "score".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] ENTRY_BYTES = "entry".getBytes(StandardCharsets.UTF_8);
+
     protected final BucketService service;
     protected final Context context;
+    private final boolean planCacheEnabled;
+    private final int planCacheMaxTtl;
 
+    /**
+     * Constructs a handler with the given bucket service and loads plan cache configuration.
+     *
+     * @param service the bucket service providing shard access and query planning
+     */
     public AbstractBucketHandler(BucketService service) {
         this.service = service;
         this.context = service.getContext();
+
+        planCacheEnabled = this.context.getConfig().getBoolean("bucket.plan_cache.enabled");
+        planCacheMaxTtl = this.context.getConfig().getInt("bucket.plan_cache.max_ttl");
     }
 
+    protected static FullBulkStringRedisMessage bulkString(String input) {
+        return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(input.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    /**
+     * Bucket handlers are not Redis-compatible as they use Kronotop-specific protocol extensions.
+     */
     @Override
     public boolean isRedisCompatible() {
         return false;
@@ -80,83 +119,82 @@ public abstract class AbstractBucketHandler implements Handler {
 
     /**
      * Prepares a {@code ByteBuf} value based on the reply type derived from the given request.
-     * The method generates either a BSON or JSON formatted {@code ByteBuf} depending on the reply type
-     * of the session associated with the request. In case of an unsupported reply type, an exception is thrown.
      *
-     * @param request the {@code Request} object containing the session information and other relevant data
-     * @param entry   a {@code Map.Entry} containing a {@code Versionstamp} as the key and a {@code ByteBuffer} as the value,
-     *                where the value represents the data to be transformed into the {@code ByteBuf}
+     * @param request  the {@code Request} object containing the session information
+     * @param document a {@code ByteBuffer} containing the document data
      * @return a {@code ByteBuf} object containing the serialized data in the format specified by the reply type
      */
-    protected ByteBuf prepareValue(Request request, Map.Entry<Versionstamp, ByteBuffer> entry) {
+    protected ByteBuf prepareValue(Request request, ByteBuffer document) {
         ReplyType replyType = getReplyType(request);
 
         return switch (replyType) {
-            case ReplyType.BSON -> {
-                ByteBuffer bb = entry.getValue();
-                yield Unpooled.wrappedBuffer(bb.slice());
-            }
+            case ReplyType.BSON -> Unpooled.wrappedBuffer(document.slice());
             case ReplyType.JSON -> {
-                BsonDocument document = BSONUtil.toBsonDocument(entry.getValue().array());
-                byte[] data = document.toJson().getBytes(StandardCharsets.UTF_8);
+                byte[] bytes = new byte[document.remaining()];
+                document.get(bytes);
+                document.rewind();
+                BsonDocument bsonDocument = BSONUtil.toBsonDocument(bytes);
+                byte[] data = BSONUtil.toJson(bsonDocument).getBytes(StandardCharsets.UTF_8);
                 yield Unpooled.wrappedBuffer(data);
             }
         };
     }
 
+    protected RedisMessage encodeObjectId(ObjectIdFormat format, ObjectId objectId) {
+        return switch (format) {
+            case BYTES -> new FullBulkStringRedisMessage(
+                    Unpooled.wrappedBuffer(objectId.toByteArray())
+            );
+            case HEX -> new FullBulkStringRedisMessage(
+                    Unpooled.copiedBuffer(objectId.toHexString(), StandardCharsets.US_ASCII)
+            );
+        };
+    }
+
     /**
      * Processes and writes a RESP3-compliant response to the client based on the provided {@code ReadResponse}.
-     * Converts the supplied {@code ReadResponse} into a Redis-compatible data format and sends the resulting
-     * data structure to the client using the {@code Response} object. Handles both scenarios where the response
-     * contains entries and where it is empty.
      *
      * @param request      the {@code Request} object containing session and command-related information
      * @param response     the {@code Response} object used to send the processed results back to the client
-     * @param readResponse the {@code ReadResponse} object containing the cursor ID and entries to be converted
-     *                     into a Redis-compliant map response
+     * @param readResponse the {@code BucketEntriesMapResponse} containing the cursor ID and entries
      */
     protected void resp3Response(Request request, Response response, BucketEntriesMapResponse readResponse) {
         Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
-        root.put(CURSOR_ID_MESSAGE_KEY, new IntegerRedisMessage(readResponse.cursorId()));
+        root.put(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(CURSOR_ID_BYTES)), new IntegerRedisMessage(readResponse.cursorId()));
         if (readResponse.entries() == null || readResponse.entries().isEmpty()) {
-            root.put(ENTRIES_MESSAGE_KEY, MapRedisMessage.EMPTY_INSTANCE);
+            root.put(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(ENTRIES_BYTES)), ArrayRedisMessage.EMPTY_INSTANCE);
             response.writeMap(root);
             return;
         }
-        Map<RedisMessage, RedisMessage> entries = new LinkedHashMap<>();
-        for (Map.Entry<Versionstamp, ByteBuffer> entry : readResponse.entries().entrySet()) {
-            ByteBuf value = prepareValue(request, entry);
-            entries.put(
-                    new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(entry.getKey())),
+        List<RedisMessage> entries = new ArrayList<>();
+        for (ByteBuffer document : readResponse.entries()) {
+            ByteBuf value = prepareValue(request, document);
+            entries.add(
                     new FullBulkStringRedisMessage(value)
             );
         }
-        root.put(ENTRIES_MESSAGE_KEY, new MapRedisMessage(entries));
+        root.put(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(ENTRIES_BYTES)), new ArrayRedisMessage(entries));
         response.writeMap(root);
     }
 
     /**
      * Processes and writes a RESP2-compliant response to the client based on the given {@code ReadResponse}.
-     * Converts the provided {@code ReadResponse} into a Redis-compatible data format and sends the resulting
-     * data structure to the client using the {@code Response} object.
      *
      * @param request      the {@code Request} object containing the session and command information
      * @param response     the {@code Response} object used to send the result back to the client
-     * @param readResponse the {@code ReadResponse} object containing the cursor ID and entries
-     *                     to be processed and sent as a Redis-compliant response
+     * @param readResponse the {@code BucketEntriesMapResponse} containing the cursor ID and entries
      */
     protected void resp2Response(Request request, Response response, BucketEntriesMapResponse readResponse) {
-        List<RedisMessage> root = new LinkedList<>();
+        List<RedisMessage> root = new ArrayList<>();
         root.add(new IntegerRedisMessage(readResponse.cursorId()));
         if (readResponse.entries() == null || readResponse.entries().isEmpty()) {
             root.add(ArrayRedisMessage.EMPTY_INSTANCE);
             response.writeArray(root);
             return;
         }
-        List<RedisMessage> result = new LinkedList<>();
-        for (Map.Entry<Versionstamp, ByteBuffer> entry : readResponse.entries().entrySet()) {
-            ByteBuf value = prepareValue(request, entry);
-            result.add(new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(entry.getKey())));
+        List<RedisMessage> result = new ArrayList<>();
+        for (ByteBuffer document : readResponse.entries()) {
+            ByteBuf value = prepareValue(request, document);
             result.add(new FullBulkStringRedisMessage(value));
         }
         root.add(new ArrayRedisMessage(result));
@@ -164,104 +202,293 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Retrieves a {@code BucketShard} object based on the specified shard ID.
-     * If the shard ID is negative, the method selects the next available shard using the shard selector.
-     * If the shard ID is out of the valid range or the shard is not owned by the current member,
-     * a {@code KronotopException} is thrown.
+     * Writes a RESP3 map response containing cursor ID and ObjectId array.
+     * Used for DELETE and UPDATE operations that return affected document identifiers.
      *
-     * @param shardId the ID of the shard to retrieve. If negative, the next shard is selected automatically.
-     * @return the {@code BucketShard} corresponding to the specified shard ID or the next shard if shard ID is negative.
-     * @throws KronotopException if the shard ID is out of the valid range or the shard is not owned by the member.
+     * @param response         the response writer
+     * @param format           the ObjectId encoding format (BYTES or HEX)
+     * @param objectIdResponse the result containing cursor ID and affected ObjectIds
      */
-    protected BucketShard getOrSelectBucketShardId(int shardId) {
-        if (shardId < 0) {
-            return service.getShardSelector().next();
-        }
-        if (shardId >= service.getNumberOfShards()) {
-            throw new KronotopException("Invalid shard id");
-        }
-        BucketShard shard = service.getShard(shardId);
-        if (Objects.isNull(shard)) {
-            Route route = service.findRoute(shardId);
-            if (Objects.isNull(route)) {
-                throw new KronotopException("No routing information found for Bucket Shard: " + shardId);
-            }
-            Address address = route.primary().getExternalAddress();
-            throw new RedirectException(shardId, address.getHost(), address.getPort());
-        }
-        return shard;
-    }
-
-    protected void resp3VersionstampArrayResponse(Response response, BucketVersionstampArrayResponse deleteResponse) {
+    protected void resp3ObjectIdArrayResponse(Response response, ObjectIdFormat format, BucketObjectIdArrayResponse objectIdResponse) {
         Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
-        root.put(CURSOR_ID_MESSAGE_KEY, new IntegerRedisMessage(deleteResponse.cursorId()));
-        if (deleteResponse.versionstamps() == null || deleteResponse.versionstamps().isEmpty()) {
-            root.put(VERSIONSTAMPS_MESSAGE_KEY, ArrayRedisMessage.EMPTY_INSTANCE);
+        root.put(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(CURSOR_ID_BYTES)), new IntegerRedisMessage(objectIdResponse.cursorId()));
+        if (objectIdResponse.objectIds() == null || objectIdResponse.objectIds().isEmpty()) {
+            root.put(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(OBJECT_IDS_BYTES)), ArrayRedisMessage.EMPTY_INSTANCE);
             response.writeMap(root);
             return;
         }
-        List<RedisMessage> versionstamps = new ArrayList<>();
-        for (Versionstamp versionstamp : deleteResponse.versionstamps()) {
-            versionstamps.add(
-                    new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(versionstamp))
-            );
+        List<RedisMessage> objectIds = new ArrayList<>();
+        for (ObjectId objectId : objectIdResponse.objectIds()) {
+            objectIds.add(encodeObjectId(format, objectId));
         }
-        root.put(VERSIONSTAMPS_MESSAGE_KEY, new ArrayRedisMessage(versionstamps));
+        root.put(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(OBJECT_IDS_BYTES)), new ArrayRedisMessage(objectIds));
         response.writeMap(root);
     }
 
-    protected void resp2VersionstampArrayResponse(Response response, BucketVersionstampArrayResponse deleteResponse) {
-        List<RedisMessage> root = new LinkedList<>();
-        root.add(new IntegerRedisMessage(deleteResponse.cursorId()));
-        if (deleteResponse.versionstamps() == null || deleteResponse.versionstamps().isEmpty()) {
+    /**
+     * Writes a RESP2 array response containing cursor ID and ObjectId array.
+     * Used for DELETE and UPDATE operations with RESP2 clients.
+     *
+     * @param response         the response writer
+     * @param format           the ObjectId encoding format (BYTES or HEX)
+     * @param objectIdResponse the result containing cursor ID and affected ObjectIds
+     */
+    protected void resp2ObjectIdArrayResponse(Response response, ObjectIdFormat format, BucketObjectIdArrayResponse objectIdResponse) {
+        List<RedisMessage> root = new ArrayList<>();
+        root.add(new IntegerRedisMessage(objectIdResponse.cursorId()));
+        if (objectIdResponse.objectIds() == null || objectIdResponse.objectIds().isEmpty()) {
             root.add(ArrayRedisMessage.EMPTY_INSTANCE);
             response.writeArray(root);
             return;
         }
-        List<RedisMessage> versionstamps = new LinkedList<>();
-        for (Versionstamp versionstamp : deleteResponse.versionstamps()) {
-            versionstamps.add(new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(versionstamp)));
+        List<RedisMessage> objectIds = new ArrayList<>();
+        for (ObjectId objectId : objectIdResponse.objectIds()) {
+            objectIds.add(encodeObjectId(format, objectId));
         }
-        root.add(new ArrayRedisMessage(versionstamps));
+        root.add(new ArrayRedisMessage(objectIds));
         response.writeArray(root);
     }
 
+    /**
+     * Writes a RESP3 response for vector search: array of maps, each with score and document.
+     *
+     * @param request  the request for reply type conversion
+     * @param response the response writer
+     * @param results  vector search results with scores and documents
+     */
+    protected void resp3VectorResponse(Request request, Response response, List<VectorSearchResult> results) {
+        if (results.isEmpty()) {
+            response.writeArray(List.of());
+            return;
+        }
+        List<RedisMessage> array = new ArrayList<>(results.size());
+        for (VectorSearchResult result : results) {
+            Map<RedisMessage, RedisMessage> entry = new LinkedHashMap<>();
+            entry.put(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(SCORE_BYTES)),
+                    new DoubleRedisMessage(result.score()));
+            entry.put(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(ENTRY_BYTES)),
+                    new FullBulkStringRedisMessage(prepareValue(request, result.document())));
+            array.add(new MapRedisMessage(entry));
+        }
+        response.writeArray(array);
+    }
+
+    /**
+     * Writes a RESP2 response for vector search: array of [score, document] pairs.
+     *
+     * @param request  the request for reply type conversion
+     * @param response the response writer
+     * @param results  vector search results with scores and documents
+     */
+    protected void resp2VectorResponse(Request request, Response response, List<VectorSearchResult> results) {
+        if (results.isEmpty()) {
+            response.writeArray(List.of());
+            return;
+        }
+        List<RedisMessage> array = new ArrayList<>(results.size());
+        for (VectorSearchResult result : results) {
+            List<RedisMessage> pair = new ArrayList<>(2);
+            pair.add(bulkString(String.valueOf(result.score())));
+            pair.add(new FullBulkStringRedisMessage(prepareValue(request, result.document())));
+            array.add(new ArrayRedisMessage(pair));
+        }
+        response.writeArray(array);
+    }
+
+    /**
+     * Applies field-level projection to query results if a projection spec is present in the context.
+     * <p>
+     * This method deserializes each ByteBuffer into a BsonDocument, applies the projection, and serializes back.
+     * A BsonBinaryReader-based approach that operates directly on raw bytes was considered but rejected:
+     * projection runs on already-limited result sets, the real bottleneck is FDB/Volume I/O, and the Projector
+     * logic (nested fields, array traversal, positional operator) would require a complex state machine
+     * for marginal gain.
+     *
+     * @param entries the raw document entries from the query executor
+     * @param ctx     the query context potentially containing a projection spec
+     * @return projected entries, or the original entries if no projection is specified
+     */
+    protected List<ByteBuffer> applyProjection(List<ByteBuffer> entries, QueryContext ctx) {
+        if (ctx.getProjectionSpec() == null || entries == null || entries.isEmpty()) {
+            return entries;
+        }
+
+        List<BsonDocument> documents = new ArrayList<>(entries.size());
+        for (ByteBuffer entry : entries) {
+            documents.add(BSONUtil.fromBson(entry.slice()));
+        }
+
+        List<BsonDocument> projected = Projector.project(documents, ctx.getProjectionSpec(), ctx.getParsedQuery());
+
+        List<ByteBuffer> result = new ArrayList<>(projected.size());
+        for (BsonDocument doc : projected) {
+            result.add(BSONUtil.toByteBuffer(doc));
+        }
+        return result;
+    }
+
+    /**
+     * Applies field-level projection to vector search results.
+     * <p>
+     * Same ByteBuffer-to-BsonDocument round-trip rationale as {@link #applyProjection}:
+     * the result set is already bounded, and a raw-bytes approach would add significant
+     * complexity for negligible performance improvement.
+     */
+    protected List<VectorSearchResult> applyVectorProjection(
+            List<VectorSearchResult> results,
+            BsonDocument projectionSpec,
+            BqlExpr parsedQuery) {
+        if (projectionSpec == null || results == null || results.isEmpty()) {
+            return results;
+        }
+
+        List<BsonDocument> documents = new ArrayList<>(results.size());
+        for (VectorSearchResult result : results) {
+            documents.add(BSONUtil.fromBson(result.document().slice()));
+        }
+
+        List<BsonDocument> projected = Projector.project(documents, projectionSpec, parsedQuery);
+
+        List<VectorSearchResult> projectedResults = new ArrayList<>(results.size());
+        for (int i = 0; i < results.size(); i++) {
+            projectedResults.add(new VectorSearchResult(results.get(i).score(), BSONUtil.toByteBuffer(projected.get(i))));
+        }
+        return projectedResults;
+    }
+
+    /**
+     * Builds query options from session defaults and command arguments.
+     *
+     * @param session       the client session containing default limit
+     * @param updateOptions optional update configuration for UPDATE operations
+     * @param arguments     parsed command arguments containing limit and sort options
+     * @return configured query options
+     */
     QueryOptions buildQueryOptions(Session session, UpdateOptions updateOptions, QueryArguments arguments) {
         QueryOptions.Builder builder = QueryOptions.builder();
-        if (arguments.limit() == 0) {
+        if (arguments.getLimit() == 0) {
             builder.limit(session.attr(SessionAttributes.LIMIT).get());
         } else {
-            builder.limit(arguments.limit());
+            builder.limit(arguments.getLimit());
         }
-        builder.reverse(arguments.reverse());
+        if (arguments.getSortBy() != null) {
+            builder.sortByField(arguments.getSortBy());
+            builder.sortDirection(arguments.getSortDirection());
+        }
+        if (arguments.getResultSortBy() != null) {
+            if (arguments.getResultSortBy().equals(arguments.getSortBy())) {
+                throw new KronotopException("SORTBY and RESULTSORT cannot use the same field: '" + arguments.getSortBy() + "'");
+            }
+            builder.resultSortField(arguments.getResultSortBy());
+            builder.resultSortDirection(arguments.getResultSortDirection());
+        }
         if (updateOptions != null) {
             builder.update(updateOptions);
+        }
+        if (arguments.getCollation() != null) {
+            builder.collation(arguments.getCollation());
         }
         return builder.build();
     }
 
-    QueryContext buildQueryContext(Request request, String bucket, byte[] query, QueryArguments arguments, UpdateOptions updateOptions) {
-        Session session = request.getSession();
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, session, bucket);
-        QueryOptions options = buildQueryOptions(session, updateOptions, arguments);
-        PipelineNode plan = service.getPlanner().plan(metadata, query);
-        return new QueryContext(metadata, options, plan);
-    }
-
-    QueryContext buildQueryContext(Request request, String bucket, byte[] query, QueryArguments arguments) {
-        return buildQueryContext(request, bucket, query, arguments, null);
-    }
-
-    BsonDocument parseDocument(InputType inputType, byte[] data) {
-        if (inputType.equals(InputType.JSON)) {
-            return BSONUtil.fromJson(data);
-        } else if (inputType.equals(InputType.BSON)) {
-            return BSONUtil.fromBson(data);
-        } else {
-            throw new KronotopException("Invalid input type: " + inputType);
+    /**
+     * Returns the first shard from the bucket's shard list that is owned by this cluster member.
+     * If no local shard exists, redirects the client to the primary owner of the first shard.
+     *
+     * @param metadata the bucket metadata containing the shard list
+     * @return the local shard
+     * @throws KronotopException if the bucket has no shards assigned, or no route is found
+     * @throws RejectException   if none of the bucket's shards are local
+     */
+    BucketShard findLocalShard(BucketMetadata metadata) {
+        // Potential optimization: cache the selected shardId in BucketMetadata cache or somewhere else.
+        if (metadata.shards() == null || metadata.shards().isEmpty()) {
+            throw new KronotopException("No shards assigned to bucket: '" + metadata.name() + "'");
         }
+        for (int shardId : metadata.shards()) {
+            BucketShard shard = service.getShard(shardId);
+            if (shard == null) {
+                continue;
+            }
+            return shard;
+        }
+
+        int shardId = metadata.shards().getFirst();
+        Route route = service.findRoute(shardId);
+        if (Objects.isNull(route)) {
+            throw new KronotopException("No route found for Bucket shard: " + shardId);
+        }
+        Address address = route.primary().getExternalAddress();
+        throw new RejectException(shardId, address.getHost(), address.getPort());
     }
 
+    /**
+     * Validates that the current node owns at least one shard assigned to the given bucket.
+     * Rejects the request with a redirect if the bucket's shards are all remote.
+     *
+     * @param metadata the bucket metadata containing the shard list
+     * @throws KronotopException if the bucket has no shards assigned, or no route is found
+     * @throws RejectException   if none of the bucket's shards are local
+     */
+    void checkBucketOwnership(BucketMetadata metadata) {
+        findLocalShard(metadata);
+    }
+
+    /**
+     * Creates a query context by parsing the BQL query, building an execution plan, and
+     * assembling query options from the request arguments.
+     *
+     * @param request          the client request
+     * @param metadata         the bucket metadata
+     * @param query            the BQL query as bytes
+     * @param arguments        parsed command arguments
+     * @param updateOptions    optional update configuration
+     * @param disablePlanCache whether to bypass plan cache
+     * @return initialized query context ready for execution
+     */
+    QueryContext buildQueryContext(Request request, BucketMetadata metadata, @Nonnull byte[] query, QueryArguments arguments, UpdateOptions updateOptions, boolean disablePlanCache) {
+        Session session = request.getSession();
+        QueryOptions options = buildQueryOptions(session, updateOptions, arguments);
+
+        BqlExpr expr = BqlParser.parse(query);
+        List<BqlValue> parameters = ParameterExtractor.extract(expr);
+
+        boolean usePlanCache = !disablePlanCache && planCacheEnabled;
+        PipelineNode plan = service.getPlanner().plan(context, metadata, expr, parameters, usePlanCache, planCacheMaxTtl, arguments.getSortBy(), arguments.getCollation());
+        QueryContext ctx = new QueryContext(session, metadata, options, plan, parameters);
+
+        ctx.setQueryBytes(query);
+        ctx.setUserVersionSupplier(() -> TransactionUtil.getUserVersion(session));
+
+        if (arguments.getProjection() != null) {
+            ctx.setProjectionSpec(BSONUtil.fromJson(arguments.getProjection()));
+            ctx.setParsedQuery(expr);
+        }
+
+        return ctx;
+    }
+
+    /**
+     * Creates a query context with plan caching enabled and no update options.
+     */
+    QueryContext buildQueryContext(Request request, BucketMetadata metadata, byte[] query, QueryArguments arguments) {
+        return buildQueryContext(request, metadata, query, arguments, null, false);
+    }
+
+    /**
+     * Creates a query context with configurable plan caching and no update options.
+     */
+    QueryContext buildQueryContext(Request request, BucketMetadata metadata, byte[] query, QueryArguments arguments, boolean disablePlanCache) {
+        return buildQueryContext(request, metadata, query, arguments, null, disablePlanCache);
+    }
+
+    /**
+     * Retrieves the query context map for cursor-based pagination from the session.
+     *
+     * @param session    the client session
+     * @param subcommand the operation type (QUERY, DELETE, or UPDATE)
+     * @return map of cursor IDs to query contexts
+     */
     Map<Integer, QueryContext> findQueryContext(Session session, BucketOperation subcommand) {
         return switch (subcommand) {
             case QUERY -> session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get();
@@ -271,41 +498,24 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * A commit hook implementation that executes post-commit operations for query contexts.
-     * This hook is triggered after a FoundationDB transaction commits successfully and is responsible
-     * for running any deferred operations that should only execute once the transaction is guaranteed
-     * to be committed.
+     * Ensures all vector indexes on the bucket are bootstrapped and ready before a write operation proceeds.
+     * Triggers bootstrap via computeIfAbsent if the group has not been created yet.
      *
-     * <p>The hook integrates with the Kronotop query execution pipeline to ensure that
-     * post-commit operations (such as cache invalidations, index updates, or cleanup tasks)
-     * are properly executed after successful transaction commits.</p>
-     *
-     * <p>This is particularly important for maintaining consistency between FoundationDB state
-     * and other components like the Volume storage layer or caching mechanisms.</p>
-     *
-     * @see CommitHook
-     * @see QueryContext#runPostCommitHooks()
+     * @throws VectorIndexNotReadyException if any vector index is still bootstrapping
      */
-    static class QueryContextCommitHook implements CommitHook {
-        private final QueryContext ctx;
-
-        /**
-         * Constructs a new QueryContextCommitHook with the specified query context.
-         *
-         * @param ctx the query context containing post-commit operations to execute
-         */
-        QueryContextCommitHook(QueryContext ctx) {
-            this.ctx = ctx;
-        }
-
-        /**
-         * Executes the post-commit operations associated with the query context.
-         * This method is called automatically by the Kronotop framework after
-         * a FoundationDB transaction commits successfully.
-         */
-        @Override
-        public void run() {
-            ctx.runPostCommitHooks();
+    protected void checkVectorIndexRecoveryState(BucketMetadata metadata) {
+        String namespace = metadata.namespace();
+        String bucket = metadata.name();
+        for (VectorIndex vectorIndex : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            long indexId = vectorIndex.definition().id();
+            VectorGraphIndexGroup group = service.getVectorGraphRegistry().computeIfAbsent(
+                    metadata,
+                    vectorIndex,
+                    () -> service.bootstrapVectorGroup(metadata, vectorIndex)
+            );
+            if (!group.isReady()) {
+                throw new VectorIndexNotReadyException(namespace, bucket, indexId);
+            }
         }
     }
 }

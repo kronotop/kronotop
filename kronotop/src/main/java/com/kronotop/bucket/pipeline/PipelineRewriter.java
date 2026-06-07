@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,18 @@
 package com.kronotop.bucket.pipeline;
 
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.Collation;
+import com.kronotop.bucket.TypeBracketComparator;
+import com.kronotop.bucket.bql.ast.BqlValue;
+import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
+import org.bson.BsonType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Transforms physical execution plans into optimized pipeline execution plans.
@@ -82,7 +89,7 @@ public class PipelineRewriter {
                     elemMatch++;
                 }
             } else if (child instanceof PhysicalIndexScan || child instanceof PhysicalRangeScan
-                    || child instanceof PhysicalIndexIntersection) {
+                    || child instanceof PhysicalIndexIntersection || child instanceof PhysicalCompoundIndexScan) {
                 // PhysicalIndexIntersection is created by optimizer when multiple indexes are used
                 indexScan++;
             } else if (child instanceof PhysicalAnd || child instanceof PhysicalOr) {
@@ -116,15 +123,16 @@ public class PipelineRewriter {
     /**
      * Recursively rewrites a list of physical nodes into their pipeline equivalents.
      * <p>
-     * Each child node is transformed via {@link #rewrite(PlannerContext, PhysicalNode)},
+     * Each child node is transformed via {@link #rewrite(PlannerContext, PipelineContext, PhysicalNode)},
      * preserving the structure while converting to executable pipeline nodes.
      *
-     * @param ctx      the planner context for ID generation and metadata access
-     * @param children the list of {@link PhysicalNode} instances to rewrite
+     * @param ctx         the planner context for ID generation and metadata access
+     * @param pipelineCtx the pipeline context for parameter binding
+     * @param children    the list of {@link PhysicalNode} instances to rewrite
      * @return a list of rewritten {@link PipelineNode} instances in the same order
      */
-    private static List<PipelineNode> rewriteChildren(PlannerContext ctx, List<PhysicalNode> children) {
-        return children.stream().map((node) -> PipelineRewriter.rewrite(ctx, node)).toList();
+    private static List<PipelineNode> rewriteChildren(PlannerContext ctx, PipelineContext pipelineCtx, List<PhysicalNode> children) {
+        return children.stream().map((node) -> PipelineRewriter.rewrite(ctx, pipelineCtx, node)).toList();
     }
 
     /**
@@ -133,17 +141,18 @@ public class PipelineRewriter {
      * This is the main orchestration method that:
      * <ol>
      *   <li>Calls {@link #determineStrategy(List)} to analyze node types</li>
-     *   <li>Calls {@link #rewriteChildren(PlannerContext, List)} to transform each node</li>
+     *   <li>Calls {@link #rewriteChildren(PlannerContext, PipelineContext, List)} to transform each node</li>
      *   <li>Returns both results bundled in an {@link IntermediatePlan}</li>
      * </ol>
      *
-     * @param ctx      the planner context for ID generation and metadata access
-     * @param children the list of {@link PhysicalNode} representing child nodes in the physical plan
+     * @param ctx         the planner context for ID generation and metadata access
+     * @param pipelineCtx the pipeline context for parameter binding
+     * @param children    the list of {@link PhysicalNode} representing child nodes in the physical plan
      * @return an {@link IntermediatePlan} containing the determined strategy and rewritten nodes
      */
-    private static IntermediatePlan traverseChildren(PlannerContext ctx, List<PhysicalNode> children) {
+    private static IntermediatePlan traverseChildren(PlannerContext ctx, PipelineContext pipelineCtx, List<PhysicalNode> children) {
         ExecutionStrategy strategy = determineStrategy(children);
-        List<PipelineNode> rewritten = rewriteChildren(ctx, children);
+        List<PipelineNode> rewritten = rewriteChildren(ctx, pipelineCtx, children);
         return new IntermediatePlan(strategy, rewritten);
     }
 
@@ -183,7 +192,6 @@ public class PipelineRewriter {
      *   <li>{@link IndexScanNode} - converts {@link IndexScanPredicate} to {@link ResidualPredicate}</li>
      *   <li>{@link RangeScanNode} - converts to {@link ResidualAndNode} with lower/upper bound predicates</li>
      *   <li>{@link UnionNode} - recursively transforms children into {@link ResidualOrNode}</li>
-     *   <li>{@link IntersectionNode} - recursively transforms children into {@link ResidualAndNode}</li>
      * </ul>
      *
      * @param ctx  the planner context for ID generation
@@ -191,7 +199,7 @@ public class PipelineRewriter {
      * @return the equivalent {@link ResidualPredicateNode}
      * @throws KronotopException if the node type is not supported for transformation
      */
-    private static ResidualPredicateNode transformNodeToResidualPredicate(PlannerContext ctx, PipelineNode node) {
+    static ResidualPredicateNode transformNodeToResidualPredicate(PlannerContext ctx, PipelineNode node) {
         return switch (node) {
             case FullScanNode fullScanNode -> fullScanNode.predicate();
             case IndexScanNode indexScanNode -> {
@@ -206,7 +214,8 @@ public class PipelineRewriter {
                 // Convert the index scan predicate to residual
                 IndexScanPredicate predicate = indexScanNode.predicate();
                 ResidualPredicateNode scanPredicate = new ResidualPredicate(
-                        predicate.id(), predicate.selector(), predicate.op(), predicate.operand()
+                        predicate.id(), predicate.selector(), predicate.op(), predicate.operand(),
+                        CollationResolver.resolve(ctx.getMetadata(), predicate.selector(), ctx.getCollation())
                 );
 
                 // If this node has a TransformWithResidualPredicateNode attached,
@@ -246,13 +255,6 @@ public class PipelineRewriter {
                         .toList();
                 yield new ResidualOrNode(unionPredicates);
             }
-            case IntersectionNode intersectionNode -> {
-                // Convert IntersectionNode children to ResidualAndNode
-                List<ResidualPredicateNode> intersectionPredicates = intersectionNode.children().stream()
-                        .map(child -> transformNodeToResidualPredicate(ctx, child))
-                        .toList();
-                yield new ResidualAndNode(intersectionPredicates);
-            }
             default -> throw new KronotopException("Cannot transform " + node.getClass().getSimpleName()
                     + " to " + ResidualPredicateNode.class.getSimpleName());
         };
@@ -279,14 +281,16 @@ public class PipelineRewriter {
         if (predicate.includeLower()) {
             lowerBoundOp = Operator.GTE;
         }
-        children.add(new ResidualPredicate(ctx.nextId(), predicate.selector(), lowerBoundOp, predicate.lowerBound()));
+        children.add(new ResidualPredicate(ctx.nextId(), predicate.selector(), lowerBoundOp, predicate.lowerBound(),
+                CollationResolver.resolve(ctx.getMetadata(), predicate.selector(), ctx.getCollation())));
 
 
         Operator upperBoundOp = Operator.LT;
         if (predicate.includeUpper()) {
             upperBoundOp = Operator.LTE;
         }
-        children.add(new ResidualPredicate(ctx.nextId(), predicate.selector(), upperBoundOp, predicate.upperBound()));
+        children.add(new ResidualPredicate(ctx.nextId(), predicate.selector(), upperBoundOp, predicate.upperBound(),
+                CollationResolver.resolve(ctx.getMetadata(), predicate.selector(), ctx.getCollation())));
 
         return new ResidualAndNode(children);
     }
@@ -299,26 +303,27 @@ public class PipelineRewriter {
      *   <li>{@link ExecutionStrategy#FULL_SCAN} - converts to {@link FullScanNode} with combined predicates</li>
      *   <li>{@link ExecutionStrategy#NESTED} - for AND: uses indexed nodes with residual filters;
      *       for OR: creates {@link UnionNode} with flattened children</li>
-     *   <li>{@link ExecutionStrategy#MIXED_SCAN} - for AND: picks most selective index, others become residual;
+     *   <li>{@link ExecutionStrategy#MIXED_SCAN} - for AND: picks the most selective index, others become residual;
      *       for OR: creates {@link UnionNode} consolidating full scans</li>
-     *   <li>{@link ExecutionStrategy#INDEX_SCAN} - uses the provided factory to create intersection/union</li>
+     *   <li>{@link ExecutionStrategy#INDEX_SCAN} - for AND: picks the most selective index, others become residual;
+     *       for OR: creates {@link UnionNode}</li>
      * </ul>
      *
      * @param ctx               the planner context for ID generation and metadata access
+     * @param pipelineCtx       the pipeline context for parameter binding
      * @param id                the node identifier for the resulting pipeline node
      * @param children          the list of child {@link PhysicalNode} instances
      * @param predicateStrategy {@link PredicateEvalStrategy#AND} or {@link PredicateEvalStrategy#OR}
-     * @param nodeFactory       factory function to create {@link IntersectionNode} or {@link UnionNode}
      * @return the optimized {@link PipelineNode} for executing the logical operation
      */
     private static PipelineNode rewriteLogicalOperator(
             PlannerContext ctx,
+            PipelineContext pipelineCtx,
             int id,
             List<PhysicalNode> children,
-            PredicateEvalStrategy predicateStrategy,
-            NodeFactory nodeFactory) {
+            PredicateEvalStrategy predicateStrategy) {
 
-        IntermediatePlan intermediatePlan = traverseChildren(ctx, children);
+        IntermediatePlan intermediatePlan = traverseChildren(ctx, pipelineCtx, children);
 
         return switch (intermediatePlan.strategy()) {
             case FULL_SCAN -> convertToFullScanNode(ctx, id, intermediatePlan.children(), predicateStrategy);
@@ -326,18 +331,20 @@ public class PipelineRewriter {
                 // For AND with nested OR (e.g., $in with index + other predicates),
                 // use the indexed nodes and apply others as residual predicates
                 if (PredicateEvalStrategy.AND.equals(predicateStrategy)) {
-                    yield convertNestedAndToIndexedPlan(ctx, intermediatePlan.children());
+                    yield convertNestedAndToIndexedPlan(ctx, pipelineCtx, intermediatePlan.children());
                 }
                 // For OR with nested children, use UnionNode to combine all branches
                 yield convertNestedOrToUnionNode(ctx, intermediatePlan.children());
             }
-            case MIXED_SCAN -> {
+            case MIXED_SCAN, INDEX_SCAN -> {
                 if (PredicateEvalStrategy.AND.equals(predicateStrategy)) {
-                    yield convertToIndexScanNode(ctx, intermediatePlan.children(), predicateStrategy);
+                    yield convertToIndexScanNode(ctx, pipelineCtx, intermediatePlan.children(), predicateStrategy);
+                }
+                if (ctx.getSortByField() != null && isAllEqScansOnField(intermediatePlan.children(), ctx.getSortByField())) {
+                    yield convertToOrderedConcatNode(ctx, pipelineCtx, intermediatePlan.children());
                 }
                 yield convertToUnionNode(ctx, intermediatePlan.children());
             }
-            default -> nodeFactory.create(id, intermediatePlan.children());
         };
     }
 
@@ -378,7 +385,7 @@ public class PipelineRewriter {
         // Consolidate multiple FullScanNodes into one with OR predicate
         if (fullScanNodes.size() > 1) {
             ResidualPredicateNode predicate = transformToResidualPredicate(ctx, fullScanNodes, PredicateEvalStrategy.OR);
-            flattenedChildren.add(new FullScanNode(ctx.nextId(), predicate));
+            flattenedChildren.add(new FullScanNode(ctx.nextId(), getPrimaryIndexDefinition(ctx), predicate));
         } else {
             flattenedChildren.addAll(fullScanNodes);
         }
@@ -392,7 +399,7 @@ public class PipelineRewriter {
      * This method optimizes AND queries containing nested structures (e.g., {@code $in} with index
      * combined with other predicates). The optimization strategy:
      * <ol>
-     *   <li>Separates indexed nodes ({@link UnionNode}, {@link IntersectionNode}, {@link IndexScanNode},
+     *   <li>Separates indexed nodes ({@link UnionNode}, {@link IndexScanNode},
      *       {@link RangeScanNode}) from non-indexed {@link FullScanNode} nodes</li>
      *   <li>If no indexed nodes exist, falls back to a full scan with combined AND predicates</li>
      *   <li>Selects the most selective indexed node using {@link SelectivityEstimator}</li>
@@ -403,18 +410,20 @@ public class PipelineRewriter {
      * Example: {@code $and: [{role: {$in: [admin, editor]}}, {status: active}]} with index on role becomes:
      * {@code UnionNode([IndexScan(role=admin), IndexScan(role=editor)]) -> TransformWithResidualPredicate(status=active)}
      *
-     * @param ctx      the planner context for ID generation and metadata access
-     * @param children the list of rewritten {@link PipelineNode} instances from the AND branches
+     * @param ctx         the planner context for ID generation and metadata access
+     * @param pipelineCtx the pipeline context for parameter binding
+     * @param children    the list of rewritten {@link PipelineNode} instances from the AND branches
      * @return the primary indexed node with residual predicates chained, or a {@link FullScanNode} if no indexes
      */
-    private static PipelineNode convertNestedAndToIndexedPlan(PlannerContext ctx, List<PipelineNode> children) {
-        // Separate indexed nodes (UnionNode, IntersectionNode, IndexScanNode, RangeScanNode) from full scans
+    private static PipelineNode convertNestedAndToIndexedPlan(PlannerContext ctx, PipelineContext pipelineCtx, List<PipelineNode> children) {
+        // Separate indexed nodes (UnionNode, IndexScanNode, RangeScanNode) from full scans
         List<PipelineNode> indexedNodes = new ArrayList<>();
         List<PipelineNode> residualNodes = new ArrayList<>();
 
         for (PipelineNode child : children) {
-            if (child instanceof UnionNode || child instanceof IntersectionNode ||
-                    child instanceof IndexScanNode || child instanceof RangeScanNode) {
+            if (child instanceof UnionNode ||
+                    child instanceof IndexScanNode || child instanceof RangeScanNode ||
+                    child instanceof CompoundIndexScanNode) {
                 indexedNodes.add(child);
             } else {
                 residualNodes.add(child);
@@ -424,7 +433,7 @@ public class PipelineRewriter {
         // If no indexed nodes, fall back to full scan
         if (indexedNodes.isEmpty()) {
             ResidualPredicateNode predicate = transformToResidualPredicate(ctx, children, PredicateEvalStrategy.AND);
-            return new FullScanNode(ctx.nextId(), predicate);
+            return new FullScanNode(ctx.nextId(), getPrimaryIndexDefinition(ctx), predicate);
         }
 
         // Select the primary indexed node (prefer UnionNode from $in, or use selectivity)
@@ -436,7 +445,7 @@ public class PipelineRewriter {
             otherIndexedNodes = List.of();
         } else {
             // Use selectivity estimator to pick the best indexed node
-            primaryNode = SelectivityEstimator.estimate(ctx, indexedNodes);
+            primaryNode = SelectivityEstimator.estimate(ctx, pipelineCtx, indexedNodes);
             otherIndexedNodes = indexedNodes.stream()
                     .filter(n -> n.id() != primaryNode.id())
                     .toList();
@@ -448,18 +457,29 @@ public class PipelineRewriter {
 
         // Also include any existing residual predicates from the primary node's chain
         if (primaryNode.next() instanceof TransformWithResidualPredicateNode existingTransform) {
-            allResidualSources.addFirst(new FullScanNode(ctx.nextId(), existingTransform.predicate()));
+            allResidualSources.addFirst(new FullScanNode(ctx.nextId(), getPrimaryIndexDefinition(ctx), existingTransform.predicate()));
         }
 
         if (!allResidualSources.isEmpty()) {
             ResidualPredicateNode predicate = transformToResidualPredicate(ctx, allResidualSources, PredicateEvalStrategy.AND);
-            TransformWithResidualPredicateNode nextNode = new TransformWithResidualPredicateNode(ctx.nextId(), predicate);
-            if (primaryNode.next() == null) {
-                primaryNode.connectNext(nextNode);
+            if (primaryNode instanceof UnionNode unionNode) {
+                // Push residual predicate into each child for early filtering.
+                // Each child filters before the union collects, reducing dedup work
+                // and enabling adaptive scan budgeting to grow per-child limits.
+                for (PipelineNode child : unionNode.children()) {
+                    TransformWithResidualPredicateNode childTransform =
+                            new TransformWithResidualPredicateNode(ctx.nextId(), predicate);
+                    child.connectNext(childTransform);
+                }
             } else {
-                // Replace it by creating a new primary node with the merged predicate
-                // Since we can't modify the existing chain, wrap in a new structure
-                return createMergedIndexScanNode(ctx, primaryNode, nextNode);
+                TransformWithResidualPredicateNode nextNode = new TransformWithResidualPredicateNode(ctx.nextId(), predicate);
+                if (primaryNode.next() == null) {
+                    primaryNode.connectNext(nextNode);
+                } else {
+                    // Replace it by creating a new primary node with the merged predicate
+                    // Since we can't modify the existing chain, wrap in a new structure
+                    return createMergedIndexScanNode(ctx, primaryNode, nextNode);
+                }
             }
         }
 
@@ -480,7 +500,7 @@ public class PipelineRewriter {
             newNode.connectNext(nextNode);
             return newNode;
         }
-        // For UnionNode/IntersectionNode, just connect the next node to the first child that doesn't have one
+        // For UnionNode, just connect the next node to the first child that doesn't have one
         // This is a fallback - ideally, these cases should be handled differently
         return primaryNode;
     }
@@ -504,6 +524,28 @@ public class PipelineRewriter {
             }
         }
         return numberOfFullScans > 1;
+    }
+
+    private static boolean isAllEqScansOnField(List<PipelineNode> children, String field) {
+        for (PipelineNode child : children) {
+            if (!(child instanceof IndexScanNode scanNode)) return false;
+            if (!scanNode.getIndexDefinition().selector().equals(field)) return false;
+            if (scanNode.predicate().op() != Operator.EQ) return false;
+        }
+        return !children.isEmpty();
+    }
+
+    private static PipelineNode convertToOrderedConcatNode(PlannerContext ctx, PipelineContext pipelineCtx, List<PipelineNode> children) {
+        List<BqlValue> parameters = pipelineCtx.getParameters();
+        List<PipelineNode> sorted = new ArrayList<>(children);
+        sorted.sort((a, b) -> {
+            BqlValue va = ((IndexScanNode) a).predicate().operand().resolve(parameters);
+            BqlValue vb = ((IndexScanNode) b).predicate().operand().resolve(parameters);
+            return TypeBracketComparator.INSTANCE.compare(
+                    BSONUtil.bqlValueToBsonValue(va),
+                    BSONUtil.bqlValueToBsonValue(vb));
+        });
+        return new OrderedConcatNode(ctx.nextId(), sorted);
     }
 
     /**
@@ -530,7 +572,7 @@ public class PipelineRewriter {
             }
         }
         ResidualPredicateNode predicate = transformToResidualPredicate(ctx, fullScanNodes, PredicateEvalStrategy.OR);
-        otherNodes.add(new FullScanNode(ctx.nextId(), predicate));
+        otherNodes.add(new FullScanNode(ctx.nextId(), getPrimaryIndexDefinition(ctx), predicate));
         return new UnionNode(ctx.nextId(), otherNodes);
     }
 
@@ -547,8 +589,8 @@ public class PipelineRewriter {
      * @param predicateStrategy how to combine residual predicates (AND/OR)
      * @return the most selective scan node with residual predicates connected as the next step
      */
-    private static PipelineNode convertToIndexScanNode(PlannerContext ctx, List<PipelineNode> children, PredicateEvalStrategy predicateStrategy) {
-        PipelineNode mostSelectiveIndexScan = SelectivityEstimator.estimate(ctx, children);
+    private static PipelineNode convertToIndexScanNode(PlannerContext ctx, PipelineContext pipelineCtx, List<PipelineNode> children, PredicateEvalStrategy predicateStrategy) {
+        PipelineNode mostSelectiveIndexScan = SelectivityEstimator.estimate(ctx, pipelineCtx, children);
 
         List<PipelineNode> otherNodes = new ArrayList<>();
         for (PipelineNode node : children) {
@@ -587,6 +629,11 @@ public class PipelineRewriter {
             RangeScanNode newNode = new RangeScanNode(ctx.nextId(), rangeScan.getIndexDefinition(), rangeScan.predicate());
             newNode.connectNext(newTransform);
             return newNode;
+        } else if (scanNode instanceof CompoundIndexScanNode compoundScan) {
+            CompoundIndexScanNode newNode = new CompoundIndexScanNode(
+                    ctx.nextId(), compoundScan.indexDefinition(), compoundScan.filters());
+            newNode.connectNext(newTransform);
+            return newNode;
         }
         // For other node types, just connect (this shouldn't happen in practice)
         scanNode.connectNext(newTransform);
@@ -607,7 +654,21 @@ public class PipelineRewriter {
      */
     private static FullScanNode convertToFullScanNode(PlannerContext ctx, int id, List<PipelineNode> children, PredicateEvalStrategy strategy) {
         ResidualPredicateNode predicate = transformToResidualPredicate(ctx, children, strategy);
-        return new FullScanNode(id, predicate);
+        return new FullScanNode(id, getPrimaryIndexDefinition(ctx), predicate);
+    }
+
+    /**
+     * Rewrites a physical execution plan into an optimized pipeline execution plan.
+     * <p>
+     * This is a convenience method that creates a default {@link PipelineContext} for non-parameterized execution.
+     *
+     * @param ctx  the planner context containing bucket metadata and ID generator
+     * @param plan the physical execution plan to rewrite
+     * @return the optimized {@link PipelineNode}, or {@code null} for unsatisfiable queries
+     * @throws IllegalStateException if the physical node contains an invalid state or unsupported type
+     */
+    public static PipelineNode rewrite(PlannerContext ctx, PhysicalNode plan) {
+        return rewrite(ctx, new PipelineContext(), plan);
     }
 
     /**
@@ -625,20 +686,21 @@ public class PipelineRewriter {
      *   <li>{@link PhysicalFalse} - returns {@code null} (query matches nothing)</li>
      * </ul>
      *
-     * @param ctx  the planner context containing bucket metadata and ID generator
-     * @param plan the physical execution plan to rewrite
+     * @param ctx         the planner context containing bucket metadata and ID generator
+     * @param pipelineCtx the pipeline context for parameter binding
+     * @param plan        the physical execution plan to rewrite
      * @return the optimized {@link PipelineNode}, or {@code null} for unsatisfiable queries
-     * @throws IllegalStateException if the physical node contains invalid state or unsupported type
+     * @throws IllegalStateException if the physical node contains an invalid state or unsupported type
      */
-    public static PipelineNode rewrite(PlannerContext ctx, PhysicalNode plan) {
+    public static PipelineNode rewrite(PlannerContext ctx, PipelineContext pipelineCtx, PhysicalNode plan) {
         assert ctx.getMetadata() != null : "Bucket metadata must be provided for query planning";
         return switch (plan) {
             case PhysicalAnd physicalAnd -> rewriteLogicalOperator(
                     ctx,
+                    pipelineCtx,
                     physicalAnd.id(),
                     physicalAnd.children(),
-                    PredicateEvalStrategy.AND,
-                    IntersectionNode::new
+                    PredicateEvalStrategy.AND
             );
             case PhysicalIndexScan indexScan -> {
                 PhysicalNode physicalNode = indexScan.node();
@@ -647,7 +709,8 @@ public class PipelineRewriter {
                 ))) {
                     throw new IllegalStateException("PhysicalNode must be a PhysicalFilter instance");
                 }
-                IndexScanPredicate predicate = new IndexScanPredicate(id, selector, op, operand);
+                Operand wrappedOperand = wrapOperand(pipelineCtx, id, 0, operand);
+                IndexScanPredicate predicate = new IndexScanPredicate(id, selector, op, wrappedOperand);
                 yield new IndexScanNode(indexScan.id(), indexScan.index(), predicate);
             }
             case PhysicalFullScan fullScan -> {
@@ -657,14 +720,33 @@ public class PipelineRewriter {
                 ))) {
                     throw new IllegalStateException("PhysicalNode must be a PhysicalFilter instance");
                 }
-                ResidualPredicate predicate = new ResidualPredicate(id, selector, op, operand);
-                yield new FullScanNode(id, predicate);
+                Operand wrappedOperand = wrapOperand(pipelineCtx, id, 0, operand);
+                ResidualPredicate predicate = new ResidualPredicate(id, selector, op, wrappedOperand,
+                        CollationResolver.resolve(ctx.getMetadata(), selector, ctx.getCollation()));
+                FullScanNode fullScanNode = new FullScanNode(id, getPrimaryIndexDefinition(ctx), predicate);
+                Collation queryCollation = ctx.getCollation();
+                if (queryCollation != null) {
+                    Index selectorIndex = ctx.getMetadata().indexes().getIndex(selector, IndexSelectionPolicy.READ);
+                    if (selectorIndex != null
+                            && selectorIndex.definition().bsonType() == BsonType.STRING
+                            && !Objects.equals(queryCollation, selectorIndex.definition().collation())) {
+                        fullScanNode.setCollationMismatch(true);
+                        fullScanNode.setRejectedIndex(selectorIndex.definition().name());
+                    }
+                }
+                yield fullScanNode;
             }
             case PhysicalRangeScan rangeScan -> {
+                Operand lowerBound = rangeScan.lowerBound() != null
+                        ? wrapOperand(pipelineCtx, rangeScan.id(), 0, rangeScan.lowerBound())
+                        : null;
+                Operand upperBound = rangeScan.upperBound() != null
+                        ? wrapOperand(pipelineCtx, rangeScan.id(), rangeScan.lowerBound() != null ? 1 : 0, rangeScan.upperBound())
+                        : null;
                 RangeScanPredicate predicate = new RangeScanPredicate(
                         rangeScan.selector(),
-                        rangeScan.lowerBound(),
-                        rangeScan.upperBound(),
+                        lowerBound,
+                        upperBound,
                         rangeScan.includeLower(),
                         rangeScan.includeUpper()
                 );
@@ -673,26 +755,38 @@ public class PipelineRewriter {
             case PhysicalFalse ignored -> null; // this query makes no sense.
             case PhysicalOr physicalOr -> rewriteLogicalOperator(
                     ctx,
+                    pipelineCtx,
                     physicalOr.id(),
                     physicalOr.children(),
-                    PredicateEvalStrategy.OR,
-                    UnionNode::new
+                    PredicateEvalStrategy.OR
             );
-            case PhysicalTrue catchAll -> new FullScanNode(catchAll.id(), new AlwaysTruePredicate());
+            case PhysicalTrue catchAll -> rewritePhysicalTrue(ctx, catchAll);
             case PhysicalIndexIntersection intersection -> {
                 List<PipelineNode> children = new ArrayList<>();
                 for (int i = 0; i < intersection.filters().size(); i++) {
                     PhysicalFilter filter = intersection.filters().get(i);
+                    Operand wrappedOperand = wrapOperand(pipelineCtx, filter.id(), 0, filter.operand());
                     IndexScanPredicate predicate = new IndexScanPredicate(
-                            filter.id(), filter.selector(), filter.op(), filter.operand()
+                            filter.id(), filter.selector(), filter.op(), wrappedOperand
                     );
                     children.add(new IndexScanNode(ctx.nextId(), intersection.indexes().get(i), predicate));
                 }
-                yield convertToIndexScanNode(ctx, children, PredicateEvalStrategy.AND);
+                yield convertToIndexScanNode(ctx, pipelineCtx, children, PredicateEvalStrategy.AND);
+            }
+            case PhysicalCompoundIndexScan compoundScan -> {
+                CompoundIndexDefinition definition = compoundScan.index();
+                List<CompoundIndexScanNode.CompoundIndexScanFilter> scanFilters = new ArrayList<>();
+                for (PhysicalFilter filter : compoundScan.filters()) {
+                    Operand wrappedOperand = wrapOperand(pipelineCtx, filter.id(), 0, filter.operand());
+                    BsonType bsonType = findCompoundFieldBsonType(definition, filter.selector());
+                    scanFilters.add(new CompoundIndexScanNode.CompoundIndexScanFilter(
+                            filter.selector(), filter.op(), wrappedOperand, bsonType));
+                }
+                yield new CompoundIndexScanNode(ctx.nextId(), definition, scanFilters);
             }
             case PhysicalElemMatch elemMatch -> {
                 // Rewrite the subPlan to get a pipeline node, then convert to residual predicate
-                PipelineNode subPlanNode = rewrite(ctx, elemMatch.subPlan());
+                PipelineNode subPlanNode = rewrite(ctx, pipelineCtx, elemMatch.subPlan());
                 assert subPlanNode != null : "PhysicalElemMatch subPlan rewrite produced null for selector: " + elemMatch.selector();
                 ResidualPredicateNode subPredicate = transformNodeToResidualPredicate(ctx, subPlanNode);
                 ResidualElemMatchNode elemMatchPredicate = new ResidualElemMatchNode(elemMatch.selector(), subPredicate);
@@ -707,22 +801,56 @@ public class PipelineRewriter {
                 }
 
                 // Fallback: no index available, use full scan
-                yield new FullScanNode(elemMatch.id(), elemMatchPredicate);
+                yield new FullScanNode(elemMatch.id(), getPrimaryIndexDefinition(ctx), elemMatchPredicate);
             }
             case PhysicalNot not -> {
-                PipelineNode childPlan = rewrite(ctx, not.child());
+                PipelineNode childPlan = rewrite(ctx, pipelineCtx, not.child());
                 if (childPlan == null) {
                     // NOT(FALSE) = TRUE, return a full scan that matches everything
-                    yield new FullScanNode(not.id(), new AlwaysTruePredicate());
+                    yield new FullScanNode(not.id(), getPrimaryIndexDefinition(ctx), new AlwaysTruePredicate());
                 }
                 // Convert child plan to residual predicate and negate it
                 ResidualPredicateNode childPredicate = transformNodeToResidualPredicate(ctx, childPlan);
                 ResidualNotNode notPredicate = new ResidualNotNode(childPredicate);
                 // $not cannot use indexes directly, so always use a full scan
-                yield new FullScanNode(not.id(), notPredicate);
+                yield new FullScanNode(not.id(), getPrimaryIndexDefinition(ctx), notPredicate);
             }
             default -> throw new IllegalStateException("Unexpected PhysicalNode: " + plan);
         };
+    }
+
+    private static BsonType findCompoundFieldBsonType(CompoundIndexDefinition definition, String selector) {
+        for (CompoundIndexField field : definition.fields()) {
+            if (field.selector().equals(selector)) {
+                return field.bsonType();
+            }
+        }
+        throw new IllegalStateException("Selector '" + selector + "' not found in compound index '" + definition.name() + "'");
+    }
+
+    /**
+     * Rewrites a {@link PhysicalTrue} node, which represents an empty filter ({}).
+     * If a sortByField is specified and an index exists for that field, creates a
+     * {@link RangeScanNode} with a full range to leverage index ordering.
+     * Otherwise, falls back to a {@link FullScanNode} with {@link AlwaysTruePredicate}.
+     */
+    private static PipelineNode rewritePhysicalTrue(PlannerContext ctx, PhysicalTrue node) {
+        String sortByField = ctx.getSortByField();
+        if (sortByField != null && ctx.getMetadata() != null) {
+            Index index = ctx.getMetadata().indexes().getIndex(sortByField, IndexSelectionPolicy.READ);
+            if (index != null) {
+                // Create a full range scan on the sortBy index to preserve ordering
+                RangeScanPredicate predicate = new RangeScanPredicate(
+                        sortByField,
+                        null,  // no lower bound
+                        null,  // no upper bound
+                        true,  // includeLower (doesn't matter when null)
+                        true   // includeUpper (doesn't matter when null)
+                );
+                return new RangeScanNode(node.id(), index.definition(), predicate);
+            }
+        }
+        return new FullScanNode(node.id(), getPrimaryIndexDefinition(ctx), new AlwaysTruePredicate());
     }
 
     /**
@@ -750,9 +878,9 @@ public class PipelineRewriter {
     }
 
     /**
-     * Checks if the given pipeline node provides selective secondary index access.
+     * Checks if the given pipeline node provides selective single field index access.
      * Includes {@link IndexScanNode}, {@link RangeScanNode}, and {@link UnionNode}
-     * when all children use selective secondary indexes (e.g., from $in operator).
+     * when all children use selective single field indexes (e.g., from $in operator).
      */
     private static boolean usesSelectiveSecondaryIndex(PipelineNode node) {
         if (node instanceof IndexScanNode || node instanceof RangeScanNode) {
@@ -797,21 +925,50 @@ public class PipelineRewriter {
     }
 
     /**
-     * Factory interface for creating composite pipeline nodes (intersection or union).
-     * <p>
-     * Used by {@link #rewriteLogicalOperator} to abstract the creation of either
-     * {@link IntersectionNode} (for AND) or {@link UnionNode} (for OR) based on the logical operation.
+     * Retrieves the primary index definition from the bucket metadata.
      */
-    @FunctionalInterface
-    private interface NodeFactory {
-        /**
-         * Creates a composite pipeline node with the given children.
-         *
-         * @param id       the unique identifier for the node
-         * @param children the list of child {@link PipelineNode} instances
-         * @return the created composite node
-         */
-        PipelineNode create(int id, List<PipelineNode> children);
+    private static SingleFieldIndexDefinition getPrimaryIndexDefinition(PlannerContext ctx) {
+        Index index = ctx.getMetadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        return index.definition();
+    }
+
+    /**
+     * Wraps an operand value into the appropriate Operand type using PipelineContext.
+     * Handles BqlValue, List (for $in/$nin/$all), Boolean (for $exists), and Integer.
+     * In parameterized mode, creates Operand.Param; otherwise creates Operand.Literal.
+     *
+     * @param pipelineCtx the pipeline context for parameter binding
+     * @param nodeId      the physical node ID
+     * @param occurrence  the occurrence index (0 for single operands, 0/1 for range bounds)
+     * @param operand     the operand value from the physical plan
+     * @return the wrapped Operand instance
+     */
+    @SuppressWarnings("unchecked")
+    private static Operand wrapOperand(PipelineContext pipelineCtx, int nodeId, int occurrence, Object operand) {
+        // Handle list operands separately (for $in/$nin/$all operators)
+        if (operand instanceof List<?> list) {
+            return pipelineCtx.createListOperand(nodeId, (List<BqlValue>) list);
+        }
+
+        BqlValue literalValue = toBqlValue(operand);
+        return pipelineCtx.createOperand(nodeId, occurrence, literalValue);
+    }
+
+    /**
+     * Converts an operand value to a BqlValue.
+     *
+     * @param operand the operand value from the physical plan
+     * @return the BqlValue representation
+     */
+    private static BqlValue toBqlValue(Object operand) {
+        return switch (operand) {
+            case BqlValue bqlValue -> bqlValue;
+            case Boolean bool -> new com.kronotop.bucket.bql.ast.BooleanVal(bool);
+            case Integer intVal -> new com.kronotop.bucket.bql.ast.Int32Val(intVal);
+            case null -> throw new IllegalArgumentException("Cannot convert null operand");
+            default ->
+                    throw new IllegalArgumentException("Unsupported operand type: " + operand.getClass().getSimpleName());
+        };
     }
 }
 

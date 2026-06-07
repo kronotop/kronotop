@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,33 @@
 package com.kronotop.server;
 
 import com.kronotop.Context;
-import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.epoll.EpollChannelOption;
+import io.netty.channel.epoll.EpollIoHandler;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 
 /**
- * The EpollRESPServer class represents a RESP server that uses the Epoll network transport.
- * It extends the RESPServer abstract class and implements the KronotopService interface.
+ * RESP server using Epoll transport with optional TLS support.
  */
 public class EpollRESPServer extends RESPServer {
-    public EpollRESPServer(Context context, CommandHandlerRegistry commands) {
-        super(context, commands, EpollServerSocketChannel.class, new EpollEventLoopGroup(), new EpollEventLoopGroup());
+    private final NettyConfig nettyConfig;
+
+    public EpollRESPServer(Context context, CommandHandlerRegistry commands, TLSConfig tlsConfig, NettyConfig nettyConfig, ServerKind serverKind) {
+        super(context, commands, tlsConfig, nettyConfig, EpollServerSocketChannel.class,
+                new MultiThreadIoEventLoopGroup(1, EpollIoHandler.newFactory()),
+                nettyConfig.workerThreads() > 0
+                        ? new MultiThreadIoEventLoopGroup(nettyConfig.workerThreads(), EpollIoHandler.newFactory())
+                        : new MultiThreadIoEventLoopGroup(EpollIoHandler.newFactory()),
+                serverKind
+        );
+        this.nettyConfig = nettyConfig;
+    }
+
+    @Override
+    protected void configureBootstrap(ServerBootstrap b) {
+        if (nettyConfig.soReusePort()) {
+            b.option(EpollChannelOption.SO_REUSEPORT, true);
+        }
     }
 }

@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 540"
+     font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+    <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6" fill="#00c5d1"/>
+        </marker>
+        <marker id="arrow-fdb" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6" fill="#c6ff3a"/>
+        </marker>
+        <filter id="shadow" x="-2%" y="-2%" width="104%" height="108%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.30"/>
+        </filter>
+    </defs>
+
+    <!-- Background -->
+    <rect width="900" height="540" rx="12" fill="#061827"/>
+
+    <!-- Title -->
+    <text x="450" y="36" text-anchor="middle" font-size="18" font-weight="700" fill="#ffffff">Volume Replication
+        Architecture
+    </text>
+    <line x1="280" y1="46" x2="620" y2="46" stroke="#00c5d1" stroke-width="1" opacity="0.4"/>
+
+    <!-- PRIMARY NODE -->
+    <rect x="40" y="60" width="300" height="310" rx="10" fill="#0d2a3d" stroke="#c6ff3a" stroke-width="2"
+          filter="url(#shadow)"/>
+    <rect x="40" y="60" width="300" height="36" rx="10" fill="#1a3a1a"/>
+    <rect x="40" y="86" width="300" height="10" fill="#1a3a1a"/>
+    <text x="190" y="84" text-anchor="middle" font-size="14" font-weight="700" fill="#c6ff3a">PRIMARY</text>
+
+    <!-- Volume inside Primary -->
+    <rect x="60" y="110" width="125" height="55" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"/>
+    <text x="122" y="135" text-anchor="middle" font-size="12" font-weight="600" fill="#00c5d1">Volume</text>
+    <text x="122" y="151" text-anchor="middle" font-size="10" fill="#00c5d1" opacity="0.7">Segments</text>
+
+    <!-- Changelog inside Primary -->
+    <rect x="198" y="110" width="125" height="55" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"/>
+    <text x="260" y="135" text-anchor="middle" font-size="12" font-weight="600" fill="#00c5d1">Changelog</text>
+    <text x="260" y="151" text-anchor="middle" font-size="10" fill="#00c5d1" opacity="0.7">HLC Ordered</text>
+
+    <!-- Safe Watermark inside Primary -->
+    <rect x="60" y="175" width="263" height="40" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"/>
+    <text x="191" y="195" text-anchor="middle" font-size="12" font-weight="600" fill="#00c5d1">Safe Watermark</text>
+    <text x="191" y="208" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.7">In-memory committed tracking
+    </text>
+
+    <!-- Internal RESP Handlers -->
+    <text x="190" y="236" text-anchor="middle" font-size="11" font-weight="600" fill="#00c5d1">Serves Internal RESP
+        Handlers
+    </text>
+    <rect x="55" y="246" width="130" height="24" rx="4" fill="#0a2030" stroke="#00c5d1" stroke-width="1" opacity="0.8"/>
+    <text x="120" y="262" text-anchor="middle" font-size="9" font-weight="500" fill="#00c5d1">SEGMENT.TAILPOINTER</text>
+    <rect x="195" y="246" width="130" height="24" rx="4" fill="#0a2030" stroke="#00c5d1" stroke-width="1"
+          opacity="0.8"/>
+    <text x="260" y="262" text-anchor="middle" font-size="9" font-weight="500" fill="#00c5d1">SEGMENT.RANGE</text>
+    <rect x="55" y="276" width="130" height="24" rx="4" fill="#0a2030" stroke="#00c5d1" stroke-width="1" opacity="0.8"/>
+    <text x="120" y="292" text-anchor="middle" font-size="9" font-weight="500" fill="#00c5d1">CHANGELOG.WATCH</text>
+    <rect x="195" y="276" width="130" height="24" rx="4" fill="#0a2030" stroke="#00c5d1" stroke-width="1"
+          opacity="0.8"/>
+    <text x="260" y="292" text-anchor="middle" font-size="9" font-weight="500" fill="#00c5d1">CHANGELOG.RANGE</text>
+
+    <!-- STANDBY NODE -->
+    <rect x="540" y="60" width="320" height="310" rx="10" fill="#0d2a3d" stroke="#00c5d1" stroke-width="2"
+          filter="url(#shadow)"/>
+    <rect x="540" y="60" width="320" height="36" rx="10" fill="#0a3a4a"/>
+    <rect x="540" y="86" width="320" height="10" fill="#0a3a4a"/>
+    <text x="700" y="84" text-anchor="middle" font-size="14" font-weight="700" fill="#00c5d1">STANDBY</text>
+
+    <!-- Volume inside Standby -->
+    <rect x="560" y="110" width="130" height="55" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"/>
+    <text x="625" y="135" text-anchor="middle" font-size="12" font-weight="600" fill="#00c5d1">Volume</text>
+    <text x="625" y="151" text-anchor="middle" font-size="10" fill="#00c5d1" opacity="0.7">Local Replica</text>
+
+    <!-- Replication State inside Standby -->
+    <rect x="710" y="110" width="130" height="55" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"/>
+    <text x="775" y="130" text-anchor="middle" font-size="12" font-weight="600" fill="#00c5d1">Replication</text>
+    <text x="775" y="146" text-anchor="middle" font-size="12" font-weight="600" fill="#00c5d1">State</text>
+    <text x="775" y="160" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.7">position, status</text>
+
+    <!-- Phase 1 -->
+    <rect x="560" y="180" width="280" height="44" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"/>
+    <text x="700" y="199" text-anchor="middle" font-size="11" font-weight="700" fill="#00c5d1">Phase 1: Segment
+        Replication
+    </text>
+    <text x="700" y="215" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.7">Bulk transfer of existing
+        segments up to tail pointer
+    </text>
+
+    <!-- Phase 2 -->
+    <rect x="560" y="232" width="280" height="44" rx="6" fill="#0e3040" stroke="#00c5d1" stroke-width="1.5"/>
+    <text x="700" y="251" text-anchor="middle" font-size="11" font-weight="700" fill="#00c5d1">Phase 2: Change Data
+        Capture
+    </text>
+    <text x="700" y="267" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.7">Streaming incremental
+        mutations from changelog
+    </text>
+
+    <!-- Pulls data label -->
+    <rect x="580" y="296" width="240" height="24" rx="4" fill="#0a2030" stroke="#00c5d1" stroke-width="1"
+          opacity="0.8"/>
+    <text x="700" y="312" text-anchor="middle" font-size="9" font-weight="500" fill="#00c5d1">Pulls data via
+        ReplicationClient
+    </text>
+
+    <!-- Arrow: Standby pulls from Primary -->
+    <line x1="540" y1="145" x2="340" y2="145" stroke="#00c5d1" stroke-width="1.8" marker-end="url(#arrow)"
+          stroke-dasharray="6,3"/>
+    <text x="440" y="138" text-anchor="middle" font-size="10" font-weight="600" fill="#00c5d1">RESP Commands</text>
+    <text x="440" y="156" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.6">(Internal Port)</text>
+
+    <!-- FOUNDATIONDB -->
+    <rect x="200" y="400" width="500" height="110" rx="10" fill="#0e3040" stroke="#00c5d1" stroke-width="2"
+          filter="url(#shadow)"/>
+    <rect x="200" y="400" width="500" height="36" rx="10" fill="#0a2030"/>
+    <rect x="200" y="426" width="500" height="10" fill="#0a2030"/>
+    <text x="450" y="424" text-anchor="middle" font-size="14" font-weight="700" fill="#00c5d1">FoundationDB</text>
+
+    <!-- FDB contents -->
+    <rect x="280" y="445" width="160" height="44" rx="6" fill="#0a3a4a" stroke="#00c5d1" stroke-width="1.5"/>
+    <text x="360" y="464" text-anchor="middle" font-size="11" font-weight="600" fill="#00c5d1">Changelog</text>
+    <text x="360" y="479" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.7">Entries + Back Pointers</text>
+
+    <rect x="460" y="445" width="160" height="44" rx="6" fill="#0a3a4a" stroke="#00c5d1" stroke-width="1.5"/>
+    <text x="540" y="464" text-anchor="middle" font-size="11" font-weight="600" fill="#00c5d1">Replication State</text>
+    <text x="540" y="479" text-anchor="middle" font-size="9" fill="#00c5d1" opacity="0.7">Per-Standby Progress</text>
+
+    <!-- Arrow: Primary writes to FDB -->
+    <line x1="190" y1="370" x2="330" y2="400" stroke="#c6ff3a" stroke-width="1.8" marker-end="url(#arrow-fdb)"/>
+    <text x="145" y="388" font-size="9" font-weight="600" fill="#c6ff3a">Writes Changelog</text>
+
+    <!-- Arrow: Standby reads/writes FDB -->
+    <line x1="680" y1="370" x2="660" y2="400" stroke="#c6ff3a" stroke-width="1.8" marker-end="url(#arrow-fdb)"/>
+    <text x="700" y="388" font-size="9" font-weight="600" fill="#c6ff3a">Persists State</text>
+</svg>

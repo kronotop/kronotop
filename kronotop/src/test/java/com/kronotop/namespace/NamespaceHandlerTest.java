@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,45 +17,42 @@
 package com.kronotop.namespace;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.TestUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.namespace.handlers.Namespace;
-import com.kronotop.namespace.handlers.NamespaceMetadata;
-import com.kronotop.namespace.handlers.NamespaceRemovedEvent;
-import com.kronotop.protocol.KronotopCommandBuilder;
-import com.kronotop.server.MockChannelHandlerContext;
-import com.kronotop.server.Response;
-import com.kronotop.server.Session;
-import com.kronotop.server.SessionAttributes;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.ErrorRedisMessage;
-import com.kronotop.server.resp3.IntegerRedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.volume.Prefix;
-import com.kronotop.volume.PrefixUtil;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.PlanCache;
 import com.kronotop.bucket.index.maintenance.IndexBuildingTask;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
+import com.kronotop.bucket.pipeline.PipelineNode;
+import com.kronotop.commands.BucketCommandBuilder;
+import com.kronotop.commands.KronotopCommandBuilder;
+import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.StringUtil;
 import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.namespace.handlers.Namespace;
+import com.kronotop.namespace.handlers.NamespaceMetadata;
+import com.kronotop.namespace.handlers.NamespaceRemovedEvent;
+import com.kronotop.server.Response;
+import com.kronotop.server.Session;
+import com.kronotop.server.SessionAttributes;
+import com.kronotop.server.resp3.*;
+import com.kronotop.volume.Prefix;
+import com.kronotop.volume.PrefixUtil;
 import com.kronotop.worker.Worker;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
@@ -241,9 +238,9 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, response);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
         assertEquals(1, actualMessage.children().size());
-        SimpleStringRedisMessage item = (SimpleStringRedisMessage) actualMessage.children().getFirst();
+        FullBulkStringRedisMessage item = (FullBulkStringRedisMessage) actualMessage.children().getFirst();
         String namespace = instance.getContext().getConfig().getString("default_namespace");
-        assertEquals(namespace, item.content());
+        assertEquals(namespace, item.content().toString(StandardCharsets.UTF_8));
     }
 
     @Test
@@ -405,13 +402,20 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         Prefix prefix;
         {
-            ChannelHandlerContext ctx = new MockChannelHandlerContext(channel);
-            Session.registerSession(context, ctx);
-            Session session = Session.extractSessionFromChannel(channel);
-            session.attr(SessionAttributes.CURRENT_NAMESPACE).set(name);
+            KronotopCommandBuilder<String, String> nsCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf useBuf = Unpooled.buffer();
+            nsCmd.namespaceUse(name).encode(useBuf);
+            runCommand(channel, useBuf);
 
-            BucketMetadata subspace = BucketMetadataUtil.createOrOpen(context, session, "test-bucket");
-            prefix = subspace.volumePrefix();
+            BucketCommandBuilder<String, String> bucketCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+            ByteBuf createBuf = Unpooled.buffer();
+            bucketCmd.create(TEST_BUCKET).encode(createBuf);
+            runCommand(channel, createBuf);
+
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, name, TEST_BUCKET);
+                prefix = metadata.prefix();
+            }
         }
 
         {
@@ -481,6 +485,97 @@ class NamespaceHandlerTest extends BaseHandlerTest {
     }
 
     @Test
+    void shouldResolveNamespacePathAfterMoveCommand() {
+        // Behavior: After NAMESPACE MOVE within same parent, resolveNamespacePath returns the new path
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate("mvh.same.old").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceMove("mvh.same.old", "mvh.same.renamed").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace subspace = NamespaceUtil.open(tr, context, "mvh.same.renamed");
+            List<String> subpath = new ArrayList<>();
+            NamespaceUtil.resolveNamespacePath(tr, new Subspace(subspace.pack()), subpath);
+            assertEquals("mvh.same.renamed", String.join(".", subpath.reversed()));
+        }
+    }
+
+    @Test
+    void shouldResolveNamespacePathAfterMoveCommandToDifferentParent() {
+        // Behavior: After NAMESPACE MOVE to a different parent, resolveNamespacePath returns the new path
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate("mvh.src.child").encode(buf);
+            runCommand(channel, buf);
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate("mvh.dst").encode(buf);
+            runCommand(channel, buf);
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceMove("mvh.src.child", "mvh.dst.child").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace subspace = NamespaceUtil.open(tr, context, "mvh.dst.child");
+            List<String> subpath = new ArrayList<>();
+            NamespaceUtil.resolveNamespacePath(tr, new Subspace(subspace.pack()), subpath);
+            assertEquals("mvh.dst.child", String.join(".", subpath.reversed()));
+        }
+    }
+
+    @Test
+    void shouldResolveNamespacePathAfterMoveCommandToRoot() {
+        // Behavior: After NAMESPACE MOVE to root level, resolveNamespacePath returns the root name (PARENT_POINTER cleared)
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate("mvh.parent.child").encode(buf);
+            runCommand(channel, buf);
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceMove("mvh.parent.child", "mvhpromoted").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            DirectorySubspace subspace = NamespaceUtil.open(tr, context, "mvhpromoted");
+            List<String> subpath = new ArrayList<>();
+            NamespaceUtil.resolveNamespacePath(tr, new Subspace(subspace.pack()), subpath);
+            assertEquals("mvhpromoted", String.join(".", subpath.reversed()));
+        }
+    }
+
+    @Test
     void shouldReturnCurrentNamespace() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         {
@@ -512,9 +607,9 @@ class NamespaceHandlerTest extends BaseHandlerTest {
             EmbeddedChannel channel = getChannel();
 
             Object response = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(namespace, actualMessage.content());
+            assertInstanceOf(FullBulkStringRedisMessage.class, response);
+            FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
+            assertEquals(namespace, actualMessage.content().toString(StandardCharsets.UTF_8));
         }
     }
 
@@ -636,7 +731,6 @@ class NamespaceHandlerTest extends BaseHandlerTest {
     void shouldInvalidateBucketMetadataCacheOnNamespaceRemoval() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
-        String bucket = "test-bucket";
 
         {
             // Create namespace
@@ -648,9 +742,10 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         }
 
         // Set bucket metadata in cache
-        BucketMetadata metadata = getBucketMetadata(bucket);
-        context.getBucketMetadataCache().set(namespace, bucket, metadata);
-        assertNotNull(context.getBucketMetadataCache().get(namespace, bucket));
+        createBucket(TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+        context.getBucketMetadataCache().set(namespace, TEST_BUCKET, metadata);
+        assertNotNull(context.getBucketMetadataCache().get(namespace, TEST_BUCKET));
 
         {
             // Remove namespace
@@ -663,7 +758,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         // Wait for the journal event to be processed and cache to be invalidated
         await().atMost(15, TimeUnit.SECONDS).until(() ->
-                context.getBucketMetadataCache().get(namespace, bucket) == null
+                context.getBucketMetadataCache().get(namespace, TEST_BUCKET) == null
         );
     }
 
@@ -671,7 +766,6 @@ class NamespaceHandlerTest extends BaseHandlerTest {
     void shouldInvalidateChildNamespacesCacheOnParentNamespaceRemoval() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
-        String bucket = "test-bucket";
         String parentNamespace = "a.b";
         String childNamespace = "a.b.c.d";
         namespace = parentNamespace;
@@ -686,9 +780,10 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         }
 
         // Set bucket metadata in cache for child namespace
-        BucketMetadata metadata = getBucketMetadata(bucket);
-        context.getBucketMetadataCache().set(childNamespace, bucket, metadata);
-        assertNotNull(context.getBucketMetadataCache().get(childNamespace, bucket));
+        createBucket(TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+        context.getBucketMetadataCache().set(childNamespace, TEST_BUCKET, metadata);
+        assertNotNull(context.getBucketMetadataCache().get(childNamespace, TEST_BUCKET));
 
         {
             // Remove parent namespace
@@ -701,7 +796,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         // Wait for the journal event to be processed and child namespace cache to be invalidated
         await().atMost(15, TimeUnit.SECONDS).until(() ->
-                context.getBucketMetadataCache().get(childNamespace, bucket) == null
+                context.getBucketMetadataCache().get(childNamespace, TEST_BUCKET) == null
         );
     }
 
@@ -809,7 +904,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
             Object response = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, response);
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-            assertTrue(actualMessage.content().startsWith("ERR Barrier not satisfied"));
+            assertTrue(actualMessage.content().startsWith("BARRIERNOTSATISFIED Barrier not satisfied"));
         }
     }
 
@@ -840,8 +935,8 @@ class NamespaceHandlerTest extends BaseHandlerTest {
                     metadata().
                     members().
                     member(context.getMember().getId()).toList();
-            DirectorySubspace memberSubspace = DirectoryLayer.getDefault().open(tr, memberSubpath).join();
-            NamespaceUtil.setLastSeenNamespaceVersion(tr, memberSubspace, context.getClusterName(), event);
+            DirectorySubspace memberSubspace = context.getDirectoryLayer().open(tr, memberSubpath).join();
+            NamespaceUtil.setLastSeenNamespaceVersion(tr, memberSubspace, context, event);
             tr.commit().join();
         }
 
@@ -876,7 +971,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         // Get namespace ID before removal
         NamespaceMetadata metadata = NamespaceUtil.readMetadata(context, namespace);
-        long namespaceId = metadata.id();
+        UUID namespaceId = metadata.id();
 
         {
             // Remove namespace
@@ -896,7 +991,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
                         metadata().
                         members().
                         member(context.getMember().getId()).toList();
-                DirectorySubspace memberSubspace = DirectoryLayer.getDefault().open(tr, subpath).join();
+                DirectorySubspace memberSubspace = context.getDirectoryLayer().open(tr, subpath).join();
                 Long version = NamespaceUtil.readLastSeenNamespaceVersion(tr, memberSubspace, namespaceId);
                 assertNotNull(version);
                 return version == 1;
@@ -987,90 +1082,12 @@ class NamespaceHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldFailPurgeWhenWorkerDoesNotRemoveItself() {
-        class StubbornWorker implements Worker {
-            private volatile boolean shutdownCalled = false;
-
-            @Override
-            public String getTag() {
-                return "stubborn-worker";
-            }
-
-            @Override
-            public void shutdown() {
-                shutdownCalled = true;
-            }
-
-            @Override
-            public boolean await(long timeout, TimeUnit unit) {
-                // Does NOT remove itself from registry (simulating a stuck worker)
-                return true;
-            }
-
-            public boolean isShutdownCalled() {
-                return shutdownCalled;
-            }
-        }
-
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        EmbeddedChannel channel = getChannel();
-
-        {
-            // Create namespace
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceCreate(namespace).encode(buf);
-
-            Object response = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-        }
-
-        // Create and register a stubborn worker that won't remove itself
-        StubbornWorker worker = new StubbornWorker();
-        context.getWorkerRegistry().put(namespace, worker);
-
-        // Verify worker is registered
-        List<Worker> workers = context.getWorkerRegistry().get(namespace, "stubborn-worker");
-        assertEquals(1, workers.size());
-
-        {
-            // Remove namespace (triggers processNamespaceRemovedEvent via journal)
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespaceRemove(namespace).encode(buf);
-
-            Object response = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-        }
-
-        // Wait for shutdown to be called, but worker stays in registry
-        await().atMost(15, TimeUnit.SECONDS).until(worker::isShutdownCalled);
-
-        // Worker should still be in registry
-        List<Worker> remaining = context.getWorkerRegistry().get(namespace, "stubborn-worker");
-        assertEquals(1, remaining.size());
-
-        {
-            // Purge namespace - should fail because barrier is not satisfied
-            ByteBuf buf = Unpooled.buffer();
-            cmd.namespacePurge(namespace).encode(buf);
-
-            Object response = runCommand(channel, buf);
-            assertInstanceOf(ErrorRedisMessage.class, response);
-            ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-            assertTrue(actualMessage.content().startsWith("ERR Barrier not satisfied"));
-        }
-
-        // Cleanup: remove worker from registry to allow test teardown
-        context.getWorkerRegistry().remove(namespace, worker);
-    }
-
-    @Test
     void shouldCleanupOrphanedTasksWhenParentNamespaceIsPurged() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
         String childNamespace = "a.b.c.d";
         String parentNamespace = "a.b";
-        String bucket = "test-bucket";
         int shardId = 1;
 
         {
@@ -1084,12 +1101,15 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         {
             // Create a bucket in the child namespace
-            ChannelHandlerContext ctx = new MockChannelHandlerContext(channel);
-            Session.registerSession(context, ctx);
-            Session session = Session.extractSessionFromChannel(channel);
-            session.attr(SessionAttributes.CURRENT_NAMESPACE).set(childNamespace);
+            KronotopCommandBuilder<String, String> nsCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+            ByteBuf useBuf = Unpooled.buffer();
+            nsCmd.namespaceUse(childNamespace).encode(useBuf);
+            runCommand(channel, useBuf);
 
-            BucketMetadataUtil.createOrOpen(context, session, bucket);
+            BucketCommandBuilder<String, String> bucketCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+            ByteBuf createBuf = Unpooled.buffer();
+            bucketCmd.create(TEST_BUCKET).encode(createBuf);
+            runCommand(channel, createBuf);
         }
 
         // Get namespace metadata for barrier setup
@@ -1113,8 +1133,8 @@ class NamespaceHandlerTest extends BaseHandlerTest {
                     metadata().
                     members().
                     member(context.getMember().getId()).toList();
-            DirectorySubspace memberSubspace = DirectoryLayer.getDefault().open(tr, memberSubpath).join();
-            NamespaceUtil.setLastSeenNamespaceVersion(tr, memberSubspace, context.getClusterName(), event);
+            DirectorySubspace memberSubspace = context.getDirectoryLayer().open(tr, memberSubpath).join();
+            NamespaceUtil.setLastSeenNamespaceVersion(tr, memberSubspace, context, event);
             tr.commit().join();
         }
 
@@ -1133,7 +1153,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
         IndexBuildingTask orphanedTask = new IndexBuildingTask(
                 childNamespace,
-                bucket,
+                TEST_BUCKET,
                 1, // indexId
                 shardId,
                 TestUtil.generateVersionstamp(1),
@@ -1163,5 +1183,250 @@ class NamespaceHandlerTest extends BaseHandlerTest {
                 return definition == null; // Task should be dropped by GC
             }
         });
+    }
+
+    @Test
+    void shouldInvalidatePlanCacheOnNamespaceRemovedEvent() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        {
+            // Create namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        // Get a plan cache and populate it with a dummy plan entry
+        BucketService bucketService = context.getService(BucketService.NAME);
+        PlanCache planCache = bucketService.getPlanCache();
+
+        UUID bucketId = UUID.fromString("00000000-0000-0000-0000-00000000007b");
+        long shapeHash = 456L;
+        PipelineNode dummyPlan = new PipelineNode() {
+            @Override
+            public int id() {
+                return 1;
+            }
+
+            @Override
+            public PipelineNode next() {
+                return null;
+            }
+
+            @Override
+            public void connectNext(PipelineNode node) {
+            }
+        };
+
+        planCache.put(namespace, bucketId, shapeHash, dummyPlan);
+        assertNotNull(planCache.get(namespace, bucketId, shapeHash), "Plan should be cached");
+
+        {
+            // Remove namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceRemove(namespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        // Wait for the journal event to be processed and plan cache to be invalidated
+        await().atMost(15, TimeUnit.SECONDS).until(() ->
+                planCache.get(namespace, bucketId, shapeHash) == null
+        );
+    }
+
+    @Test
+    void shouldInvalidateBucketMetadataCacheOnNamespaceMove() {
+        // Behavior: After a NAMESPACE MOVE, the BucketMetadataCache entry keyed under the old namespace path is invalidated.
+        String namespaceOld = UUID.randomUUID().toString();
+        namespace = namespaceOld;
+        String namespaceNew = UUID.randomUUID().toString();
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        {
+            // Create namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespaceOld).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        // Set bucket metadata in cache
+        createBucket(TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+        context.getBucketMetadataCache().set(namespaceOld, TEST_BUCKET, metadata);
+        assertNotNull(context.getBucketMetadataCache().get(namespaceOld, TEST_BUCKET));
+
+        {
+            // Move namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceMove(namespaceOld, namespaceNew).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            namespace = namespaceNew;
+        }
+
+        // Wait for the journal event to be processed and cache to be invalidated
+        await().atMost(15, TimeUnit.SECONDS).until(() ->
+                context.getBucketMetadataCache().get(namespaceOld, TEST_BUCKET) == null
+        );
+    }
+
+    @Test
+    void shouldInvalidatePlanCacheOnNamespaceMove() {
+        // Behavior: After a NAMESPACE MOVE, the PlanCache entries keyed under the old namespace path are invalidated.
+        String namespaceOld = UUID.randomUUID().toString();
+        namespace = namespaceOld;
+        String namespaceNew = UUID.randomUUID().toString();
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        {
+            // Create namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespaceOld).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        // Get a plan cache and populate it with a dummy plan entry
+        BucketService bucketService = context.getService(BucketService.NAME);
+        PlanCache planCache = bucketService.getPlanCache();
+
+        UUID bucketId = UUID.fromString("00000000-0000-0000-0000-00000000007b");
+        long shapeHash = 456L;
+        PipelineNode dummyPlan = new PipelineNode() {
+            @Override
+            public int id() {
+                return 1;
+            }
+
+            @Override
+            public PipelineNode next() {
+                return null;
+            }
+
+            @Override
+            public void connectNext(PipelineNode node) {
+            }
+        };
+
+        planCache.put(namespaceOld, bucketId, shapeHash, dummyPlan);
+        assertNotNull(planCache.get(namespaceOld, bucketId, shapeHash), "Plan should be cached");
+
+        {
+            // Move namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceMove(namespaceOld, namespaceNew).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            namespace = namespaceNew;
+        }
+
+        // Wait for the journal event to be processed and plan cache to be invalidated
+        await().atMost(15, TimeUnit.SECONDS).until(() ->
+                planCache.get(namespaceOld, bucketId, shapeHash) == null
+        );
+    }
+
+    @Test
+    void shouldBlockCreateWhenMoveTombstoneNotObserved() {
+        // Behavior: After a NAMESPACE MOVE, CREATE on the old name is rejected until all cluster members have observed the tombstone.
+        String namespaceOld = UUID.randomUUID().toString();
+        namespace = namespaceOld;
+        String namespaceNew = UUID.randomUUID().toString();
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        {
+            // Create namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespaceOld).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        {
+            // Move namespace — sets a tombstone on the old name
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceMove(namespaceOld, namespaceNew).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            namespace = namespaceNew;
+        }
+
+        // Clear all tombstone data (token + observers), then re-set just the token.
+        // This leaves the tombstone present but with zero observers, so the barrier is unsatisfied.
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TombstoneManager.cleanup(context, tr, namespaceOld);
+            TombstoneManager.setTombstone(context, tr, namespaceOld);
+            tr.commit().join();
+        }
+
+        {
+            // CREATE on the old name must fail — the tombstone barrier is not satisfied
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespaceOld).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+            assertTrue(actualMessage.content().startsWith("BARRIERNOTSATISFIED"));
+            assertTrue(actualMessage.content().contains("Not all cluster members have observed the tombstone"));
+        }
+    }
+
+    @Test
+    void shouldInvalidateOpenNamespacesOnNamespaceMove() {
+        // Behavior: After a NAMESPACE MOVE, the old namespace is removed from all sessions' OPEN_NAMESPACES.
+        String namespaceOld = UUID.randomUUID().toString();
+        namespace = namespaceOld;
+        String namespaceNew = UUID.randomUUID().toString();
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        {
+            // Create namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespaceOld).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        // Get session and add namespace to OPEN_NAMESPACES
+        Session session = getSession();
+        Map<String, Namespace> openNamespaces = session.attr(SessionAttributes.OPEN_NAMESPACES).get();
+        openNamespaces.put(namespaceOld, new Namespace());
+
+        // Register session in SessionStore
+        context.getSessionStore().put(session.getClientId(), session);
+        assertTrue(openNamespaces.containsKey(namespaceOld));
+
+        {
+            // Move namespace
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceMove(namespaceOld, namespaceNew).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            namespace = namespaceNew;
+        }
+
+        // Wait for the journal event to be processed and OPEN_NAMESPACES to be invalidated
+        await().atMost(15, TimeUnit.SECONDS).until(() ->
+                !openNamespaces.containsKey(namespaceOld)
+        );
     }
 }

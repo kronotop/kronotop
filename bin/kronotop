@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#
+# Launcher script for Kronotop
+#
+
+set -euo pipefail
+
+# Resolve symlinks and find the project root
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+KRONOTOP_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Find the shaded jar (skip original-* produced by maven-shade-plugin)
+JAR=$(find "$KRONOTOP_HOME/kronotop/target" -maxdepth 1 -name 'kronotop-*.jar' ! -name 'original-*' 2>/dev/null | head -1)
+
+if [ -z "$JAR" ]; then
+    echo "Error: Kronotop jar not found. Run './mvnw clean package -DskipTests' first." >&2
+    exit 1
+fi
+
+# Default JVM options (can be overridden via KRONOTOP_JAVA_OPTS)
+DEFAULT_JAVA_OPTS="--sun-misc-unsafe-memory-access=allow --add-opens java.base/sun.misc=ALL-UNNAMED --enable-native-access=ALL-UNNAMED --add-modules jdk.incubator.vector"
+
+JAVA_OPTS="${KRONOTOP_JAVA_OPTS:-$DEFAULT_JAVA_OPTS}"
+
+exec java $JAVA_OPTS -jar "$JAR" "$@"

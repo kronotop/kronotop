@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,20 @@
 
 package com.kronotop.volume;
 
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.internal.TransactionUtils;
-import com.kronotop.volume.segment.Segment;
+import com.kronotop.Context;
 import com.kronotop.volume.segment.SegmentAnalysis;
+import com.kronotop.volume.segment.SegmentUtil;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,91 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class VacuumTest extends BaseVolumeIntegrationTest {
 
-    @Test
-    void shouldRemoveEmptySegmentsAfterUpdatingEntries() throws IOException {
-        int bufferSize = 100480;
-        long segmentSize = VolumeConfiguration.segmentSize;
-        int numIterations = (int) (2 * (segmentSize / bufferSize));
-
-        // Insert some data
-        AppendResult appendResult;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, prefix);
-            ByteBuffer[] entries = new ByteBuffer[numIterations];
-            for (int i = 0; i < numIterations; i++) {
-                entries[i] = randomBytes(bufferSize);
-            }
-            appendResult = volume.append(session, entries);
-            tr.commit().join();
-        }
-
-        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            KeyEntry[] pairs = new KeyEntry[versionstampedKeys.length];
-            for (int i = 0; i < versionstampedKeys.length; i++) {
-                Versionstamp key = versionstampedKeys[i];
-                pairs[i] = new KeyEntry(key, randomBytes(bufferSize));
-            }
-            VolumeSession session = new VolumeSession(tr, prefix);
-            UpdateResult updateResult = volume.update(session, pairs);
-            tr.commit().join();
-            updateResult.complete();
-        } catch (KeyNotFoundException e) {
-            fail("Key not found " + e.getMessage());
-        }
-
-        List<SegmentAnalysis> beforeVacuum = volume.analyze();
-
-        // Collect empty segment's ids
-        List<Long> emptySegmentIds = new ArrayList<>();
-        for (SegmentAnalysis analysis : beforeVacuum) {
-            if (analysis.cardinality() == 0) {
-                emptySegmentIds.add(analysis.segmentId());
-            }
-        }
-        // Verify them on the disk
-        for (long segmentId : emptySegmentIds) {
-            Path path = Segment.getSegmentFilePath(volume.getConfig().dataDir(), segmentId);
-            boolean exists = Files.exists(path);
-            assertTrue(exists);
-        }
-
-        // Some segments should have zero cardinality value.
-        assertTrue(() -> {
-            for (SegmentAnalysis before : beforeVacuum) {
-                if (before.cardinality() == 0) {
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
-        Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
-        List<String> files = assertDoesNotThrow(vacuum::start);
-        assertFalse(files.isEmpty());
-
-        List<SegmentAnalysis> afterVacuum = volume.analyze();
-        // Some segments should not have zero cardinality value.
-        assertTrue(() -> {
-            for (SegmentAnalysis before : afterVacuum) {
-                if (before.cardinality() == 0) {
-                    return false;
-                }
-            }
-            return true;
-        });
-
-        // Empty segments must be removed
-        for (long segmentId : emptySegmentIds) {
-            Path path = Segment.getSegmentFilePath(volume.getConfig().dataDir(), segmentId);
-            boolean exists = Files.exists(path);
-            assertFalse(exists);
-        }
-    }
-
-    @Test
-    void shouldCompactAndReplaceSegmentsDuringVacuum() throws IOException {
+    private long fillAndSealSegment(Prefix prefix) throws IOException {
         long bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
@@ -132,322 +50,340 @@ class VacuumTest extends BaseVolumeIntegrationTest {
             tr.commit().join();
         }
 
-        List<SegmentAnalysis> beforeVacuum = volume.analyze();
-
-        // force vacuum
-        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
-        Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
-        List<String> files = assertDoesNotThrow(vacuum::start);
-        assertFalse(files.isEmpty());
-
-        List<SegmentAnalysis> afterVacuum = volume.analyze();
-        assertTrue(() -> {
-            for (SegmentAnalysis before : beforeVacuum) {
-                for (SegmentAnalysis after : afterVacuum) {
-                    if (before.segmentId() == after.segmentId()) {
-                        return false;
-                    }
-                }
-            }
-            // Old segments deleted
-            return true;
-        });
-
-        assertTrue(() -> {
-            for (SegmentAnalysis before : afterVacuum) {
-                if (before.cardinality() == 0) {
-                    return false;
-                }
-            }
-            return true;
-        });
+        List<SegmentAnalysis> analysis = volume.analyze();
+        assertEquals(2, analysis.size());
+        return analysis.getFirst().segmentId();
     }
 
     @Test
-    void shouldConsolidateFragmentedSegmentsAfterDeletions() throws IOException {
-        int bufferSize = 100;
-        long segmentSize = VolumeConfiguration.segmentSize;
-        int numIterations = (int) (2 * (segmentSize / bufferSize));
-        int batchSize = 1000;
+    void shouldCollectSinglePrefixAndPersistVacuumMetadata() throws IOException {
+        // Behavior: vacuum collects prefixes from SEGMENT_STATS and writes vacuum metadata to FDB
+        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+        VacuumContext ctx = new VacuumContext();
+        MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
+        volume.vacuum(ctx, sealedSegmentId, evacuator);
 
-        // Insert some data in batches
-        List<Versionstamp> allKeysList = new ArrayList<>();
-        for (int offset = 0; offset < numIterations; offset += batchSize) {
-            int currentBatchSize = Math.min(batchSize, numIterations - offset);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, prefix);
-                ByteBuffer[] entries = new ByteBuffer[currentBatchSize];
-                for (int i = 0; i < currentBatchSize; i++) {
-                    entries[i] = randomBytes(bufferSize);
-                }
-                AppendResult appendResult = volume.append(session, entries);
-                tr.commit().join();
-                allKeysList.addAll(Arrays.asList(appendResult.getVersionstampedKeys()));
-            }
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+
+            VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
+            assertNotNull(metadata);
+            assertEquals(VacuumMetadataStatus.EVACUATING, metadata.status());
+            assertTrue(metadata.startedAt() > 0);
+            assertTrue(metadata.startedAt() <= System.currentTimeMillis());
+
+            byte[] prefixKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, stashVolumeSyncerPrefix);
+            byte[] prefixValue = tr.get(prefixKey).join();
+            assertNotNull(prefixValue);
+
+            int cardinality = ByteBuffer.wrap(prefixValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
+            assertTrue(cardinality > 0);
         }
-
-        Versionstamp[] keys = allKeysList.toArray(new Versionstamp[0]);
-        int total = keys.length;
-
-        int deleteCount = (int) (total * 0.60);
-
-        List<Versionstamp> list = new ArrayList<>(Arrays.asList(keys));
-        Collections.shuffle(list);
-        List<Versionstamp> toDelete = list.subList(0, deleteCount);
-
-        // Delete in batches
-        for (int offset = 0; offset < toDelete.size(); offset += batchSize) {
-            int currentBatchSize = Math.min(batchSize, toDelete.size() - offset);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Versionstamp[] batch = new Versionstamp[currentBatchSize];
-                for (int i = 0; i < currentBatchSize; i++) {
-                    batch[i] = toDelete.get(offset + i);
-                }
-
-                VolumeSession session = new VolumeSession(tr, prefix);
-                DeleteResult result = volume.delete(session, batch);
-                tr.commit().join();
-                result.complete();
-            }
-        }
-
-        List<SegmentAnalysis> beforeVacuum = volume.analyze();
-        assertEquals(2, beforeVacuum.size());
-
-        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
-        Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
-        List<String> files = assertDoesNotThrow(vacuum::start);
-        assertFalse(files.isEmpty());
-
-        List<SegmentAnalysis> afterVacuum = volume.analyze();
-        assertEquals(1, afterVacuum.size());
-
-        // Some segments should not have zero cardinality value.
-        assertTrue(() -> {
-            for (SegmentAnalysis before : afterVacuum) {
-                if (before.cardinality() == 0) {
-                    return false;
-                }
-            }
-            return true;
-        });
-
-        Set<Long> afterIds = afterVacuum.stream()
-                .map(SegmentAnalysis::segmentId)
-                .collect(Collectors.toSet());
-        for (SegmentAnalysis sa : beforeVacuum) {
-            if (afterIds.contains(sa.segmentId())) {
-                fail("Segment still exists: " + sa.segmentId());
-            }
-        }
-
-        long beforeUsedBytes = 0;
-        int beforeCardinality = 0;
-        for (SegmentAnalysis analysis : beforeVacuum) {
-            beforeUsedBytes += analysis.usedBytes();
-            beforeCardinality += analysis.cardinality();
-        }
-
-        long afterUsedBytes = 0;
-        int afterCardinality = 0;
-        for (SegmentAnalysis analysis : afterVacuum) {
-            afterUsedBytes += analysis.usedBytes();
-            afterCardinality += analysis.cardinality();
-        }
-
-        assertEquals(beforeUsedBytes, afterUsedBytes);
-        assertEquals(beforeCardinality, afterCardinality);
     }
 
     @Test
-    void shouldHandleConcurrentUpdatesWhileVacuuming() throws Exception {
-        int bufferSize = 100;
-        long segmentSize = VolumeConfiguration.segmentSize;
-        int numIterations = (int) (2 * (segmentSize / bufferSize));
-        int batchSize = 1000;
+    void shouldCollectMultiplePrefixesInOneSegment() throws IOException {
+        // Behavior: vacuum discovers and records all prefixes in a segment
+        Prefix alpha = new Prefix("alpha");
+        Prefix beta = new Prefix("beta");
 
-        // Insert initial data in batches
-        List<Versionstamp> allKeysList = new ArrayList<>();
-        for (int offset = 0; offset < numIterations; offset += batchSize) {
-            int currentBatchSize = Math.min(batchSize, numIterations - offset);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, prefix);
-                ByteBuffer[] entries = new ByteBuffer[currentBatchSize];
-                for (int i = 0; i < currentBatchSize; i++) {
-                    entries[i] = randomBytes(bufferSize);
-                }
-                AppendResult appendResult = volume.append(session, entries);
-                tr.commit().join();
-                allKeysList.addAll(Arrays.asList(appendResult.getVersionstampedKeys()));
-            }
-        }
-
-        Versionstamp[] allKeys = allKeysList.toArray(new Versionstamp[0]);
-        int updateCount = (int) (allKeys.length * 0.60);
-
-        // Select 60% of keys to update
-        List<Versionstamp> keyList = new ArrayList<>(Arrays.asList(allKeys));
-        Collections.shuffle(keyList);
-        List<Versionstamp> keysToUpdate = keyList.subList(0, updateCount);
-
-        // Start vacuum in a separate thread with 0 garbage ratio to force it
-        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
-        Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
-
-        Thread vacuumThread = Thread.ofVirtual().start(() -> {
-            assertDoesNotThrow(vacuum::start);
-        });
-
-        // Concurrently, update 60% of entries with retry logic in batches
-        Thread updateThread = Thread.ofVirtual().start(() -> {
-            try {
-                for (int offset = 0; offset < keysToUpdate.size(); offset += batchSize) {
-                    int currentBatchSize = Math.min(batchSize, keysToUpdate.size() - offset);
-                    KeyEntry[] entries = new KeyEntry[currentBatchSize];
-                    for (int i = 0; i < currentBatchSize; i++) {
-                        entries[i] = new KeyEntry(keysToUpdate.get(offset + i), randomBytes(bufferSize));
-                    }
-
-                    // Try many times because the CI/CD hosts might be slow.
-                    TransactionUtils.retry(250, Duration.ofMillis(100)).executeRunnable(() -> {
-                        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                            VolumeSession session = new VolumeSession(tr, prefix);
-                            UpdateResult result;
-                            try {
-                                result = volume.update(session, entries);
-                            } catch (IOException | KeyNotFoundException e) {
-                                throw new RuntimeException(e);
-                            }
-                            tr.commit().join();
-                            result.complete();
-                        }
-                    });
-                }
-            } catch (Exception e) {
-                fail("Update failed: " + e);
-            }
-        });
-
-        // Wait for both operations to complete
-        vacuumThread.join();
-        updateThread.join();
-
-        // Verify all keys are still accessible
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, prefix);
-            for (Versionstamp key : allKeys) {
-                ByteBuffer entry = volume.get(session, key);
-                assertNotNull(entry, "Entry should still be accessible after concurrent vacuum and update");
-            }
+            VolumeSession sessionAlpha = new VolumeSession(tr, alpha);
+            volume.append(sessionAlpha, getEntries(5));
+
+            VolumeSession sessionBeta = new VolumeSession(tr, beta);
+            volume.append(sessionBeta, getEntries(3));
+            tr.commit().join();
         }
 
-        // Verify no segments have zero cardinality
-        List<SegmentAnalysis> afterVacuum = volume.analyze();
-        assertTrue(() -> {
-            for (SegmentAnalysis analysis : afterVacuum) {
-                if (analysis.cardinality() == 0) {
-                    return false;
-                }
+        long bufferSize = 100480;
+        long segmentSize = VolumeConfiguration.segmentSize;
+        long numIterations = 2 * (segmentSize / bufferSize);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, alpha);
+            for (int i = 1; i <= numIterations; i++) {
+                volume.append(session, randomBytes((int) bufferSize));
             }
-            return true;
-        });
+            tr.commit().join();
+        }
+
+        List<SegmentAnalysis> analysis = volume.analyze();
+        assertEquals(2, analysis.size());
+        long sealedSegmentId = analysis.getFirst().segmentId();
+
+        VacuumContext ctx = new VacuumContext();
+        MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
+        volume.vacuum(ctx, sealedSegmentId, evacuator);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+
+            // Verify segment-level metadata
+            VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
+            assertNotNull(metadata);
+
+            // Scan all prefix cardinality keys
+            Range range = VacuumSegmentMetadataUtil.getVacuumPrefixRange(volumeSubspace, sealedSegmentId);
+            List<KeyValue> prefixKeys = tr.getRange(range).asList().join();
+            assertTrue(prefixKeys.size() >= 2);
+
+            // Verify both prefix-level keys exist with correct cardinalities
+            byte[] alphaValue = tr.get(volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, alpha)).join();
+            assertNotNull(alphaValue);
+            int alphaCardinality = ByteBuffer.wrap(alphaValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
+            assertTrue(alphaCardinality >= 5);
+
+            byte[] betaValue = tr.get(volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, beta)).join();
+            assertNotNull(betaValue);
+            int betaCardinality = ByteBuffer.wrap(betaValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
+            assertEquals(3, betaCardinality);
+        }
     }
 
     @Test
-    void shouldHandleConcurrentDeletionsWhileVacuuming() throws Exception {
-        int bufferSize = 100;
+    void shouldEvacuateEntriesFromAllPrefixes() throws IOException {
+        // Behavior: vacuum loop iterates through all prefixes and calls evacuator for each prefix's entries
+        Prefix alpha = new Prefix("alpha");
+        Prefix beta = new Prefix("beta");
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession sessionAlpha = new VolumeSession(tr, alpha);
+            volume.append(sessionAlpha, getEntries(5));
+
+            VolumeSession sessionBeta = new VolumeSession(tr, beta);
+            volume.append(sessionBeta, getEntries(3));
+            tr.commit().join();
+        }
+
+        long bufferSize = 100480;
         long segmentSize = VolumeConfiguration.segmentSize;
-        int numIterations = (int) (2 * (segmentSize / bufferSize));
-        int batchSize = 1000;
+        long numIterations = 2 * (segmentSize / bufferSize);
 
-        // Insert initial data in batches
-        List<Versionstamp> allKeysList = new ArrayList<>();
-        for (int offset = 0; offset < numIterations; offset += batchSize) {
-            int currentBatchSize = Math.min(batchSize, numIterations - offset);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeSession session = new VolumeSession(tr, prefix);
-                ByteBuffer[] entries = new ByteBuffer[currentBatchSize];
-                for (int i = 0; i < currentBatchSize; i++) {
-                    entries[i] = randomBytes(bufferSize);
-                }
-                AppendResult appendResult = volume.append(session, entries);
-                tr.commit().join();
-                allKeysList.addAll(Arrays.asList(appendResult.getVersionstampedKeys()));
-            }
-        }
-
-        Versionstamp[] allKeys = allKeysList.toArray(new Versionstamp[0]);
-        int deleteCount = (int) (allKeys.length * 0.60);
-
-        // Select 60% of keys to delete
-        List<Versionstamp> keyList = new ArrayList<>(Arrays.asList(allKeys));
-        Collections.shuffle(keyList);
-        List<Versionstamp> keysToDelete = keyList.subList(0, deleteCount);
-        List<Versionstamp> survivingKeys = keyList.subList(deleteCount, allKeys.length);
-
-        // Start vacuum in a separate thread with 0 garbage ratio to force it
-        VacuumMetadata vacuumMetadata = new VacuumMetadata(volume.getConfig().name(), 0);
-        Vacuum vacuum = new Vacuum(context, volume, vacuumMetadata);
-
-        Thread vacuumThread = Thread.ofVirtual().start(() -> {
-            assertDoesNotThrow(vacuum::start);
-        });
-
-        // Concurrently, delete 60% of entries with retry logic in batches
-        Thread deleteThread = Thread.ofVirtual().start(() -> {
-            try {
-                for (int offset = 0; offset < keysToDelete.size(); offset += batchSize) {
-                    int currentBatchSize = Math.min(batchSize, keysToDelete.size() - offset);
-                    Versionstamp[] keysArray = new Versionstamp[currentBatchSize];
-                    for (int i = 0; i < currentBatchSize; i++) {
-                        keysArray[i] = keysToDelete.get(offset + i);
-                    }
-
-                    // Try many times because the CI/CD hosts might be slow.
-                    TransactionUtils.retry(250, Duration.ofMillis(100)).executeRunnable(() -> {
-                        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                            VolumeSession session = new VolumeSession(tr, prefix);
-                            DeleteResult result = volume.delete(session, keysArray);
-                            tr.commit().join();
-                            result.complete();
-                        }
-                    });
-                }
-            } catch (Exception e) {
-                fail("Delete failed: " + e);
-            }
-        });
-
-        // Wait for both operations to complete
-        vacuumThread.join();
-        deleteThread.join();
-
-        // Verify surviving keys are still accessible
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, prefix);
-            for (Versionstamp key : survivingKeys) {
-                ByteBuffer entry = volume.get(session, key);
-                assertNotNull(entry, "Surviving entry should still be accessible after concurrent vacuum and delete");
+            VolumeSession session = new VolumeSession(tr, alpha);
+            for (int i = 1; i <= numIterations; i++) {
+                volume.append(session, randomBytes((int) bufferSize));
             }
+            tr.commit().join();
         }
 
-        // Verify deleted keys are not accessible
+        List<SegmentAnalysis> analysis = volume.analyze();
+        assertEquals(2, analysis.size());
+        long sealedSegmentId = analysis.getFirst().segmentId();
+
+        VacuumContext ctx = new VacuumContext();
+        MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
+        volume.vacuum(ctx, sealedSegmentId, evacuator);
+
+        assertFalse(evacuator.evacuated.isEmpty());
+
+        Map<Prefix, Long> countByPrefix = evacuator.evacuated.stream()
+                .collect(Collectors.groupingBy(
+                        m -> Prefix.fromBytes(m.prefix()),
+                        Collectors.counting()
+                ));
+
+        assertTrue(countByPrefix.containsKey(alpha));
+        assertTrue(countByPrefix.containsKey(beta));
+        assertTrue(countByPrefix.get(alpha) >= 5);
+        assertEquals(3, countByPrefix.get(beta));
+    }
+
+    @Test
+    void shouldRefuseToVacuumWritableSegment() {
+        // Behavior: vacuum throws when targeting the currently writable segment
+        VacuumContext ctx = new VacuumContext();
+        MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
+        List<SegmentAnalysis> analysis = volume.analyze();
+        assertEquals(1, analysis.size());
+        long writableSegmentId = analysis.getFirst().segmentId();
+
+        assertThrows(VacuumWritableSegmentException.class, () -> volume.vacuum(ctx, writableSegmentId, evacuator));
+    }
+
+    @Test
+    void shouldMatchCardinalityWithSegmentStats() throws IOException {
+        // Behavior: vacuum metadata cardinality exactly matches SEGMENT_STATS cardinality
+        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+
+        VacuumContext ctx = new VacuumContext();
+        MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
+        volume.vacuum(ctx, sealedSegmentId, evacuator);
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, prefix);
-            for (Versionstamp key : keysToDelete) {
-                assertNull(volume.get(session, key), "Deleted entry should not be accessible");
-            }
+            VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+
+            // Read cardinality from SEGMENT_STATS
+            byte[] statsKey = volumeSubspace.packSegmentStatsKey(
+                    sealedSegmentId, stashVolumeSyncerPrefix, SegmentStatsSubspaces.CARDINALITY);
+            byte[] statsValue = tr.get(statsKey).join();
+            assertNotNull(statsValue);
+            int statsCardinality = ByteBuffer.wrap(statsValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
+
+            // Read cardinality from VACUUM_METADATA
+            byte[] vacuumKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, stashVolumeSyncerPrefix);
+            byte[] vacuumValue = tr.get(vacuumKey).join();
+            assertNotNull(vacuumValue);
+            int vacuumCardinality = ByteBuffer.wrap(vacuumValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
+
+            assertEquals(statsCardinality, vacuumCardinality);
+        }
+    }
+
+    @Test
+    void shouldPersistVacuumMetadataAcrossVolumeReopen() throws IOException {
+        // Behavior: vacuum metadata survives volume close and reopen
+        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+
+        VacuumContext ctx = new VacuumContext();
+        MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
+        volume.vacuum(ctx, sealedSegmentId, evacuator);
+
+        VolumeConfig volumeConfig = volume.getConfig();
+        volume.close();
+        volume = service.newVolume(volumeConfig);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSubspace volumeSubspace = new VolumeSubspace(volumeConfig.subspace());
+
+            VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
+            assertNotNull(metadata);
+            assertEquals(VacuumMetadataStatus.EVACUATING, metadata.status());
+            assertTrue(metadata.startedAt() > 0);
+
+            byte[] prefixKey = volumeSubspace.packVacuumSegmentMetadataPrefixCardinalityKey(sealedSegmentId, stashVolumeSyncerPrefix);
+            byte[] prefixValue = tr.get(prefixKey).join();
+            assertNotNull(prefixValue);
+
+            int cardinality = ByteBuffer.wrap(prefixValue).order(ByteOrder.LITTLE_ENDIAN).getInt();
+            assertTrue(cardinality > 0);
+        }
+    }
+
+    @Test
+    void shouldCleanupSegmentAfterSuccessfulVacuum() throws IOException {
+        // Behavior: after vacuum evacuates all entries, segment metadata, file, and registry are cleaned up
+        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+
+        VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            assertTrue(segmentIds.contains(sealedSegmentId));
         }
 
-        // Verify no segments have zero cardinality
-        List<SegmentAnalysis> afterVacuum = volume.analyze();
-        assertTrue(() -> {
-            for (SegmentAnalysis analysis : afterVacuum) {
-                if (analysis.cardinality() == 0) {
-                    return false;
-                }
+        VacuumContext ctx = new VacuumContext();
+        EvacuatingEvacuator evacuator = new EvacuatingEvacuator(volume);
+        volume.vacuum(ctx, sealedSegmentId, evacuator);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<KeyValue> posEntries = tr.getRange(Range.startsWith(volumeSubspace.packSegmentPositionPrefix(sealedSegmentId))).asList().join();
+            assertTrue(posEntries.isEmpty());
+
+            List<KeyValue> statsEntries = tr.getRange(Range.startsWith(volumeSubspace.packSegmentStatsSegmentPrefix(sealedSegmentId))).asList().join();
+            assertTrue(statsEntries.isEmpty());
+
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            assertFalse(segmentIds.contains(sealedSegmentId));
+
+            VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
+            assertNull(metadata);
+        }
+
+        Path segmentPath = SegmentUtil.getFilePath(volume.getConfig().dataDir(), sealedSegmentId);
+        assertFalse(Files.exists(segmentPath));
+    }
+
+    @Test
+    void shouldNotCleanupSegmentWhenVacuumStopped() throws IOException {
+        // Behavior: stopped vacuum leaves segment intact
+        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+
+        VacuumContext ctx = new VacuumContext();
+        ctx.stop();
+        MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
+        volume.vacuum(ctx, sealedSegmentId, evacuator);
+
+        VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
+            assertTrue(segmentIds.contains(sealedSegmentId));
+        }
+
+        Path segmentPath = SegmentUtil.getFilePath(volume.getConfig().dataDir(), sealedSegmentId);
+        assertTrue(Files.exists(segmentPath));
+    }
+
+    @Test
+    void shouldContinueServingOtherSegmentsAfterCleanup() throws IOException {
+        // Behavior: cleaning up one segment does not affect reads from other segments
+        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+
+        AppendResult appendResult;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, getEntries(5));
+            tr.commit().join();
+        }
+        Versionstamp[] writableKeys = appendResult.getVersionstampedKeys();
+
+        VacuumContext ctx = new VacuumContext();
+        EvacuatingEvacuator evacuator = new EvacuatingEvacuator(volume);
+        volume.vacuum(ctx, sealedSegmentId, evacuator);
+
+        VolumeSession readSession = new VolumeSession(stashVolumeSyncerPrefix);
+        for (Versionstamp key : writableKeys) {
+            ByteBuffer data = volume.get(readSession, key);
+            assertNotNull(data);
+        }
+    }
+
+    @Test
+    void shouldRefuseToCleanupSegmentWithRemainingEntries() throws IOException {
+        // Behavior: cleanupSegment throws when the segment still has entries
+        long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
+        assertThrows(IllegalStateException.class, () -> volume.destroyStaleSegment(sealedSegmentId));
+    }
+
+    static class MockEntryEvacuator implements EntryEvacuator {
+        private final VacuumContext ctx;
+        private final Set<Versionstamp> seen = new HashSet<>();
+        private final List<EntryMetadata> evacuated = new ArrayList<>();
+
+        MockEntryEvacuator(VacuumContext ctx) {
+            this.ctx = ctx;
+        }
+
+        @Override
+        public boolean evacuate(Context context, Transaction tr, EntryMetadata metadata, Versionstamp versionstamp) {
+            evacuated.add(metadata);
+            if (!seen.add(versionstamp)) {
+                ctx.stop();
             }
             return true;
-        });
+        }
+    }
+
+    static class EvacuatingEvacuator implements EntryEvacuator {
+        private final Volume volume;
+
+        EvacuatingEvacuator(Volume volume) {
+            this.volume = volume;
+        }
+
+        @Override
+        public boolean evacuate(
+                Context context,
+                Transaction tr,
+                EntryMetadata metadata,
+                Versionstamp versionstamp
+        ) throws IOException {
+            ByteBuffer data = volume.getByEntryMetadata(metadata);
+            Prefix prefix = Prefix.fromBytes(metadata.prefix());
+            VolumeSession session = new VolumeSession(tr, prefix);
+            VersionstampedEntryUpdate update = new VersionstampedEntryUpdate(versionstamp, metadata, data);
+            volume.updateByVersionstampedEntryUpdate(session, update);
+            return true;
+        }
     }
 }

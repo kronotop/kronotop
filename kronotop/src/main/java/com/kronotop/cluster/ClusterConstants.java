@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,4 +19,5 @@ package com.kronotop.cluster;
 public final class ClusterConstants {
     public static final byte CLUSTER_INITIALIZED = 0x02;
     public static final byte CLUSTER_TOPOLOGY_CHANGED = 0x06;
+    public static final byte BUCKET_SHARD_COUNTER = 0x07;
 }

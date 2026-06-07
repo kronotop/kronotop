@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,10 @@ import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -40,7 +41,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
     public void execute(Request request, Response response) {
         SetMemberStatusParameters parameters = new SetMemberStatusParameters(request.getParams());
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 Member member = membership.findMember(tr, parameters.memberId);
                 member.setStatus(parameters.memberStatus);
                 membership.updateMember(tr, member);

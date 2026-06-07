@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,37 @@
 
 package com.kronotop.bucket.planner.physical;
 
-import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.Collation;
+import com.kronotop.bucket.NumericWidening;
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.logical.*;
 import org.bson.BsonType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class PhysicalPlanner {
 
     public PhysicalPlanner() {
+    }
+
+    private static BsonType bqlValueToBsonType(BqlValue bqlValue) {
+        return switch (bqlValue) {
+            case Int32Val ignored -> BsonType.INT32;
+            case Int64Val ignored -> BsonType.INT64;
+            case DoubleVal ignored -> BsonType.DOUBLE;
+            case Decimal128Val ignored -> BsonType.DECIMAL128;
+            case StringVal ignored -> BsonType.STRING;
+            case BooleanVal ignored -> BsonType.BOOLEAN;
+            case BinaryVal ignored -> BsonType.BINARY;
+            case DateTimeVal ignored -> BsonType.DATE_TIME;
+            case TimestampVal ignored -> BsonType.TIMESTAMP;
+            case ObjectIdVal ignored -> BsonType.OBJECT_ID;
+            default -> null;
+        };
     }
 
     /**
@@ -42,8 +58,8 @@ public class PhysicalPlanner {
      * - In-place list transformation to avoid intermediate collections
      * - Pattern matching for efficient dispatch
      */
-    public PhysicalNode plan(BucketMetadata metadata, LogicalNode logicalPlan, PlannerContext context) {
-        return plan(metadata, logicalPlan, context, null);
+    public PhysicalNode plan(PlannerContext context, LogicalNode logicalPlan) {
+        return plan(context, logicalPlan, null);
     }
 
     /**
@@ -51,28 +67,199 @@ public class PhysicalPlanner {
      *
      * @param elemMatchSelector the selector from parent $elemMatch (null if not inside $elemMatch)
      */
-    private PhysicalNode plan(BucketMetadata metadata, LogicalNode logicalPlan, PlannerContext context, String elemMatchSelector) {
+    private PhysicalNode plan(PlannerContext context, LogicalNode logicalPlan, String elemMatchSelector) {
         return switch (logicalPlan) {
             // Direct field transposition - zero-copy for primitive fields
-            case LogicalFilter filter -> transposeFilter(metadata, filter, context, elemMatchSelector);
+            case LogicalFilter filter -> transposeFilter(context, filter, elemMatchSelector);
 
             // Efficient list transformation - reuse child structure
-            case LogicalAnd and ->
-                    new PhysicalAnd(context.nextId(), transposeChildren(metadata, and.children(), context, elemMatchSelector));
-            case LogicalOr or -> new PhysicalOr(context.nextId(), transposeChildren(metadata, or.children(), context, elemMatchSelector));
+            case LogicalAnd and -> transposeAnd(context, and, elemMatchSelector);
+            case LogicalOr or ->
+                    new PhysicalOr(context.nextId(), transposeChildren(context, or.children(), elemMatchSelector));
 
             // Single child transposition
-            case LogicalNot not -> new PhysicalNot(context.nextId(), plan(metadata, not.child(), context, elemMatchSelector));
+            case LogicalNot not -> new PhysicalNot(context.nextId(), plan(context, not.child(), elemMatchSelector));
             case LogicalElemMatch elemMatch -> new PhysicalElemMatch(
                     context.nextId(),
                     elemMatch.selector(),
                     // Pass the $elemMatch selector as context for scalar array index lookup
-                    plan(metadata, elemMatch.subPlan(), context, elemMatch.selector())
+                    plan(context, elemMatch.subPlan(), elemMatch.selector())
             );
 
             // Singleton instance reuse - no object allocation
             case LogicalTrue ignored -> new PhysicalTrue(context.nextId());
             case LogicalFalse ignored -> new PhysicalFalse(context.nextId());
+        };
+    }
+
+    /**
+     * Transposes a LogicalAnd node, first attempting compound index matching before
+     * falling back to individual child transposition.
+     */
+    private PhysicalNode transposeAnd(PlannerContext context, LogicalAnd and, String elemMatchSelector) {
+        CompoundIndexMatchResult match = tryCompoundIndexMatch(context, and.children(), elemMatchSelector);
+        if (match != null) {
+            PhysicalCompoundIndexScan compoundScan = new PhysicalCompoundIndexScan(
+                    context.nextId(), match.index, match.matchedFilters
+            );
+            if (match.remainingChildren.isEmpty()) {
+                return compoundScan;
+            }
+            List<PhysicalNode> children = new ArrayList<>();
+            children.add(compoundScan);
+            for (LogicalNode remaining : match.remainingChildren) {
+                children.add(plan(context, remaining, elemMatchSelector));
+            }
+            return new PhysicalAnd(context.nextId(), children);
+        }
+        return new PhysicalAnd(context.nextId(), transposeChildren(context, and.children(), elemMatchSelector));
+    }
+
+    /**
+     * Attempts to match filter children against available compound indexes using the prefix rule.
+     * Returns the best match (most matched fields), or null if no match found.
+     * Normally requires minimum 2 matched filters; relaxes to 1 when sortByField covers the next index field.
+     */
+    private CompoundIndexMatchResult tryCompoundIndexMatch(PlannerContext context, List<LogicalNode> children, String elemMatchSelector) {
+        CompoundIndexMatchResult best = null;
+
+        for (CompoundIndex compoundIndex : context.getMetadata().compoundIndexes().getIndexes(IndexSelectionPolicy.READ)) {
+            CompoundIndexDefinition definition = compoundIndex.definition();
+
+            if (!isCollationCompatible(context.getCollation(), definition)) {
+                continue;
+            }
+
+            List<CompoundIndexField> fields = definition.fields();
+
+            List<PhysicalFilter> matchedFilters = new ArrayList<>();
+            List<LogicalNode> matchedChildren = new ArrayList<>();
+
+            for (CompoundIndexField field : fields) {
+                List<LogicalFilter> fieldMatches = findMatchingFilters(children, matchedChildren, field, elemMatchSelector);
+                if (fieldMatches.isEmpty()) {
+                    break;
+                }
+
+                boolean hasRange = false;
+                for (LogicalFilter filter : fieldMatches) {
+                    matchedChildren.add(filter);
+                    matchedFilters.add(new PhysicalFilter(
+                            context.nextId(), filter.selector(), filter.op(), filter.operand()
+                    ));
+                    if (filter.op() != Operator.EQ) {
+                        hasRange = true;
+                    }
+                }
+
+                if (hasRange) {
+                    break;
+                }
+            }
+
+            int minRequired = computeMinRequiredFilters(fields, matchedFilters);
+            if (matchedFilters.size() >= minRequired && isBetterMatch(context, best, matchedFilters, fields)) {
+                List<LogicalNode> remaining = new ArrayList<>();
+                for (LogicalNode child : children) {
+                    if (!matchedChildren.contains(child)) {
+                        remaining.add(child);
+                    }
+                }
+                best = new CompoundIndexMatchResult(definition, matchedFilters, remaining);
+            }
+        }
+
+        return best;
+    }
+
+    /**
+     * Determines the minimum number of matched filters required for compound index selection.
+     * Allows 1 when matched filters cover the leading prefix field, since a compound index
+     * can serve range scans on the leading field via FoundationDB tuple ordering.
+     */
+    private int computeMinRequiredFilters(List<CompoundIndexField> fields, List<PhysicalFilter> matchedFilters) {
+        if (matchedFilters.isEmpty()) {
+            return 2;
+        }
+        // If matched filters cover the first compound index field, the index
+        // can serve the query via a prefix range scan. Allow minimum 1.
+        if (matchedFilters.getFirst().selector().equals(fields.getFirst().selector())) {
+            return 1;
+        }
+        return 2;
+    }
+
+    /**
+     * Checks whether the current candidate is a better match than the existing best.
+     * More matched fields wins. On tie, prefer the index whose next field matches sortByField.
+     */
+    private boolean isBetterMatch(PlannerContext context, CompoundIndexMatchResult best,
+                                  List<PhysicalFilter> matchedFilters, List<CompoundIndexField> fields) {
+        if (best == null) {
+            return true;
+        }
+        if (matchedFilters.size() != best.matchedFilters.size()) {
+            return matchedFilters.size() > best.matchedFilters.size();
+        }
+        // Tiebreaker: prefer the index whose next field matches sortByField
+        String sortByField = context.getSortByField();
+        if (sortByField != null) {
+            int next = matchedFilters.size();
+            return next < fields.size()
+                    && fields.get(next).selector().equals(sortByField);
+        }
+        return false;
+    }
+
+    /**
+     * Finds LogicalFilter children matching a compound index field by selector, operator, and type.
+     */
+    private List<LogicalFilter> findMatchingFilters(List<LogicalNode> children, List<LogicalNode> alreadyMatched,
+                                                    CompoundIndexField field, String elemMatchSelector) {
+        List<LogicalFilter> result = new ArrayList<>();
+        for (LogicalNode child : children) {
+            if (alreadyMatched.contains(child)) {
+                continue;
+            }
+            if (!(child instanceof LogicalFilter filter)) {
+                continue;
+            }
+            if (!isCompoundIndexableOperator(filter.op())) {
+                continue;
+            }
+
+            String filterSelector = resolveSelector(filter.selector(), elemMatchSelector);
+            if (!filterSelector.equals(field.selector())) {
+                continue;
+            }
+            if (!isOperandTypeMatch(filter.operand(), field.bsonType())) {
+                continue;
+            }
+            result.add(filter);
+        }
+        return result;
+    }
+
+    /**
+     * Resolves the effective selector for index lookup, considering $elemMatch context.
+     */
+    private String resolveSelector(String filterSelector, String elemMatchSelector) {
+        if (elemMatchSelector == null) {
+            return filterSelector;
+        }
+        if (filterSelector.isEmpty()) {
+            return elemMatchSelector;
+        }
+        if (!filterSelector.contains(".")) {
+            return elemMatchSelector + "." + filterSelector;
+        }
+        return filterSelector;
+    }
+
+    private boolean isCompoundIndexableOperator(Operator op) {
+        return switch (op) {
+            case EQ, GT, GTE, LT, LTE -> true;
+            default -> false;
         };
     }
 
@@ -89,7 +276,7 @@ public class PhysicalPlanner {
      *
      * @param elemMatchSelector the selector from parent $elemMatch (null if not inside $elemMatch)
      */
-    private PhysicalNode transposeFilter(BucketMetadata metadata, LogicalFilter filter, PlannerContext context, String elemMatchSelector) {
+    private PhysicalNode transposeFilter(PlannerContext context, LogicalFilter filter, String elemMatchSelector) {
         // Build the index lookup selector based on $elemMatch context
         String indexLookupSelector = filter.selector();
         if (elemMatchSelector != null) {
@@ -104,7 +291,11 @@ public class PhysicalPlanner {
             // If filter.selector() already contains a dot (nested path like "items.price"),
             // it's already fully qualified and shouldn't be combined
         }
-        Index index = metadata.indexes().getIndex(indexLookupSelector, IndexSelectionPolicy.READ);
+        Index index = context.getMetadata().indexes().getIndex(indexLookupSelector, IndexSelectionPolicy.READ);
+
+        if (index != null && !isCollationCompatible(context.getCollation(), index.definition())) {
+            index = null;
+        }
 
         // Handle empty $in: matches nothing regardless of index
         if (filter.op() == Operator.IN && filter.operand() instanceof List<?> list && list.isEmpty()) {
@@ -118,7 +309,6 @@ public class PhysicalPlanner {
 
         // Handle $in operator with index: transform to OR with multiple EQ index scans
         if (filter.op() == Operator.IN && index != null &&
-                index.definition().id() != DefaultIndexDefinition.ID.id() &&
                 isOperandTypeMatch(filter.operand(), index.definition().bsonType())) {
             return transposeInToOr(filter, index, context);
         }
@@ -128,10 +318,21 @@ public class PhysicalPlanner {
         // incorrect semantics for array fields (matches documents where AT LEAST ONE element
         // doesn't match, but $nin requires documents where NO element matches).
         if (filter.op() == Operator.NIN && index != null &&
-                index.definition().id() != DefaultIndexDefinition.ID.id() &&
                 !index.definition().multiKey() &&
                 isOperandTypeMatch(filter.operand(), index.definition().bsonType())) {
             return transposeNinToAnd(filter, index, context);
+        }
+
+        // Skip index scan for $ne on multi-key indexes - would return incorrect results
+        // because index scan finds "any element != value" but $ne requires "no element == value"
+        if (filter.op() == Operator.NE && index != null && index.definition().multiKey()) {
+            PhysicalFilter node = new PhysicalFilter(
+                    context.nextId(),
+                    filter.selector(),
+                    filter.op(),
+                    filter.operand()
+            );
+            return new PhysicalFullScan(context.nextId(), node);
         }
 
         PhysicalFilter node = new PhysicalFilter(
@@ -141,9 +342,21 @@ public class PhysicalPlanner {
                 filter.operand()
         );
 
-        if (index != null && index.definition().id() == DefaultIndexDefinition.ID.id()) {
+        if (index != null && PrimaryIndex.isPrimary(index.definition())) {
             // Index scan on the primary index.
             return new PhysicalIndexScan(context.nextId(), node, index.definition());
+        }
+
+        // Compound index for SORTBY: when filter is EQ and sortByField is set,
+        // a compound index on (filterField, sortByField) provides both filtering
+        // and natural sort order — better than single-field index + in-memory sort.
+        if (context.getSortByField() != null && filter.op() == Operator.EQ) {
+            CompoundIndexMatchResult compoundMatch = tryCompoundIndexMatch(
+                    context, List.of(filter), elemMatchSelector);
+            if (compoundMatch != null) {
+                return new PhysicalCompoundIndexScan(
+                        context.nextId(), compoundMatch.index, compoundMatch.matchedFilters);
+            }
         }
 
         if (index != null &&
@@ -151,6 +364,17 @@ public class PhysicalPlanner {
                 isOperandTypeMatch(filter.operand(), index.definition().bsonType())) {
             // Index available – use index scan with filter pushdown
             return new PhysicalIndexScan(context.nextId(), node, index.definition());
+        }
+
+        // Compound index fallback: when no single-field index exists, try using a compound
+        // index whose leading prefix field matches this filter.
+        if (isCompoundIndexableOperator(filter.op())) {
+            CompoundIndexMatchResult compoundMatch = tryCompoundIndexMatch(
+                    context, List.of(filter), elemMatchSelector);
+            if (compoundMatch != null) {
+                return new PhysicalCompoundIndexScan(
+                        context.nextId(), compoundMatch.index, compoundMatch.matchedFilters);
+            }
         }
 
         // Fallback: full scan
@@ -167,7 +391,7 @@ public class PhysicalPlanner {
      *   <li>{@code {'role': {'$in': ['admin']}}} with index on 'role'
      *       → {@code PhysicalIndexScan(EQ, 'admin')} (single value optimization)</li>
      *   <li>{@code {'role': {'$in': []}}} with index on 'role'
-     *       → {@code PhysicalFalse} (empty list matches nothing)</li>
+     *       → {@code PhysicalFalse} (an empty list matches nothing)</li>
      * </ul>
      */
     @SuppressWarnings("unchecked")
@@ -258,7 +482,7 @@ public class PhysicalPlanner {
      */
     private boolean isIndexableOperator(Operator op) {
         return switch (op) {
-            case EQ, NE, GT, GTE, LT, LTE, ALL -> true;
+            case EQ, NE, GT, GTE, LT, LTE -> true;
             default -> false;
         };
     }
@@ -282,22 +506,41 @@ public class PhysicalPlanner {
     }
 
     /**
-     * Returns true if the query predicate type matches the index type. NullVal matches any index type.
+     * Returns true if the query predicate type matches the index type,
+     * including lossless numeric widening (e.g. INT32 predicate matches INT64 index).
+     * NullVal matches any index type.
      */
     private boolean isTypeMatch(BqlValue bqlValue, BsonType bsonType) {
-        return switch (bqlValue) {
-            case DoubleVal ignored -> bsonType == BsonType.DOUBLE;
-            case StringVal ignored -> bsonType == BsonType.STRING;
-            case BinaryVal ignored -> bsonType == BsonType.BINARY;
-            case BooleanVal ignored -> bsonType == BsonType.BOOLEAN;
-            case DateTimeVal ignored -> bsonType == BsonType.DATE_TIME;
-            case Int32Val ignored -> bsonType == BsonType.INT32;
-            case TimestampVal ignored -> bsonType == BsonType.TIMESTAMP;
-            case Int64Val ignored -> bsonType == BsonType.INT64;
-            case Decimal128Val ignored -> bsonType == BsonType.DECIMAL128;
-            case NullVal ignored -> true;
-            default -> false;
-        };
+        if (bqlValue instanceof NullVal) {
+            return true;
+        }
+        BsonType sourceType = bqlValueToBsonType(bqlValue);
+        if (sourceType == null) {
+            return false;
+        }
+        return NumericWidening.canWiden(sourceType, bsonType);
+    }
+
+    private boolean isCollationCompatible(Collation queryCollation, SingleFieldIndexDefinition definition) {
+        if (queryCollation == null) {
+            return true;
+        }
+        if (definition.bsonType() != BsonType.STRING) {
+            return true;
+        }
+        return Objects.equals(queryCollation, definition.collation());
+    }
+
+    private boolean isCollationCompatible(Collation queryCollation, CompoundIndexDefinition definition) {
+        if (queryCollation == null) {
+            return true;
+        }
+        boolean hasStringField = definition.fields().stream()
+                .anyMatch(f -> f.bsonType() == BsonType.STRING);
+        if (!hasStringField) {
+            return true;
+        }
+        return Objects.equals(queryCollation, definition.collation());
     }
 
     /**
@@ -306,15 +549,22 @@ public class PhysicalPlanner {
      *
      * @param elemMatchSelector the selector from parent $elemMatch (null if not inside $elemMatch)
      */
-    private List<PhysicalNode> transposeChildren(BucketMetadata metadata, List<LogicalNode> children, PlannerContext context, String elemMatchSelector) {
+    private List<PhysicalNode> transposeChildren(PlannerContext context, List<LogicalNode> children, String elemMatchSelector) {
         // Pre-size to avoid array growth and copying
         List<PhysicalNode> physicalChildren = new ArrayList<>(children.size());
 
         // Transform each child - compiler can optimize this loop
         for (LogicalNode child : children) {
-            physicalChildren.add(plan(metadata, child, context, elemMatchSelector));
+            physicalChildren.add(plan(context, child, elemMatchSelector));
         }
 
         return physicalChildren;
+    }
+
+    private record CompoundIndexMatchResult(
+            CompoundIndexDefinition index,
+            List<PhysicalFilter> matchedFilters,
+            List<LogicalNode> remainingChildren
+    ) {
     }
 }

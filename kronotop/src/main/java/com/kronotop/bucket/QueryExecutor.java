@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,11 @@
 package com.kronotop.bucket;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.pipeline.*;
+import org.bson.types.ObjectId;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Unified facade for executing queries against a bucket.
@@ -40,6 +39,7 @@ public class QueryExecutor {
     private final ReadExecutor readExecutor;
     private final DeleteExecutor deleteExecutor;
     private final UpdateExecutor updateExecutor;
+    private final MaterializedExecutor materializedExecutor;
 
     /**
      * Creates a new query executor for the specified bucket service.
@@ -52,11 +52,16 @@ public class QueryExecutor {
     public QueryExecutor(BucketService service) {
         DocumentRetriever documentRetriever = new DocumentRetriever(service);
         CursorManager cursorManager = new CursorManager();
-        PipelineEnv env = new PipelineEnv(service, documentRetriever, cursorManager);
+        PipelineEnv env = new PipelineEnv(service, documentRetriever, cursorManager, service.getCollatorCache());
         PipelineExecutor executor = new PipelineExecutor(env);
         this.readExecutor = new ReadExecutor(executor);
-        this.deleteExecutor = new DeleteExecutor(executor);
+        this.deleteExecutor = new DeleteExecutor(service.getContext(), executor);
         this.updateExecutor = new UpdateExecutor(service.getContext(), executor);
+        this.materializedExecutor = new MaterializedExecutor(executor);
+    }
+
+    public List<PersistedEntry> materializedRead(QueryContext ctx) {
+        return materializedExecutor.execute(ctx);
     }
 
     /**
@@ -64,9 +69,9 @@ public class QueryExecutor {
      *
      * @param tr  the FoundationDB transaction
      * @param ctx the query context containing the plan and options
-     * @return map of versionstamps to document bodies for matching documents
+     * @return list of document bodies for matching documents
      */
-    public Map<Versionstamp, ByteBuffer> read(Transaction tr, QueryContext ctx) {
+    public List<ByteBuffer> read(Transaction tr, QueryContext ctx) {
         return readExecutor.execute(tr, ctx);
     }
 
@@ -75,9 +80,9 @@ public class QueryExecutor {
      *
      * @param tr  the FoundationDB transaction
      * @param ctx the query context containing the plan and options
-     * @return list of versionstamps for deleted documents
+     * @return list of ObjectIds for deleted documents
      */
-    public List<Versionstamp> delete(Transaction tr, QueryContext ctx) {
+    public List<ObjectId> delete(Transaction tr, QueryContext ctx) {
         return deleteExecutor.execute(tr, ctx);
     }
 
@@ -86,9 +91,9 @@ public class QueryExecutor {
      *
      * @param tr  the FoundationDB transaction
      * @param ctx the query context containing the plan, options, and update specification
-     * @return list of versionstamps for updated documents
+     * @return list of ObjectIds for updated documents
      */
-    public List<Versionstamp> update(Transaction tr, QueryContext ctx) {
+    public List<ObjectId> update(Transaction tr, QueryContext ctx) {
         return updateExecutor.execute(tr, ctx);
     }
 }

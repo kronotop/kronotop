@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,8 @@ public class AsyncCommandExecutor {
                     session.cleanupIfAutoCommitEnabled();
                 }).
                 exceptionallyAsync(ex -> {
+                    Session session = Session.extractSessionFromChannel(response.getCtx().channel());
+                    session.cleanupIfAutoCommitEnabled();
                     response.writeError(ex);
                     return null;
                 }, response.getCtx().executor());
@@ -77,6 +79,8 @@ public class AsyncCommandExecutor {
                     session.cleanupIfAutoCommitEnabled();
                 }).
                 exceptionallyAsync(ex -> {
+                    Session session = Session.extractSessionFromChannel(response.getCtx().channel());
+                    session.cleanupIfAutoCommitEnabled();
                     response.writeError(ex);
                     return null;
                 }, response.getCtx().executor());

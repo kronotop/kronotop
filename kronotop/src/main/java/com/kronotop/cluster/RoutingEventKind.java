@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,10 +25,10 @@ package com.kronotop.cluster;
  */
 public enum RoutingEventKind {
     /**
-     * Triggered when this member becomes the primary owner of a Redis shard.
+     * Triggered when this member becomes the primary owner of a Stash shard.
      * Loads shard state from local storage to prepare for serving requests.
      */
-    LOAD_REDIS_SHARD,
+    LOAD_STASH_SHARD,
 
     /**
      * Triggered when this member becomes the primary owner of a Bucket shard.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PublisherTest extends BaseStandaloneInstanceTest {
     private final String TEST_JOURNAL = "test-journal";
@@ -105,16 +104,16 @@ class PublisherTest extends BaseStandaloneInstanceTest {
         // Verify user versions increment: 0, 1, 2, 3, 4
         for (int i = 0; i < 5; i++) {
             assertEquals(i, containers.get(i).userVersion(),
-                "User version should increment sequentially within transaction");
+                    "User version should increment sequentially within transaction");
         }
 
         // Verify all have same transaction versionstamp but different user versions make them unique
         byte[] baseVersionstamp = containers.get(0).versionstamp().join();
         for (int i = 1; i < 5; i++) {
             assertArrayEquals(baseVersionstamp, containers.get(i).versionstamp().join(),
-                "All events in same transaction should have same base versionstamp");
+                    "All events in same transaction should have same base versionstamp");
 
-            Versionstamp prev = Versionstamp.complete(containers.get(i-1).versionstamp().join(), containers.get(i-1).userVersion());
+            Versionstamp prev = Versionstamp.complete(containers.get(i - 1).versionstamp().join(), containers.get(i - 1).userVersion());
             Versionstamp curr = Versionstamp.complete(containers.get(i).versionstamp().join(), containers.get(i).userVersion());
             assertTrue(prev.compareTo(curr) < 0, "Complete versionstamps should be ordered");
         }

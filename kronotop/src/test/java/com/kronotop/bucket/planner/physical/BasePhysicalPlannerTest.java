@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.kronotop.bucket.planner.physical;
 
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.planner.logical.LogicalNode;
@@ -35,6 +36,7 @@ class BasePhysicalPlannerTest extends BaseStandaloneInstanceTest {
     void setUp() {
         physicalPlanner = new PhysicalPlanner();
         logicalPlanner = new LogicalPlanner();
+        createBucket(TEST_BUCKET);
         metadata = getBucketMetadata(TEST_BUCKET);
     }
 
@@ -42,16 +44,37 @@ class BasePhysicalPlannerTest extends BaseStandaloneInstanceTest {
      * Helper method to plan a BQL query through logical and physical planners
      */
     PhysicalNode planQuery(String bqlQuery) {
-        BqlExpr expr = BqlParser.parse(bqlQuery);
-        LogicalNode logicalPlan = logicalPlanner.plan(expr);
-        return physicalPlanner.plan(metadata, logicalPlan, new PlannerContext());
+        return planQuery(bqlQuery, null);
     }
 
     /**
-     * Helper method to create logical plan directly
+     * Helper method to plan a BQL query with an optional sortByField
+     */
+    PhysicalNode planQuery(String bqlQuery, String sortByField) {
+        return planQuery(bqlQuery, sortByField, null);
+    }
+
+    /**
+     * Helper method to plan a BQL query with optional sortByField and collation
+     */
+    PhysicalNode planQuery(String bqlQuery, String sortByField, Collation collation) {
+        BqlExpr expr = BqlParser.parse(bqlQuery);
+        LogicalNode logicalPlan = logicalPlanner.plan(expr);
+        PlannerContext context = new PlannerContext(metadata);
+        if (sortByField != null) {
+            context.setSortByField(sortByField);
+        }
+        if (collation != null) {
+            context.setCollation(collation);
+        }
+        return physicalPlanner.plan(context, logicalPlan);
+    }
+
+    /**
+     * Helper method to create a logical plan directly
      */
     PhysicalNode planLogical(LogicalNode logicalPlan) {
-        return physicalPlanner.plan(metadata, logicalPlan, new PlannerContext());
+        return physicalPlanner.plan(new PlannerContext(metadata), logicalPlan);
     }
 
     /**

@@ -1,0 +1,35 @@
+{
+  "name": "kronotop-kr",
+  "displayName": "Kronotop Script",
+  "description": "Syntax highlighting for Kronotop .kr script files",
+  "version": "0.1.0",
+  "publisher": "kronotop",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "kr",
+        "aliases": [
+          "Kronotop Script",
+          "kr"
+        ],
+        "extensions": [
+          ".kr"
+        ],
+        "configuration": "./kr.language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kr",
+        "scopeName": "source.kr",
+        "path": "./syntaxes/kr.tmLanguage.json"
+      }
+    ]
+  }
+}

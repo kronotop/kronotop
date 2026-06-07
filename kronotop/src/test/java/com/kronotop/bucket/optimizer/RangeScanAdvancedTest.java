@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.physical.PhysicalAnd;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
@@ -34,9 +35,9 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldReduceNumberOfIndexScansThoughConsolidation() {
         // Create index
-        IndexDefinition priceIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create(
                 "price-index", "price", BsonType.DOUBLE
-        );
+                , false, IndexStatus.WAITING);
         createIndex(priceIndex);
 
         // Test: AND(price >= 10.0, price <= 100.0)
@@ -58,9 +59,9 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldConsolidateRangeConditionsInNestedAnd() {
         // Create index for age field
-        IndexDefinition ageIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
                 "age-index", "age", BsonType.INT32
-        );
+                , false, IndexStatus.WAITING);
         createIndex(ageIndex);
 
         // Test nested AND: { $and: [{ $and: [{ age: { $gte: 18 } }, { age: { $lte: 65 } }] }] }
@@ -80,9 +81,9 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldHandleOnlyUpperBoundConditions() {
         // Create index for score field
-        IndexDefinition scoreIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create(
                 "score-index", "score", BsonType.DOUBLE
-        );
+                , false, IndexStatus.WAITING);
         createIndex(scoreIndex);
 
         // Test: AND(score < 100, score <= 90) - two upper bounds where both contribute
@@ -98,9 +99,9 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldHandleOnlyLowerBoundConditions() {
         // Create index for age field
-        IndexDefinition ageIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
                 "age-index", "age", BsonType.INT32
-        );
+                , false, IndexStatus.WAITING);
         createIndex(ageIndex);
 
         // Test: AND(age >= 18, age > 21) - two lower bounds where both contribute
@@ -116,12 +117,12 @@ class RangeScanAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldHandleComplexNestedScenariosWithMultipleRules() {
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
                 "age-index", "age", BsonType.INT32
-        );
-        IndexDefinition nameIndex = IndexDefinition.create(
+                , false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create(
                 "name-index", "name", BsonType.STRING
-        );
+                , false, IndexStatus.WAITING);
         createIndexes(ageIndex, nameIndex);
 
         // Complex query: AND(age >= 18, age <= 65, name = "john", name = "john")

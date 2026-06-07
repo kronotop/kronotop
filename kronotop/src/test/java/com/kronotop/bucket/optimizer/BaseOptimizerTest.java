@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.logical.LogicalNode;
 import com.kronotop.bucket.planner.logical.LogicalPlanner;
@@ -45,6 +45,7 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
         optimizer = new Optimizer();
         physicalPlanner = new PhysicalPlanner();
         logicalPlanner = new LogicalPlanner();
+        createBucket(TEST_BUCKET);
         metadata = getBucketMetadata(TEST_BUCKET);
         nodeIdCounter = 0;
     }
@@ -63,8 +64,8 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
     PhysicalNode planAndOptimize(String bqlQuery) {
         BqlExpr expr = BqlParser.parse(bqlQuery);
         LogicalNode logicalPlan = logicalPlanner.plan(expr);
-        PhysicalNode physicalPlan = physicalPlanner.plan(metadata, logicalPlan, new PlannerContext());
-        return optimizer.optimize(metadata, physicalPlan, new PlannerContext());
+        PhysicalNode physicalPlan = physicalPlanner.plan(new PlannerContext(metadata), logicalPlan);
+        return optimizer.optimize(new PlannerContext(metadata), physicalPlan);
     }
 
     /**
@@ -73,21 +74,21 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
     PhysicalNode planWithoutOptimization(String bqlQuery) {
         BqlExpr expr = BqlParser.parse(bqlQuery);
         LogicalNode logicalPlan = logicalPlanner.plan(expr);
-        return physicalPlanner.plan(metadata, logicalPlan, new PlannerContext());
+        return physicalPlanner.plan(new PlannerContext(metadata), logicalPlan);
     }
 
     /**
      * Helper method to optimize an existing physical plan
      */
     PhysicalNode optimize(PhysicalNode physicalPlan) {
-        return optimizer.optimize(metadata, physicalPlan, new PlannerContext());
+        return optimizer.optimize(new PlannerContext(metadata), physicalPlan);
     }
 
 
     /**
      * Helper method to create an index
      */
-    void createIndex(IndexDefinition definition) {
+    void createIndex(SingleFieldIndexDefinition definition) {
         createIndexThenWaitForReadiness(definition);
         // Refresh the index registry
         metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
@@ -96,8 +97,8 @@ class BaseOptimizerTest extends BaseStandaloneInstanceTest {
     /**
      * Helper method to create multiple indexes at once
      */
-    void createIndexes(IndexDefinition... definitions) {
-        for (IndexDefinition definition : definitions) {
+    void createIndexes(SingleFieldIndexDefinition... definitions) {
+        for (SingleFieldIndexDefinition definition : definitions) {
             createIndex(definition);
         }
     }

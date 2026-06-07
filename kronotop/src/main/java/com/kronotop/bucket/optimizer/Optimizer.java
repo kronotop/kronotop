@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.bucket.planner.physical.PlannerContext;
 
@@ -71,12 +70,11 @@ public class Optimizer {
     /**
      * Optimize a physical plan by applying optimization rules.
      *
-     * @param metadata bucket metadata containing index information
-     * @param plan     the physical plan to optimize
-     * @param context  physical plan context for generating node IDs
+     * @param context planner context containing metadata and configuration
+     * @param plan    the physical plan to optimize
      * @return optimized physical plan
      */
-    public PhysicalNode optimize(BucketMetadata metadata, PhysicalNode plan, PlannerContext context) {
+    public PhysicalNode optimize(PlannerContext context, PhysicalNode plan) {
         PhysicalNode current = plan;
         boolean changed;
         int iterations = 0;
@@ -86,7 +84,7 @@ public class Optimizer {
 
             for (PhysicalOptimizationRule rule : rules) {
                 if (rule.canApply(current)) {
-                    PhysicalNode optimized = rule.apply(current, metadata, context);
+                    PhysicalNode optimized = rule.apply(context, current);
                     if (!optimized.equals(current)) {
                         current = optimized;
                         changed = true;

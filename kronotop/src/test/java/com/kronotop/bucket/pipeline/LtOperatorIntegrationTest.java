@@ -17,16 +17,14 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.internal.VersionstampUtil;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,17 +42,17 @@ class LtOperatorIntegrationTest extends BasePipelineTest {
             documents.add(BSONUtil.jsonToDocumentThenBytes("{'status': 'ALIVE'}"));
         }
 
-        List<Versionstamp> versionstamps = insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
-        Versionstamp smallestId = versionstamps.getFirst();
+        List<ObjectId> objectIds = insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+        ObjectId smallestId = objectIds.getFirst();
 
-        String query = String.format("{'_id': {'$lt': '%s'}}", VersionstampUtil.base32HexEncode(smallestId));
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        assertInstanceOf(IndexScanNode.class, plan);
+        String query = String.format("{'_id': {'$lt': '%s'}}", smallestId.toHexString());
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertTrue(results.isEmpty());
         }
     }

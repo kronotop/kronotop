@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,6 @@ package com.kronotop.bucket.planner.physical;
 import java.util.Objects;
 
 public record PhysicalElemMatch(int id, String selector, PhysicalNode subPlan) implements PhysicalNode {
-    @Override
-    public <R> R accept(PhysicalPlanVisitor<R> visitor) {
-        return visitor.visitElemMatch(this);
-    }
-
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;

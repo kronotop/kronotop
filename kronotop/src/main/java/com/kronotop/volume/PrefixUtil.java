@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,17 +30,24 @@ public class PrefixUtil {
      * Registers a prefix in the context's DirectorySubspace, associating it with a given prefix pointer
      * and storing the mapping in the `PREFIXES` subspace.
      *
-     * @param context       the current context of the Kronotop instance managing DirectorySubspaceCache
-     * @param tr            the active transaction used to register the prefix and pointer
-     * @param prefixPointer the byte array that serves as a pointer to the prefix being registered
-     * @param prefix        the prefix object whose bytes are to be associated in the DirectorySubspace
+     * @param context          the current context of the Kronotop instance managing DirectorySubspaceCache
+     * @param tr               the active transaction used to register the prefix and pointer
+     * @param prefixBindingKey the byte array that serves as a pointer to the prefix being registered
+     * @param prefix           the prefix object whose bytes are to be associated in the DirectorySubspace
      */
-    public static void register(Context context, Transaction tr, byte[] prefixPointer, Prefix prefix) {
-        tr.set(prefixPointer, prefix.asBytes());
-
+    public static void register(Context context, Transaction tr, byte[] prefixBindingKey, Prefix prefix) {
         DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
         byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
-        tr.set(prefixKey, prefixPointer);
+
+        byte[] existingPointer = tr.get(prefixKey).join();
+        if (existingPointer != null && !Arrays.equals(existingPointer, prefixBindingKey)) {
+            throw new PrefixCollisionException(
+                    String.format("Prefix collision detected: prefix %d is already registered by a different pointer", prefix.asLong())
+            );
+        }
+
+        tr.set(prefixBindingKey, prefix.asBytes());
+        tr.set(prefixKey, prefixBindingKey);
     }
 
     /**
@@ -57,12 +64,12 @@ public class PrefixUtil {
         DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
         byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
 
-        byte[] prefixPointer = tr.get(prefixKey).join();
-        if (prefixPointer == null) {
+        byte[] prefixBindingKey = tr.get(prefixKey).join();
+        if (prefixBindingKey == null) {
             // Not registered to global subspace. Possibly, this is an internal prefix.
             return false;
         }
-        byte[] expectedRawPrefix = tr.get(prefixPointer).join();
+        byte[] expectedRawPrefix = tr.get(prefixBindingKey).join();
         if (expectedRawPrefix == null) {
             return true;
         }
@@ -73,13 +80,13 @@ public class PrefixUtil {
      * Unregisters a prefix from the context's DirectorySubspace, removing its association
      * with both the prefix pointer and the key in the `PREFIXES` subspace.
      *
-     * @param context       the current context of the Kronotop instance used to manage DirectorySubspaceCache
-     * @param tr            the active transaction during which the prefix and pointer are unregistered
-     * @param prefixPointer the byte array that serves as a pointer to the prefix being unregistered
-     * @param prefix        the prefix object whose bytes are to be removed from the DirectorySubspace
+     * @param context          the current context of the Kronotop instance used to manage DirectorySubspaceCache
+     * @param tr               the active transaction during which the prefix and pointer are unregistered
+     * @param prefixBindingKey the byte array that serves as a pointer to the prefix being unregistered
+     * @param prefix           the prefix object whose bytes are to be removed from the DirectorySubspace
      */
-    public static void unregister(Context context, Transaction tr, byte[] prefixPointer, Prefix prefix) {
-        tr.clear(prefixPointer);
+    public static void unregister(Context context, Transaction tr, byte[] prefixBindingKey, Prefix prefix) {
+        tr.clear(prefixBindingKey);
 
         DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
         byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));

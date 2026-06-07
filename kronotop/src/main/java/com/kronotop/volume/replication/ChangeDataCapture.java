@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -55,10 +55,20 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
 
     public ChangeDataCapture(Context context, DirectorySubspace subspace, ReplicationClient client, ReplicationSession session) {
         super(context, subspace, client, session);
-        this.clientWithoutTimeout = new ReplicationClient(context, session.shardKind(), session.shardId());
-
-        ClientOptions options = ClientOptions.builder().timeoutOptions(TimeoutOptions.create()).build();
-        this.clientWithoutTimeout.connect(options);
+        try {
+            this.clientWithoutTimeout = new ReplicationClient(context, session.shardKind(), session.shardId());
+            ClientOptions options = ClientOptions.builder().timeoutOptions(TimeoutOptions.create()).build();
+            this.clientWithoutTimeout.connect(options);
+        } catch (Exception e) {
+            try {
+                if (file != null && file.getChannel().isOpen()) {
+                    file.close();
+                }
+            } catch (IOException suppressed) {
+                e.addSuppressed(suppressed);
+            }
+            throw e;
+        }
     }
 
     @Override
@@ -104,7 +114,8 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
     /**
      * Processes changelog entries in batches, handling segment rollovers as needed.
      */
-    private void processChanges(Checkpoint checkpoint, long latestSequenceNumber, List<ChangeLogEntryResponse> changes)
+    // Exposed with package-private visibility solely for test support.
+    void processChanges(Checkpoint checkpoint, long latestSequenceNumber, List<ChangeLogEntryResponse> changes)
             throws IOException, ExecutionException, InterruptedException {
         int index = 0;
         while (index < changes.size()) {
@@ -151,6 +162,9 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
                             nextSegmentId,
                             nextPosition
                     );
+                    // Intermediate segment swap on the single worker thread. This is not the
+                    // terminal close, so it stays out of fileLock/syncAndCloseFile; close() only
+                    // touches the file once the worker has drained, so the two never overlap.
                     file.close();
                     file = createOrOpenSegmentFile(nextSegmentId);
                     checkpoint.setSegmentId(nextSegmentId);
@@ -158,6 +172,8 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
             } else {
                 if (nextSegmentId > 0) {
                     // segment only advanced, no ranges
+                    file.close();
+                    file = createOrOpenSegmentFile(nextSegmentId);
                     checkpoint.setSegmentId(nextSegmentId);
                     checkpoint.setSequenceNumber(latestSequenceNumber);
                 }
@@ -210,7 +226,7 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
     }
 
     /**
-     * Determines the starting cursor position based on persisted replication state.
+     * Determines the starting cursor position based on the persisted replication state.
      */
     private Cursor locateCursor() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -267,8 +283,11 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
                     return;
                 }
             }
-            if (exp instanceof ReplicationClientShutdownException ||
-                    exp instanceof ReplicationClientNotConnectedException) {
+            if (exp instanceof ReplicationClientShutdownException) {
+                return;
+            }
+            if (exp instanceof ReplicationClientNotConnectedException) {
+                parkBeforeReconnectRetry();
                 return;
             }
             markReplicationStageFailed(session.segmentId(), exp);
@@ -290,19 +309,18 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
                 }
             }
 
-            if (started) {
-                if (!latch.await(10, TimeUnit.SECONDS)) {
-                    LOGGER.warn(
-                            "Graceful shutdown period exceeded for Volume: {} Segment: {}. Forcing close.",
-                            session.volume(),
-                            session.segmentId()
-                    );
-                }
-            }
-
-            if (file.getChannel().isOpen()) {
-                file.getFD().sync();
-                file.close();
+            boolean drained = !started || latch.await(10, TimeUnit.SECONDS);
+            if (drained) {
+                syncAndCloseFile();
+            } else {
+                // The worker is still running. Closing the file under it would race with an in-flight
+                // segment rollover, so we skip it here. Once the worker drains, the loop teardown
+                // calls close() again (latch already 0) and syncAndCloseFile() performs the terminal close.
+                LOGGER.warn(
+                        "Graceful shutdown period exceeded for Volume: {} Segment: {}. Forcing close.",
+                        session.volume(),
+                        session.segmentId()
+                );
             }
         } catch (IOException exp) {
             LOGGER.error("Failed to close Segment file", exp);
@@ -316,9 +334,10 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
     }
 
     /**
-     * Mutable tracking state for current segment and sequence number during CDC processing.
+     * Mutable tracking state for the current segment and sequence number during CDC processing.
      */
-    private static final class Checkpoint {
+    // Exposed with package-private visibility solely for test support.
+    static final class Checkpoint {
         private long segmentId;
         private long sequenceNumber;
 

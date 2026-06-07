@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,16 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.transaction.TransactionUtil;
 import org.bson.BsonBoolean;
 import org.bson.BsonString;
 import org.bson.BsonType;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -38,7 +40,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUpdateWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -48,19 +50,19 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        List<Versionstamp> updateResult;
+        List<ObjectId> updateResult;
         {
-            PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+            PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
             UpdateOptions update = UpdateOptions.builder().set("name", new BsonString("Donald")).build();
             QueryOptions options = QueryOptions.builder().update(update).build();
-            QueryContext updateCtx = new QueryContext(metadata, options, plan);
+            QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = createTransaction()) {
                 updateResult = updateExecutor.execute(tr, updateCtx);
                 tr.commit().join();
-                assertDoesNotThrow(updateCtx::runPostCommitHooks);
+                assertDoesNotThrow(() -> TransactionUtil.runPostCommitHooks(getSession()));
             }
         }
 
@@ -72,8 +74,8 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
 
         {
             List<String> actualResult = new ArrayList<>();
-            for (Versionstamp versionstamp : updateResult) {
-                String query = String.format("{'_id': {'$eq': '%s'}}", VersionstampUtil.base32HexEncode(versionstamp));
+            for (ObjectId objectId : updateResult) {
+                String query = String.format("{'_id': {'$eq': '%s'}}", objectId.toHexString());
                 List<String> result = runQueryOnBucket(metadata, query);
                 actualResult.addAll(result);
             }
@@ -90,7 +92,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUpdateWithGreaterThanFilterWithLimit() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-limit";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -100,17 +102,17 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         {
-            PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+            PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
             UpdateOptions update = UpdateOptions.builder().set("name", new BsonString("Donald")).build();
             QueryOptions options = QueryOptions.builder().limit(1).update(update).build();
-            QueryContext updateCtx = new QueryContext(metadata, options, plan);
+            QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
             while (true) {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    List<Versionstamp> result = updateExecutor.execute(tr, updateCtx);
+                try (Transaction tr = createTransaction()) {
+                    List<ObjectId> result = updateExecutor.execute(tr, updateCtx);
                     if (result.isEmpty()) {
                         break;
                     }
@@ -133,7 +135,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUpdateWithGreaterThanFilterWithLimitReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-limit-reverse";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -143,18 +145,18 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        List<Versionstamp> updateResult = new ArrayList<>();
+        List<ObjectId> updateResult = new ArrayList<>();
         {
-            PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+            PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
             UpdateOptions update = UpdateOptions.builder().set("name", new BsonString("Donald")).build();
-            QueryOptions options = QueryOptions.builder().limit(1).reverse(true).update(update).build();
-            QueryContext updateCtx = new QueryContext(metadata, options, plan);
+            QueryOptions options = QueryOptions.builder().limit(1).sortDirection(SortDirection.DESC).update(update).build();
+            QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
             while (true) {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                    List<Versionstamp> result = updateExecutor.execute(tr, updateCtx);
+                try (Transaction tr = createTransaction()) {
+                    List<ObjectId> result = updateExecutor.execute(tr, updateCtx);
                     updateResult.addAll(result);
                     if (result.isEmpty()) {
                         break;
@@ -172,8 +174,8 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
 
         {
             List<String> actualResult = new ArrayList<>();
-            for (Versionstamp versionstamp : updateResult) {
-                String query = String.format("{'_id': {'$eq': '%s'}}", VersionstampUtil.base32HexEncode(versionstamp));
+            for (ObjectId objectId : updateResult) {
+                String query = String.format("{'_id': {'$eq': '%s'}}", objectId.toHexString());
                 List<String> result = runQueryOnBucket(metadata, query);
                 actualResult.addAll(result);
             }
@@ -185,8 +187,8 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUpdateWithGreaterThanFilterWithDoubleIndex() {
         final String TEST_BUCKET_NAME = "test-bucket-double-index-update";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         List<byte[]> documents = List.of(
@@ -197,16 +199,16 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'price': 45, 'quantity': 65, 'category': 'Food'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        List<Versionstamp> updateResult;
+        List<ObjectId> updateResult;
         {
-            PipelineNode plan = createExecutionPlan(metadata, "{'price': {'$gte': 25}}");
+            PlanWithParams planWithParams = createPlanWithParams(metadata, "{'price': {'$gte': 25}}");
             UpdateOptions update = UpdateOptions.builder().set("visible", new BsonBoolean(true)).build();
             QueryOptions options = QueryOptions.builder().update(update).build();
-            QueryContext updateCtx = new QueryContext(metadata, options, plan);
+            QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = createTransaction()) {
                 updateResult = updateExecutor.execute(tr, updateCtx);
                 tr.commit().join();
             }
@@ -220,8 +222,8 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
             );
 
             List<String> actualResult = new ArrayList<>();
-            for (Versionstamp versionstamp : updateResult) {
-                String query = String.format("{'_id': {'$eq': '%s'}}", VersionstampUtil.base32HexEncode(versionstamp));
+            for (ObjectId objectId : updateResult) {
+                String query = String.format("{'_id': {'$eq': '%s'}}", objectId.toHexString());
                 List<String> result = runQueryOnBucket(metadata, query);
                 actualResult.addAll(result);
             }
@@ -245,7 +247,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUnsetFieldWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-unset-field-scan";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -255,16 +257,16 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        List<Versionstamp> updateResult;
+        List<ObjectId> updateResult;
         {
-            PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+            PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
             UpdateOptions update = UpdateOptions.builder().unset("name").build();
             QueryOptions options = QueryOptions.builder().update(update).build();
-            QueryContext updateCtx = new QueryContext(metadata, options, plan);
+            QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = createTransaction()) {
                 updateResult = updateExecutor.execute(tr, updateCtx);
                 tr.commit().join();
             }
@@ -278,8 +280,8 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
 
         {
             List<String> actualResult = new ArrayList<>();
-            for (Versionstamp versionstamp : updateResult) {
-                String query = String.format("{'_id': {'$eq': '%s'}}", VersionstampUtil.base32HexEncode(versionstamp));
+            for (ObjectId objectId : updateResult) {
+                String query = String.format("{'_id': {'$eq': '%s'}}", objectId.toHexString());
                 List<String> result = runQueryOnBucket(metadata, query);
                 actualResult.addAll(result);
             }
@@ -296,7 +298,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     void shouldUnsetAndSetFieldsWithGreaterThanFilter() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-unset-set-fields-scan";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -306,16 +308,16 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        List<Versionstamp> updateResult;
+        List<ObjectId> updateResult;
         {
-            PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+            PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
             UpdateOptions update = UpdateOptions.builder().unset("name").set("field", new BsonString("new-field")).build();
             QueryOptions options = QueryOptions.builder().update(update).build();
-            QueryContext updateCtx = new QueryContext(metadata, options, plan);
+            QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = createTransaction()) {
                 updateResult = updateExecutor.execute(tr, updateCtx);
                 tr.commit().join();
             }
@@ -329,8 +331,8 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
 
         {
             List<String> actualResult = new ArrayList<>();
-            for (Versionstamp versionstamp : updateResult) {
-                String query = String.format("{'_id': {'$eq': '%s'}}", VersionstampUtil.base32HexEncode(versionstamp));
+            for (ObjectId objectId : updateResult) {
+                String query = String.format("{'_id': {'$eq': '%s'}}", objectId.toHexString());
                 List<String> result = runQueryOnBucket(metadata, query);
                 actualResult.addAll(result);
             }

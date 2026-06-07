@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.MissingConfigException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.internal.KronotopDirectoryLayer;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
@@ -43,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 public class Journal {
     protected final String cluster;
     protected final Database database;
+    protected final DirectoryLayer directoryLayer;
     private final Publisher publisher;
     private final LoadingCache<String, JournalMetadata> journalMetadataCache;
 
@@ -52,6 +54,7 @@ public class Journal {
         }
         this.cluster = config.getString("cluster.name");
         this.database = database;
+        this.directoryLayer = KronotopDirectoryLayer.fromConfig(config);
         this.journalMetadataCache = CacheBuilder.newBuilder()
                 .expireAfterAccess(10, TimeUnit.MINUTES)
                 .build(new JournalMetadataLoader());
@@ -90,7 +93,7 @@ public class Journal {
     protected List<String> listJournals(Transaction tr) {
         KronotopDirectoryNode directory = KronotopDirectory.kronotop().cluster(cluster).journals();
         try {
-            DirectorySubspace root = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+            DirectorySubspace root = directoryLayer.open(tr, directory.toList()).join();
             return root.list(tr).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
@@ -127,7 +130,7 @@ public class Journal {
                                 cluster(cluster).
                                 journals().
                                 journal(name);
-                return DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+                return directoryLayer.createOrOpen(tr, directory.toList()).join();
             });
             return new JournalMetadata(subspace);
         }

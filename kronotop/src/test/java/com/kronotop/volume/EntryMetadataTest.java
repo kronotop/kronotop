@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class EntryMetadataTest {
 
     @Test
-    void shouldDecodeToCorrespondingEntryMetadata() {
+    void shouldDecodeToCorrespondingEntryMetadata2() {
+        // Behavior: encode → decode round-trip preserves all fields
         Prefix prefix = new Prefix("test");
         long segmentId = 10;
         long position = 1L;
@@ -33,6 +34,8 @@ class EntryMetadataTest {
 
         EntryMetadata entry = new EntryMetadata(segmentId, prefix.asBytes(), position, length, handle);
         byte[] encoded = entry.encode();
+
+        assertEquals(EntryMetadata.ENCODED_SIZE, encoded.length);
 
         EntryMetadata result = EntryMetadata.decode(encoded);
 
@@ -44,7 +47,8 @@ class EntryMetadataTest {
     }
 
     @Test
-    void shouldEncodeToCorrespondingByteBuffer() {
+    void shouldEncodeToCorrespondingByteBuffer2() {
+        // Behavior: encode → decode produces recursively equal EntryMetadata
         Prefix prefix = new Prefix("test");
 
         int segmentId = 10;
@@ -62,6 +66,7 @@ class EntryMetadataTest {
 
     @Test
     void shouldExtractHandleFromEncodedEntryMetadata() {
+        // Behavior: extractHandle reads handle from encode output
         Prefix prefix = new Prefix("test");
 
         int segmentId = 10;

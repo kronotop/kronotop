@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  release:
+    types: [ published ]
+
+permissions:
+  contents: write
+
+jobs:
+  jars:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '26'
+          distribution: 'corretto'
+          cache: maven
+
+      - name: Package (skip tests)
+        run: mvn -B -DskipTests clean package
+
+      - name: Upload jars to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            kronotop/target/kronotop-[0-9]*.jar
+            kronotop-cli/target/kronotop-cli-[0-9]*.jar
+            kronotop-ctl/target/kronotop-ctl-[0-9]*.jar

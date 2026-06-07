@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,8 @@ public enum KrAdminSubcommand {
     ROUTE("route"),
     SET_SHARD_STATUS("set-shard-status"),
     DESCRIBE_SHARD("describe-shard"),
-    DESCRIBE_MEMBER("describe-member");
+    DESCRIBE_MEMBER("describe-member"),
+    DROP_CLUSTER("drop-cluster");
 
     private final String value;
 

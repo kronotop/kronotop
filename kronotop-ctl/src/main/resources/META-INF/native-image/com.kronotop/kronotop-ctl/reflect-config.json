@@ -1,0 +1,24 @@
+[
+  {
+    "name": "com.kronotop.ctl.KronotopCtl",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "com.kronotop.ctl.BootstrapCommand",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "picocli.CommandLine$AutoHelpMixin",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "com.kronotop.ctl.VersionProvider",
+    "allDeclaredConstructors": true
+  }
+]

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,23 @@
 package com.kronotop.server;
 
 import com.kronotop.Context;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 
 /**
- * The NioRESPServer class represents a RESP server that uses NIO for network transport.
- * It extends the RESPServer class.
+ * RESP server using NIO transport with optional TLS support.
  *
  * @see RESPServer
  */
 public class NioRESPServer extends RESPServer {
-    public NioRESPServer(Context context, CommandHandlerRegistry registry) {
-        super(context, registry, NioServerSocketChannel.class, new NioEventLoopGroup(), new NioEventLoopGroup());
+    public NioRESPServer(Context context, CommandHandlerRegistry registry, TLSConfig tlsConfig, NettyConfig nettyConfig, ServerKind serverKind) {
+        super(context, registry, tlsConfig, nettyConfig, NioServerSocketChannel.class,
+                new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory()),
+                nettyConfig.workerThreads() > 0
+                        ? new MultiThreadIoEventLoopGroup(nettyConfig.workerThreads(), NioIoHandler.newFactory())
+                        : new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory()),
+                serverKind
+        );
     }
 }

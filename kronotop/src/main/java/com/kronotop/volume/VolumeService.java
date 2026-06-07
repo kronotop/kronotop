@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -27,7 +26,6 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.cluster.Route;
-import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
@@ -99,13 +97,9 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         handlerMethod(ServerKind.INTERNAL, new ChangeLogRangeHandler(this));
         handlerMethod(ServerKind.INTERNAL, new VolumeAdminHandler(this));
         handlerMethod(ServerKind.INTERNAL, new VolumeInspectHandler(this));
-
-        routing.registerHook(RoutingEventKind.PRIMARY_OWNER_CHANGED, new SubmitVacuumTaskHook(this));
-        routing.registerHook(RoutingEventKind.PRIMARY_OWNER_CHANGED, new StopVacuumTaskHook(this));
+        handlerMethod(ServerKind.INTERNAL, new VolumeStatsHandler(this));
 
         resumeMarkStalePrefixesTaskIfAny();
-
-        this.scheduler.scheduleAtFixedRate(new CleanupStaleSegmentsOnStandbyTask(), 1, 1, TimeUnit.HOURS);
     }
 
     public MutationWatcher mutationWatcher() {
@@ -151,44 +145,13 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     }
 
     /**
-     * Submits a vacuum task for the specified volume if any pending vacuum task exists.
-     * The method checks the metadata to determine if a vacuum operation is needed.
-     * If the vacuum task is already completed, no further action is taken.
-     *
-     * @param volume the volume for which the vacuum task should be checked and submitted
-     */
-    protected void submitVacuumTaskIfAny(Volume volume) {
-        if (!hasVolumeOwnership(volume)) {
-            // ownership belongs to another cluster member
-            return;
-        }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VacuumMetadata vacuumMetadata = VacuumMetadata.load(tr, volume.getConfig().subspace());
-            if (vacuumMetadata == null) {
-                return;
-            }
-            TaskService taskService = context.getService(TaskService.NAME);
-            VacuumTask task = new VacuumTask(context, volume, vacuumMetadata);
-            LOGGER.debug("Submitting vacuum task {} for volume {}", task, volume.getConfig().name());
-            taskService.execute(task);
-        }
-    }
-
-    /**
-     * Resumes MarkStalePrefixesTask for marking stale prefixes if it was previously started by the current member.
-     * This method attempts to locate the metadata of the `MarkStalePrefixesTask` in the FoundationDB directory.
-     * If it finds an entry that matches the current member's ID, it resumes executing the task.
+     * Resumes a previously started {@link MarkStalePrefixesTask} on member startup if this member owns it.
      * <p>
-     * The method:
-     * - Establishes a transaction with the FoundationDB instance.
-     * - Navigates the directory structure to locate metadata for the MarkStalePrefixesTask.
-     * - Validates the member ID stored in the metadata and ensures it matches the current member's ID.
-     * - Invokes the task execution using the `TaskService`.
-     * - Logs relevant information upon resuming the task.
-     * <p>
-     * If the metadata directory does not exist or the metadata entry is not found, no action is taken.
-     * This method safely ignores a `NoSuchDirectoryException` in the case where the required directory structure
-     * for the `MarkStalePrefixesTask` does not exist.
+     * The task persists a progress marker (last-prefix) and the owning member's ID in FoundationDB.
+     * On startup, this method checks whether persisted task metadata exists and whether the stored
+     * member ID matches the current member. If it matches, the task is re-created and re-executed,
+     * automatically resuming from the last progress marker. If no metadata directory exists or no
+     * member ID is stored, the method silently returns.
      */
     private void resumeMarkStalePrefixesTaskIfAny() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -199,7 +162,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                     tasks().
                     task(MarkStalePrefixesTask.NAME);
             try {
-                DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, node.toList()).join();
+                DirectorySubspace subspace = context.getDirectoryLayer().open(tr, node.toList()).join();
                 byte[] value = tr.get(subspace.pack(MarkStalePrefixesTask.METADATA_KEY.MEMBER_ID.name())).join();
                 if (value == null) {
                     // This should not be happened
@@ -210,7 +173,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                     TaskService taskService = context.getService(TaskService.NAME);
                     MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
                     taskService.execute(task);
-                    LOGGER.info("Resuming " + MarkStalePrefixesTask.NAME);
+                    LOGGER.info("Resuming {}", MarkStalePrefixesTask.NAME);
                 }
             } catch (CompletionException e) {
                 if (e.getCause() instanceof NoSuchDirectoryException) {
@@ -245,7 +208,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
             checkAndCreateDataDir(config.dataDir());
             // TODO: Create folders for this specific volume in the constructor.
             Volume volume = new Volume(context, config);
-            submitVacuumTaskIfAny(volume);
             volumes.put(config.name(), volume);
             return volume;
         } finally {
@@ -332,10 +294,9 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
      * @return the volumeId
      */
     public long getVolumeId(DirectorySubspace subspace) {
-        return volumeIdCache.computeIfAbsent(subspace, s -> {
+        return volumeIdCache.computeIfAbsent(subspace, ds -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                VolumeMetadata metadata = VolumeMetadata.load(tr, s);
-                return metadata.getVolumeId();
+                return VolumeMetadataUtil.readVolumeId(tr, new VolumeSubspace(ds));
             }
         });
     }
@@ -550,52 +511,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 if (!isShutdown) {
                     scheduler.execute(this);
                 }
-            }
-        }
-    }
-
-    /**
-     * This task is responsible for cleaning up stale segments in volumes that are not owned by the
-     * current member. It is designed to be executed as a background task within the context of
-     * volume management.
-     * <p>
-     * The cleanup process iterates through all volumes and verifies ownership. If the volume is
-     * owned by the current member, the task skips it, as cleaning stale segments for owned volumes
-     * is handled by a separate vacuum task. For volumes not owned, the task invokes the necessary
-     * operations to clean up stale segments.
-     * <p>
-     * The task is implemented as a {@code Runnable} and is designed to respect the shutdown state
-     * of the service. If the service is in a shutdown state, the task terminates without performing
-     * any action.
-     * <p>
-     * Exception handling is implemented to ensure issues during the cleanup do not interrupt the
-     * processing of other volumes. All errors are logged for further analysis.
-     * <p>
-     * Thread-safety and consistency are maintained by periodically checking the shutdown state
-     * during execution.
-     */
-    private class CleanupStaleSegmentsOnStandbyTask implements Runnable {
-
-        @Override
-        public void run() {
-            if (isShutdown) {
-                return;
-            }
-            try {
-                for (Volume volume : list()) {
-                    if (isShutdown) {
-                        break;
-                    }
-                    if (hasVolumeOwnership(volume)) {
-                        // If this member is the current owner of volume, cleaning up the stale segment
-                        // must be handled by the vacuum task.
-                        continue;
-                    }
-                    // potentially a time-consuming operation
-                    volume.cleanupStaleSegments();
-                }
-            } catch (Exception e) {
-                LOGGER.error("Error while cleaning up stale segments", e);
             }
         }
     }

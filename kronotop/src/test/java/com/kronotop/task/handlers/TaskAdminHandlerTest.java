@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,23 +18,24 @@ package com.kronotop.task.handlers;
 
 import com.kronotop.BaseClusterTest;
 import com.kronotop.KronotopTestInstance;
-import com.kronotop.commandbuilder.kronotop.TaskAdminCommandBuilder;
+import com.kronotop.commands.TaskAdminCommandBuilder;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TaskAdminHandlerTest extends BaseClusterTest {
+class TaskAdminHandlerTest extends BaseClusterTest {
     @Test
-    public void test_list() {
+    void shouldListTasksWithExpectedKeys() {
         TaskAdminCommandBuilder<String, String> cmd = new TaskAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -50,7 +51,7 @@ public class TaskAdminHandlerTest extends BaseClusterTest {
             assertEquals(4, task.children().size());
             Set<String> keys = new HashSet<>();
             task.children().forEach((key, value) -> {
-                keys.add(((SimpleStringRedisMessage) key).content());
+                keys.add(((FullBulkStringRedisMessage) key).content().toString(StandardCharsets.UTF_8));
             });
 
             // Expected keys

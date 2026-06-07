@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,8 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.apple.foundationdb.tuple.Versionstamp;
-
 import java.nio.ByteBuffer;
-import java.util.Map;
+import java.util.List;
 
-public record BucketEntriesMapResponse(int cursorId, Map<Versionstamp, ByteBuffer> entries) {
+public record BucketEntriesMapResponse(int cursorId, List<ByteBuffer> entries) {
 }

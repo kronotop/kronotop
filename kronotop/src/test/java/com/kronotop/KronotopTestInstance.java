@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.kronotop;
 
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
@@ -24,24 +23,25 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.Shard;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
-import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
-import com.kronotop.commandbuilder.redis.RedisCommandBuilder;
+import com.kronotop.commands.KrAdminCommandBuilder;
+import com.kronotop.commands.redis.RedisCommandBuilder;
+import com.kronotop.core.handlers.client.protocol.ClientMessage;
+import com.kronotop.core.handlers.connection.protocol.EchoMessage;
+import com.kronotop.core.handlers.connection.protocol.HelloMessage;
+import com.kronotop.core.handlers.connection.protocol.PingMessage;
+import com.kronotop.core.handlers.protocol.InfoMessage;
+import com.kronotop.core.handlers.server.protocol.CommandMessage;
+import com.kronotop.core.handlers.session.protocol.SessionAttributeMessage;
+import com.kronotop.core.handlers.session.protocol.SessionCloseMessage;
 import com.kronotop.directory.KronotopDirectory;
-import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.instance.KronotopInstance;
+import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.network.Address;
-import com.kronotop.redis.RedisService;
-import com.kronotop.redis.handlers.client.protocol.ClientMessage;
-import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
-import com.kronotop.redis.handlers.connection.protocol.EchoMessage;
-import com.kronotop.redis.handlers.connection.protocol.HelloMessage;
-import com.kronotop.redis.handlers.connection.protocol.PingMessage;
-import com.kronotop.redis.handlers.protocol.InfoMessage;
-import com.kronotop.redis.server.protocol.CommandMessage;
 import com.kronotop.server.*;
-import com.kronotop.server.handlers.protocol.SessionAttributeMessage;
 import com.kronotop.server.resp3.*;
+import com.kronotop.stash.StashService;
+import com.kronotop.stash.handlers.cluster.protocol.ClusterMessage;
 import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -73,7 +73,8 @@ public class KronotopTestInstance extends KronotopInstance {
             InfoMessage.COMMAND,
             HelloMessage.COMMAND,
             EchoMessage.COMMAND,
-            SessionAttributeMessage.COMMAND
+            SessionAttributeMessage.COMMAND,
+            SessionCloseMessage.COMMAND
     ));
     private final boolean initialize; // The default is true. It's useful for integration tests that test some failure conditions.
     private final boolean runWithTCPServer; // the default is false
@@ -98,10 +99,15 @@ public class KronotopTestInstance extends KronotopInstance {
         for (ServerKind kind : ServerKind.values()) {
             CommandHandlerRegistry registry = super.context.getHandlers(kind);
             for (String command : registry.getCommands()) {
-                Handler handler = registry.get(command);
+                HandlerEntry entry = registry.get(command);
 
                 try {
-                    mergedRegistry.handlerMethod(command, handler);
+                    mergedRegistry.register(
+                            entry.commandType(),
+                            entry.handler(),
+                            entry.minimumParameterCount(),
+                            entry.maximumParameterCount()
+                    );
                 } catch (CommandAlreadyRegisteredException e) {
                     if (!duplicatedCommands.contains(command)) {
                         throw e;
@@ -118,7 +124,7 @@ public class KronotopTestInstance extends KronotopInstance {
                 new RedisBulkStringAggregator(),
                 new RedisArrayAggregator(),
                 new RedisMapAggregator(),
-                new KronotopChannelDuplexHandler(super.context, mergeCommandHandlerRegistries())
+                new KronotopChannelDuplexHandler(super.context, mergeCommandHandlerRegistries(), ServerKind.EXTERNAL)
         );
     }
 
@@ -127,7 +133,8 @@ public class KronotopTestInstance extends KronotopInstance {
     }
 
     private void startNioRESPServer(String name, Address address) throws InterruptedException {
-        RESPServer server = new NioRESPServer(context, mergeCommandHandlerRegistries());
+        NettyConfig nettyConfig = NettyConfig.fromConfig(config, ServerKind.INTERNAL);
+        RESPServer server = new NioRESPServer(context, mergeCommandHandlerRegistries(), TLSConfig.disabled(), nettyConfig, ServerKind.INTERNAL);
         context.registerService(name, server);
         server.start(address);
     }
@@ -239,27 +246,38 @@ public class KronotopTestInstance extends KronotopInstance {
             return;
         }
 
+        // Create namespace tombstones directory
+        List<String> path = KronotopDirectory.
+                kronotop().
+                cluster(context.getClusterName()).
+                metadata().
+                namespaceTombstones().
+                toList();
+        context.getFoundationDB().run(tr ->
+                context.getDirectoryLayer().createOrOpen(tr, path).join()
+        );
+
         await().atMost(5000, TimeUnit.MILLISECONDS).until(() -> {
             Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
             return clusterInitialized.get() != null && clusterInitialized.get();
         });
 
-        setPrimaryOwnersOfShards(cmd, ShardKind.REDIS);
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(RedisService.NAME));
+        setPrimaryOwnersOfShards(cmd, ShardKind.STASH);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(StashService.NAME));
 
         setPrimaryOwnersOfShards(cmd, ShardKind.BUCKET);
         await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(BucketService.NAME));
 
-        setShardsReadWrite(cmd, ShardKind.REDIS);
+        setShardsReadWrite(cmd, ShardKind.STASH);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
-            int shards = context.getConfig().getInt("redis.shards");
-            return areAllShardsWritable(ShardKind.REDIS, shards);
+            List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.STASH);
+            return areAllShardsWritable(ShardKind.STASH, shardIds);
         });
 
         setShardsReadWrite(cmd, ShardKind.BUCKET);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
-            int shards = context.getConfig().getInt("bucket.shards");
-            return areAllShardsWritable(ShardKind.BUCKET, shards);
+            List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
+            return areAllShardsWritable(ShardKind.BUCKET, shardIds);
         });
     }
 
@@ -267,12 +285,12 @@ public class KronotopTestInstance extends KronotopInstance {
      * Determines if all shards of the specified kind are in a writable state.
      *
      * @param shardKind the type of shard to check, represented by the {@code ShardKind} enum.
-     * @param shards    the total number of shards to examine.
+     * @param shardIds  the list of shard IDs to examine.
      * @return {@code true} if all shards are in the writable state; otherwise {@code false}.
      */
-    private boolean areAllShardsWritable(ShardKind shardKind, int shards) {
+    private boolean areAllShardsWritable(ShardKind shardKind, List<Integer> shardIds) {
         RoutingService routing = context.getService(RoutingService.NAME);
-        for (int shardId = 0; shardId < shards; shardId++) {
+        for (int shardId : shardIds) {
             Route route = routing.findRoute(shardKind, shardId);
             if (route == null) {
                 return false;
@@ -295,9 +313,9 @@ public class KronotopTestInstance extends KronotopInstance {
         RoutingService routing = context.getService(RoutingService.NAME);
         ShardOwnerService<Shard> service = context.getService(serviceName);
         assert service != null;
-        int shards = context.getConfig().getInt("redis.shards");
+        int shards = context.getConfig().getInt("stash.shards");
         for (int shardId = 0; shardId < shards; shardId++) {
-            Route route = routing.findRoute(ShardKind.REDIS, shardId);
+            Route route = routing.findRoute(ShardKind.STASH, shardId);
             if (route == null) {
                 return false;
             }
@@ -320,9 +338,14 @@ public class KronotopTestInstance extends KronotopInstance {
      * Cleans up the test cluster by removing the corresponding directory in the FoundationDB database.
      */
     public void cleanupTestCluster() {
+        // start() may fail before the context is initialized; in that case there is nothing to clean
+        // up, and dereferencing the null context here would mask the real startup exception.
+        if (context == null) {
+            return;
+        }
         context.getFoundationDB().run(tr -> {
             List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).toList();
-            return DirectoryLayer.getDefault().removeIfExists(tr, subpath).join();
+            return context.getDirectoryLayer().removeIfExists(tr, subpath).join();
         });
     }
 

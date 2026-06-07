@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,27 @@
 
 package com.kronotop.task.handlers;
 
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.*;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.resp3.BooleanRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.task.TaskService;
 
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static com.kronotop.server.RESPUtil.bulkString;
+import static com.kronotop.server.RESPUtil.wrapBytes;
+
 public class ListSubcommand extends BaseHandler implements SubcommandHandler {
+    private static final byte[] RUNNING_BYTES = "running".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] FINISHED_BYTES = "finished".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] STARTED_AT_BYTES = "started_at".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] LAST_RUN_BYTES = "last_run".getBytes(StandardCharsets.UTF_8);
 
     public ListSubcommand(TaskService service) {
         super(service);
@@ -37,16 +48,16 @@ public class ListSubcommand extends BaseHandler implements SubcommandHandler {
         service.tasks().forEach(task -> {
             Map<RedisMessage, RedisMessage> item = new LinkedHashMap<>();
             item.put(
-                    new SimpleStringRedisMessage("running"),
+                    wrapBytes(RUNNING_BYTES),
                     task.running() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
             );
             item.put(
-                    new SimpleStringRedisMessage("completed"),
-                    task.completed() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
+                    wrapBytes(FINISHED_BYTES),
+                    task.finished() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
             );
-            item.put(new SimpleStringRedisMessage("started_at"), new IntegerRedisMessage(task.startedAt()));
-            item.put(new SimpleStringRedisMessage("last_run"), new IntegerRedisMessage(task.lastRun()));
-            result.put(new SimpleStringRedisMessage(task.name()), new MapRedisMessage(item));
+            item.put(wrapBytes(STARTED_AT_BYTES), new IntegerRedisMessage(task.startedAt()));
+            item.put(wrapBytes(LAST_RUN_BYTES), new IntegerRedisMessage(task.lastRun()));
+            result.put(bulkString(task.name()), new MapRedisMessage(item));
         });
         response.writeMap(result);
     }

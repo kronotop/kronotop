@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -31,10 +31,15 @@ public class StopReplicationHook implements RoutingEventHook {
 
     @Override
     public void run(ShardKind shardKind, int shardId) {
-        service.stopReplication(shardKind, shardId, false);
-        LOGGER.info(
-                "Stopping replication for ShardKind={}, ShardId={}",
-                shardKind, shardId
-        );
+        try {
+            service.stopReplication(shardKind, shardId, false);
+            LOGGER.info(
+                    "Stopping replication for ShardKind={}, ShardId={}",
+                    shardKind, shardId
+            );
+        } catch (NoReplicationFoundException exp) {
+            LOGGER.trace("Skipping replication stop for {}-{}: {}",
+                    shardKind, shardId, exp.getMessage());
+        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,40 @@
 
 package com.kronotop.bucket.pipeline;
 
+import com.ibm.icu.text.Collator;
+import com.kronotop.bucket.Collation;
+import com.kronotop.bucket.CollatorCache;
+import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.planner.Operator;
 
-import java.nio.ByteBuffer;
+import java.util.List;
 
-public record ResidualPredicate(int id, String selector, Operator op, Object operand) implements ResidualPredicateNode {
-    public boolean test(ByteBuffer document) {
+/**
+ * Predicate for residual (post-retrieval) filtering.
+ * Uses Operand for type-safe operand representation supporting both literal values and parameter references.
+ */
+public record ResidualPredicate(int id, String selector, Operator op,
+                                Operand operand, Collation collation) implements ResidualPredicateNode {
+
+    public ResidualPredicate(int id, String selector, Operator op, Operand operand) {
+        this(id, selector, op, operand, null);
+    }
+
+    /**
+     * Tests if the given document satisfies this predicate.
+     *
+     * @param view          the document view containing virtual fields and content
+     * @param parameters    the parameter list for resolving Param operands
+     * @param collatorCache cache for acquiring collators, or null for binary comparison
+     * @return true if the document satisfies the predicate
+     */
+    public boolean test(DocumentView view, List<BqlValue> parameters, CollatorCache collatorCache) {
         try {
-            return PredicateEvaluator.testResidualPredicate(this, document);
+            Collator collator = (collation != null && collatorCache != null)
+                    ? collatorCache.acquire(collation) : null;
+            return PredicateEvaluator.testResidualPredicate(this, view, parameters, collator);
         } finally {
-            document.rewind();
+            view.getContent().rewind();
         }
     }
 }

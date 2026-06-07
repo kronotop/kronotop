@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,19 @@
 
 package com.kronotop.cluster.handlers;
 
-import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeSet;
+
+import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
@@ -38,14 +38,14 @@ class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements Subc
 
     @Override
     public void execute(Request request, Response response) {
-        AsyncCommandExecutor.supplyAsync(context, response, () -> {
+        supplyAsync(context, response, () -> {
             TreeSet<Member> sortedMembers = membership.listMembers();
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
 
             for (Member member : sortedMembers) {
                 Map<RedisMessage, RedisMessage> current = new LinkedHashMap<>();
                 memberToRedisMessage(member, current);
-                result.put(new SimpleStringRedisMessage(member.getId()), new MapRedisMessage(current));
+                result.put(bulkString(member.getId()), new MapRedisMessage(current));
             }
             return result;
         }, response::writeMap);

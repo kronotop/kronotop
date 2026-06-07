@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PhysicalFilter;
 import com.kronotop.bucket.planner.physical.PhysicalIndexScan;
@@ -35,9 +36,9 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldHandleDeeplyNestedRedundantStructures() {
         // Create index for name
-        IndexDefinition nameIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create(
                 "name-index", "name", BsonType.STRING
-        );
+                , false, IndexStatus.WAITING);
         createIndex(nameIndex);
 
         // Test deeply nested redundant query: AND(AND(AND(name="john", name="john"), name="john"), name="john")
@@ -63,9 +64,9 @@ class RedundantScanAdvancedTest extends BaseOptimizerTest {
     @Test
     void shouldEliminateRedundancyInNestedStructures() {
         // Create index for status
-        IndexDefinition statusIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create(
                 "status-index", "status", BsonType.STRING
-        );
+                , false, IndexStatus.WAITING);
         createIndex(statusIndex);
 
         // Test nested OR with redundancy: OR(OR(status="active", status="active"), status="active")

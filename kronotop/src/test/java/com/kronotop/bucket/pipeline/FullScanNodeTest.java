@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,18 +17,17 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonType;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -49,14 +48,14 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(4, results.size(), "Should return exactly 3 documents with age > 22");
 
@@ -80,15 +79,15 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        List<Versionstamp> versionstamps = insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        List<ObjectId> objectIds = insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        String query = String.format("{'_id': {'$ne': '%s'}}", VersionstampUtil.base32HexEncode(versionstamps.getFirst()));
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        String query = String.format("{'_id': {'$ne': '%s'}}", objectIds.getFirst().toHexString());
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -113,14 +112,14 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -145,14 +144,14 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
-        QueryOptions config = QueryOptions.builder().reverse(true).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
+        QueryOptions config = QueryOptions.builder().sortDirection(SortDirection.DESC).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -161,10 +160,7 @@ class FullScanNodeTest extends BasePipelineTest {
             List<Integer> resultAges = new ArrayList<>();
             List<String> resultNames = new ArrayList<>();
 
-            for (ByteBuffer buffer : results.values()) {
-                String json = BSONUtil.fromBson(buffer.array()).toJson();
-                System.out.println(json);
-
+            for (ByteBuffer buffer : results) {
                 // Extract age and name for order validation
                 buffer.rewind();
                 try (BsonBinaryReader reader = new BsonBinaryReader(buffer)) {
@@ -209,20 +205,14 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$ne': 23}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$ne': 23}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-
-            System.out.println("=== NE Operator Results ===");
-            for (ByteBuffer buffer : results.values()) {
-                String json = BSONUtil.fromBson(buffer.array()).toJson();
-                System.out.println(json);
-            }
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age != 23 (ages 20, 25, 35)
             // Excluding Alice and Bob who both have age = 23
@@ -262,20 +252,14 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'David'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$eq': 25}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$eq': 25}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-
-            System.out.println("=== EQ Operator Results ===");
-            for (ByteBuffer buffer : results.values()) {
-                String json = BSONUtil.fromBson(buffer.array()).toJson();
-                System.out.println(json);
-            }
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age = 25 (Alice, George, Claire)
             // Excluding John (20), Bob (30), and David (35)
@@ -314,20 +298,14 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$lt': 23}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$lt': 23}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-
-            System.out.println("=== LT Operator Results ===");
-            for (ByteBuffer buffer : results.values()) {
-                String json = BSONUtil.fromBson(buffer.array()).toJson();
-                System.out.println(json);
-            }
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 2 documents with age < 23 (ages 15, 20)
             // Excluding Alice (23), George (25), and Claire (35)
@@ -366,20 +344,14 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gte': 23}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gte': 23}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-
-            System.out.println("=== GTE Operator Results ===");
-            for (ByteBuffer buffer : results.values()) {
-                String json = BSONUtil.fromBson(buffer.array()).toJson();
-                System.out.println(json);
-            }
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age >= 23 (ages 23, 25, 35)
             // Excluding Amy (15) and John (20)
@@ -418,20 +390,14 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$lte': 23}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$lte': 23}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-
-            System.out.println("=== LTE Operator Results ===");
-            for (ByteBuffer buffer : results.values()) {
-                String json = BSONUtil.fromBson(buffer.array()).toJson();
-                System.out.println(json);
-            }
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age <= 23 (ages 15, 20, 23)
             // Excluding George (25) and Claire (35)
@@ -469,15 +435,15 @@ class FullScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'George'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query for age > 50 which should return no results since all ages are <= 20
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 50}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 50}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             // Should return 0 documents since no document has age > 50
             assertEquals(0, results.size(), "Should return exactly 0 documents with age > 50");
         }

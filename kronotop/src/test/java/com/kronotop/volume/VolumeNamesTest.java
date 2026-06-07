@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class VolumeNamesTest {
 
     @Test
     void shouldFormatRedisVolumeName() {
-        String name = VolumeNames.format(ShardKind.REDIS, 0);
-        assertEquals("redis-shard-0", name);
+        String name = VolumeNames.format(ShardKind.STASH, 0);
+        assertEquals("stash-shard-0", name);
     }
 
     @Test
@@ -37,8 +37,8 @@ class VolumeNamesTest {
 
     @Test
     void shouldParseRedisVolumeName() {
-        VolumeNames.Parsed parsed = VolumeNames.parse("redis-shard-0");
-        assertEquals(ShardKind.REDIS, parsed.shardKind());
+        VolumeNames.Parsed parsed = VolumeNames.parse("stash-shard-0");
+        assertEquals(ShardKind.STASH, parsed.shardKind());
         assertEquals(0, parsed.shardId());
     }
 
@@ -89,7 +89,7 @@ class VolumeNamesTest {
     void shouldThrowWhenParsingInvalidShardId() {
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> VolumeNames.parse("redis-shard-abc")
+                () -> VolumeNames.parse("stash-shard-abc")
         );
         assertTrue(exception.getMessage().contains("invalid shard id: abc"));
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,12 @@
 
 package com.kronotop.bucket;
 
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.pipeline.*;
 import com.kronotop.server.resp3.*;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,8 +55,9 @@ public class PipelineExplainer {
             case IndexScanNode scan -> explainIndexScan(result, scan);
             case FullScanNode scan -> explainFullScan(result, scan);
             case RangeScanNode scan -> explainRangeScan(result, scan);
+            case CompoundIndexScanNode scan -> explainCompoundIndexScan(result, scan);
             case UnionNode union -> explainUnion(result, union);
-            case IntersectionNode intersection -> explainIntersection(result, intersection);
+            case OrderedConcatNode orderedConcat -> explainOrderedConcat(result, orderedConcat);
             case TransformWithResidualPredicateNode transform -> explainTransform(result, transform);
             default -> result.put(key("details"), value("Unknown node type"));
         }
@@ -101,12 +105,19 @@ public class PipelineExplainer {
         result.put(key("selector"), value(scan.predicate().selector()));
         result.put(key("operator"), value(scan.predicate().op().name()));
         result.put(key("operand"), formatOperand(scan.predicate().operand()));
+        addIndexCollation(result, scan.getIndexDefinition());
     }
 
     private static void explainFullScan(Map<RedisMessage, RedisMessage> result, FullScanNode scan) {
         result.put(key("scanType"), value("FULL_SCAN"));
         result.put(key("index"), value(scan.getIndexDefinition().name()));
         result.put(key("predicate"), explainPredicateAsMessage(scan.predicate()));
+        if (scan.isCollationMismatch()) {
+            result.put(key("collation_mismatch"), boolValue(true));
+            if (scan.getRejectedIndex() != null) {
+                result.put(key("rejected_index"), value(scan.getRejectedIndex()));
+            }
+        }
     }
 
     private static void explainRangeScan(Map<RedisMessage, RedisMessage> result, RangeScanNode scan) {
@@ -117,6 +128,25 @@ public class PipelineExplainer {
         result.put(key("upperBound"), formatOperand(scan.predicate().upperBound()));
         result.put(key("includeLower"), boolValue(scan.predicate().includeLower()));
         result.put(key("includeUpper"), boolValue(scan.predicate().includeUpper()));
+        addIndexCollation(result, scan.getIndexDefinition());
+    }
+
+    private static void explainCompoundIndexScan(Map<RedisMessage, RedisMessage> result, CompoundIndexScanNode scan) {
+        result.put(key("scanType"), value("COMPOUND_INDEX_SCAN"));
+        result.put(key("index"), value(scan.indexDefinition().name()));
+
+        List<RedisMessage> filterMessages = new ArrayList<>();
+        for (CompoundIndexScanNode.CompoundIndexScanFilter filter : scan.filters()) {
+            Map<RedisMessage, RedisMessage> filterMap = new LinkedHashMap<>();
+            filterMap.put(key("selector"), value(filter.selector()));
+            filterMap.put(key("operator"), value(filter.op().name()));
+            filterMap.put(key("operand"), formatOperand(filter.operand()));
+            filterMessages.add(new MapRedisMessage(filterMap));
+        }
+        result.put(key("filters"), new ArrayRedisMessage(filterMessages));
+        if (scan.indexDefinition().collation() != null) {
+            result.put(key("index_collation"), explainCollation(scan.indexDefinition().collation()));
+        }
     }
 
     private static void explainUnion(Map<RedisMessage, RedisMessage> result, UnionNode union) {
@@ -124,9 +154,9 @@ public class PipelineExplainer {
         result.put(key("children"), explainChildrenAsMessage(union.children()));
     }
 
-    private static void explainIntersection(Map<RedisMessage, RedisMessage> result, IntersectionNode intersection) {
-        result.put(key("operation"), value("INTERSECTION"));
-        result.put(key("children"), explainChildrenAsMessage(intersection.children()));
+    private static void explainOrderedConcat(Map<RedisMessage, RedisMessage> result, OrderedConcatNode orderedConcat) {
+        result.put(key("operation"), value("ORDERED_CONCAT"));
+        result.put(key("children"), explainChildrenAsMessage(orderedConcat.children()));
     }
 
     private static void explainTransform(Map<RedisMessage, RedisMessage> result, TransformWithResidualPredicateNode transform) {
@@ -164,9 +194,7 @@ public class PipelineExplainer {
                 result.put(key("type"), value("OR"));
                 result.put(key("children"), explainPredicateChildrenAsMessage(orNode.children()));
             }
-            case AlwaysTruePredicate ignored -> {
-                result.put(key("type"), value("ALWAYS_TRUE"));
-            }
+            case AlwaysTruePredicate ignored -> result.put(key("type"), value("ALWAYS_TRUE"));
             default -> result.put(key("type"), value("UNKNOWN"));
         }
 
@@ -179,6 +207,45 @@ public class PipelineExplainer {
             childMessages.add(new MapRedisMessage(explainPredicate(child)));
         }
         return new ArrayRedisMessage(childMessages);
+    }
+
+    private static void addIndexCollation(Map<RedisMessage, RedisMessage> result, SingleFieldIndexDefinition definition) {
+        if (definition.collation() != null) {
+            result.put(key("index_collation"), explainCollation(definition.collation()));
+        }
+    }
+
+    public static MapRedisMessage explainCollation(Collation collation) {
+        return new MapRedisMessage(buildCollationMap(collation));
+    }
+
+    public static ArrayRedisMessage explainCollationAsArrayMessage(Collation collation) {
+        return new ArrayRedisMessage(flattenMap(buildCollationMap(collation)));
+    }
+
+    private static Map<RedisMessage, RedisMessage> buildCollationMap(Collation collation) {
+        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
+        map.put(key("locale"), value(collation.locale()));
+        map.put(key("strength"), intValue(collation.strength()));
+        if (collation.caseLevel()) {
+            map.put(key("case_level"), boolValue(true));
+        }
+        if (!"off".equals(collation.caseFirst())) {
+            map.put(key("case_first"), value(collation.caseFirst()));
+        }
+        if (collation.numericOrdering()) {
+            map.put(key("numeric_ordering"), boolValue(true));
+        }
+        if (!"non-ignorable".equals(collation.alternate())) {
+            map.put(key("alternate"), value(collation.alternate()));
+        }
+        if (collation.backwards()) {
+            map.put(key("backwards"), boolValue(true));
+        }
+        if (collation.normalization()) {
+            map.put(key("normalization"), boolValue(true));
+        }
+        return map;
     }
 
     private static String getNodeTypeName(PipelineNode node) {
@@ -203,12 +270,12 @@ public class PipelineExplainer {
         return result;
     }
 
-    private static SimpleStringRedisMessage key(String key) {
-        return new SimpleStringRedisMessage(key);
+    private static FullBulkStringRedisMessage key(String key) {
+        return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(key.getBytes(StandardCharsets.UTF_8)));
     }
 
-    private static SimpleStringRedisMessage value(String value) {
-        return new SimpleStringRedisMessage(value);
+    private static FullBulkStringRedisMessage value(String value) {
+        return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(value.getBytes(StandardCharsets.UTF_8)));
     }
 
     private static IntegerRedisMessage intValue(int value) {

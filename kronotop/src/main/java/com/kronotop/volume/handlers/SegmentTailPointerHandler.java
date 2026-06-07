@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -26,8 +26,9 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.SegmentSubspaceUtil;
 import com.kronotop.volume.SegmentTailPointer;
-import com.kronotop.volume.SegmentUtil;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.changelog.ChangeLog;
 import com.kronotop.volume.handlers.protocol.SegmentTailPointerMessage;
@@ -64,14 +65,14 @@ public class SegmentTailPointerHandler extends BaseVolumeHandler implements Hand
 
             long segmentId = message.getSegmentId();
             List<RedisMessage> result = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 // locateTailPointer returns the next valid position within the segment.
                 // A returned value indicates that no user data exists beyond this point.
                 // It serves as an upper bound for replication and backup processes.
-                SegmentTailPointer pointer = SegmentUtil.locateTailPointer(tr, volumeSubspace, segmentId);
+                SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, volumeSubspace, segmentId);
                 long sequenceNumber = -1;
 
-                long activeSegmentId = SegmentUtil.findActiveSegmentId(tr, volumeSubspace);
+                long activeSegmentId = SegmentSubspaceUtil.findActiveSegmentId(tr, volumeSubspace);
                 if (activeSegmentId == segmentId) {
                     if (pointer.nextPosition() > 0) {
                         sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, volumeSubspace, segmentId, pointer);

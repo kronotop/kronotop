@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@ import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.DefaultIndexDefinition;
-import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.*;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -45,13 +45,23 @@ public class BucketIndexDropSubcommand implements SubcommandHandler {
     public void execute(Request request, Response response) {
         DropParameters parameters = new DropParameters(request.getParams());
         runAsync(context, response, () -> {
-            if (parameters.index.equals(DefaultIndexDefinition.ID.name())) {
+            if (parameters.index.equals(PrimaryIndex.NAME)) {
                 throw new IllegalArgumentException("Cannot drop the primary index");
             }
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), parameters.bucket);
-                IndexUtil.drop(tx, metadata, parameters.index);
+                VectorIndex vectorIndex = metadata.vectorIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
+                if (vectorIndex != null) {
+                    VectorIndexUtil.drop(tx, metadata, parameters.index);
+                } else {
+                    CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
+                    if (compoundIndex != null) {
+                        CompoundIndexUtil.drop(tx, metadata, parameters.index);
+                    } else {
+                        SingleFieldIndexUtil.drop(tx, metadata, parameters.index);
+                    }
+                }
                 tr.commit().join();
             }
         }, response::writeOK);

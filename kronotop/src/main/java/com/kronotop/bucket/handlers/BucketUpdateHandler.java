@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,22 +17,19 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BSONUtil;
-import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.BucketVersionstampArrayResponse;
-import com.kronotop.bucket.UpdateOptionsConverter;
+import com.kronotop.bucket.*;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.handlers.protocol.BucketUpdateMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.UpdateOptions;
-import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.transaction.TransactionUtil;
 import org.bson.BsonDocument;
+import org.bson.types.ObjectId;
 
 import java.util.List;
 
@@ -53,55 +50,61 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
 
     /**
      * Parses the input byte array into a Document object, assuming it is either JSON or BSON format.
-     * If the input is determined to be JSON, it converts it using the appropriate utility.
-     * Otherwise, it is treated as BSON and uses a different utility for conversion.
      *
-     * @param input the input byte array containing the data to be parsed, expected to be in JSON or BSON format
+     * @param input the input byte array containing the data to be parsed
      * @return a Document object obtained by parsing the input byte array
      */
     private BsonDocument parseUpdateDocument(byte[] input) {
-        if (BqlParser.isJSON(input)) {
-            // Assume that the input is a valid JSON
-            return BSONUtil.fromJson(input);
-        } else {
-            // Assume that the input is a valid BSON
+        if (BqlParser.isBSON(input)) {
             return BSONUtil.fromBson(input);
         }
+        return BSONUtil.fromJson(input);
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketUpdateMessage message = request.attr(MessageTypes.BUCKETUPDATE).get();
-
             Session session = request.getSession();
+
+            Transaction tr = TransactionUtil.getOrCreateTransaction(service.getContext(), session);
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
+            checkBucketOwnership(metadata);
+            if (!metadata.vectorIndexes().isEmpty()) {
+                checkVectorIndexRecoveryState(metadata);
+            }
 
             BsonDocument updateDocument = parseUpdateDocument(message.getUpdate());
             UpdateOptions updateOptions = UpdateOptionsConverter.fromDocument(updateDocument);
-
             QueryContext ctx = buildQueryContext(
                     request,
-                    message.getBucket(),
+                    metadata,
                     message.getQuery(),
                     message.getArguments(),
-                    updateOptions
+                    updateOptions,
+                    false
             );
 
             int cursorId = session.nextCursorId();
             session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            List<Versionstamp> versionstamps = service.getQueryExecutor().update(tr, ctx);
+            List<ObjectId> objectIds = service.getQueryExecutor().update(tr, ctx);
 
-            TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());
-            TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
-            return new BucketVersionstampArrayResponse(cursorId, versionstamps);
-        }, (versionstampResponse) -> {
+            TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());
+
+            // Handle upsert: the ObjectId is available immediately
+            if (ctx.upsertResult() != null) {
+                objectIds = List.of(ctx.upsertResult().getObjectId());
+            }
+
+            return new BucketObjectIdArrayResponse(cursorId, objectIds);
+        }, (objectIdResponse) -> {
+            ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
-                resp3VersionstampArrayResponse(response, versionstampResponse);
+                resp3ObjectIdArrayResponse(response, format, objectIdResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {
-                resp2VersionstampArrayResponse(response, versionstampResponse);
+                resp2ObjectIdArrayResponse(response, format, objectIdResponse);
             } else {
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }

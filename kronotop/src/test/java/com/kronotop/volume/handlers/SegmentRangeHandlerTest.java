@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.volume.VolumeSession;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.VolumeSession;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -34,7 +34,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
@@ -67,7 +68,7 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         ArrayRedisMessage message = (ArrayRedisMessage) response;
         for (int i = 0; i < ranges.size(); i++) {
             FullBulkStringRedisMessage redisMessage = (FullBulkStringRedisMessage) message.children().get(i);
-            assertArrayEquals(entries[i].array(), redisMessage.content().array());
+            assertEquals(entries[i].rewind(), redisMessage.content().nioBuffer());
         }
     }
 

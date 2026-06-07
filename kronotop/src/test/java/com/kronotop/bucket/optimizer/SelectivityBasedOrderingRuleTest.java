@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -96,8 +97,8 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         void shouldOrderAndConditionsFromMostToLeastSelective() {
             // Create indexes to make some conditions more selective
             createIndexes(
-                    IndexDefinition.create("name-index", "name", BsonType.STRING),
-                    IndexDefinition.create("email-index", "email", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("email-index", "email", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             // Create conditions with different selectivity:
@@ -113,7 +114,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
             // Create AND in suboptimal order (least to most selective)
             PhysicalAnd originalAnd = createAnd(basicFilter, eqFilter, indexScan);
 
-            PhysicalNode optimized = rule.apply(originalAnd, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), originalAnd);
 
             // Should reorder to: indexScan, eqFilter, basicFilter (most to least selective)
             assertInstanceOf(PhysicalAnd.class, optimized);
@@ -128,14 +129,14 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @DisplayName("Should handle mixed node types in AND operations")
         void shouldHandleMixedNodeTypesInAndOperations() {
             // Create different types of nodes with varying selectivity
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING));
 
             PhysicalFilter simpleFilter = createFilter("category", Operator.EQ, "books");
             PhysicalIndexScan indexScan = createIndexScan(createFilter("name", Operator.EQ, "john"));
             PhysicalFilter rangeFilter = createFilter("score", Operator.GT, 80);
 
             PhysicalAnd originalAnd = createAnd(simpleFilter, rangeFilter, indexScan);
-            PhysicalNode optimized = rule.apply(originalAnd, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), originalAnd);
 
             assertInstanceOf(PhysicalAnd.class, optimized);
             PhysicalAnd result = (PhysicalAnd) optimized;
@@ -147,7 +148,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should handle AND with nested structures")
         void shouldHandleAndWithNestedStructures() {
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING));
 
             // Create nested OR (less selective than individual conditions)
             PhysicalFilter filter1 = createFilter("status", Operator.EQ, "active");
@@ -158,7 +159,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
             PhysicalIndexScan indexScan = createIndexScan(createFilter("name", Operator.EQ, "john"));
 
             PhysicalAnd originalAnd = createAnd(nestedOr, indexScan);
-            PhysicalNode optimized = rule.apply(originalAnd, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), originalAnd);
 
             assertInstanceOf(PhysicalAnd.class, optimized);
             PhysicalAnd result = (PhysicalAnd) optimized;
@@ -176,7 +177,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should order OR conditions from least to most selective")
         void shouldOrderOrConditionsFromLeastToMostSelective() {
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING));
 
             // Create conditions with different selectivity
             PhysicalIndexScan indexScan = createIndexScan(createFilter("name", Operator.EQ, "john")); // Most selective
@@ -186,7 +187,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
             // Create OR in suboptimal order (most to least selective)
             PhysicalOr originalOr = createOr(indexScan, eqFilter, neFilter);
 
-            PhysicalNode optimized = rule.apply(originalOr, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), originalOr);
 
             // Should reorder to: neFilter, eqFilter, indexScan (least to most selective)
             assertInstanceOf(PhysicalOr.class, optimized);
@@ -204,14 +205,14 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should handle OR with equality vs range operators")
         void shouldHandleOrWithEqualityVsRangeOperators() {
-            createIndex(IndexDefinition.create("age-index", "age", BsonType.INT32));
+            createIndex(SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING));
 
             // Equality is more selective than range
             PhysicalIndexScan eqScan = createIndexScan(createFilter("age", Operator.EQ, 25));
             PhysicalIndexScan rangeScan = createIndexScan(createFilter("age", Operator.GT, 18));
 
             PhysicalOr originalOr = createOr(eqScan, rangeScan);
-            PhysicalNode optimized = rule.apply(originalOr, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), originalOr);
 
             assertInstanceOf(PhysicalOr.class, optimized);
             PhysicalOr result = (PhysicalOr) optimized;
@@ -235,8 +236,8 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @DisplayName("Should handle nested AND/OR combinations")
         void shouldHandleNestedAndOrCombinations() {
             createIndexes(
-                    IndexDefinition.create("name-index", "name", BsonType.STRING),
-                    IndexDefinition.create("age-index", "age", BsonType.INT32)
+                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING)
             );
 
             // Create complex nested structure
@@ -248,7 +249,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
 
             PhysicalAnd outerAnd = createAnd(innerOr, ageRange); // AND should order: ageRange, innerOr
 
-            PhysicalNode optimized = rule.apply(outerAnd, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), outerAnd);
 
             assertInstanceOf(PhysicalAnd.class, optimized);
             PhysicalAnd result = (PhysicalAnd) optimized;
@@ -262,7 +263,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should recursively optimize nested structures")
         void shouldRecursivelyOptimizeNestedStructures() {
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING));
 
             // Create deeply nested structure that needs recursive optimization
             PhysicalFilter rangeFilter = createFilter("desc", Operator.GT, 100);
@@ -272,7 +273,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
             PhysicalFilter eqFilter = createFilter("status", Operator.EQ, "active");
             PhysicalAnd outerAnd = createAnd(eqFilter, innerAnd); // Should consider selectivity of inner AND
 
-            PhysicalNode optimized = rule.apply(outerAnd, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), outerAnd);
 
             assertInstanceOf(PhysicalAnd.class, optimized);
             PhysicalAnd result = (PhysicalAnd) optimized;
@@ -299,8 +300,8 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
             PhysicalAnd singleAnd = createAnd(filter);
             PhysicalOr singleOr = createOr(filter);
 
-            PhysicalNode optimizedAnd = rule.apply(singleAnd, metadata, new PlannerContext());
-            PhysicalNode optimizedOr = rule.apply(singleOr, metadata, new PlannerContext());
+            PhysicalNode optimizedAnd = rule.apply(new PlannerContext(metadata), singleAnd);
+            PhysicalNode optimizedOr = rule.apply(new PlannerContext(metadata), singleOr);
 
             // Should return the single child directly
             assertEquals(filter, optimizedAnd);
@@ -316,7 +317,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
             PhysicalFilter filter3 = createFilter("status", Operator.EQ, "active");
 
             PhysicalAnd and = createAnd(filter1, filter2, filter3);
-            PhysicalNode optimized = rule.apply(and, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), and);
 
             // Should still create valid AND node (order may vary but structure should be preserved)
             assertInstanceOf(PhysicalAnd.class, optimized);
@@ -330,7 +331,7 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
             PhysicalFilter filter = createFilter("name", Operator.EQ, "john");
             PhysicalNot not = new PhysicalNot(1, filter);
 
-            PhysicalNode optimized = rule.apply(not, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), not);
 
             // Should recursively optimize the child
             assertInstanceOf(PhysicalNot.class, optimized);
@@ -346,13 +347,13 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should prefer indexed conditions over regular filters")
         void shouldPreferIndexedConditionsOverRegularFilters() {
-            createIndex(IndexDefinition.create("name-index", "name", BsonType.STRING));
+            createIndex(SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING));
 
             PhysicalIndexScan indexScan = createIndexScan(createFilter("name", Operator.EQ, "john"));
             PhysicalFilter regularFilter = createFilter("description", Operator.EQ, "test");
 
             PhysicalAnd and = createAnd(regularFilter, indexScan);
-            PhysicalNode optimized = rule.apply(and, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), and);
 
             assertInstanceOf(PhysicalAnd.class, optimized);
             PhysicalAnd result = (PhysicalAnd) optimized;
@@ -365,19 +366,19 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
         @Test
         @DisplayName("Should prefer equality over range operations")
         void shouldPreferEqualityOverRangeOperations() {
-            createIndex(IndexDefinition.create("age-index", "age", BsonType.INT32));
+            createIndex(SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING));
 
             PhysicalIndexScan rangeScan = createIndexScan(createFilter("age", Operator.GT, 18));
             PhysicalIndexScan eqScan = createIndexScan(createFilter("age", Operator.EQ, 25));
 
             PhysicalAnd and = createAnd(rangeScan, eqScan);
-            PhysicalNode optimized = rule.apply(and, metadata, new PlannerContext());
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), and);
 
             assertInstanceOf(PhysicalAnd.class, optimized);
             PhysicalAnd result = (PhysicalAnd) optimized;
 
             // Equality scan should come first (more selective)
-            PhysicalIndexScan firstScan = (PhysicalIndexScan) result.children().get(0);
+            PhysicalIndexScan firstScan = (PhysicalIndexScan) result.children().getFirst();
             PhysicalFilter firstFilter = (PhysicalFilter) firstScan.node();
             assertEquals(Operator.EQ, firstFilter.op());
         }

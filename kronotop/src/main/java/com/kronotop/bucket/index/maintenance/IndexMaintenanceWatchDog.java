@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,11 +22,12 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketBeingRemovedException;
-import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.NoSuchBucketException;
+import com.kronotop.bucket.*;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KrExecutors;
@@ -37,9 +38,12 @@ import com.kronotop.worker.Worker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * Monitors and manages index maintenance tasks for a specific bucket shard.
@@ -56,7 +60,7 @@ import java.util.concurrent.*;
  *
  * <p>The watchdog implements a bounded worker pool strategy using {@link KrExecutors#newBoundedExecutor}:
  * <ul>
- *   <li>Dynamic thread scaling from 0 to {@code WORKER_POOL_SIZE} threads (configurable via
+ *   <li>Up to {@code WORKER_POOL_SIZE} concurrent threads (configurable via
  *       {@code bucket.index.maintenance.worker_pool_size}; defaults to number of CPU cores if set to 0)</li>
  *   <li>A maximum of {@code MAX_WORKER_POOL_SIZE} concurrent workers tracked in-memory (2x {@code WORKER_POOL_SIZE})</li>
  *   <li>LinkedBlockingQueue for task buffering when threads are busy</li>
@@ -88,6 +92,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private final ExecutorService workerExecutor;
     private final ScheduledExecutorService scheduler;
     private final Map<Versionstamp, WorkerHandle> workers = new ConcurrentHashMap<>();
+    private volatile boolean shuttingDown;
     private volatile CompletableFuture<Void> watcher;
 
     /**
@@ -178,26 +183,40 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Removes stale workers that have been inactive beyond the maximum stale period.
+     * Cleans up stale workers that have been inactive beyond the maximum stale period.
      *
-     * <p>This synchronized method iterates through all active workers and checks their
-     * last activity timestamp. Workers are considered stale if:
-     * <ul>
-     *   <li>They have never executed and initiation time exceeds the stale period</li>
-     *   <li>Their last execution time exceeds the stale period (60 seconds)</li>
-     * </ul>
+     * <p>Stale workers are first collected and shut down inside the synchronized
+     * {@link #collectStaleWorkers()} method, but <b>not</b> removed from the workers map
+     * at that point. This ensures that during the subsequent {@code await()} calls
+     * (which run outside the lock), {@link #spawnWorker} still sees the entry and
+     * will not spawn a duplicate worker for the same task.
      *
-     * <p>Stale workers are shut down gracefully and removed from the workers map.
-     * This prevents resource leaks from stuck or abandoned worker threads.
-     *
-     * <p>This method is called periodically by the scheduled executor to maintain
-     * a healthy worker pool.
+     * <p>Map removal happens only after {@code await()} completes for each stale worker.
      *
      * <p><b>Note:</b> Package-private for testing purposes.
      */
-    synchronized void cleanupStaleWorkers() {
+    void cleanupStaleWorkers() {
+        List<Map.Entry<Versionstamp, WorkerHandle>> staleWorkers = collectStaleWorkers();
+        for (Map.Entry<Versionstamp, WorkerHandle> entry : staleWorkers) {
+            WorkerHandle worker = entry.getValue();
+            try {
+                worker.await(
+                        ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                        ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+                );
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            workers.remove(entry.getKey());
+            context.getWorkerRegistry().remove(worker.getWorker().getNamespace(), worker);
+        }
+    }
+
+    private synchronized List<Map.Entry<Versionstamp, WorkerHandle>> collectStaleWorkers() {
+        List<Map.Entry<Versionstamp, WorkerHandle>> staleWorkers = new ArrayList<>();
+        if (shuttingDown) return staleWorkers;
         long now = System.currentTimeMillis();
-        workers.entrySet().removeIf(entry -> {
+        for (Map.Entry<Versionstamp, WorkerHandle> entry : workers.entrySet()) {
             WorkerHandle worker = entry.getValue();
             IndexMaintenanceWorker instance = worker.getWorker();
 
@@ -209,14 +228,15 @@ public class IndexMaintenanceWatchDog implements Runnable {
             boolean stale = lastActivity + WORKER_MAX_STALE_PERIOD < now;
             if (stale) {
                 worker.shutdown();
+                staleWorkers.add(entry);
             }
-            return stale; // remove from map if stale
-        });
+        }
+        return staleWorkers;
     }
 
     private boolean bucketExists(Transaction tr, String namespace, String bucket) {
         try {
-            BucketMetadataUtil.open(context, tr, namespace, bucket);
+            BucketMetadataUtil.reload(context, tr, namespace, bucket);
             return true;
         } catch (NoSuchBucketException |
                  NoSuchNamespaceException |
@@ -225,6 +245,18 @@ public class IndexMaintenanceWatchDog implements Runnable {
         ) {
             return false;
         }
+    }
+
+    private boolean indexExists(Transaction tr, IndexMaintenanceTask task) {
+        BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, task.getNamespace(), task.getBucket());
+        long indexId = task.getIndexId();
+        if (metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.ALL) != null) {
+            return true;
+        }
+        if (metadata.compoundIndexes().getIndexById(indexId, IndexSelectionPolicy.ALL) != null) {
+            return true;
+        }
+        return metadata.vectorIndexes().getIndexById(indexId, IndexSelectionPolicy.ALL) != null;
     }
 
     /**
@@ -252,6 +284,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
      * {@code false} if the worker pool has reached capacity and processing should pause
      */
     private boolean spawnWorker(Versionstamp taskId) {
+        if (shuttingDown) return false;
         if (workers.containsKey(taskId)) {
             return true; // means continue
         }
@@ -317,11 +350,20 @@ public class IndexMaintenanceWatchDog implements Runnable {
      *   <li>Periodically by the scheduled executor for maintenance</li>
      * </ul>
      */
-    private synchronized void processTaskQueue() {
+    synchronized void processTaskQueue() {
+        if (shuttingDown) return;
         if (workers.size() >= MAX_WORKER_POOL_SIZE) {
             // There are already too many tasks in the executor's queue.
             return;
         }
+
+        // Index maintenance runs only on the primary owner of this shard.
+        RoutingService routing = context.getService(RoutingService.NAME);
+        Route route = routing.findRoute(ShardKind.BUCKET, shard.id());
+        if (route == null || !route.primary().equals(context.getMember())) {
+            return;
+        }
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TaskStorage.tasks(tr, subspace, (taskId) -> {
                 byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
@@ -330,6 +372,14 @@ public class IndexMaintenanceWatchDog implements Runnable {
                 // Garbage collection: check if the bucket still exists
                 if (!bucketExists(tr, task.getNamespace(), task.getBucket())) {
                     LOGGER.info("Bucket '{}' purged, dropping orphaned task", task.getBucket());
+                    TaskStorage.drop(tr, subspace, taskId);
+                    return true; // continue to the next task
+                }
+
+                // Garbage collection: check if the index still exists
+                if (!indexExists(tr, task)) {
+                    LOGGER.info("Index {} in bucket '{}' deleted, dropping orphaned task",
+                            task.getIndexId(), task.getBucket());
                     TaskStorage.drop(tr, subspace, taskId);
                     return true; // continue to the next task
                 }
@@ -381,8 +431,12 @@ public class IndexMaintenanceWatchDog implements Runnable {
             throw new IllegalStateException("bucket.index.maintenance.worker_maintenance_interval must be greater than zero");
         }
         scheduler.scheduleAtFixedRate(() -> {
-            cleanupStaleWorkers();
-            processTaskQueue();
+            try {
+                cleanupStaleWorkers();
+                processTaskQueue();
+            } catch (Exception e) {
+                LOGGER.error("Scheduled maintenance failed for shard: {}", shard.id(), e);
+            }
         }, 0, maintenanceInterval, TimeUnit.SECONDS);
 
         while (!shard.isClosed()) {
@@ -394,6 +448,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
             } catch (Exception exp) {
                 if (!(shard.isClosed() && exp instanceof CancellationException)) {
                     LOGGER.error("Failed to run shard maintenance worker on Bucket shard: {}", shard.id(), exp);
+                    LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(1));
                 }
             }
         }
@@ -417,6 +472,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
      * @throws RuntimeException if interrupted while waiting for executor termination
      */
     public void shutdown() {
+        shuttingDown = true;
         if (watcher != null) {
             watcher.cancel(true);
         }

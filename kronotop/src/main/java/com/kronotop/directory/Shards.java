@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * Represents the Shards directory node in the Kronotop directory structure.
- * This class provides access to Redis and Bucket directory nodes under the "shards"
+ * This class provides access to Stash and Bucket directory nodes under the "shards"
  * path of the directory layout.
  * <p>
  * The class extends KronotopDirectoryNode, inheriting basic operations such as
@@ -33,8 +33,8 @@ public class Shards extends KronotopDirectoryNode {
         layout.add("shards");
     }
 
-    public Redis redis() {
-        return new Redis(layout);
+    public Stash stash() {
+        return new Stash(layout);
     }
 
     public Bucket bucket() {

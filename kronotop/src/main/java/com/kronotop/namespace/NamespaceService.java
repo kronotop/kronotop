@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,35 +17,36 @@
 package com.kronotop.namespace;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
+import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.vector.VectorGraphIndexGroup;
+import com.kronotop.bucket.vector.VectorGraphIndexRegistry;
 import com.kronotop.cluster.BaseBroadcastEvent;
-import com.kronotop.cluster.BroadcastEventKind;
 import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.internal.DirectoryUtil;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
-import com.kronotop.internal.TransactionUtils;
 import com.kronotop.journal.*;
 import com.kronotop.namespace.handlers.NamespaceHandler;
+import com.kronotop.namespace.handlers.NamespaceMovedEvent;
 import com.kronotop.namespace.handlers.NamespaceRemovedEvent;
 import com.kronotop.server.ServerKind;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.worker.Worker;
 import com.kronotop.worker.WorkerUtil;
 import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.LockSupport;
 
@@ -94,7 +95,7 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
                 members().
                 member(context.getMember().getId()).toList();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            memberSubspace = DirectoryLayer.getDefault().open(tr, subpath).join();
+            memberSubspace = context.getDirectoryLayer().open(tr, subpath).join();
         }
     }
 
@@ -108,13 +109,13 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
                 context.getWorkerRegistry().get(event.namespace());
         if (workers.isEmpty()) {
             openMemberSubspace();
-            NamespaceUtil.setLastSeenNamespaceVersion(tr, memberSubspace, context.getClusterName(), event);
+            NamespaceUtil.setLastSeenNamespaceVersion(tr, memberSubspace, context, event);
         }
     }
 
     /**
      * Processes a namespace removal event by invalidating caches, shutting down associated workers,
-     * and recording the namespace version. Workers remove themselves from the registry upon completion.
+     * removing them from the registry, and recording the namespace version.
      * This operation is idempotent and designed to be invoked multiple times across distributed nodes.
      */
     private void processNamespaceRemovedEvent(Transaction tr, byte[] data) {
@@ -130,23 +131,49 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
                 .flatMap(List::stream)
                 .toList();
 
-        // This may fail, no worries. The operator should call namespace purge <namespace> command again.
-        WorkerUtil.shutdownThenAwait(event.namespace(), allWorkers);
+        // This may fail, no worries. The operator should call the "namespace purge <namespace>" command again.
+        WorkerUtil.shutdownThenAwait(context.getWorkerRegistry(), event.namespace(), allWorkers);
 
         setLastSeenNamespaceVersion(tr, event);
+        BucketService bucketService = context.getService(BucketService.NAME);
+        bucketService.getPlanCache().invalidateByPrefix(event.namespace());
+
+        // Vector index cleanup: in-memory registry + disk files
+        VectorGraphIndexRegistry vectorRegistry = bucketService.getVectorGraphRegistry();
+        Set<UUID> removedBucketIds = vectorRegistry.remove(event.namespace());
+        for (UUID bucketId : removedBucketIds) {
+            Path bucketVectorDir = VectorGraphIndexGroup.resolveVectorDir(
+                    bucketService.getBucketDataDir()).resolve(bucketId.toString());
+            DirectoryUtil.deleteRecursively(bucketVectorDir);
+        }
+    }
+
+    /**
+     * Invalidates caches keyed under the old namespace path after a NAMESPACE MOVE.
+     */
+    private void processNamespaceMovedEvent(Transaction tr, byte[] data) {
+        NamespaceMovedEvent event = JSONUtil.readValue(data, NamespaceMovedEvent.class);
+
+        context.getBucketMetadataCache().invalidate(event.namespace());
+        context.getSessionStore().invalidateOpenNamespaces(event.namespace());
+
+        BucketService bucketService = context.getService(BucketService.NAME);
+        bucketService.getPlanCache().invalidateByPrefix(event.namespace());
+
+        TombstoneManager.observe(context, tr, event.namespace(), event.token());
     }
 
     private void processNamespaceEvent(Transaction tr, Event event) {
         BaseBroadcastEvent baseBroadcastEvent = JSONUtil.readValue(event.value(), BaseBroadcastEvent.class);
-        if (Objects.requireNonNull(baseBroadcastEvent.kind()) == BroadcastEventKind.NAMESPACE_REMOVED_EVENT) {
-            processNamespaceRemovedEvent(tr, event.value());
-        } else {
-            throw new KronotopException("Unknown broadcast event: " + baseBroadcastEvent.kind());
+        switch (baseBroadcastEvent.kind()) {
+            case NAMESPACE_REMOVED_EVENT -> processNamespaceRemovedEvent(tr, event.value());
+            case NAMESPACE_MOVED_EVENT -> processNamespaceMovedEvent(tr, event.value());
+            default -> throw new KronotopException("Unknown broadcast event: " + baseBroadcastEvent.kind());
         }
     }
 
     private synchronized void fetchNamespaceEvents() {
-        Retry retry = TransactionUtils.retry(10, Duration.ofMillis(100));
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 while (true) {
@@ -170,8 +197,8 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
                         LOGGER.warn("Namespace event consumer is in an illegal state while marking consumed: {}", exp.getMessage());
                         break;
                     } catch (Exception e) {
-                        // TODO: endless loop
-                        LOGGER.error("Namespace event processing failed for event={} – skipping", event, e);
+                        LOGGER.error("Namespace event processing failed for event={} – will retry on next trigger", event, e);
+                        break;
                     }
                 }
                 tr.commit().join();

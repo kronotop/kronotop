@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package com.kronotop.internal;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
@@ -62,6 +61,6 @@ public class ProcessIdGeneratorImpl implements ProcessIdGenerator {
         }
 
         List<String> subpath = KronotopDirectory.kronotop().cluster(config.getString("cluster.name")).toList();
-        return DirectoryLayer.getDefault().createOrOpen(transaction, subpath).join();
+        return KronotopDirectoryLayer.fromConfig(config).createOrOpen(transaction, subpath).join();
     }
 }

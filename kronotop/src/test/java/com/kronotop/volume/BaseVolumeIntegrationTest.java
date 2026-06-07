@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
@@ -31,30 +30,30 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
     protected Volume volume;
     protected VolumeService service;
     protected DirectorySubspace subspace;
-    protected Prefix redisVolumeSyncerPrefix;
+    protected Prefix stashVolumeSyncerPrefix;
 
     void setupVolumeTestEnv() throws IOException {
-        // Creating the global prefixes subspace is required for vacuum integration tests.
+        // Creating the global prefixes subspace is required for volume integration tests.
         KronotopDirectoryNode prefixes = KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).
                 metadata().
                 prefixes();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            DirectoryLayer.getDefault().createOrOpen(tr, prefixes.toList()).join();
+            context.getDirectoryLayer().createOrOpen(tr, prefixes.toList()).join();
             tr.commit().join();
         }
 
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.STASH, 1);
         VolumeConfig volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);
         volume = service.newVolume(volumeConfig);
-        redisVolumeSyncerPrefix = new Prefix(context.getConfig().getString("redis.volume_syncer.prefix").getBytes());
+        stashVolumeSyncerPrefix = new Prefix(context.getConfig().getString("stash.volume_syncer.prefix").getBytes());
     }
 
     @BeforeEach
     public void setupIntegrationTest() {
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.STASH, 1);
         subspace = generator.createOrOpenVolumeSubspace();
 
         try {

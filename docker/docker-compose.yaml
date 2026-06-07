@@ -4,6 +4,8 @@ services:
     volumes:
       - foundationdb-data-volume:/var/fdb
     restart: on-failure
+    networks:
+      - kronotop
     environment:
       FDB_NETWORKING_MODE: container
       FDB_COORDINATOR_PORT: 4500
@@ -14,14 +16,19 @@ services:
     volumes:
       - kronotop-primary-data-volume:/var/kronotop
     restart: on-failure
+    stop_grace_period: 30s
     depends_on:
       - foundationdb
+    networks:
+      - kronotop
     ports:
       - "5484:5484/tcp"
       - "3320:3320/tcp"
     environment:
       FDB_COORDINATOR: foundationdb
-      FDB_API_VERSION: 510
+      FDB_API_VERSION: 630
+      KRONOTOP_BOOTSTRAP: "--primary BUCKET kronotop-primary:3320=0 --standby BUCKET kronotop-standby:3320=0"
+      KRONOTOP_STANDBY_HOST: "kronotop-standby"
     platform: "linux/amd64"
 
   kronotop-standby:
@@ -29,12 +36,22 @@ services:
     volumes:
       - kronotop-standby-data-volume:/var/kronotop
     restart: on-failure
+    stop_grace_period: 30s
     depends_on:
-      - kronotop-primary
+      - foundationdb
+    networks:
+      - kronotop
+    ports:
+      - "5485:5484/tcp"
+      - "3321:3320/tcp"
     environment:
       FDB_COORDINATOR: foundationdb
-      FDB_API_VERSION: 510
+      FDB_API_VERSION: 630
     platform: "linux/amd64"
+
+networks:
+  kronotop:
+    name: kronotop
 
 volumes:
   kronotop-primary-data-volume:

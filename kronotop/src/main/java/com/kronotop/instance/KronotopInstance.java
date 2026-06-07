@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package com.kronotop.instance;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.*;
 import com.kronotop.bucket.BucketContext;
@@ -28,25 +27,25 @@ import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.RoutingService;
+import com.kronotop.core.CoreService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.foundationdb.FoundationDBService;
-import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.internal.FoundationDBFactory;
-import com.kronotop.namespace.NamespaceService;
-import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.internal.ProcessIdGenerator;
 import com.kronotop.internal.ProcessIdGeneratorImpl;
 import com.kronotop.journal.CleanupJournalTask;
+import com.kronotop.namespace.NamespaceAlreadyExistsException;
+import com.kronotop.namespace.NamespaceService;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.network.Address;
 import com.kronotop.network.AddressUtil;
-import com.kronotop.redis.RedisContext;
-import com.kronotop.redis.RedisService;
-import com.kronotop.server.SessionService;
+import com.kronotop.stash.StashContext;
+import com.kronotop.stash.StashService;
 import com.kronotop.task.TaskService;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.replication.ReplicationService;
 import com.kronotop.watcher.Watcher;
+import com.kronotop.zmap.ZMapService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import io.netty.util.Attribute;
@@ -117,28 +116,25 @@ public class KronotopInstance {
      * of registration is crucial due to dependencies between services.
      * <p>
      * After registering the services, the method starts the MembershipService
-     * and RedisService to initialize their functionalities.
+     * and StashService to initialize their functionalities.
      */
     private void registerKronotopServices() {
         // Registration sort is important here.
 
-        TaskService taskService = new TaskService(context);
-        context.registerService(TaskService.NAME, taskService);
-
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
 
-        CachedTimeService cachedTimeService = new CachedTimeService(context);
-        context.registerService(CachedTimeService.NAME, cachedTimeService);
+        CoreService baseService = new CoreService(context);
+        context.registerService(CoreService.NAME, baseService);
 
-        SessionService sessionService = new SessionService(context);
-        context.registerService(SessionService.NAME, sessionService);
+        TaskService taskService = new TaskService(context);
+        context.registerService(TaskService.NAME, taskService);
 
         MembershipService membershipService = new MembershipService(context);
         context.registerService(MembershipService.NAME, membershipService);
 
-        FoundationDBService foundationDBService = new FoundationDBService(context);
-        context.registerService(FoundationDBService.NAME, foundationDBService);
+        ZMapService zmapService = new ZMapService(context);
+        context.registerService(ZMapService.NAME, zmapService);
 
         NamespaceService namespaceService = new NamespaceService(context);
         context.registerService(NamespaceService.NAME, namespaceService);
@@ -152,19 +148,24 @@ public class KronotopInstance {
         ReplicationService replicationService = new ReplicationService(context);
         context.registerService(ReplicationService.NAME, replicationService);
 
-        RedisService redisService = new RedisService(context);
-        context.registerService(RedisService.NAME, redisService);
+        StashService stashService = null;
+        boolean stashServiceEnabled = config.getBoolean("stash.enabled");
+        if (stashServiceEnabled) {
+            stashService = new StashService(context);
+            context.registerService(StashService.NAME, stashService);
+        }
 
         BucketService bucketService = new BucketService(context);
         context.registerService(BucketService.NAME, bucketService);
 
-        cachedTimeService.start();
         membershipService.start();
         namespaceService.start();
         routingService.start();
         volumeService.start();
         replicationService.start();
-        redisService.start();
+        if (stashServiceEnabled) {
+            stashService.start();
+        }
         bucketService.start();
     }
 
@@ -191,7 +192,7 @@ public class KronotopInstance {
 
     /**
      * Initializes the context by creating a new instance of ContextImpl using the provided config,
-     * member, and database. It then registers the RedisContext as a child context in the main context.
+     * member, and database. It then registers the StashContext as a child context in the main context.
      */
     private void initializeContext() {
         context = new ContextImpl(config, member, database);
@@ -204,9 +205,9 @@ public class KronotopInstance {
 
         // Register child contexts here.
 
-        // RedisContext
-        RedisContext redisContext = new RedisContext(context);
-        context.registerServiceContext(RedisService.NAME, redisContext);
+        // StashContext
+        StashContext stashContext = new StashContext(context);
+        context.registerServiceContext(StashService.NAME, stashContext);
 
         // BucketContext
         BucketContext bucketContext = new BucketContext(context);
@@ -265,10 +266,10 @@ public class KronotopInstance {
     private void initializeDirectoryLayout() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             KronotopDirectoryNode cluster = KronotopDirectory.kronotop().cluster(context.getClusterName());
-            DirectoryLayer.getDefault().createOrOpen(tr, cluster.toList()).join();
+            context.getDirectoryLayer().createOrOpen(tr, cluster.toList()).join();
 
             KronotopDirectoryNode prefixes = KronotopDirectory.kronotop().cluster(context.getClusterName()).metadata().prefixes();
-            DirectoryLayer.getDefault().createOrOpen(tr, prefixes.toList()).join();
+            context.getDirectoryLayer().createOrOpen(tr, prefixes.toList()).join();
 
             String defaultNamespace = context.getConfig().getString("default_namespace");
             try {
@@ -362,8 +363,8 @@ public class KronotopInstance {
      * This method shuts down the Kronotop instance by performing the following steps:
      * 1. Checks the current status of the Kronotop instance. If it is already in the STOPPED status, returns immediately.
      * 2. Logs the shutdown message.
-     * 3. Iterates over the list of services in the context and shuts down each service by calling its "shutdown" method. If any service throws an exception during shutdown, logs
-     * an error message and continues with the next service.
+     * 3. Iterates over the list of services in the context and shuts down each service by calling its "shutdown" method.
+     * If any service throws an exception during shutdown, it logs an error message and continues with the next service.
      * 4. Closes the FoundationDB connection.
      * 5. Sets the status of the Kronotop instance to STOPPED.
      * </p>
@@ -371,7 +372,7 @@ public class KronotopInstance {
     public synchronized void shutdown() {
         if (context == null) {
             // Even context has not been set. Quit now. There is nothing to do. Possible error:
-            // com.apple.foundationdb.FDBException: No cluster file found in current directory or default location
+            // com.apple.foundationdb.FDBException: No cluster file found in the current directory or default location
             return;
         }
 
@@ -386,13 +387,25 @@ public class KronotopInstance {
         // Previously submitted tasks are executed, but no new tasks will be accepted.
         context.getVirtualThreadPerTaskExecutor().shutdown();
 
+        // Shut down TaskService first, so running tasks stop before
+        // VolumeService closes volumes and segment file channels.
+        try {
+            KronotopService taskService = context.getService(TaskService.NAME);
+            LOGGER.debug("{} service has been shutting down", taskService.getName());
+            taskService.shutdown();
+        } catch (Exception e) {
+            LOGGER.error("{} service cannot be closed due to errors", TaskService.NAME, e);
+        }
+
         for (KronotopService service : context.getServices().reversed()) {
+            if (service.getName().equals(TaskService.NAME)) {
+                continue; // Already shut down above
+            }
             try {
                 LOGGER.debug("{} service has been shutting down", service.getName());
                 service.shutdown();
             } catch (Exception e) {
                 LOGGER.error("{} service cannot be closed due to errors", service.getName(), e);
-                continue;
             }
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,7 +20,9 @@ import com.kronotop.Context;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SessionAttributes;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import io.netty.buffer.Unpooled;
+
+import java.nio.charset.StandardCharsets;
 
 class CurrentSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
@@ -35,6 +37,6 @@ class CurrentSubcommand extends BaseSubcommand implements SubcommandExecutor {
             response.writeError("current namespace is empty, blank or null");
             return;
         }
-        response.writeRedisMessage(new SimpleStringRedisMessage(namespace));
+        response.write(Unpooled.wrappedBuffer(namespace.getBytes(StandardCharsets.UTF_8)));
     }
 }

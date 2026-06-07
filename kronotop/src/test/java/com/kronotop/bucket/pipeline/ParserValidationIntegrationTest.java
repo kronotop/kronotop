@@ -18,7 +18,8 @@ package com.kronotop.bucket.pipeline;
 
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.bql.BqlParseException;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
@@ -32,10 +33,10 @@ class ParserValidationIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-reject-null-comparison";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
-        assertThrows(BqlParseException.class, () -> createExecutionPlan(metadata, "{'age': {'$gt': null}}"));
-        assertThrows(BqlParseException.class, () -> createExecutionPlan(metadata, "{'age': {'$gte': null}}"));
-        assertThrows(BqlParseException.class, () -> createExecutionPlan(metadata, "{'age': {'$lt': null}}"));
-        assertThrows(BqlParseException.class, () -> createExecutionPlan(metadata, "{'age': {'$lte': null}}"));
+        assertThrows(BqlParseException.class, () -> createPlanWithParams(metadata, "{'age': {'$gt': null}}"));
+        assertThrows(BqlParseException.class, () -> createPlanWithParams(metadata, "{'age': {'$gte': null}}"));
+        assertThrows(BqlParseException.class, () -> createPlanWithParams(metadata, "{'age': {'$lt': null}}"));
+        assertThrows(BqlParseException.class, () -> createPlanWithParams(metadata, "{'age': {'$lte': null}}"));
     }
 
     @Test
@@ -43,21 +44,21 @@ class ParserValidationIntegrationTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-accept-null-operators";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
-        assertDoesNotThrow(() -> createExecutionPlan(metadata, "{'age': {'$eq': null}}"));
-        assertDoesNotThrow(() -> createExecutionPlan(metadata, "{'age': {'$ne': null}}"));
-        assertDoesNotThrow(() -> createExecutionPlan(metadata, "{'age': {'$in': [null, 20]}}"));
-        assertDoesNotThrow(() -> createExecutionPlan(metadata, "{'age': {'$nin': [null, 20]}}"));
-        assertDoesNotThrow(() -> createExecutionPlan(metadata, "{'age': {'$all': [null, 20]}}"));
+        assertDoesNotThrow(() -> createPlanWithParams(metadata, "{'age': {'$eq': null}}"));
+        assertDoesNotThrow(() -> createPlanWithParams(metadata, "{'age': {'$ne': null}}"));
+        assertDoesNotThrow(() -> createPlanWithParams(metadata, "{'age': {'$in': [null, 20]}}"));
+        assertDoesNotThrow(() -> createPlanWithParams(metadata, "{'age': {'$nin': [null, 20]}}"));
+        assertDoesNotThrow(() -> createPlanWithParams(metadata, "{'age': {'$all': [null, 20]}}"));
     }
 
     @Test
     void shouldRejectRangeScanWithNullBoundaries() {
         final String TEST_BUCKET_NAME = "test-bucket-rangescan-null-boundaries";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         assertThrows(BqlParseException.class, () ->
-                createExecutionPlan(metadata, "{ 'age': { '$gt': null, '$lt': null } }"));
+                createPlanWithParams(metadata, "{ 'age': { '$gt': null, '$lt': null } }"));
     }
 }

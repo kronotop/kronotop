@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,47 +22,41 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
-import com.kronotop.TestUtil;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.*;
 import org.bson.BsonInt32;
 import org.bson.BsonNull;
 import org.bson.BsonType;
 import org.bson.BsonValue;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
 
     @Test
-    void shouldSetHintForStats_whenValueMatches() {
-        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-index-stats-set-matching");
-        IndexDefinition definition = IndexDefinition.create("test_index", "field", BsonType.INT32);
+    void shouldStoreHintWhenValuePassesProbabilisticSelector() {
+        // Behavior: setHintForStats(tr, index, objectId, value) stores an ObjectId in STAT_HINTS
+        // subspace when the value passes the probabilistic selector.
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-matching-value");
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
         Index index = new Index(definition, subspace);
 
-        // Use BsonNull which always matches (hash = 0, 0 & 0x3FFF = 0)
+        // BsonNull always matches the probabilistic selector (hash = 0, 0 & 0x3FFF = 0)
         BsonValue matchingValue = BsonNull.VALUE;
         assertTrue(ProbabilisticSelector.match(matchingValue), "BsonNull should match");
 
-        CompletableFuture<byte[]> future = null;
-        int userVersion = 1;
+        ObjectId objectId = new ObjectId();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            future = tr.getVersionstamp();
-            IndexStatsBuilder.setHintForStats(tr, userVersion, index, matchingValue);
+            IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray(), matchingValue);
             tr.commit().join();
         }
-        Versionstamp versionstamp = Versionstamp.complete(future.join(), userVersion);
 
-        // Verify the key was set
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), versionstamp);
+            Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
             byte[] expectedKey = subspace.pack(expectedTuple);
 
             byte[] value = tr.get(expectedKey).join();
@@ -72,54 +66,49 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldNotSetHintForStats_whenValueDoesNotMatch() {
-        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-index-stats-set-non-matching");
-        IndexDefinition definition = IndexDefinition.create("test_index", "field", BsonType.INT32);
+    void shouldNotStoreHintWhenValueFailsProbabilisticSelector() {
+        // Behavior: setHintForStats(tr, index, objectId, value) does not store anything when
+        // the value fails the probabilistic selector.
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-non-matching-value");
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
         Index index = new Index(definition, subspace);
 
-        // Find a value that doesn't match
         BsonValue nonMatchingValue = new BsonInt32(1);
         assertFalse(ProbabilisticSelector.match(nonMatchingValue), "BsonInt32(1) should not match");
 
-        int userVersion = 1;
+        ObjectId objectId = new ObjectId();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexStatsBuilder.setHintForStats(tr, userVersion, index, nonMatchingValue);
+            IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray(), nonMatchingValue);
             tr.commit().join();
         }
 
-        // Verify no key was set - scan the entire STAT_HINTS prefix
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Tuple prefixTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue());
             byte[] prefix = subspace.pack(prefixTuple);
 
             KeySelector begin = KeySelector.firstGreaterThan(prefix);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-            // Check that no keys exist with STAT_HINTS prefix
             List<KeyValue> results = tr.getRange(begin, end, 1).asList().join();
             assertTrue(results.isEmpty(), "No hint keys should exist when value does not match");
         }
     }
 
     @Test
-    void shouldInsertHintForStats_whenValueMatches() {
-        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-index-stats-insert-matching");
-        IndexDefinition definition = IndexDefinition.create("test_index", "field", BsonType.INT32);
+    void shouldStoreHintUnconditionallyWithoutValueParameter() {
+        // Behavior: setHintForStats(tr, index, objectId) stores an ObjectId in STAT_HINTS
+        // subspace unconditionally, bypassing the probabilistic selector.
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-unconditional");
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
         Index index = new Index(definition, subspace);
 
-        // Use BsonNull which always matches
-        BsonValue matchingValue = BsonNull.VALUE;
-        assertTrue(ProbabilisticSelector.match(matchingValue), "BsonNull should match");
-
-        Versionstamp versionstamp = TestUtil.generateVersionstamp(42);
-
+        ObjectId objectId = new ObjectId();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, matchingValue);
+            IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray());
             tr.commit().join();
         }
 
-        // Verify the key was set
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), versionstamp);
+            Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
             byte[] expectedKey = subspace.pack(expectedTuple);
 
             byte[] value = tr.get(expectedKey).join();
@@ -129,97 +118,135 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldNotInsertHintForStats_whenValueDoesNotMatch() {
-        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-index-stats-insert-non-matching");
-        IndexDefinition definition = IndexDefinition.create("test_index", "field", BsonType.INT32);
+    void shouldUseCorrectKeyStructure() {
+        // Behavior: setHintForStats creates a key with structure (STAT_HINTS, ObjectId bytes).
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-key-structure");
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.STRING, false, IndexStatus.WAITING);
         Index index = new Index(definition, subspace);
 
-        // Find a value that doesn't match
-        BsonValue nonMatchingValue = new BsonInt32(1);
-        assertFalse(ProbabilisticSelector.match(nonMatchingValue), "BsonInt32(1) should not match");
-
-        Versionstamp versionstamp = TestUtil.generateVersionstamp(42);
-
+        ObjectId objectId = new ObjectId();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, nonMatchingValue);
+            IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray());
             tr.commit().join();
         }
 
-        // Verify no key was set - scan the entire STAT_HINTS prefix
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
+            byte[] expectedKey = subspace.pack(expectedTuple);
+
+            byte[] value = tr.get(expectedKey).join();
+            assertNotNull(value, "Key with expected structure should exist");
+
+            Tuple unpackedTuple = subspace.unpack(expectedKey);
+            assertEquals(2, unpackedTuple.size(), "Tuple should have 2 elements");
+            assertEquals(IndexSubspaceMagic.STAT_HINTS.getValue(), unpackedTuple.getLong(0), "First element should be STAT_HINTS");
+            assertArrayEquals(objectId.toByteArray(), unpackedTuple.getBytes(1), "Second element should be ObjectId bytes");
+        }
+    }
+
+    /**
+     * Finds an ObjectId whose bytes pass ProbabilisticSelector.match(byte[]).
+     */
+    private ObjectId findMatchingObjectId() {
+        for (int i = 0; i < 1_000_000; i++) {
+            ObjectId candidate = new ObjectId();
+            if (ProbabilisticSelector.match(candidate.toByteArray())) {
+                return candidate;
+            }
+        }
+        throw new AssertionError("Could not find a matching ObjectId within 1M attempts");
+    }
+
+    /**
+     * Finds an ObjectId whose bytes do NOT pass ProbabilisticSelector.match(byte[]).
+     */
+    private ObjectId findNonMatchingObjectId() {
+        for (int i = 0; i < 100; i++) {
+            ObjectId candidate = new ObjectId();
+            if (!ProbabilisticSelector.match(candidate.toByteArray())) {
+                return candidate;
+            }
+        }
+        throw new AssertionError("Could not find a non-matching ObjectId within 100 attempts");
+    }
+
+    @Test
+    void shouldStoreHintWhenObjectIdPassesByteArraySelector() {
+        // Behavior: setHintForStatsIfSelected stores an ObjectId in STAT_HINTS when the ObjectId
+        // bytes pass the probabilistic selector.
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-if-selected-match");
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        Index index = new Index(definition, subspace);
+
+        ObjectId objectId = findMatchingObjectId();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexStatsBuilder.setHintForStatsIfSelected(tr, index, objectId.toByteArray());
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
+            byte[] expectedKey = subspace.pack(expectedTuple);
+
+            byte[] value = tr.get(expectedKey).join();
+            assertNotNull(value, "Hint key should exist when ObjectId bytes match");
+            assertEquals(0, value.length, "Hint value should be empty");
+        }
+    }
+
+    @Test
+    void shouldNotStoreHintWhenObjectIdFailsByteArraySelector() {
+        // Behavior: setHintForStatsIfSelected does not store anything when the ObjectId bytes
+        // fail the probabilistic selector.
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-if-selected-no-match");
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
+        Index index = new Index(definition, subspace);
+
+        ObjectId objectId = findNonMatchingObjectId();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexStatsBuilder.setHintForStatsIfSelected(tr, index, objectId.toByteArray());
+            tr.commit().join();
+        }
+
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Tuple prefixTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue());
             byte[] prefix = subspace.pack(prefixTuple);
 
-            // Check that no keys exist with STAT_HINTS prefix
             KeySelector begin = KeySelector.firstGreaterThan(prefix);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
             List<KeyValue> results = tr.getRange(begin, end, 1).asList().join();
-            assertTrue(results.isEmpty(), "No hint keys should exist when value does not match");
+            assertTrue(results.isEmpty(), "No hint keys should exist when ObjectId bytes do not match");
         }
     }
 
     @Test
-    void shouldUseCorrectKeyStructure_forSetHintForStats() {
-        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-key-structure-set");
-        IndexDefinition definition = IndexDefinition.create("test_index", "field", BsonType.STRING);
-        Index index = new Index(definition, subspace);
+    void shouldStoreHintForCompoundIndex() {
+        // Behavior: setHintForStats works with CompoundIndex (via IndexHolder interface),
+        // producing the same key structure as single-field indexes.
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-compound-index");
+        CompoundIndexDefinition definition = CompoundIndexDefinition.create(
+                "test_compound",
+                List.of(
+                        new CompoundIndexField("name", BsonType.STRING, false),
+                        new CompoundIndexField("age", BsonType.INT32, false)
+                ),
+                IndexStatus.WAITING
+        );
+        CompoundIndex compoundIndex = new CompoundIndex(definition, subspace);
 
-        BsonValue matchingValue = BsonNull.VALUE;
-        int userVersion = 123;
-
-        CompletableFuture<byte[]> future = null;
+        ObjectId objectId = new ObjectId();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            future = tr.getVersionstamp();
-            IndexStatsBuilder.setHintForStats(tr, userVersion, index, matchingValue);
-            tr.commit().join();
-        }
-        Versionstamp completedVersionstamp = Versionstamp.complete(future.join(), userVersion);
-
-        // Verify key structure: STAT_HINTS magic byte + versionstamp
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), completedVersionstamp);
-            byte[] expectedKey = subspace.pack(expectedTuple);
-
-            // Verify the key exists and matches expected structure
-            byte[] value = tr.get(expectedKey).join();
-            assertNotNull(value, "Key with expected structure should exist");
-
-            // Unpack and verify tuple structure
-            Tuple unpackedTuple = subspace.unpack(expectedKey);
-            assertEquals(2, unpackedTuple.size(), "Tuple should have 2 elements");
-            assertEquals(IndexSubspaceMagic.STAT_HINTS.getValue(), unpackedTuple.getLong(0), "First element should be STAT_HINTS");
-            assertEquals(completedVersionstamp, unpackedTuple.getVersionstamp(1), "Second element should be versionstamp");
-        }
-    }
-
-    @Test
-    void shouldUseCorrectKeyStructure_forInsertHintForStats() {
-        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-key-structure-insert");
-        IndexDefinition definition = IndexDefinition.create("test_index", "field", BsonType.STRING);
-        Index index = new Index(definition, subspace);
-
-        BsonValue matchingValue = BsonNull.VALUE;
-        Versionstamp versionstamp = TestUtil.generateVersionstamp(456);
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexStatsBuilder.insertHintForStats(tr, versionstamp, index, matchingValue);
+            IndexStatsBuilder.setHintForStats(tr, compoundIndex, objectId.toByteArray());
             tr.commit().join();
         }
 
-        // Verify key structure: STAT_HINTS magic byte + versionstamp
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), versionstamp);
+            Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
             byte[] expectedKey = subspace.pack(expectedTuple);
 
-            // Verify the key exists and matches expected structure
             byte[] value = tr.get(expectedKey).join();
-            assertNotNull(value, "Key with expected structure should exist");
-
-            // Unpack and verify tuple structure
-            Tuple unpackedTuple = subspace.unpack(expectedKey);
-            assertEquals(2, unpackedTuple.size(), "Tuple should have 2 elements");
-            assertEquals(IndexSubspaceMagic.STAT_HINTS.getValue(), unpackedTuple.getLong(0), "First element should be STAT_HINTS");
-            assertEquals(versionstamp, unpackedTuple.getVersionstamp(1), "Second element should be versionstamp");
+            assertNotNull(value, "Hint key should exist for compound index");
+            assertEquals(0, value.length, "Hint value should be empty");
         }
     }
 }

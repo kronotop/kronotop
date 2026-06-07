@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,5 +21,9 @@ import com.apple.foundationdb.tuple.Versionstamp;
 public class KeyNotFoundException extends Exception {
     public KeyNotFoundException(Versionstamp key) {
         super("Key not found: " + key);
+    }
+
+    public KeyNotFoundException(EntryMetadata metadata) {
+        super("Entry not found for metadata: segmentId=" + metadata.segmentId() + ", position=" + metadata.position());
     }
 }

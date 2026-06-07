@@ -21,7 +21,8 @@ services:
       - "3320:3320/tcp"
     environment:
       FDB_COORDINATOR: foundationdb
-      FDB_API_VERSION: 510
+      FDB_API_VERSION: 630
+      KRONOTOP_BOOTSTRAP: "--primary BUCKET kronotop:3320=0"
     platform: "linux/amd64"
 
 volumes:

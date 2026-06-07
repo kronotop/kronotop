@@ -17,6 +17,7 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -42,19 +42,19 @@ class SizeOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['python'], 'name': 'Charlie'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // $size: match documents where tags array has exactly 2 elements
-        PipelineNode plan = createExecutionPlan(metadata, "{'tags': {'$size': 2}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$size': 2}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -76,19 +76,19 @@ class SizeOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['java'], 'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // $size: match documents where tags array is empty
-        PipelineNode plan = createExecutionPlan(metadata, "{'tags': {'$size': 0}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$size': 0}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -109,19 +109,19 @@ class SizeOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['rust'], 'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // No document has exactly 3 tags
-        PipelineNode plan = createExecutionPlan(metadata, "{'tags': {'$size': 3}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$size': 3}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -139,19 +139,19 @@ class SizeOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // $size on a non-array field should not match
-        PipelineNode plan = createExecutionPlan(metadata, "{'name': {'$size': 5}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'name': {'$size': 5}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -169,19 +169,19 @@ class SizeOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // $size on a missing field should not match
-        PipelineNode plan = createExecutionPlan(metadata, "{'tags': {'$size': 0}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$size': 0}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -200,18 +200,18 @@ class SizeOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['go'], 'status': 'active', 'name': 'Charlie'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Match documents with exactly 2 tags AND status = 'active'
-        PipelineNode plan = createExecutionPlan(metadata, "{'$and': [{'tags': {'$size': 2}}, {'status': 'active'}]}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'$and': [{'tags': {'$size': 2}}, {'status': 'active'}]}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -234,18 +234,18 @@ class SizeOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['rust', 'c', 'cpp'], 'name': 'Charlie'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Match documents with exactly 1 tag OR exactly 3 tags
-        PipelineNode plan = createExecutionPlan(metadata, "{'$or': [{'tags': {'$size': 1}}, {'tags': {'$size': 3}}]}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'$or': [{'tags': {'$size': 1}}, {'tags': {'$size': 3}}]}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 

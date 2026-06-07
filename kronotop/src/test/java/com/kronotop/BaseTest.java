@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,11 +37,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 public class BaseTest {
-    private static final ReentrantLock lock = new ReentrantLock(true);
     private final String clusterName = UUID.randomUUID().toString();
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 
@@ -63,29 +61,24 @@ public class BaseTest {
      * @throws IllegalStateException if no response is received within 10 seconds.
      */
     public static Object runCommand(EmbeddedChannel channel, ByteBuf buf) {
-        lock.lock();
-        try {
-            channel.writeInbound(buf);
-            long start = System.currentTimeMillis();
-            while (true) {
-                channel.flush();
-                Object response = channel.readOutbound();
-                if (response == null) {
-                    try {
-                        TimeUnit.MILLISECONDS.sleep(10);
-                    } catch (InterruptedException ignored) {
-                        Thread.currentThread().interrupt();
-                        return null;
-                    }
-                    if ((System.currentTimeMillis() - start) / 1000.0 >= 10.0) {
-                        throw new IllegalStateException("No response received in 10 seconds");
-                    }
-                    continue;
+        channel.writeInbound(buf);
+        long start = System.currentTimeMillis();
+        while (true) {
+            channel.flush();
+            Object response = channel.readOutbound();
+            if (response == null) {
+                try {
+                    TimeUnit.MILLISECONDS.sleep(10);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                    return null;
                 }
-                return response;
+                if ((System.currentTimeMillis() - start) / 1000.0 >= 10.0) {
+                    throw new IllegalStateException("No response received in 10 seconds");
+                }
+                continue;
             }
-        } finally {
-            lock.unlock();
+            return response;
         }
     }
 
@@ -95,10 +88,10 @@ public class BaseTest {
     }
 
     protected Member createMemberWithEphemeralPort() throws UnknownHostException {
-        String externalAddressString = String.format("localhost:[%s]", getEphemeralTCPPort());
+        String externalAddressString = String.format("localhost:%s", getEphemeralTCPPort());
         Address externalAddress = Address.parseString(externalAddressString);
 
-        String internalAddressString = String.format("localhost:[%s]", getEphemeralTCPPort());
+        String internalAddressString = String.format("localhost:%s", getEphemeralTCPPort());
         Address internalAddress = Address.parseString(internalAddressString);
 
         Versionstamp processId = processIdGenerator.getProcessID();
@@ -110,6 +103,10 @@ public class BaseTest {
         Config preConfig = ConfigFactory.load(resourceName);
         Map<String, ConfigValue> map = preConfig.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         map.put("cluster.name", ConfigValueFactory.fromAnyRef(clusterName));
+        // Scope the FoundationDB DirectoryLayer per test (the factory reduces this to a short
+        // SipHash digest) so concurrent test instances never share the global directory node
+        // subspace, allocator or parent metadata.
+        map.put("directory.root", ConfigValueFactory.fromAnyRef(clusterName));
         map.put("data_dir", ConfigValueFactory.fromAnyRef(redisIntegrationTestsTempDir.toString()));
         return ConfigFactory.parseMap(map);
     }

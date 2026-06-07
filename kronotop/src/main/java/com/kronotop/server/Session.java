@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -53,16 +53,6 @@ public class Session {
         this.channel = ctx.channel();
 
         initialize();
-    }
-
-    /**
-     * Generates and returns the next unique cursor identifier for the session.
-     * The value is incremented atomically, ensuring thread-safe operations.
-     *
-     * @return the next integer value representing the cursor identifier
-     */
-    public int nextCursorId() {
-        return cursorId.getAndIncrement();
     }
 
     /**
@@ -95,6 +85,16 @@ public class Session {
         return channel.attr(SessionAttributes.SESSION).get();
     }
 
+    /**
+     * Generates and returns the next unique cursor identifier for the session.
+     * The value is incremented atomically, ensuring thread-safe operations.
+     *
+     * @return the next integer value representing the cursor identifier
+     */
+    public int nextCursorId() {
+        return cursorId.getAndIncrement();
+    }
+
     public Long getClientId() {
         return channel.attr(SessionAttributes.CLIENT_ID).get();
     }
@@ -110,21 +110,12 @@ public class Session {
         channel.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).set(new HashMap<>());
         channel.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).set(new HashMap<>());
         channel.attr(SessionAttributes.READONLY).set(false);
-        channel.attr(SessionAttributes.QUEUED_COMMANDS).set(new LinkedList<>());
+        channel.attr(SessionAttributes.QUEUED_COMMANDS).set(new ArrayList<>());
         channel.attr(SessionAttributes.MULTI).set(false);
         channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
+        channel.attr(SessionAttributes.POST_COMMIT_HOOKS).set(new ArrayList<>());
 
-        String replyType = context.getConfig().getString("session_attributes.reply_type");
-        channel.attr(SessionAttributes.REPLY_TYPE).set(ReplyType.valueOf(replyType.toUpperCase()));
-
-        String inputType = context.getConfig().getString("session_attributes.input_type");
-        channel.attr(SessionAttributes.INPUT_TYPE).set(InputType.valueOf(inputType.toUpperCase()));
-
-        Integer bucketBatchSize = context.getConfig().getInt("session_attributes.limit");
-        channel.attr(SessionAttributes.LIMIT).set(bucketBatchSize);
-
-        Boolean pinReadVersion = context.getConfig().getBoolean("session_attributes.pin_read_version");
-        channel.attr(SessionAttributes.PIN_READ_VERSION).set(pinReadVersion);
+        resetSessionAttributes();
     }
 
     /**
@@ -145,8 +136,7 @@ public class Session {
             throw new KronotopException("Transaction already set");
         }
         attr(SessionAttributes.BEGIN).set(true);
-        attr(SessionAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
-        attr(SessionAttributes.ASYNC_RETURNING).set(new LinkedList<>());
+        attr(SessionAttributes.POST_COMMIT_HOOKS).set(new ArrayList<>());
         attr(SessionAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
         attr(SessionAttributes.TRANSACTION).set(tr);
     }
@@ -204,7 +194,7 @@ public class Session {
     public void cleanupIfAutoCommitEnabled() {
         Attribute<Boolean> autoCommitAttr = attr(SessionAttributes.AUTO_COMMIT);
         if (Boolean.TRUE.equals(autoCommitAttr.get())) {
-            unsetTransaction();
+            closeAndCleanupTransaction();
         }
     }
 
@@ -224,19 +214,17 @@ public class Session {
      * - Sets the {@code SessionAttributes.BEGIN} attribute to {@code false} indicating that no transaction
      * is currently active.
      * - Sets the {@code SessionAttributes.AUTO_COMMIT} attribute to {@code false} disabling auto-commit mode.
-     * - Resets the {@code SessionAttributes.POST_COMMIT_HOOKS} attribute to an empty {@code LinkedList}.
-     * - Resets the {@code SessionAttributes.ASYNC_RETURNING} attribute to an empty {@code LinkedList}.
+     * - Resets the {@code SessionAttributes.POST_COMMIT_HOOKS} attribute to an empty {@code ArrayList}.
      * - Resets the {@code SessionAttributes.USER_VERSION_COUNTER} attribute to a new {@code AtomicInteger}.
      * <p>
      * This method is typically called when a transaction needs to be explicitly terminated, ensuring the session
      * is cleaned up and ready for subsequent operations without leftover stale transaction state.
      */
-    public void unsetTransaction() {
+    public void closeAndCleanupTransaction() {
         closeTransactionIfAny();
         attr(SessionAttributes.BEGIN).set(false);
         attr(SessionAttributes.AUTO_COMMIT).set(false);
-        attr(SessionAttributes.POST_COMMIT_HOOKS).set(new LinkedList<>());
-        attr(SessionAttributes.ASYNC_RETURNING).set(new LinkedList<>());
+        attr(SessionAttributes.POST_COMMIT_HOOKS).set(new ArrayList<>());
         attr(SessionAttributes.USER_VERSION_COUNTER).set(new AtomicInteger());
     }
 
@@ -258,5 +246,47 @@ public class Session {
      */
     public RESPVersion protocolVersion() {
         return protocolVersion;
+    }
+
+    /**
+     * Resets the cursor ID counter to 1.
+     */
+    public void resetCursorId() {
+        cursorId.set(1);
+    }
+
+    /**
+     * Resets all configurable session attributes to their default values from the configuration.
+     */
+    public void resetSessionAttributes() {
+        String replyType = context.getConfig().getString("session_attributes.reply_type");
+        channel.attr(SessionAttributes.REPLY_TYPE).set(ReplyType.valueOf(replyType.toUpperCase()));
+
+        String inputType = context.getConfig().getString("session_attributes.input_type");
+        channel.attr(SessionAttributes.INPUT_TYPE).set(InputType.valueOf(inputType.toUpperCase()));
+
+        Integer limit = context.getConfig().getInt("session_attributes.limit");
+        channel.attr(SessionAttributes.LIMIT).set(limit);
+
+        String objectIdFormat = context.getConfig().getString("bucket.object_id_format");
+        channel.attr(SessionAttributes.OBJECT_ID_FORMAT).set(ObjectIdFormat.valueOf(objectIdFormat.toUpperCase()));
+    }
+
+    /**
+     * Clears all cursor maps (read, delete, update query contexts).
+     */
+    public void clearCursors() {
+        channel.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().clear();
+        channel.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().clear();
+        channel.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get().clear();
+    }
+
+    /**
+     * Resets Redis MULTI transaction state.
+     */
+    public void resetRedisTransactionState() {
+        channel.attr(SessionAttributes.MULTI).set(false);
+        channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
+        channel.attr(SessionAttributes.QUEUED_COMMANDS).set(new ArrayList<>());
     }
 }

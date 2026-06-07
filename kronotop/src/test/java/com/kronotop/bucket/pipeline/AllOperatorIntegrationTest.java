@@ -17,18 +17,22 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class AllOperatorIntegrationTest extends BasePipelineTest {
+
     @Test
     void shouldMatchArrayContainingAllValues() {
         final String TEST_BUCKET_NAME = "test-bucket-all-operator";
@@ -41,19 +45,19 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['python', 'go'], 'name': 'Charlie'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // $all: match documents where tags contains ALL of ['java', 'python']
-        PipelineNode plan = createExecutionPlan(metadata, "{'tags': {'$all': ['java', 'python']}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$all': ['java', 'python']}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -75,19 +79,19 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['python', 'go'], 'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Neither document has both 'java' AND 'python'
-        PipelineNode plan = createExecutionPlan(metadata, "{'tags': {'$all': ['java', 'python']}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$all': ['java', 'python']}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -105,19 +109,19 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['rust', 'go'], 'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Single value $all - equivalent to checking if array contains the value
-        PipelineNode plan = createExecutionPlan(metadata, "{'tags': {'$all': ['java']}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$all': ['java']}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -139,19 +143,19 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'scores': [20, 30, 40], 'name': 'Charlie'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Match documents with both 10 AND 20 in scores
-        PipelineNode plan = createExecutionPlan(metadata, "{'scores': {'$all': [10, 20]}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'scores': {'$all': [10, 20]}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -175,19 +179,19 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'matrix': [['X', 'Y']], 'name': 'Charlie'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Match documents where matrix contains ['A', 'B'] as an element
-        PipelineNode plan = createExecutionPlan(metadata, "{'matrix': {'$all': [['A', 'B']]}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'matrix': {'$all': [['A', 'B']]}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -211,20 +215,20 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['java', 'rust'], 'status': 'active', 'name': 'Charlie'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Match documents with both 'java' AND 'python' in tags AND status = 'active'
-        PipelineNode plan = createExecutionPlan(metadata,
+        PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$and': [{'tags': {'$all': ['java', 'python']}}, {'status': 'active'}]}");
-        assertInstanceOf(FullScanNode.class, plan);
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -247,18 +251,18 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'user': {'skills': ['python']}, 'name': 'Charlie'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'user.skills': {'$all': ['java', 'python']}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'user.skills': {'$all': ['java', 'python']}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -280,19 +284,19 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tag': 'python', 'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // $all on a non-array field should not match
-        PipelineNode plan = createExecutionPlan(metadata, "{'tag': {'$all': ['java']}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tag': {'$all': ['java']}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -310,19 +314,19 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // $all on missing field should not match
-        PipelineNode plan = createExecutionPlan(metadata, "{'tags': {'$all': ['java']}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$all': ['java']}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -344,24 +348,59 @@ class AllOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'tags': ['rust', 'go'], 'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Duplicate 'java' in $all should still work
-        PipelineNode plan = createExecutionPlan(metadata, "{'tags': {'$all': ['java', 'java']}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$all': ['java', 'java']}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
         List<String> expectedResult = List.of(
                 "{\"tags\": [\"java\", \"python\"], \"name\": \"Alice\"}"
+        );
+        assertEquals(expectedResult, actualResult);
+    }
+
+    @Test
+    void shouldWorkWithIndexedField() {
+        // Behavior: $all on a field with an index should fall back to FullScanNode and return correct results.
+        final String TEST_BUCKET_NAME = "test-bucket-all-indexed";
+
+        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
+
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'tags': ['java', 'python', 'go'], 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'tags': ['java', 'rust'], 'name': 'Bob'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'tags': ['python', 'go'], 'name': 'Charlie'}")
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$all': ['java', 'python']}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
+        QueryOptions config = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
+
+        List<String> actualResult = new ArrayList<>();
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
+            }
+        }
+
+        List<String> expectedResult = List.of(
+                "{\"tags\": [\"java\", \"python\", \"go\"], \"name\": \"Alice\"}"
         );
         assertEquals(expectedResult, actualResult);
     }

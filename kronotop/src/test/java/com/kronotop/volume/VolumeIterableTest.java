@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,14 +35,14 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -61,7 +61,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
                 // Verify entry data matches
                 ByteBuffer expected = entries[i];
                 expected.flip();
-                assertArrayEquals(expected.array(), volumeEntry.entry().array());
+                assertEquals(expected, volumeEntry.entry());
 
                 // Verify metadata is present and decodable
                 assertNotNull(volumeEntry.metadata());
@@ -74,7 +74,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldReturnEmptyIteratorWhenNoEntries() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -92,7 +92,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -100,7 +100,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         int limit = 2;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session, limit);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -123,14 +123,14 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session, true);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -153,7 +153,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -161,7 +161,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         // Filter to get entries at indices 1, 2 (index 1 to 3 exclusive)
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[1]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[3]);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end);
@@ -183,7 +183,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -191,7 +191,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         // firstGreaterThan excludes the begin key
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterThan(versionstampedKeys[1]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[4]);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end);
@@ -214,7 +214,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -222,7 +222,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         // Both firstGreaterThan: excludes begin, includes up to but not including end
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterThan(versionstampedKeys[0]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterThan(versionstampedKeys[3]);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end);
@@ -245,14 +245,14 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(3);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             result.getVersionstampedKeys();
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session);
 
             for (VolumeEntry volumeEntry : iterable) {
@@ -278,7 +278,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -286,7 +286,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         int limit = 2;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             Iterable<VolumeEntry> iterable = volume.getRange(session, limit, true);
 
             List<VolumeEntry> retrievedEntries = new ArrayList<>();
@@ -307,7 +307,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
 
         Versionstamp[] versionstampedKeys;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();
             versionstampedKeys = result.getVersionstampedKeys();
@@ -316,7 +316,7 @@ class VolumeIterableTest extends BaseVolumeIntegrationTest {
         // Range covers indices 1, 2, 3 but limit to 2
         int limit = 2;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VolumeSession session = new VolumeSession(tr, redisVolumeSyncerPrefix);
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             VersionstampedKeySelector begin = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[1]);
             VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(versionstampedKeys[4]);
             Iterable<VolumeEntry> iterable = volume.getRange(session, begin, end, limit);

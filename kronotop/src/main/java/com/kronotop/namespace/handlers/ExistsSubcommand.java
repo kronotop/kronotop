@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ package com.kronotop.namespace.handlers;
 
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
-import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
 import com.kronotop.namespace.NamespaceUtil;
+import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;

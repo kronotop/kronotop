@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -23,12 +23,22 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceTask;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskKind;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
+import io.netty.buffer.ByteBuf;
+import org.bson.BsonDocument;
+import org.bson.types.ObjectId;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +53,10 @@ public class TestUtil {
         byte[] trVersion = new byte[10];
         random.nextBytes(trVersion);
         return Versionstamp.complete(trVersion, userVersion);
+    }
+
+    public static Versionstamp generateIncompleteVersionstamp(int userVersion) {
+        return Versionstamp.incomplete(userVersion);
     }
 
     public static Versionstamp findIndexMaintenanceTaskId(Context context, DirectorySubspace taskSubspace, IndexMaintenanceTaskKind kind) {
@@ -73,5 +87,44 @@ public class TestUtil {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             return tr.getRange(begin, end).asList().join();
         }
+    }
+
+    /**
+     * Extracts ObjectIds from an ArrayRedisMessage containing FullBulkStringRedisMessage children.
+     * Used for parsing, insert command responses which return ObjectIds as raw bytes.
+     *
+     * @param arrayMessage the response from BUCKET.INSERT command
+     * @return list of ObjectIds extracted from the response
+     */
+    public static List<ObjectId> extractObjectIds(ArrayRedisMessage arrayMessage) {
+        List<ObjectId> objectIds = new ArrayList<>();
+        for (RedisMessage child : arrayMessage.children()) {
+            FullBulkStringRedisMessage bulkString = (FullBulkStringRedisMessage) child;
+            objectIds.add(bulkStringToObjectId(bulkString));
+        }
+        return objectIds;
+    }
+
+    public static ObjectId bulkStringToObjectId(FullBulkStringRedisMessage message) {
+        ByteBuf content = message.content();
+        byte[] bytes = new byte[content.readableBytes()];
+        content.getBytes(content.readerIndex(), bytes);
+        if (bytes.length == 12) {
+            return new ObjectId(bytes);
+        }
+        return new ObjectId(new String(bytes, StandardCharsets.US_ASCII));
+    }
+
+    public static String bsonToJsonWithoutId(ByteBuffer buffer) {
+        BsonDocument doc = BsonDocumentFromByteBuffer(buffer);
+        doc.remove("_id");
+        return doc.toJson();
+    }
+
+    public static BsonDocument BsonDocumentFromByteBuffer(ByteBuffer buffer) {
+        ByteBuffer slice = buffer.slice();
+        byte[] bytes = new byte[slice.remaining()];
+        slice.get(bytes);
+        return BSONUtil.fromBson(bytes);
     }
 }

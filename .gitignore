@@ -24,10 +24,12 @@ hs_err_pid*
 replay_pid*
 
 .idea/
+.vscode/
 target/
 kronotop-data
 .claude
 CLAUDE.md
+AGENTS.md
 
 dependency-reduced-pom.xml
 *.iml

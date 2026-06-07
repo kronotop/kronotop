@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,14 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import org.bson.BsonType;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,16 +38,19 @@ import static org.junit.jupiter.api.Assertions.*;
  * multi-key indexes on array fields. Each document creates multiple index entries (one per array
  * element), so the order in which documents are returned cannot be guaranteed. Therefore, these
  * tests verify correctness of results (matching documents) but do not test ordering behavior
- * with reverse=true on multi-key indexed arrays.</p>
+ * with SortDirection=DESC on multi-key indexed arrays.</p>
  */
 class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineIndexScanWithElemMatch() {
+        // Behavior: IndexScan on a regular field can be combined with $elemMatch on an array field.
+        // The index narrows candidates, then $elemMatch filters within matching documents.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-index-combined";
 
         // Create index on 'category' field
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
+        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
 
         // Insert documents with category and items array
@@ -57,16 +61,16 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'category': 'electronics', 'items': [{'price': 30}, {'price': 40}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: category = 'electronics' AND items has at least one with price > 100
         String query = "{'category': 'electronics', 'items': {'$elemMatch': {'price': {'$gt': 100}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: IndexScanNode -> TransformWithResidualPredicateNode (with predicates including elemMatch)
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
-        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) plan.next();
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
+        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) planWithParams.plan().next();
         // Predicate can be ResidualAndNode when multiple predicates are merged
         assertInstanceOf(ResidualAndNode.class, transform.predicate(), "Predicate should be ResidualAndNode");
         ResidualAndNode andNode = (ResidualAndNode) transform.predicate();
@@ -74,10 +78,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 "ResidualAndNode should contain a ResidualElemMatchNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Order2"), extractNamesFromResults(results));
@@ -86,10 +90,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineRangeScanWithElemMatch() {
+        // Behavior: RangeScan with comparison operators ($gt, $lt, etc.) can be combined with
+        // $elemMatch. The range scan retrieves candidates, then $elemMatch applies array filtering.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-range-combined";
 
         // Create index on 'priority' field
-        IndexDefinition priorityIndex = IndexDefinition.create("priority-index", "priority", BsonType.INT32);
+        SingleFieldIndexDefinition priorityIndex = SingleFieldIndexDefinition.create("priority-index", "priority", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priorityIndex);
 
         // Insert documents
@@ -100,16 +107,16 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task4', 'priority': 8, 'tags': [{'type': 'urgent'}, {'type': 'critical'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: priority > 2 AND tags has at least one with type = 'urgent'
         String query = "{'priority': {'$gt': 2}, 'tags': {'$elemMatch': {'type': 'urgent'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: IndexScanNode (for GT) -> TransformWithResidualPredicateNode (with predicates including elemMatch)
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
-        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) plan.next();
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
+        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) planWithParams.plan().next();
         // Predicate can be ResidualAndNode when multiple predicates are merged
         assertInstanceOf(ResidualAndNode.class, transform.predicate(), "Predicate should be ResidualAndNode");
         ResidualAndNode andNode = (ResidualAndNode) transform.predicate();
@@ -117,10 +124,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 "ResidualAndNode should contain a ResidualElemMatchNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Task3", "Task4"), extractNamesFromResults(results));
@@ -129,11 +136,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineMultipleIndexScansWithElemMatch() {
+        // Behavior: Multiple indexed field conditions are merged with $elemMatch as residual
+        // predicates. One index is selected for scanning, others become residual filters.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multi-index";
 
         // Create indexes on 'status' and 'region' fields
-        IndexDefinition statusIndex = IndexDefinition.create("status-index", "status", BsonType.STRING);
-        IndexDefinition regionIndex = IndexDefinition.create("region-index", "region", BsonType.STRING);
+        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition regionIndex = SingleFieldIndexDefinition.create("region-index", "region", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex, regionIndex);
 
         // Insert documents
@@ -144,25 +154,25 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Store4', 'status': 'inactive', 'region': 'US', 'products': [{'stock': 500}, {'stock': 600}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: status = 'active' AND region = 'US' AND products has at least one with stock >= 100
         String query = "{'status': 'active', 'region': 'US', 'products': {'$elemMatch': {'stock': {'$gte': 100}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: IndexScanNode -> TransformWithResidualPredicateNode (merged predicates including elemMatch)
         // Multiple index scans become PhysicalIndexIntersection, then one IndexScan with residual predicates
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
         // The predicate should be ResidualAndNode containing the other index condition and elemMatch
-        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) plan.next();
+        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) planWithParams.plan().next();
         assertInstanceOf(ResidualAndNode.class, transform.predicate(), "Predicate should be ResidualAndNode (merged)");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Store1"), extractNamesFromResults(results));
@@ -171,10 +181,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleOrWithIndexScanAndElemMatch() {
+        // Behavior: $or with indexed conditions and $elemMatch creates a UnionNode. Each branch
+        // can use its index, with $elemMatch applied as a residual predicate where needed.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-index";
 
         // Create index on 'type' field
-        IndexDefinition typeIndex = IndexDefinition.create("type-index", "type", BsonType.STRING);
+        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, typeIndex);
 
         // Insert documents
@@ -185,20 +198,20 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc4', 'type': 'enterprise', 'features': [{'enabled': true}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: type = 'premium' OR (type = 'basic' AND features has enabled = true)
         String query = "{'$or': [{'type': 'premium'}, {'type': 'basic', 'features': {'$elemMatch': {'enabled': true}}}]}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: UnionNode with two branches (index scan for premium, index scan + elemMatch for basic)
-        assertInstanceOf(UnionNode.class, plan, "Root should be UnionNode for OR query");
+        assertInstanceOf(UnionNode.class, planWithParams.plan(), "Root should be UnionNode for OR query");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(3, results.size(), "Should return exactly 3 documents");
             assertEquals(Set.of("Doc1", "Doc2", "Doc3"), extractNamesFromResults(results));
@@ -207,10 +220,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleElemMatchWithMultipleConditionsAndIndex() {
+        // Behavior: $elemMatch with multiple conditions combined with an indexed field uses the
+        // index for initial filtering, then applies $elemMatch as a residual predicate.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multi-cond-index";
 
         // Create index on 'department' field
-        IndexDefinition deptIndex = IndexDefinition.create("dept-index", "department", BsonType.STRING);
+        SingleFieldIndexDefinition deptIndex = SingleFieldIndexDefinition.create("dept-index", "department", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, deptIndex);
 
         // Insert documents
@@ -221,16 +237,16 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Team4', 'department': 'engineering', 'members': [{'role': 'analyst', 'level': 5}, {'role': 'manager', 'level': 4}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: department = 'engineering' AND members has at least one developer with level >= 5
         String query = "{'department': 'engineering', 'members': {'$elemMatch': {'role': 'developer', 'level': {'$gte': 5}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: IndexScanNode -> TransformWithResidualPredicateNode (with predicates including elemMatch)
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
-        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) plan.next();
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
+        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) planWithParams.plan().next();
         // Predicate can be ResidualAndNode when multiple predicates are merged
         assertInstanceOf(ResidualAndNode.class, transform.predicate(), "Predicate should be ResidualAndNode");
         ResidualAndNode andNode = (ResidualAndNode) transform.predicate();
@@ -238,10 +254,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 "ResidualAndNode should contain a ResidualElemMatchNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Team2"), extractNamesFromResults(results));
@@ -249,11 +265,138 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
     }
 
     @Test
+    void shouldHandleElemMatchWithMultiKeyIndexOnNestedField() {
+        // Behavior: Multi-key indexes on nested array fields (e.g., 'members.role') can be used
+        // with $elemMatch to efficiently find documents with matching array elements.
+
+        final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multikey-role";
+
+        // Create multiKey index on nested 'members.role' field
+        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "members.role", BsonType.STRING, true, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex);
+
+        // Insert documents with members array containing role field
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team1', 'members': [{'role': 'developer', 'level': 3}, {'role': 'manager', 'level': 5}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team2', 'members': [{'role': 'developer', 'level': 5}, {'role': 'developer', 'level': 2}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team3', 'members': [{'role': 'analyst', 'level': 5}, {'role': 'analyst', 'level': 4}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team4', 'members': [{'role': 'manager', 'level': 5}, {'role': 'manager', 'level': 4}]}")
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        // Query: members has at least one developer with level >= 5 (using indexed role)
+        String query = "{'members': {'$elemMatch': {'role': 'developer', 'level': {'$gte': 5}}}}";
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+
+        // Verify plan uses index scan on members.role
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        IndexScanNode indexScan = (IndexScanNode) planWithParams.plan();
+        assertEquals("members.role", indexScan.getIndexDefinition().selector(), "Should use members.role index");
+
+        QueryOptions options = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+
+            assertEquals(1, results.size(), "Should return exactly 1 document");
+            assertEquals(Set.of("Team2"), extractNamesFromResults(results));
+        }
+    }
+
+    @Test
+    void shouldHandleElemMatchWithMultipleIndexes() {
+        // Behavior: When both regular and multi-key indexes exist, the planner prefers the
+        // regular index (more selective) over multi-key for the primary scan.
+
+        final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multiple-indexes";
+
+        // Create both indexes: multiKey on members.role and regular on name
+        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "members.role", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex, nameIndex);
+
+        // Insert documents
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team1', 'members': [{'role': 'developer', 'level': 3}, {'role': 'manager', 'level': 5}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team2', 'members': [{'role': 'developer', 'level': 5}, {'role': 'developer', 'level': 2}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team3', 'members': [{'role': 'analyst', 'level': 5}, {'role': 'analyst', 'level': 4}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team4', 'members': [{'role': 'manager', 'level': 5}, {'role': 'manager', 'level': 4}]}")
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        // Query: name = 'Team2' AND members has developer with level >= 5
+        String query = "{'name': 'Team2', 'members': {'$elemMatch': {'role': 'developer', 'level': {'$gte': 5}}}}";
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+
+        // Verify plan: planner should prefer the regular 'name' index over multiKey index
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Plan should be IndexScanNode");
+        IndexScanNode indexScan = (IndexScanNode) planWithParams.plan();
+        assertEquals("name", indexScan.getIndexDefinition().selector(), "Should use 'name' index (more selective than multiKey)");
+
+        QueryOptions options = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+
+            assertEquals(1, results.size(), "Should return exactly 1 document");
+            assertEquals(Set.of("Team2"), extractNamesFromResults(results));
+        }
+    }
+
+    @Test
+    void shouldHandleElemMatchWithMultipleIndexesAndOr() {
+        // Behavior: $or combining a regular indexed field and $elemMatch with multi-key index
+        // creates a UnionNode with separate branches for each condition.
+
+        final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multiple-indexes-or";
+
+        // Create both indexes: multiKey on members.role and regular on name
+        SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create("role-index", "members.role", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, roleIndex, nameIndex);
+
+        // Insert documents
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team1', 'members': [{'role': 'developer', 'level': 3}, {'role': 'manager', 'level': 5}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team2', 'members': [{'role': 'developer', 'level': 5}, {'role': 'developer', 'level': 2}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team3', 'members': [{'role': 'analyst', 'level': 5}, {'role': 'analyst', 'level': 4}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Team4', 'members': [{'role': 'manager', 'level': 5}, {'role': 'manager', 'level': 4}]}")
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        // Query: name = 'Team1' OR members has developer with level >= 5
+        String query = "{'$or': [{'name': 'Team1'}, {'members': {'$elemMatch': {'role': 'developer', 'level': {'$gte': 5}}}}]}";
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+
+        // Verify plan: $or should create UnionNode combining both index scans
+        assertInstanceOf(UnionNode.class, planWithParams.plan(), "Plan should be UnionNode for $or");
+
+        QueryOptions options = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+
+            // Team1 matches name='Team1', Team2 matches $elemMatch condition
+            assertEquals(2, results.size(), "Should return 2 documents");
+            assertEquals(Set.of("Team1", "Team2"), extractNamesFromResults(results));
+        }
+    }
+
+    @Test
     void shouldHandleIndexScanWithNoMatchingElemMatch() {
+        // Behavior: When index scan returns candidates but $elemMatch finds no matching elements,
+        // the result set is empty. The $elemMatch acts as a post-filter.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-no-match-index";
 
         // Create index on 'status' field
-        IndexDefinition statusIndex = IndexDefinition.create("status-index", "status", BsonType.STRING);
+        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         // Insert documents
@@ -262,16 +405,16 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order2', 'status': 'pending', 'items': [{'qty': 3}, {'qty': 7}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: status = 'pending' AND items has qty > 100 (no match)
         String query = "{'status': 'pending', 'items': {'$elemMatch': {'qty': {'$gt': 100}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: IndexScanNode -> TransformWithResidualPredicateNode (with predicates including elemMatch)
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
-        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) plan.next();
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
+        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) planWithParams.plan().next();
         // Predicate can be ResidualAndNode when multiple predicates are merged
         assertInstanceOf(ResidualAndNode.class, transform.predicate(), "Predicate should be ResidualAndNode");
         ResidualAndNode andNode = (ResidualAndNode) transform.predicate();
@@ -279,10 +422,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 "ResidualAndNode should contain a ResidualElemMatchNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertTrue(results.isEmpty(), "Should return no documents");
         }
@@ -290,10 +433,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleInOperatorWithElemMatch() {
+        // Behavior: $in on an indexed field creates a UnionNode with branches for each value.
+        // $elemMatch is applied as a residual predicate to each branch's results.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-operator";
 
         // Create index on 'category' field
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
+        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
 
         // Insert documents
@@ -304,20 +450,20 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product4', 'category': 'electronics', 'reviews': [{'rating': 2}, {'rating': 1}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: category in ['electronics', 'books'] AND reviews has at least one with rating = 5
         String query = "{'category': {'$in': ['electronics', 'books']}, 'reviews': {'$elemMatch': {'rating': 5}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: UnionNode (for $in with multiple values), each branch with elemMatch filter
-        assertInstanceOf(UnionNode.class, plan, "Root should be UnionNode for $in with multiple values");
+        assertInstanceOf(UnionNode.class, planWithParams.plan(), "Root should be UnionNode for $in with multiple values");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Product1", "Product3"), extractNamesFromResults(results));
@@ -326,10 +472,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleNestedElemMatchConditionsWithIndex() {
+        // Behavior: $elemMatch with dot notation (e.g., 'budget.amount') can be combined with
+        // indexed field conditions. The index narrows results, $elemMatch filters nested values.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-nested-index";
 
         // Create index on 'active' field
-        IndexDefinition activeIndex = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
+        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, activeIndex);
 
         // Insert documents with a nested structure
@@ -340,16 +489,16 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Company4', 'active': true, 'departments': [{'budget': {'amount': 150000}}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: active = true AND departments have at least one with budget.amount >= 100000
         String query = "{'active': true, 'departments': {'$elemMatch': {'budget.amount': {'$gte': 100000}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: IndexScanNode -> TransformWithResidualPredicateNode (with predicates including elemMatch)
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
-        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) plan.next();
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
+        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) planWithParams.plan().next();
         // Predicate can be ResidualAndNode when multiple predicates are merged
         assertInstanceOf(ResidualAndNode.class, transform.predicate(), "Predicate should be ResidualAndNode");
         ResidualAndNode andNode = (ResidualAndNode) transform.predicate();
@@ -357,10 +506,10 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 "ResidualAndNode should contain a ResidualElemMatchNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Company1", "Company4"), extractNamesFromResults(results));
@@ -371,10 +520,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineIndexScanWithScalarStringArrayElemMatch() {
+        // Behavior: IndexScan on a regular field combined with $elemMatch on a scalar string
+        // array uses the index for candidates, then filters by array element matching.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-string-index";
 
         // Create index on 'status' field
-        IndexDefinition statusIndex = IndexDefinition.create("status-index", "status", BsonType.STRING);
+        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         // Insert documents with scalar string array
@@ -385,21 +537,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task4', 'status': 'open', 'tags': ['documentation', 'help-wanted']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: status = 'open' AND tags has at least one 'urgent' element
         String query = "{'status': 'open', 'tags': {'$elemMatch': {'$eq': 'urgent'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Task2"), extractNamesFromResults(results));
@@ -408,10 +560,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineIndexScanWithScalarNumberArrayElemMatch() {
+        // Behavior: IndexScan on a regular field combined with $elemMatch on a scalar number
+        // array uses the index for candidates, then filters by numeric array conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-number-index";
 
         // Create index on 'grade' field
-        IndexDefinition gradeIndex = IndexDefinition.create("grade-index", "grade", BsonType.STRING);
+        SingleFieldIndexDefinition gradeIndex = SingleFieldIndexDefinition.create("grade-index", "grade", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, gradeIndex);
 
         // Insert documents with scalar number array
@@ -422,21 +577,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Student4', 'grade': 'A', 'scores': [65, 70, 72]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: grade = 'A' AND scores has at least one score > 90
         String query = "{'grade': 'A', 'scores': {'$elemMatch': {'$gt': 90}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Student2"), extractNamesFromResults(results));
@@ -445,10 +600,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineRangeScanWithScalarArrayElemMatch() {
+        // Behavior: RangeScan with comparison operators combined with scalar array $elemMatch
+        // uses the range index for candidates, then applies array element filtering.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-range-index";
 
         // Create index on 'priority' field
-        IndexDefinition priorityIndex = IndexDefinition.create("priority-index", "priority", BsonType.INT32);
+        SingleFieldIndexDefinition priorityIndex = SingleFieldIndexDefinition.create("priority-index", "priority", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priorityIndex);
 
         // Insert documents with scalar number array
@@ -459,21 +617,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Project4', 'priority': 8, 'milestones': [150, 250, 350]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: priority > 2 AND milestones has at least one >= 100
         String query = "{'priority': {'$gt': 2}, 'milestones': {'$elemMatch': {'$gte': 100}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Project3", "Project4"), extractNamesFromResults(results));
@@ -482,10 +640,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineInOperatorWithScalarArrayElemMatch() {
+        // Behavior: $in operator on indexed field creates UnionNode, with $elemMatch on scalar
+        // array applied as residual predicate to filter results by array element values.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-in-index";
 
         // Create index on 'category' field
-        IndexDefinition categoryIndex = IndexDefinition.create("category-index", "category", BsonType.STRING);
+        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
 
         // Insert documents with scalar string array
@@ -496,20 +657,20 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Item4', 'category': 'electronics', 'labels': ['refurbished', 'discount']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: category in ['electronics', 'books'] AND labels has at least one 'new'
         String query = "{'category': {'$in': ['electronics', 'books']}, 'labels': {'$elemMatch': {'$eq': 'new'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: UnionNode for $in
-        assertInstanceOf(UnionNode.class, plan, "Root should be UnionNode for $in");
+        assertInstanceOf(UnionNode.class, planWithParams.plan(), "Root should be UnionNode for $in");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Item1", "Item3"), extractNamesFromResults(results));
@@ -518,11 +679,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineMultipleIndexesWithScalarArrayElemMatch() {
+        // Behavior: Multiple indexed field conditions with scalar array $elemMatch uses one
+        // index for scanning, merging others with $elemMatch as residual predicates.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-multi-index";
 
         // Create indexes on 'status' and 'region' fields
-        IndexDefinition statusIndex = IndexDefinition.create("status-index", "status", BsonType.STRING);
-        IndexDefinition regionIndex = IndexDefinition.create("region-index", "region", BsonType.STRING);
+        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition regionIndex = SingleFieldIndexDefinition.create("region-index", "region", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex, regionIndex);
 
         // Insert documents with scalar number array
@@ -533,21 +697,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Server4', 'status': 'inactive', 'region': 'US', 'ports': [80, 443, 8443]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: status = 'active' AND region = 'US' AND ports has at least one port = 443
         String query = "{'status': 'active', 'region': 'US', 'ports': {'$elemMatch': {'$eq': 443}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Server1"), extractNamesFromResults(results));
@@ -556,10 +720,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleScalarArrayElemMatchWithRangeConditions() {
+        // Behavior: $elemMatch with compound range conditions ($gte + $lte) on scalar arrays
+        // filters elements that fall within the specified range.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-range-cond";
 
         // Create index on 'type' field
-        IndexDefinition typeIndex = IndexDefinition.create("type-index", "type", BsonType.STRING);
+        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, typeIndex);
 
         // Insert documents with scalar number array
@@ -570,21 +737,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Batch4', 'type': 'production', 'temperatures': [60, 65, 70]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: type = 'production' AND temperatures has at least one in range [75, 90]
         String query = "{'type': 'production', 'temperatures': {'$elemMatch': {'$gte': 75, '$lte': 90}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Batch2"), extractNamesFromResults(results));
@@ -593,10 +760,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleScalarArrayElemMatchNoMatch() {
+        // Behavior: When $elemMatch on scalar array finds no matching elements in any document,
+        // the result set is empty even if the index scan returned candidates.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-no-match";
 
         // Create index on 'active' field
-        IndexDefinition activeIndex = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
+        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, activeIndex);
 
         // Insert documents with scalar number array
@@ -605,21 +775,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Config2', 'active': true, 'values': [40, 50, 60]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: active = true AND values has at least one > 100 (no match)
         String query = "{'active': true, 'values': {'$elemMatch': {'$gt': 100}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertTrue(results.isEmpty(), "Should return no documents");
         }
@@ -629,10 +799,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexOnScalarNumberArray() {
+        // Behavior: Multi-key index on a scalar number array field enables efficient $elemMatch
+        // queries by creating index entries for each array element.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-array-indexed";
 
         // Create index on the scalar array field 'temperatures' (multikey)
-        IndexDefinition temperaturesIndex = IndexDefinition.create("temperatures-index", "temperatures", BsonType.INT32, true);
+        SingleFieldIndexDefinition temperaturesIndex = SingleFieldIndexDefinition.create("temperatures-index", "temperatures", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, temperaturesIndex);
 
         // Insert documents with scalar number array
@@ -643,17 +816,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Batch4', 'temperatures': [60, 65, 70]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: temperatures has at least one >= 80
         String query = "{'temperatures': {'$elemMatch': {'$gte': 80}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Batch2", "Batch3"), extractNamesFromResults(results));
@@ -662,10 +835,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexOnScalarStringArray() {
+        // Behavior: Multi-key index on a scalar string array field enables efficient $elemMatch
+        // queries by creating index entries for each string element.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-string-array-indexed";
 
         // Create index on the scalar array field 'tags' (multikey)
-        IndexDefinition tagsIndex = IndexDefinition.create("tags-index", "tags", BsonType.STRING, true);
+        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         // Insert documents with scalar string array
@@ -676,17 +852,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Issue4', 'tags': ['documentation', 'help-wanted']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: tags has at least one 'bug'
         String query = "{'tags': {'$elemMatch': {'$eq': 'bug'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Issue1", "Issue3"), extractNamesFromResults(results));
@@ -695,11 +871,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineArrayIndexWithFieldIndex() {
+        // Behavior: Regular field index and multi-key array index can work together. The planner
+        // selects the most selective index for scanning, using the other as residual.
+
         final String TEST_BUCKET_NAME = "test-bucket-array-and-field-indexed";
 
         // Create index on both a regular field and the scalar array field (multikey)
-        IndexDefinition typeIndex = IndexDefinition.create("type-index", "type", BsonType.STRING);
-        IndexDefinition scoresIndex = IndexDefinition.create("scores-index", "scores", BsonType.INT32, true);
+        SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-index", "type", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, typeIndex, scoresIndex);
 
         // Insert documents with scalar number array
@@ -710,17 +889,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Exam4', 'type': 'final', 'scores': [65, 70, 72]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: type = 'midterm' AND scores has at least one > 90
         String query = "{'type': 'midterm', 'scores': {'$elemMatch': {'$gt': 90}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size(), "Should return exactly 1 document");
             assertEquals(Set.of("Exam3"), extractNamesFromResults(results));
@@ -729,10 +908,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexOnScalarArrayWithRangeQuery() {
+        // Behavior: Multi-key index on scalar array supports range queries ($gte, $lte) via
+        // RangeScanNode, efficiently finding documents with array elements in the range.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-array-range-indexed";
 
         // Create index on the scalar array field 'prices' (multikey)
-        IndexDefinition pricesIndex = IndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, true);
+        SingleFieldIndexDefinition pricesIndex = SingleFieldIndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, pricesIndex);
 
         // Insert documents with scalar number array (doubles)
@@ -743,21 +925,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product4', 'prices': [5.99, 7.99, 8.99]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: prices has at least one in range [10.0, 50.0]
         String query = "{'prices': {'$elemMatch': {'$gte': 10.0, '$lte': 50.0}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Verify plan structure: RangeScanNode (consolidated from GTE + LTE) -> TransformWithResidualPredicateNode (for elemMatch)
-        assertInstanceOf(RangeScanNode.class, plan, "Root should be RangeScanNode for indexed array field with range query");
-        assertInstanceOf(TransformWithResidualPredicateNode.class, plan.next(), "Next should be TransformWithResidualPredicateNode");
+        assertInstanceOf(RangeScanNode.class, planWithParams.plan(), "Root should be RangeScanNode for indexed array field with range query");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Product1", "Product2"), extractNamesFromResults(results));
@@ -766,10 +948,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleIndexedScalarArrayWithNoMatch() {
+        // Behavior: When multi-key index scan finds no matching array elements across all
+        // documents, the result set is empty.
+
         final String TEST_BUCKET_NAME = "test-bucket-scalar-array-indexed-no-match";
 
         // Create index on the scalar array field 'values' (multikey)
-        IndexDefinition valuesIndex = IndexDefinition.create("values-index", "values", BsonType.INT32, true);
+        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         // Insert documents with scalar number array
@@ -778,17 +963,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Data2', 'values': [40, 50, 60]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: values has at least one > 100 (no match)
         String query = "{'values': {'$elemMatch': {'$gt': 100}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertTrue(results.isEmpty(), "Should return no documents");
         }
@@ -796,10 +981,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleOrWithMultipleElemMatchConditions() {
+        // Behavior: Top-level $or with separate $elemMatch conditions on the same indexed array
+        // creates a UnionNode, matching documents that satisfy either condition.
+
         final String TEST_BUCKET_NAME = "test-bucket-or-with-elemmatch";
 
         // Create index on the scalar array field (multikey)
-        IndexDefinition scoresIndex = IndexDefinition.create("scores-index", "scores", BsonType.INT32, true);
+        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex);
 
         // Insert documents with scalar number array
@@ -810,18 +998,18 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Student4', 'scores': [70, 72, 68]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: scores has at least one < 50 OR scores has at least one > 90
         // This uses $or at top level with two separate $elemMatch conditions
         String query = "{'$or': [{'scores': {'$elemMatch': {'$lt': 50}}}, {'scores': {'$elemMatch': {'$gt': 90}}}]}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Student1: 85, 90, 78 - no element < 50, no element > 90 -> no match
             // Student2: 45, 55, 60 - 45 < 50 -> match
@@ -834,11 +1022,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleMultipleElemMatchOnDifferentArrays() {
+        // Behavior: Multiple $elemMatch conditions on different indexed arrays are evaluated
+        // together. Both array conditions must be satisfied by the document.
+
         final String TEST_BUCKET_NAME = "test-bucket-multiple-elemmatch";
 
         // Create indexes on two different array fields (multiKey for arrays)
-        IndexDefinition scoresIndex = IndexDefinition.create("scores-index", "scores", BsonType.INT32, true);
-        IndexDefinition ratingsIndex = IndexDefinition.create("ratings-index", "ratings", BsonType.DOUBLE, true);
+        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ratingsIndex = SingleFieldIndexDefinition.create("ratings-index", "ratings", BsonType.DOUBLE, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex, ratingsIndex);
 
         // Insert documents with two scalar arrays
@@ -849,17 +1040,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product4', 'scores': [60, 65, 58], 'ratings': [4.0, 4.1, 3.9]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: scores has at least one >= 85 AND ratings has at least one >= 4.5
         String query = "{'scores': {'$elemMatch': {'$gte': 85}}, 'ratings': {'$elemMatch': {'$gte': 4.5}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Product1: scores has 85, 90 >= 85; ratings has 4.5, 4.8 >= 4.5 -> match
             // Product2: scores max is 75 < 85 -> no match
@@ -872,11 +1063,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleMultipleElemMatchWithRangeQueries() {
+        // Behavior: Multiple $elemMatch with range conditions on different indexed arrays
+        // requires each array to have at least one element satisfying its range condition.
+
         final String TEST_BUCKET_NAME = "test-bucket-multiple-elemmatch-range";
 
         // Create indexes on two different array fields (multiKey for arrays)
-        IndexDefinition pricesIndex = IndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, true);
-        IndexDefinition quantitiesIndex = IndexDefinition.create("quantities-index", "quantities", BsonType.INT32, true);
+        SingleFieldIndexDefinition pricesIndex = SingleFieldIndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition quantitiesIndex = SingleFieldIndexDefinition.create("quantities-index", "quantities", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, pricesIndex, quantitiesIndex);
 
         // Insert documents with two scalar arrays
@@ -887,17 +1081,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'prices': [5.0, 8.0, 12.0], 'quantities': [1, 2, 3]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: prices have at least one in [20, 60] AND quantities has at least one in [10, 25]
         String query = "{'prices': {'$elemMatch': {'$gte': 20.0, '$lte': 60.0}}, 'quantities': {'$elemMatch': {'$gte': 10, '$lte': 25}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: prices has 25, 50 in [20,60]; quantities has 10, 15 in [10,25] -> match
             // Order2: prices min is 100 > 60 -> no match
@@ -912,10 +1106,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithInOperatorInsideElemMatchOnDocumentArray() {
+        // Behavior: $in inside $elemMatch on indexed nested field (e.g., 'items.status') creates
+        // UnionNode for each $in value, efficiently using the multi-key index.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-doc-indexed";
 
         // Create index on nested field inside array of documents (multiKey for arrays)
-        IndexDefinition statusIndex = IndexDefinition.create("items-status-index", "items.status", BsonType.STRING, true);
+        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("items-status-index", "items.status", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -925,19 +1122,19 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'items': [{'status': 'pending'}, {'status': 'shipped'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item with status in ['shipped', 'delivered']
         // Index on items.status should be used; multi-value $in transforms to UnionNode
         String query = "{'items': {'$elemMatch': {'status': {'$in': ['shipped', 'delivered']}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        assertInstanceOf(UnionNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        assertInstanceOf(UnionNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Order2", "Order4"), extractNamesFromResults(results));
@@ -946,10 +1143,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithInOperatorInsideElemMatchOnScalarArray() {
+        // Behavior: $in inside $elemMatch on indexed scalar array creates UnionNode, efficiently
+        // looking up each value in the multi-key index.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-indexed";
 
         // Create index on scalar array field (multiKey for arrays)
-        IndexDefinition tagsIndex = IndexDefinition.create("tags-index", "tags", BsonType.STRING, true);
+        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -959,19 +1159,19 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task4', 'tags': ['bug', 'urgent']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one tag in ['urgent', 'critical']
         // Index should be used for the $in lookup
         String query = "{'tags': {'$elemMatch': {'$in': ['urgent', 'critical']}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        assertInstanceOf(UnionNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        assertInstanceOf(UnionNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Task2", "Task4"), extractNamesFromResults(results));
@@ -980,10 +1180,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithInOperatorInsideElemMatchOnNumberArray() {
+        // Behavior: $in inside $elemMatch on indexed number array creates UnionNode, using the
+        // multi-key index to efficiently find documents with matching numeric elements.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-indexed-numbers";
 
         // Create index on scalar number array field (multiKey for arrays)
-        IndexDefinition scoresIndex = IndexDefinition.create("scores-index", "scores", BsonType.INT32, true);
+        SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, scoresIndex);
 
         List<byte[]> documents = List.of(
@@ -993,18 +1196,18 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Student4', 'scores': [85, 90, 92]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find students with at least one score in [90, 95, 100]
         String query = "{'scores': {'$elemMatch': {'$in': [90, 95, 100]}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        assertInstanceOf(UnionNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        assertInstanceOf(UnionNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Student2", "Student4"), extractNamesFromResults(results));
@@ -1013,10 +1216,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineInWithOtherConditionsInsideElemMatchWithIndex() {
+        // Behavior: $in inside $elemMatch on an indexed array field with multiple values creates
+        // a UnionNode, matching documents with any of the specified values.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-combined-indexed";
 
         // Create index on scalar number array field (multiKey for arrays)
-        IndexDefinition pricesIndex = IndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, true);
+        SingleFieldIndexDefinition pricesIndex = SingleFieldIndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, pricesIndex);
 
         List<byte[]> documents = List.of(
@@ -1026,18 +1232,18 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product4', 'prices': [99.99, 149.99, 199.99]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with at least one price in [19.99, 59.99]
         String query = "{'prices': {'$elemMatch': {'$in': [19.99, 59.99]}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        assertInstanceOf(UnionNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        assertInstanceOf(UnionNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Product1 has 19.99, Product2 has 59.99, Product3 has both
             assertEquals(3, results.size(), "Should return exactly 3 documents");
@@ -1047,9 +1253,12 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleInWithNoMatchOnIndexedArray() {
+        // Behavior: When $in values inside $elemMatch don't exist in any document's array,
+        // the index scan returns empty results.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-no-match-indexed";
 
-        IndexDefinition tagsIndex = IndexDefinition.create("tags-index", "tags", BsonType.STRING, true);
+        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -1057,18 +1266,18 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task2', 'tags': ['enhancement', 'improvement']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one tag in ['nonexistent', 'missing']
         String query = "{'tags': {'$elemMatch': {'$in': ['nonexistent', 'missing']}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        assertInstanceOf(UnionNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        assertInstanceOf(UnionNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertTrue(results.isEmpty(), "Should return no documents");
         }
@@ -1076,11 +1285,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineIndexedElemMatchInWithOtherIndexedCondition() {
+        // Behavior: Combining indexed field condition with $in inside $elemMatch on multi-key
+        // index uses the regular index for scan, applying array $in as residual.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-in-multi-index";
 
         // Create indexes on an array field (multiKey) and a regular field
-        IndexDefinition tagsIndex = IndexDefinition.create("tags-index", "tags", BsonType.STRING, true);
-        IndexDefinition statusIndex = IndexDefinition.create("status-index", "status", BsonType.STRING);
+        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("status-index", "status", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -1090,18 +1302,18 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task4', 'status': 'open', 'tags': ['critical', 'blocker']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find open tasks with at least one tag in ['critical', 'blocker']
         String query = "{'status': 'open', 'tags': {'$elemMatch': {'$in': ['critical', 'blocker']}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        assertInstanceOf(IndexScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Task1 has 'urgent' not in the list, Task2 is closed, Task3 has neither, Task4 matches
             assertEquals(1, results.size(), "Should return exactly 1 document");
@@ -1113,10 +1325,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithOrInsideElemMatchOnDocumentArray() {
+        // Behavior: $or inside $elemMatch on indexed nested field creates UnionNode for each
+        // branch, efficiently combining results from the multi-key index.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-doc-indexed";
 
         // Create index on nested field inside array of documents (multiKey for arrays)
-        IndexDefinition subjectIndex = IndexDefinition.create("scores-subject-index", "scores.subject", BsonType.STRING, true);
+        SingleFieldIndexDefinition subjectIndex = SingleFieldIndexDefinition.create("scores-subject-index", "scores.subject", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, subjectIndex);
 
         List<byte[]> documents = List.of(
@@ -1126,21 +1341,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Student4', 'scores': [{'subject': 'math', 'score': 92}, {'subject': 'science', 'score': 85}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find students with at least one score where subject is 'math' OR 'science'
         // Index on scores.subject should be used
         String query = "{'scores': {'$elemMatch': {'$or': [{'subject': 'math'}, {'subject': 'science'}]}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // $or with two indexed conditions becomes UnionNode
-        assertInstanceOf(UnionNode.class, plan);
+        assertInstanceOf(UnionNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Student1: has math ✓
             // Student2: has science ✓
@@ -1153,10 +1368,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithOrInsideElemMatchOnScalarArray() {
+        // Behavior: $or inside $elemMatch on indexed scalar array creates UnionNode for each
+        // $eq condition, efficiently finding elements matching any value.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-scalar-indexed";
 
         // Create index on scalar array field (multiKey for arrays)
-        IndexDefinition tagsIndex = IndexDefinition.create("tags-index", "tags", BsonType.STRING, true);
+        SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("tags-index", "tags", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, tagsIndex);
 
         List<byte[]> documents = List.of(
@@ -1166,21 +1384,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task4', 'tags': ['documentation', 'help-wanted']}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one tag that is 'critical' OR 'urgent'
         // Index on tags should be used
         String query = "{'tags': {'$elemMatch': {'$or': [{'$eq': 'critical'}, {'$eq': 'urgent'}]}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // $or with two indexed conditions becomes UnionNode
-        assertInstanceOf(UnionNode.class, plan);
+        assertInstanceOf(UnionNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Task1", "Task3"), extractNamesFromResults(results));
@@ -1189,11 +1407,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineOrWithOtherConditionsInsideElemMatchWithIndex() {
+        // Behavior: $or inside $elemMatch combined with other conditions requires the same
+        // element to match both the $or and additional conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-or-combined-indexed";
 
         // Create indexes on nested fields (multiKey for arrays)
-        IndexDefinition subjectIndex = IndexDefinition.create("scores-subject-index", "scores.subject", BsonType.STRING, true);
-        IndexDefinition scoreIndex = IndexDefinition.create("scores-score-index", "scores.score", BsonType.INT32, true);
+        SingleFieldIndexDefinition subjectIndex = SingleFieldIndexDefinition.create("scores-subject-index", "scores.subject", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("scores-score-index", "scores.score", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, subjectIndex, scoreIndex);
 
         List<byte[]> documents = List.of(
@@ -1203,19 +1424,19 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Student4', 'scores': [{'subject': 'math', 'score': 92}, {'subject': 'science', 'score': 85}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find students with at least one score where (subject is 'math' OR 'science') AND score > 80
         String query = "{'scores': {'$elemMatch': {'$or': [{'subject': 'math'}, {'subject': 'science'}], 'score': {'$gt': 80}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
-        assertInstanceOf(IndexScanNode.class, plan);
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Student1: math=85 > 80 ✓
             // Student2: science=90 > 80 ✓
@@ -1230,11 +1451,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithAllInsideElemMatchOnDocumentArray() {
+        // Behavior: $all inside $elemMatch requires one element's nested array to contain ALL
+        // specified values. Index speeds up finding potential matches.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-all-indexed";
 
         // Create index on nested field (multiKey for arrays) - note: $all on array field cannot directly use index
         // but other conditions in the same $elemMatch can use indexes
-        IndexDefinition priceIndex = IndexDefinition.create("items-price-index", "items.price", BsonType.DOUBLE, true);
+        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("items-price-index", "items.price", BsonType.DOUBLE, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -1244,18 +1468,18 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'items': [{'categories': ['electronics', 'sale', 'clearance'], 'price': 75.0}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item that has ALL of ['electronics', 'sale'] AND price < 200
         // The price condition can use the index
         String query = "{'items': {'$elemMatch': {'categories': {'$all': ['electronics', 'sale']}, 'price': {'$lt': 200.0}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: first item has both categories AND price=100 < 200 ✓
             // Order2: has both categories BUT price=500 >= 200
@@ -1268,10 +1492,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineAllWithIndexedConditionInsideElemMatch() {
+        // Behavior: $all combined with indexed condition inside $elemMatch requires one element
+        // to contain all specified values AND match the other condition.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-all-combined-indexed";
 
         // Create index on status field (multiKey for arrays)
-        IndexDefinition statusIndex = IndexDefinition.create("items-status-index", "items.status", BsonType.STRING, true);
+        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("items-status-index", "items.status", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -1281,21 +1508,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product4', 'items': [{'tags': ['featured', 'new', 'premium'], 'status': 'active'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with at least one item that has ALL of ['featured', 'new'] AND status='active'
         // status condition uses index
         String query = "{'items': {'$elemMatch': {'tags': {'$all': ['featured', 'new']}, 'status': 'active'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Should use index for status='active'
-        assertInstanceOf(IndexScanNode.class, plan);
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Product1: first item has both tags AND active ✓
             // Product2: has both tags but inactive
@@ -1310,10 +1537,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineSizeWithIndexedConditionInsideElemMatch() {
+        // Behavior: $size inside $elemMatch combined with an indexed condition checks array
+        // length. Index narrows candidates, $size filters by element's array length.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-size-indexed";
 
         // Create index on priority field (multiKey for arrays)
-        IndexDefinition priorityIndex = IndexDefinition.create("tasks-priority-index", "tasks.priority", BsonType.STRING, true);
+        SingleFieldIndexDefinition priorityIndex = SingleFieldIndexDefinition.create("tasks-priority-index", "tasks.priority", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priorityIndex);
 
         List<byte[]> documents = List.of(
@@ -1323,21 +1553,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Project4', 'tasks': [{'assignees': ['helen'], 'priority': 'high'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find projects with at least one task that has exactly 2 assignees AND high priority
         // priority condition uses index
         String query = "{'tasks': {'$elemMatch': {'assignees': {'$size': 2}, 'priority': 'high'}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Should use index for priority='high'
-        assertInstanceOf(IndexScanNode.class, plan);
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Project1: first task has 2 assignees AND high priority ✓
             // Project2: has 2 assignees but low priority
@@ -1350,10 +1580,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineSizeWithRangeIndexInsideElemMatch() {
+        // Behavior: $size inside $elemMatch with range-indexed condition uses the range index
+        // for initial filtering, then applies $size as a residual predicate.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-size-range-indexed";
 
         // Create index on count field (multiKey for arrays)
-        IndexDefinition countIndex = IndexDefinition.create("entries-count-index", "entries.count", BsonType.INT32, true);
+        SingleFieldIndexDefinition countIndex = SingleFieldIndexDefinition.create("entries-count-index", "entries.count", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, countIndex);
 
         List<byte[]> documents = List.of(
@@ -1363,18 +1596,18 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Record4', 'entries': [{'values': [1, 2, 3], 'count': 90}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find records with at least one entry that has exactly 3 values AND count > 50
         // count condition uses index
         String query = "{'entries': {'$elemMatch': {'values': {'$size': 3}, 'count': {'$gt': 50}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Record1: first entry has 3 values AND count=100 > 50 ✓
             // Record2: has 3 values but count=30 <= 50
@@ -1389,10 +1622,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithNestedElemMatch() {
+        // Behavior: Nested $elemMatch with indexed outer field uses the index for initial
+        // candidates, then applies nested array matching as a residual predicate.
+
         final String TEST_BUCKET_NAME = "test-bucket-nested-elemmatch-indexed";
 
         // Create index on nested price field (multiKey for arrays)
-        IndexDefinition priceIndex = IndexDefinition.create("products-price-index", "departments.products.price", BsonType.INT32, true);
+        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("products-price-index", "departments.products.price", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -1402,17 +1638,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Store4', 'departments': [{'name': 'Electronics', 'products': [{'sku': 'CAM1', 'price': 450}]}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find stores with a department that has a product with price > 600
         String query = "{'departments': {'$elemMatch': {'products': {'$elemMatch': {'price': {'$gt': 600}}}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Store1: TV2=800 > 600 ✓
             // Store2: PC1=1200 > 600 ✓
@@ -1425,10 +1661,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineNestedElemMatchWithIndexedOuterCondition() {
+        // Behavior: Indexed outer field combined with nested $elemMatch uses the outer index
+        // for scanning, applying nested array conditions as residual predicates.
+
         final String TEST_BUCKET_NAME = "test-bucket-nested-elemmatch-outer-indexed";
 
         // Create index on department name (multiKey for arrays)
-        IndexDefinition nameIndex = IndexDefinition.create("dept-name-index", "departments.name", BsonType.STRING, true);
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("dept-name-index", "departments.name", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, nameIndex);
 
         List<byte[]> documents = List.of(
@@ -1438,21 +1677,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Store4', 'departments': [{'name': 'Electronics', 'products': [{'price': 700}]}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find stores with an Electronics department that has a product with price > 400
         // The 'name' condition can use the index
         String query = "{'departments': {'$elemMatch': {'name': 'Electronics', 'products': {'$elemMatch': {'price': {'$gt': 400}}}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Should use index for name='Electronics'
-        assertInstanceOf(IndexScanNode.class, plan);
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan());
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Store1: Electronics dept has products 500, 800 > 400 ✓
             // Store2: Electronics dept has product 100 < 400
@@ -1465,11 +1704,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleNestedElemMatchWithMultipleIndexes() {
+        // Behavior: Multiple indexes with nested $elemMatch allows the planner to choose the
+        // most selective index, applying others and nested conditions as residuals.
+
         final String TEST_BUCKET_NAME = "test-bucket-nested-elemmatch-multi-indexed";
 
         // Create multiple indexes (multiKey for arrays)
-        IndexDefinition teamNameIndex = IndexDefinition.create("team-name-index", "teams.name", BsonType.STRING, true);
-        IndexDefinition memberRoleIndex = IndexDefinition.create("member-role-index", "teams.members.role", BsonType.STRING, true);
+        SingleFieldIndexDefinition teamNameIndex = SingleFieldIndexDefinition.create("team-name-index", "teams.name", BsonType.STRING, true, IndexStatus.WAITING);
+        SingleFieldIndexDefinition memberRoleIndex = SingleFieldIndexDefinition.create("member-role-index", "teams.members.role", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, teamNameIndex, memberRoleIndex);
 
         List<byte[]> documents = List.of(
@@ -1479,17 +1721,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Company4', 'teams': [{'name': 'Engineering', 'members': [{'role': 'engineer', 'level': 4}]}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find companies with an Engineering team that has an engineer with level >= 4
         String query = "{'teams': {'$elemMatch': {'name': 'Engineering', 'members': {'$elemMatch': {'role': 'engineer', 'level': {'$gte': 4}}}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Company1: Engineering team has engineer level 5 >= 4 ✓
             // Company2: Engineering team has no engineers
@@ -1504,10 +1746,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineMultipleElemMatchOnSameFieldWithIndex() {
+        // Behavior: Multiple $elemMatch conditions on the same indexed array field can be
+        // satisfied by DIFFERENT elements, unlike single $elemMatch.
+
         final String TEST_BUCKET_NAME = "test-bucket-multi-elemmatch-same-field-indexed";
 
         // Create index on items.price (multiKey for arrays)
-        IndexDefinition priceIndex = IndexDefinition.create("items-price-index", "items.price", BsonType.INT32, true);
+        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("items-price-index", "items.price", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -1517,17 +1762,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'items': [{'price': 120, 'qty': 6}, {'price': 90, 'qty': 8}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: items has element with price > 100 AND items has element with qty > 5
         String query = "{'items': {'$elemMatch': {'price': {'$gt': 100}}}, 'items': {'$elemMatch': {'qty': {'$gt': 5}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: price 150 > 100 ✓, qty 5 not > 5
             // Order2: price 200 > 100 ✓, qty 10 > 5 ✓
@@ -1542,10 +1787,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithDeeplyNestedFieldInsideElemMatch() {
+        // Behavior: Deeply nested dot notation paths inside $elemMatch with an indexed outer
+        // field use the index for scanning, applying nested path as residual.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-deep-nested-indexed";
 
         // Create index on deeply nested field (multiKey for arrays)
-        IndexDefinition valueIndex = IndexDefinition.create("items-value-index", "items.details.info.value", BsonType.INT32, true);
+        SingleFieldIndexDefinition valueIndex = SingleFieldIndexDefinition.create("items-value-index", "items.details.info.value", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valueIndex);
 
         List<byte[]> documents = List.of(
@@ -1555,17 +1803,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Record4', 'items': [{'details': {'info': {'value': 150}}}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find records with at least one item where details.info.value > 120
         String query = "{'items': {'$elemMatch': {'details.info.value': {'$gt': 120}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Record1: max value 100 < 120
             // Record2: value 200 > 120 ✓
@@ -1578,10 +1826,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineMultipleDeeplyNestedFieldsWithIndexInsideElemMatch() {
+        // Behavior: Multiple deeply nested field conditions inside $elemMatch with indexed
+        // field requires one element to satisfy all nested path conditions.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-multi-deep-indexed";
 
         // Create index on one of the deeply nested fields (multiKey for arrays)
-        IndexDefinition countIndex = IndexDefinition.create("entries-count-index", "entries.meta.stats.count", BsonType.INT32, true);
+        SingleFieldIndexDefinition countIndex = SingleFieldIndexDefinition.create("entries-count-index", "entries.meta.stats.count", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, countIndex);
 
         List<byte[]> documents = List.of(
@@ -1591,18 +1842,18 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Data4', 'entries': [{'meta': {'stats': {'count': 120, 'total': 1500}}}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find data with entry where meta.stats.count > 70 AND meta.stats.total > 1000
         // count condition uses index, total is filtered
         String query = "{'entries': {'$elemMatch': {'meta.stats.count': {'$gt': 70}, 'meta.stats.total': {'$gt': 1000}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Data1: count 50 < 70
             // Data2: count 100 > 70 ✓, total 800 < 1000
@@ -1617,10 +1868,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithCompoundRangeInsideElemMatch() {
+        // Behavior: Compound range conditions ($gte + $lte) inside $elemMatch with indexed
+        // field use the index efficiently for range-bounded queries.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-compound-range-indexed";
 
         // Create index on price field (multiKey for arrays)
-        IndexDefinition priceIndex = IndexDefinition.create("variants-price-index", "variants.price", BsonType.INT32, true);
+        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("variants-price-index", "variants.price", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex);
 
         List<byte[]> documents = List.of(
@@ -1630,18 +1884,18 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Product4', 'variants': [{'price': 90, 'stock': 75}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find products with variant where price is between 60 and 130 AND stock > 40
         // price condition uses index
         String query = "{'variants': {'$elemMatch': {'price': {'$gte': 60, '$lte': 130}, 'stock': {'$gt': 40}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Product1: price 50 not in [60,130] for first, price 150 not in range for second
             // Product2: price 80 in [60,130] ✓, stock 50 > 40 ✓
@@ -1654,10 +1908,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldUseIndexWithCompoundRangeOnScalarArrayInsideElemMatch() {
+        // Behavior: Compound range on indexed scalar array uses RangeScanNode to efficiently
+        // find elements within the specified bounds.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-scalar-compound-range-indexed";
 
         // Create index on readings array (multiKey for arrays)
-        IndexDefinition readingsIndex = IndexDefinition.create("readings-index", "readings", BsonType.INT32, true);
+        SingleFieldIndexDefinition readingsIndex = SingleFieldIndexDefinition.create("readings-index", "readings", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, readingsIndex);
 
         List<byte[]> documents = List.of(
@@ -1667,20 +1924,20 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Sensor4', 'readings': [5, 10, 15]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find sensors with at least one reading between 30 and 50 (inclusive)
         String query = "{'readings': {'$elemMatch': {'$gte': 30, '$lte': 50}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Should use RangeScanNode for indexed range query
-        assertInstanceOf(RangeScanNode.class, plan, "Root should be RangeScanNode for indexed range query");
+        assertInstanceOf(RangeScanNode.class, planWithParams.plan(), "Root should be RangeScanNode for indexed range query");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Sensor1: 35 in [30,50] ✓
             // Sensor2: 45 in [30,50] ✓
@@ -1691,14 +1948,17 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
         }
     }
 
-    // Medium Priority: $ne with indexes
+    // Medium Priority: $ne with indexes (falls back to full scan)
 
     @Test
-    void shouldUseIndexWithNeInsideElemMatchOnDocumentArray() {
+    void shouldFallBackToFullScanWithNeInsideElemMatchOnDocumentArray() {
+        // Behavior: $ne inside $elemMatch with indexed field falls back to full scan because
+        // index cannot efficiently find "not equal" across multi-key entries.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-ne-doc-indexed";
 
         // Create index on items.status (multiKey for arrays)
-        IndexDefinition statusIndex = IndexDefinition.create("items-status-index", "items.status", BsonType.STRING, true);
+        SingleFieldIndexDefinition statusIndex = SingleFieldIndexDefinition.create("items-status-index", "items.status", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, statusIndex);
 
         List<byte[]> documents = List.of(
@@ -1708,20 +1968,20 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'items': [{'status': 'cancelled'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find orders with at least one item with status != 'cancelled'
         String query = "{'items': {'$elemMatch': {'status': {'$ne': 'cancelled'}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
-        // $ne can use index scan
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode for $ne query");
+        // $ne with multi-key index falls back to full scan
+        assertInstanceOf(FullScanNode.class, planWithParams.plan(), "$ne with multi-key index should fall back to FullScanNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Order1: pending and shipped != cancelled ✓
             // Order2: all cancelled
@@ -1733,11 +1993,14 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldUseIndexWithNeInsideElemMatchOnScalarArray() {
+    void shouldFallBackToFullScanWithNeInsideElemMatchOnScalarArray() {
+        // Behavior: $ne inside $elemMatch on indexed scalar array falls back to full scan
+        // because index cannot efficiently find "not equal" across multi-key entries.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-ne-scalar-indexed";
 
         // Create index on values array (multiKey for arrays)
-        IndexDefinition valuesIndex = IndexDefinition.create("values-index", "values", BsonType.INT32, true);
+        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         List<byte[]> documents = List.of(
@@ -1747,20 +2010,20 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Config4', 'values': [0, 0]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find configs with at least one value != 0
         String query = "{'values': {'$elemMatch': {'$ne': 0}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
-        // $ne can use index scan
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode for $ne query");
+        // $ne with multi-key index falls back to full scan
+        assertInstanceOf(FullScanNode.class, planWithParams.plan(), "$ne with multi-key index should fall back to FullScanNode");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Config1: all zeros
             // Config2: 1 != 0 ✓
@@ -1773,10 +2036,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldCombineNeWithIndexedConditionInsideElemMatch() {
+        // Behavior: $ne combined with equality conditions inside $elemMatch requires the same
+        // element to match both conditions. Index speeds up finding candidates.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-ne-combined-indexed";
 
         // Create index on user field (multiKey for arrays)
-        IndexDefinition userIndex = IndexDefinition.create("assignments-user-index", "assignments.user", BsonType.STRING, true);
+        SingleFieldIndexDefinition userIndex = SingleFieldIndexDefinition.create("assignments-user-index", "assignments.user", BsonType.STRING, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, userIndex);
 
         List<byte[]> documents = List.of(
@@ -1786,21 +2052,21 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Task4', 'assignments': [{'user': 'alice', 'role': 'editor'}]}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find tasks with at least one assignment where user = 'alice' AND role != 'viewer'
         // user condition uses index
         String query = "{'assignments': {'$elemMatch': {'user': 'alice', 'role': {'$ne': 'viewer'}}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         // Should use index for user='alice'
-        assertInstanceOf(IndexScanNode.class, plan, "Root should be IndexScanNode for indexed condition");
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode for indexed condition");
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Task1: alice with owner role != viewer ✓
             // Task2: no alice
@@ -1815,10 +2081,13 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
 
     @Test
     void shouldHandleLargeArraysWithIndex() {
+        // Behavior: Large arrays (50+ elements) with indexed fields are efficiently processed.
+        // Multi-key index creates entries for all elements, enabling fast lookups.
+
         final String TEST_BUCKET_NAME = "test-bucket-elemmatch-large-array-indexed";
 
         // Create index on values array (multiKey for arrays)
-        IndexDefinition valuesIndex = IndexDefinition.create("values-index", "values", BsonType.INT32, true);
+        SingleFieldIndexDefinition valuesIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, true, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, valuesIndex);
 
         // Create documents with large arrays (50 elements)
@@ -1846,23 +2115,120 @@ class ElemMatchNodeWithIndexScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes(largeArray3.toString())
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query: Find documents with at least one value > 90
         String query = "{'values': {'$elemMatch': {'$gt': 90}}}";
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
 
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Data1: max is 49 < 90
             // Data2: has values 91-99 > 90 ✓
             // Data3: max is 98 > 90 ✓
             assertEquals(2, results.size(), "Should return exactly 2 documents");
             assertEquals(Set.of("Data2", "Data3"), extractNamesFromResults(results));
+        }
+    }
+
+    // OBJECT_ID tests
+
+    @Test
+    void shouldUseIndexOnScalarObjectIdArray() {
+        // Behavior: Multi-key index on a scalar ObjectId array field enables efficient $elemMatch
+        // queries by creating index entries for each ObjectId element.
+
+        final String TEST_BUCKET_NAME = "test-bucket-scalar-objectid-array-indexed";
+
+        // Create index on the scalar array field 'refs' (multikey)
+        SingleFieldIndexDefinition refsIndex = SingleFieldIndexDefinition.create("refs-index", "refs", BsonType.OBJECT_ID, true, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, refsIndex);
+
+        ObjectId oid1 = new ObjectId();
+        ObjectId oid2 = new ObjectId();
+        ObjectId oid3 = new ObjectId();
+        ObjectId target = new ObjectId();
+
+        // Insert documents with scalar ObjectId arrays
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc1', 'refs': [{\"$oid\": \"" + oid1.toHexString() + "\"}, {\"$oid\": \"" + target.toHexString() + "\"}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc2', 'refs': [{\"$oid\": \"" + oid2.toHexString() + "\"}, {\"$oid\": \"" + oid3.toHexString() + "\"}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc3', 'refs': [{\"$oid\": \"" + target.toHexString() + "\"}, {\"$oid\": \"" + oid3.toHexString() + "\"}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Doc4', 'refs': [{\"$oid\": \"" + oid1.toHexString() + "\"}, {\"$oid\": \"" + oid2.toHexString() + "\"}]}")
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        // Query: 'refs' has at least one matching target
+        String query = "{'refs': {'$elemMatch': {'$eq': '" + target.toHexString() + "'}}}";
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+
+        QueryOptions options = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+
+            assertEquals(2, results.size(), "Should return exactly 2 documents");
+            assertEquals(Set.of("Doc1", "Doc3"), extractNamesFromResults(results));
+        }
+    }
+
+    @Test
+    void shouldCombineIndexScanWithObjectIdFieldElemMatch() {
+        // Behavior: IndexScan on a regular STRING field can be combined with $elemMatch targeting
+        // an ObjectId field inside an array of documents. The index narrows candidates, then
+        // $elemMatch filters within matching documents.
+
+        final String TEST_BUCKET_NAME = "test-bucket-elemmatch-objectid-index-combined";
+
+        // Create index on 'category' field
+        SingleFieldIndexDefinition categoryIndex = SingleFieldIndexDefinition.create("category-index", "category", BsonType.STRING, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, categoryIndex);
+
+        ObjectId ref1 = new ObjectId();
+        ObjectId ref2 = new ObjectId();
+        ObjectId ref3 = new ObjectId();
+
+        // Insert documents with category and items array containing ref_id ObjectId fields
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Order1', 'category': 'electronics', 'items': [{'ref_id': {\"$oid\": \"" + ref1.toHexString() + "\"}}, {'ref_id': {\"$oid\": \"" + ref2.toHexString() + "\"}}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Order2', 'category': 'electronics', 'items': [{'ref_id': {\"$oid\": \"" + ref3.toHexString() + "\"}}, {'ref_id': {\"$oid\": \"" + ref1.toHexString() + "\"}}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Order3', 'category': 'books', 'items': [{'ref_id': {\"$oid\": \"" + ref3.toHexString() + "\"}}, {'ref_id': {\"$oid\": \"" + ref2.toHexString() + "\"}}]}"),
+                BSONUtil.jsonToDocumentThenBytes("{'name': 'Order4', 'category': 'electronics', 'items': [{'ref_id': {\"$oid\": \"" + ref2.toHexString() + "\"}}, {'ref_id': {\"$oid\": \"" + ref1.toHexString() + "\"}}]}")
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        // Query: category = 'electronics' AND items have at least one with ref_id = ref3
+        String query = "{'category': 'electronics', 'items': {'$elemMatch': {'ref_id': '" + ref3.toHexString() + "'}}}";
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+
+        // Verify plan structure: IndexScanNode -> TransformWithResidualPredicateNode (with ResidualElemMatchNode)
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Root should be IndexScanNode");
+        assertInstanceOf(TransformWithResidualPredicateNode.class, planWithParams.plan().next(), "Next should be TransformWithResidualPredicateNode");
+        TransformWithResidualPredicateNode transform = (TransformWithResidualPredicateNode) planWithParams.plan().next();
+        assertInstanceOf(ResidualAndNode.class, transform.predicate(), "Predicate should be ResidualAndNode");
+        ResidualAndNode andNode = (ResidualAndNode) transform.predicate();
+        assertTrue(andNode.children().stream().anyMatch(p -> p instanceof ResidualElemMatchNode),
+                "ResidualAndNode should contain a ResidualElemMatchNode");
+
+        QueryOptions options = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+
+            // Order1: electronics, refs=[ref1, ref2] — no ref3 -> no match
+            // Order2: electronics, refs=[ref3, ref1] — has ref3 -> match
+            // Order3: books — filtered by index scan -> no match
+            // Order4: electronics, refs=[ref2, ref1] — no ref3 -> no match
+            assertEquals(1, results.size(), "Should return exactly 1 document");
+            assertEquals(Set.of("Order2"), extractNamesFromResults(results));
         }
     }
 

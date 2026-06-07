@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.VolumeAdminCommandBuilder;
+import com.kronotop.commands.KrAdminCommandBuilder;
+import com.kronotop.commands.VolumeAdminCommandBuilder;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -167,7 +167,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(ShardKind.REDIS);
+            List<Integer> shardIds = activeReplications.get(ShardKind.STASH);
             if (shardIds != null && shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
@@ -209,7 +209,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(ShardKind.REDIS);
+            List<Integer> shardIds = activeReplications.get(ShardKind.STASH);
             if (shardIds != null && shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
@@ -252,7 +252,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             EnumMap<ShardKind, List<Integer>> activeReplications = replicationService.listActiveReplicationsByShard();
-            List<Integer> shardIds = activeReplications.get(ShardKind.REDIS);
+            List<Integer> shardIds = activeReplications.get(ShardKind.STASH);
             if (shardIds != null && shardIds.size() == 1) {
                 return shardIds.getFirst() == 1;
             }
@@ -417,7 +417,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             try (Transaction tr = standby.getContext().getFoundationDB().createTransaction()) {
                 DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
-                        standby.getContext(), tr, volumeName, standby.getMember().getId());
+                        standby.getContext(), tr, SHARD_KIND, volumeName, standby.getMember().getId());
                 ReplicationStatusInfo status = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
                 return status.stage() != null;
             }
@@ -426,7 +426,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
         // Verify status info fields are populated
         try (Transaction tr = standby.getContext().getFoundationDB().createTransaction()) {
             DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
-                    standby.getContext(), tr, volumeName, standby.getMember().getId());
+                    standby.getContext(), tr, SHARD_KIND, volumeName, standby.getMember().getId());
             ReplicationStatusInfo status = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
 
             assertNotNull(status.stage());

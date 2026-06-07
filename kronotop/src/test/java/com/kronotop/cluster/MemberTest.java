@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,9 @@
 package com.kronotop.cluster;
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.network.Address;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.UnknownHostException;
 import java.util.Comparator;
@@ -33,8 +32,8 @@ public class MemberTest {
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 
     @Test
-    public void shouldSerializeAndDeserializeMember() throws UnknownHostException, JsonProcessingException {
-        Member member = createMember("localhost:[5484]");
+    public void shouldSerializeAndDeserializeMember() throws UnknownHostException {
+        Member member = createMember("localhost:5484");
         ObjectMapper objectMapper = new ObjectMapper();
         String serialized = objectMapper.writeValueAsString(member);
         Member deserialized = objectMapper.readValue(serialized, Member.class);
@@ -42,17 +41,17 @@ public class MemberTest {
     }
 
     @Test
-    public void shouldCompareMembersCorrectly() throws UnknownHostException, JsonProcessingException {
-        Member memberOne = createMember("localhost:[5484]");
-        Member memberTwo = createMember("localhost:[5585]");
+    public void shouldCompareMembersCorrectly() throws UnknownHostException {
+        Member memberOne = createMember("localhost:5484");
+        Member memberTwo = createMember("localhost:5585");
         assertTrue(memberOne.getProcessId().compareTo(memberTwo.getProcessId()) < 0);
     }
 
     @Test
-    public void shouldSortMembersCorrectly() throws UnknownHostException, JsonProcessingException {
-        Member memberOne = createMember("localhost:[5484]");
-        Member memberTwo = createMember("localhost:[5585]");
-        Member memberThree = createMember("localhost:[5686]");
+    public void shouldSortMembersCorrectly() throws UnknownHostException {
+        Member memberOne = createMember("localhost:5484");
+        Member memberTwo = createMember("localhost:5585");
+        Member memberThree = createMember("localhost:5686");
 
         TreeSet<Member> members = new TreeSet<>(Comparator.comparing(Member::getProcessId));
         members.add(memberThree);

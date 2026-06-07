@@ -16,7 +16,7 @@
 
 package com.kronotop.cli;
 
-import com.kronotop.cli.resp.RespValue;
+import com.kronotop.resp.RespValue;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
@@ -278,9 +278,10 @@ class ResponseFormatterTest {
     }
 
     @Test
-    void shouldNotEscapeInNonJsonMode() {
+    void shouldEscapeControlCharsInNonJsonMode() {
+        // Behavior: non-printable characters are always escaped regardless of reply type
         RespValue value = new RespValue.BlobString("hello\tworld");
-        assertEquals("\"hello\tworld\"", formatter.format(value));
+        assertEquals("\"hello\\tworld\"", formatter.format(value));
     }
 
     @Test

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,16 @@
 package com.kronotop.bucket.index;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 
 public record IndexEntryContainer(
         BucketMetadata metadata,
         Object indexValue,
-        IndexDefinition indexDefinition,
+        SingleFieldIndexDefinition indexDefinition,
         DirectorySubspace indexSubspace,
         int shardId,
-        byte[] entryMetadata
+        byte[] entryMetadata,
+        Versionstamp versionstamp
 ) {
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 
@@ -54,17 +53,17 @@ import java.util.List;
 public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
 
     @Override
-    public PhysicalNode apply(PhysicalNode node, BucketMetadata metadata, PlannerContext context) {
-        SelectivityEstimator estimator = new SelectivityEstimator(metadata);
+    public PhysicalNode apply(PlannerContext context, PhysicalNode node) {
+        SelectivityEstimator estimator = new SelectivityEstimator(context);
 
         return switch (node) {
-            case PhysicalAnd and -> optimizeAnd(and, estimator, metadata, context);
-            case PhysicalOr or -> optimizeOr(or, estimator, metadata, context);
-            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(not.child(), metadata, context));
+            case PhysicalAnd and -> optimizeAnd(context, and, estimator);
+            case PhysicalOr or -> optimizeOr(context, or, estimator);
+            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(context, not.child()));
             case PhysicalElemMatch elemMatch -> new PhysicalElemMatch(
                     context.nextId(),
                     elemMatch.selector(),
-                    apply(elemMatch.subPlan(), metadata, context)
+                    apply(context, elemMatch.subPlan())
             );
             default -> node; // No optimization for other nodes
         };
@@ -74,12 +73,12 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
      * Optimize AND operations by ordering conditions from most to least selective.
      * This allows early termination when a highly selective condition fails.
      */
-    private PhysicalNode optimizeAnd(PhysicalAnd and, SelectivityEstimator estimator, BucketMetadata metadata, PlannerContext context) {
+    private PhysicalNode optimizeAnd(PlannerContext context, PhysicalAnd and, SelectivityEstimator estimator) {
         List<PhysicalNode> optimizedChildren = new ArrayList<>();
 
         // First, recursively optimize children
         for (PhysicalNode child : and.children()) {
-            optimizedChildren.add(apply(child, metadata, context));
+            optimizedChildren.add(apply(context, child));
         }
 
         // Sort children by selectivity (most selective first for AND)
@@ -100,12 +99,12 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
      * Optimize OR operations by ordering conditions from least to most selective.
      * This allows better short-circuiting when a less selective condition succeeds early.
      */
-    private PhysicalNode optimizeOr(PhysicalOr or, SelectivityEstimator estimator, BucketMetadata metadata, PlannerContext context) {
+    private PhysicalNode optimizeOr(PlannerContext context, PhysicalOr or, SelectivityEstimator estimator) {
         List<PhysicalNode> optimizedChildren = new ArrayList<>();
 
         // First, recursively optimize children
         for (PhysicalNode child : or.children()) {
-            optimizedChildren.add(apply(child, metadata, context));
+            optimizedChildren.add(apply(context, child));
         }
 
         // Sort children by selectivity (least selective first for OR)
@@ -137,8 +136,8 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
         return switch (node) {
             case PhysicalAnd and -> and.children().size() > 1;
             case PhysicalOr or -> or.children().size() > 1;
-            case PhysicalNot not -> true;
-            case PhysicalElemMatch elemMatch -> true;
+            case PhysicalNot ignored -> true;
+            case PhysicalElemMatch ignored -> true;
             default -> false;
         };
     }
@@ -146,8 +145,9 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
     /**
      * Estimates the selectivity cost of a physical node.
      * Lower values indicate higher selectivity (better performance).
+     * When sortByField is set, gives priority to index scans on that field.
      */
-    private record SelectivityEstimator(BucketMetadata metadata) {
+    private record SelectivityEstimator(PlannerContext context) {
 
         /**
          * Estimate the selectivity cost of a physical node.
@@ -161,6 +161,7 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
                 case PhysicalIndexScan indexScan -> estimateIndexScanSelectivity(indexScan);
                 case PhysicalRangeScan rangeScan -> estimateRangeScanSelectivity(rangeScan);
                 case PhysicalIndexIntersection intersection -> estimateIntersectionSelectivity(intersection);
+                case PhysicalCompoundIndexScan compoundScan -> estimateCompoundIndexScanSelectivity(compoundScan);
                 case PhysicalFullScan fullScan -> estimateFullScanSelectivity(fullScan);
                 case PhysicalFilter filter -> estimateFilterSelectivity(filter);
                 case PhysicalAnd and -> estimateAndSelectivity(and);
@@ -168,13 +169,19 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
                 case PhysicalNot not -> estimateNotSelectivity(not);
                 case PhysicalElemMatch elemMatch -> estimateElemMatchSelectivity(elemMatch);
                 case PhysicalTrue ignored -> 0.0; // Always true, very low selectivity
-                case PhysicalFalse ignored -> 1.0; // Always false, highest selectivity
+                case PhysicalFalse ignored -> 1.0; // Always false, the highest selectivity
             };
         }
 
         private double estimateIndexScanSelectivity(PhysicalIndexScan indexScan) {
             if (!(indexScan.node() instanceof PhysicalFilter filter)) {
                 return 20.0; // Default for non-filter index scan
+            }
+
+            // Prioritize index matching SORTBY field to guarantee sorted results
+            String sortByField = context != null ? context.getSortByField() : null;
+            if (sortByField != null && sortByField.equals(filter.selector())) {
+                return 1.0; // Highest priority for SORTBY index
             }
 
             // Base selectivity for indexed operations is good
@@ -185,6 +192,12 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
         }
 
         private double estimateRangeScanSelectivity(PhysicalRangeScan rangeScan) {
+            // Prioritize range scan matching SORTBY field to guarantee sorted results
+            String sortByField = context != null ? context.getSortByField() : null;
+            if (sortByField != null && sortByField.equals(rangeScan.selector())) {
+                return 1.0; // Highest priority for SORTBY index
+            }
+
             // Range scans are generally less selective than equality index scans
             // but better than full scans since they use indexes
             return 15.0;
@@ -196,12 +209,18 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
             return 5.0 + (intersection.indexes().size() * 2.0);
         }
 
+        private double estimateCompoundIndexScanSelectivity(PhysicalCompoundIndexScan compoundScan) {
+            // Compound index scans are very selective since they use a single
+            // multi-field index to satisfy multiple conditions
+            return 4.0 + (compoundScan.filters().size() * 1.5);
+        }
+
         private double estimateFullScanSelectivity(PhysicalFullScan fullScan) {
             if (!(fullScan.node() instanceof PhysicalFilter filter)) {
-                return 100.0; // Full scan without filter is worst case
+                return 100.0; // Full scan without a filter is the worst case
             }
 
-            // Full scans are expensive, but operator type still matters
+            // Full scans are expensive, but the operator type still matters
             double baseCost = 80.0;
             return baseCost + getOperatorSelectivityAdjustment(filter.op());
         }

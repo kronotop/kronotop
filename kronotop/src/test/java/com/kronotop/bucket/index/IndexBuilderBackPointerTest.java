@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,12 +22,11 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.CollatorCache;
 import com.kronotop.volume.AppendedEntry;
-import com.kronotop.volume.VolumeTestUtil;
 import org.bson.BsonType;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -38,13 +37,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static com.kronotop.bucket.index.IndexMaintainer.NULL_VALUE;
 import static org.junit.jupiter.api.Assertions.*;
 
-class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
-    final int SHARD_ID = 1;
-    final byte[] NULL_VALUE = new byte[]{0};
+class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
 
     static Stream<Arguments> indexValueTestData() {
+        ObjectId objectId = new ObjectId();
         return Stream.of(
                 Arguments.of("string-index", "name", BsonType.STRING, "John Doe", "John Doe"),
                 Arguments.of("int32-index", "age", BsonType.INT32, 25, 25L),
@@ -54,12 +53,9 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
                 Arguments.of("binary-index", "data", BsonType.BINARY, new byte[]{1, 2, 3, 4}, new byte[]{1, 2, 3, 4}),
                 Arguments.of("datetime-index", "created", BsonType.DATE_TIME, 1640995200000L, 1640995200000L),
                 // TODO: Enable this when we implement decimal128 indexes - Arguments.of("decimal128-index", "price", BsonType.DECIMAL128, "99.99", "99.99"),
+                Arguments.of("objectid-index", "ref_id", BsonType.OBJECT_ID, objectId, objectId.toByteArray()),
                 Arguments.of("null-index", "nullable", BsonType.NULL, null, null)
         );
-    }
-
-    byte[] getEncodedEntryMetadata() {
-        return VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode();
     }
 
     private AppendedEntry createAppendedEntry(int userVersion) {
@@ -67,19 +63,22 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         return new AppendedEntry(userVersion, userVersion, null, encodedEntryMetadata);
     }
 
-    BucketMetadata createIndexAndLoadBucketMetadata(String bucket, IndexDefinition... definitions) {
+    BucketMetadata createIndexAndLoadBucketMetadata(String bucket, SingleFieldIndexDefinition... definitions) {
         createIndexThenWaitForReadiness(TEST_NAMESPACE, bucket, definitions);
         return refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
     }
 
-    private void setIndexEntryAndCommit(IndexDefinition definition, BucketMetadata metadata, Object indexValue, AppendedEntry entry) {
+    private void setIndexEntryAndCommit(SingleFieldIndexDefinition definition, BucketMetadata metadata, Object indexValue, ObjectId objectId, AppendedEntry entry) {
+        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
+        byte[] objectIdBytes = objectId.toByteArray();
+        byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexBuilder.setIndexEntry(tr, definition, SHARD_ID, metadata, indexValue, entry);
+            SingleFieldIndexMaintainer.setEntry(tr, index, metadata, indexValue, objectIdBytes, encodedIndexEntry, entry.userVersion(), new CollatorCache());
             tr.commit().join();
         }
     }
 
-    private void verifyBackPointer(DirectorySubspace indexSubspace, Object expectedIndexValue, int expectedUserVersion) {
+    private void verifyBackPointer(DirectorySubspace indexSubspace, Object expectedIndexValue, ObjectId expectedObjectId) {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
@@ -92,10 +91,11 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
                 Tuple unpacked = indexSubspace.unpack(kv.getKey());
                 assertEquals((long) IndexSubspaceMagic.BACK_POINTER.getValue(), unpacked.get(0), "Magic value should match");
 
-                Versionstamp versionstamp = (Versionstamp) unpacked.get(1);
+                byte[] objectIdBytes = (byte[]) unpacked.get(1);
+                ObjectId objectId = new ObjectId(objectIdBytes);
                 Object indexValue = unpacked.get(2);
 
-                if (versionstamp.getUserVersion() == expectedUserVersion) {
+                if (objectId.equals(expectedObjectId)) {
                     if (expectedIndexValue instanceof byte[]) {
                         assertArrayEquals((byte[]) expectedIndexValue, (byte[]) indexValue, "Back pointer index value should match");
                     } else if (expectedIndexValue instanceof Integer && indexValue instanceof Long) {
@@ -108,11 +108,11 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
                     break;
                 }
             }
-            assertTrue(found, "Back pointer should exist for user version " + expectedUserVersion);
+            assertTrue(found, "Back pointer should exist for ObjectId " + expectedObjectId);
         }
     }
 
-    private List<Tuple> getBackPointersForVersionstamp(DirectorySubspace indexSubspace, int userVersion) {
+    private List<Tuple> getBackPointersForObjectId(DirectorySubspace indexSubspace, ObjectId targetObjectId) {
         List<Tuple> backPointers = new ArrayList<>();
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
@@ -123,9 +123,10 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
             for (KeyValue kv : allBackPointers) {
                 Tuple unpacked = indexSubspace.unpack(kv.getKey());
-                Versionstamp versionstamp = (Versionstamp) unpacked.get(1);
+                byte[] objectIdBytes = (byte[]) unpacked.get(1);
+                ObjectId objectId = new ObjectId(objectIdBytes);
 
-                if (versionstamp.getUserVersion() == userVersion) {
+                if (objectId.equals(targetObjectId)) {
                     backPointers.add(unpacked);
                 }
             }
@@ -133,9 +134,9 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         return backPointers;
     }
 
-    private List<Object> getAllIndexValuesForVersionstamp(DirectorySubspace indexSubspace, int userVersion) {
+    private List<Object> getAllIndexValuesForObjectId(DirectorySubspace indexSubspace, ObjectId objectId) {
         List<Object> indexValues = new ArrayList<>();
-        List<Tuple> backPointers = getBackPointersForVersionstamp(indexSubspace, userVersion);
+        List<Tuple> backPointers = getBackPointersForObjectId(indexSubspace, objectId);
 
         for (Tuple backPointer : backPointers) {
             Object indexValue = backPointer.get(2);
@@ -147,27 +148,29 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     @ParameterizedTest
     @MethodSource("indexValueTestData")
     void shouldCreateBackPointerWhenSettingIndexEntry(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
-        IndexDefinition definition = IndexDefinition.create(indexName, fieldName, bsonType);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(indexName, fieldName, bsonType, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
         AppendedEntry entry = createAppendedEntry(0);
+        ObjectId objectId = new ObjectId();
 
-        setIndexEntryAndCommit(definition, metadata, inputValue, entry);
+        setIndexEntryAndCommit(definition, metadata, inputValue, objectId, entry);
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist for " + bsonType);
         DirectorySubspace indexSubspace = index.subspace();
 
-        verifyBackPointer(indexSubspace, expectedStoredValue, 0);
+        verifyBackPointer(indexSubspace, expectedStoredValue, objectId);
     }
 
     @Test
     void shouldCreateBackPointerWithCorrectStructure() {
-        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
         AppendedEntry entry = createAppendedEntry(42);
         String indexValue = "test-value";
+        ObjectId objectId = new ObjectId();
 
-        setIndexEntryAndCommit(definition, metadata, indexValue, entry);
+        setIndexEntryAndCommit(definition, metadata, indexValue, objectId, entry);
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
@@ -186,8 +189,9 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
             assertEquals(3, unpacked.size(), "Back pointer tuple should have 3 elements");
             assertEquals((long) IndexSubspaceMagic.BACK_POINTER.getValue(), unpacked.get(0), "First element should be BACK_POINTER magic");
 
-            Versionstamp versionstamp = (Versionstamp) unpacked.get(1);
-            assertEquals(42, versionstamp.getUserVersion(), "Second element should be versionstamp with correct user version");
+            byte[] objectIdBytes = (byte[]) unpacked.get(1);
+            ObjectId actualObjectId = new ObjectId(objectIdBytes);
+            assertEquals(objectId, actualObjectId, "Second element should be ObjectId");
 
             assertEquals(indexValue, unpacked.get(2), "Third element should be index value");
             assertArrayEquals(NULL_VALUE, backPointer.getValue(), "Back pointer value should be NULL_VALUE");
@@ -196,18 +200,19 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldRetrieveIndexKeysUsingBackPointer() {
-        IndexDefinition definition = IndexDefinition.create("test-index", "name", BsonType.STRING);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
 
         AppendedEntry entry = createAppendedEntry(100);
         String indexValue = "retrievable-value";
+        ObjectId objectId = new ObjectId();
 
-        setIndexEntryAndCommit(definition, metadata, indexValue, entry);
+        setIndexEntryAndCommit(definition, metadata, indexValue, objectId, entry);
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
-        List<Object> indexValues = getAllIndexValuesForVersionstamp(indexSubspace, 100);
+        List<Object> indexValues = getAllIndexValuesForObjectId(indexSubspace, objectId);
 
         assertEquals(1, indexValues.size(), "Should find one index value");
         assertEquals(indexValue, indexValues.getFirst(), "Index value should match");
@@ -215,17 +220,18 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldCreateBackPointersForMultipleIndexes() {
-        IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING);
-        IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition stringIndex = SingleFieldIndexDefinition.create("string-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition intIndex = SingleFieldIndexDefinition.create("int-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
 
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, stringIndex, intIndex);
 
         AppendedEntry entry = createAppendedEntry(200);
         String stringValue = "multi-index-test";
         Integer intValue = 25;
+        ObjectId objectId = new ObjectId();
 
-        setIndexEntryAndCommit(stringIndex, metadata, stringValue, entry);
-        setIndexEntryAndCommit(intIndex, metadata, intValue, entry);
+        setIndexEntryAndCommit(stringIndex, metadata, stringValue, objectId, entry);
+        setIndexEntryAndCommit(intIndex, metadata, intValue, objectId, entry);
 
         Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector(), IndexSelectionPolicy.READ);
         assertNotNull(stringIndexObj, "String index should exist");
@@ -234,15 +240,15 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         assertNotNull(intIndexObj, "Int index should exist");
         DirectorySubspace intIndexSubspace = intIndexObj.subspace();
 
-        verifyBackPointer(stringIndexSubspace, stringValue, 200);
-        verifyBackPointer(intIndexSubspace, intValue, 200);
+        verifyBackPointer(stringIndexSubspace, stringValue, objectId);
+        verifyBackPointer(intIndexSubspace, intValue, objectId);
     }
 
     @Test
-    void shouldScanBackPointersForVersionstamp() {
-        IndexDefinition stringIndex = IndexDefinition.create("string-index", "name", BsonType.STRING);
-        IndexDefinition intIndex = IndexDefinition.create("int-index", "age", BsonType.INT32);
-        IndexDefinition doubleIndex = IndexDefinition.create("double-index", "score", BsonType.DOUBLE);
+    void shouldScanBackPointersForObjectId() {
+        SingleFieldIndexDefinition stringIndex = SingleFieldIndexDefinition.create("string-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition intIndex = SingleFieldIndexDefinition.create("int-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition doubleIndex = SingleFieldIndexDefinition.create("double-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING);
 
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, stringIndex, intIndex, doubleIndex);
 
@@ -250,10 +256,11 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         String stringValue = "scan-test";
         Integer intValue = 30;
         Double doubleValue = 98.7;
+        ObjectId objectId = new ObjectId();
 
-        setIndexEntryAndCommit(stringIndex, metadata, stringValue, entry);
-        setIndexEntryAndCommit(intIndex, metadata, intValue, entry);
-        setIndexEntryAndCommit(doubleIndex, metadata, doubleValue, entry);
+        setIndexEntryAndCommit(stringIndex, metadata, stringValue, objectId, entry);
+        setIndexEntryAndCommit(intIndex, metadata, intValue, objectId, entry);
+        setIndexEntryAndCommit(doubleIndex, metadata, doubleValue, objectId, entry);
 
         Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector(), IndexSelectionPolicy.READ);
         assertNotNull(stringIndexObj, "String index should exist");
@@ -265,9 +272,9 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
         assertNotNull(doubleIndexObj, "Double index should exist");
         DirectorySubspace doubleIndexSubspace = doubleIndexObj.subspace();
 
-        List<Object> stringIndexValues = getAllIndexValuesForVersionstamp(stringIndexSubspace, 300);
-        List<Object> intIndexValues = getAllIndexValuesForVersionstamp(intIndexSubspace, 300);
-        List<Object> doubleIndexValues = getAllIndexValuesForVersionstamp(doubleIndexSubspace, 300);
+        List<Object> stringIndexValues = getAllIndexValuesForObjectId(stringIndexSubspace, objectId);
+        List<Object> intIndexValues = getAllIndexValuesForObjectId(intIndexSubspace, objectId);
+        List<Object> doubleIndexValues = getAllIndexValuesForObjectId(doubleIndexSubspace, objectId);
 
         assertEquals(1, stringIndexValues.size(), "String index should have one back pointer");
         assertEquals(1, intIndexValues.size(), "Int index should have one back pointer");
@@ -279,24 +286,24 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldHandleMultipleEntriesWithSameVersionstamp() {
-        IndexDefinition definition = IndexDefinition.create("multi-entry-index", "value", BsonType.STRING);
+    void shouldHandleMultipleEntriesWithSameObjectId() {
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("multi-entry-index", "value", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
 
-        int userVersion = 400;
+        ObjectId objectId = new ObjectId();
         List<String> expectedValues = Arrays.asList("value1", "value2", "value3");
 
         for (String value : expectedValues) {
-            AppendedEntry entry = createAppendedEntry(userVersion);
-            setIndexEntryAndCommit(definition, metadata, value, entry);
+            AppendedEntry entry = createAppendedEntry(400);
+            setIndexEntryAndCommit(definition, metadata, value, objectId, entry);
         }
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
-        List<Object> retrievedValues = getAllIndexValuesForVersionstamp(indexSubspace, userVersion);
+        List<Object> retrievedValues = getAllIndexValuesForObjectId(indexSubspace, objectId);
 
-        assertEquals(expectedValues.size(), retrievedValues.size(), "Should retrieve all values for the versionstamp");
+        assertEquals(expectedValues.size(), retrievedValues.size(), "Should retrieve all values for the ObjectId");
         for (String expectedValue : expectedValues) {
             assertTrue(retrievedValues.contains(expectedValue), "Should contain value: " + expectedValue);
         }
@@ -304,15 +311,16 @@ class IndexBuilderBackPointerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldCreateBackPointersForNullValues() {
-        IndexDefinition definition = IndexDefinition.create("null-index", "nullable", BsonType.NULL);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("null-index", "nullable", BsonType.NULL, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(TEST_BUCKET, definition);
         AppendedEntry entry = createAppendedEntry(500);
+        ObjectId objectId = new ObjectId();
 
-        setIndexEntryAndCommit(definition, metadata, null, entry);
+        setIndexEntryAndCommit(definition, metadata, null, objectId, entry);
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
-        verifyBackPointer(indexSubspace, null, 500);
+        verifyBackPointer(indexSubspace, null, objectId);
     }
 }

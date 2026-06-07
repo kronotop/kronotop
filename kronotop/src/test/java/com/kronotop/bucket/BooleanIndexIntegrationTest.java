@@ -17,15 +17,19 @@
 package com.kronotop.bucket;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.pipeline.*;
+import com.kronotop.TestUtil;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.pipeline.BasePipelineTest;
+import com.kronotop.bucket.pipeline.IndexScanNode;
+import com.kronotop.bucket.pipeline.QueryContext;
+import com.kronotop.bucket.pipeline.QueryOptions;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -34,8 +38,8 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldQueryBooleanIndexWithTrue() {
-        IndexDefinition activeIndex = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, activeIndex);
+        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John', 'active': true}"),
@@ -44,19 +48,19 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Claire', 'active': false}")
         );
 
-        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'active': true}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'active': true}");
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        assertInstanceOf(IndexScanNode.class, plan);
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -69,8 +73,8 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldQueryBooleanIndexWithFalse() {
-        IndexDefinition activeIndex = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, activeIndex);
+        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John', 'active': true}"),
@@ -79,19 +83,19 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Claire', 'active': false}")
         );
 
-        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'active': false}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'active': false}");
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        assertInstanceOf(IndexScanNode.class, plan);
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -104,8 +108,8 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldQueryBooleanIndexWithGtFalse() {
-        IndexDefinition activeIndex = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, activeIndex);
+        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John', 'active': true}"),
@@ -114,18 +118,18 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Claire', 'active': false}")
         );
 
-        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // $gt: false is equivalent to true because true > false
-        PipelineNode plan = createExecutionPlan(metadata, "{'active': {'$gt': false}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'active': {'$gt': false}}");
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -138,8 +142,8 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldQueryBooleanIndexWithLtFalse() {
-        IndexDefinition activeIndex = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, activeIndex);
+        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John', 'active': true}"),
@@ -148,23 +152,23 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Claire', 'active': false}")
         );
 
-        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // $lt: false returns empty because nothing is less than false
-        PipelineNode plan = createExecutionPlan(metadata, "{'active': {'$lt': false}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'active': {'$lt': false}}");
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(0, results.size());
         }
     }
 
     @Test
     void shouldQueryBooleanIndexWithLtTrue() {
-        IndexDefinition activeIndex = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, activeIndex);
+        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John', 'active': true}"),
@@ -173,18 +177,18 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Claire', 'active': false}")
         );
 
-        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // $lt: true is equivalent to false because false < true
-        PipelineNode plan = createExecutionPlan(metadata, "{'active': {'$lt': true}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'active': {'$lt': true}}");
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -197,8 +201,8 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldReturnEmptyWhenComparingBooleanWithString() {
-        IndexDefinition activeIndex = IndexDefinition.create("active-index", "active", BsonType.BOOLEAN);
-        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(BUCKET_NAME, activeIndex);
+        SingleFieldIndexDefinition activeIndex = SingleFieldIndexDefinition.create("active-index", "active", BsonType.BOOLEAN, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, activeIndex);
 
         List<byte[]> documents = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John', 'active': true}"),
@@ -207,15 +211,15 @@ class BooleanIndexIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Claire', 'active': false}")
         );
 
-        insertDocumentsAndGetVersionstamps(BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Comparing boolean field with string value returns empty (type mismatch)
-        PipelineNode plan = createExecutionPlan(metadata, "{'active': {'$lt': 'true'}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'active': {'$lt': 'true'}}");
         QueryOptions options = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, options, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(0, results.size());
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,11 @@ package com.kronotop.volume;
 public class Subspaces {
     public static final byte ENTRY_SUBSPACE = 0x01;
     public static final byte ENTRY_METADATA_SUBSPACE = 0x02;
-    public static final byte SEGMENT_CARDINALITY_SUBSPACE = 0x3;
-    public static final byte SEGMENT_USED_BYTES_SUBSPACE = 0x4;
-    public static final byte SEGMENT_LOG_SUBSPACE = 0x5;
-    public static final byte SEGMENT_LOG_CARDINALITY_SUBSPACE = 0x6;
-    public static final byte REPLICATION_SLOT_SUBSPACE = 0x7;
-    public static final byte STREAMING_SUBSCRIBERS_SUBSPACE = 0x8;
-    public static final byte MEMBER_REPLICATION_SLOT_SUBSPACE = 0x9;
-    public static final byte CHANGELOG_SUBSPACE = 0x10;
-    public static final byte MUTATION_TRIGGER = 0x11;
-    public static final byte CHANGELOG_BACK_POINTER_SUBSPACE = 0x12;
+    public static final byte SEGMENT_POSITION_SUBSPACE = 0x03;
+    public static final byte SEGMENT_STATS_SUBSPACE = 0x04;
+    public static final byte CHANGELOG_SUBSPACE = 0x05;
+    public static final byte MUTATION_TRIGGER = 0x06;
+    public static final byte CHANGELOG_BACK_POINTER_SUBSPACE = 0x07;
+    public static final byte VACUUM_METADATA_SUBSPACE = 0x08;
+    public static final byte VOLUME_METADATA_SUBSPACE = 0x09;
 }

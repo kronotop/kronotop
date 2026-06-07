@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,20 +17,24 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import org.bson.*;
-import org.bson.types.Decimal128;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -114,7 +118,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -125,15 +129,15 @@ class IndexScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        List<Versionstamp> versionstamps = insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        List<ObjectId> objectIds = insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        String query = String.format("{'_id': {'$gt': '%s'}}", VersionstampUtil.base32HexEncode(versionstamps.getFirst()));
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        String query = String.format("{'_id': {'$gt': '%s'}}", objectIds.getFirst().toHexString());
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -149,7 +153,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("negative-number-index", "negative", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("negative-number-index", "negative", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -160,14 +164,14 @@ class IndexScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'negative': -35}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'negative': {'$gt': -26}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'negative': {'$gt': -26}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(3, results.size());
 
@@ -181,7 +185,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("negative-number-index", "negative", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("negative-number-index", "negative", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -192,14 +196,14 @@ class IndexScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'negative': -35}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'negative': {'$lte': -23}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'negative': {'$lte': -23}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(3, results.size());
 
@@ -213,7 +217,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -224,14 +228,14 @@ class IndexScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age > 22 (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22");
@@ -247,7 +251,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-limit-int32";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -261,11 +265,11 @@ class IndexScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$eq': 20 } }");
-        QueryOptions config = QueryOptions.builder().limit(2).reverse(true).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$eq': 20 } }");
+        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<List<String>> expectedResult = new ArrayList<>();
         expectedResult.add(Arrays.asList(
@@ -295,7 +299,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-limit-string";
 
         // Create an age index for this test
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, nameIndex);
 
         // Insert multiple documents with different field types and values
@@ -310,11 +314,11 @@ class IndexScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 27, 'name': 'John'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'name': {'$eq': 'John' } }");
-        QueryOptions config = QueryOptions.builder().limit(2).reverse(true).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'name': {'$eq': 'John' } }");
+        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<List<String>> expectedResult = new ArrayList<>();
 
@@ -345,7 +349,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-ne-operator-reverse-filter-with-limit";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different field types and values
@@ -359,11 +363,11 @@ class IndexScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$ne': 21 } }");
-        QueryOptions config = QueryOptions.builder().limit(2).reverse(true).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$ne': 21 } }");
+        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<List<String>> expectedResult = new ArrayList<>();
 
@@ -389,25 +393,25 @@ class IndexScanNodeTest extends BasePipelineTest {
     void shouldHandleIndexWithDoubleMaxValue() {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-double-max-value";
 
-        IndexDefinition doubleIndex = IndexDefinition.create("double-index", "double", BsonType.DOUBLE);
+        SingleFieldIndexDefinition doubleIndex = SingleFieldIndexDefinition.create("double-index", "double", BsonType.DOUBLE, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, doubleIndex);
 
         String document = String.format("{\"double\": %s, \"string\": \"John\"}", Double.MAX_VALUE);
         List<byte[]> documents = List.of(BSONUtil.jsonToDocumentThenBytes(document));
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'double': {'$gt': 22.0}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'double': {'$gt': 22.0}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size());
-            for (ByteBuffer buffer : results.values()) {
+            for (ByteBuffer buffer : results) {
                 String expected = String.format("{\"double\": %s, \"string\": \"John\"}", Double.MAX_VALUE);
-                assertEquals(expected, BSONUtil.fromBson(buffer.array()).toJson());
+                assertEquals(expected, TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
     }
@@ -416,25 +420,25 @@ class IndexScanNodeTest extends BasePipelineTest {
     void shouldHandleIndexWithInt64MaxValue() {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-long-max-value";
 
-        IndexDefinition longIndex = IndexDefinition.create("long-index", "long", BsonType.INT64);
+        SingleFieldIndexDefinition longIndex = SingleFieldIndexDefinition.create("long-index", "long", BsonType.INT64, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, longIndex);
 
         String document = String.format("{\"long\": {\"$numberLong\": \"%s\"}, \"string\": \"John\"}", Long.MAX_VALUE);
         List<byte[]> documents = List.of(BSONUtil.jsonToDocumentThenBytes(document));
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'long': {'$gt': {'$numberLong': '22'}}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'long': {'$gt': {'$numberLong': '22'}}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size());
-            for (ByteBuffer buffer : results.values()) {
+            for (ByteBuffer buffer : results) {
                 String expected = String.format("{\"long\": %s, \"string\": \"John\"}", Long.MAX_VALUE);
-                assertEquals(expected, BSONUtil.fromBson(buffer.array()).toJson());
+                assertEquals(expected, TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
     }
@@ -444,25 +448,25 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-with-integer-max-value";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("integer-index", "integer", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("integer-index", "integer", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         String document = String.format("{\"integer\": %s, \"string\": \"John\"}", Integer.MAX_VALUE);
         // Insert multiple documents with different field types and values
         List<byte[]> documents = List.of(BSONUtil.jsonToDocumentThenBytes(document));
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'integer': {'$gt': 22}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'integer': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(1, results.size());
-            for (ByteBuffer buffer : results.values()) {
-                assertEquals(document, BSONUtil.fromBson(buffer.array()).toJson());
+            for (ByteBuffer buffer : results) {
+                assertEquals(document, TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
     }
@@ -472,7 +476,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-empty-result-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert documents with ages all below the query threshold
@@ -483,15 +487,15 @@ class IndexScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 19, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query for age > 22, which should match no documents since all ages are <= 21
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 0 documents since no documents have age > 22
             assertEquals(0, results.size(), "Should return exactly 0 documents with age > 22");
@@ -503,7 +507,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-ne";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert multiple documents with different ages, including some with age 25
@@ -515,15 +519,15 @@ class IndexScanNodeTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query for age != 25, which should match 3 documents (ages 20, 30, 35)
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$ne': 25}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$ne': 25}}");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 3 documents with age != 25 (ages 20, 30, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age != 25");
@@ -537,35 +541,35 @@ class IndexScanNodeTest extends BasePipelineTest {
     @ParameterizedTest
     @MethodSource("provideComparisonOperatorTestCases")
     void shouldFilterComparisonOperatorsWithAllTypes(String operator, BsonType bsonType, String fieldName,
-                                             List<String> testDocuments, String queryValue,
-                                             int expectedCount, String testDescription) {
+                                                     List<String> testDocuments, String queryValue,
+                                                     int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-comparison-" + operator.toLowerCase() + "-" + bsonType.name().toLowerCase();
 
         // Create index for the test field
-        IndexDefinition index = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
+        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create(fieldName + "-index", fieldName, bsonType, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         // Insert test documents
         List<byte[]> documents = testDocuments.stream()
                 .map(BSONUtil::jsonToDocumentThenBytes)
                 .toList();
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Execute query
         String query = String.format("{'%s': {'$%s': %s}}", fieldName, operator.toLowerCase(), queryValue);
-        PipelineNode plan = createExecutionPlan(metadata, query);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(expectedCount, results.size(), testDescription);
 
             // Verify concrete expected results based on specific test cases
             if (!results.isEmpty()) {
                 List<Object> actualFieldValues = new ArrayList<>();
-                for (ByteBuffer buffer : results.values()) {
-                    BsonDocument doc = BSONUtil.fromBson(buffer.array());
+                for (ByteBuffer buffer : results) {
+                    BsonDocument doc = TestUtil.BsonDocumentFromByteBuffer(buffer);
                     actualFieldValues.add(doc.get(fieldName));
                 }
 
@@ -579,41 +583,41 @@ class IndexScanNodeTest extends BasePipelineTest {
     @ParameterizedTest
     @MethodSource("provideComparisonOperatorTestCases")
     void shouldFilterComparisonOperatorsWithAllTypesReverse(String operator, BsonType bsonType, String fieldName,
-                                                    List<String> testDocuments, String queryValue,
-                                                    int expectedCount, String testDescription) {
+                                                            List<String> testDocuments, String queryValue,
+                                                            int expectedCount, String testDescription) {
         final String TEST_BUCKET_NAME = "test-bucket-comparison-reverse-" + operator.toLowerCase() + "-" + bsonType.name().toLowerCase();
 
         // Create index for the test field
-        IndexDefinition index = IndexDefinition.create(fieldName + "-index", fieldName, bsonType);
+        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create(fieldName + "-index", fieldName, bsonType, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
 
         // Insert test documents
         List<byte[]> documents = testDocuments.stream()
                 .map(BSONUtil::jsonToDocumentThenBytes)
                 .toList();
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Execute query with REVERSE=true
+        // Execute query with SortDirection=DESC
         String query = String.format("{'%s': {'$%s': %s}}", fieldName, operator.toLowerCase(), queryValue);
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        QueryOptions config = QueryOptions.builder().reverse(true).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        QueryOptions config = QueryOptions.builder().sortDirection(SortDirection.DESC).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            assertEquals(expectedCount, results.size(), testDescription + " (REVERSE=true)");
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            assertEquals(expectedCount, results.size(), testDescription + " (SortDirection=DESC)");
 
             // Verify concrete expected results based on specific test cases
             if (!results.isEmpty()) {
                 List<Object> actualFieldValues = new ArrayList<>();
-                for (ByteBuffer buffer : results.values()) {
-                    BsonDocument doc = BSONUtil.fromBson(buffer.array());
+                for (ByteBuffer buffer : results) {
+                    BsonDocument doc = TestUtil.BsonDocumentFromByteBuffer(buffer);
                     actualFieldValues.add(doc.get(fieldName));
                 }
 
                 // Check concrete expected results for specific test cases
                 validateIndexScanResults(operator, bsonType, fieldName, testDocuments, queryValue,
-                        actualFieldValues, testDescription + " (REVERSE=true)", true);
+                        actualFieldValues, testDescription + " (SortDirection=DESC)", true);
             }
         }
     }
@@ -787,16 +791,16 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     private void checkBatchedResultSet(QueryContext ctx, List<List<String>> expectedResult) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = createTransaction()) {
             int index = 0;
             while (true) {
-                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+                List<ByteBuffer> results = readExecutor.execute(tr, ctx);
                 if (results.isEmpty()) {
                     break;
                 }
                 List<String> resultSet = new ArrayList<>();
-                for (ByteBuffer buffer : results.values()) {
-                    resultSet.add(BSONUtil.fromBson(buffer.array()).toJson());
+                for (ByteBuffer buffer : results) {
+                    resultSet.add(TestUtil.bsonToJsonWithoutId(buffer));
                 }
                 List<String> expectedResultSet = expectedResult.get(index);
                 assertEquals(expectedResultSet, resultSet);
@@ -804,5 +808,76 @@ class IndexScanNodeTest extends BasePipelineTest {
             }
             assertEquals(index, expectedResult.size());
         }
+    }
+
+    // ============================================================================
+    // Numeric Widening Tests
+    // ============================================================================
+
+    @Test
+    void shouldFindDocumentsViaIndexScanWhenInt32EqPredicateMatchesInt64Index() {
+        // Behavior: INT32 query literal should use INT64 index via lossless widening and return correct results
+        final String TEST_BUCKET_NAME = "test-bucket-widening-int32-to-int64-eq";
+
+        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("ts-index", "ts", BsonType.INT64, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
+
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'ts': {'$numberLong': '100'}, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'ts': {'$numberLong': '200'}, 'name': 'Bob'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'ts': {'$numberLong': '300'}, 'name': 'Charlie'}")
+        );
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        // Query with INT32 literal (200) against INT64 index
+        List<String> results = runQueryOnBucket(metadata, "{'ts': 200}");
+
+        assertEquals(List.of("{\"ts\": 200, \"name\": \"Bob\"}"), results);
+    }
+
+    @Test
+    void shouldFindDocumentsViaIndexScanWhenInt32GtPredicateMatchesInt64Index() {
+        // Behavior: INT32 range predicate ($gt) should use INT64 index via lossless widening
+        final String TEST_BUCKET_NAME = "test-bucket-widening-int32-to-int64-gt";
+
+        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("ts-index", "ts", BsonType.INT64, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
+
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'ts': {'$numberLong': '100'}, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'ts': {'$numberLong': '200'}, 'name': 'Bob'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'ts': {'$numberLong': '300'}, 'name': 'Charlie'}")
+        );
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        // Query with INT32 literal ($gt 150) against INT64 index
+        List<String> results = runQueryOnBucket(metadata, "{'ts': {'$gt': 150}}");
+
+        assertEquals(2, results.size());
+        assertEquals(
+                List.of("{\"ts\": 200, \"name\": \"Bob\"}", "{\"ts\": 300, \"name\": \"Charlie\"}"),
+                results
+        );
+    }
+
+    @Test
+    void shouldFindDocumentsViaIndexScanWhenInt32PredicateMatchesDoubleIndex() {
+        // Behavior: INT32 query literal should use DOUBLE index via lossless widening
+        final String TEST_BUCKET_NAME = "test-bucket-widening-int32-to-double";
+
+        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("price-index", "price", BsonType.DOUBLE, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, index);
+
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'price': 10.5, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'price': 20.0, 'name': 'Bob'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'price': 30.5, 'name': 'Charlie'}")
+        );
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        // Query with INT32 literal (20) against DOUBLE index — should match 20.0
+        List<String> results = runQueryOnBucket(metadata, "{'price': 20}");
+
+        assertEquals(List.of("{\"price\": 20.0, \"name\": \"Bob\"}"), results);
     }
 }

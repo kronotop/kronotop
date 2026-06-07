@@ -17,21 +17,20 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.bql.ast.StringVal;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
-import com.kronotop.internal.VersionstampUtil;
 import org.bson.BsonType;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -49,14 +48,14 @@ public class GtOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
-        PipelineNode plan = createExecutionPlan(metadata, "{'not-existed-field': {'$gt': 22}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'not-existed-field': {'$gt': 22}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertTrue(results.isEmpty());
         }
     }
@@ -65,7 +64,7 @@ public class GtOperatorIntegrationTest extends BasePipelineTest {
     void shouldFallbackToFullScanWhenPredicateTypeMismatchesIndexType() {
         final String TEST_BUCKET_NAME = "test-bucket-type-mismatch-fullscan";
 
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         List<byte[]> documents = List.of(
@@ -77,20 +76,21 @@ public class GtOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': '20'}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': '20'}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
 
-        FullScanNode fullScanNode = (FullScanNode) plan;
-        assertEquals(DefaultIndexDefinition.ID, fullScanNode.getIndexDefinition());
+        FullScanNode fullScanNode = (FullScanNode) planWithParams.plan();
 
         assertInstanceOf(ResidualPredicate.class, fullScanNode.predicate());
         ResidualPredicate residualPredicate = (ResidualPredicate) fullScanNode.predicate();
         assertEquals(Operator.GT, residualPredicate.op());
         assertEquals("age", residualPredicate.selector());
-        assertInstanceOf(StringVal.class, residualPredicate.operand());
-        StringVal stringVal = (StringVal) residualPredicate.operand();
+        assertInstanceOf(Operand.Param.class, residualPredicate.operand());
+        BqlValue resolvedValue = residualPredicate.operand().resolve(planWithParams.parameters());
+        assertInstanceOf(StringVal.class, resolvedValue);
+        StringVal stringVal = (StringVal) resolvedValue;
         assertEquals("20", stringVal.value());
     }
 
@@ -105,17 +105,17 @@ public class GtOperatorIntegrationTest extends BasePipelineTest {
             documents.add(BSONUtil.jsonToDocumentThenBytes("{'status': 'ALIVE'}"));
         }
 
-        List<Versionstamp> versionstamps = insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
-        Versionstamp greatestId = versionstamps.getLast();
+        List<ObjectId> objectIds = insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+        ObjectId greatestId = objectIds.getLast();
 
-        String query = String.format("{'_id': {'$gt': '%s'}}", VersionstampUtil.base32HexEncode(greatestId));
-        PipelineNode plan = createExecutionPlan(metadata, query);
-        assertInstanceOf(IndexScanNode.class, plan);
+        String query = String.format("{'_id': {'$gt': '%s'}}", greatestId.toHexString());
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+        assertInstanceOf(IndexScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertTrue(results.isEmpty());
         }
     }

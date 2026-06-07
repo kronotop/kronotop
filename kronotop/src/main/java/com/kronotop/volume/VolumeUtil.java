@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,21 +17,11 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Versionstamp;
-
-import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import static com.kronotop.volume.Subspaces.MUTATION_TRIGGER;
 
 public class VolumeUtil {
     public static byte[] computeMutationTriggerKey(DirectorySubspace subspace) {
         return subspace.pack(MUTATION_TRIGGER);
-    }
-
-    public static Versionstamp extractVersionstampFromValue(byte[] value) {
-        byte[] trVersion = Arrays.copyOfRange(value, 0, 10);
-        int userVersion = ByteBuffer.wrap(Arrays.copyOfRange(value, 11, 13)).getShort();
-        return Versionstamp.complete(trVersion, userVersion);
     }
 }

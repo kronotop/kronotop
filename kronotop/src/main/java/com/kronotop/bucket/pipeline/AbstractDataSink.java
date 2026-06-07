@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,18 @@
 
 package com.kronotop.bucket.pipeline;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.BiConsumer;
+import org.bson.types.ObjectId;
 
-public abstract class AbstractDataSink<K, V> {
+import java.util.*;
+
+/**
+ * Not thread-safe. Designed for single-threaded pipeline execution.
+ */
+public abstract class AbstractDataSink<V extends DocumentRef> {
     private final int parentNodeId;
 
-    private final ReadWriteLock lock = new ReentrantReadWriteLock(true);
-    private final Map<K, V> sink = new LinkedHashMap<>();
+    private final List<V> sink = new ArrayList<>();
+    private final List<V> unmodifiableView = Collections.unmodifiableList(sink);
 
     public AbstractDataSink(int parentNodeId) {
         this.parentNodeId = parentNodeId;
@@ -36,45 +37,56 @@ public abstract class AbstractDataSink<K, V> {
         return parentNodeId;
     }
 
-    public void append(K key, V value) {
-        lock.writeLock().lock();
-        try {
-            sink.put(key, value);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public V get(K key) {
-        lock.readLock().lock();
-        try {
-            return sink.get(key);
-        } finally {
-            lock.readLock().unlock();
-        }
+    public void append(V value) {
+        sink.add(value);
     }
 
     public int size() {
-        lock.readLock().lock();
-        try {
-            return sink.size();
-        } finally {
-            lock.readLock().unlock();
-        }
+        return sink.size();
     }
 
     public void clear() {
-        lock.writeLock().lock();
-        try {
-            sink.clear();
-        } finally {
-            lock.writeLock().unlock();
+        sink.clear();
+    }
+
+    public List<V> entries() {
+        return unmodifiableView;
+    }
+
+    protected List<V> mutableEntries() {
+        return sink;
+    }
+
+    public void trimTo(int size) {
+        List<V> list = mutableEntries();
+        if (list.size() > size) {
+            list.subList(size, list.size()).clear();
         }
     }
 
-    public void forEach(BiConsumer<? super K, ? super V> action) {
-        sink.forEach(action);
+    /**
+     * Removes duplicate entries by ObjectId while preserving the original order.
+     * Keeps the first occurrence.
+     */
+    public void dedupByObjectId() {
+        List<V> list = mutableEntries();
+        int size = list.size();
+        if (size <= 1) {
+            return;
+        }
+
+        Set<ObjectId> seen = new HashSet<>(size * 2);
+
+        int write = 0;
+        for (int i = 0; i < size; i++) {
+            V current = list.get(i);
+            if (seen.add(current.objectId())) {
+                list.set(write++, current);
+            }
+        }
+
+        if (write < size) {
+            list.subList(write, size).clear();
+        }
     }
 }
-
-

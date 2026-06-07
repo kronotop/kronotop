@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,14 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeConfigGenerator;
-import com.kronotop.volume.VolumeMetadata;
+import com.kronotop.volume.VolumeMetadataUtil;
 import com.kronotop.volume.VolumeStatus;
+import com.kronotop.volume.VolumeSubspace;
 import com.kronotop.volume.replication.ReplicationUtil;
 import io.netty.buffer.ByteBuf;
 
@@ -45,7 +47,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     }
 
     private void setPrimaryMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters, int shardId) {
-        String primaryMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
+        String primaryMemberId = MembershipUtil.loadPrimaryMemberId(tr, shardSubspace);
 
         // Setting the route first time
         if (primaryMemberId == null) {
@@ -65,25 +67,24 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
         }
 
         // Check shard status first
-        ShardStatus shardStatus = ShardUtils.getShardStatus(context, tr, parameters.shardKind, shardId);
+        ShardStatus shardStatus = ShardUtil.getShardStatus(context, tr, parameters.shardKind, shardId);
         if (shardStatus.equals(ShardStatus.READWRITE)) {
             throw new KronotopException("Shard status must not be " + ShardStatus.READWRITE);
         }
 
-        // Load the route
-        Route route = routing.findRoute(parameters.shardKind, shardId);
-        if (!route.standbys().contains(nextPrimaryOwner)) {
+        Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
+        if (!standbyMemberIds.contains(nextPrimaryOwner.getId())) {
             throw new KronotopException("Member id: " + nextPrimaryOwner.getId() + " is not a standby");
         }
 
-        VolumeConfigGenerator volumeConfigGenerator = new VolumeConfigGenerator(context, parameters.shardKind, shardId);
-        DirectorySubspace volumeSubspace = volumeConfigGenerator.openVolumeSubspace();
-        VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volumeSubspace);
-        if (!volumeMetadata.getStatus().equals(VolumeStatus.READONLY)) {
+        VolumeConfigGenerator configGen = new VolumeConfigGenerator(context, parameters.shardKind, shardId);
+        VolumeSubspace subspace = new VolumeSubspace(configGen.openVolumeSubspace());
+        VolumeStatus status = VolumeMetadataUtil.readVolumeStatus(tr, subspace);
+        if (status != VolumeStatus.READONLY) {
             throw new KronotopException("Volume status must be " + VolumeStatus.READONLY);
         }
 
-        ReplicationUtil.assertStandbyCaughtUp(context, tr, nextPrimaryOwner, volumeSubspace, parameters.shardKind, parameters.shardId);
+        ReplicationUtil.assertStandbyCaughtUp(context, tr, nextPrimaryOwner, subspace.getDirectorySubspace(), parameters.shardKind, parameters.shardId);
 
         // Ready to assign a new primary
         byte[] key = shardSubspace.pack(Tuple.from(ShardConstants.ROUTE_PRIMARY_MEMBER_KEY));
@@ -91,14 +92,12 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
 
         // Cleanup
 
-        // Standbys
-        Set<String> standbyMemberIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
         standbyMemberIds.remove(parameters.memberId);
-        MembershipUtils.setStandbyMemberIds(tr, shardSubspace, standbyMemberIds);
+        MembershipUtil.setStandbyMemberIds(tr, shardSubspace, standbyMemberIds);
     }
 
     private void appendStandbyMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters) {
-        String primaryMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
+        String primaryMemberId = MembershipUtil.loadPrimaryMemberId(tr, shardSubspace);
         if (primaryMemberId == null) {
             throw new KronotopException("no primary member assigned yet");
         }
@@ -107,7 +106,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
             throw new KronotopException("primary cannot be assigned as a standby");
         }
 
-        Set<String> standbyMemberIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
+        Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
         if (standbyMemberIds.contains(parameters.memberId)) {
             throw new KronotopException("already assigned as a standby");
         }
@@ -119,18 +118,18 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     }
 
     private void removeStandbyMemberId(Transaction tr, DirectorySubspace shardSubspace, RouteParameters parameters) {
-        String primaryMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
+        String primaryMemberId = MembershipUtil.loadPrimaryMemberId(tr, shardSubspace);
         if (primaryMemberId == null) {
             throw new KronotopException("no primary member assigned yet");
         }
 
-        Set<String> standbyMemberIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
+        Set<String> standbyMemberIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
         if (!standbyMemberIds.contains(parameters.memberId)) {
             throw new KronotopException("member is not a standby");
         }
 
         standbyMemberIds.remove(parameters.memberId);
-        MembershipUtils.setStandbyMemberIds(tr, shardSubspace, standbyMemberIds);
+        MembershipUtil.setStandbyMemberIds(tr, shardSubspace, standbyMemberIds);
     }
 
     private void setRouteForShard(Transaction tr, RouteParameters parameters, int shardId) {
@@ -157,14 +156,13 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     public void execute(Request request, Response response) {
         RouteParameters parameters = new RouteParameters(request.getParams());
         runAsync(context, response, () -> {
-            try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
-                if (!membership.isMemberRegistered(parameters.memberId)) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                if (!membership.isMemberRegistered(tr, parameters.memberId)) {
                     throw new KronotopException("member not found");
                 }
                 if (parameters.operationKind.equals(OperationKind.SET)) {
                     if (parameters.allShards) {
-                        int numberOfShards = getNumberOfShards(parameters.shardKind);
-                        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+                        for (int shardId : getShardIds(parameters.shardKind)) {
                             setRouteForShard(tr, parameters, shardId);
                         }
                     } else {
@@ -172,8 +170,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
                     }
                 } else if (parameters.operationKind.equals(OperationKind.UNSET)) {
                     if (parameters.allShards) {
-                        int numberOfShards = getNumberOfShards(parameters.shardKind);
-                        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+                        for (int shardId : getShardIds(parameters.shardKind)) {
                             unsetRouteForShard(tr, parameters, shardId);
                         }
                     } else {
@@ -203,7 +200,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
         private final boolean allShards;
 
         RouteParameters(ArrayList<ByteBuf> params) {
-            // kr.admin route set primary redis * 12b3cf60
+            // kr.admin route set primary stash * 12b3cf60
             if (params.size() != 6) {
                 throw new InvalidNumberOfParametersException();
             }
@@ -227,7 +224,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
             String rawShardId = ProtocolMessageUtil.readAsString(params.get(4));
             allShards = rawShardId.equals("*");
             if (!allShards) {
-                shardId = ProtocolMessageUtil.readShardId(routing.getContext().getConfig(), shardKind, rawShardId);
+                shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), shardKind, rawShardId);
             } else {
                 shardId = -1; // dummy assignment due to final declaration
             }

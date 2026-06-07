@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,13 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.internal.TransactionUtils;
+import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 
 import java.nio.file.Path;
@@ -48,19 +47,19 @@ public class VolumeConfigGenerator {
     }
 
     /**
-     * Retrieves the directory node corresponding to a Redis shard volume within the Kronotop directory structure.
+     * Retrieves the directory node corresponding to a Stash shard volume within the Kronotop directory structure.
      * <p>
-     * This method constructs the path to the Redis shard volume based on the current cluster name and the shard ID.
+     * This method constructs the path to the Stash shard volume based on the current cluster name and the shard ID.
      *
-     * @return a KronotopDirectoryNode representing the path to the Redis shard volume directory.
+     * @return a KronotopDirectoryNode representing the path to the Stash shard volume directory.
      */
-    private KronotopDirectoryNode getRedisShardVolumeDirectory() {
+    private KronotopDirectoryNode getStashShardVolumeDirectory() {
         return KronotopDirectory.
                 kronotop().
                 cluster(context.getClusterName()).
                 metadata().
                 volumes().
-                redis().
+                stash().
                 volume(Integer.toString(shardId));
     }
 
@@ -90,14 +89,14 @@ public class VolumeConfigGenerator {
      *                             transaction conflict (which is retried automatically).
      */
     private DirectorySubspace createOrOpenVolumeSubspace(KronotopDirectoryNode directory, boolean createIfNotExist) {
-        Retry retry = TransactionUtils.retry(10, Duration.ofMillis(100));
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         return retry.executeSupplier(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 DirectorySubspace subspace;
                 if (createIfNotExist) {
-                    subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+                    subspace = context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join();
                 } else {
-                    subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+                    subspace = context.getDirectoryLayer().open(tr, directory.toList()).join();
                 }
                 tr.commit().join();
                 return subspace;
@@ -111,15 +110,15 @@ public class VolumeConfigGenerator {
     }
 
     /**
-     * Generates a new VolumeConfig for a Redis shard.
+     * Generates a new VolumeConfig for a Stash shard.
      *
      * @param subspace the DirectorySubspace associated with the volume configuration
      * @param dataDir  the directory path where the volume's data will be stored
-     * @return a VolumeConfig object containing the configuration details for the Redis shard
+     * @return a VolumeConfig object containing the configuration details for the Stash shard
      */
-    private VolumeConfig newRedisShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
-        String name = VolumeNames.format(ShardKind.REDIS, shardId);
-        long segmentSize = context.getConfig().getLong("redis.volume.segment_size");
+    private VolumeConfig newStashShardVolumeConfig(DirectorySubspace subspace, String dataDir) {
+        String name = VolumeNames.format(ShardKind.STASH, shardId);
+        long segmentSize = context.getConfig().getLong("stash.volume.segment_size");
         return new VolumeConfig(subspace, name, dataDir, segmentSize);
     }
 
@@ -151,17 +150,17 @@ public class VolumeConfigGenerator {
     }
 
     /**
-     * Generates a volume configuration for a Redis shard based on the provided data directory.
+     * Generates a volume configuration for a Stash shard based on the provided data directory.
      *
      * @param dataDir the directory where data for the volume will be stored
-     * @return a VolumeConfig object containing the configuration details for the Redis shard volume
+     * @return a VolumeConfig object containing the configuration details for the Stash shard volume
      * @throws IllegalArgumentException if the shard kind is not recognized
      */
     public VolumeConfig volumeConfig(String dataDir) {
-        if (shardKind.equals(ShardKind.REDIS)) {
-            KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
+        if (shardKind.equals(ShardKind.STASH)) {
+            KronotopDirectoryNode directory = getStashShardVolumeDirectory();
             DirectorySubspace subspace = createOrOpenVolumeSubspace(directory, true);
-            return newRedisShardVolumeConfig(subspace, dataDir);
+            return newStashShardVolumeConfig(subspace, dataDir);
         } else if (shardKind.equals(ShardKind.BUCKET)) {
             KronotopDirectoryNode directory = getBucketShardVolumeDirectory();
             DirectorySubspace subspace = createOrOpenVolumeSubspace(directory, true);
@@ -172,17 +171,17 @@ public class VolumeConfigGenerator {
     }
 
     /**
-     * Creates or opens a DirectorySubspace for a volume associated with a Redis shard.
-     * This method evaluates the shard kind and, if it is of kind REDIS, it retrieves the
+     * Creates or opens a DirectorySubspace for a volume associated with a Stash shard.
+     * This method evaluates the shard kind and, if it is of kind STASH, it retrieves the
      * corresponding KronotopDirectoryNode. It then calls an internal method to create or open
      * the DirectorySubspace based on the node's directory path.
      *
-     * @return the DirectorySubspace corresponding to the volume associated with the Redis shard
+     * @return the DirectorySubspace corresponding to the volume associated with the Stash shard
      * @throws IllegalArgumentException if the shard kind is not recognized
      */
     public DirectorySubspace createOrOpenVolumeSubspace() {
-        if (shardKind.equals(ShardKind.REDIS)) {
-            KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
+        if (shardKind.equals(ShardKind.STASH)) {
+            KronotopDirectoryNode directory = getStashShardVolumeDirectory();
             return createOrOpenVolumeSubspace(directory, true);
         } else if (shardKind.equals(ShardKind.BUCKET)) {
             KronotopDirectoryNode directory = getBucketShardVolumeDirectory();
@@ -195,15 +194,15 @@ public class VolumeConfigGenerator {
     /**
      * Opens the DirectorySubspace associated with a volume's configuration.
      * This method evaluates the shardKind field to determine if the shard type is supported.
-     * If the shard type is REDIS, it retrieves the KronotopDirectoryNode representing the shard's directory
+     * If the shard type is STASH, it retrieves the KronotopDirectoryNode representing the shard's directory
      * and attempts to open the DirectorySubspace associated with it.
      *
-     * @return the DirectorySubspace corresponding to the volume configuration of the Redis shard
+     * @return the DirectorySubspace corresponding to the volume configuration of the Stash shard
      * @throws IllegalArgumentException if the shard kind is unrecognized
      */
     public DirectorySubspace openVolumeSubspace() {
-        if (shardKind.equals(ShardKind.REDIS)) {
-            KronotopDirectoryNode directory = getRedisShardVolumeDirectory();
+        if (shardKind.equals(ShardKind.STASH)) {
+            KronotopDirectoryNode directory = getStashShardVolumeDirectory();
             return createOrOpenVolumeSubspace(directory, false);
         } else if (shardKind.equals(ShardKind.BUCKET)) {
             KronotopDirectoryNode directory = getBucketShardVolumeDirectory();

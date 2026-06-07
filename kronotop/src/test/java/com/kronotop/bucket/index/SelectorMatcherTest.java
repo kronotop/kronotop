@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,13 +17,14 @@
 package com.kronotop.bucket.index;
 
 import com.kronotop.bucket.BSONUtil;
+import com.kronotop.internal.StringUtil;
 import org.bson.*;
 import org.bson.types.Decimal128;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -346,7 +347,7 @@ class SelectorMatcherTest {
         BsonDocument document = new BsonDocument();
         document.append("key", new BsonString("value"));
 
-        assertThrows(Exception.class, () -> SelectorMatcher.match(null, document));
+        assertThrows(Exception.class, () -> SelectorMatcher.match((String) null, document));
     }
 
     @Test
@@ -755,5 +756,84 @@ class SelectorMatcherTest {
         assertEquals("Go", skillsArray.get(2).asDocument().getString("name").getValue());
         assertEquals("Rust", skillsArray.get(3).asDocument().getString("name").getValue());
         assertEquals("C++", skillsArray.get(4).asDocument().getString("name").getValue());
+    }
+
+    @Test
+    void shouldMatchBsonObjectId() {
+        // Behavior: SelectorMatcher should correctly extract BsonObjectId values from documents.
+        ObjectId objectId = new ObjectId();
+        BsonDocument document = new BsonDocument();
+        document.append("_id", new BsonObjectId(objectId));
+
+        BsonValue matchedValue = SelectorMatcher.match("_id", document);
+        assertInstanceOf(BsonObjectId.class, matchedValue);
+        assertEquals(objectId, matchedValue.asObjectId().getValue());
+    }
+
+    @Test
+    void shouldMatchBsonObjectIdWithByteBuffer() {
+        // Behavior: SelectorMatcher should correctly extract BsonObjectId values from ByteBuffer input.
+        ObjectId objectId = new ObjectId();
+        BsonDocument document = new BsonDocument();
+        document.append("_id", new BsonObjectId(objectId));
+        ByteBuffer buffer = ByteBuffer.wrap(BSONUtil.toBytes(document));
+
+        BsonValue matchedValue = SelectorMatcher.match("_id", buffer);
+        assertInstanceOf(BsonObjectId.class, matchedValue);
+        assertEquals(objectId, matchedValue.asObjectId().getValue());
+    }
+
+    @Test
+    void shouldMatchNestedBsonObjectId() {
+        // Behavior: SelectorMatcher should correctly extract BsonObjectId values from nested documents.
+        ObjectId objectId = new ObjectId();
+        BsonDocument nested = new BsonDocument();
+        nested.append("ref", new BsonObjectId(objectId));
+
+        BsonDocument document = new BsonDocument();
+        document.append("reference", nested);
+
+        BsonValue matchedValue = SelectorMatcher.match("reference.ref", document);
+        assertInstanceOf(BsonObjectId.class, matchedValue);
+        assertEquals(objectId, matchedValue.asObjectId().getValue());
+    }
+
+    @Test
+    void shouldMatchWithPreSplitPathSegmentsOnBsonDocument() {
+        // Behavior: match(String[], BsonDocument) produces identical results to match(String, BsonDocument).
+        BsonDocument nested = new BsonDocument();
+        nested.append("innerKey", new BsonString("innerValue"));
+
+        BsonDocument document = new BsonDocument();
+        document.append("outer", nested);
+
+        String selector = "outer.innerKey";
+        String[] segments = StringUtil.split(selector);
+
+        BsonValue fromString = SelectorMatcher.match(selector, document);
+        BsonValue fromArray = SelectorMatcher.match(segments, document);
+
+        assertEquals(fromString, fromArray);
+    }
+
+    @Test
+    void shouldMatchWithPreSplitPathSegmentsOnByteBuffer() {
+        // Behavior: match(String[], ByteBuffer) produces identical results to match(String, ByteBuffer).
+        BsonDocument nested = new BsonDocument();
+        nested.append("innerKey", new BsonString("innerValue"));
+
+        BsonDocument document = new BsonDocument();
+        document.append("outer", nested);
+
+        String selector = "outer.innerKey";
+        String[] segments = StringUtil.split(selector);
+
+        ByteBuffer buffer1 = ByteBuffer.wrap(BSONUtil.toBytes(document));
+        BsonValue fromString = SelectorMatcher.match(selector, buffer1);
+
+        ByteBuffer buffer2 = ByteBuffer.wrap(BSONUtil.toBytes(document));
+        BsonValue fromArray = SelectorMatcher.match(segments, buffer2);
+
+        assertEquals(fromString, fromArray);
     }
 }

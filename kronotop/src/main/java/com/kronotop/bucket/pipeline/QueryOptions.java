@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 package com.kronotop.bucket.pipeline;
 
-import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.Collation;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
+
 
 /**
  * Immutable configuration options for query execution in the pipeline system.
@@ -36,39 +38,31 @@ import com.kronotop.bucket.DefaultIndexDefinition;
  *     .limit(50)
  *     .build();
  *
- * // Query with reverse ordering and limit
- * QueryOptions reversed = QueryOptions.builder()
- *     .reverse(true)
+ * // Query with descending sort ordering and limit
+ * QueryOptions descending = QueryOptions.builder()
+ *     .sortDirection(SortDirection.DESC)
  *     .limit(20)
  *     .build();
  *
- * // Query with pinned read version for consistent reads
- * QueryOptions consistent = QueryOptions.builder()
- *     .pinReadVersion(true)
- *     .limit(100)
- *     .build();
- *
- * // Query with specific read version
- * QueryOptions withVersion = QueryOptions.builder()
- *     .readVersion(123456789L)
+ * // Query with update options
+ * QueryOptions withUpdate = QueryOptions.builder()
  *     .limit(50)
  *     .build();
  * }</pre>
  *
  * @see QueryContext
- * @see DefaultIndexDefinition
  * @since 1.0
  */
 public class QueryOptions {
     /**
-     * Whether results should be returned in reverse order.
-     */
-    private final boolean reverse;
-
-    /**
-     * The field name to use for sorting results. Defaults to document ID.
+     * The field name to use for sorting results. Defaults to null (no explicit sort).
      */
     private final String sortByField;
+
+    /**
+     * The sort direction (ASC or DESC). Defaults to ASC.
+     */
+    private final SortDirection sortDirection;
 
     /**
      * Maximum number of documents to return in a single batch.
@@ -76,16 +70,18 @@ public class QueryOptions {
     private final int limit;
 
     /**
-     * Whether to pin the read version for the query transaction.
+     * The field name to use for in-memory result sorting. Defaults to null (no result sort).
      */
-    private final boolean pinReadVersion;
+    private final String resultSortField;
 
     /**
-     * The specific read version to use for the query transaction.
+     * The sort direction for in-memory result sorting (ASC or DESC). Defaults to ASC.
      */
-    private final long readVersion;
+    private final SortDirection resultSortDirection;
 
     private final UpdateOptions update;
+
+    private final Collation collation;
 
     /**
      * Private constructor used by the Builder pattern.
@@ -93,12 +89,13 @@ public class QueryOptions {
      * @param builder the Builder instance containing the configuration values
      */
     private QueryOptions(Builder builder) {
-        this.reverse = builder.reverse;
         this.sortByField = builder.sortByField;
+        this.sortDirection = builder.sortDirection;
+        this.resultSortField = builder.resultSortField;
+        this.resultSortDirection = builder.resultSortDirection;
         this.limit = builder.limit;
-        this.pinReadVersion = builder.pinReadVersion;
-        this.readVersion = builder.readVersion;
         this.update = builder.update;
+        this.collation = builder.collation;
     }
 
     /**
@@ -112,22 +109,31 @@ public class QueryOptions {
 
     /**
      * Returns whether results should be returned in reverse order.
-     * When true, results are sorted in descending order by the sort field.
+     * Derived from the sort direction: DESC means reverse ordering.
      *
-     * @return true if reverse ordering is enabled, false otherwise
+     * @return true if the sort direction is DESC, false otherwise
      */
     public boolean isReverse() {
-        return reverse;
+        return sortDirection == SortDirection.DESC;
     }
 
     /**
-     * Returns the field name used for sorting results.
-     * Defaults to the document ID field if not specified.
+     * Returns the field name used for sorting results, or null if no explicit sort was requested.
      *
-     * @return the sort field name
+     * @return the sort field name, or null
      */
     public String getSortByField() {
         return sortByField;
+    }
+
+    /**
+     * Returns the sort direction (ASC or DESC).
+     * Defaults to ASC if not specified.
+     *
+     * @return the sort direction
+     */
+    public SortDirection getSortDirection() {
+        return sortDirection;
     }
 
     /**
@@ -141,27 +147,29 @@ public class QueryOptions {
     }
 
     /**
-     * Returns whether the read version should be pinned for the query transaction.
-     * When true, the query will use a consistent read version across all operations.
+     * Returns the field name used for in-memory result sorting, or null if not requested.
      *
-     * @return true if read version pinning is enabled, false otherwise
+     * @return the result sort field name, or null
      */
-    public boolean isPinReadVersion() {
-        return pinReadVersion;
+    public String getResultSortField() {
+        return resultSortField;
     }
 
     /**
-     * Returns the specific read version to use for the query transaction.
-     * This value is only used when a specific read version is set.
+     * Returns the sort direction for in-memory result sorting.
      *
-     * @return the read version to use, or 0 if not set
+     * @return the result sort direction
      */
-    public long getReadVersion() {
-        return readVersion;
+    public SortDirection getResultSortDirection() {
+        return resultSortDirection;
     }
 
     public UpdateOptions update() {
         return update;
+    }
+
+    public Collation getCollation() {
+        return collation;
     }
 
     /**
@@ -173,42 +181,32 @@ public class QueryOptions {
      */
     public static class Builder {
         private UpdateOptions update;
+        private Collation collation;
 
         /**
-         * Whether to enable reverse ordering. Defaults to false.
+         * Field name for in-memory result sorting. Defaults to null.
          */
-        private boolean reverse = false;
+        private String resultSortField;
 
         /**
-         * Field name for sorting. Defaults to document ID.
+         * Result sort direction. Defaults to ASC.
          */
-        private String sortByField = DefaultIndexDefinition.ID.selector();
+        private SortDirection resultSortDirection = SortDirection.ASC;
+
+        /**
+         * Field name for sorting. Defaults to null (no explicit sort).
+         */
+        private String sortByField;
+
+        /**
+         * Sort direction. Defaults to ASC.
+         */
+        private SortDirection sortDirection = SortDirection.ASC;
 
         /**
          * Result limit. Defaults to {@value QueryContext#DEFAULT_LIMIT}.
          */
         private int limit = QueryContext.DEFAULT_LIMIT;
-
-        /**
-         * Whether to pin read version. Defaults to false.
-         */
-        private boolean pinReadVersion = false;
-
-        /**
-         * Specific read version to use. Defaults to 0 (not set).
-         */
-        private long readVersion = 0;
-
-        /**
-         * Sets whether results should be returned in reverse (descending) order.
-         *
-         * @param reverse true for descending order, false for ascending order (default)
-         * @return this Builder instance for method chaining
-         */
-        public Builder reverse(boolean reverse) {
-            this.reverse = reverse;
-            return this;
-        }
 
         /**
          * Sets the field name to use for sorting results.
@@ -223,12 +221,23 @@ public class QueryOptions {
         }
 
         /**
+         * Sets the sort direction (ASC or DESC).
+         *
+         * @param sortDirection the sort direction
+         * @return this Builder instance for method chaining
+         */
+        public Builder sortDirection(SortDirection sortDirection) {
+            this.sortDirection = sortDirection;
+            return this;
+        }
+
+        /**
          * Sets the maximum number of documents to return in a single batch.
          * This controls pagination and memory usage during query execution.
          *
          * @param limit the maximum result count (0 to {@value QueryContext#MAXIMUM_LIMIT})
          * @return this Builder instance for method chaining
-         * @throws IllegalArgumentException if limit is negative or exceeds maximum
+         * @throws IllegalArgumentException if the limit is negative or exceeds the maximum
          */
         public Builder limit(int limit) {
             if (limit >= QueryContext.MAXIMUM_LIMIT) {
@@ -242,31 +251,34 @@ public class QueryOptions {
         }
 
         /**
-         * Sets whether the read version should be pinned for the query transaction.
-         * When enabled, the query will use a consistent read version across all operations.
+         * Sets the field name to use for in-memory result sorting.
          *
-         * @param pinReadVersion true to enable read version pinning, false to disable (default)
+         * @param resultSortField the field name to sort results by
          * @return this Builder instance for method chaining
          */
-        public Builder pinReadVersion(boolean pinReadVersion) {
-            this.pinReadVersion = pinReadVersion;
+        public Builder resultSortField(String resultSortField) {
+            this.resultSortField = resultSortField;
             return this;
         }
 
         /**
-         * Sets the specific read version to use for the query transaction.
-         * When set to a non-zero value, the query will use this specific read version.
+         * Sets the sort direction for in-memory result sorting.
          *
-         * @param readVersion the read version to use (0 for not set)
+         * @param resultSortDirection the sort direction
          * @return this Builder instance for method chaining
          */
-        public Builder readVersion(long readVersion) {
-            this.readVersion = readVersion;
+        public Builder resultSortDirection(SortDirection resultSortDirection) {
+            this.resultSortDirection = resultSortDirection;
             return this;
         }
 
         public Builder update(UpdateOptions update) {
             this.update = update;
+            return this;
+        }
+
+        public Builder collation(Collation collation) {
+            this.collation = collation;
             return this;
         }
 

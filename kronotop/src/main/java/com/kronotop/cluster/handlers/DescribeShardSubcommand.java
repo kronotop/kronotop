@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,10 @@ import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -38,7 +39,7 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
     public void execute(Request request, Response response) {
         DescribeShardParameters parameters = new DescribeShardParameters(request.getParams());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 return describeShard(tr, parameters.kind, parameters.shardId);
             }
         }, response::writeMap);
@@ -54,7 +55,7 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
             }
 
             kind = ProtocolMessageUtil.readShardKind(params.get(1));
-            shardId = ProtocolMessageUtil.readShardId(context.getConfig(), kind, params.get(2));
+            shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), kind, params.get(2));
         }
     }
 }

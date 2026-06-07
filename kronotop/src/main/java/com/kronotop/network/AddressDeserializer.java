@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package com.kronotop.network;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.deser.std.StdDeserializer;
 
-import java.io.IOException;
+import java.net.UnknownHostException;
 
 public class AddressDeserializer extends StdDeserializer<Address> {
 
@@ -34,10 +34,14 @@ public class AddressDeserializer extends StdDeserializer<Address> {
     }
 
     @Override
-    public Address deserialize(final JsonParser parser, final DeserializationContext context) throws IOException {
-        JsonNode node = parser.getCodec().readTree(parser);
+    public Address deserialize(final JsonParser parser, final DeserializationContext context) {
+        JsonNode node = (JsonNode) parser.readValueAsTree();
         String host = node.get("host").textValue();
         int port = node.get("port").asInt();
-        return new Address(host, port);
+        try {
+            return new Address(host, port);
+        } catch (UnknownHostException e) {
+            throw new IllegalArgumentException("Invalid address: " + host + ":" + port, e);
+        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,14 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.ShardUtils;
+import com.kronotop.cluster.ShardUtil;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -41,14 +42,13 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
         SetShardStatusParameters parameters = new SetShardStatusParameters(request.getParams());
 
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            try (Transaction tr = membership.getContext().getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 if (parameters.allShards) {
-                    int numberOfShards = getNumberOfShards(parameters.shardKind);
-                    for (int shardId = 0; shardId < numberOfShards; shardId++) {
-                        ShardUtils.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, shardId);
+                    for (int shardId : getShardIds(parameters.shardKind)) {
+                        ShardUtil.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, shardId);
                     }
                 } else {
-                    ShardUtils.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, parameters.shardId);
+                    ShardUtil.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, parameters.shardId);
                 }
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
@@ -72,7 +72,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
             String rawShardId = ProtocolMessageUtil.readAsString(params.get(2));
             allShards = rawShardId.equals("*");
             if (!allShards) {
-                shardId = ProtocolMessageUtil.readShardId(context.getConfig(), shardKind, rawShardId);
+                shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), shardKind, rawShardId);
             } else {
                 shardId = -1; // dummy assignment due to final declaration
             }

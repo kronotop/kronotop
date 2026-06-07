@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.kronotop.worker;
 
-import com.kronotop.bucket.BucketEventsWatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 public class WorkerUtil {
     protected static final Logger LOGGER = LoggerFactory.getLogger(WorkerUtil.class);
 
-    public static void shutdownThenAwait(String prefix, List<Worker> workers) {
+    public static void shutdownThenAwait(WorkerRegistry registry, String prefix, List<Worker> workers) {
         for (Worker worker : workers) {
             worker.shutdown();
         }
@@ -35,7 +34,9 @@ public class WorkerUtil {
             for (Worker worker : workers) {
                 virtual.submit(() -> {
                     try {
-                        worker.await(3, TimeUnit.SECONDS);
+                        if (worker.await(3, TimeUnit.SECONDS)) {
+                            registry.remove(prefix, worker);
+                        }
                     } catch (InterruptedException exp) {
                         Thread.currentThread().interrupt();
                         LOGGER.debug("Worker await interrupted for prefix: {}, tag: {}", prefix, worker.getTag(), exp);

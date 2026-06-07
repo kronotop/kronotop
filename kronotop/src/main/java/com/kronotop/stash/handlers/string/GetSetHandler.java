@@ -1,0 +1,98 @@
+/*
+ * Copyright (c) 2023-2026 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.kronotop.stash.handlers.string;
+
+import com.kronotop.cluster.sharding.ShardStatus;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
+import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.stash.StashService;
+import com.kronotop.stash.handlers.string.protocol.GetSetMessage;
+import com.kronotop.stash.storage.StashShard;
+import com.kronotop.stash.storage.StashValueContainer;
+import com.kronotop.stash.storage.StashValueKind;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.locks.ReadWriteLock;
+
+import static com.kronotop.stash.StashService.checkStashValueKind;
+
+@Command(GetSetMessage.COMMAND)
+@MaximumParameterCount(GetSetMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(GetSetMessage.MINIMUM_PARAMETER_COUNT)
+public class GetSetHandler extends BaseStringHandler implements Handler {
+    public GetSetHandler(StashService service) {
+        super(service);
+    }
+
+    @Override
+    public boolean isWatchable() {
+        return true;
+    }
+
+    @Override
+    public void beforeExecute(Request request) {
+        request.attr(MessageTypes.GETSET).set(new GetSetMessage(request));
+    }
+
+    @Override
+    public List<String> getKeys(Request request) {
+        return Collections.singletonList(request.attr(MessageTypes.GETSET).get().getKey());
+    }
+
+    private StashValueContainer executeGetSetCommand(StashShard shard, GetSetMessage message) {
+        StashValueContainer previous = shard.storage().get(message.getKey());
+        checkStashValueKind(previous, StashValueKind.STRING);
+
+        StashValueContainer container = new StashValueContainer(new StringValue(message.getValue()));
+        shard.storage().put(message.getKey(), container);
+
+        return previous;
+    }
+
+    @Override
+    public void execute(Request request, Response response) {
+        GetSetMessage message = request.attr(MessageTypes.GETSET).get();
+
+        StashValueContainer previous;
+        StashShard shard = service.findShard(message.getKey(), ShardStatus.READWRITE);
+        ReadWriteLock lock = shard.striped().get(message.getKey());
+        lock.writeLock().lock();
+        try {
+            previous = executeGetSetCommand(shard, message);
+            syncStringOnVolume(shard, message.getKey(), previous);
+        } finally {
+            lock.writeLock().unlock();
+        }
+
+        if (previous == null) {
+            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+            return;
+        }
+
+        ByteBuf buf = Unpooled.wrappedBuffer(previous.string().value());
+        response.write(buf);
+    }
+}

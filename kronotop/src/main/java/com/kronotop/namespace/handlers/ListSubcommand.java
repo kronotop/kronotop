@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package com.kronotop.namespace.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
@@ -27,11 +26,13 @@ import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.transaction.TransactionUtil;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -48,13 +49,13 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
             NamespaceMessage.ListMessage listMessage = message.getListMessage();
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 List<String> subpath = getNamespaceSubpath(listMessage.getSubpath());
                 CompletableFuture<List<String>> future;
                 if (subpath.isEmpty()) {
-                    future = DirectoryLayer.getDefault().list(tr);
+                    future = context.getDirectoryLayer().list(tr);
                 } else {
-                    future = DirectoryLayer.getDefault().list(tr, subpath);
+                    future = context.getDirectoryLayer().list(tr, subpath);
                 }
                 List<String> result = future.join();
                 List<RedisMessage> children = new ArrayList<>();
@@ -62,14 +63,14 @@ class ListSubcommand extends BaseSubcommand implements SubcommandExecutor {
                     if (namespace.equals(Namespace.INTERNAL_LEAF)) {
                         continue;
                     }
-                    children.add(new SimpleStringRedisMessage(namespace));
+                    children.add(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(namespace.getBytes(StandardCharsets.UTF_8))));
                 }
                 return children;
             } catch (CompletionException e) {
                 if (e.getCause() instanceof NoSuchDirectoryException) {
                     if (listMessage.getSubpath().isEmpty()) {
                         // No namespaces directory, the cluster has not been initialized yet
-                        return new LinkedList<RedisMessage>();
+                        return new ArrayList<>();
                     }
                     throw new NoSuchNamespaceException(String.join(".", listMessage.getSubpath()));
                 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,18 +17,23 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.google.common.net.HostAndPort;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.TaskAdminCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.VolumeAdminCommandBuilder;
+import com.kronotop.commands.KrAdminCommandBuilder;
+import com.kronotop.commands.TaskAdminCommandBuilder;
+import com.kronotop.commands.VolumeAdminCommandBuilder;
+import com.kronotop.directory.KronotopDirectory;
+import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.network.Address;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
 import com.kronotop.volume.replication.ReplicationService;
-import com.kronotop.volume.segment.Segment;
+import com.kronotop.volume.segment.SegmentUtil;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -37,15 +42,34 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.UUID;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
+    private final String volumeName = VolumeNames.format(SHARD_KIND, SHARD_ID);
+
+    private void createStalePrefixes(int count) {
+        String clusterName = context.getConfig().getString("cluster.name");
+        List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).extend("test-stale-prefixes");
+        try (Transaction tr = database.createTransaction()) {
+            DirectorySubspace subspace = context.getDirectoryLayer().createOrOpen(tr, subpath).join();
+            byte[] prefixPointer = subspace.pack("stale-pointer");
+            for (int i = 0; i < count; i++) {
+                Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
+                PrefixUtil.register(context, tr, prefixPointer, testPrefix);
+            }
+            // Clear the pointer to make all prefixes stale
+            tr.clear(prefixPointer);
+            tr.commit().join();
+        }
+    }
 
     private void injectTestData() throws IOException {
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
@@ -76,23 +100,23 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.describe("redis-shard-1").encode(buf);
+        cmd.describe("stash-shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
         actualMessage.children().forEach((k, v) -> {
-            SimpleStringRedisMessage key = (SimpleStringRedisMessage) k;
-            switch (key.content()) {
+            String key = ((FullBulkStringRedisMessage) k).content().toString(StandardCharsets.UTF_8);
+            switch (key) {
                 case "name":
-                    assertEquals("redis-shard-1", ((SimpleStringRedisMessage) v).content());
+                    assertEquals("stash-shard-1", ((FullBulkStringRedisMessage) v).content().toString(StandardCharsets.UTF_8));
                     break;
                 case "status":
-                    assertEquals(VolumeStatus.READWRITE.name(), ((SimpleStringRedisMessage) v).content());
+                    assertEquals(VolumeStatus.READWRITE.name(), ((FullBulkStringRedisMessage) v).content().toString(StandardCharsets.UTF_8));
                     break;
                 case "data_dir":
-                    SimpleStringRedisMessage dataDir = (SimpleStringRedisMessage) v;
-                    assertFalse(dataDir.content().isEmpty());
+                    FullBulkStringRedisMessage dataDir = (FullBulkStringRedisMessage) v;
+                    assertFalse(dataDir.content().toString(StandardCharsets.UTF_8).isEmpty());
                     break;
                 case "segment_size":
                     assert v instanceof IntegerRedisMessage;
@@ -107,7 +131,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
                         MapRedisMessage sub = (MapRedisMessage) vv;
                         sub.children().forEach((k2, v2) -> {
-                            String segmentKey = ((SimpleStringRedisMessage) k2).content();
+                            String segmentKey = ((FullBulkStringRedisMessage) k2).content().toString(StandardCharsets.UTF_8);
                             switch (segmentKey) {
                                 case "size":
                                     IntegerRedisMessage size = (IntegerRedisMessage) v2;
@@ -117,7 +141,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                                     IntegerRedisMessage freeBytes = (IntegerRedisMessage) v2;
                                     assertTrue(freeBytes.value() > 0);
                                     break;
-                                case "garbage_ratio":
+                                case "garbage_percentage":
                                     // TODO: Waits for KR-9
                                     break;
                             }
@@ -157,12 +181,13 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldListSegmentsEmptyVolume() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.listSegments("redis-shard-1").encode(buf);
+        cmd.listSegments("stash-shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
-        assertEquals(0, actualMessage.children().size());
+        // Creates a new default one
+        assertEquals(1, actualMessage.children().size());
     }
 
     @Test
@@ -170,7 +195,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         injectTestData();
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.listSegments("redis-shard-1").encode(buf);
+        cmd.listSegments("stash-shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -187,7 +212,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.setStatus("redis-shard-1", "READONLY").encode(buf);
+            cmd.setStatus("stash-shard-1", "READONLY").encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
@@ -197,15 +222,15 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.describe("redis-shard-1").encode(buf);
+            cmd.describe("stash-shard-1").encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage actualMessage = (MapRedisMessage) msg;
             actualMessage.children().forEach((k, v) -> {
-                SimpleStringRedisMessage key = (SimpleStringRedisMessage) k;
-                if (key.content().equals("status")) {
-                    assertEquals(VolumeStatus.READONLY.name(), ((SimpleStringRedisMessage) v).content());
+                String key = ((FullBulkStringRedisMessage) k).content().toString(StandardCharsets.UTF_8);
+                if (key.equals("status")) {
+                    assertEquals(VolumeStatus.READONLY.name(), ((FullBulkStringRedisMessage) v).content().toString(StandardCharsets.UTF_8));
                 }
             });
         }
@@ -215,7 +240,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenSetStatusWithInvalidNumberOfParameters() {
         // Send command without status parameter
         ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$10\r\nSET-STATUS\r\n$13\r\nredis-shard-1\r\n".getBytes());
+        buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$10\r\nSET-STATUS\r\n$13\r\nstash-shard-1\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
 
@@ -241,7 +266,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenSetStatusWithInvalidStatus() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.setStatus("redis-shard-1", "INVALID").encode(buf);
+        cmd.setStatus("stash-shard-1", "INVALID").encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -251,134 +276,30 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldStartVacuumTask() {
-        String volumeName = "redis-shard-1";
-
-        VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-        {
-            ByteBuf buf = Unpooled.buffer();
-            volumeAdmin.vacuum(volumeName, 10.0).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-        {
-            TaskAdminCommandBuilder<String, String> taskAdmin = new TaskAdminCommandBuilder<>(StringCodec.ASCII);
-
-            ByteBuf buf = Unpooled.buffer();
-            taskAdmin.list().encode(buf);
-
-            KronotopTestInstance instance = getInstances().getFirst();
-            instance.getChannel().writeInbound(buf);
-            Object msg = instance.getChannel().readOutbound();
-            assertInstanceOf(MapRedisMessage.class, msg);
-            MapRedisMessage actualMessage = (MapRedisMessage) msg;
-            boolean found = false;
-            for (RedisMessage message : actualMessage.children().keySet()) {
-                SimpleStringRedisMessage taskName = (SimpleStringRedisMessage) message;
-                if (VacuumMetadata.VacuumTaskName(volumeName).equals(taskName.content())) {
-                    found = true;
-                    break;
-                }
-            }
-            assertTrue(found);
-        }
-    }
-
-    @Test
-    void shouldStopVacuumTask() throws IOException {
-        String volumeName = "redis-shard-1";
-
-        // Inject data so vacuum has work to do and doesn't complete instantly
-        injectTestData();
-
-        VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-        {
-            ByteBuf buf = Unpooled.buffer();
-            volumeAdmin.vacuum(volumeName, 10.0).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, msg);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            volumeAdmin.stopVacuum(volumeName).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            // The vacuum task may complete before we can stop it (race condition).
-            // Both outcomes are valid: either we stopped it, or it already completed.
-            if (msg instanceof SimpleStringRedisMessage actualMessage) {
-                assertEquals(Response.OK, actualMessage.content());
-            } else if (msg instanceof ErrorRedisMessage actualMessage) {
-                assertEquals("ERR Vacuum task not found on " + volumeName, actualMessage.content());
-            } else {
-                fail("Unexpected response type: " + msg.getClass());
-            }
-        }
-
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            assertNull(VacuumMetadata.load(tr, volumeConfig.subspace()));
-        }
-    }
-
-    @Test
-    void shouldReturnErrorWhenStoppingNonExistentVacuumTask() {
-        String volumeName = "redis-shard-1";
-
-        VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-
-        ByteBuf buf = Unpooled.buffer();
-        volumeAdmin.stopVacuum(volumeName).encode(buf);
-
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(ErrorRedisMessage.class, msg);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Vacuum task not found on redis-shard-1", actualMessage.content());
-    }
-
-    @Test
-    void shouldReturnErrorWhenVacuumingNonOpenVolume() {
-        VolumeAdminCommandBuilder<String, String> volumeAdmin = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
-
-        ByteBuf buf = Unpooled.buffer();
-        volumeAdmin.vacuum("volume-name", 10.0).encode(buf);
-
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(ErrorRedisMessage.class, msg);
-        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Volume: 'volume-name' is not open", actualMessage.content());
-    }
-
-    @Test
     void shouldCleanupOrphanFiles() throws IOException {
         ByteBuffer[] entries = getEntries(3, 10);
 
         VolumeService service = context.getService(VolumeService.NAME);
-        Volume shard = service.findVolume("redis-shard-1");
+        Volume shard = service.findVolume("stash-shard-1");
         try (Transaction tr = database.createTransaction()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             shard.append(session, entries);
             tr.commit().join();
         }
-        File orphanFile = new File(String.valueOf(Paths.get(shard.getConfig().dataDir(), Segment.SEGMENTS_DIRECTORY, "orphan-file")));
+        File orphanFile = new File(String.valueOf(Paths.get(shard.getConfig().dataDir(), SegmentUtil.DIRECTORY, "orphan-file")));
         assertTrue(orphanFile.createNewFile());
 
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.cleanupOrphanFiles("redis-shard-1").encode(buf);
+        cmd.cleanupOrphanFiles("stash-shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
 
         RedisMessage message = actualMessage.children().getFirst();
-        SimpleStringRedisMessage path = (SimpleStringRedisMessage) message;
-        assertEquals(orphanFile.getAbsolutePath(), path.content());
+        FullBulkStringRedisMessage path = (FullBulkStringRedisMessage) message;
+        assertEquals(orphanFile.getAbsolutePath(), path.content().toString(StandardCharsets.UTF_8));
         // Deleted
         assertFalse(orphanFile.exists());
     }
@@ -410,8 +331,8 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             MapRedisMessage actualMessage = (MapRedisMessage) msg;
             boolean found = false;
             for (RedisMessage message : actualMessage.children().keySet()) {
-                SimpleStringRedisMessage taskName = (SimpleStringRedisMessage) message;
-                if (MarkStalePrefixesTask.NAME.equals(taskName.content())) {
+                FullBulkStringRedisMessage taskName = (FullBulkStringRedisMessage) message;
+                if (MarkStalePrefixesTask.NAME.equals(taskName.content().toString(StandardCharsets.UTF_8))) {
                     found = true;
                     break;
                 }
@@ -422,6 +343,11 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenMarkStalePrefixesTaskAlreadyExists() {
+        // Behavior: Starting a mark-stale-prefixes task while one is already running returns an error.
+
+        // Create stale prefixes so the task has real work and doesn't finish instantly.
+        createStalePrefixes(500);
+
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -442,6 +368,11 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR Task volume:mark-stale-prefixes-task already exists", actualMessage.content());
+
+        // Cleanup: stop the running task
+        ByteBuf stopBuf = Unpooled.buffer();
+        cmd.markStalePrefixes("STOP").encode(stopBuf);
+        runCommand(channel, stopBuf);
     }
 
     @Test
@@ -470,8 +401,8 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
         for (RedisMessage message : actualMessage.children().keySet()) {
-            SimpleStringRedisMessage taskName = (SimpleStringRedisMessage) message;
-            if (MarkStalePrefixesTask.NAME.equals(taskName.content())) {
+            FullBulkStringRedisMessage taskName = (FullBulkStringRedisMessage) message;
+            if (MarkStalePrefixesTask.NAME.equals(taskName.content().toString(StandardCharsets.UTF_8))) {
                 return true;
             }
         }
@@ -536,6 +467,71 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldLocateMarkStalePrefixesTask() {
+        // Behavior: LOCATE returns a map with member_id and process_id of the task owner.
+        createStalePrefixes(500);
+
+        VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
+
+        // Start the task
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("START").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        }
+
+        // Locate the task
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("LOCATE").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage mapMsg = (MapRedisMessage) msg;
+
+            boolean foundMemberId = false;
+            boolean foundProcessId = false;
+            boolean foundExternalAddress = false;
+            boolean foundInternalAddress = false;
+            for (var entry : mapMsg.children().entrySet()) {
+                String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.US_ASCII);
+                if ("member_id".equals(key)) {
+                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
+                    assertFalse(value.isEmpty());
+                    assertEquals(context.getMember().getId(), value);
+                    foundMemberId = true;
+                } else if ("process_id".equals(key)) {
+                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
+                    assertFalse(value.isEmpty());
+                    assertEquals(context.getMember().getProcessId(), VersionstampUtil.base32HexDecode(value));
+                    foundProcessId = true;
+                } else if ("external_address".equals(key)) {
+                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
+                    Address expected = context.getMember().getExternalAddress();
+                    assertEquals(HostAndPort.fromParts(expected.getHost(), expected.getPort()).toString(), value);
+                    foundExternalAddress = true;
+                } else if ("internal_address".equals(key)) {
+                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
+                    Address expected = context.getMember().getInternalAddress();
+                    assertEquals(HostAndPort.fromParts(expected.getHost(), expected.getPort()).toString(), value);
+                    foundInternalAddress = true;
+                }
+            }
+            assertTrue(foundMemberId);
+            assertTrue(foundProcessId);
+            assertTrue(foundInternalAddress);
+            assertTrue(foundExternalAddress);
+        }
+
+        // Stop the task
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.markStalePrefixes("STOP").encode(buf);
+            runCommand(channel, buf);
+        }
+    }
+
+    @Test
     void shouldReturnErrorWhenRemovingNonExistentMarkStalePrefixesTask() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         {
@@ -597,7 +593,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Start replication via command
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.startReplication(SHARD_KIND.name(), SHARD_ID).encode(buf);
+        cmd.startReplication(volumeName).encode(buf);
 
         Object msg = runCommand(standby.getChannel(), buf);
 
@@ -620,13 +616,13 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Try to start replication for a shard that has no route (standby not assigned)
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.startReplication(SHARD_KIND.name(), SHARD_ID).encode(buf);
+        cmd.startReplication(volumeName).encode(buf);
 
         Object msg = runCommand(standby.getChannel(), buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for REDIS-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for stash-shard-1", actualMessage.content());
     }
 
     @Test
@@ -634,20 +630,20 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Try to start replication on primary node (not a standby)
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.startReplication(SHARD_KIND.name(), SHARD_ID).encode(buf);
+        cmd.startReplication(volumeName).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for REDIS-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for stash-shard-1", actualMessage.content());
     }
 
     @Test
     void shouldFailStartReplicationWithInvalidNumberOfParameters() {
-        // Missing shard-id parameter
+        // Missing volume-name parameter
         ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes("*2\r\n$12\r\nVOLUME.ADMIN\r\n$17\r\nSTART-REPLICATION\r\n".getBytes());
+        buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$11\r\nREPLICATION\r\n$5\r\nSTART\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
 
@@ -672,7 +668,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Stop replication via command
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.stopReplication(SHARD_KIND.name(), SHARD_ID).encode(buf);
+        cmd.stopReplication(volumeName).encode(buf);
 
         Object msg = runCommand(standby.getChannel(), buf);
 
@@ -691,13 +687,13 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Try to stop replication for a shard that has no route (standby not assigned)
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.stopReplication(SHARD_KIND.name(), SHARD_ID).encode(buf);
+        cmd.stopReplication(volumeName).encode(buf);
 
         Object msg = runCommand(standby.getChannel(), buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for REDIS-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for stash-shard-1", actualMessage.content());
     }
 
     @Test
@@ -705,20 +701,20 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Try to stop replication on primary node (not a standby)
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.stopReplication(SHARD_KIND.name(), SHARD_ID).encode(buf);
+        cmd.stopReplication(volumeName).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR This node is not a standby for REDIS-1", actualMessage.content());
+        assertEquals("ERR This node is not a standby for stash-shard-1", actualMessage.content());
     }
 
     @Test
     void shouldFailStopReplicationWithInvalidNumberOfParameters() {
-        // Missing shard-id parameter
+        // Missing volume-name parameter
         ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes("*2\r\n$12\r\nVOLUME.ADMIN\r\n$16\r\nSTOP-REPLICATION\r\n".getBytes());
+        buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$11\r\nREPLICATION\r\n$4\r\nSTOP\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
 
@@ -731,7 +727,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldPruneChangelogSuccessfully() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.pruneChangelog("redis-shard-1", 24).encode(buf);
+        cmd.pruneChangelog("stash-shard-1", 24).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -744,7 +740,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenPruneChangelogRetentionPeriodIsZero() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.pruneChangelog("redis-shard-1", 0).encode(buf);
+        cmd.pruneChangelog("stash-shard-1", 0).encode(buf);
 
         Object msg = runCommand(channel, buf);
 
@@ -757,7 +753,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnErrorWhenPruneChangelogRetentionPeriodIsNegative() {
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.pruneChangelog("redis-shard-1", -1).encode(buf);
+        cmd.pruneChangelog("stash-shard-1", -1).encode(buf);
 
         Object msg = runCommand(channel, buf);
 

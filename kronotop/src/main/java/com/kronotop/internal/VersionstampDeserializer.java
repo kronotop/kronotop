@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,15 +17,13 @@
 package com.kronotop.internal;
 
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.ValueDeserializer;
 
-import java.io.IOException;
-
-public class VersionstampDeserializer extends JsonDeserializer<Versionstamp> {
+public class VersionstampDeserializer extends ValueDeserializer<Versionstamp> {
     @Override
-    public Versionstamp deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+    public Versionstamp deserialize(JsonParser p, DeserializationContext ctxt) {
         byte[] bytes = p.getBinaryValue();
         return Versionstamp.fromBytes(bytes);
     }

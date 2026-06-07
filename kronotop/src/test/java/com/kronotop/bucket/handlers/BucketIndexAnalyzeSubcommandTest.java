@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,21 +17,17 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.CachedTimeService;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.HistogramBucket;
 import com.kronotop.bucket.index.statistics.HistogramCodec;
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.internal.TransactionUtils;
+import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.transaction.TransactionUtil;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -93,27 +89,37 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
 
         {
             // Analyze only works with the indexes in READY status.
-            BucketMetadata metadata = TransactionUtils.execute(context,
-                    tr -> BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET)
+            BucketMetadata metadata = TransactionUtil.execute(context,
+                    tr -> BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET)
             );
             Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(index.subspace());
         }
 
         {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.indexAnalyze(TEST_BUCKET, "test").encode(buf);
-            Object msg = runCommand(channel, buf);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertNotNull(actualMessage);
-            assertEquals(Response.OK, actualMessage.content());
+            // Retry on transient FDB transaction conflicts.
+            await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                ByteBuf buf = Unpooled.buffer();
+                cmd.indexAnalyze(TEST_BUCKET, "test").encode(buf);
+                Object msg = runCommand(channel, buf);
+                // The background IndexBoundaryRoutine may have already scheduled an analyze task.
+                if (msg instanceof ErrorRedisMessage errorMessage) {
+                    assertFalse(errorMessage.content().startsWith("NOT_COMMITTED"),
+                            "Transient FDB conflict, retrying");
+                    assertEquals("An analyze task has already exist", errorMessage.content());
+                } else {
+                    SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+                    assertNotNull(actualMessage);
+                    assertEquals(Response.OK, actualMessage.content());
+                }
+            });
         }
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+                BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
                 Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
-                IndexDefinition definition = IndexUtil.loadIndexDefinition(tr, index.subspace());
+                SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
                 byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
                 byte[] value = tr.get(key).join();
                 if (value == null) {
@@ -129,37 +135,50 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
     void shouldThrowBucketBeingRemovedExceptionWhenAnalyzingIndexOnRemovedBucket() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
 
-        // First create the bucket by creating an index
+        // First, create the bucket by creating an index
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexCreate(TEST_BUCKET, "{\"username\": {\"name\": \"test\", \"bson_type\": \"string\"}}").encode(buf);
             Object msg = runCommand(channel, buf);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertNotNull(actualMessage);
             assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // Wait for the index to be ready before testing bucket removal
+        {
+            BucketMetadata metadata = TransactionUtil.execute(context,
+                    tr -> BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET)
+            );
+            Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            waitForIndexReadiness(index.subspace());
         }
 
         // Get the bucket metadata and mark it as removed
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
             tr.commit().join();
         }
 
-        // Flush the bucket metadata cache so open reads the dropped status
-        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
-                context.getService(CachedTimeService.NAME), 0);
-        cleanup.run();
+        // Invalidate the bucket metadata cache so open reads the dropped status
+        context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
 
-        // Try to analyze the index on the dropped bucket
-        {
+        // Try to analyze the index on the dropped bucket.
+        // A background routine holding a pre-removal snapshot may re-cache non-removed metadata
+        // after the invalidate above, so re-invalidate and retry until the removal guard is seen.
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
             ByteBuf buf = Unpooled.buffer();
             cmd.indexAnalyze(TEST_BUCKET, "test").encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(ErrorRedisMessage.class, msg);
             ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+            assertFalse(errorMessage.content().startsWith("NOT_COMMITTED"),
+                    "Transient FDB conflict, retrying");
             assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
-        }
+        });
     }
 }

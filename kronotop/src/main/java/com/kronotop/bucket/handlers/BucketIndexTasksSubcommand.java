@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -23,25 +23,28 @@ import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
-import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.maintenance.*;
+import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SessionAttributes;
+import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.kronotop.server.RESPUtil.bulkString;
 
 class BucketIndexTasksSubcommand implements SubcommandHandler {
     private final Context context;
@@ -51,9 +54,8 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
     }
 
     private Map<RedisMessage, RedisMessage> scanTaskId(Transaction tr, Versionstamp taskId) {
-        BucketService service = context.getService(BucketService.NAME);
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
+        for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
             byte[] encodedTask = TaskStorage.getDefinition(tr, taskSubspace, taskId);
             if (encodedTask == null) {
@@ -65,43 +67,73 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
                     IndexBuildingTask task = JSONUtil.readValue(encodedTask, IndexBuildingTask.class);
                     IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
                     result.put(
-                            new SimpleStringRedisMessage("kind"),
-                            new SimpleStringRedisMessage(baseTask.getKind().name())
+                            bulkString("kind"),
+                            bulkString(baseTask.getKind().name())
                     );
                     result.put(
-                            new SimpleStringRedisMessage("cursor"),
-                            new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(state.cursorVersionstamp()))
+                            bulkString("cursor"),
+                            bulkString(VersionstampUtil.base32HexEncode(state.cursorVersionstamp()))
                     );
                     result.put(
-                            new SimpleStringRedisMessage("lower"),
-                            new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(task.getLower()))
+                            bulkString("lower"),
+                            bulkString(VersionstampUtil.base32HexEncode(task.getLower()))
                     );
                     result.put(
-                            new SimpleStringRedisMessage("upper"),
-                            new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(task.getUpper()))
+                            bulkString("upper"),
+                            bulkString(VersionstampUtil.base32HexEncode(task.getUpper()))
                     );
                     result.put(
-                            new SimpleStringRedisMessage("status"),
-                            new SimpleStringRedisMessage(state.status().name())
+                            bulkString("status"),
+                            bulkString(state.status().name())
                     );
                     result.put(
-                            new SimpleStringRedisMessage("error"),
-                            new SimpleStringRedisMessage(state.error())
+                            bulkString("error"),
+                            bulkString(state.error())
                     );
                 }
                 case DROP -> {
                     IndexDropTaskState state = IndexDropTaskState.load(tr, taskSubspace, taskId);
                     result.put(
-                            new SimpleStringRedisMessage("kind"),
-                            new SimpleStringRedisMessage(baseTask.getKind().name())
+                            bulkString("kind"),
+                            bulkString(baseTask.getKind().name())
                     );
                     result.put(
-                            new SimpleStringRedisMessage("status"),
-                            new SimpleStringRedisMessage(state.status().name())
+                            bulkString("status"),
+                            bulkString(state.status().name())
                     );
                     result.put(
-                            new SimpleStringRedisMessage("error"),
-                            new SimpleStringRedisMessage(state.error())
+                            bulkString("error"),
+                            bulkString(state.error())
+                    );
+                }
+                case BOUNDARY -> {
+                    IndexBoundaryTaskState state = IndexBoundaryTaskState.load(tr, taskSubspace, taskId);
+                    result.put(
+                            bulkString("kind"),
+                            bulkString(baseTask.getKind().name())
+                    );
+                    result.put(
+                            bulkString("status"),
+                            bulkString(state.status().name())
+                    );
+                    result.put(
+                            bulkString("error"),
+                            bulkString(state.error())
+                    );
+                }
+                case ANALYZE -> {
+                    IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, taskSubspace, taskId);
+                    result.put(
+                            bulkString("kind"),
+                            bulkString(baseTask.getKind().name())
+                    );
+                    result.put(
+                            bulkString("status"),
+                            bulkString(state.status().name())
+                    );
+                    result.put(
+                            bulkString("error"),
+                            bulkString(state.error())
                     );
                 }
                 default -> throw new KronotopException("Unknown task kind: " + baseTask.getKind());
@@ -116,13 +148,13 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> parent = new LinkedHashMap<>();
             String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, parameters.bucket, parameters.index);
                 for (Versionstamp taskId : taskIds) {
                     Map<RedisMessage, RedisMessage> child = scanTaskId(tr, taskId);
                     parent.put(
-                            new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(taskId)),
+                            bulkString(VersionstampUtil.base32HexEncode(taskId)),
                             new MapRedisMessage(child)
                     );
                 }

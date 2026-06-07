@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,10 @@ package com.kronotop.cluster.handlers;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberView;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +40,7 @@ class ListSilentMembersSubcommand extends BaseKrAdminSubcommandHandler implement
         Map<Member, MemberView> others = membership.getKnownMembers();
         others.forEach((member, memberView) -> {
             if (!memberView.isAlive()) {
-                result.add(new SimpleStringRedisMessage(member.getId()));
+                result.add(bulkString(member.getId()));
             }
         });
         response.writeArray(result);

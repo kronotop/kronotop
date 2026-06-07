@@ -1,3 +1,10 @@
 **/.git
 **/.github
 **/.idea
+**/.vscode
+**/.claude
+latencies
+
+*.iml
+CLAUDE.md
+AGENTS.md

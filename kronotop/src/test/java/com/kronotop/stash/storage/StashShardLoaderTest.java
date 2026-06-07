@@ -1,0 +1,89 @@
+/*
+ * Copyright (c) 2023-2026 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.kronotop.stash.storage;
+
+import com.kronotop.cluster.sharding.ShardStatus;
+import com.kronotop.stash.StashService;
+import com.kronotop.stash.handlers.hash.HashFieldValue;
+import com.kronotop.stash.handlers.hash.HashValue;
+import com.kronotop.stash.handlers.string.StringValue;
+import com.kronotop.stash.storage.syncer.VolumeSyncer;
+import com.kronotop.stash.storage.syncer.jobs.AppendHashFieldJob;
+import com.kronotop.stash.storage.syncer.jobs.AppendStringJob;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class StashShardLoaderTest extends BaseStorageTest {
+
+    @Test
+    public void test_load_STRING() {
+        final String key = "foobar";
+        final byte[] value = "barfoo".getBytes();
+
+        final StashService service = context.getService(StashService.NAME);
+        StashShard shard = service.findShard(key, ShardStatus.READWRITE);
+        shard.storage().put(key, new StashValueContainer(new StringValue(value)));
+        shard.volumeSyncQueue().add(new AppendStringJob(key));
+
+        VolumeSyncer volumeSyncer = new VolumeSyncer(context, shard);
+        volumeSyncer.run();
+
+        shard.storage().remove(key);
+        assertNull(shard.storage().get(key));
+
+        // StashShardLoader should load the key/value pair from the underlying volume.
+        StashShardLoader loader = new StashShardLoader(context, shard);
+        loader.load();
+        StashValueContainer container = shard.storage().get(key);
+        assertNotNull(container);
+
+        assertArrayEquals(value, container.string().value());
+        assertNotNull(container.baseStashValue().versionstamp());
+    }
+
+    @Test
+    public void test_load_HashField() {
+        final String key = "foobar";
+        final byte[] value = "barfoo".getBytes();
+        final String field = "bar";
+
+        final StashService service = context.getService(StashService.NAME);
+        StashShard shard = service.findShard("foobar", ShardStatus.READWRITE);
+
+        HashValue hashValue = new HashValue();
+        hashValue.put(field, new HashFieldValue(value));
+
+        shard.storage().put(key, new StashValueContainer(hashValue));
+        shard.volumeSyncQueue().add(new AppendHashFieldJob(key, field));
+
+        VolumeSyncer volumeSyncer = new VolumeSyncer(context, shard);
+        volumeSyncer.run();
+
+        shard.storage().remove(key);
+        assertNull(shard.storage().get(key));
+
+        StashShardLoader loader = new StashShardLoader(context, shard);
+        loader.load();
+        StashValueContainer container = shard.storage().get(key);
+        assertNotNull(container);
+
+        assertNotNull(container.hash().get(field));
+        assertArrayEquals(value, container.hash().get(field).value());
+        assertNotNull(container.hash().get(field).versionstamp());
+    }
+}

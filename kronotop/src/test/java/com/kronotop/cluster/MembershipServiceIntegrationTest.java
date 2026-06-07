@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package com.kronotop.cluster;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BaseClusterTest;
+import com.kronotop.KronotopException;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.network.Address;
@@ -156,6 +157,21 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
 
         // Verify member is no longer registered
         assertFalse(membership.isMemberRegistered(first.getMember().getId()));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenRemovingRunningMember() {
+        // Behavior: A member in RUNNING status cannot be removed from the cluster.
+        KronotopTestInstance instance = getInstances().getFirst();
+        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
+
+        CompletionException exception = assertThrows(CompletionException.class, () ->
+                instance.getContext().getFoundationDB().run(tr -> {
+                    membership.removeMember(tr, instance.getMember().getId());
+                    return null;
+                })
+        );
+        assertInstanceOf(KronotopException.class, exception.getCause());
     }
 
     @Test
@@ -311,5 +327,72 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         });
 
         assertTrue(newValue > initialValue);
+    }
+
+    @Test
+    void shouldRemoveMemberFromKnownMembersWhenMemberLeaves() {
+        // Behavior: When a member shuts down and publishes MemberLeftEvent,
+        // other members should remove it from their knownMembers map.
+        KronotopTestInstance first = getInstances().getFirst();
+        MembershipService membership = first.getContext().getService(MembershipService.NAME);
+
+        KronotopTestInstance second = addNewInstance();
+
+        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                membership.getKnownMembers().containsKey(second.getMember())
+        );
+
+        second.shutdownWithoutCleanup();
+        kronotopInstances.remove(second.getMember());
+
+        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                !membership.getKnownMembers().containsKey(second.getMember())
+        );
+
+        assertFalse(membership.getKnownMembers().containsKey(second.getMember()));
+    }
+
+    @Test
+    void shouldCleanupKnownMembersWhenMemberAlreadyRemovedFromRegistry() {
+        // Behavior: When a member is removed from the registry before its MemberLeftEvent
+        // is processed, the fallback path searches knownMembers by ID for cleanup.
+        KronotopTestInstance first = getInstances().getFirst();
+        MembershipService membership = first.getContext().getService(MembershipService.NAME);
+
+        KronotopTestInstance second = addNewInstance();
+
+        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                membership.getKnownMembers().containsKey(second.getMember())
+        );
+
+        second.shutdownWithoutCleanup();
+        kronotopInstances.remove(second.getMember());
+
+        first.getContext().getFoundationDB().run(tr -> {
+            membership.removeMember(tr, second.getMember().getId());
+            return null;
+        });
+
+        await().atMost(5, TimeUnit.SECONDS).until(() ->
+                !membership.getKnownMembers().containsKey(second.getMember())
+        );
+
+        assertFalse(membership.getKnownMembers().containsKey(second.getMember()));
+    }
+
+    @Test
+    void shouldReturnZeroHeartbeatForUnknownMember() throws UnknownHostException {
+        // Behavior: getLatestHeartbeat returns 0 for a member not in knownMembers.
+        KronotopTestInstance instance = getInstances().getFirst();
+        MembershipService membership = instance.getContext().getService(MembershipService.NAME);
+
+        Member unknown = new Member(
+                MemberIdGenerator.generateId(),
+                new Address("127.0.0.1", 9999),
+                new Address("127.0.0.1", 9998),
+                instance.getContext().getMember().getProcessId()
+        );
+
+        assertEquals(0, membership.getLatestHeartbeat(unknown));
     }
 }

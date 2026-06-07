@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ public class BaseNetworkedVolumeIntegrationTest extends BaseClusterTestWithTCPSe
     protected final BaseVolumeTestWrapper baseVolumeTestWrapper = new BaseVolumeTestWrapper();
 
     protected final int SHARD_ID = 1;
-    protected final ShardKind SHARD_KIND = ShardKind.REDIS;
+    protected final ShardKind SHARD_KIND = ShardKind.STASH;
     protected Context context;
     protected Database database;
     protected KronotopTestInstance kronotopInstance;

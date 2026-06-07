@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,11 +22,10 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.*;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.namespace.NamespaceBeingRemovedException;
 import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,10 +44,10 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     /**
      * Creates a new index drop routine.
      *
-     * @param context   the Kronotop context providing access to services
-     * @param subspace  the directory subspace containing task metadata
-     * @param taskId    the unique versionstamp identifier for this task
-     * @param task      the drop task definition specifying the target index
+     * @param context  the Kronotop context providing access to services
+     * @param subspace the directory subspace containing task metadata
+     * @param taskId   the unique versionstamp identifier for this task
+     * @param task     the drop task definition specifying the target index
      */
     public IndexDropRoutine(Context context,
                             DirectorySubspace subspace,
@@ -64,11 +63,14 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
      * @param th the throwable that caused the task to fail
      */
     private void markIndexDropTaskFailed(Throwable th) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            IndexDropTaskState.setError(tr, subspace, taskId, th.getMessage());
-            IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-            commit(tr);
-        }
+        Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
+        retry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexDropTaskState.setError(tr, subspace, taskId, th.getMessage());
+                IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
+                commit(tr);
+            }
+        });
     }
 
     /**
@@ -81,27 +83,41 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     }
 
     /**
-     * Removes all index entries from storage or marks the task complete if the index no longer exists.
+     * Removes all index entries from storage. Handles both single-field and vector indexes.
+     * No-op if the index no longer exists.
      *
-     * @param tr the transaction to use for the clear operation
+     * @param tr       the transaction to use for the clear operation
+     * @param metadata the bucket metadata containing index definitions
      */
-    private void clearIndex(Transaction tr) {
-        BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
+    private void clearIndex(Transaction tr, BucketMetadata metadata) {
+        TransactionalContext tx = new TransactionalContext(context, tr);
+
         Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
-        if (index == null) {
-            // index is gone
-            markIndexDropTaskCompleted(tr);
+        if (index != null) {
+            SingleFieldIndexUtil.clear(tr, metadata.subspace(), index.definition().name());
+            BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
             return;
         }
-        IndexUtil.clear(tr, metadata.subspace(), index.definition().name());
-        TransactionalContext tx = new TransactionalContext(context, tr);
-        BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
+
+        CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        if (compoundIndex != null) {
+            CompoundIndexUtil.clear(tr, metadata.subspace(), compoundIndex.definition().name());
+            BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
+            return;
+        }
+
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        if (vectorIndex != null) {
+            VectorIndexUtil.clear(tr, metadata.subspace(), vectorIndex.definition().name());
+            BucketMetadataUtil.publishVectorIndexDroppedEvent(tx, metadata, task.getIndexId());
+            BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
+        }
     }
 
     /**
      * Executes the index drop operation with transaction isolation and error handling.
      *
-     * <p>This method validates task state, refreshes metadata to ensure transaction isolation,
+     * <p>This method validates the task state, refreshes metadata to ensure transaction isolation,
      * removes all index entries, and updates task status to reflect completion or failure.
      *
      * @throws IndexMaintenanceRoutineShutdownException if interrupted during execution
@@ -114,12 +130,14 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         try {
             BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket());
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, task.getNamespace(), task.getBucket());
+                BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, task.getNamespace(), task.getBucket());
                 Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
-                if (index == null) {
+                CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+                VectorIndex vectorIndex = metadata.vectorIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+                if (index == null && compoundIndex == null && vectorIndex == null) {
                     throw new IndexMaintenanceRoutineException("Index could not be found");
                 }
-                clearIndex(tr);
+                clearIndex(tr, metadata);
                 markIndexDropTaskCompleted(tr);
                 commit(tr);
             }
@@ -134,12 +152,27 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
             // can be retried.
             Thread.currentThread().interrupt();
             throw new IndexMaintenanceRoutineShutdownException();
+        } catch (NoSuchBucketException | BucketBeingRemovedException |
+                 NamespaceBeingRemovedException exp) {
+            LOGGER.debug("TaskId: {} has failed due to bucket/namespace removal: '{}'",
+                    VersionstampUtil.base32HexEncode(taskId),
+                    exp.getMessage()
+            );
+            // Watchdog will detect the bucket is gone and drop the orphaned task.
         } catch (IndexMaintenanceRoutineException | BucketMetadataConvergenceException exp) {
             LOGGER.error("TaskId: {} has failed due to an error: '{}'",
                     VersionstampUtil.base32HexEncode(taskId),
                     exp.getMessage()
             );
-            markIndexDropTaskFailed(exp);
+            try {
+                markIndexDropTaskFailed(exp);
+            } catch (Exception suppressed) {
+                LOGGER.debug("Could not mark task {} as FAILED: {}",
+                        VersionstampUtil.base32HexEncode(taskId),
+                        suppressed.getMessage()
+                );
+                throw new IndexMaintenanceRoutineShutdownException();
+            }
         } finally {
             metrics.setLatestExecution(System.currentTimeMillis());
         }
@@ -149,16 +182,16 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
-                IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.STOPPED);
-            } else {
-                IndexDropTaskState state = IndexDropTaskState.load(tr, subspace, taskId);
-                if (state.status() == IndexTaskStatus.STOPPED || state.status() == IndexTaskStatus.COMPLETED) {
-                    // Already completed or stopped
-                    stopped = true;
-                    return;
-                }
-                IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
+                stopped = true;
+                return;
             }
+            IndexDropTaskState state = IndexDropTaskState.load(tr, subspace, taskId);
+            if (state.status() == IndexTaskStatus.STOPPED || state.status() == IndexTaskStatus.COMPLETED) {
+                // Already completed or stopped
+                stopped = true;
+                return;
+            }
+            IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
             commit(tr);
         }
     }
@@ -167,7 +200,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
      * Initiates the index drop routine with automatic retry on transient failures.
      *
      * <p>This method resets the stopped flag to enable restarts and delegates execution
-     * to {@link #startInternal()} with retry protection for transient FoundationDB errors.
+     * to {@link #startInternal()}. Transient failures are retried at the worker level.
      */
     @Override
     public void start() {
@@ -178,10 +211,9 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
                 task.getBucket()
         );
         stopped = false; // also means a restart
-        Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
-        retry.executeRunnable(this::initialize);
-        if (!stopped || !Thread.currentThread().isInterrupted()) {
-            retry.executeRunnable(this::startInternal);
+        initialize();
+        if (!stopped && !Thread.currentThread().isInterrupted()) {
+            startInternal();
         }
     }
 }

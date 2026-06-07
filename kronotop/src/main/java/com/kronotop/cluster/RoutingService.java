@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -153,7 +153,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
             byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
             byte[] data = tr.get(key).join();
             if (data != null) {
-                if (MembershipUtils.isTrue(data)) {
+                if (MembershipUtil.isTrue(data)) {
                     return true;
                 }
             }
@@ -164,10 +164,10 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     /**
      * Converts a set of member IDs to their corresponding Member objects.
      */
-    private Set<Member> memberIdsToMembers(Set<String> memberIds) {
+    private Set<Member> memberIdsToMembers(Transaction tr, Set<String> memberIds) {
         Set<Member> members = new HashSet<>();
         for (String memberId : memberIds) {
-            Member member = membership.findMember(memberId);
+            Member member = membership.findMember(tr, memberId);
             members.add(member);
         }
         return members;
@@ -182,18 +182,18 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
      * or null if no route information is found.
      */
     private Route loadRoute(Transaction tr, DirectorySubspace shardSubspace) {
-        String primaryMemberId = MembershipUtils.loadPrimaryMemberId(tr, shardSubspace);
+        String primaryMemberId = MembershipUtil.loadPrimaryMemberId(tr, shardSubspace);
         if (primaryMemberId == null) {
             // No route set
             return null;
         }
 
         try {
-            Member primary = membership.findMember(primaryMemberId);
-            ShardStatus shardStatus = ShardUtils.getShardStatus(tr, shardSubspace);
+            Member primary = membership.findMember(tr, primaryMemberId);
+            ShardStatus shardStatus = ShardUtil.getShardStatus(tr, shardSubspace);
 
-            Set<String> standbyIds = MembershipUtils.loadStandbyMemberIds(tr, shardSubspace);
-            Set<Member> standbys = memberIdsToMembers(standbyIds);
+            Set<String> standbyIds = MembershipUtil.loadStandbyMemberIds(tr, shardSubspace);
+            Set<Member> standbys = memberIdsToMembers(tr, standbyIds);
 
             return new Route(primary, standbys, shardStatus);
         } catch (MemberNotRegisteredException e) {
@@ -206,13 +206,13 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     /**
      * Loads the routing information for shards into the provided routing table within a transaction.
      *
-     * @param tr             The transaction used for database operations.
-     * @param table          The routing table to update with routing information.
-     * @param shardKind      The type of shard (e.g., REDIS) to load routes for.
-     * @param numberOfShards The total number of shards to process.
+     * @param tr        The transaction used for database operations.
+     * @param table     The routing table to update with routing information.
+     * @param shardKind The type of shard (e.g., STASH) to load routes for.
+     * @param shardIds  The list of shard IDs to process.
      */
-    private void loadRoute(Transaction tr, RoutingTable table, ShardKind shardKind, int numberOfShards) {
-        for (int shardId = 0; shardId < numberOfShards; shardId++) {
+    private void loadRoute(Transaction tr, RoutingTable table, ShardKind shardKind, List<Integer> shardIds) {
+        for (int shardId : shardIds) {
             DirectorySubspace shardSubspace = context.getDirectorySubspaceCache().get(shardKind, shardId);
             Route route = loadRoute(tr, shardSubspace);
             if (route != null) {
@@ -224,7 +224,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
     /**
      * Loads the routing table from FoundationDB and detects routing changes.
      *
-     * <p>Creates a new routing table, loads routes for all shard kinds (REDIS, BUCKET),
+     * <p>Creates a new routing table, loads routes for all shard kinds (STASH, BUCKET),
      * and atomically replaces the current table. On subsequent runs, compares with
      * the previous table to detect and trigger routing event hooks.
      *
@@ -236,26 +236,22 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         if (clusterInitialized.get() == null || !clusterInitialized.get()) {
             return;
         }
+
+        ShardRegistry shardRegistry = context.getShardRegistry();
+
         RoutingTable table = new RoutingTable();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            for (ShardKind shardKind : ShardKind.values()) {
-                String path;
-                if (shardKind.equals(ShardKind.REDIS)) {
-                    path = "redis.shards";
-                } else if (shardKind.equals(ShardKind.BUCKET)) {
-                    path = "bucket.shards";
-                } else {
-                    throw new KronotopException("Unknown shard kind: " + shardKind);
-                }
-
-                int numberOfShards = context.getConfig().getInt(path);
-                loadRoute(tr, table, shardKind, numberOfShards);
+            for (ShardKind shardKind : shardRegistry.getShardKinds()) {
+                shardRegistry.refresh(tr, shardKind);
+                List<Integer> shardIds = shardRegistry.getShardIds(shardKind);
+                loadRoute(tr, table, shardKind, shardIds);
             }
         }
         RoutingTable previous = routingTable.getAndSet(table);
         if (!firstRun) {
-            changesBetweenRoutingTables(previous, ShardKind.REDIS);
-            changesBetweenRoutingTables(previous, ShardKind.BUCKET);
+            for (ShardKind shardKind : shardRegistry.getShardKinds()) {
+                changesBetweenRoutingTables(previous, shardKind);
+            }
         }
     }
 
@@ -282,25 +278,17 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
      *
      * <p>Detected events include:
      * <ul>
-     *   <li>New primary assignment (triggers LOAD_REDIS_SHARD or INITIALIZE_BUCKET_SHARD)</li>
+     *   <li>New primary assignment (triggers LOAD_STASH_SHARD or INITIALIZE_BUCKET_SHARD)</li>
      *   <li>New standby assignment (triggers START_REPLICATION)</li>
      *   <li>Primary ownership change (triggers HAND_OVER_SHARD_OWNERSHIP, PRIMARY_OWNER_CHANGED)</li>
      *   <li>Standby removal (triggers STOP_REPLICATION)</li>
      * </ul>
      */
     private void changesBetweenRoutingTables(RoutingTable previous, ShardKind shardKind) {
-        int shards;
-        if (shardKind.equals(ShardKind.BUCKET)) {
-            shards = context.getConfig().getInt("bucket.shards");
-        } else if (shardKind.equals(ShardKind.REDIS)) {
-            shards = context.getConfig().getInt("redis.shards");
-        } else {
-            throw new KronotopException("Unknown shard kind: " + shardKind);
-        }
-
+        List<Integer> shardIds = context.getShardRegistry().getShardIds(shardKind);
         RoutingTable current = routingTable.get();
 
-        for (int shardId = 0; shardId < shards; shardId++) {
+        for (int shardId : shardIds) {
             Route currentRoute = current.get(shardKind, shardId);
             if (currentRoute == null) {
                 // Not assigned yet
@@ -312,8 +300,8 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 // Bootstrapping...
                 if (currentRoute.primary().equals(context.getMember())) {
                     // Load the shard from local disk
-                    if (shardKind.equals(ShardKind.REDIS)) {
-                        runHooks(RoutingEventKind.LOAD_REDIS_SHARD, ShardKind.REDIS, shardId);
+                    if (shardKind.equals(ShardKind.STASH)) {
+                        runHooks(RoutingEventKind.LOAD_STASH_SHARD, ShardKind.STASH, shardId);
                     } else {
                         runHooks(RoutingEventKind.INITIALIZE_BUCKET_SHARD, ShardKind.BUCKET, shardId);
                     }

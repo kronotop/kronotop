@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -132,8 +132,11 @@ public class SegmentReplication extends AbstractReplication implements Replicati
                     return;
                 }
             }
-            if (exp instanceof ReplicationClientShutdownException ||
-                    exp instanceof ReplicationClientNotConnectedException) {
+            if (exp instanceof ReplicationClientShutdownException) {
+                return;
+            }
+            if (exp instanceof ReplicationClientNotConnectedException) {
+                parkBeforeReconnectRetry();
                 return;
             }
             markReplicationStageFailed(session.segmentId(), exp);
@@ -147,19 +150,18 @@ public class SegmentReplication extends AbstractReplication implements Replicati
         shutdown = true;
 
         try {
-            if (started) {
-                if (!latch.await(10, TimeUnit.SECONDS)) {
-                    LOGGER.warn(
-                            "Graceful shutdown period exceeded for Volume: {} Segment: {}. Forcing close.",
-                            session.volume(),
-                            session.segmentId()
-                    );
-                }
-            }
-
-            if (file.getChannel().isOpen()) {
-                file.getFD().sync();
-                file.close();
+            boolean drained = !started || latch.await(10, TimeUnit.SECONDS);
+            if (drained) {
+                syncAndCloseFile();
+            } else {
+                // The worker is still running. Closing the file under it would race with in-flight
+                // writes, so we skip it here. Once the worker drains, the loop teardown calls
+                // close() again (latch already 0) and syncAndCloseFile() performs the terminal close.
+                LOGGER.warn(
+                        "Graceful shutdown period exceeded for Volume: {} Segment: {}. Forcing close.",
+                        session.volume(),
+                        session.segmentId()
+                );
             }
         } catch (InterruptedException exp) {
             Thread.currentThread().interrupt();

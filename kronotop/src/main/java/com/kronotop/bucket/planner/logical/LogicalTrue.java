@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,11 +25,6 @@ import javax.annotation.Nonnull;
 public record LogicalTrue() implements LogicalNode {
 
     public static final LogicalTrue INSTANCE = new LogicalTrue();
-
-    @Override
-    public <R> R accept(LogicalPlanVisitor<R> visitor) {
-        return visitor.visitTrue(this);
-    }
 
     @Nonnull
     @Override

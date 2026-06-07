@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,58 +16,13 @@
 
 package com.kronotop.volume;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
-import com.kronotop.internal.JSONUtil;
-
-public class VacuumMetadata {
-    private String taskName;
-    private double allowedGarbageRatio;
-
-    VacuumMetadata() {
-    }
-
-    public VacuumMetadata(String volumeName, double allowedGarbageRatio) {
-        this.taskName = VacuumTaskName(volumeName);
-        this.allowedGarbageRatio = allowedGarbageRatio;
-    }
-
-    public static String VacuumTaskName(String volumeName) {
-        return "vacuum:" + volumeName;
-    }
-
-    static byte[] getMetadataKey(DirectorySubspace volumeSubspace) {
-        return volumeSubspace.pack(
-                Tuple.from(
-                        VolumeSubspaceConstants.VACUUM_SUBSPACE,
-                        VolumeSubspaceConstants.VACUUM_METADATA_KEY
-                )
-        );
-    }
-
-    public static void remove(Transaction tr, DirectorySubspace volumeSubspace) {
-        byte[] metadataKey = getMetadataKey(volumeSubspace);
-        tr.clear(metadataKey);
-    }
-
-    public static VacuumMetadata load(Transaction tr, DirectorySubspace volumeSubspace) {
-        byte[] metadataKey = getMetadataKey(volumeSubspace);
-        byte[] value = tr.get(metadataKey).join();
-        if (value == null) return null;
-        return JSONUtil.readValue(value, VacuumMetadata.class);
-    }
-
-    public String getTaskName() {
-        return taskName;
-    }
-
-    public double getAllowedGarbageRatio() {
-        return allowedGarbageRatio;
-    }
-
-    public void save(Transaction tr, DirectorySubspace volumeSubspace) {
-        byte[] metadataKey = getMetadataKey(volumeSubspace);
-        tr.set(metadataKey, JSONUtil.writeValueAsBytes(this));
-    }
+/**
+ * Immutable snapshot of a volume-level vacuum statistics and metadata: timing, outcome, and how many segments were processed.
+ *
+ * @param startedAt         epoch millis when the vacuum run began
+ * @param completedAt       epoch millis when the vacuum run ended
+ * @param result            outcome of the run
+ * @param segmentsProcessed number of segments that were vacuumed
+ */
+public record VacuumMetadata(long startedAt, long completedAt, VacuumResult result, int segmentsProcessed) {
 }

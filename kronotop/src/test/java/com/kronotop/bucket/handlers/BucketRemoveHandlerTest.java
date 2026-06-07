@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,8 +19,7 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
+import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -28,20 +27,27 @@ import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
 
+    @BeforeEach
+    void setUp() {
+        createBucket(TEST_BUCKET);
+    }
+
     @Test
     void shouldRemoveBucketSuccessfully() {
+        // Behavior: Inserting a document then calling BUCKET.REMOVE returns OK and marks the bucket metadata as removed.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
 
         {
             // Insert a document to create the bucket
             ByteBuf buf = Unpooled.buffer();
-            cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
+            cmd.insert(TEST_BUCKET, TEST_DOCUMENT).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);
@@ -67,6 +73,7 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldThrowErrorWhenRemovingNonExistentBucket() {
+        // Behavior: Attempting to remove a non-existent bucket returns a NOSUCHBUCKET error.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
 
         ByteBuf buf = Unpooled.buffer();
@@ -80,12 +87,13 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldThrowErrorWhenRemovingAlreadyRemovedBucket() {
+        // Behavior: Attempting to remove an already-removed bucket returns a BUCKETBEINGREMOVED error.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
 
         {
             // Insert a document to create the bucket
             ByteBuf buf = Unpooled.buffer();
-            cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), DOCUMENT).encode(buf);
+            cmd.insert(TEST_BUCKET, TEST_DOCUMENT).encode(buf);
 
             Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);

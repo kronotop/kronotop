@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
@@ -25,8 +24,8 @@ import com.kronotop.cluster.Member;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.volume.SegmentSubspaceUtil;
 import com.kronotop.volume.SegmentTailPointer;
-import com.kronotop.volume.SegmentUtil;
 import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.changelog.ChangeLog;
 
@@ -34,15 +33,30 @@ import java.util.List;
 
 public class ReplicationUtil {
 
-    public static DirectorySubspace openStandbySubspace(Context context, Transaction tr, String volume, String standbyId) {
-        KronotopDirectoryNode node = KronotopDirectory.kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                volumes().
-                bucket().
-                volume(volume).
-                standby(standbyId);
-        return DirectoryLayer.getDefault().open(tr, node.toList()).join();
+    public static DirectorySubspace openStandbySubspace(Context context, Transaction tr, ShardKind shardKind, String volume, String standbyId) {
+        KronotopDirectoryNode node = standbyDirectoryNode(context, shardKind, volume, standbyId);
+        return context.getDirectoryLayer().open(tr, node.toList()).join();
+    }
+
+    private static KronotopDirectoryNode standbyDirectoryNode(Context context, ShardKind shardKind, String volume, String standbyId) {
+        return switch (shardKind) {
+            case STASH -> KronotopDirectory.
+                    kronotop().
+                    cluster(context.getClusterName()).
+                    metadata().
+                    volumes().
+                    stash().
+                    volume(volume).
+                    standby(standbyId);
+            case BUCKET -> KronotopDirectory.
+                    kronotop().
+                    cluster(context.getClusterName()).
+                    metadata().
+                    volumes().
+                    bucket().
+                    volume(volume).
+                    standby(standbyId);
+        };
     }
 
     public static void assertStandbyCaughtUp(Context context,
@@ -52,11 +66,11 @@ public class ReplicationUtil {
                                              ShardKind shardKind,
                                              int shardId
     ) {
-        long activeSegmentId = SegmentUtil.findActiveSegmentId(tr, primarySubspace);
-        SegmentTailPointer pointer = SegmentUtil.locateTailPointer(tr, primarySubspace, activeSegmentId);
+        long activeSegmentId = SegmentSubspaceUtil.findActiveSegmentId(tr, primarySubspace);
+        SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, primarySubspace, activeSegmentId);
         long sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, primarySubspace, activeSegmentId, pointer);
 
-        DirectorySubspace standbySubspace = openStandbySubspace(context, tr, VolumeNames.format(shardKind, shardId), standby.getId());
+        DirectorySubspace standbySubspace = openStandbySubspace(context, tr, shardKind, VolumeNames.format(shardKind, shardId), standby.getId());
         Stage standbyStage = ReplicationState.readStage(tr, standbySubspace, activeSegmentId);
         if (standbyStage != Stage.CHANGE_DATA_CAPTURE) {
             throw new KronotopException("Standby is not caught up: stage is " + standbyStage);

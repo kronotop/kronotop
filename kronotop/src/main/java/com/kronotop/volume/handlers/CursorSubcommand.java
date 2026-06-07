@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,25 +21,33 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.SegmentSubspaceUtil;
 import com.kronotop.volume.SegmentTailPointer;
-import com.kronotop.volume.SegmentUtil;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.changelog.ChangeLog;
 import io.netty.buffer.ByteBuf;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static com.kronotop.server.RESPUtil.bulkString;
+import static com.kronotop.server.RESPUtil.wrapBytes;
 
 public class CursorSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
+    private static final byte[] ACTIVE_SEGMENT_ID_BYTES = "active_segment_id".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VERSIONSTAMP_BYTES = "versionstamp".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] NEXT_POSITION_BYTES = "next_position".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] SEQUENCE_NUMBER_BYTES = "sequence_number".getBytes(StandardCharsets.UTF_8);
+
     public CursorSubcommand(VolumeService service) {
         super(service);
     }
@@ -51,25 +59,25 @@ public class CursorSubcommand extends BaseSubcommandHandler implements Subcomman
         supplyAsync(context, response, () -> {
             DirectorySubspace volumeSubspace = service.openSubspace(parameters.volumeName);
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                long activeSegmentId = SegmentUtil.findActiveSegmentId(tr, volumeSubspace);
-                SegmentTailPointer pointer = SegmentUtil.locateTailPointer(tr, volumeSubspace, activeSegmentId);
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                long activeSegmentId = SegmentSubspaceUtil.findActiveSegmentId(tr, volumeSubspace);
+                SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, volumeSubspace, activeSegmentId);
                 long sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, volumeSubspace, activeSegmentId, pointer);
                 result.put(
-                        new SimpleStringRedisMessage("active_segment_id"),
+                        wrapBytes(ACTIVE_SEGMENT_ID_BYTES),
                         new IntegerRedisMessage(activeSegmentId)
                 );
                 result.put(
-                        new SimpleStringRedisMessage("versionstamp"),
-                        new SimpleStringRedisMessage(pointer.versionstamp() != null ?
+                        wrapBytes(VERSIONSTAMP_BYTES),
+                        bulkString(pointer.versionstamp() != null ?
                                 VersionstampUtil.base32HexEncode(pointer.versionstamp()) : "")
                 );
                 result.put(
-                        new SimpleStringRedisMessage("next_position"),
+                        wrapBytes(NEXT_POSITION_BYTES),
                         new IntegerRedisMessage(pointer.nextPosition())
                 );
                 result.put(
-                        new SimpleStringRedisMessage("sequence_number"),
+                        wrapBytes(SEQUENCE_NUMBER_BYTES),
                         new IntegerRedisMessage(sequenceNumber)
                 );
             }

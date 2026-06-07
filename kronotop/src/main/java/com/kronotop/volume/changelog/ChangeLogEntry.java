@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -21,23 +21,24 @@ import com.kronotop.volume.OperationKind;
 
 import java.util.Optional;
 
+/**
+ * Represents a single entry in the volume changelog, tracking an APPEND, INSERT, UPDATE, or DELETE operation.
+ *
+ * <p>Each entry carries before/after segment coordinates depending on the operation kind:
+ * <ul>
+ *   <li>APPEND/INSERT: only {@code after} is present (new data location)</li>
+ *   <li>UPDATE: both {@code before} (old location) and {@code after} (new location) are present</li>
+ *   <li>DELETE: only {@code before} is present (removed data location)</li>
+ * </ul>
+ */
 public class ChangeLogEntry {
 
     private final OperationKind kind;
-
     private final Versionstamp versionstamp;
-
-    // Nullable: Sadece UPDATE ve DELETE islemlerinde doludur.
-    // APPEND islemi icin null doner.
     private final ChangeLogCoordinate before;
-
-    // Nullable: Sadece APPEND ve UPDATE islemlerinde doludur.
-    // DELETE islemi icin null doner.
     private final ChangeLogCoordinate after;
-
     private final long prefix;
 
-    // Internal Constructor (Sadece senin Iterator'in kullanacak)
     ChangeLogEntry(Versionstamp versionstamp, OperationKind kind, ChangeLogCoordinate before, ChangeLogCoordinate after, long prefix) {
         this.versionstamp = versionstamp;
         this.kind = kind;
@@ -46,40 +47,38 @@ public class ChangeLogEntry {
         this.prefix = prefix;
     }
 
-    // --- Public Interface ---
-
     /**
-     * İşlemden önceki verinin koordinatlarını döner.
+     * Returns the segment coordinate before the operation, if applicable.
      *
-     * @return DELETE veya UPDATE ise koordinat, APPEND ise Optional.empty()
+     * @return coordinate for DELETE and UPDATE operations, empty for APPEND and INSERT
      */
     public Optional<ChangeLogCoordinate> getBefore() {
         return Optional.ofNullable(before);
     }
 
     /**
-     * İşlemden sonraki verinin koordinatlarını döner.
+     * Returns the segment coordinate after the operation, if applicable.
      *
-     * @return APPEND veya UPDATE ise koordinat, DELETE ise Optional.empty()
+     * @return coordinate for APPEND, INSERT, and UPDATE operations, empty for DELETE
      */
     public Optional<ChangeLogCoordinate> getAfter() {
         return Optional.ofNullable(after);
     }
 
     /**
-     * Bu kayda ait prefix (Namespace/Tenant ID vb.)
+     * Returns the prefix associated with this changelog entry.
      */
     public long getPrefix() {
         return prefix;
     }
 
+    /**
+     * Returns the versionstamp identifying the entry this operation applies to.
+     */
     public Versionstamp getVersionstamp() {
         return versionstamp;
     }
 
-    // --- Convenience Methods (İsteğe Bağlı) ---
-
-    // Tüketici null check ile uğraşmak istemiyorsa:
     public boolean hasBefore() {
         return before != null;
     }
@@ -88,6 +87,9 @@ public class ChangeLogEntry {
         return after != null;
     }
 
+    /**
+     * Returns the operation kind (APPEND, INSERT, UPDATE, or DELETE).
+     */
     public OperationKind getKind() {
         return kind;
     }

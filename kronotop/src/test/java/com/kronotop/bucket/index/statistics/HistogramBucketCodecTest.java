@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.kronotop.bucket.index.statistics;
 
 import org.bson.*;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -75,6 +76,19 @@ class HistogramBucketCodecTest {
     @Test
     void shouldEncodeDecode_STRING() {
         HistogramBucket bucket = new HistogramBucket(new BsonString("apple"), new BsonString("zebra"), 10);
+        byte[] data = HistogramBucketCodec.encode(bucket);
+        HistogramBucket decoded = HistogramBucketCodec.decode(data);
+        assertEquals(bucket, decoded);
+    }
+
+    @Test
+    void shouldEncodeDecode_OBJECT_ID() {
+        // Behavior: OBJECT_ID histogram buckets round-trip through encode/decode correctly.
+        HistogramBucket bucket = new HistogramBucket(
+                new BsonObjectId(new ObjectId()),
+                new BsonObjectId(new ObjectId()),
+                10
+        );
         byte[] data = HistogramBucketCodec.encode(bucket);
         HistogramBucket decoded = HistogramBucketCodec.decode(data);
         assertEquals(bucket, decoded);

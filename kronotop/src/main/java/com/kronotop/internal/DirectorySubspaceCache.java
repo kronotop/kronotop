@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,13 +32,13 @@ import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.directory.Shards;
 
 import javax.annotation.Nonnull;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * DirectorySubspaceCache provides caching for DirectorySubspace instances based on different keys and shard kinds.
@@ -47,18 +47,20 @@ import java.util.concurrent.TimeUnit;
 public final class DirectorySubspaceCache {
     private final String cluster;
     private final Database database;
+    private final DirectoryLayer directoryLayer;
 
     private final EnumMap<Key, List<String>> subpaths = new EnumMap<>(Key.class);
     private final EnumMap<ShardKind, ConcurrentHashMap<Integer, List<String>>> shards = new EnumMap<>(ShardKind.class);
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, List<String>>> buckets = new ConcurrentHashMap<>();
 
     private final LoadingCache<List<String>, DirectorySubspace> cache = CacheBuilder.newBuilder()
-            .expireAfterAccess(10, TimeUnit.MINUTES)
+            .expireAfterAccess(Duration.ofSeconds(10))
             .build(new DirectorySubspaceLoader());
 
-    public DirectorySubspaceCache(String cluster, Database database) {
+    public DirectorySubspaceCache(String cluster, Database database, DirectoryLayer directoryLayer) {
         this.cluster = cluster;
         this.database = database;
+        this.directoryLayer = directoryLayer;
 
         for (Key name : Key.values()) {
             switch (name) {
@@ -76,6 +78,14 @@ public final class DirectorySubspaceCache {
                             metadata().
                             prefixes();
                     subpaths.put(Key.PREFIXES, node.toList());
+                }
+                case NAMESPACE_TOMBSTONES -> {
+                    KronotopDirectoryNode node = KronotopDirectory.
+                            kronotop().
+                            cluster(cluster).
+                            metadata().
+                            namespaceTombstones();
+                    subpaths.put(Key.NAMESPACE_TOMBSTONES, node.toList());
                 }
             }
         }
@@ -132,8 +142,8 @@ public final class DirectorySubspaceCache {
                     cluster(cluster).
                     metadata().
                     shards();
-            if (kind.equals(ShardKind.REDIS)) {
-                return root.redis().shard(shardId).toList();
+            if (kind.equals(ShardKind.STASH)) {
+                return root.stash().shard(shardId).toList();
             } else if (kind.equals(ShardKind.BUCKET)) {
                 return root.bucket().shard(shardId).toList();
             }
@@ -145,13 +155,14 @@ public final class DirectorySubspaceCache {
 
     public DirectorySubspace get(String namespace, String bucket) {
         List<String> subpath = buckets.computeIfAbsent(namespace, k -> new ConcurrentHashMap<>())
-                .computeIfAbsent(bucket, k -> new LinkedList<>());
+                .computeIfAbsent(bucket, k -> new ArrayList<>());
         return get(subpath);
     }
 
     public enum Key {
         CLUSTER_METADATA,
         PREFIXES,
+        NAMESPACE_TOMBSTONES
     }
 
     /**
@@ -162,8 +173,7 @@ public final class DirectorySubspaceCache {
     private class DirectorySubspaceLoader extends CacheLoader<List<String>, DirectorySubspace> {
         @Override
         public @Nonnull DirectorySubspace load(@Nonnull List<String> path) {
-            return database.run(tr -> DirectoryLayer.
-                    getDefault().
+            return database.run(tr -> directoryLayer.
                     open(tr, path).
                     join());
         }

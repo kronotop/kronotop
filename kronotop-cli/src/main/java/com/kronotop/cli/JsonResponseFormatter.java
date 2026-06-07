@@ -16,7 +16,7 @@
 
 package com.kronotop.cli;
 
-import com.kronotop.cli.resp.RespValue;
+import com.kronotop.resp.RespValue;
 
 /**
  * Formats RESP values as compact JSON output, preserving map key order.

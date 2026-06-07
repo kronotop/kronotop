@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.kronotop.volume.handlers;
 
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -38,14 +37,12 @@ public class VolumeAdminHandler extends BaseSubcommandHandler implements Handler
         handlers.put(VolumeAdminSubcommand.LIST, new ListSubcommand(service));
         handlers.put(VolumeAdminSubcommand.DESCRIBE, new DescribeSubcommand(service));
         handlers.put(VolumeAdminSubcommand.SET_STATUS, new SetStatusSubcommand(service));
-        handlers.put(VolumeAdminSubcommand.VACUUM, new VacuumSubcommand(service));
-        handlers.put(VolumeAdminSubcommand.STOP_VACUUM, new StopVacuumSubcommand(service));
         handlers.put(VolumeAdminSubcommand.CLEANUP_ORPHAN_FILES, new CleanupOrphanFilesSubcommand(service));
         handlers.put(VolumeAdminSubcommand.MARK_STALE_PREFIXES, new MarkStalePrefixesSubcommand(service));
         handlers.put(VolumeAdminSubcommand.LIST_SEGMENTS, new ListSegments(service));
-        handlers.put(VolumeAdminSubcommand.START_REPLICATION, new StartReplicationSubcommand(service));
-        handlers.put(VolumeAdminSubcommand.STOP_REPLICATION, new StopReplicationSubcommand(service));
+        handlers.put(VolumeAdminSubcommand.REPLICATION, new ReplicationSubcommand(service));
         handlers.put(VolumeAdminSubcommand.PRUNE_CHANGELOG, new PruneChangeLogSubcommand(service));
+        handlers.put(VolumeAdminSubcommand.VACUUM, new VacuumSubcommand(service));
     }
 
     @Override

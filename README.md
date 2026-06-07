@@ -1,203 +1,580 @@
 # Kronotop
 
-**The Distributed Document Database with ACID Integrity**
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Discord](https://img.shields.io/discord/1004765247212638239.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/VPRNvdh2C)
 
-Kronotop is a distributed, transactional document database designed for horizontal scalability. It provides a robust
-foundation for applications needing to manage large volumes of documents while ensuring strong consistency guarantees
-for critical metadata operations. By leveraging FoundationDB as its transactional backend for metadata and indexes,
-Kronotop delivers [ACID](https://apple.github.io/foundationdb/developer-guide.html#transaction-basics) integrity, offering reliability often sought in demanding environments.
+Kronotop is a distributed multi-model database built on [FoundationDB](https://github.com/apple/foundationdb).
 
-Kronotop features an [MQL-like query language](https://www.mongodb.com/docs/manual/reference/operator/) and uses the [RESP3](https://redis.io/docs/latest/develop/reference/protocol-spec/) wire protocol, ensuring broad compatibility
-with the Redis client ecosystem. It implements core Redis in-memory data structures like Strings and Hashes, alongside its
-own specialized structures: ZMap (an ordered key-value store acting as a RESP proxy for FoundationDB) and Bucket (designed for storing
-JSON-like documents). While document bodies are stored directly on local filesystems, Kronotop uses BSON as the default 
-data format to organize and store within Buckets, with JSON also available.
+> One transaction, multiple models.
 
-*Kronotop is built for developers seeking the flexibility of a document model combined with the transactional safety and
-scalability powered by FoundationDB.*
+Kronotop allows different data models and namespaces to participate in the same strictly serializable transaction
+boundary.
 
-**Warning**: Kronotop is in its early stages of development. The API is unstable and likely to change in future
-releases.
+Kronotop currently provides:
 
-See [Getting started](#getting-started) and [Documentation](#documentation) sections.
+- **Bucket**: document model with secondary indexes and vector search
+- **ZMap**: RESP-compatible ordered key-value model
+- **Volume**: internal storage engine that backs data models with segment-based I/O and primary-standby replication
+- **Namespaces**: lightweight logical isolation built on FoundationDB directories
 
-Join the [Discord channel](https://discord.gg/Nyy4Afpr) to discuss.
+Kronotop speaks RESP2 and RESP3 and works with existing RESP-compatible clients.
 
-## At a Glance
+With `kronotop-cli` or `valkey-cli`, a single transaction can atomically write a document and update a counter across
+isolated namespaces:
 
-- **Developer-Focused Design:**  
-  Built for developers who need the flexibility of a document model combined with strong transactional integrity, high
-  performance, and operational simplicity.
+```
+BEGIN
 
-- **ACID Transactions:**  
-  Relies on **FoundationDB** as a transactional metadata and indexing store, offering ACID guarantees critical for
-  consistency in cluster operations and data structures.
+# In the sales namespace: record a new order.
+NAMESPACE USE production.sales
+BUCKET.INSERT orders DOCS '{"item": "keyboard", "qty": 2, "price": 49.99}'
 
-- **Native Document-Oriented Storage:**  
-  Introduces **Bucket** — a specialized structure for storing JSON-like documents, backed by FoundationDB's
-  transactional core.
+# In the inventory namespace: decrement stock, conflict-free.
+NAMESPACE USE production.inventory
+ZINC.I64 keyboard -2
 
-- **Namespaces – Logical Isolation for ZMaps and Buckets:**  
-  Namespaces enable multi-tenancy and logical separation across data structures.  
-  Internally, it's a lightweight abstraction over FoundationDB’s Directory Layer.
+COMMIT
+```
 
-- **RESP3 & RESP2 Wire Protocol Compatibility:**  
-  Kronotop communicates over the [RESP](https://redis.io/docs/latest/develop/reference/protocol-spec/) protocol,
-  ensuring seamless interoperability with the vast ecosystem of Redis clients across different programming languages.
+Read it back with the Bucket Query Language (BQL):
 
-- **Built for Horizontal Scalability:**  
-  The system is natively designed for sharding and horizontal scaling, making it ideal for growing workloads without
-  compromising performance or reliability.
+```
+NAMESPACE USE production.sales
+BUCKET.QUERY orders '{ "qty": { "$gte": 2 } }'
+1# "cursor_id" => (integer) 1
+2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "item": "keyboard", "qty": 2, "price": 49.99}
+```
 
-- **Flexible Deployment Topologies:**  
-  Supports both **single-master** and **multi-master** cluster configurations, enabling diverse deployment strategies to
-  suit varying consistency and availability needs.
+Jump to [Quickstart](#quickstart) for more details and quickly spin up a cluster.
 
-- **Partial Redis Cluster Specification Support:**  
-  Implements key aspects of the Redis Cluster protocol, providing familiarity for teams migrating from Redis or building
-  distributed applications.
+Join our [Discord](https://discord.gg/VPRNvdh2C) to ask questions, share feedback, or follow development.
 
-- **ZMap – FoundationDB-Powered Ordered Key-Value Store:**  
-  A high-performance, ordered key-value store built on top of FoundationDB.  
-  ZMap acts as a Redis protocol proxy, bridging the RESP interface with FoundationDB’s transactional API.
+## Project Status
 
-- **Volume – Storage Engine with Replication:**  
-  A storage engine designed to support **primary-standby replication**, allowing for durability and high availability of
-  persistent components like Buckets.
+Kronotop is currently in developer preview.
 
-- **Efficient Binary Data Handling:**  
-  Uses **BSON** as the default storage format for structured documents, with optional JSON support for broader
-  interoperability.
+The core architecture and transaction model are largely stable, but APIs, internal formats, and operational behavior
+may still change before the first stable release. Documentation may occasionally lag behind the implementation.
 
-- **In-Memory and Durable Data Structures:**  
-  Combines Redis-like in-memory structures (Strings, Hashes) with persistent, FoundationDB-backed storage layers like
-  ZMap and Buckets.
+See the [roadmap](ROADMAP.md) for where Kronotop is headed.
 
-## Table of Contents
+## Contents
 
-* [Getting started](#getting-started)
-    * [Initializing a Kronotop cluster](#initializing-a-kronotop-cluster)
-* [Redis compatibility](#redis-compatibility)
-* [Support](#support)
-* [Documentation](#documentation)
-  * API
-    * [Transaction Management](docs/api/transaction-management.md)
-    * [Session Management](docs/api/session-management.md)
-    * [Namespaces](docs/api/namespaces.md)
-    * [ZMap](docs/api/zmap.md)
-  * [Cluster Administration](docs/cluster/cluster-administration.md)
-  * [Task Management](docs/admin/task-management.md)
-  * [Storage Engine](docs/volume/volume.md)
-  * [Why Kronotop Runs on the Java Platform](docs/why-java-platform.md)
-* [License](#license)
+- [Quickstart](#quickstart)
+- [Building from Source](#building-from-source)
+- [Core Concepts](#core-concepts)
+- [Why Kronotop?](#why-kronotop)
+- [Benchmarks](#benchmarks)
+- [Use Cases](#use-cases)
+- [Namespaces](#namespaces)
+- [Bucket](#bucket)
+- [ZMap](#zmap)
+- [Transactions](#transactions)
+- [Clustering](#clustering)
+- [Why These Building Blocks?](#why-these-building-blocks)
+- [Contribution](#contribution)
+- [Support](#support)
+- [About the Name](#about-the-name)
+- [License](#license)
 
-## Getting started
+## Quickstart
 
-It's easy to try Kronotop with Docker Compose:
+The fastest way to try Kronotop is with Docker Compose. Prebuilt jars are also published on the
+[Releases page](https://github.com/kronotop/kronotop/releases); download them and run with `java -jar`,
+which requires Java 25 or newer.
+
+Download the Docker Compose file:
 
 ```bash
-curl -o kronotop-demo.yaml https://raw.githubusercontent.com/kronotop/kronotop/refs/heads/main/docker/kronotop-demo.yaml
+curl -O https://kronotop.com/kronotop-quickstart.yaml
 ```
 
-Then, you can run the following command to create a single-member Kronotop cluster for demonstration purposes:
+Start the cluster:
 
 ```bash
-docker compose -f kronotop-demo.yaml up 
+docker compose -f kronotop-quickstart.yaml up
 ```
 
-If everything goes okay, you should be able to connect to the primary node via `redis-cli`:
+This starts a minimal cluster: one FoundationDB instance, one Kronotop primary node, and one standby node.
+The primary owns bucket shard 0; the standby replicates it for failover.
+
+Kronotop listens on two ports: 5484 for client traffic and 3320 for cluster administration. Once all containers are
+running, connect to the admin port with `kronotop-cli`:
+
+```bash
+docker run --rm -it --platform linux/amd64 --network kronotop \
+  ghcr.io/kronotop/kronotop:latest kronotop-cli -h kronotop-primary -p 3320
+```
+
+Alternatively, you can use `kronotop-cli`, `redis-cli` or `valkey-cli` if you have them installed locally:
+
+```bash
+valkey-cli -p 3320
+```
+
+Verify the cluster is up:
 
 ```
-redis-cli -p 3320 -c
-127.0.0.1:3320> PING
+kronotop-primary:3320> PING
 PONG
+kronotop-primary:3320> KR.ADMIN DESCRIBE-CLUSTER
+1# "metadata_version" => "1.0.0"
+2# "cluster_name" => "development"
+3# "bucket" =>
+   1# (integer) 0 =>
+      1# "primary" => "f627bf46f8627333a064de5c388d0316cc223a54"
+      2# "standbys" => 1) "e159f73fb21cd6ac80639b2cc1e087e8330cd947"
+      3# "status" => "READWRITE"
+      4# "linked_volumes" => 1) "bucket-shard-0"
 ```
 
-A cluster member serves from two ports:
+Now connect to the client port and try inserting and querying a document:
 
-* *5484* for the client communication,
-* *3320* for the internal traffic and administrative commands.
+```bash
+docker run --rm -it --platform linux/amd64 --network kronotop \
+  ghcr.io/kronotop/kronotop:latest kronotop-cli -h kronotop-primary -p 5484
+```
 
-### Initializing a Kronotop cluster
-
-Before using Kronotop in your project, you first need to initialize the cluster. `KR.ADMIN INITIALIZE-CLUSTER` command
-creates the cluster's layout on the FoundationDB and initializes the cluster:
+`kronotop-cli` sets these automatically. If you are using `redis-cli` or `valkey-cli`, set the session attributes
+manually
+for human-readable output:
 
 ```
-127.0.0.1:3320> KR.ADMIN INITIALIZE-CLUSTER
+SESSION.ATTRIBUTE SET input_type json
+SESSION.ATTRIBUTE SET reply_type json
+SESSION.ATTRIBUTE SET object_id_format hex
+```
+
+Create a bucket:
+
+```
+kronotop-primary:5484> BUCKET.CREATE orders
 OK
 ```
 
-Then, we must set the shard's primary ownership and make the shards operable. Currently, we only have a running Kronotop
-instance in the cluster. It's good enough for demonstration purposes. We can assign all shards to this member.
-
-First, we should run `KR.ADMIN DESCRIBE-MEMBER` command to learn id of the current member:
+Insert a document:
 
 ```
-127.0.0.1:3320> KR.ADMIN DESCRIBE-MEMBER
-1# member_id => a0dc14d811a285834c187ddc20549de7c1c1a381
-2# status => RUNNING
-3# process_id => AAAOz0CfYCoAAAAA
-4# external_host => 127.0.0.1
-5# external_port => (integer) 5484
-6# internal_host => 127.0.0.1
-7# internal_port => (integer) 3320
-8# latest_heartbeat => (integer) 8227
+kronotop-primary:5484> BUCKET.INSERT orders DOCS '{"item": "keyboard", "qty": 2, "price": 49.99}'
+1) "6a133c8806bf494c9e7e00cb"
 ```
 
-We need `member_id` from this response. The following command sets the primary owner of all Redis shards;
+Query it back:
 
 ```
-127.0.0.1:3320> KR.ADMIN ROUTE SET PRIMARY REDIS * a0dc14d811a285834c187ddc20549de7c1c1a381
+kronotop-primary:5484> BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
+1# "cursor_id" => (integer) 1
+2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "item": "keyboard", "qty": 2, "price": 49.99}
+```
+
+## Building from Source
+
+To build Kronotop from source and run a node locally, see the [Building and Running guide](BUILDING.md). It covers
+prerequisites, installing FoundationDB, the Maven build, starting a node, and bootstrapping a cluster.
+
+## Core Concepts
+
+### Namespaces
+
+Lightweight logical databases with keyspace-level data isolation, built
+on [FoundationDB’s directory layer](https://apple.github.io/foundationdb/developer-guide.html#directories).
+
+### Data Models
+
+Bucket (documents) and ZMap (ordered key-value) share the same protocol and can participate in the same ACID
+transaction.
+
+### Transactions
+
+Strictly serializable by default, inherited from FoundationDB. Both auto-commit and explicit modes are supported.
+
+### Storage
+
+Metadata and indexes live in FoundationDB. Document bodies are stored in Volume, Kronotop’s segment-based storage engine
+with primary-standby replication. ZMap data is stored directly in FoundationDB.
+
+## Why Kronotop?
+
+When an application uses separate systems for documents, queues, key-value data, and counters, each system has its own
+consistency model and failure modes. They share no distributed commit protocol like 2PC or XA, so there is no atomic
+write across them; the workarounds are retry loops, outbox tables, and saga coordinators.
+
+Kronotop places multiple data models behind **one transaction boundary**. Consensus and conflict detection come from
+FoundationDB, so a single transaction can atomically span the Bucket and ZMap models across namespaces without any
+application-level coordination.
+
+FoundationDB has a decade of production use and is validated with deterministic simulation testing.
+
+## Benchmarks
+
+The following results are from a read-only query workload against the Bucket data model. The setup uses three EC2 hosts
+in the same availability zone: FoundationDB on an `m5d.4xlarge` (16 vCPU, 64 GB, NVMe), Kronotop on an `m5d.2xlarge`
+(8 vCPU, 32 GB, NVMe), and the benchmark client on an `m5.2xlarge`. FoundationDB runs in `single` redundancy mode
+with no replication.
+
+50,000 documents were loaded into a single bucket. The setup used single-field indexes on `category` (string), `age` (
+int32),
+`score` (double), and a compound index on `(category, age)`.
+
+Each scenario ran 50,000 queries across 50 virtual threads. The benchmarks do not use bulk reads or writes, and the
+client does not pipeline requests. Every query runs as a single FoundationDB transaction, so the numbers reflect real
+OLTP workloads where each request is an independent transaction.
+
+| Scenario                 | Throughput | P50      | P99      |
+|--------------------------|------------|----------|----------|
+| Indexed equality (`$eq`) | 11,751 qps | 4.11 ms  | 6.12 ms  |
+| Indexed range (`$gt`)    | 11,209 qps | 4.29 ms  | 6.35 ms  |
+| Compound index           | 11,082 qps | 4.36 ms  | 6.49 ms  |
+| Sort + limit 10          | 23,008 qps | 2.10 ms  | 2.88 ms  |
+| Full scan (unindexed)    | 1,958 qps  | 24.33 ms | 50.02 ms |
+
+See the [full benchmark results and deployment guide](benchmarks/README.md) for details.
+
+## Use Cases
+
+- AI agent context store with namespace-level isolation, vector search, and transactional updates.
+- Horizontally scalable transactional document store.
+- Lease-based distributed locks with atomic acquire, safe release, and fencing tokens from versionstamped commits.
+- ZMap-based ordered key-value workloads: range scans, counters, and atomic mutations.
+
+## Namespaces
+
+Namespaces are lightweight logical databases with hierarchical, dot-separated paths. Each namespace has its own
+keyspace; buckets, indexes, and ZMap keys in one namespace are invisible to another. Each session starts in the `global`
+namespace.
+
+Create a namespace:
+
+```
+127.0.0.1:5484> NAMESPACE CREATE production.sales
 OK
 ```
 
-Now we are ready to make our all Redis shards writable:
+Discover the current namespace of the session:
 
 ```
-127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS REDIS * READWRITE
+127.0.0.1:5484> NAMESPACE CURRENT
+"global"
+```
+
+Switch to the `production.sales` namespace:
+
+```
+127.0.0.1:5484> NAMESPACE USE production.sales
+OK
+127.0.0.1:5484> NAMESPACE CURRENT
+"production.sales"
+```
+
+See the [namespace documentation](https://kronotop.com/docs/namespaces) for the full command reference.
+
+## Bucket
+
+Bucket is Kronotop's document data model. It stores BSON documents and provides a query language with comparison,
+logical,
+and array operators. Bucket supports single field, compound, and vector indexes as secondary index.
+
+A bucket's life starts with the `BUCKET.CREATE` command:
+
+```
+127.0.0.1:5484> BUCKET.CREATE orders
 OK
 ```
 
-If everything is okay, we can start using the newly formed Kronotop cluster:
+After getting `OK`, the bucket is ready to use.
+
+The Bucket data model supports JSON-like documents and stores them internally in BSON format.
 
 ```
-redis-cli -p 5484 -c
-127.0.0.1:5484> SET mykey "Hello"
+127.0.0.1:5484> BUCKET.INSERT orders DOCS '{"item": "keyboard", "qty": 2, "price": 49.99}'
+1) "6a133ce406bf494c9e7e00cc"
+```
+
+`BUCKET.INSERT` creates a one-off transaction, inserts the given document into the `orders` bucket, and returns a RESP
+array containing the generated `ObjectId` values.
+
+Buckets can be queried with `BUCKET.QUERY`. The Bucket Query Language (BQL) provides familiar semantics for querying
+BSON documents.
+
+The following example queries documents with a `qty` field greater than one.
+
+```
+127.0.0.1:5484> BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
+1# "cursor_id" => (integer) 2
+2# "entries" => 1) {"_id": "6a133ce406bf494c9e7e00cc", "item": "keyboard", "qty": 2, "price": 49.99}
+```
+
+See the [bucket documentation](https://kronotop.com/docs/bucket) for the query language reference, indexing, and
+sorting.
+
+### Cursor-based Streaming
+
+Every `BUCKET.QUERY`, `BUCKET.DELETE`, and `BUCKET.UPDATE` command returns results in batches through a cursor.
+Each call produces the next batch and advances the cursor's position. Outside an explicit transaction, each
+`BUCKET.ADVANCE` call runs in its own short-lived transaction, keeping FoundationDB's 5-second transaction limit 
+out of the way. Cursors are session-scoped and released automatically when the session disconnects.
+
+```
+127.0.0.1:5484> BUCKET.QUERY products '{}' LIMIT 2
+1# "cursor_id" => (integer) 0
+2# "entries" =>
+   1) {"_id": "69ce80c76597b10d87d134ff", "category": "books", "price": 19.99, "name": "The Disconnected"}
+   2) {"_id": "69ce80c76597b10d87d13500", "category": "electronics", "price": 499.99, "name": "Wireless Headphones"}
+```
+
+Fetch the next batch:
+
+```
+127.0.0.1:5484> BUCKET.ADVANCE QUERY 0
+1# "cursor_id" => (integer) 0
+2# "entries" => (empty array)
+```
+
+An empty batch means the result set is exhausted. Close the cursor when done:
+
+```
+127.0.0.1:5484> BUCKET.CLOSE QUERY 0
 OK
-127.0.0.1:5484> GET mykey
-"Hello"
 ```
 
-All in-memory data will be persisted and replicated by the storage engine. See [Storage Engine](docs/volume/volume.md) section
-for the details.
+See the [cursor-based streaming documentation](https://kronotop.com/docs/bucket/cursor-based-streaming) for batch
+sizing, scan budgets, sorted cursors, and best practices.
 
-## Redis compatibility
+### Indexing
 
-Kronotop uses RESP3 as the client protocol. The reasoning behind this is simple: there are many high-quality Redis
-client implementations in all languages, and almost everyone has some experience with Redis.
+Secondary indexes can be created during bucket creation or managed later with the `BUCKET.INDEX` command family.
 
-Despite the main focus on building a transactional document database using FoundationDB as a metadata store,
-implementing the most common Redis data structures is on the roadmap. Currently, Kronotop already has partial 
-support for *String*and *Hash* data structures.
+The following example creates a secondary index on the `price` field:
+
+```
+127.0.0.1:5484> BUCKET.INDEX CREATE orders '{"price": {"bson_type": "double"}}'
+OK
+```
+
+Since no explicit name was provided, Kronotop generates one automatically:
+
+```
+127.0.0.1:5484> BUCKET.INDEX LIST orders
+1) "primary-index"
+2) "selector:price.bsonType:DOUBLE"
+```
+
+`primary-index` is the default primary index for the bucket. `selector:price.bsonType:DOUBLE` is the newly created
+secondary index.
+
+Indexes can be inspected with `BUCKET.INDEX DESCRIBE`:
+
+```
+127.0.0.1:5484> BUCKET.INDEX DESCRIBE orders selector:price.bsonType:DOUBLE
+1# "index_type" => "single_field"
+2# "id" => (integer) -3099127558460888373
+3# "selector" => "price"
+4# "bson_type" => "DOUBLE"
+5# "status" => "READY"
+6# "statistics" =>
+   1# "cardinality" => (integer) 1
+```
+
+`BUCKET.INDEX DESCRIBE` returns metadata and statistics about the index.
+
+### Query planning
+
+Kronotop ships with a rule-based query planner. A query goes through four stages: parsing, logical planning, physical
+planning, and optimization.
+
+The logical planner normalizes the query tree. It flattens nested operators, eliminates double negation, detects
+contradictions
+and tautologies, removes redundant conditions, and folds constants. The physical planner then maps the normalized tree
+to scan operations, and the optimizer iteratively applies rules such as range scan consolidation, index intersection,
+and selectivity-based ordering.
+
+`BUCKET.EXPLAIN` shows the final physical plan for a query. The following example demonstrates how the `price` index we
+created above is picked up by the planner:
+
+```
+127.0.0.1:5484> BUCKET.EXPLAIN orders '{"price": {"$gte": 24.3}}'
+1# "is_cached" => (false)
+2# "plan" =>
+   1# "planner_version" => (integer) 1
+   2# "nodeType" => "IndexScan"
+   3# "id" => (integer) 2
+   4# "scanType" => "INDEX_SCAN"
+   5# "index" => "selector:price.bsonType:DOUBLE"
+   6# "selector" => "price"
+   7# "operator" => "GTE"
+   8# "operand" => "Param[ref=ParamRef[index=0]]"
+```
+
+### Vector Search
+
+Bucket supports approximate nearest neighbor (ANN) search on document vector fields, powered
+by [JVector](https://github.com/datastax/jvector). The graph
+index uses HNSW with automatic Product Quantization for memory efficiency and supports three distance functions:
+`cosine`,
+`euclidean`, and `dot_product`.
+
+Results are ranked by similarity first, then filtered with BQL predicates (post-filtering). Search behavior is tunable
+via `TOP`, `THRESHOLD`, `OVERQUERY`, and `MAX-SCAN-CANDIDATES`. The graph index is updated asynchronously after commit,
+so vector search does not carry ACID guarantees.
+
+Create a bucket with a vector index:
+
+```
+127.0.0.1:5484> BUCKET.CREATE products SHARDS 0 INDEXES '{"$vector": {"field": "embedding", "dimensions": 3, "distance": "cosine"}}'
+OK
+```
+
+Insert a document with a vector embedding:
+
+```
+127.0.0.1:5484> BUCKET.INSERT products DOCS '{"label": "alpha", "embedding": [0.1, 0.2, 0.3]}'
+1) "6a0ee480029d1d2fdee1d700"
+```
+
+Run a similarity search:
+
+```
+127.0.0.1:5484> BUCKET.VECTOR products embedding '[0.4, 0.5, 0.6]' TOP 2
+1) 1# "score" => (double) 0.9873158931732178
+   2# "entry" => {"_id": "6a0ee480029d1d2fdee1d700", "label": "alpha", "embedding": [0.1, 0.2, 0.3]}
+```
+
+See the [vector search documentation](https://kronotop.com/docs/bucket/vector-index) for configuration details and query
+options.
+
+## ZMap
+
+ZMap is a RESP-compatible proxy over FoundationDB's ordered key-value API. Unlike Bucket, ZMap does not use Volume.
+It operates as a direct RESP-to-FoundationDB proxy layer. Keys and values are opaque byte sequences. ZMap does not
+interpret their contents. The examples below use JSON as values for readability, but any byte payload works.
+FoundationDB's key size limit (10 KB) and value size limit (100 KB) apply directly.
+
+Keys are stored in lexicographic order, and all operations inherit FoundationDB's ACID transaction guarantees.
+ZMap provides typed numeric commands for int64 (conflict-free via FoundationDB's atomic `ADD`), float64 and decimal128
+(read-modify-write), conflict-free atomic mutations, and efficient range operations over the ordered key space.
+
+Set and read a value:
+
+```
+127.0.0.1:5484> ZSET user:1001 '{"name": "alice", "role": "admin"}'
+OK
+127.0.0.1:5484> ZGET user:1001
+{"name": "alice", "role": "admin"}
+```
+
+Atomic increment - `ZINC.I64` maps to FoundationDB's native atomic `ADD`, so concurrent increments on the same key never
+conflict. `ZINC.F64` and `ZINC.D128` perform a read-modify-write cycle and can conflict under contention:
+
+```
+127.0.0.1:5484> ZINC.I64 page-views 1
+OK
+127.0.0.1:5484> ZGET.I64 page-views
+(integer) 1
+```
+
+Ordered range scan:
+
+```
+127.0.0.1:5484>  ZGETRANGE user:1000 user:1999 LIMIT 3
+1) 1) "user:1001"
+   2) {"name": "alice", "role": "admin"}
+```
+
+`ZMUTATE` exposes FoundationDB's conflict-free atomic mutations such as `ADD`, `BIT_AND`, `BIT_OR`, `BIT_XOR`, `MIN`,
+`MAX`, `COMPARE_AND_CLEAR`, and others, through a single command. These primitives are useful for building distributed
+counters, flags, and coordination mechanisms without transaction conflicts.
+
+See the [ZMap documentation](https://kronotop.com/docs/zmap) for the full command reference, atomic mutations, and range
+operations.
+
+The [recipes](recipes/) directory shows how to compose these primitives into higher-level coordination patterns.
+See the [distributed lock on ZMap](recipes/distributed-lock-on-zmap.md) draft recipe for a lease-based lock with a fencing token.
+
+## Transactions
+
+Kronotop transactions are thin wrappers around FoundationDB transactions. By default, each command runs in auto-commit
+mode. The system creates a transaction, executes the command, and commits it. To group multiple commands into a single atomic
+unit, wrap them in `BEGIN` - `COMMIT` block:
+
+```
+127.0.0.1:5484> BEGIN
+OK
+127.0.0.1:5484> ZSET key1 100
+OK
+127.0.0.1:5484> ZSET key2 200
+OK
+127.0.0.1:5484> COMMIT
+OK
+```
+
+`ROLLBACK` discards all uncommitted changes. Switching namespaces within a transaction is allowed, a single `BEGIN` -
+`COMMIT` block can atomically span multiple namespaces. Snapshot reads are available via `SNAPSHOTREAD ON` for read-heavy
+workloads where strict serializability is not required. Snapshot reads do not create read conflict ranges, so they will 
+not conflict with concurrent writes.
+
+Transactions inherit FoundationDB's constraints: a 5-second time window starting from the first read and a 10 MB
+transaction size limit. For Bucket, only metadata passes through FoundationDB; document bodies are stored in the Volume
+layer, so the size limit does not apply to document bodies.
+
+See the [transaction documentation](https://kronotop.com/docs/transactions) for snapshot reads, cross-namespace
+transactions,
+and the transaction time window.
+
+## Clustering
+
+Kronotop is designed to run as a distributed cluster. Data is partitioned into shards, and each shard is assigned to a
+cluster member. FoundationDB handles all cluster coordination. So there is no separate consensus layer or gossip
+protocol.
+
+Volumes replicate data using a primary-standby model. Each shard has one primary and one or more standbys. Failover and
+shard reassignment are managed through the admin command interface.
+
+See the [cluster administration documentation](https://kronotop.com/docs/admin/cluster/operations-guide) for cluster
+initialization, shard routing, and replication configuration.
+
+## Why These Building Blocks?
+
+### FoundationDB
+
+FoundationDB provides strictly serializable transactions, automatic sharding, and fault tolerance. Kronotop inherits
+these guarantees instead of implementing its own consensus layer.
+
+### RESP
+
+Kronotop needs a lightweight request-response protocol. Developers already know how RESP works, and most mainstream
+languages have a RESP client. That means Kronotop SDKs are thin wrappers, not ground-up implementations.
+
+### Java
+
+The original plan was to build on FoundationDB Record Layer and Apache Calcite, or at least reuse some of their
+components. Both projects are in Java. After implementing key components, the project shifted toward developing a native document
+layer. The FoundationDB Java client and the Directory Layer are officially supported. Being on the JVM also gives access to
+libraries like [JVector](https://github.com/datastax/jvector), which powers Kronotop's vector search. These were the main reasons behind the language choice.
+
+## Contribution
+
+Kronotop is not accepting external contributions at this time. This policy will change as the project stabilizes. Until
+then, all pull requests will be closed regardless of their content.
+For bug reports and suggestions, please use the **Issues** section.
 
 ## Support
 
-Please join [Discord channel](https://discord.gg/Nyy4Afpr) for instant chat or create an Issue or Discussion on GitHub.
+- [GitHub Issues](https://github.com/kronotop/kronotop/issues)
+- [Discord](https://discord.gg/VPRNvdh2C)
+- Support & inquiries: [contact@kronotop.com](mailto:contact@kronotop.com)
 
-For invoiced sponsoring/support contracts, please contact us at *burak {dot} sezer {at} kronotop {dot} com*.
+## About the Name
 
-## Documentation
-* API
-  * [Transaction Management](docs/api/transaction-management.md)
-  * [Session Management](docs/api/session-management.md)
-  * [Namespaces](docs/api/namespaces.md)
-  * [ZMap](docs/api/zmap.md)
-* [Cluster Administration](docs/cluster/cluster-administration.md)
-* [Task Management](docs/admin/task-management.md)
-* [Storage Engine](docs/volume/volume.md)
-* [Why Kronotop Runs on the Java Platform](docs/why-java-platform.md)
+[Chronotope](https://en.wikipedia.org/wiki/Chronotope) is a concept from literary theory introduced
+by [Mikhail Bakhtin](https://en.wikipedia.org/wiki/Mikhail_Bakhtin). It refers to the relationship between time
+and space in a narrative. An early goal of the project was to bring OLTP and OLAP workloads together under different 
+data models. The name felt appropriate: the idea of time and space aligned with that ambition, and nobody in the
+database world seemed to be using it. Kronotop is the Turkish phonetic spelling of Chronotope.
 
 ## License
 
-The Apache License, Version 2.0 - see LICENSE for more details.
+Kronotop is licensed under the [Apache License 2.0](LICENSE).
+
+---
+
+FoundationDB is a trademark of Apple Inc. Kronotop is an independent project and is not affiliated with, endorsed by,
+or sponsored by Apple Inc.

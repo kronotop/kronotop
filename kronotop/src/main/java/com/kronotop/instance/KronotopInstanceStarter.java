@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,11 @@ import com.kronotop.cluster.Member;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.Properties;
+
+import static com.google.common.base.Throwables.getRootCause;
+
 /*
 What Des-Cartes [sic] did was a good step. You have added much several ways, & especially in taking the colours of thin
 plates into philosophical consideration. If I have seen further it is by standing on the shoulders of Giants.
@@ -35,12 +40,20 @@ public class KronotopInstanceStarter {
     private static final Logger LOGGER = LoggerFactory.getLogger(KronotopInstanceStarter.class);
 
     private static void greeting(Member member) {
-        LOGGER.info("pid: {} has been started", ProcessHandle.current().pid());
-        LOGGER.info("Kronotop on {}/{} Java {}",
-                System.getProperty("os.name"),
-                System.getProperty("os.arch"),
-                System.getProperty("java.version"));
-        LOGGER.info("Listening client connections on {}", member.getExternalAddress());
+        Properties props = new Properties();
+        try {
+            props.load(KronotopInstance.class.getClassLoader().getResourceAsStream("application.properties"));
+            LOGGER.info("pid: {} has been started", ProcessHandle.current().pid());
+            LOGGER.info("Kronotop {} on {}/{} Java {}",
+                    props.getProperty("kronotop.version"),
+                    System.getProperty("os.name"),
+                    System.getProperty("os.arch"),
+                    System.getProperty("java.version"));
+            LOGGER.info("Listening client connections on {}", member.getExternalAddress());
+        } catch (IOException exp) {
+            LOGGER.error("Failed to load application properties", exp);
+            throw new RuntimeException(exp);
+        }
     }
 
     public static void main(String[] args) {
@@ -51,7 +64,11 @@ public class KronotopInstanceStarter {
             kronotopInstance.start();
             greeting(kronotopInstance.getMember());
         } catch (Exception e) {
-            LOGGER.error("Failed to start Kronotop instance", e);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.error("Failed to start Kronotop instance", e);
+            } else {
+                LOGGER.error("Failed to start Kronotop instance {}", getRootCause(e).getMessage());
+            }
             System.exit(1);
         }
     }

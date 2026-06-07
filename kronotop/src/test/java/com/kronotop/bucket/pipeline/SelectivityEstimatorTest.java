@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,51 +16,61 @@
 
 package com.kronotop.bucket.pipeline;
 
+import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.bql.ast.Int32Val;
 import com.kronotop.bucket.bql.ast.Int64Val;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.index.IndexStatistics;
+import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.Histogram;
-import com.kronotop.bucket.index.statistics.HistogramUtils;
+import com.kronotop.bucket.index.statistics.HistogramUtil;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.PlannerContext;
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
+import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.RESPVersion;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.bson.BsonBinary;
 import org.bson.BsonInt32;
 import org.bson.BsonType;
 import org.bson.BsonValue;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class SelectivityEstimatorTest extends BaseHandlerTest {
 
+    private static Operand lit(BqlValue v) {
+        return new Operand.Literal(v);
+    }
+
+    private static Operand param(int index) {
+        return new Operand.Param(new ParamRef(index));
+    }
+
     private Histogram buildHistogramWithRange(int start, int end) {
         TreeSet<BsonValue> values = new TreeSet<>(BSONUtil::compareBsonValues);
         for (int i = start; i <= end; i++) {
             values.add(new BsonInt32(i));
         }
-        return HistogramUtils.buildHistogram(values);
+        return HistogramUtil.buildHistogram(values);
     }
 
     @Test
     void shouldSelectLowerValueForLT() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -76,15 +86,15 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // Create two IndexScanNodes with LT predicates:
         // age < 10 → ~10% percentile → estimation = 0.10 * 1000 = ~100 rows
         // score < 90 → ~90% percentile → estimation = 0.90 * 1000 = ~900 rows
-        IndexScanPredicate lowValuePredicate = new IndexScanPredicate(1, "age", Operator.LT, new Int32Val(10));
+        IndexScanPredicate lowValuePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(10)));
         IndexScanNode lowValueNode = new IndexScanNode(1, ageIndex, lowValuePredicate);
 
-        IndexScanPredicate highValuePredicate = new IndexScanPredicate(2, "score", Operator.LT, new Int32Val(90));
+        IndexScanPredicate highValuePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(90)));
         IndexScanNode highValueNode = new IndexScanNode(2, scoreIndex, highValuePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(lowValueNode, highValueNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(lowValueNode, highValueNode));
 
         // Lower value (< 10) should be selected: lower percentile = fewer estimated rows
         assertSame(lowValueNode, selected);
@@ -93,8 +103,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectHigherValueForGT() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -110,15 +120,15 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // Create two IndexScanNodes with GT predicates:
         // age > 90 → ~90% percentile → estimation = (1 - 0.90) * 1000 = ~100 rows
         // score > 10 → ~10% percentile → estimation = (1 - 0.10) * 1000 = ~900 rows
-        IndexScanPredicate highValuePredicate = new IndexScanPredicate(1, "age", Operator.GT, new Int32Val(90));
+        IndexScanPredicate highValuePredicate = new IndexScanPredicate(1, "age", Operator.GT, lit(new Int32Val(90)));
         IndexScanNode highValueNode = new IndexScanNode(1, ageIndex, highValuePredicate);
 
-        IndexScanPredicate lowValuePredicate = new IndexScanPredicate(2, "score", Operator.GT, new Int32Val(10));
+        IndexScanPredicate lowValuePredicate = new IndexScanPredicate(2, "score", Operator.GT, lit(new Int32Val(10)));
         IndexScanNode lowValueNode = new IndexScanNode(2, scoreIndex, lowValuePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(highValueNode, lowValueNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(highValueNode, lowValueNode));
 
         // Higher value (> 90) should be selected: higher percentile = smaller (1-percentile) = fewer rows
         assertSame(highValueNode, selected);
@@ -127,8 +137,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldPreferLTOverGTWhenMoreSelective() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -144,15 +154,15 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // Compare LT vs GT at same value (20):
         // age < 20 → ~20% percentile → estimation = 0.20 * 1000 = ~200 rows
         // score > 20 → ~20% percentile → estimation = (1 - 0.20) * 1000 = ~800 rows
-        IndexScanPredicate ltPredicate = new IndexScanPredicate(1, "age", Operator.LT, new Int32Val(20));
+        IndexScanPredicate ltPredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(20)));
         IndexScanNode ltNode = new IndexScanNode(1, ageIndex, ltPredicate);
 
-        IndexScanPredicate gtPredicate = new IndexScanPredicate(2, "score", Operator.GT, new Int32Val(20));
+        IndexScanPredicate gtPredicate = new IndexScanPredicate(2, "score", Operator.GT, lit(new Int32Val(20)));
         IndexScanNode gtNode = new IndexScanNode(2, scoreIndex, gtPredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(ltNode, gtNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(ltNode, gtNode));
 
         // LT (< 20) should be selected: 20% < 80%
         assertSame(ltNode, selected);
@@ -161,8 +171,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldPreferGTOverLTWhenMoreSelective() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -178,15 +188,15 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // Compare LT vs GT at same value (80):
         // age < 80 → ~80% percentile → estimation = 0.80 * 1000 = ~800 rows
         // score > 80 → ~80% percentile → estimation = (1 - 0.80) * 1000 = ~200 rows
-        IndexScanPredicate ltPredicate = new IndexScanPredicate(1, "age", Operator.LT, new Int32Val(80));
+        IndexScanPredicate ltPredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(80)));
         IndexScanNode ltNode = new IndexScanNode(1, ageIndex, ltPredicate);
 
-        IndexScanPredicate gtPredicate = new IndexScanPredicate(2, "score", Operator.GT, new Int32Val(80));
+        IndexScanPredicate gtPredicate = new IndexScanPredicate(2, "score", Operator.GT, lit(new Int32Val(80)));
         IndexScanNode gtNode = new IndexScanNode(2, scoreIndex, gtPredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(ltNode, gtNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(ltNode, gtNode));
 
         // GT (> 80) should be selected: 20% < 80%
         assertSame(gtNode, selected);
@@ -195,8 +205,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldClampLowPercentileToEpsilon() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -213,15 +223,15 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // age < 10 → below histogram range → percentile clamped to EPSILON (0.01)
         //          → estimation = 0.01 * 1000 = 10 rows
         // score < 75 → ~50% percentile → estimation = 0.50 * 1000 = 500 rows
-        IndexScanPredicate belowRangePredicate = new IndexScanPredicate(1, "age", Operator.LT, new Int32Val(10));
+        IndexScanPredicate belowRangePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(10)));
         IndexScanNode belowRangeNode = new IndexScanNode(1, ageIndex, belowRangePredicate);
 
-        IndexScanPredicate inRangePredicate = new IndexScanPredicate(2, "score", Operator.LT, new Int32Val(75));
+        IndexScanPredicate inRangePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(75)));
         IndexScanNode inRangeNode = new IndexScanNode(2, scoreIndex, inRangePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(belowRangeNode, inRangeNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(belowRangeNode, inRangeNode));
 
         // Below-range value should be selected: clamped EPSILON (1%) < 50%
         assertSame(belowRangeNode, selected);
@@ -230,8 +240,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldClampHighPercentileToOneMinusEpsilon() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -248,25 +258,27 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // age > 100 → above histogram range → percentile clamped to 0.99
         //           → estimation = (1 - 0.99) * 1000 = 10 rows
         // score > 25 → ~50% percentile → estimation = (1 - 0.50) * 1000 = 500 rows
-        IndexScanPredicate aboveRangePredicate = new IndexScanPredicate(1, "age", Operator.GT, new Int32Val(100));
+        IndexScanPredicate aboveRangePredicate = new IndexScanPredicate(1, "age", Operator.GT, lit(new Int32Val(100)));
         IndexScanNode aboveRangeNode = new IndexScanNode(1, ageIndex, aboveRangePredicate);
 
-        IndexScanPredicate inRangePredicate = new IndexScanPredicate(2, "score", Operator.GT, new Int32Val(25));
+        IndexScanPredicate inRangePredicate = new IndexScanPredicate(2, "score", Operator.GT, lit(new Int32Val(25)));
         IndexScanNode inRangeNode = new IndexScanNode(2, scoreIndex, inRangePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(aboveRangeNode, inRangeNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(aboveRangeNode, inRangeNode));
 
         // Above-range value should be selected: (1 - 0.99) = 1% < 50%
         assertSame(aboveRangeNode, selected);
     }
 
+    // ==================== RangeScan Tests ====================
+
     @Test
     void shouldHandleEqualSelectivity() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -282,31 +294,29 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // Create two IndexScanNodes with identical predicates (same operator, same value):
         // age < 50 → ~50% percentile → estimation = 0.50 * 1000 = 500 rows
         // score < 50 → ~50% percentile → estimation = 0.50 * 1000 = 500 rows
-        IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.LT, new Int32Val(50));
+        IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode ageNode = new IndexScanNode(1, ageIndex, agePredicate);
 
-        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, new Int32Val(50));
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
 
         // Run SelectivityEstimator with ageNode first
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(ageNode, scoreNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(ageNode, scoreNode));
 
         // When selectivity is equal, first node in list order should be selected
         assertSame(ageNode, selected);
 
         // Verify order matters: swap the order
-        PipelineNode selectedReversed = SelectivityEstimator.estimate(ctx, List.of(scoreNode, ageNode));
+        PipelineNode selectedReversed = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(scoreNode, ageNode));
         assertSame(scoreNode, selectedReversed);
     }
-
-    // ==================== RangeScan Tests ====================
 
     @Test
     void shouldSelectNarrowerRangeForRangeScan() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -323,16 +333,16 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // age: 40-60 → ~40% to ~60% → (0.60 - 0.40) * 1000 = ~200 rows
         // score: 20-80 → ~20% to ~80% → (0.80 - 0.20) * 1000 = ~600 rows
         RangeScanPredicate narrowPredicate = new RangeScanPredicate(
-                "age", new Int32Val(40), new Int32Val(60), true, true);
+                "age", lit(new Int32Val(40)), lit(new Int32Val(60)), true, true);
         RangeScanNode narrowNode = new RangeScanNode(1, ageIndex, narrowPredicate);
 
         RangeScanPredicate widePredicate = new RangeScanPredicate(
-                "score", new Int32Val(20), new Int32Val(80), true, true);
+                "score", lit(new Int32Val(20)), lit(new Int32Val(80)), true, true);
         RangeScanNode wideNode = new RangeScanNode(2, scoreIndex, widePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(narrowNode, wideNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(narrowNode, wideNode));
 
         // Narrower range (40-60) should be selected: 20% width < 60% width
         assertSame(narrowNode, selected);
@@ -341,8 +351,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldSelectRangeWithSameWidthByListOrder() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -359,30 +369,30 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // age: 40-60 → same percentiles → same estimation
         // score: 40-60 → same percentiles → same estimation
         RangeScanPredicate agePredicate = new RangeScanPredicate(
-                "age", new Int32Val(40), new Int32Val(60), true, true);
+                "age", lit(new Int32Val(40)), lit(new Int32Val(60)), true, true);
         RangeScanNode ageNode = new RangeScanNode(1, ageIndex, agePredicate);
 
         RangeScanPredicate scorePredicate = new RangeScanPredicate(
-                "score", new Int32Val(40), new Int32Val(60), true, true);
+                "score", lit(new Int32Val(40)), lit(new Int32Val(60)), true, true);
         RangeScanNode scoreNode = new RangeScanNode(2, scoreIndex, scorePredicate);
 
         // Run SelectivityEstimator with ageNode first
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(ageNode, scoreNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(ageNode, scoreNode));
 
         // Same range = same selectivity, first in list should win
         assertSame(ageNode, selected);
 
         // Verify order matters: swap the order
-        PipelineNode selectedReversed = SelectivityEstimator.estimate(ctx, List.of(scoreNode, ageNode));
+        PipelineNode selectedReversed = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(scoreNode, ageNode));
         assertSame(scoreNode, selectedReversed);
     }
 
     @Test
     void shouldReturnUnknownWhenUpperLessThanLower() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -398,18 +408,18 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // Create inverted range (upper < lower) → returns UNKNOWN
         // age: 60-40 (inverted) → high percentile < low percentile → UNKNOWN
         RangeScanPredicate invertedPredicate = new RangeScanPredicate(
-                "age", new Int32Val(60), new Int32Val(40), true, true);
+                "age", lit(new Int32Val(60)), lit(new Int32Val(40)), true, true);
         RangeScanNode invertedNode = new RangeScanNode(1, ageIndex, invertedPredicate);
 
         // Create valid range for comparison
         // score: 40-60 → valid range → produces finite estimate
         RangeScanPredicate validPredicate = new RangeScanPredicate(
-                "score", new Int32Val(40), new Int32Val(60), true, true);
+                "score", lit(new Int32Val(40)), lit(new Int32Val(60)), true, true);
         RangeScanNode validNode = new RangeScanNode(2, scoreIndex, validPredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(invertedNode, validNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(invertedNode, validNode));
 
         // Valid range should be selected (UNKNOWN = POSITIVE_INFINITY is worst)
         assertSame(validNode, selected);
@@ -418,8 +428,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldClampLowerBoundBelowHistogramRange() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -436,19 +446,19 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // age: 10-75 → lower clamped to EPSILON (0.01), upper ~50%
         //            → (0.50 - 0.01) * 1000 = ~490 rows
         RangeScanPredicate belowRangePredicate = new RangeScanPredicate(
-                "age", new Int32Val(10), new Int32Val(75), true, true);
+                "age", lit(new Int32Val(10)), lit(new Int32Val(75)), true, true);
         RangeScanNode belowRangeNode = new RangeScanNode(1, ageIndex, belowRangePredicate);
 
         // Create range with lower bound inside histogram range:
         // score: 60-75 → lower ~20%, upper ~50%
         //              → (0.50 - 0.20) * 1000 = ~300 rows
         RangeScanPredicate inRangePredicate = new RangeScanPredicate(
-                "score", new Int32Val(60), new Int32Val(75), true, true);
+                "score", lit(new Int32Val(60)), lit(new Int32Val(75)), true, true);
         RangeScanNode inRangeNode = new RangeScanNode(2, scoreIndex, inRangePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(belowRangeNode, inRangeNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(belowRangeNode, inRangeNode));
 
         // In-range lower bound produces narrower effective range, so more selective
         assertSame(inRangeNode, selected);
@@ -457,8 +467,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldClampUpperBoundAboveHistogramRange() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -475,19 +485,19 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // age: 25-150 → lower ~50%, upper clamped to 0.99
         //             → (0.99 - 0.50) * 1000 = ~490 rows
         RangeScanPredicate aboveRangePredicate = new RangeScanPredicate(
-                "age", new Int32Val(25), new Int32Val(150), true, true);
+                "age", lit(new Int32Val(25)), lit(new Int32Val(150)), true, true);
         RangeScanNode aboveRangeNode = new RangeScanNode(1, ageIndex, aboveRangePredicate);
 
         // Create range with upper bound inside histogram range:
         // score: 25-40 → lower ~50%, upper ~80%
         //              → (0.80 - 0.50) * 1000 = ~300 rows
         RangeScanPredicate inRangePredicate = new RangeScanPredicate(
-                "score", new Int32Val(25), new Int32Val(40), true, true);
+                "score", lit(new Int32Val(25)), lit(new Int32Val(40)), true, true);
         RangeScanNode inRangeNode = new RangeScanNode(2, scoreIndex, inRangePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(aboveRangeNode, inRangeNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(aboveRangeNode, inRangeNode));
 
         // In-range upper bound produces narrower effective range, so more selective
         assertSame(inRangeNode, selected);
@@ -496,8 +506,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldPreferRangeScanOverIndexScanWhenMoreSelective() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -513,27 +523,29 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         // Create RangeScan with narrow range:
         // age: 45-55 → ~45% to ~55% → (0.55 - 0.45) * 1000 = ~100 rows
         RangeScanPredicate rangePredicate = new RangeScanPredicate(
-                "age", new Int32Val(45), new Int32Val(55), true, true);
+                "age", lit(new Int32Val(45)), lit(new Int32Val(55)), true, true);
         RangeScanNode rangeNode = new RangeScanNode(1, ageIndex, rangePredicate);
 
         // Create IndexScan with wider coverage:
         // score < 50 → ~50% percentile → 0.50 * 1000 = ~500 rows
-        IndexScanPredicate indexPredicate = new IndexScanPredicate(2, "score", Operator.LT, new Int32Val(50));
+        IndexScanPredicate indexPredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode indexNode = new IndexScanNode(2, scoreIndex, indexPredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(rangeNode, indexNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(rangeNode, indexNode));
 
         // RangeScan (10% width) should be selected over IndexScan (50%)
         assertSame(rangeNode, selected);
     }
 
+    // ==================== Input Validation Tests ====================
+
     @Test
     void shouldPreferIndexScanOverRangeScanWhenMoreSelective() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -548,46 +560,44 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
 
         // Create IndexScan with narrow coverage:
         // age < 10 → ~10% percentile → 0.10 * 1000 = ~100 rows
-        IndexScanPredicate indexPredicate = new IndexScanPredicate(1, "age", Operator.LT, new Int32Val(10));
+        IndexScanPredicate indexPredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(10)));
         IndexScanNode indexNode = new IndexScanNode(1, ageIndex, indexPredicate);
 
         // Create RangeScan with wide range:
         // score: 20-80 → ~20% to ~80% → (0.80 - 0.20) * 1000 = ~600 rows
         RangeScanPredicate rangePredicate = new RangeScanPredicate(
-                "score", new Int32Val(20), new Int32Val(80), true, true);
+                "score", lit(new Int32Val(20)), lit(new Int32Val(80)), true, true);
         RangeScanNode rangeNode = new RangeScanNode(2, scoreIndex, rangePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(indexNode, rangeNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(indexNode, rangeNode));
 
         // IndexScan (10%) should be selected over RangeScan (60%)
         assertSame(indexNode, selected);
     }
 
-    // ==================== Input Validation Tests ====================
-
     @Test
     void shouldThrowExceptionWhenChildrenIsNull() {
         assertThrows(IllegalArgumentException.class, () ->
-                SelectivityEstimator.estimate(null, null)
-        );
-    }
-
-    @Test
-    void shouldThrowExceptionWhenChildrenIsEmpty() {
-        assertThrows(IllegalArgumentException.class, () ->
-                SelectivityEstimator.estimate(null, new ArrayList<>())
+                SelectivityEstimator.estimate(null, new PipelineContext(), null)
         );
     }
 
     // ==================== Missing Statistics Tests ====================
 
     @Test
+    void shouldThrowExceptionWhenChildrenIsEmpty() {
+        assertThrows(IllegalArgumentException.class, () ->
+                SelectivityEstimator.estimate(null, new PipelineContext(), new ArrayList<>())
+        );
+    }
+
+    @Test
     void shouldSelectNodeWithStatsOverNodeWithoutStats() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -599,25 +609,27 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create predicates
-        IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.LT, new Int32Val(50));
+        IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode ageNode = new IndexScanNode(1, ageIndex, agePredicate);
 
-        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, new Int32Val(50));
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(ageNode, scoreNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(ageNode, scoreNode));
 
         // scoreNode with stats should be selected over ageNode without stats (UNKNOWN)
         assertSame(scoreNode, selected);
     }
 
+    // ==================== Operator Coverage Tests ====================
+
     @Test
     void shouldReturnUnknownWhenHistogramIsNull() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -629,27 +641,25 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create predicates
-        IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.LT, new Int32Val(50));
+        IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode ageNode = new IndexScanNode(1, ageIndex, agePredicate);
 
-        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, new Int32Val(50));
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
 
         // Run SelectivityEstimator
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(ageNode, scoreNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(ageNode, scoreNode));
 
         // scoreNode with valid histogram should be selected
         assertSame(scoreNode, selected);
     }
 
-    // ==================== Operator Coverage Tests ====================
-
     @Test
     void shouldEstimateForLTEOperator() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -661,14 +671,14 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
 
         // age <= 10 → ~10% → ~100 rows
         // score <= 90 → ~90% → ~900 rows
-        IndexScanPredicate lowPredicate = new IndexScanPredicate(1, "age", Operator.LTE, new Int32Val(10));
+        IndexScanPredicate lowPredicate = new IndexScanPredicate(1, "age", Operator.LTE, lit(new Int32Val(10)));
         IndexScanNode lowNode = new IndexScanNode(1, ageIndex, lowPredicate);
 
-        IndexScanPredicate highPredicate = new IndexScanPredicate(2, "score", Operator.LTE, new Int32Val(90));
+        IndexScanPredicate highPredicate = new IndexScanPredicate(2, "score", Operator.LTE, lit(new Int32Val(90)));
         IndexScanNode highNode = new IndexScanNode(2, scoreIndex, highPredicate);
 
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(lowNode, highNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(lowNode, highNode));
 
         assertSame(lowNode, selected);
     }
@@ -676,8 +686,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldEstimateForGTEOperator() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -689,14 +699,14 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
 
         // age >= 90 → (1 - 0.90) * 1000 = ~100 rows
         // score >= 10 → (1 - 0.10) * 1000 = ~900 rows
-        IndexScanPredicate highPredicate = new IndexScanPredicate(1, "age", Operator.GTE, new Int32Val(90));
+        IndexScanPredicate highPredicate = new IndexScanPredicate(1, "age", Operator.GTE, lit(new Int32Val(90)));
         IndexScanNode highNode = new IndexScanNode(1, ageIndex, highPredicate);
 
-        IndexScanPredicate lowPredicate = new IndexScanPredicate(2, "score", Operator.GTE, new Int32Val(10));
+        IndexScanPredicate lowPredicate = new IndexScanPredicate(2, "score", Operator.GTE, lit(new Int32Val(10)));
         IndexScanNode lowNode = new IndexScanNode(2, scoreIndex, lowPredicate);
 
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(highNode, lowNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(highNode, lowNode));
 
         assertSame(highNode, selected);
     }
@@ -704,8 +714,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
     @Test
     void shouldReturnUnknownForEQOperator() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -716,25 +726,27 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // EQ operator returns UNKNOWN
-        IndexScanPredicate eqPredicate = new IndexScanPredicate(1, "age", Operator.EQ, new Int32Val(50));
+        IndexScanPredicate eqPredicate = new IndexScanPredicate(1, "age", Operator.EQ, lit(new Int32Val(50)));
         IndexScanNode eqNode = new IndexScanNode(1, ageIndex, eqPredicate);
 
         // LT operator has valid estimation
-        IndexScanPredicate ltPredicate = new IndexScanPredicate(2, "score", Operator.LT, new Int32Val(50));
+        IndexScanPredicate ltPredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode ltNode = new IndexScanNode(2, scoreIndex, ltPredicate);
 
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(eqNode, ltNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(eqNode, ltNode));
 
         // LT node should be selected (EQ returns UNKNOWN = infinity)
         assertSame(ltNode, selected);
     }
 
+    // ==================== Type Mismatch Tests ====================
+
     @Test
     void shouldReturnUnknownForNEOperator() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -745,27 +757,27 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // NE operator returns UNKNOWN
-        IndexScanPredicate nePredicate = new IndexScanPredicate(1, "age", Operator.NE, new Int32Val(50));
+        IndexScanPredicate nePredicate = new IndexScanPredicate(1, "age", Operator.NE, lit(new Int32Val(50)));
         IndexScanNode neNode = new IndexScanNode(1, ageIndex, nePredicate);
 
         // GT operator has valid estimation
-        IndexScanPredicate gtPredicate = new IndexScanPredicate(2, "score", Operator.GT, new Int32Val(90));
+        IndexScanPredicate gtPredicate = new IndexScanPredicate(2, "score", Operator.GT, lit(new Int32Val(90)));
         IndexScanNode gtNode = new IndexScanNode(2, scoreIndex, gtPredicate);
 
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(neNode, gtNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(neNode, gtNode));
 
         // GT node should be selected (NE returns UNKNOWN = infinity)
         assertSame(gtNode, selected);
     }
 
-    // ==================== Type Mismatch Tests ====================
+    // ==================== Single/Edge Node Tests ====================
 
     @Test
     void shouldReturnUnknownWhenValueTypeDoesNotMatchIndex() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -776,26 +788,24 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Int64Val with INT32 index → type mismatch → UNKNOWN
-        IndexScanPredicate mismatchPredicate = new IndexScanPredicate(1, "age", Operator.LT, new Int64Val(50L));
+        IndexScanPredicate mismatchPredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int64Val(50L)));
         IndexScanNode mismatchNode = new IndexScanNode(1, ageIndex, mismatchPredicate);
 
         // Int32Val with INT32 index → valid
-        IndexScanPredicate validPredicate = new IndexScanPredicate(2, "score", Operator.LT, new Int32Val(50));
+        IndexScanPredicate validPredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode validNode = new IndexScanNode(2, scoreIndex, validPredicate);
 
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(mismatchNode, validNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(mismatchNode, validNode));
 
         // Valid node should be selected (type mismatch returns UNKNOWN)
         assertSame(validNode, selected);
     }
 
-    // ==================== Single/Edge Node Tests ====================
-
     @Test
     void shouldReturnSingleNodeWhenOnlyOneProvided() {
         // Create bucket and index
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -804,58 +814,59 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         metadata.indexes().updateStatistics(stats);
 
-        IndexScanPredicate predicate = new IndexScanPredicate(1, "age", Operator.LT, new Int32Val(50));
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode node = new IndexScanNode(1, ageIndex, predicate);
 
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(node));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(node));
 
         assertSame(node, selected);
     }
 
+    // ==================== Integration Test via BUCKET.EXPLAIN ====================
+
     @Test
     void shouldReturnFirstNodeWhenAllHaveUnknownSelectivity() {
         // Create bucket and indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         // No statistics injected → all nodes return UNKNOWN
 
         // Both use EQ operator which returns UNKNOWN
-        IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.EQ, new Int32Val(50));
+        IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.EQ, lit(new Int32Val(50)));
         IndexScanNode ageNode = new IndexScanNode(1, ageIndex, agePredicate);
 
-        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.EQ, new Int32Val(50));
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.EQ, lit(new Int32Val(50)));
         IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
 
         PlannerContext ctx = new PlannerContext(metadata);
-        PipelineNode selected = SelectivityEstimator.estimate(ctx, List.of(ageNode, scoreNode));
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(ageNode, scoreNode));
 
         // First node should be selected when all have UNKNOWN (equal) selectivity
         assertSame(ageNode, selected);
 
         // Verify order matters
-        PipelineNode selectedReversed = SelectivityEstimator.estimate(ctx, List.of(scoreNode, ageNode));
+        PipelineNode selectedReversed = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(scoreNode, ageNode));
         assertSame(scoreNode, selectedReversed);
     }
 
-    // ==================== Integration Test via BUCKET.EXPLAIN ====================
+    // ==================== Parameterized Execution Tests ====================
 
     @Test
     void shouldSelectMoreSelectiveIndexViaExplainCommand() {
         // Insert initial document to create bucket
         BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf insertBuf = Unpooled.buffer();
-        insertCmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(1),
-                BSONUtil.jsonToDocumentThenBytes("{\"age\": 50, \"score\": 50}")
+        insertCmd.insert(TEST_BUCKET, BSONUtil.jsonToDocumentThenBytes("{\"age\": 50, \"score\": 50}")
         ).encode(insertBuf);
         runCommand(channel, insertBuf);
 
         // Create two secondary indexes
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition scoreIndex = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
@@ -882,11 +893,106 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
 
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage mapMessage = (MapRedisMessage) msg;
+        MapRedisMessage plan = getMapValue(mapMessage, "plan");
 
         // The plan should use IndexScan on the more selective index (age)
-        assertEquals("IndexScan", getStringValue(mapMessage, "nodeType"));
-        assertEquals("age", getStringValue(mapMessage, "selector"));
-        assertEquals("age-index", getStringValue(mapMessage, "index"));
+        assertNotNull(plan);
+        assertEquals("IndexScan", getStringValue(plan, "nodeType"));
+        assertEquals("age", getStringValue(plan, "selector"));
+        assertEquals("age-index", getStringValue(plan, "index"));
+    }
+
+    @Test
+    void shouldSelectIndexWithParamOperandForLT() {
+        // Behavior: Param(0) in LT predicate resolves for selectivity estimation.
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(ageIndex, scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        Histogram histogram = buildHistogramWithRange(1, 100);
+        Map<Long, IndexStatistics> stats = new HashMap<>();
+        stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
+        stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
+        metadata.indexes().updateStatistics(stats);
+
+        // age < ?0 with ?0 = 10 → ~10% percentile → ~100 rows
+        IndexScanPredicate lowValuePredicate = new IndexScanPredicate(1, "age", Operator.LT, param(0));
+        IndexScanNode lowValueNode = new IndexScanNode(1, ageIndex, lowValuePredicate);
+
+        // score < ?1 with ?1 = 90 → ~90% percentile → ~900 rows
+        IndexScanPredicate highValuePredicate = new IndexScanPredicate(2, "score", Operator.LT, param(1));
+        IndexScanNode highValueNode = new IndexScanNode(2, scoreIndex, highValuePredicate);
+
+        PlannerContext ctx = new PlannerContext(metadata);
+        List<BqlValue> parameters = List.of(new Int32Val(10), new Int32Val(90));
+        PipelineContext pipelineCtx = new PipelineContext(Collections.emptyMap(), parameters);
+
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, pipelineCtx, List.of(lowValueNode, highValueNode));
+
+        assertSame(lowValueNode, selected);
+    }
+
+    @Test
+    void shouldSelectIndexWithParamOperandForGT() {
+        // Behavior: Param(0) in GT predicate resolves for selectivity estimation.
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(ageIndex, scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        Histogram histogram = buildHistogramWithRange(1, 100);
+        Map<Long, IndexStatistics> stats = new HashMap<>();
+        stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
+        stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
+        metadata.indexes().updateStatistics(stats);
+
+        // age > ?0 with ?0 = 90 → ~90% percentile → (1 - 0.90) * 1000 = ~100 rows
+        IndexScanPredicate highValuePredicate = new IndexScanPredicate(1, "age", Operator.GT, param(0));
+        IndexScanNode highValueNode = new IndexScanNode(1, ageIndex, highValuePredicate);
+
+        // score > ?1 with ?1 = 10 → ~10% percentile → (1 - 0.10) * 1000 = ~900 rows
+        IndexScanPredicate lowValuePredicate = new IndexScanPredicate(2, "score", Operator.GT, param(1));
+        IndexScanNode lowValueNode = new IndexScanNode(2, scoreIndex, lowValuePredicate);
+
+        PlannerContext ctx = new PlannerContext(metadata);
+        List<BqlValue> parameters = List.of(new Int32Val(90), new Int32Val(10));
+        PipelineContext pipelineCtx = new PipelineContext(Collections.emptyMap(), parameters);
+
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, pipelineCtx, List.of(highValueNode, lowValueNode));
+
+        assertSame(highValueNode, selected);
+    }
+
+    @Test
+    void shouldSelectRangeIndexWithParamBounds() {
+        // Behavior: Both bounds as Param operands resolve for range selectivity estimation.
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(ageIndex, scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        Histogram histogram = buildHistogramWithRange(1, 100);
+        Map<Long, IndexStatistics> stats = new HashMap<>();
+        stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
+        stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
+        metadata.indexes().updateStatistics(stats);
+
+        // age: ?0 <= age <= ?1 with ?0 = 40, ?1 = 60 → 20% range → ~200 rows
+        RangeScanPredicate narrowRange = new RangeScanPredicate("age", param(0), param(1), true, true);
+        RangeScanNode narrowNode = new RangeScanNode(1, ageIndex, narrowRange);
+
+        // score: ?2 <= score <= ?3 with ?2 = 10, ?3 = 90 → 80% range → ~800 rows
+        RangeScanPredicate wideRange = new RangeScanPredicate("score", param(2), param(3), true, true);
+        RangeScanNode wideNode = new RangeScanNode(2, scoreIndex, wideRange);
+
+        PlannerContext ctx = new PlannerContext(metadata);
+        List<BqlValue> parameters = List.of(new Int32Val(40), new Int32Val(60), new Int32Val(10), new Int32Val(90));
+        PipelineContext pipelineCtx = new PipelineContext(Collections.emptyMap(), parameters);
+
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, pipelineCtx, List.of(narrowNode, wideNode));
+
+        assertSame(narrowNode, selected);
     }
 
     private void switchProtocol(BucketCommandBuilder<?, ?> cmd, RESPVersion version) {
@@ -897,12 +1003,286 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
 
     private String getStringValue(MapRedisMessage map, String key) {
         for (Map.Entry<RedisMessage, RedisMessage> entry : map.children().entrySet()) {
-            if (entry.getKey() instanceof SimpleStringRedisMessage keyMsg && keyMsg.content().equals(key)) {
-                if (entry.getValue() instanceof SimpleStringRedisMessage valueMsg) {
-                    return valueMsg.content();
+            if (entry.getKey() instanceof FullBulkStringRedisMessage keyMsg && keyMsg.content().toString(StandardCharsets.UTF_8).equals(key)) {
+                if (entry.getValue() instanceof FullBulkStringRedisMessage valueMsg) {
+                    return valueMsg.content().toString(StandardCharsets.UTF_8);
                 }
             }
         }
         return null;
+    }
+
+    private MapRedisMessage getMapValue(MapRedisMessage map, String key) {
+        for (Map.Entry<RedisMessage, RedisMessage> entry : map.children().entrySet()) {
+            if (entry.getKey() instanceof FullBulkStringRedisMessage keyMsg && keyMsg.content().toString(StandardCharsets.UTF_8).equals(key)) {
+                if (entry.getValue() instanceof MapRedisMessage mapValue) {
+                    return mapValue;
+                }
+            }
+        }
+        return null;
+    }
+
+    // --- Compound index selectivity tests ---
+
+    private Histogram buildCompoundHistogramWithRange(int catStart, int catEnd, int priceStart, int priceEnd) {
+        TreeSet<BsonValue> values = new TreeSet<>(BSONUtil::compareBsonValues);
+        for (int cat = catStart; cat <= catEnd; cat++) {
+            for (int price = priceStart; price <= priceEnd; price++) {
+                byte[] packed = Tuple.from((long) cat, (long) price).pack();
+                values.add(new BsonBinary(packed));
+            }
+        }
+        return HistogramUtil.buildHistogram(values);
+    }
+
+    @Test
+    void shouldPreferCompoundRangeLTOverSingleFieldLT() {
+        // Behavior: A compound index with EQ prefix + LT range produces a lower estimate than a wide single-field LT scan.
+        CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create(
+                "category_price_idx",
+                List.of(
+                        new CompoundIndexField("category", BsonType.INT32, false),
+                        new CompoundIndexField("price", BsonType.INT32, false)
+                ),
+                IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(compoundDef);
+        createIndexThenWaitForReadiness(scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        // Inject compound stats
+        Histogram compoundHistogram = buildCompoundHistogramWithRange(1, 10, 1, 100);
+        Map<Long, IndexStatistics> compoundStats = new HashMap<>();
+        compoundStats.put(compoundDef.id(), new IndexStatistics(1000, compoundHistogram));
+        metadata.compoundIndexes().updateStatistics(compoundStats);
+
+        // Inject single-field stats
+        Histogram singleHistogram = buildHistogramWithRange(1, 100);
+        Map<Long, IndexStatistics> singleStats = new HashMap<>();
+        singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
+        metadata.indexes().updateStatistics(singleStats);
+
+        // Compound: category = 5 AND price < 50 → narrow estimate
+        List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
+                new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),
+                new CompoundIndexScanNode.CompoundIndexScanFilter("price", Operator.LT, lit(new Int32Val(50)), BsonType.INT32)
+        );
+        CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
+
+        // Single: score < 90 → ~90% percentile → ~900 rows
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(90)));
+        IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
+
+        PlannerContext ctx = new PlannerContext(metadata);
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(compoundNode, scoreNode));
+
+        assertSame(compoundNode, selected);
+    }
+
+    @Test
+    void shouldPreferCompoundRangeGTOverSingleFieldGT() {
+        // Behavior: A compound index with EQ prefix + GT range produces a lower estimate than a wide single-field GT scan.
+        CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create(
+                "category_price_idx",
+                List.of(
+                        new CompoundIndexField("category", BsonType.INT32, false),
+                        new CompoundIndexField("price", BsonType.INT32, false)
+                ),
+                IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(compoundDef);
+        createIndexThenWaitForReadiness(scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        Histogram compoundHistogram = buildCompoundHistogramWithRange(1, 10, 1, 100);
+        Map<Long, IndexStatistics> compoundStats = new HashMap<>();
+        compoundStats.put(compoundDef.id(), new IndexStatistics(1000, compoundHistogram));
+        metadata.compoundIndexes().updateStatistics(compoundStats);
+
+        Histogram singleHistogram = buildHistogramWithRange(1, 100);
+        Map<Long, IndexStatistics> singleStats = new HashMap<>();
+        singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
+        metadata.indexes().updateStatistics(singleStats);
+
+        // Compound: category = 5 AND price > 80 → narrow estimate (high percentile, small 1-p)
+        List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
+                new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),
+                new CompoundIndexScanNode.CompoundIndexScanFilter("price", Operator.GT, lit(new Int32Val(80)), BsonType.INT32)
+        );
+        CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
+
+        // Single: score > 10 → ~10% percentile → (1-0.10)*1000 = ~900 rows
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.GT, lit(new Int32Val(10)));
+        IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
+
+        PlannerContext ctx = new PlannerContext(metadata);
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(compoundNode, scoreNode));
+
+        assertSame(compoundNode, selected);
+    }
+
+    @Test
+    void shouldPreferCompoundAllEQOverWideSingleFieldRange() {
+        // Behavior: All-EQ compound estimate (cardinality/bucketCount) beats a wide single-field range scan.
+        CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create(
+                "category_status_idx",
+                List.of(
+                        new CompoundIndexField("category", BsonType.INT32, false),
+                        new CompoundIndexField("status", BsonType.INT32, false)
+                ),
+                IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(compoundDef);
+        createIndexThenWaitForReadiness(scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        Histogram compoundHistogram = buildCompoundHistogramWithRange(1, 10, 1, 10);
+        Map<Long, IndexStatistics> compoundStats = new HashMap<>();
+        compoundStats.put(compoundDef.id(), new IndexStatistics(1000, compoundHistogram));
+        metadata.compoundIndexes().updateStatistics(compoundStats);
+
+        Histogram singleHistogram = buildHistogramWithRange(1, 100);
+        Map<Long, IndexStatistics> singleStats = new HashMap<>();
+        singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
+        metadata.indexes().updateStatistics(singleStats);
+
+        // Compound: category = 5 AND status = 3 → all-EQ → est = 1000/bucketCount
+        List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
+                new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),
+                new CompoundIndexScanNode.CompoundIndexScanFilter("status", Operator.EQ, lit(new Int32Val(3)), BsonType.INT32)
+        );
+        CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
+
+        // Single: score < 80 → ~80% percentile → ~800 rows
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(80)));
+        IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
+
+        PlannerContext ctx = new PlannerContext(metadata);
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(compoundNode, scoreNode));
+
+        // All-EQ estimate (1000/bucketCount) should be less than 800
+        assertSame(compoundNode, selected);
+    }
+
+    @Test
+    void shouldEstimateCompoundTwoSidedRange() {
+        // Behavior: A compound index with EQ prefix + two-sided range uses estimateRange with packed composite keys.
+        // Uses single-category histogram so price range spans multiple buckets.
+        CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create(
+                "category_price_idx",
+                List.of(
+                        new CompoundIndexField("category", BsonType.INT32, false),
+                        new CompoundIndexField("price", BsonType.INT32, false)
+                ),
+                IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(compoundDef);
+        createIndexThenWaitForReadiness(scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        // Single category so price values span multiple histogram buckets
+        Histogram compoundHistogram = buildCompoundHistogramWithRange(1, 1, 1, 100);
+        Map<Long, IndexStatistics> compoundStats = new HashMap<>();
+        compoundStats.put(compoundDef.id(), new IndexStatistics(1000, compoundHistogram));
+        metadata.compoundIndexes().updateStatistics(compoundStats);
+
+        Histogram singleHistogram = buildHistogramWithRange(1, 100);
+        Map<Long, IndexStatistics> singleStats = new HashMap<>();
+        singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
+        metadata.indexes().updateStatistics(singleStats);
+
+        // Compound: category = 1 AND price > 20 AND price < 80 → bounds in different buckets
+        List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
+                new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(1)), BsonType.INT32),
+                new CompoundIndexScanNode.CompoundIndexScanFilter("price", Operator.GT, lit(new Int32Val(20)), BsonType.INT32),
+                new CompoundIndexScanNode.CompoundIndexScanFilter("price", Operator.LT, lit(new Int32Val(80)), BsonType.INT32)
+        );
+        CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
+
+        // Single: score < 90 → ~90% percentile → ~900 rows
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(90)));
+        IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
+
+        PlannerContext ctx = new PlannerContext(metadata);
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(compoundNode, scoreNode));
+
+        assertSame(compoundNode, selected);
+    }
+
+    @Test
+    void shouldReturnUnknownForCompoundWithNoStats() {
+        // Behavior: When no compound stats exist, the compound node gets UNKNOWN and the single-field node wins.
+        CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create(
+                "category_price_idx",
+                List.of(
+                        new CompoundIndexField("category", BsonType.INT32, false),
+                        new CompoundIndexField("price", BsonType.INT32, false)
+                ),
+                IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(compoundDef);
+        createIndexThenWaitForReadiness(scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        // Only inject single-field stats, no compound stats
+        Histogram singleHistogram = buildHistogramWithRange(1, 100);
+        Map<Long, IndexStatistics> singleStats = new HashMap<>();
+        singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
+        metadata.indexes().updateStatistics(singleStats);
+
+        List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
+                new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),
+                new CompoundIndexScanNode.CompoundIndexScanFilter("price", Operator.LT, lit(new Int32Val(50)), BsonType.INT32)
+        );
+        CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
+
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
+        IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
+
+        PlannerContext ctx = new PlannerContext(metadata);
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(compoundNode, scoreNode));
+
+        assertSame(scoreNode, selected);
+    }
+
+    @Test
+    void shouldReturnUnknownForCompoundWithNullHistogram() {
+        // Behavior: When compound stats have a null histogram, the compound node gets UNKNOWN and the single-field node wins.
+        CompoundIndexDefinition compoundDef = CompoundIndexDefinition.create(
+                "category_price_idx",
+                List.of(
+                        new CompoundIndexField("category", BsonType.INT32, false),
+                        new CompoundIndexField("price", BsonType.INT32, false)
+                ),
+                IndexStatus.WAITING);
+        SingleFieldIndexDefinition scoreIndex = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(compoundDef);
+        createIndexThenWaitForReadiness(scoreIndex);
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        // Inject compound stats with null histogram
+        Map<Long, IndexStatistics> compoundStats = new HashMap<>();
+        compoundStats.put(compoundDef.id(), new IndexStatistics(1000, null));
+        metadata.compoundIndexes().updateStatistics(compoundStats);
+
+        Histogram singleHistogram = buildHistogramWithRange(1, 100);
+        Map<Long, IndexStatistics> singleStats = new HashMap<>();
+        singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
+        metadata.indexes().updateStatistics(singleStats);
+
+        List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
+                new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),
+                new CompoundIndexScanNode.CompoundIndexScanFilter("price", Operator.LT, lit(new Int32Val(50)), BsonType.INT32)
+        );
+        CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
+
+        IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
+        IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
+
+        PlannerContext ctx = new PlannerContext(metadata);
+        PipelineNode selected = SelectivityEstimator.estimate(ctx, new PipelineContext(), List.of(compoundNode, scoreNode));
+
+        assertSame(scoreNode, selected);
     }
 }

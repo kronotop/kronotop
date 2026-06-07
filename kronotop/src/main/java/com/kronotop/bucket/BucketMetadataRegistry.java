@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +31,12 @@ public class BucketMetadataRegistry {
     }
 
     public void register(String bucket, BucketMetadata metadata) {
-        BucketMetadataWrapper wrapper = new BucketMetadataWrapper(metadata, context.now());
-        registry.put(bucket, wrapper);
+        registry.compute(bucket, (key, existing) -> {
+            if (existing != null && existing.getMetadata().version() > metadata.version()) {
+                return existing;
+            }
+            return new BucketMetadataWrapper(metadata, context.now());
+        });
     }
 
     public BucketMetadata getBucketMetadata(String bucket) {

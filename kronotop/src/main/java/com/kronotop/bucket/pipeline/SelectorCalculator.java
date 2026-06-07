@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,15 +20,24 @@ import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.Collation;
+import com.kronotop.bucket.CollatorCache;
+import com.kronotop.bucket.NumericWidening;
 import com.kronotop.bucket.bql.ast.*;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.IndexMaintainer;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.PrimaryIndex;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
+import org.bson.*;
+import org.bson.types.Decimal128;
+import org.bson.types.ObjectId;
 
-import static com.kronotop.bucket.pipeline.IndexUtils.getKeySelector;
+import java.util.List;
+
+import static com.kronotop.bucket.pipeline.IndexUtil.getKeySelector;
 
 /**
  * Calculates FoundationDB KeySelector pairs for different types of scan operations in the query pipeline.
@@ -44,7 +53,7 @@ import static com.kronotop.bucket.pipeline.IndexUtils.getKeySelector;
  * </ul>
  *
  * <p><strong>Key Structure:</strong><br>
- * All index entries follow the structure: {@code [ENTRIES_MAGIC, indexed_value, versionstamp]}<br>
+ * All index entries follow the structure: {@code [ENTRIES_MAGIC, indexed_value, objectId]}<br>
  * This allows for efficient range queries and cursor-based pagination.</p>
  *
  * <p><strong>Cursor Support:</strong><br>
@@ -59,7 +68,6 @@ import static com.kronotop.bucket.pipeline.IndexUtils.getKeySelector;
  * @since 0.13
  */
 class SelectorCalculator {
-    private static final IndexUtils indexUtils = new IndexUtils();
     private static final CursorManager cursorManager = new CursorManager();
 
     /**
@@ -98,19 +106,61 @@ class SelectorCalculator {
      */
     private static SelectorPair calculateRangeScanSelectors(RangeScanContext ctx) {
         if (ctx.state().isEmpty()) {
-            return constructRangeScanSelectors(ctx.indexSubspace(), ctx.predicate());
+            return constructRangeScanSelectors(
+                    ctx.indexSubspace(),
+                    ctx.predicate(),
+                    ctx.getParameters(),
+                    ctx.index(),
+                    ctx.collation(),
+                    ctx.collatorCache()
+            );
         }
+        return createContinuationSelectors(
+                ctx.state(),
+                ctx.nodeId(),
+                ctx.getSortDirection(),
+                ctx.indexSubspace(),
+                ctx.isReverse(),
+                ctx.index()
+        );
+    }
 
-        CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(ctx.state(), ctx.nodeId(), ctx.isReverse());
-        Object indexValue = extractIndexValueFromBqlValue(position.indexValue());
-        Tuple cursorTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), indexValue, position.versionstamp());
-        byte[] cursorKey_bytes = ctx.indexSubspace().pack(cursorTuple);
-        if (ctx.isReverse()) {
-            // Do not change the begin selector for reverse scans
-            return new SelectorPair(ctx.state().getSelector().begin(), KeySelector.firstGreaterOrEqual(cursorKey_bytes));
+    /**
+     * Builds the cursor tuple based on the index type.
+     * Primary index: (ENTRIES, objectId)
+     * Secondary index: (ENTRIES, value, objectId)
+     */
+    private static Tuple buildCursorTuple(SingleFieldIndexDefinition definition, Object indexValue, ObjectId objectId) {
+        if (PrimaryIndex.isPrimary(definition)) {
+            // Primary index: key structure is (ENTRIES, objectId)
+            return Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), indexValue);
         }
-        // Do not change the end selector for forward scan
-        return new SelectorPair(KeySelector.firstGreaterThan(cursorKey_bytes), ctx.state().getSelector().end());
+        // Secondary index: key structure is (ENTRIES, value, objectId)
+        return Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), indexValue, objectId.toByteArray());
+    }
+
+    /**
+     * Creates continuation selectors for resuming a scan from a cursor position.
+     * For reverse scans, adjusts the end selector while keeping the begin unchanged.
+     * For forward scans, adjusts the begin selector while keeping the end unchanged.
+     */
+    private static SelectorPair createContinuationSelectors(
+            ExecutionState state,
+            int nodeId,
+            SortDirection sortDirection,
+            DirectorySubspace indexSubspace,
+            boolean isReverse,
+            SingleFieldIndexDefinition definition
+    ) {
+        CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(state, nodeId, sortDirection);
+        Object indexValue = extractIndexValueFromBqlValue(position.indexValue());
+        Tuple cursorTuple = buildCursorTuple(definition, indexValue, position.objectId());
+        byte[] cursorKeyBytes = indexSubspace.pack(cursorTuple);
+
+        if (isReverse) {
+            return new SelectorPair(state.getSelector().begin(), KeySelector.firstGreaterOrEqual(cursorKeyBytes));
+        }
+        return new SelectorPair(KeySelector.firstGreaterThan(cursorKeyBytes), state.getSelector().end());
     }
 
     /**
@@ -120,17 +170,17 @@ class SelectorCalculator {
      * The method handles both forward and reverse scans, with cursor-based continuation
      * support for paginated results.</p>
      *
-     * <p><strong>Forward Scans:</strong> Start from index beginning and scan towards the end.
-     * For continuations, resume from the lower bound in cursor state.</p>
+     * <p><strong>Forward Scans:</strong> Start from the index beginning and scan towards the end.
+     * For continuations, resume from the lower bound in the cursor state.</p>
      *
-     * <p><strong>Reverse Scans:</strong> Start from index end and scan towards the beginning.
-     * For continuations, resume from the upper bound in cursor state.</p>
+     * <p><strong>Reverse Scans:</strong> Start from the index end and scan towards the beginning.
+     * For continuations, resume from the upper bound in the cursor state.</p>
      *
      * @param ctx the full scan context containing direction and cursor state
      * @return a SelectorPair for scanning the entire index
      */
     private static SelectorPair calculateFullScanSelectors(FullScanContext ctx) {
-        byte[] basePrefix = indexUtils.createIndexEntriesPrefix(ctx.indexSubspace());
+        byte[] basePrefix = createIndexEntriesPrefix(ctx.indexSubspace());
         KeySelector beginSelector;
         KeySelector endSelector;
 
@@ -142,12 +192,12 @@ class SelectorCalculator {
             beginSelector = KeySelector.firstGreaterOrEqual(basePrefix);
 
             if (isInitialScan) {
-                endSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesBoundary(ctx.indexSubspace()));
+                endSelector = KeySelector.firstGreaterOrEqual(createIndexEntriesBoundary(ctx.indexSubspace()));
             } else {
                 if (ctx.state().getUpper() != null) {
                     endSelector = cursorManager.createSelectorFromBound(ctx.indexSubspace(), ctx.state().getUpper());
                 } else {
-                    endSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesBoundary(ctx.indexSubspace()));
+                    endSelector = KeySelector.firstGreaterOrEqual(createIndexEntriesBoundary(ctx.indexSubspace()));
                 }
             }
         } else {
@@ -156,7 +206,7 @@ class SelectorCalculator {
                     ? KeySelector.firstGreaterOrEqual(basePrefix)
                     : createSelectorFromBound(ctx.indexSubspace(), ctx.state().getLower());
 
-            endSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesBoundary(ctx.indexSubspace()));
+            endSelector = KeySelector.firstGreaterOrEqual(createIndexEntriesBoundary(ctx.indexSubspace()));
         }
 
         return new SelectorPair(beginSelector, endSelector);
@@ -186,31 +236,32 @@ class SelectorCalculator {
      */
     private static SelectorPair calculateIndexScanSelectors(IndexScanContext ctx) {
         if (ctx.state().isEmpty()) {
-            // Fresh scan - construct range from filter conditions only
-            return constructSelectorsForIndexScan(ctx.indexSubspace(), ctx.predicate().op(), ctx.predicate().operand(), ctx.index());
+            BqlValue resolvedOperand = ctx.predicate().operand().resolve(ctx.getParameters());
+            return constructSelectorsForIndexScan(
+                    ctx.indexSubspace(),
+                    ctx.predicate().op(),
+                    resolvedOperand,
+                    ctx.index(),
+                    ctx.collation(),
+                    ctx.collatorCache());
         }
-
-        CursorManager.CursorPosition position = cursorManager.getLastProcessedPosition(ctx.state(), ctx.nodeId(), ctx.isReverse());
-        // Precise positioning: construct exact continuation point
-        Object indexValue = extractIndexValueFromBqlValue(position.indexValue());
-        Tuple cursorTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), indexValue, position.versionstamp());
-        byte[] cursorKey_bytes = ctx.indexSubspace().pack(cursorTuple);
-        if (ctx.isReverse()) {
-            // Do not change the begin selector for reverse scan
-            return new SelectorPair(ctx.state().getSelector().begin(), KeySelector.firstGreaterOrEqual(cursorKey_bytes));
-        }
-        // Do not change the end selector for forward scan
-        return new SelectorPair(KeySelector.firstGreaterThan(cursorKey_bytes), ctx.state().getSelector().end());
+        return createContinuationSelectors(
+                ctx.state(),
+                ctx.nodeId(),
+                ctx.getSortDirection(),
+                ctx.indexSubspace(),
+                ctx.isReverse(),
+                ctx.index()
+        );
     }
 
     /**
      * Constructs KeySelector pair for fresh index scan operations based on operator and operand.
      *
-     * <p>This method translates BQL operators into appropriate FoundationDB KeySelector ranges.
-     * It handles special cases like the _id index (which uses Versionstamp directly) and
-     * provides optimized range construction for each operator type.</p>
+     * <p>This method translates BQL operators into appropriate FoundationDB KeySelector ranges
+     * and provides optimized range construction for each operator type.</p>
      *
-     * <p><strong>Key Structure:</strong> {@code [ENTRIES_MAGIC, indexed_value, versionstamp]}</p>
+     * <p><strong>Key Structure:</strong> {@code [ENTRIES_MAGIC, indexed_value, objectId]}</p>
      *
      * <p><strong>Operator Handling:</strong></p>
      * <ul>
@@ -224,32 +275,23 @@ class SelectorCalculator {
      *
      * @param indexSubspace the FoundationDB subspace for this index
      * @param operator      the comparison operator (EQ, GT, GTE, LT, LTE, NE)
-     * @param operand       the value to compare against (BqlValue or Versionstamp for _id index)
+     * @param operand       the value to compare against (BqlValue)
      * @param definition    the index definition for special handling
      * @return a SelectorPair defining the scan range for this operation
      * @throws UnsupportedOperationException if the operator is not supported for index scans
      */
-    private static SelectorPair constructSelectorsForIndexScan(DirectorySubspace indexSubspace, Operator operator, Object operand, IndexDefinition definition) {
-        Object indexValue;
-        Tuple indexTuple;
-
-        // Special handling for _id index - it uses Versionstamp directly, not bytes
-        if (DefaultIndexDefinition.ID.selector().equals(definition.selector()) && operand instanceof VersionstampVal(
-                Versionstamp value
-        )) {
-            indexValue = value; // Use Versionstamp directly
-        } else {
-            indexValue = extractIndexValueFromBqlValue((BqlValue) operand);
-        }
-
-        indexTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), indexValue);
+    private static SelectorPair constructSelectorsForIndexScan(DirectorySubspace indexSubspace, Operator operator, Object operand,
+                                                               SingleFieldIndexDefinition definition, Collation collation, CollatorCache collatorCache) {
+        Object indexValue = extractIndexValueFromBqlValue((BqlValue) operand, definition.bsonType());
+        indexValue = IndexMaintainer.applyCollation(indexValue, collation, collatorCache);
+        Tuple indexTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), indexValue);
 
         byte[] indexKey = indexSubspace.pack(indexTuple);
 
         return switch (operator) {
             case EQ -> {
                 // For equality, scan all entries with the same indexed value
-                // The key structure is [ENTRIES_MAGIC, indexed_value, versionstamp]
+                // The key structure is [ENTRIES_MAGIC, indexed_value, objectId]
                 // We need to scan all entries that start with [ENTRIES_MAGIC, indexed_value]
                 KeySelector begin = KeySelector.firstGreaterOrEqual(indexKey);
                 byte[] endKey = ByteArrayUtil.strinc(indexKey);
@@ -325,7 +367,7 @@ class SelectorCalculator {
      *   <li>TimestampVal → Timestamp object</li>
      *   <li>Decimal128Val → Decimal128 object</li>
      *   <li>BinaryVal → byte array</li>
-     *   <li>VersionstampVal → Versionstamp</li>
+     *   <li>ObjectIdVal → byte[] (ObjectId bytes for consistent index storage)</li>
      *   <li>NullVal → null</li>
      * </ul>
      *
@@ -344,7 +386,7 @@ class SelectorCalculator {
             case TimestampVal timestampVal -> timestampVal.value();
             case Decimal128Val decimal128Val -> decimal128Val.value();
             case BinaryVal binaryVal -> binaryVal.value();
-            case VersionstampVal versionstampVal -> versionstampVal.value();
+            case ObjectIdVal objectIdVal -> objectIdVal.value().toByteArray();
             case NullVal ignored -> null;
             default ->
                     throw new IllegalArgumentException("Unsupported BqlValue type for index: " + bqlValue.getClass().getSimpleName());
@@ -352,21 +394,51 @@ class SelectorCalculator {
     }
 
     /**
+     * Extracts a Java object from a BqlValue, applying lossless numeric widening to match
+     * the index field's target type. This ensures FDB tuple encoding matches what was stored
+     * at index build time.
+     *
+     * @param bqlValue   the BQL value to extract from
+     * @param targetType the index field's declared BSON type
+     * @return the native Java object for FDB tuple packing
+     */
+    static Object extractIndexValueFromBqlValue(BqlValue bqlValue, BsonType targetType) {
+        BsonValue bsonValue = bqlValueToBsonValue(bqlValue);
+        if (bsonValue != null && NumericWidening.isNumericBsonType(bsonValue.getBsonType())) {
+            Object widened = NumericWidening.widenValue(bsonValue, targetType);
+            if (widened != null) {
+                return widened;
+            }
+        }
+        return extractIndexValueFromBqlValue(bqlValue);
+    }
+
+    private static BsonValue bqlValueToBsonValue(BqlValue bqlValue) {
+        return switch (bqlValue) {
+            case Int32Val(int v) -> new BsonInt32(v);
+            case Int64Val(long v) -> new BsonInt64(v);
+            case DoubleVal(double v) -> new BsonDouble(v);
+            case Decimal128Val(java.math.BigDecimal v) -> new BsonDecimal128(new Decimal128(v));
+            default -> null;
+        };
+    }
+
+    /**
      * Creates a KeySelector from a cursor bound for _id index continuation.
      *
      * <p>This method is specifically designed for the _id index (primary index) which uses
-     * Versionstamp values. It extracts the Versionstamp from the bound and delegates to
-     * IndexUtils for KeySelector creation.</p>
+     * ObjectId values. It extracts the ObjectId from the bound and constructs
+     * the appropriate KeySelector.</p>
      *
-     * <p><strong>Note:</strong> This method assumes the bound contains a VersionstampVal,
-     * which is appropriate since it's used for _id index operations where Versionstamps
+     * <p><strong>Note:</strong> This method assumes the bound contains an ObjectIdVal,
+     * which is appropriate since it's used for _id index operations where ObjectIds
      * are the primary key.</p>
      *
      * @param idIndexSubspace the _id index subspace
      * @param bound           the cursor bound containing position information
      * @return a KeySelector for resuming from the bound position
      * @throws IllegalArgumentException if bound is null
-     * @throws IllegalStateException    if bound value is not a VersionstampVal
+     * @throws IllegalStateException    if bound value is not an ObjectIdVal
      */
     private static KeySelector createSelectorFromBound(DirectorySubspace idIndexSubspace, Bound bound) {
         if (bound == null) {
@@ -374,10 +446,10 @@ class SelectorCalculator {
         }
 
         Object boundValue = bound.value();
-        if (boundValue instanceof VersionstampVal(Versionstamp value)) {
-            boundValue = value; // Extract the actual Versionstamp
+        if (boundValue instanceof ObjectIdVal(ObjectId value)) {
+            boundValue = value.toByteArray(); // Convert ObjectId to a byte array for tuple packing
         } else {
-            throw new IllegalStateException("Bound value must be VersionstampVal, got: " + boundValue.getClass().getSimpleName());
+            throw new IllegalStateException("Bound value must be ObjectIdVal, got: " + boundValue.getClass().getSimpleName());
         }
 
         return getKeySelector(idIndexSubspace, bound, boundValue);
@@ -405,15 +477,22 @@ class SelectorCalculator {
      *
      * @param indexSubspace the FoundationDB subspace for this index
      * @param predicate     the range scan predicate containing bounds and inclusion flags
+     * @param parameters    the parameter list for resolving Param operands
      * @return a SelectorPair defining the range scan boundaries
      */
-    private static SelectorPair constructRangeScanSelectors(DirectorySubspace indexSubspace, RangeScanPredicate predicate) {
+    private static SelectorPair constructRangeScanSelectors(DirectorySubspace indexSubspace, RangeScanPredicate predicate,
+                                                            List<BqlValue> parameters, SingleFieldIndexDefinition index,
+                                                            Collation collation, CollatorCache collatorCache) {
         KeySelector beginSelector;
         KeySelector endSelector;
 
+        BqlValue lowerBound = predicate.resolveLowerBound(parameters);
+        BqlValue upperBound = predicate.resolveUpperBound(parameters);
+
         // Handle lower bound
-        if (predicate.lowerBound() != null) {
-            Object lowerIndexValue = indexUtils.extractIndexValue(predicate.lowerBound());
+        if (lowerBound != null) {
+            Object lowerIndexValue = extractIndexValueFromBqlValue(lowerBound, index.bsonType());
+            lowerIndexValue = IndexMaintainer.applyCollation(lowerIndexValue, collation, collatorCache);
             Tuple lowerTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), lowerIndexValue);
             byte[] lowerKey = indexSubspace.pack(lowerTuple);
 
@@ -424,18 +503,19 @@ class SelectorCalculator {
                 beginSelector = KeySelector.firstGreaterThan(endKey);
             }
         } else {
-            beginSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesPrefix(indexSubspace));
+            beginSelector = KeySelector.firstGreaterOrEqual(createIndexEntriesPrefix(indexSubspace));
         }
 
         // Handle upper bound
-        if (predicate.upperBound() != null) {
-            Object upperIndexValue = indexUtils.extractIndexValue(predicate.upperBound());
+        if (upperBound != null) {
+            Object upperIndexValue = extractIndexValueFromBqlValue(upperBound, index.bsonType());
+            upperIndexValue = IndexMaintainer.applyCollation(upperIndexValue, collation, collatorCache);
             Tuple upperTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), upperIndexValue);
             byte[] upperKey = indexSubspace.pack(upperTuple);
 
             if (predicate.includeUpper()) {
                 // Include upper bound: scan up to and including all entries with this value
-                // This matches IndexUtils logic for LTE operations
+                // Include all entries with this value (same logic as LTE)
                 byte[] endKey = ByteArrayUtil.strinc(upperKey);
                 endSelector = KeySelector.firstGreaterOrEqual(endKey);
             } else {
@@ -443,7 +523,7 @@ class SelectorCalculator {
                 endSelector = KeySelector.firstGreaterOrEqual(upperKey);
             }
         } else {
-            endSelector = KeySelector.firstGreaterOrEqual(indexUtils.createIndexEntriesBoundary(indexSubspace));
+            endSelector = KeySelector.firstGreaterOrEqual(createIndexEntriesBoundary(indexSubspace));
         }
 
         return new SelectorPair(beginSelector, endSelector);

@@ -6,16 +6,20 @@
 
     <groupId>com.kronotop</groupId>
     <artifactId>kronotop-root</artifactId>
-    <version>0.13-SNAPSHOT</version>
+    <version>2026.06-1</version>
     <packaging>pom</packaging>
     <name>Kronotop Root</name>
-    <description>Kronotop is a distributed, transactional document database designed for horizontal scalability</description>
+    <description>Kronotop is a distributed, transactional document database designed for horizontal scalability
+    </description>
     <url>https://kronotop.com</url>
 
     <modules>
         <module>kronotop</module>
-        <module>kronotop-client</module>
+        <module>kronotop-resp</module>
         <module>kronotop-cli</module>
+        <module>kronotop-benchmark</module>
+        <module>kronotop-commands</module>
+        <module>kronotop-ctl</module>
     </modules>
 
     <developers>
@@ -30,7 +34,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.21</version>
+            <version>1.5.33</version>
         </dependency>
 
         <dependency>

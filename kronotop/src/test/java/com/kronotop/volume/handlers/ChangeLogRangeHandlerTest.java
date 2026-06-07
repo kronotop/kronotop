@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -313,10 +314,10 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Set<String> keys = new HashSet<>();
         String kindValue = null;
         for (var entry : entryMap.children().entrySet()) {
-            String key = ((SimpleStringRedisMessage) entry.getKey()).content();
+            String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
             keys.add(key);
             if (key.equals("kind")) {
-                kindValue = ((SimpleStringRedisMessage) entry.getValue()).content();
+                kindValue = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.UTF_8);
             }
         }
 
@@ -372,10 +373,10 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Set<String> mapKeys = new HashSet<>();
         String kindValue = null;
         for (var entry : entryMap.children().entrySet()) {
-            String key = ((SimpleStringRedisMessage) entry.getKey()).content();
+            String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
             mapKeys.add(key);
             if (key.equals("kind")) {
-                kindValue = ((SimpleStringRedisMessage) entry.getValue()).content();
+                kindValue = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.UTF_8);
             }
         }
 
@@ -430,9 +431,9 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         for (var child : arrayMessage.children()) {
             MapRedisMessage entryMap = (MapRedisMessage) child;
             for (var entry : entryMap.children().entrySet()) {
-                String key = ((SimpleStringRedisMessage) entry.getKey()).content();
+                String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
                 if (key.equals("kind")) {
-                    String kind = ((SimpleStringRedisMessage) entry.getValue()).content();
+                    String kind = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.UTF_8);
                     if (kind.equals("UPDATE")) {
                         updateEntry = entryMap;
                         break;
@@ -446,7 +447,7 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Extract keys as strings
         Set<String> mapKeys = new HashSet<>();
         for (var entry : updateEntry.children().entrySet()) {
-            String key = ((SimpleStringRedisMessage) entry.getKey()).content();
+            String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
             mapKeys.add(key);
         }
 
@@ -592,10 +593,10 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     private byte[] getVersionstamp(MapRedisMessage entry) {
         for (var e : entry.children().entrySet()) {
-            String key = ((SimpleStringRedisMessage) e.getKey()).content();
+            String key = ((FullBulkStringRedisMessage) e.getKey()).content().toString(StandardCharsets.UTF_8);
             if (key.equals("versionstamp")) {
-                SimpleStringRedisMessage m = (SimpleStringRedisMessage) e.getValue();
-                return VersionstampUtil.base32HexDecode(m.content()).getBytes();
+                FullBulkStringRedisMessage m = (FullBulkStringRedisMessage) e.getValue();
+                return VersionstampUtil.base32HexDecode(m.content().toString(StandardCharsets.UTF_8)).getBytes();
             }
         }
         throw new IllegalStateException("versionstamp not found");
@@ -603,11 +604,11 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     private long getSequenceNumber(MapRedisMessage entry) {
         for (var e : entry.children().entrySet()) {
-            String key = ((SimpleStringRedisMessage) e.getKey()).content();
+            String key = ((FullBulkStringRedisMessage) e.getKey()).content().toString(StandardCharsets.UTF_8);
             if (key.equals("after")) {
                 MapRedisMessage afterMap = (MapRedisMessage) e.getValue();
                 for (var afterEntry : afterMap.children().entrySet()) {
-                    String afterKey = ((SimpleStringRedisMessage) afterEntry.getKey()).content();
+                    String afterKey = ((FullBulkStringRedisMessage) afterEntry.getKey()).content().toString(StandardCharsets.UTF_8);
                     if (afterKey.equals("sequence_number")) {
                         return ((IntegerRedisMessage) afterEntry.getValue()).value();
                     }

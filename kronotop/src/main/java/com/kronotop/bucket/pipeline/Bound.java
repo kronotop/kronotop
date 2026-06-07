@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 
 package com.kronotop.bucket.pipeline;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.planner.Operator;
+import org.bson.types.ObjectId;
 
 public class Bound {
     private final Operator operator;
     private final BqlValue value;
-    private volatile Versionstamp versionstamp;
+    private volatile ObjectId objectId;
 
-    // Primary Index (DefaultIndexDefinition.ID) structure -> Versionstamp
-    // Secondary Index Key Structure -> BqlValue | Versionstamp
+    // Primary Index structure -> ObjectId
+    // Single Field Index Key Structure -> BqlValue | ObjectId
 
     public Bound(Operator operator, BqlValue value) {
         this.operator = operator;
@@ -41,11 +41,11 @@ public class Bound {
         return value;
     }
 
-    public void setVersionstamp(Versionstamp versionstamp) {
-        this.versionstamp = versionstamp;
+    public void setObjectId(ObjectId objectId) {
+        this.objectId = objectId;
     }
 
-    public Versionstamp versionstamp() {
-        return versionstamp;
+    public ObjectId objectId() {
+        return objectId;
     }
 }

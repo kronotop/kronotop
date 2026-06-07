@@ -16,20 +16,28 @@
 
 package com.kronotop.cli;
 
-import com.kronotop.cli.resp.RespValue;
+import com.kronotop.resp.RespValue;
+import org.jline.terminal.Terminal;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Formats RESP values for CLI output in redis-cli compatible style.
+ * Formats RESP values for CLI output in valkey-cli compatible style.
  */
 public class ResponseFormatter {
 
     private final boolean jsonReplyType;
+    private final JsonColorizer jsonColorizer;
 
     public ResponseFormatter(boolean jsonReplyType) {
         this.jsonReplyType = jsonReplyType;
+        this.jsonColorizer = null;
+    }
+
+    public ResponseFormatter(boolean jsonReplyType, Terminal terminal) {
+        this.jsonReplyType = jsonReplyType;
+        this.jsonColorizer = terminal != null ? new JsonColorizer(terminal) : null;
     }
 
     public String format(RespValue value) {
@@ -59,17 +67,33 @@ public class ResponseFormatter {
     private String formatBlobString(String s) {
         if (s.contains("\n")) {
             if (s.endsWith("\n")) {
-                return s.substring(0, s.length() - 1);
+                s = s.substring(0, s.length() - 1);
             }
-            return s;
+            return maybeColorizeJson(s);
+        }
+        if (isJson(s)) {
+            return maybeColorizeJson(s);
         }
         return "\"" + formatString(s) + "\"";
     }
 
-    private String formatString(String s) {
-        if (!jsonReplyType) {
-            return s;
+    private String maybeColorizeJson(String s) {
+        if (jsonColorizer != null && isJson(s)) {
+            return jsonColorizer.colorize(s);
         }
+        return s;
+    }
+
+    private boolean isJson(String s) {
+        if (s == null || s.isEmpty()) {
+            return false;
+        }
+        String trimmed = s.trim();
+        return (trimmed.startsWith("{") && trimmed.endsWith("}"))
+                || (trimmed.startsWith("[") && trimmed.endsWith("]"));
+    }
+
+    private String formatString(String s) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);

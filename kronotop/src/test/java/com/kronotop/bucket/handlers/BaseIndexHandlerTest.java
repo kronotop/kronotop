@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,6 @@ import org.junit.jupiter.api.BeforeEach;
 public class BaseIndexHandlerTest extends BaseBucketHandlerTest {
     @BeforeEach
     void beforeEach() {
-        getBucketMetadata(TEST_BUCKET);
+        createBucket(TEST_BUCKET);
     }
 }

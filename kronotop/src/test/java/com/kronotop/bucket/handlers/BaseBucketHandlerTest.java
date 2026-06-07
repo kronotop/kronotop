@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,35 +19,29 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.KronotopException;
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.bucket.index.IndexUtil;
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
-import com.kronotop.protocol.CommitArgs;
-import com.kronotop.protocol.CommitKeyword;
-import com.kronotop.protocol.KronotopCommandBuilder;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import com.kronotop.bucket.index.SingleFieldIndexUtil;
+import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.RESPVersion;
-import com.kronotop.server.Response;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
-import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.bson.BsonDocument;
+import org.bson.types.ObjectId;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BaseBucketHandlerTest extends BaseHandlerTest {
-    protected final int SHARD_ID = 1;
-    protected final byte[] DOCUMENT = BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}");
+    protected final byte[] TEST_DOCUMENT = BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}");
     protected final Random rand = new Random(System.nanoTime());
 
     /**
@@ -99,21 +93,22 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      * @param documents the documents to insert
      * @return map of document IDs to their corresponding documents
      */
-    protected Map<String, byte[]> insertDocuments(List<byte[]> documents) {
+    protected Map<ObjectId, byte[]> insertDocumentsAndGetObjectIds(List<byte[]> documents) {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
         byte[][] docs = makeDocumentsArray(documents);
-        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+        cmd.insert(TEST_BUCKET, docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertEquals(documents.size(), actualMessage.children().size());
-        Map<String, byte[]> result = new LinkedHashMap<>();
+
+        Map<ObjectId, byte[]> result = new LinkedHashMap<>();
         for (int index = 0; index < actualMessage.children().size(); index++) {
-            SimpleStringRedisMessage message = (SimpleStringRedisMessage) actualMessage.children().get(index);
-            assertNotNull(message.content());
-            result.put(message.content(), documents.get(index));
+            FullBulkStringRedisMessage message = (FullBulkStringRedisMessage) actualMessage.children().get(index);
+            ObjectId objectId = TestUtil.bulkStringToObjectId(message);
+            result.put(objectId, documents.get(index));
         }
         return result;
     }
@@ -125,8 +120,8 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      * @param batchSize the number of documents per batch
      * @return map of all document IDs to their corresponding documents
      */
-    protected Map<String, byte[]> insertDocuments(List<byte[]> documents, int batchSize) {
-        Map<String, byte[]> parent = new HashMap<>();
+    protected Map<ObjectId, byte[]> insertDocumentsAndGetObjectIds(List<byte[]> documents, int batchSize) {
+        Map<ObjectId, byte[]> parent = new LinkedHashMap<>();
         int index = 0;
         while (index < documents.size()) {
             List<byte[]> subDocs = new ArrayList<>();
@@ -135,59 +130,10 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
                 subDocs.add(document);
                 index++;
             }
-            Map<String, byte[]> child = insertDocuments(subDocs);
+            Map<ObjectId, byte[]> child = insertDocumentsAndGetObjectIds(subDocs);
             parent.putAll(child);
         }
         return parent;
-    }
-
-    /**
-     * Inserts documents within a single transaction and returns their IDs.
-     *
-     * @param bucket    the target bucket name
-     * @param documents the documents to insert
-     * @return list of generated document IDs
-     */
-    protected List<String> insertManyDocumentsWithSingleTransaction(String bucket, List<byte[]> documents) {
-        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.begin().encode(buf);
-
-            Object response = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        {
-            BucketCommandBuilder<byte[], byte[]> bucketCommandBuilder = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
-            switchProtocol(bucketCommandBuilder, RESPVersion.RESP3);
-
-            ByteBuf buf = Unpooled.buffer();
-            byte[][] docs = makeDocumentsArray(documents);
-            bucketCommandBuilder.insert(bucket, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
-
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(ArrayRedisMessage.class, msg);
-            ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
-            assertEquals(documents.size(), actualMessage.children().size());
-        }
-
-        ByteBuf buf = Unpooled.buffer();
-        cmd.commit(CommitArgs.Builder.returning(CommitKeyword.FUTURES)).encode(buf);
-
-        Object response = runCommand(channel, buf);
-        assertInstanceOf(ArrayRedisMessage.class, response);
-        ArrayRedisMessage actualMessage = (ArrayRedisMessage) response;
-        assertEquals(1, actualMessage.children().size());
-
-        List<String> ids = new ArrayList<>();
-        MapRedisMessage result = (MapRedisMessage) actualMessage.children().getFirst();
-        for (Map.Entry<RedisMessage, RedisMessage> entry : result.children().entrySet()) {
-            ids.add(((SimpleStringRedisMessage) entry.getValue()).content());
-        }
-        return ids;
     }
 
     /**
@@ -199,8 +145,8 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      */
     RedisMessage findInMapMessage(MapRedisMessage mapRedisMessage, String key) {
         for (Map.Entry<RedisMessage, RedisMessage> entry : mapRedisMessage.children().entrySet()) {
-            SimpleStringRedisMessage keyMessage = (SimpleStringRedisMessage) entry.getKey();
-            if (keyMessage.content().equals(key)) {
+            FullBulkStringRedisMessage keyMessage = (FullBulkStringRedisMessage) entry.getKey();
+            if (keyMessage.content().toString(StandardCharsets.UTF_8).equals(key)) {
                 return entry.getValue();
             }
         }
@@ -208,16 +154,42 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
     }
 
     /**
-     * Extracts the "entries" map from a response message.
-     *
-     * @param response the response message
-     * @return the entries map message
+     * Extracts the "entries" array from a QUERY response and parses each bulk string into a BsonDocument.
      */
-    MapRedisMessage extractEntriesMap(Object response) {
+    protected List<BsonDocument> extractEntries(Object response) {
         assertInstanceOf(MapRedisMessage.class, response);
         RedisMessage msg = findInMapMessage((MapRedisMessage) response, "entries");
-        assertInstanceOf(MapRedisMessage.class, msg);
-        return (MapRedisMessage) msg;
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage array = (ArrayRedisMessage) msg;
+        List<BsonDocument> result = new ArrayList<>();
+        for (RedisMessage child : array.children()) {
+            FullBulkStringRedisMessage bulk = (FullBulkStringRedisMessage) child;
+            byte[] docBytes = io.netty.buffer.ByteBufUtil.getBytes(bulk.content());
+            result.add(BSONUtil.toBsonDocument(docBytes));
+        }
+        return result;
+    }
+
+    /**
+     * Extracts ObjectIds from a DELETE/UPDATE response's "object_ids" field.
+     */
+    protected List<ObjectId> extractObjectIds(Object response) {
+        assertInstanceOf(MapRedisMessage.class, response);
+        RedisMessage msg = findInMapMessage((MapRedisMessage) response, "object_ids");
+        assertNotNull(msg);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        return TestUtil.extractObjectIds((ArrayRedisMessage) msg);
+    }
+
+    /**
+     * Extracts the cursor_id from a QUERY/DELETE/UPDATE response.
+     */
+    protected int extractCursorId(Object response) {
+        assertInstanceOf(MapRedisMessage.class, response);
+        RedisMessage msg = findInMapMessage((MapRedisMessage) response, "cursor_id");
+        assertNotNull(msg);
+        assertInstanceOf(IntegerRedisMessage.class, msg);
+        return Math.toIntExact(((IntegerRedisMessage) msg).value());
     }
 
 
@@ -238,7 +210,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
 
         for (int j = 0; j < totalInserts; j++) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+            cmd.insert(TEST_BUCKET, docs).encode(buf);
             runCommand(channel, buf);
 
             try {
@@ -260,7 +232,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      * @return the bucket shard
      */
     protected BucketShard getShard(int shardId) {
-        return ((BucketService) context.getService(BucketService.NAME)).getShard(SHARD_ID);
+        return ((BucketService) context.getService(BucketService.NAME)).getShard(shardId);
     }
 
     /**
@@ -286,8 +258,8 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      * @param count the maximum number of keys to select
      * @return list of randomly selected keys
      */
-    protected List<String> selectRandomKeysFromMap(Map<String, byte[]> items, int count) {
-        List<String> allKeys = new ArrayList<>(items.keySet());
+    protected List<ObjectId> selectRandomKeysFromMap(Map<ObjectId, byte[]> items, int count) {
+        List<ObjectId> allKeys = new ArrayList<>(items.keySet());
         Collections.shuffle(allKeys, new Random(System.nanoTime()));
         return allKeys.subList(0, Math.min(count, allKeys.size()));
     }
@@ -298,11 +270,11 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      * @param selector the index selector
      * @return the index definition
      */
-    protected IndexDefinition loadIndexDefinition(String selector) {
+    protected SingleFieldIndexDefinition loadIndexDefinition(String selector) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.ALL);
-            return IndexUtil.loadIndexDefinition(tr, index.subspace());
+            return SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
         }
     }
 }

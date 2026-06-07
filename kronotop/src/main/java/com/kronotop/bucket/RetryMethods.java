@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -42,7 +42,8 @@ public class RetryMethods {
                 RetryConfig.custom()
                         .maxAttempts(10)
                         .waitDuration(Duration.ofMillis(100))
-                        .retryOnException(ex -> !(ex instanceof IndexMaintenanceRoutineShutdownException))
+                        .retryOnException(ex -> !(ex instanceof IndexMaintenanceRoutineShutdownException)
+                                && !(ex instanceof CollationTypeMismatchException))
                         .build());
 
         configs.put(TRANSACTION,
@@ -50,6 +51,11 @@ public class RetryMethods {
                         .maxAttempts(10)
                         .waitDuration(Duration.ofMillis(100))
                         .retryOnException(throwable -> {
+                            // Deterministic validation errors — never retry
+                            if (throwable instanceof CollationTypeMismatchException) {
+                                return false;
+                            }
+
                             // Network-transient
                             if (throwable instanceof IOException) {
                                 return true;
@@ -91,6 +97,6 @@ public class RetryMethods {
     }
 
     public static Retry retry(String name) {
-        return retryRegistry.retry(name);
+        return retryRegistry.retry(name, name);
     }
 }

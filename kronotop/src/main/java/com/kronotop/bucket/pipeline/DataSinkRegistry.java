@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,46 +16,26 @@
 
 package com.kronotop.bucket.pipeline;
 
-import com.apple.foundationdb.tuple.Versionstamp;
-
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.Map;
 
 public class DataSinkRegistry {
-    private final ConcurrentHashMap<Integer, DataSink> sinks = new ConcurrentHashMap<>();
+    private final Map<Integer, DataSink> sinks = new HashMap<>();
 
     public DataSink load(int parentNodeId) {
         return sinks.get(parentNodeId);
     }
 
-    public DataSink loadOrCreateDocumentLocationSink(int parentNodeId) {
-        return sinks.computeIfAbsent(parentNodeId, (ignored) -> new DocumentLocationSink(parentNodeId));
+    public DocumentLocationSink loadDocumentLocationSink(int parentNodeId) {
+        DataSink sink = sinks.get(parentNodeId);
+        return sink instanceof DocumentLocationSink dls ? dls : null;
     }
 
-    public DataSink loadOrCreatePersistedEntrySink(int parentNodeId) {
-        return sinks.computeIfAbsent(parentNodeId, (ignored) -> new PersistedEntrySink(parentNodeId));
+    public DocumentLocationSink loadOrCreateDocumentLocationSink(int parentNodeId) {
+        return (DocumentLocationSink) sinks.computeIfAbsent(parentNodeId, (ignored) -> new DocumentLocationSink(parentNodeId));
     }
 
-    void writePersistedEntry(DataSink sink, Versionstamp versionstamp, PersistedEntry entry) {
-        sink.match(
-                buf -> {
-                    buf.append(versionstamp, entry);
-                    return null;
-                },
-                doc -> {
-                    throw new IllegalStateException("This sink expects ByteBuffer");
-                }
-        );
-    }
-
-    void writeDocumentLocation(DataSink sink, long locationId, DocumentLocation location) {
-        sink.match(
-                buf -> {
-                    throw new IllegalStateException("This sink expects DocumentLocation");
-                },
-                doc -> {
-                    doc.append(locationId, location);
-                    return null;
-                }
-        );
+    public PersistedEntrySink loadOrCreatePersistedEntrySink(int parentNodeId) {
+        return (PersistedEntrySink) sinks.computeIfAbsent(parentNodeId, (ignored) -> new PersistedEntrySink(parentNodeId));
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.internal.JSONUtil;
 import org.slf4j.Logger;
@@ -62,9 +61,9 @@ public class Publisher {
      * Generates a unique user version per read version to ensure multiple events in the same
      * transaction are ordered correctly. Increments the journal trigger counter for monitoring.
      *
-     * @param tr Transaction for event publication.
+     * @param tr      Transaction for event publication.
      * @param journal Journal name.
-     * @param event Event object to publish (will be JSON-encoded).
+     * @param event   Event object to publish (will be JSON-encoded).
      * @return Container with versionstamp and user version for the published event.
      * @throws KronotopException if publication fails.
      */
@@ -92,9 +91,9 @@ public class Publisher {
     /**
      * Publishes an event within an existing transaction.
      *
-     * @param tr Transaction for event publication.
+     * @param tr      Transaction for event publication.
      * @param journal Journal name.
-     * @param event Event object to publish.
+     * @param event   Event object to publish.
      * @return Container with versionstamp and user version.
      * @throws KronotopException if publication fails.
      */
@@ -105,9 +104,9 @@ public class Publisher {
     /**
      * Publishes an event within an existing transaction using typed journal name.
      *
-     * @param tr Transaction for event publication.
+     * @param tr      Transaction for event publication.
      * @param journal Typed journal name.
-     * @param event Event object to publish.
+     * @param event   Event object to publish.
      * @return Container with versionstamp and user version.
      * @throws KronotopException if publication fails.
      */
@@ -120,7 +119,7 @@ public class Publisher {
      * Creates and commits the transaction automatically.
      *
      * @param journal Journal name.
-     * @param event Event object to publish.
+     * @param event   Event object to publish.
      * @return Container with versionstamp and user version.
      * @throws KronotopException if publication fails.
      */
@@ -133,7 +132,7 @@ public class Publisher {
      * Creates and commits the transaction automatically.
      *
      * @param journal Typed journal name.
-     * @param event Event object to publish.
+     * @param event   Event object to publish.
      * @return Container with versionstamp and user version.
      * @throws KronotopException if publication fails.
      */
@@ -145,7 +144,7 @@ public class Publisher {
      * Executes a provided function within the context of a transactional operation
      * and commits the transaction upon successful execution.
      *
-     * @param <T> The type of the result produced by the provided function.
+     * @param <T>    The type of the result produced by the provided function.
      * @param action The function to execute within the transaction. It accepts a
      *               {@link Transaction} as input and returns a result of type {@code T}.
      * @return The result produced by the provided function after the transaction is committed.

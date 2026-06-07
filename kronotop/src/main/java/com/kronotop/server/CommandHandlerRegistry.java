@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,57 +18,96 @@ package com.kronotop.server;
 
 import com.kronotop.internal.Preconditions;
 
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
- * The Handlers class represents a collection of registered command handlers.
- * It allows registering handlers for specific commands, retrieving the registered handler for a command,
- * and retrieving the set of registered commands.
+ * Registry for command handlers using array-based lookup for O(1) dispatch.
+ * Eliminates HashMap overhead from the hot path by indexing handlers via CommandType ordinals.
  */
 public class CommandHandlerRegistry {
-    private final HashMap<String, Handler> handlers;
+    private final HandlerEntry[] handlers;
 
     public CommandHandlerRegistry() {
-        handlers = new HashMap<>();
+        this.handlers = new HandlerEntry[CommandType.values().length];
     }
 
     /**
-     * Registers a command handler with a specified command.
+     * Registers a handler for the given command type with parameter constraints.
      *
-     * @param command the command to register
-     * @param handler the handler for the command
+     * @param commandType           the command type
+     * @param handler               the handler instance
+     * @param minimumParameterCount minimum required parameters (-1 = no constraint)
+     * @param maximumParameterCount maximum allowed parameters (-1 = no constraint)
      * @throws CommandAlreadyRegisteredException if the command is already registered
      */
-    public void handlerMethod(String command, Handler handler) throws CommandAlreadyRegisteredException {
+    public void register(CommandType commandType, Handler handler, int minimumParameterCount, int maximumParameterCount)
+            throws CommandAlreadyRegisteredException {
         Preconditions.checkNotNull(handler, "handler cannot be null");
-        if (handlers.containsKey(command)) {
-            throw new CommandAlreadyRegisteredException(String.format("command already registered '%s'", command));
+        Preconditions.checkNotNull(commandType, "commandType cannot be null");
+
+        if (handlers[commandType.ordinal()] != null) {
+            throw new CommandAlreadyRegisteredException(
+                    String.format("command already registered '%s'", commandType.getCommandName())
+            );
         }
-        handlers.put(command, handler);
+
+        handlers[commandType.ordinal()] = new HandlerEntry(
+                handler,
+                commandType,
+                minimumParameterCount,
+                maximumParameterCount
+        );
     }
 
     /**
-     * Retrieves the registered handler for the given command.
+     * Retrieves the handler entry for the given command type.
      *
-     * @param command the command for which to retrieve the handler
-     * @return the registered handler
-     * @throws CommandNotFoundException if the command is not registered
+     * @param commandType the command type
+     * @return the handler entry
+     * @throws CommandNotFoundException if no handler is registered for the command
      */
-    public Handler get(String command) throws CommandNotFoundException {
-        Handler handler = handlers.get(command);
-        if (handler == null) {
+    public HandlerEntry get(CommandType commandType) throws CommandNotFoundException {
+        if (commandType == null) {
+            throw new CommandNotFoundException("unknown command 'null'");
+        }
+        HandlerEntry entry = handlers[commandType.ordinal()];
+        if (entry == null) {
+            throw new CommandNotFoundException(
+                    String.format("unknown command '%s'", commandType.getCommandName())
+            );
+        }
+        return entry;
+    }
+
+    /**
+     * Retrieves the handler entry for the given command string.
+     * Uses CommandType.parse() for JIT-optimized string-to-enum conversion.
+     *
+     * @param command the command string
+     * @return the handler entry
+     * @throws CommandNotFoundException if no handler is registered for the command
+     */
+    public HandlerEntry get(String command) throws CommandNotFoundException {
+        CommandType commandType = CommandType.parse(command);
+        if (commandType == null) {
             throw new CommandNotFoundException(String.format("unknown command '%s'", command));
         }
-        return handler;
+        return get(commandType);
     }
 
     /**
-     * Retrieves the set of registered commands.
+     * Retrieves the set of registered command names.
      *
-     * @return the Set of registered commands
+     * @return set of registered command names
      */
     public Set<String> getCommands() {
-        return handlers.keySet();
+        Set<String> commands = new HashSet<>();
+        for (HandlerEntry entry : handlers) {
+            if (entry != null) {
+                commands.add(entry.commandType().getCommandName());
+            }
+        }
+        return commands;
     }
 }

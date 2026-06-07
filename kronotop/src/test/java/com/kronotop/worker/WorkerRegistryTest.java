@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,28 +24,6 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorkerRegistryTest {
-
-    private static class TestWorker implements Worker {
-        private final String tag;
-
-        TestWorker(String tag) {
-            this.tag = tag;
-        }
-
-        @Override
-        public String getTag() {
-            return tag;
-        }
-
-        @Override
-        public void shutdown() {
-        }
-
-        @Override
-        public boolean await(long timeout, TimeUnit unit) {
-            return true;
-        }
-    }
 
     @Test
     void shouldPutWorker() {
@@ -189,5 +167,27 @@ class WorkerRegistryTest {
 
         assertTrue(registry.get("app.service").isEmpty());
         assertEquals(1, registry.get("other.namespace", "worker-3").size());
+    }
+
+    private static class TestWorker implements Worker {
+        private final String tag;
+
+        TestWorker(String tag) {
+            this.tag = tag;
+        }
+
+        @Override
+        public String getTag() {
+            return tag;
+        }
+
+        @Override
+        public void shutdown() {
+        }
+
+        @Override
+        public boolean await(long timeout, TimeUnit unit) {
+            return true;
+        }
     }
 }

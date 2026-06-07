@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,5 +16,7 @@
 
 package com.kronotop.namespace.handlers;
 
-public record NamespaceMetadata(long id, String name, long version, boolean removed) {
+import java.util.UUID;
+
+public record NamespaceMetadata(UUID id, String name, long version, boolean removed) {
 }

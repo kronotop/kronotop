@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,18 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
-import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.transaction.TransactionUtil;
+
+import java.nio.ByteBuffer;
+import java.util.List;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
@@ -46,13 +51,17 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
             Session session = request.getSession();
+            Transaction tr = TransactionUtil.getOrCreateTransaction(service.getContext(), session);
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
 
-            QueryContext ctx = buildQueryContext(request, message.getBucket(), message.getQuery(), message.getArguments());
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
+            QueryContext ctx = buildQueryContext(request, metadata, message.getQuery(), message.getArguments());
+            ctx.setSnapshotRead(TransactionUtil.isSnapshotRead(session));
             int cursorId = session.nextCursorId();
             session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
-            return new BucketEntriesMapResponse(cursorId, service.getQueryExecutor().read(tr, ctx));
+            List<ByteBuffer> entries = service.getQueryExecutor().read(tr, ctx);
+            entries = applyProjection(entries, ctx);
+            return new BucketEntriesMapResponse(cursorId, entries);
         }, (entryMapResponse) -> {
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {

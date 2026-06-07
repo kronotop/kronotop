@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -174,8 +174,8 @@ class SegmentMetadata {
 
         @Override
         public @Nonnull Key load(@Nonnull Prefix prefix) {
-            byte[] cardinality = subspace.packSegmentCardinalityKey(segmentId, prefix);
-            byte[] usedBytes = subspace.packSegmentUsedBytesKey(segmentId, prefix);
+            byte[] cardinality = subspace.packSegmentStatsKey(segmentId, prefix, SegmentStatsSubspaces.CARDINALITY);
+            byte[] usedBytes = subspace.packSegmentStatsKey(segmentId, prefix, SegmentStatsSubspaces.USED_BYTES);
             return new Key(cardinality, usedBytes);
         }
     }

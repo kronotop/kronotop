@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,16 +20,14 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
-import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.VolumeInspectCommandBuilder;
+import com.kronotop.commands.KrAdminCommandBuilder;
+import com.kronotop.commands.VolumeInspectCommandBuilder;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.IntegerRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
+import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.VolumeSession;
 import com.kronotop.volume.replication.ReplicationService;
 import io.lettuce.core.codec.StringCodec;
@@ -39,6 +37,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.EnumMap;
 import java.util.List;
@@ -91,14 +90,14 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.cursor("redis-shard-1").encode(buf);
+        cmd.cursor("stash-shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
 
         for (var entry : actualMessage.children().entrySet()) {
-            String key = ((SimpleStringRedisMessage) entry.getKey()).content();
+            String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
             RedisMessage value = entry.getValue();
             switch (key) {
                 case "active_segment_id" -> {
@@ -106,8 +105,8 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                     assertEquals(0L, v.value());
                 }
                 case "versionstamp" -> {
-                    SimpleStringRedisMessage v = (SimpleStringRedisMessage) value;
-                    assertFalse(v.content().isEmpty());
+                    FullBulkStringRedisMessage v = (FullBulkStringRedisMessage) value;
+                    assertFalse(v.content().toString(StandardCharsets.UTF_8).isEmpty());
                 }
                 case "next_position" -> {
                     IntegerRedisMessage v = (IntegerRedisMessage) value;
@@ -125,14 +124,14 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnCursorForEmptyVolume() {
         VolumeInspectCommandBuilder<String, String> cmd = new VolumeInspectCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.cursor("redis-shard-1").encode(buf);
+        cmd.cursor("stash-shard-1").encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
 
         for (var entry : actualMessage.children().entrySet()) {
-            String key = ((SimpleStringRedisMessage) entry.getKey()).content();
+            String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
             RedisMessage value = entry.getValue();
             switch (key) {
                 case "active_segment_id", "next_position" -> {
@@ -140,8 +139,8 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                     assertEquals(0L, v.value());
                 }
                 case "versionstamp" -> {
-                    SimpleStringRedisMessage v = (SimpleStringRedisMessage) value;
-                    assertTrue(v.content().isEmpty());
+                    FullBulkStringRedisMessage v = (FullBulkStringRedisMessage) value;
+                    assertTrue(v.content().toString(StandardCharsets.UTF_8).isEmpty());
                 }
                 case "sequence_number" -> {
                     IntegerRedisMessage v = (IntegerRedisMessage) value;
@@ -175,14 +174,14 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Wait until stage is populated (replication state written to FDB)
         await().atMost(Duration.ofSeconds(30)).until(() -> {
             ByteBuf b = Unpooled.buffer();
-            cmd.replication(SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(b);
+            cmd.replication(VolumeNames.format(SHARD_KIND, SHARD_ID), standby.getMember().getId()).encode(b);
             Object m = runCommand(channel, b);
             if (m instanceof MapRedisMessage mapMsg) {
                 for (var entry : mapMsg.children().entrySet()) {
-                    String key = ((SimpleStringRedisMessage) entry.getKey()).content();
+                    String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
                     if ("stage".equals(key)) {
-                        SimpleStringRedisMessage v = (SimpleStringRedisMessage) entry.getValue();
-                        return !v.content().isEmpty();
+                        FullBulkStringRedisMessage v = (FullBulkStringRedisMessage) entry.getValue();
+                        return !v.content().toString(StandardCharsets.UTF_8).isEmpty();
                     }
                 }
             }
@@ -191,19 +190,19 @@ class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Query replication status
         ByteBuf buf = Unpooled.buffer();
-        cmd.replication(SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(buf);
+        cmd.replication(VolumeNames.format(SHARD_KIND, SHARD_ID), standby.getMember().getId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
         MapRedisMessage actualMessage = (MapRedisMessage) msg;
 
         for (var entry : actualMessage.children().entrySet()) {
-            String key = ((SimpleStringRedisMessage) entry.getKey()).content();
+            String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.UTF_8);
             RedisMessage value = entry.getValue();
             switch (key) {
                 case "stage", "status" -> {
-                    SimpleStringRedisMessage v = (SimpleStringRedisMessage) value;
-                    assertFalse(v.content().isEmpty());
+                    FullBulkStringRedisMessage v = (FullBulkStringRedisMessage) value;
+                    assertFalse(v.content().toString(StandardCharsets.UTF_8).isEmpty());
                 }
                 case "cursor", "segment_replication_stage", "cdc_stage" -> {
                     assertInstanceOf(MapRedisMessage.class, value);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.BarrierNotSatisfiedException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -27,9 +28,15 @@ import java.time.Duration;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketMetadataVersionBarrierTest extends BaseBucketHandlerTest {
+
+    @BeforeEach
+    public void setUp() {
+        createBucket(TEST_BUCKET);
+    }
+
     @Test
     void shouldAwaitForTargetVersion() {
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -43,7 +50,7 @@ class BucketMetadataVersionBarrierTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldThrowBarrierNotSatisfiedExceptionForUnreachableVersion() {
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         BucketMetadataVersionBarrier barrier = new BucketMetadataVersionBarrier(context, metadata);
         long unreachableVersion = Long.MAX_VALUE;
@@ -60,7 +67,7 @@ class BucketMetadataVersionBarrierTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldThrowBarrierNotSatisfiedExceptionWithLowAttempts() {
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         BucketMetadataVersionBarrier barrier = new BucketMetadataVersionBarrier(context, metadata);
         long futureVersion = metadata.version() + 1000;

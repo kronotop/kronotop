@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,11 +18,13 @@ package com.kronotop.namespace.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
-import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
 import com.kronotop.namespace.NamespaceUtil;
+import com.kronotop.namespace.TombstoneManager;
+import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.transaction.TransactionUtil;
 
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
@@ -35,8 +37,12 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandExecutor {
     public void execute(Request request, Response response) {
         runAsync(context, response, () -> {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
+            String namespace = dottedNamespace(message.getCreateMessage().getSubpath());
+
             // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                TombstoneManager.checkBarrier(context, tr, namespace);
+                // Commits the transaction itself.
                 NamespaceUtil.create(context, tr, message.getCreateMessage().getSubpath());
             }
         }, response::writeOK);

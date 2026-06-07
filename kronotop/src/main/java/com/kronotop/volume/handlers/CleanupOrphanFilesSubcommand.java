@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
-import com.kronotop.volume.segment.Segment;
+import com.kronotop.volume.segment.SegmentUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static com.kronotop.server.RESPUtil.bulkString;
 
 public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
 
@@ -65,16 +66,16 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
 
         supplyAsync(context, response, () -> {
             List<RedisMessage> deletedFiles = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 Volume volume = service.findVolume(parameters.volumeName);
-                VolumeMetadata volumeMetadata = VolumeMetadata.load(tr, volume.getConfig().subspace());
+                List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
                 Set<String> assumedFiles = new HashSet<>();
-                volumeMetadata.getSegments().forEach(segmentId -> {
-                    assumedFiles.add(Segment.generateFileName(segmentId));
+                segmentIds.forEach(segmentId -> {
+                    assumedFiles.add(SegmentUtil.generateFileName(segmentId));
                 });
 
                 Set<String> orphanFiles = new HashSet<>();
-                Set<String> existingFiles = listFiles(Paths.get(volume.getConfig().dataDir(), Segment.SEGMENTS_DIRECTORY).toString());
+                Set<String> existingFiles = listFiles(Paths.get(volume.getConfig().dataDir(), SegmentUtil.DIRECTORY).toString());
                 for (String existingFile : existingFiles) {
                     if (!assumedFiles.contains(existingFile)) {
                         orphanFiles.add(existingFile);
@@ -82,9 +83,9 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
                 }
 
                 for (String orphanFile : orphanFiles) {
-                    Path path = Paths.get(volume.getConfig().dataDir(), Segment.SEGMENTS_DIRECTORY, orphanFile);
+                    Path path = Paths.get(volume.getConfig().dataDir(), SegmentUtil.DIRECTORY, orphanFile);
                     if (Files.deleteIfExists(path)) {
-                        deletedFiles.add(new SimpleStringRedisMessage(path.toString()));
+                        deletedFiles.add(bulkString(path.toString()));
                     }
                 }
             } catch (NoSuchFileException e) {

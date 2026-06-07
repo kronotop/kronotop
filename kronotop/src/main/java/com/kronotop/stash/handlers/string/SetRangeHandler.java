@@ -1,0 +1,111 @@
+/*
+ * Copyright (c) 2023-2026 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.kronotop.stash.handlers.string;
+
+import com.kronotop.cluster.sharding.ShardStatus;
+import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
+import com.kronotop.server.Request;
+import com.kronotop.server.Response;
+import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.stash.StashService;
+import com.kronotop.stash.handlers.string.protocol.SetRangeMessage;
+import com.kronotop.stash.storage.StashShard;
+import com.kronotop.stash.storage.StashValueContainer;
+
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReadWriteLock;
+
+@Command(SetRangeMessage.COMMAND)
+@MaximumParameterCount(SetRangeMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumParameterCount(SetRangeMessage.MINIMUM_PARAMETER_COUNT)
+public class SetRangeHandler extends BaseStringHandler implements Handler {
+    public SetRangeHandler(StashService service) {
+        super(service);
+    }
+
+    @Override
+    public boolean isWatchable() {
+        return true;
+    }
+
+    @Override
+    public List<String> getKeys(Request request) {
+        return Collections.singletonList(request.attr(MessageTypes.SETRANGE).get().getKey());
+    }
+
+    @Override
+    public void beforeExecute(Request request) {
+        request.attr(MessageTypes.SETRANGE).set(new SetRangeMessage(request));
+    }
+
+    private StashValueContainer executeSetRangeCommand(StashShard shard, SetRangeMessage message, AtomicInteger result) {
+        StashValueContainer previous = shard.storage().get(message.getKey());
+        if (previous == null) {
+            int offset = message.getOffset();
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            byte[] padding = new byte[offset];
+            output.writeBytes(padding);
+            output.writeBytes(message.getValue());
+            result.set(output.size());
+            shard.index().add(message.getKey());
+            StashValueContainer container = new StashValueContainer(new StringValue(output.toByteArray()));
+            shard.storage().put(message.getKey(), container);
+            return null;
+        }
+
+        int size = previous.string().value().length;
+        int overflowSize = previous.string().value().length - (message.getOffset() + message.getValue().length);
+        if (overflowSize < 0) {
+            size += Math.abs(overflowSize);
+        }
+        byte[] data = new byte[size];
+        ByteBuffer buf = ByteBuffer.wrap(data);
+        buf.put(previous.string().value());
+        buf.position(message.getOffset());
+        buf.put(message.getValue());
+
+        result.set(size);
+        StashValueContainer container = new StashValueContainer(new StringValue(buf.array()));
+        shard.storage().put(message.getKey(), container);
+        return previous;
+    }
+
+    @Override
+    public void execute(Request request, Response response) {
+        SetRangeMessage message = request.attr(MessageTypes.SETRANGE).get();
+
+        StashShard shard = service.findShard(message.getKey(), ShardStatus.READWRITE);
+        AtomicInteger result = new AtomicInteger();
+
+        ReadWriteLock lock = shard.striped().get(message.getKey());
+        lock.writeLock().lock();
+        try {
+            StashValueContainer previous = executeSetRangeCommand(shard, message, result);
+            syncStringOnVolume(shard, message.getKey(), previous);
+        } finally {
+            lock.writeLock().unlock();
+        }
+        response.writeInteger(result.get());
+    }
+}

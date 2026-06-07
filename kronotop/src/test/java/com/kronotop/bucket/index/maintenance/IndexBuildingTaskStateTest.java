@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ package com.kronotop.bucket.index.maintenance;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.TestUtil;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
+import com.kronotop.internal.task.TaskStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,9 +34,10 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     private Versionstamp taskId;
 
     @BeforeEach
-    void setupTask() {
+    void setUp() {
+        createBucket(TEST_BUCKET);
         taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        taskId = TestUtil.generateVersionstamp(0);
+        taskId = TaskStorage.create(context, taskSubspace, new byte[]{0});
     }
 
     @Test

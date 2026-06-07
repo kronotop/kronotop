@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.kronotop.server.impl;
 
 import com.kronotop.internal.Preconditions;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Session;
 import com.kronotop.server.resp3.ArrayRedisMessage;
@@ -59,14 +60,14 @@ public class RESP3Request extends DefaultAttributeMap implements Request {
         }
 
         Preconditions.checkNotNull(message, "RedisMessage cannot be null");
-        if (message instanceof ArrayRedisMessage) {
-            RedisMessage redisMessage = ((ArrayRedisMessage) message).children().get(0);
-            if (redisMessage instanceof FullBulkStringRedisMessage) {
-                command = ((FullBulkStringRedisMessage) redisMessage).content().toString(CharsetUtil.US_ASCII).toUpperCase();
+        if (message instanceof ArrayRedisMessage arrayRedisMessage) {
+            RedisMessage redisMessage = arrayRedisMessage.children().getFirst();
+            if (redisMessage instanceof FullBulkStringRedisMessage fullBulkStringRedisMessage) {
+                command = StringUtil.toUpperCaseAscii(fullBulkStringRedisMessage.content().toString(CharsetUtil.US_ASCII));
                 return command;
             }
-        } else if (message instanceof SimpleStringRedisMessage) {
-            return ((SimpleStringRedisMessage) message).content().toUpperCase();
+        } else if (message instanceof SimpleStringRedisMessage simpleStringRedisMessage) {
+            return StringUtil.toUpperCaseAscii(simpleStringRedisMessage.content());
         }
         throw new CodecException("unknown or corrupt message: " + message);
     }

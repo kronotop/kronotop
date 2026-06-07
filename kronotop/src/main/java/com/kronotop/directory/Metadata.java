@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,5 +47,9 @@ public class Metadata extends KronotopDirectoryNode {
 
     public Buckets buckets() {
         return new Buckets(layout);
+    }
+
+    public NamespaceTombstones namespaceTombstones() {
+        return new NamespaceTombstones(layout);
     }
 }

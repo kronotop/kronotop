@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,22 +20,27 @@ import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.bucket.DefaultIndexDefinition;
+import com.kronotop.bucket.bql.ast.BqlValue;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
 import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.PrimaryIndex;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
+import org.bson.types.ObjectId;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
 public class FullScanNode extends AbstractScanNode implements ScanNode {
-    private final IndexDefinition index = DefaultIndexDefinition.ID;
+    private final SingleFieldIndexDefinition index;
     private final ResidualPredicateNode predicate;
+    private boolean collationMismatch;
+    private String rejectedIndex;
 
-    protected FullScanNode(int id, ResidualPredicateNode predicate) {
+    protected FullScanNode(int id, SingleFieldIndexDefinition index, ResidualPredicateNode predicate) {
         super(id);
+        this.index = index;
         this.predicate = predicate;
     }
 
@@ -43,28 +48,52 @@ public class FullScanNode extends AbstractScanNode implements ScanNode {
         return predicate;
     }
 
+    public boolean isCollationMismatch() {
+        return collationMismatch;
+    }
+
+    public void setCollationMismatch(boolean collationMismatch) {
+        this.collationMismatch = collationMismatch;
+    }
+
+    public String getRejectedIndex() {
+        return rejectedIndex;
+    }
+
+    public void setRejectedIndex(String rejectedIndex) {
+        this.rejectedIndex = rejectedIndex;
+    }
+
     @Override
-    public IndexDefinition getIndexDefinition() {
+    public SingleFieldIndexDefinition getIndexDefinition() {
         return index;
     }
 
     @Override
     public void execute(QueryContext ctx, Transaction tr) {
-        Index indexRecord = ctx.metadata().indexes().getIndex(index.selector(), IndexSelectionPolicy.READ);
+        // Track which field this scan uses for SORTBY optimization (primary index = _id)
+        ctx.setScannedIndexField(PrimaryIndex.SELECTOR);
+
+        Index indexRecord = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         if (indexRecord == null) {
-            throw new IllegalStateException("Index not found for selector: " + index.selector());
+            throw new IllegalStateException("Index not found for selector: " + PrimaryIndex.SELECTOR);
         }
         DirectorySubspace idIndexSubspace = indexRecord.subspace();
         ExecutionState state = ctx.getOrCreateExecutionState(id());
 
-        FullScanContext fullScanCtx = new FullScanContext(id(), idIndexSubspace, state, ctx.options().isReverse());
+        boolean shouldReverse = getShouldReverse(ctx, PrimaryIndex.SELECTOR);
+        state.setScanReversed(shouldReverse);
+        SortDirection effectiveDirection = getEffectiveSortDirection(ctx, shouldReverse);
+
+        FullScanContext fullScanCtx = new FullScanContext(id(), idIndexSubspace, state, effectiveDirection);
         SelectorPair selectors = SelectorCalculator.calculate(fullScanCtx);
 
-        AsyncIterable<KeyValue> indexEntries = tr.getRange(
+        AsyncIterable<KeyValue> indexEntries = getRange(
+                tr, ctx,
                 selectors.begin(),
                 selectors.end(),
                 state.getLimit(),
-                ctx.options().isReverse()
+                shouldReverse
         );
 
         // Phase 1: Collect all document locations
@@ -82,27 +111,35 @@ public class FullScanNode extends AbstractScanNode implements ScanNode {
         }
 
         // Phase 2: Batch retrieve all documents
-        List<ByteBuffer> documents = ctx.env().documentRetriever().retrieveDocuments(ctx.metadata(), locations);
+        List<ByteBuffer> documents = ctx.env().documentRetriever().retrieveDocuments(locations);
 
         // Phase 3: Filter and write results
-        DataSink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
-        Versionstamp lastVersionstamp = null;
+        PersistedEntrySink sink = ctx.sinks().loadOrCreatePersistedEntrySink(id());
+        ObjectId lastObjectId = null;
+        List<BqlValue> parameters = ctx.getParameters();
+        DocumentView view = new DocumentView();
 
         for (int i = 0; i < documents.size(); i++) {
             ByteBuffer document = documents.get(i);
             DocumentLocation location = locations.get(i);
-            Versionstamp versionstamp = location.versionstamp();
+            ObjectId objectId = location.objectId();
 
-            if (predicate.test(document)) {
-                PersistedEntry entry = new PersistedEntry(location.shardId(), location.entryMetadata().handle(), document);
-                ctx.sinks().writePersistedEntry(sink, versionstamp, entry);
+            view.reset(objectId, document);
+            if (predicate.test(view, parameters, ctx.env().collatorCache())) {
+                PersistedEntry entry = new PersistedEntry(
+                        objectId,
+                        location.shardId(),
+                        location.entryMetadata(),
+                        document
+                );
+                sink.append(entry);
             }
-            lastVersionstamp = versionstamp;
+            lastObjectId = objectId;
         }
 
         // Save checkpoint at the end
-        if (lastVersionstamp != null) {
-            ctx.env().cursorManager().saveFullScanCheckpoint(ctx, id(), lastVersionstamp);
+        if (lastObjectId != null) {
+            ctx.env().cursorManager().saveObjectIdCheckpoint(ctx, id(), lastObjectId, shouldReverse);
         }
     }
 }

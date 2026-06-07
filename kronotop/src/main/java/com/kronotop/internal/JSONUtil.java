@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,9 @@
 
 package com.kronotop.internal;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.KronotopException;
-
-import java.io.IOException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * The JSONUtils class provides utility methods for reading and writing JSON data using the Jackson ObjectMapper.
@@ -34,7 +32,7 @@ public class JSONUtil {
         }
         try {
             return objectMapper.readValue(content, valueType);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new KronotopException("JSON deserialization failed", e);
         }
     }
@@ -42,7 +40,7 @@ public class JSONUtil {
     public static byte[] writeValueAsBytes(Object value) {
         try {
             return objectMapper.writeValueAsBytes(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new KronotopException("JSON serialization failed", e);
         }
     }

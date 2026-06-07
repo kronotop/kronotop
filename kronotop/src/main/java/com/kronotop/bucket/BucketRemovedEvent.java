@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,19 +19,21 @@ package com.kronotop.bucket;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.kronotop.cluster.BroadcastEventKind;
 
+import java.util.UUID;
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BucketRemovedEvent extends AbstractBucketMetadataEvent {
     BucketRemovedEvent() {
     }
 
-    public BucketRemovedEvent(String namespace, String bucket, long id, long minimumVersion) {
+    public BucketRemovedEvent(String namespace, String bucket, UUID id, long minimumVersion) {
         super(BroadcastEventKind.BUCKET_REMOVED_EVENT, namespace, bucket, id, minimumVersion);
     }
 
     @Override
     public String toString() {
         return String.format(
-                "BucketRemovedEvent {namespace=%s, bucket=%s, id=%d, minimumVersion=%d}",
+                "BucketRemovedEvent {namespace=%s, bucket=%s, id=%s, minimumVersion=%d}",
                 namespace(),
                 bucket(),
                 id(),

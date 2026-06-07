@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,12 @@
 
 package com.kronotop.server.impl;
 
+import com.apple.foundationdb.FDBException;
 import com.kronotop.KronotopException;
 import com.kronotop.server.RESPError;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -230,12 +232,19 @@ public class TransactionResponse implements Response {
      */
     @Override
     public void writeError(Throwable throwable) {
-        if (throwable instanceof CompletionException completionException) {
-            if (completionException.getCause() instanceof KronotopException kr) {
-                writeError(kr.getPrefix(), completionException.getCause().getMessage());
+        if (throwable instanceof CompletionException) {
+            Throwable cause = TransactionUtil.getRootCause(throwable);
+            if (cause instanceof KronotopException kr) {
+                writeError(kr.getPrefix(), cause.getMessage());
+            } else if (cause instanceof FDBException fdbEx) {
+                RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
+                writeError(result.prefix(), result.message());
             } else {
-                writeError(completionException.getCause().getMessage());
+                writeError(cause.getMessage());
             }
+        } else if (throwable instanceof FDBException fdbEx) {
+            RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
+            writeError(result.prefix(), result.message());
         } else {
             writeError(throwable.getMessage());
         }

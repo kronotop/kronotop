@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
@@ -25,8 +24,8 @@ import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.Response;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeNames;
 import io.github.resilience4j.retry.Retry;
 import io.lettuce.core.ClientOptions;
@@ -76,7 +75,7 @@ public class VolumeReplication implements ReplicationTask {
         this.context = context;
         this.shardKind = shardKind;
         this.shardId = shardId;
-        this.transactionWithRetry = TransactionUtils.retry(10, Duration.ofMillis(100));
+        this.transactionWithRetry = TransactionUtil.retry(10, Duration.ofMillis(100));
 
         try {
             this.destination = Files.createDirectories(Path.of(destination));
@@ -95,22 +94,33 @@ public class VolumeReplication implements ReplicationTask {
      */
     private long getSegmentSize() {
         return switch (shardKind) {
-            case REDIS -> context.getConfig().getLong("redis.volume.segment_size");
+            case STASH -> context.getConfig().getLong("stash.volume.segment_size");
             case BUCKET -> context.getConfig().getLong("bucket.volume.segment_size");
         };
     }
 
     DirectorySubspace createOrOpenStandbySubspace() {
-        KronotopDirectoryNode node = KronotopDirectory.kronotop().
-                cluster(context.getClusterName()).
-                metadata().
-                volumes().
-                bucket().
-                volume(volume).
-                standby(context.getMember().getId());
+        KronotopDirectoryNode node = switch (shardKind) {
+            case STASH -> KronotopDirectory.
+                    kronotop().
+                    cluster(context.getClusterName()).
+                    metadata().
+                    volumes().
+                    stash().
+                    volume(volume).
+                    standby(context.getMember().getId());
+            case BUCKET -> KronotopDirectory.
+                    kronotop().
+                    cluster(context.getClusterName()).
+                    metadata().
+                    volumes().
+                    bucket().
+                    volume(volume).
+                    standby(context.getMember().getId());
+        };
 
-        return transactionWithRetry.executeSupplier(() -> TransactionUtils.executeThenCommit(context,
-                tr -> DirectoryLayer.getDefault().createOrOpen(tr, node.toList()).join()
+        return transactionWithRetry.executeSupplier(() -> TransactionUtil.executeThenCommit(context,
+                tr -> context.getDirectoryLayer().createOrOpen(tr, node.toList()).join()
         ));
     }
 
@@ -120,7 +130,7 @@ public class VolumeReplication implements ReplicationTask {
     private long getChunkSize() {
         return switch (shardKind) {
             case BUCKET -> context.getConfig().getLong("bucket.volume.segment_replication_chunk_size");
-            case REDIS -> context.getConfig().getLong("redis.volume.segment_replication_chunk_size");
+            case STASH -> context.getConfig().getLong("stash.volume.segment_replication_chunk_size");
         };
     }
 
@@ -139,9 +149,9 @@ public class VolumeReplication implements ReplicationTask {
     }
 
     /**
-     * Determines the next replication step based on current cursor state and segment status.
+     * Determines the next replication step based on the current cursor state and segment status.
      */
-    private ReplicationStep resolveNextSegment() {
+    ReplicationStep resolveNextSegment() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             ReplicationCursor cursor = ReplicationState.readCursor(tr, subspace);
             ReplicationStatus status = ReplicationState.readStatus(tr, subspace, cursor.segmentId());
@@ -149,7 +159,9 @@ public class VolumeReplication implements ReplicationTask {
 
             // ReplicationStep -> segmentId, position, stop, startCDC
             return switch (status) {
-                case WAITING, RUNNING -> new ReplicationStep(
+                // FAILED resumes the segment from its cursor so the watchdog's retry loop can
+                // recover. A persistent failure keeps re-failing until MAX_RETRIES is exhausted.
+                case WAITING, RUNNING, FAILED -> new ReplicationStep(
                         cursor.segmentId(),
                         cursor.position(),
                         false,
@@ -160,9 +172,19 @@ public class VolumeReplication implements ReplicationTask {
                     if (next == null) {
                         yield new ReplicationStep(cursor.segmentId(), 0, false, true); // Start CDC
                     }
+                    // The next segment is already DONE while the cursor still lags behind it. This
+                    // only happens for the empty active segment: a data-bearing segment writes
+                    // POSITION during bulk transfer, which advances the cursor onto it. So an
+                    // already-DONE next means we have caught up to the active segment; hand off to
+                    // CDC instead of re-dispatching a no-op SegmentReplication, which would busy-spin
+                    // until the primary writes the first entry to the new segment.
+                    ReplicationStatus nextStatus = ReplicationState.readStatus(tr, subspace, next);
+                    if (nextStatus == ReplicationStatus.DONE) {
+                        yield new ReplicationStep(next, 0, false, true); // Start CDC on the empty active segment
+                    }
                     yield new ReplicationStep(next, 0, false, false);
                 }
-                case FAILED, STOPPED -> new ReplicationStep(cursor.segmentId(), 0, true, false);
+                case STOPPED -> new ReplicationStep(cursor.segmentId(), 0, true, false);
             };
         }
     }
@@ -204,7 +226,8 @@ public class VolumeReplication implements ReplicationTask {
     @Override
     public void reconnect() {
         client.reconnect();
-        stage.reconnect();
+        ReplicationStage s = stage;
+        if (s != null) s.reconnect();
     }
 
     /**
@@ -245,7 +268,7 @@ public class VolumeReplication implements ReplicationTask {
 
     @Override
     public void start() {
-        if (shutdown) {
+        if (started) {
             throw new IllegalStateException("VolumeReplication cannot be restarted");
         }
         started = true;
@@ -261,7 +284,8 @@ public class VolumeReplication implements ReplicationTask {
         shutdown = true;
         try {
             client.shutdown(); // this will kill the connections and completable futures.
-            if (stage != null) stage.close();
+            ReplicationStage s = stage;
+            if (s != null) s.close();
             if (started) {
                 if (!latch.await(10, TimeUnit.SECONDS)) {
                     LOGGER.warn(

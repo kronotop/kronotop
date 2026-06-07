@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,14 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 public class BucketUpdateMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.UPDATE";
     public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 6;
+    public static final int MAXIMUM_PARAMETER_COUNT = 10;
+    private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(QueryArgumentKey.SORTBY, QueryArgumentKey.LIMIT, QueryArgumentKey.COLLATION);
     private final Request request;
     private String bucket;
     private byte[] query;
@@ -43,7 +47,7 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
         if (update.length == 0) {
             throw new KronotopException("update parameter cannot be empty");
         }
-        arguments = parseCommonQueryArguments(request, 3);
+        arguments = parseCommonQueryArguments(request, 3, supportedArguments);
     }
 
     public QueryArguments getArguments() {

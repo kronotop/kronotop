@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,28 +16,71 @@
 
 package com.kronotop;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kronotop.commands.CommandMetadata;
-import com.kronotop.server.CommandAlreadyRegisteredException;
-import com.kronotop.server.CommandHandlerRegistry;
-import com.kronotop.server.Handler;
-import com.kronotop.server.ServerKind;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.Commands;
+import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MinimumParameterCount;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 
 /**
- * The CommandHandlerService class is a base class that handles the registration of command handlers and the loading
- * of command definitions from JSON files.
+ * Base class that handles command handler registration and command definitions from JSON files.
  */
 public class CommandHandlerService extends BaseKronotopService {
 
     public CommandHandlerService(Context context, final String name) {
         super(context, name);
+    }
+
+    /**
+     * Extracts minimum parameter count from handler annotation.
+     *
+     * @param handler the handler to inspect
+     * @return minimum parameter count or -1 if no constraint
+     */
+    private int extractMinimumParameterCount(Handler handler) {
+        MinimumParameterCount annotation = handler.getClass().getAnnotation(MinimumParameterCount.class);
+        return annotation != null ? annotation.value() : HandlerEntry.NO_CONSTRAINT;
+    }
+
+    /**
+     * Extracts maximum parameter count from handler annotation.
+     *
+     * @param handler the handler to inspect
+     * @return maximum parameter count or -1 if no constraint
+     */
+    private int extractMaximumParameterCount(Handler handler) {
+        MaximumParameterCount annotation = handler.getClass().getAnnotation(MaximumParameterCount.class);
+        return annotation != null ? annotation.value() : HandlerEntry.NO_CONSTRAINT;
+    }
+
+    /**
+     * Registers a handler for a command with the given command name.
+     *
+     * @param registry    the registry to register with
+     * @param commandName the command name string
+     * @param handler     the handler instance
+     */
+    private void registerHandler(CommandHandlerRegistry registry, String commandName, Handler handler) {
+        String upperCommand = commandName.toUpperCase();
+        CommandType commandType = CommandType.parse(upperCommand);
+        if (commandType == null) {
+            throw new IllegalArgumentException(
+                    String.format("Unknown command type for '%s'. Add it to CommandType enum.", upperCommand)
+            );
+        }
+
+        int minParams = extractMinimumParameterCount(handler);
+        int maxParams = extractMaximumParameterCount(handler);
+
+        registry.register(commandType, handler, minParams, maxParams);
+        loadDefinition(upperCommand);
     }
 
     /**
@@ -52,13 +95,11 @@ public class CommandHandlerService extends BaseKronotopService {
             Commands commands = handler.getClass().getAnnotation(Commands.class);
             if (commands != null) {
                 for (Command command : commands.value()) {
-                    registry.handlerMethod(command.value().toUpperCase(), handler);
-                    loadDefinition(command.value().toUpperCase());
+                    registerHandler(registry, command.value(), handler);
                 }
             } else {
                 Command command = handler.getClass().getAnnotation(Command.class);
-                registry.handlerMethod(command.value().toUpperCase(), handler);
-                loadDefinition(command.value().toUpperCase());
+                registerHandler(registry, command.value(), handler);
             }
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,7 @@ import com.kronotop.TestUtil;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
+import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
@@ -34,6 +33,7 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -47,6 +47,11 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
 
+    @BeforeEach
+    void setUp() {
+        createBucket(TEST_BUCKET);
+    }
+
     @Override
     protected String getConfigFileName() {
         return "test-non-strict-types.conf";
@@ -55,7 +60,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldSkipIndexEntryOnTypeMismatchDuringInsert() {
         // Create an index expecting INT32 for the 'age' field
-        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -68,7 +73,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
 
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), makeDocumentsArray(documents)).encode(buf);
+        cmd.insert(TEST_BUCKET, makeDocumentsArray(documents)).encode(buf);
 
         // Insert should succeed without throwing an exception
         Object msg = runCommand(channel, buf);
@@ -94,7 +99,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldSkipMultipleMismatchedTypesAndIndexCorrectOnes() {
         // Create an index expecting INT32 for the 'score' field
-        IndexDefinition scoreIndexDefinition = IndexDefinition.create("score-index", "score", BsonType.INT32);
+        SingleFieldIndexDefinition scoreIndexDefinition = SingleFieldIndexDefinition.create("score-index", "score", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(scoreIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -110,7 +115,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
 
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), makeDocumentsArray(documents)).encode(buf);
+        cmd.insert(TEST_BUCKET, makeDocumentsArray(documents)).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -141,7 +146,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldDropIndexEntryOnTypeMismatchDuringUpdate() {
         // Create an index expecting INT32 for the 'age' field
-        IndexDefinition ageIndexDefinition = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndexDefinition);
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -154,7 +159,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
 
         BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf insertBuf = Unpooled.buffer();
-        insertCmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), makeDocumentsArray(documents)).encode(insertBuf);
+        insertCmd.insert(TEST_BUCKET, makeDocumentsArray(documents)).encode(insertBuf);
         Object insertMsg = runCommand(channel, insertBuf);
         assertInstanceOf(ArrayRedisMessage.class, insertMsg);
 
@@ -195,7 +200,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
                         BSONUtil.jsonToDocumentThenBytes("{\"age\": \"thirty-two\"}"),
                         BSONUtil.jsonToDocumentThenBytes("{\"age\": \"forty\"}")
                 ));
-        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+        cmd.insert(TEST_BUCKET, docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
@@ -203,16 +208,16 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
         assertEquals(2, actualMessage.children().size());
 
         // Create an index expecting INT32 for the 'age' field
-        IndexDefinition definition = IndexDefinition.create(
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
                 "age-index",
                 "age",
                 BsonType.INT32
-        );
+                , false, IndexStatus.WAITING);
 
         DirectorySubspace indexSubspace;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
-            indexSubspace = IndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
+            indexSubspace = SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
         }
 

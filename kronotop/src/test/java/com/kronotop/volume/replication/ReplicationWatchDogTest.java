@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package com.kronotop.volume.replication;
 
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
+import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.instance.KronotopInstance;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -75,7 +76,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
                 SHARD_KIND,
                 SHARD_ID,
-                mockTask
+                () -> mockTask
         );
         replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
 
@@ -93,8 +94,8 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         // Verify start() was called exactly 4 times (retry counter reaches MAX_RETRIES on 3rd failure)
         assertEquals(4, mockTask.getStartCallCount());
 
-        // Verify shutdown() was called via stopReplication -> watchdog.stop()
-        assertEquals(1, mockTask.getShutdownCallCount());
+        // Verify shutdown() was called: once per failed attempt (4) + once via stopReplication -> watchdog.stop()
+        assertEquals(5, mockTask.getShutdownCallCount());
 
         // Verify watchdog is not running
         assertFalse(watchDog.isRunning());
@@ -139,7 +140,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
                 SHARD_KIND,
                 SHARD_ID,
-                mockTask
+                () -> mockTask
         );
         replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
 
@@ -156,7 +157,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
 
         // With MAX_RETRIES=3:
         // Calls 1,2: rapid failures, retry=1,2
-        // Call 3: long running (>1s), retry resets to 0
+        // Call 3: long-running (>1s), retry resets to 0
         // Calls 4,5,6,7: rapid failures, retry=1,2,3,4 -> stops when retry > 3
         // Total: 7 calls
         assertEquals(7, callCount.get());
@@ -193,7 +194,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
                 SHARD_KIND,
                 SHARD_ID,
-                mockTask
+                () -> mockTask
         );
         replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
 
@@ -213,6 +214,55 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Verify watchdog is not running after successful completion
         assertFalse(watchDog.isRunning());
+    }
+
+    @Test
+    void shouldDeregisterFromMapAfterCleanExit() throws InterruptedException {
+        // Behavior: watchdog removes itself from the replications map when start() completes normally,
+        // so a self-terminated shard can be restarted instead of lingering as a zombie entry.
+        KronotopInstance standby = addNewInstance();
+        setStandbyMember(standby);
+
+        ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
+
+        // Stop the automatically started replication first
+        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+
+        ReplicationTask mockTask = new ReplicationTask() {
+            @Override
+            public void start() {
+                // Completes successfully without throwing
+            }
+
+            @Override
+            public void reconnect() {
+            }
+
+            @Override
+            public void shutdown() {
+            }
+        };
+
+        ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
+                SHARD_KIND,
+                SHARD_ID,
+                () -> mockTask
+        );
+        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Thread watchDogThread = new Thread(() -> {
+            watchDog.run();
+            latch.countDown();
+        });
+        watchDogThread.start();
+
+        boolean finished = latch.await(10, TimeUnit.SECONDS);
+        assertTrue(finished, "WatchDog should have exited after successful start");
+
+        // The entry must be gone: stopping a non-existent replication throws NoReplicationFoundException.
+        assertThrows(NoReplicationFoundException.class,
+                () -> replicationService.stopReplication(SHARD_KIND, SHARD_ID, false));
     }
 
     @Test
@@ -254,7 +304,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
                 SHARD_KIND,
                 SHARD_ID,
-                mockTask
+                () -> mockTask
         );
         replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
 
@@ -313,7 +363,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
                 SHARD_KIND,
                 SHARD_ID,
-                mockTask
+                () -> mockTask
         );
         replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
 
@@ -328,8 +378,8 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         boolean finished = latch.await(30, TimeUnit.SECONDS);
         assertTrue(finished, "WatchDog should have stopped after max retries");
 
-        // Verify shutdown() was called exactly once
-        assertEquals(1, shutdownCount.get());
+        // Verify shutdown() was called: once per failed attempt (4) + once via stopReplication -> watchdog.stop()
+        assertEquals(5, shutdownCount.get());
     }
 
     @Test
@@ -365,7 +415,7 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
         ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
                 SHARD_KIND,
                 SHARD_ID,
-                mockTask
+                () -> mockTask
         );
         replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
 
@@ -385,5 +435,143 @@ class ReplicationWatchDogTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Verify shutdown() was never called (clean exit, not failure)
         assertEquals(0, shutdownCount.get());
+    }
+
+    @Test
+    void shouldExitCleanlyWhenAlreadyRemovedFromMap() throws InterruptedException {
+        // Behavior: watchdog exits cleanly when another thread already removed it from the 'replications' map
+        KronotopInstance standby = addNewInstance();
+        setStandbyMember(standby);
+
+        ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
+
+        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+
+        // Unset the standby route so the watchdog sees it's no longer a standby
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.route("UNSET", "STANDBY", SHARD_KIND.name(), SHARD_ID, standby.getMember().getId()).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+
+        RoutingService standbyRouting = standby.getContext().getService(RoutingService.NAME);
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
+            Route route = standbyRouting.findRoute(SHARD_KIND, SHARD_ID);
+            return route == null || !route.standbys().contains(standby.getMember());
+        });
+
+        MockReplicationTask mockTask = new MockReplicationTask();
+
+        ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
+                SHARD_KIND,
+                SHARD_ID,
+                () -> mockTask
+        );
+        // Intentionally NOT registering the watchdog in the map to simulate concurrent removal
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Thread watchDogThread = new Thread(() -> {
+            watchDog.run();
+            latch.countDown();
+        });
+        watchDogThread.start();
+
+        boolean finished = latch.await(10, TimeUnit.SECONDS);
+        assertTrue(finished, "WatchDog should have exited cleanly instead of looping forever");
+
+        assertEquals(0, mockTask.getStartCallCount());
+    }
+
+    @Test
+    void shouldStopAfterMaxRetriesWhenTaskConstructionFails() throws InterruptedException {
+        // Behavior: when the task factory itself throws (constructor fails during directory
+        // creation, FDB I/O, or client setup), the watchdog must still bound its retries by
+        // MAX_RETRIES and terminate, instead of resetting the counter on every attempt and
+        // retrying forever.
+        KronotopInstance standby = addNewInstance();
+        setStandbyMember(standby);
+
+        ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
+
+        // Stop the automatically started replication first
+        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+
+        AtomicInteger constructionAttempts = new AtomicInteger(0);
+
+        ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
+                SHARD_KIND,
+                SHARD_ID,
+                () -> {
+                    constructionAttempts.incrementAndGet();
+                    throw new RuntimeException("Simulated construction failure");
+                }
+        );
+        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Thread watchDogThread = new Thread(() -> {
+            watchDog.run();
+            latch.countDown();
+        });
+        watchDogThread.start();
+
+        // With the fix, startedAt is stamped before the construction attempt, so elapsed stays
+        // below reset_threshold, the retry counter climbs, and the watchdog stops after
+        // MAX_RETRIES (3) -> 4 construction attempts. Without it, startedAt stays 0, elapsed is
+        // always huge, the counter resets every iteration, and this await would time out.
+        boolean finished = latch.await(30, TimeUnit.SECONDS);
+        assertTrue(finished, "WatchDog should have stopped after max retries on construction failure");
+
+        // Construction attempted once per retry until the counter exceeds MAX_RETRIES
+        assertEquals(4, constructionAttempts.get());
+
+        // Verify watchdog is not running
+        assertFalse(watchDog.isRunning());
+    }
+
+    @Test
+    void shouldNotStartTaskWhenStoppedDuringConstruction() throws InterruptedException {
+        // Behavior: stop() invoked while the task is being constructed must prevent start() from ever
+        // running; the published task is shut down instead of replicating past the stop request.
+        KronotopInstance standby = addNewInstance();
+        setStandbyMember(standby);
+
+        ReplicationService replicationService = standby.getContext().getService(ReplicationService.NAME);
+
+        // Stop the automatically started replication first
+        replicationService.stopReplication(SHARD_KIND, SHARD_ID, false);
+
+        MockReplicationTask mockTask = new MockReplicationTask();
+        AtomicReference<ReplicationService.ReplicationWatchDog> watchDogRef = new AtomicReference<>();
+
+        // The factory reproduces stop() landing in the window between task construction and the
+        // currentTask publish: it calls stop() (which sees currentTask still null, so it does not
+        // shut the task down) before handing the task back to run().
+        ReplicationService.ReplicationWatchDog watchDog = replicationService.new ReplicationWatchDog(
+                SHARD_KIND,
+                SHARD_ID,
+                () -> {
+                    watchDogRef.get().stop();
+                    return mockTask;
+                }
+        );
+        watchDogRef.set(watchDog);
+        replicationService.registerReplicationWatchDog(SHARD_KIND, SHARD_ID, watchDog);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Thread watchDogThread = new Thread(() -> {
+            watchDog.run();
+            latch.countDown();
+        });
+        watchDogThread.start();
+
+        boolean finished = latch.await(10, TimeUnit.SECONDS);
+        assertTrue(finished, "WatchDog should have exited without starting the task");
+
+        // start() must never run: stopped is observed right after publishing currentTask
+        assertEquals(0, mockTask.getStartCallCount());
+        // the published task is shut down by the re-check branch (stop() itself missed it)
+        assertEquals(1, mockTask.getShutdownCallCount());
+        assertFalse(watchDog.isRunning());
     }
 }

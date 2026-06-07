@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.directory.KronotopDirectory;
@@ -66,13 +65,13 @@ public class CleanupJournalTask extends BaseTask implements Task {
     }
 
     @Override
-    public boolean isCompleted() {
+    public boolean isFinished() {
         // Never ending task
         return false;
     }
 
     @Override
-    public void complete() {
+    public void cleanupMetadata() {
         // Never ending task
     }
 
@@ -142,7 +141,7 @@ public class CleanupJournalTask extends BaseTask implements Task {
                 counter = 0;
                 KronotopDirectoryNode directory =
                         KronotopDirectory.kronotop().cluster(journal.cluster).journals().journal(journalName);
-                DirectorySubspace subspace = DirectoryLayer.getDefault().open(tr, directory.toList()).join();
+                DirectorySubspace subspace = journal.directoryLayer.open(tr, directory.toList()).join();
 
                 Range range = findCleanupRange(tr, subspace);
                 if (range != null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -29,23 +29,37 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.changelog.*;
 import com.kronotop.volume.handlers.protocol.ChangeLogRangeMessage;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static com.kronotop.server.RESPUtil.bulkString;
+import static com.kronotop.server.RESPUtil.wrapBytes;
 
 @Command(ChangeLogRangeMessage.COMMAND)
 @MaximumParameterCount(ChangeLogRangeMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(ChangeLogRangeMessage.MINIMUM_PARAMETER_COUNT)
 public class ChangeLogRangeHandler extends BaseVolumeHandler implements Handler {
     private static final int DEFAULT_LIMIT = 1000;
+
+    // Pre-computed key bytes to avoid per-entry allocations
+    private static final byte[] SEQUENCE_NUMBER_BYTES = "sequence_number".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] SEGMENT_ID_BYTES = "segment_id".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] POSITION_BYTES = "position".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] LENGTH_BYTES = "length".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VERSIONSTAMP_BYTES = "versionstamp".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] KIND_BYTES = "kind".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] PREFIX_BYTES = "prefix".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] BEFORE_BYTES = "before".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] AFTER_BYTES = "after".getBytes(StandardCharsets.UTF_8);
 
     public ChangeLogRangeHandler(VolumeService service) {
         super(service);
@@ -58,10 +72,10 @@ public class ChangeLogRangeHandler extends BaseVolumeHandler implements Handler 
 
     private RedisMessage mapCoordinate(ChangeLogCoordinate coordinate) {
         Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
-        map.put(new SimpleStringRedisMessage("sequence_number"), new IntegerRedisMessage(coordinate.sequenceNumber()));
-        map.put(new SimpleStringRedisMessage("segment_id"), new IntegerRedisMessage(coordinate.segmentId()));
-        map.put(new SimpleStringRedisMessage("position"), new IntegerRedisMessage(coordinate.position()));
-        map.put(new SimpleStringRedisMessage("length"), new IntegerRedisMessage(coordinate.length()));
+        map.put(wrapBytes(SEQUENCE_NUMBER_BYTES), new IntegerRedisMessage(coordinate.sequenceNumber()));
+        map.put(wrapBytes(SEGMENT_ID_BYTES), new IntegerRedisMessage(coordinate.segmentId()));
+        map.put(wrapBytes(POSITION_BYTES), new IntegerRedisMessage(coordinate.position()));
+        map.put(wrapBytes(LENGTH_BYTES), new IntegerRedisMessage(coordinate.length()));
         return new MapRedisMessage(map);
     }
 
@@ -69,18 +83,18 @@ public class ChangeLogRangeHandler extends BaseVolumeHandler implements Handler 
         Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
 
         map.put(
-                new SimpleStringRedisMessage("versionstamp"),
-                new SimpleStringRedisMessage(VersionstampUtil.base32HexEncode(entry.getVersionstamp()))
+                wrapBytes(VERSIONSTAMP_BYTES),
+                bulkString(VersionstampUtil.base32HexEncode(entry.getVersionstamp()))
         );
-        map.put(new SimpleStringRedisMessage("kind"), new SimpleStringRedisMessage(entry.getKind().toString()));
-        map.put(new SimpleStringRedisMessage("prefix"), new IntegerRedisMessage(entry.getPrefix()));
+        map.put(wrapBytes(KIND_BYTES), bulkString(entry.getKind().toString()));
+        map.put(wrapBytes(PREFIX_BYTES), new IntegerRedisMessage(entry.getPrefix()));
 
         if (entry.hasBefore()) {
-            map.put(new SimpleStringRedisMessage("before"), mapCoordinate(entry.getBefore().orElseThrow()));
+            map.put(wrapBytes(BEFORE_BYTES), mapCoordinate(entry.getBefore().orElseThrow()));
         }
 
         if (entry.hasAfter()) {
-            map.put(new SimpleStringRedisMessage("after"), mapCoordinate(entry.getAfter().orElseThrow()));
+            map.put(wrapBytes(AFTER_BYTES), mapCoordinate(entry.getAfter().orElseThrow()));
         }
 
         return new MapRedisMessage(map);
@@ -114,7 +128,7 @@ public class ChangeLogRangeHandler extends BaseVolumeHandler implements Handler 
             DirectorySubspace subspace = service.openSubspace(message.getVolume());
 
             List<RedisMessage> entries = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace, options);
                 for (ChangeLogEntry entry : iterable) {
                     entries.add(mapEntry(entry));

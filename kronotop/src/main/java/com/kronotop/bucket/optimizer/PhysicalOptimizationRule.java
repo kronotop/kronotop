@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.bucket.planner.physical.PlannerContext;
 
@@ -29,12 +28,11 @@ public interface PhysicalOptimizationRule {
     /**
      * Apply this optimization rule to a physical node tree.
      *
-     * @param node     the physical node to optimize
-     * @param metadata bucket metadata containing index information
-     * @param context  physical plan context for generating node IDs
-     * @return optimized physical node (may be the same instance if no optimization applied)
+     * @param context planner context containing metadata and configuration
+     * @param node    the physical node to optimize
+     * @return optimized physical node (maybe the same instance if no optimization applied)
      */
-    PhysicalNode apply(PhysicalNode node, BucketMetadata metadata, PlannerContext context);
+    PhysicalNode apply(PlannerContext context, PhysicalNode node);
 
     /**
      * Get the name of this optimization rule.

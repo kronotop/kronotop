@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Database;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.bucket.BucketMetadataCache;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.ShardRegistry;
 import com.kronotop.cluster.client.InternalClientPool;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.internal.DirectorySubspaceCache;
@@ -115,6 +117,15 @@ public interface Context {
      * @return the FoundationDB database.
      */
     Database getFoundationDB();
+
+    /**
+     * Returns the DirectoryLayer used for all directory operations in this instance. The layer
+     * is scoped per cluster when {@code directory.root} is configured, otherwise it is the global
+     * default layer.
+     *
+     * @return the DirectoryLayer for this context.
+     */
+    DirectoryLayer getDirectoryLayer();
 
     /**
      * Registers a Kronotop service in the context.
@@ -228,4 +239,11 @@ public interface Context {
      * @return the {@link InternalClientPool} instance
      */
     InternalClientPool getInternalClientPool();
+
+    /**
+     * Returns the shard registry for discovering shard IDs per shard kind.
+     *
+     * @return the {@link ShardRegistry} instance
+     */
+    ShardRegistry getShardRegistry();
 }

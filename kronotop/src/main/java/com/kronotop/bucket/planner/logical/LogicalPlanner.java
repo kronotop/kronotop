@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -181,7 +181,7 @@ public final class LogicalPlanner {
     /**
      * Shared utility methods for transform implementations.
      */
-    static final class TransformUtils {
+    static final class TransformUtil {
 
         /**
          * Extracts the actual value from BqlValue wrapper objects.
@@ -279,7 +279,7 @@ public final class LogicalPlanner {
          * Extracts values from a list, applying extractValue to each element.
          */
         static List<Object> extractValues(List<Object> list) {
-            return list.stream().map(TransformUtils::extractValue).collect(Collectors.toList());
+            return list.stream().map(TransformUtil::extractValue).collect(Collectors.toList());
         }
 
         /**
@@ -547,11 +547,11 @@ public final class LogicalPlanner {
         }
 
         private boolean hasContradictions(List<LogicalNode> children) {
-            Map<String, List<LogicalFilter>> filtersBySelector = TransformUtils.groupFiltersBySelector(children);
+            Map<String, List<LogicalFilter>> filtersBySelector = TransformUtil.groupFiltersBySelector(children);
 
             // Check each selector for contradictions
             for (List<LogicalFilter> filters : filtersBySelector.values()) {
-                if (filters.size() > 1 && TransformUtils.hasSelectorProperty(filters, this::areContradictory)) {
+                if (filters.size() > 1 && TransformUtil.hasSelectorProperty(filters, this::areContradictory)) {
                     return true;
                 }
             }
@@ -571,18 +571,18 @@ public final class LogicalPlanner {
 
             // EQ with different values
             if (op1 == Operator.EQ && op2 == Operator.EQ) {
-                return !Objects.equals(TransformUtils.extractValue(operand1), TransformUtils.extractValue(operand2));
+                return !Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2));
             }
 
             // EQ vs NE with same value
             if ((op1 == Operator.EQ && op2 == Operator.NE) || (op1 == Operator.NE && op2 == Operator.EQ)) {
-                return Objects.equals(TransformUtils.extractValue(operand1), TransformUtils.extractValue(operand2));
+                return Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2));
             }
 
             // Numeric contradictions
-            if (TransformUtils.areNumericOperands(operand1, operand2)) {
-                return checkNumericContradictions(op1, TransformUtils.extractNumericValue(operand1),
-                        op2, TransformUtils.extractNumericValue(operand2));
+            if (TransformUtil.areNumericOperands(operand1, operand2)) {
+                return checkNumericContradictions(op1, TransformUtil.extractNumericValue(operand1),
+                        op2, TransformUtil.extractNumericValue(operand2));
             }
 
             return false;
@@ -625,14 +625,14 @@ public final class LogicalPlanner {
         private LogicalNode rewrite(LogicalNode n) {
             switch (n) {
                 case LogicalAnd(List<LogicalNode> children) -> {
-                    return TransformUtils.processAndChildren(children, this::rewrite);
+                    return TransformUtil.processAndChildren(children, this::rewrite);
                 }
                 case LogicalOr(List<LogicalNode> children) -> {
                     // Check for tautologies (e.g., selector = A OR selector != A)
                     if (hasTautology(children)) {
                         return LogicalTrue.INSTANCE;
                     }
-                    return TransformUtils.processOrChildren(children, this::rewrite);
+                    return TransformUtil.processOrChildren(children, this::rewrite);
                 }
                 case LogicalNot(LogicalNode child) -> {
                     LogicalNode rewrittenChild = rewrite(child);
@@ -655,11 +655,11 @@ public final class LogicalPlanner {
         }
 
         private boolean hasTautology(List<LogicalNode> children) {
-            Map<String, List<LogicalFilter>> filtersBySelector = TransformUtils.groupFiltersBySelector(children);
+            Map<String, List<LogicalFilter>> filtersBySelector = TransformUtil.groupFiltersBySelector(children);
 
             // Check each selector for tautologies
             for (List<LogicalFilter> filters : filtersBySelector.values()) {
-                if (filters.size() > 1 && TransformUtils.hasSelectorProperty(filters, this::areTautological)) {
+                if (filters.size() > 1 && TransformUtil.hasSelectorProperty(filters, this::areTautological)) {
                     return true;
                 }
             }
@@ -679,13 +679,13 @@ public final class LogicalPlanner {
 
             // EQ vs NE with same value in OR context = tautology (selector = A OR selector != A)
             if ((op1 == Operator.EQ && op2 == Operator.NE) || (op1 == Operator.NE && op2 == Operator.EQ)) {
-                return Objects.equals(TransformUtils.extractValue(operand1), TransformUtils.extractValue(operand2));
+                return Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2));
             }
 
             // Numeric range tautologies (e.g., selector > 5 OR selector <= 5)
-            if (TransformUtils.areNumericOperands(operand1, operand2)) {
-                return checkNumericTautologies(op1, TransformUtils.extractNumericValue(operand1),
-                        op2, TransformUtils.extractNumericValue(operand2));
+            if (TransformUtil.areNumericOperands(operand1, operand2)) {
+                return checkNumericTautologies(op1, TransformUtil.extractNumericValue(operand1),
+                        op2, TransformUtil.extractNumericValue(operand2));
             }
 
             return false;
@@ -790,7 +790,7 @@ public final class LogicalPlanner {
 
         private List<LogicalNode> eliminateRedundantInAnd(List<LogicalNode> children) {
             List<LogicalNode> result = new ArrayList<>();
-            Map<String, List<LogicalFilter>> filtersBySelector = TransformUtils.groupFiltersBySelector(children);
+            Map<String, List<LogicalFilter>> filtersBySelector = TransformUtil.groupFiltersBySelector(children);
 
             // Add non-filter nodes as-is
             for (LogicalNode child : children) {
@@ -817,7 +817,7 @@ public final class LogicalPlanner {
 
         private List<LogicalNode> eliminateRedundantInOr(List<LogicalNode> children) {
             List<LogicalNode> result = new ArrayList<>();
-            Map<String, List<LogicalFilter>> filtersBySelector = TransformUtils.groupFiltersBySelector(children);
+            Map<String, List<LogicalFilter>> filtersBySelector = TransformUtil.groupFiltersBySelector(children);
 
             // Add non-filter nodes as-is
             for (LogicalNode child : children) {
@@ -916,14 +916,14 @@ public final class LogicalPlanner {
             Object operand2 = filter2.operand();
 
             // Exact duplicates
-            if (op1 == op2 && Objects.equals(TransformUtils.extractValue(operand1), TransformUtils.extractValue(operand2))) {
+            if (op1 == op2 && Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2))) {
                 return true;
             }
 
             // Numeric range subsumption in AND
-            if (TransformUtils.areNumericOperands(operand1, operand2)) {
-                return checkNumericSubsumption(op1, TransformUtils.extractNumericValue(operand1),
-                        op2, TransformUtils.extractNumericValue(operand2), true);
+            if (TransformUtil.areNumericOperands(operand1, operand2)) {
+                return checkNumericSubsumption(op1, TransformUtil.extractNumericValue(operand1),
+                        op2, TransformUtil.extractNumericValue(operand2), true);
             }
 
             // Set operation subsumption
@@ -933,11 +933,11 @@ public final class LogicalPlanner {
 
             // Semantic redundancy: EQ makes NE with different value redundant in AND
             if ((op1 == Operator.NE && op2 == Operator.EQ) &&
-                    !Objects.equals(TransformUtils.extractValue(operand1), TransformUtils.extractValue(operand2))) {
+                    !Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2))) {
                 return true; // NE is redundant when EQ is more specific with different value
             }
             if ((op1 == Operator.EQ && op2 == Operator.NE) &&
-                    !Objects.equals(TransformUtils.extractValue(operand1), TransformUtils.extractValue(operand2))) {
+                    !Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2))) {
                 return false; // EQ is not redundant (it's more specific)
             }
 
@@ -957,14 +957,14 @@ public final class LogicalPlanner {
             Object operand2 = filter2.operand();
 
             // Exact duplicates
-            if (op1 == op2 && Objects.equals(TransformUtils.extractValue(operand1), TransformUtils.extractValue(operand2))) {
+            if (op1 == op2 && Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2))) {
                 return true;
             }
 
             // Numeric range subsumption in OR
-            if (TransformUtils.areNumericOperands(operand1, operand2)) {
-                return checkNumericSubsumption(op1, TransformUtils.extractNumericValue(operand1),
-                        op2, TransformUtils.extractNumericValue(operand2), false);
+            if (TransformUtil.areNumericOperands(operand1, operand2)) {
+                return checkNumericSubsumption(op1, TransformUtil.extractNumericValue(operand1),
+                        op2, TransformUtil.extractNumericValue(operand2), false);
             }
 
             // Set operation subsumption
@@ -1031,8 +1031,8 @@ public final class LogicalPlanner {
             @SuppressWarnings("unchecked")
             List<Object> list2 = (List<Object>) operand2;
 
-            Set<Object> set1 = new HashSet<>(TransformUtils.extractValues(list1));
-            Set<Object> set2 = new HashSet<>(TransformUtils.extractValues(list2));
+            Set<Object> set1 = new HashSet<>(TransformUtil.extractValues(list1));
+            Set<Object> set2 = new HashSet<>(TransformUtil.extractValues(list2));
 
             // IN subsumption: selector IN [A] is subsumed by selector IN [A,B] (keep superset)
             // This logic is the same for both AND and OR contexts
@@ -1064,10 +1064,10 @@ public final class LogicalPlanner {
         private LogicalNode rewrite(LogicalNode n) {
             switch (n) {
                 case LogicalAnd(List<LogicalNode> children) -> {
-                    return TransformUtils.processAndChildren(children, this::rewrite);
+                    return TransformUtil.processAndChildren(children, this::rewrite);
                 }
                 case LogicalOr(List<LogicalNode> children) -> {
-                    return TransformUtils.processOrChildren(children, this::rewrite);
+                    return TransformUtil.processOrChildren(children, this::rewrite);
                 }
                 case LogicalNot(LogicalNode child) -> {
                     LogicalNode rewrittenChild = rewrite(child);

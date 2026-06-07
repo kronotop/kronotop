@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,11 +61,13 @@ public class KronotopInstanceWithRESP extends KronotopInstance {
         }
 
         CommandHandlerRegistry handlers = context.getHandlers(kind);
+        TLSConfig tlsConfig = TLSConfig.fromConfig(config, kind);
+        NettyConfig nettyConfig = NettyConfig.fromConfig(config, kind);
         RESPServer server;
         if (nettyTransport.equals(NETTY_TRANSPORT_NIO)) {
-            server = new NioRESPServer(context, handlers);
+            server = new NioRESPServer(context, handlers, tlsConfig, nettyConfig, kind);
         } else if (nettyTransport.equals(NETTY_TRANSPORT_EPOLL)) {
-            server = new EpollRESPServer(context, handlers);
+            server = new EpollRESPServer(context, handlers, tlsConfig, nettyConfig, kind);
         } else {
             throw new KronotopException(String.format("invalid %s: %s", transportConfigPath, nettyTransport));
         }
@@ -76,12 +78,17 @@ public class KronotopInstanceWithRESP extends KronotopInstance {
     public void start() throws UnknownHostException, InterruptedException {
         super.start();
 
-        RESPServerContainer container = new RESPServerContainer();
-        container.register(member.getInternalAddress(), initializeRESPServer(ServerKind.INTERNAL));
-        container.register(member.getExternalAddress(), initializeRESPServer(ServerKind.EXTERNAL));
+        // Register internal FIRST -> shuts down LAST
+        RESPServerContainer internalServer = new RESPServerContainer("InternalRESPServer");
+        internalServer.register(member.getInternalAddress(), initializeRESPServer(ServerKind.INTERNAL));
+        context.registerService(internalServer.getName(), internalServer);
+        internalServer.start();
 
-        context.registerService(container.getName(), container);
-        container.start();
+        // Register external SECOND -> shuts down FIRST
+        RESPServerContainer externalServer = new RESPServerContainer("ExternalRESPServer");
+        externalServer.register(member.getExternalAddress(), initializeRESPServer(ServerKind.EXTERNAL));
+        context.registerService(externalServer.getName(), externalServer);
+        externalServer.start();
     }
 
     /**
@@ -91,10 +98,15 @@ public class KronotopInstanceWithRESP extends KronotopInstance {
      */
     private static class RESPServerContainer implements KronotopService {
         private final Map<Address, RESPServer> servers = new LinkedHashMap<>();
+        private final String name;
+
+        RESPServerContainer(String name) {
+            this.name = name;
+        }
 
         @Override
         public String getName() {
-            return "RESPServerContainer";
+            return name;
         }
 
         protected void register(Address address, RESPServer server) {

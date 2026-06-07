@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@
 
 package com.kronotop.task;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public abstract class BaseTask implements Task {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BaseTask.class);
     private final TaskStats stats = new TaskStats();
 
     @Override
@@ -26,6 +30,9 @@ public abstract class BaseTask implements Task {
         try {
             // It could be a blocking call
             task();
+        } catch (Exception e) {
+            LOGGER.error("Task '{}' failed with an exception", name(), e);
+            throw e;
         } finally {
             stats.setRunning(false);
         }

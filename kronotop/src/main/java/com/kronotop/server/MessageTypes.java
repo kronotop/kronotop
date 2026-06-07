@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,23 +18,28 @@ package com.kronotop.server;
 
 import com.kronotop.bucket.handlers.protocol.*;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
-import com.kronotop.foundationdb.protocol.*;
-import com.kronotop.foundationdb.zmap.protocol.*;
+import com.kronotop.core.handlers.client.protocol.ClientMessage;
+import com.kronotop.core.handlers.connection.protocol.AuthMessage;
+import com.kronotop.core.handlers.connection.protocol.EchoMessage;
+import com.kronotop.core.handlers.connection.protocol.HelloMessage;
+import com.kronotop.core.handlers.connection.protocol.PingMessage;
+import com.kronotop.core.handlers.protocol.InfoMessage;
+import com.kronotop.core.handlers.server.protocol.CommandMessage;
+import com.kronotop.core.handlers.session.protocol.SessionAttributeMessage;
+import com.kronotop.core.handlers.session.protocol.SessionCloseMessage;
+import com.kronotop.core.handlers.transaction.protocol.*;
 import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
-import com.kronotop.redis.handlers.client.protocol.ClientMessage;
-import com.kronotop.redis.handlers.cluster.protocol.ClusterMessage;
-import com.kronotop.redis.handlers.connection.protocol.*;
-import com.kronotop.redis.handlers.generic.protocol.*;
-import com.kronotop.redis.handlers.hash.protocol.*;
-import com.kronotop.redis.handlers.protocol.InfoMessage;
-import com.kronotop.redis.handlers.string.protocol.*;
-import com.kronotop.redis.handlers.transactions.protocol.*;
-import com.kronotop.redis.server.protocol.CommandMessage;
-import com.kronotop.redis.server.protocol.FlushAllMessage;
-import com.kronotop.redis.server.protocol.FlushDBMessage;
-import com.kronotop.server.handlers.protocol.SessionAttributeMessage;
+import com.kronotop.stash.handlers.cluster.protocol.ClusterMessage;
+import com.kronotop.stash.handlers.connection.protocol.SelectMessage;
+import com.kronotop.stash.handlers.generic.protocol.*;
+import com.kronotop.stash.handlers.hash.protocol.*;
+import com.kronotop.stash.handlers.string.protocol.*;
+import com.kronotop.stash.handlers.transactions.protocol.*;
+import com.kronotop.stash.server.protocol.FlushAllMessage;
+import com.kronotop.stash.server.protocol.FlushDBMessage;
 import com.kronotop.task.handlers.protocol.TaskAdminMessage;
 import com.kronotop.volume.handlers.protocol.*;
+import com.kronotop.zmap.handlers.protocol.*;
 import io.netty.util.AttributeKey;
 
 /**
@@ -134,6 +139,9 @@ public class MessageTypes {
     public static final AttributeKey<ZGetF64Message> ZGETF64 = AttributeKey.valueOf(ZGetF64Message.COMMAND);
     public static final AttributeKey<ZIncD128Message> ZINCD128 = AttributeKey.valueOf(ZIncD128Message.COMMAND);
     public static final AttributeKey<ZGetD128Message> ZGETD128 = AttributeKey.valueOf(ZGetD128Message.COMMAND);
+    public static final AttributeKey<ZSetI64Message> ZSETI64 = AttributeKey.valueOf(ZSetI64Message.COMMAND);
+    public static final AttributeKey<ZSetF64Message> ZSETF64 = AttributeKey.valueOf(ZSetF64Message.COMMAND);
+    public static final AttributeKey<ZSetD128Message> ZSETD128 = AttributeKey.valueOf(ZSetD128Message.COMMAND);
 
     // Internal commands
     public static final AttributeKey<SegmentInsertMessage> SEGMENTINSERT = AttributeKey.valueOf(SegmentInsertMessage.COMMAND);
@@ -144,9 +152,11 @@ public class MessageTypes {
     public static final AttributeKey<KrAdminMessage> KRADMIN = AttributeKey.valueOf(KrAdminMessage.COMMAND);
     public static final AttributeKey<VolumeAdminMessage> VOLUMEADMIN = AttributeKey.valueOf(VolumeAdminMessage.COMMAND);
     public static final AttributeKey<VolumeInspectMessage> VOLUMEINSPECT = AttributeKey.valueOf(VolumeInspectMessage.COMMAND);
+    public static final AttributeKey<VolumeStatsMessage> VOLUMESTATS = AttributeKey.valueOf(VolumeStatsMessage.COMMAND);
     public static final AttributeKey<TaskAdminMessage> TASKADMIN = AttributeKey.valueOf(TaskAdminMessage.COMMAND);
 
     // Buckets
+    public static final AttributeKey<BucketCreateMessage> BUCKETCREATE = AttributeKey.valueOf(BucketCreateMessage.COMMAND);
     public static final AttributeKey<BucketInsertMessage> BUCKETINSERT = AttributeKey.valueOf(BucketInsertMessage.COMMAND);
     public static final AttributeKey<BucketQueryMessage> BUCKETQUERY = AttributeKey.valueOf(BucketQueryMessage.COMMAND);
     public static final AttributeKey<BucketExplainMessage> BUCKETEXPLAIN = AttributeKey.valueOf(BucketExplainMessage.COMMAND);
@@ -154,10 +164,14 @@ public class MessageTypes {
     public static final AttributeKey<BucketDeleteMessage> BUCKETDELETE = AttributeKey.valueOf(BucketDeleteMessage.COMMAND);
     public static final AttributeKey<BucketUpdateMessage> BUCKETUPDATE = AttributeKey.valueOf(BucketUpdateMessage.COMMAND);
     public static final AttributeKey<BucketCloseMessage> BUCKETCLOSE = AttributeKey.valueOf(BucketCloseMessage.COMMAND);
+    public static final AttributeKey<BucketCursorsMessage> BUCKETCURSORS = AttributeKey.valueOf(BucketCursorsMessage.COMMAND);
     public static final AttributeKey<BucketIndexMessage> BUCKETINDEX = AttributeKey.valueOf(BucketIndexMessage.COMMAND);
     public static final AttributeKey<BucketRemoveMessage> BUCKETREMOVE = AttributeKey.valueOf(BucketRemoveMessage.COMMAND);
     public static final AttributeKey<BucketPurgeMessage> BUCKETPURGE = AttributeKey.valueOf(BucketPurgeMessage.COMMAND);
+    public static final AttributeKey<BucketLocateMessage> BUCKETLOCATE = AttributeKey.valueOf(BucketLocateMessage.COMMAND);
+    public static final AttributeKey<BucketVectorMessage> BUCKETVECTOR = AttributeKey.valueOf(BucketVectorMessage.COMMAND);
 
     // Session management
     public static final AttributeKey<SessionAttributeMessage> SESSIONATTRIBUTE = AttributeKey.valueOf(SessionAttributeMessage.COMMAND);
+    public static final AttributeKey<SessionCloseMessage> SESSIONCLOSE = AttributeKey.valueOf(SessionCloseMessage.COMMAND);
 }

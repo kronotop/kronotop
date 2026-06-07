@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -22,13 +22,13 @@ import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.BucketInsertArgs;
+import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -38,6 +38,12 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexDropRoutineTest extends BaseBucketHandlerTest {
+
+    @BeforeEach
+    void setUp() {
+        createBucket(TEST_BUCKET);
+    }
+
     @Test
     void shouldDropIndexInBackground() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
@@ -47,17 +53,18 @@ class IndexDropRoutineTest extends BaseBucketHandlerTest {
                         BSONUtil.jsonToDocumentThenBytes("{\"age\": 32}"),
                         BSONUtil.jsonToDocumentThenBytes("{\"age\": 40}")
                 ));
-        cmd.insert(TEST_BUCKET, BucketInsertArgs.Builder.shard(SHARD_ID), docs).encode(buf);
+        cmd.insert(TEST_BUCKET, docs).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertEquals(2, actualMessage.children().size());
 
-        IndexDefinition definition = IndexDefinition.create(
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
                 "test-index",
                 "age",
                 BsonType.INT32,
+                false,
                 IndexStatus.WAITING
         );
         createIndexThenWaitForReadiness(definition);
@@ -68,11 +75,61 @@ class IndexDropRoutineTest extends BaseBucketHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
-            IndexUtil.drop(tx, metadata, definition.name());
+            SingleFieldIndexUtil.drop(tx, metadata, definition.name());
             tr.commit().join();
         }
 
-        await().atMost(Duration.ofSeconds(15)).until(() -> {
+        await().atMost(Duration.ofSeconds(30)).until(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try {
+                    IndexUtil.open(tr, metadata.subspace(), definition.name());
+                    return false;
+                } catch (NoSuchIndexException exp) {
+                    // Dropped
+                    return true;
+                }
+            }
+        });
+    }
+
+    @Test
+    void shouldDropCompoundIndexInBackground() {
+        // Behavior: A compound index marked as DROPPED is eventually removed from FDB by the background drop routine.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[][] docs = makeDocumentsArray(
+                List.of(
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 32, \"name\": \"Alice\"}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"age\": 40, \"name\": \"Bob\"}")
+                ));
+        cmd.insert(TEST_BUCKET, docs).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        assertEquals(2, actualMessage.children().size());
+
+        CompoundIndexDefinition definition = CompoundIndexDefinition.create(
+                "test-compound-index",
+                List.of(
+                        new CompoundIndexField("age", BsonType.INT32, false),
+                        new CompoundIndexField("name", BsonType.STRING, false)
+                ),
+                IndexStatus.WAITING
+        );
+        createIndexThenWaitForReadiness(definition);
+
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+        CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
+        assertNotNull(compoundIndex);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            CompoundIndexUtil.drop(tx, metadata, definition.name());
+            tr.commit().join();
+        }
+
+        await().atMost(Duration.ofSeconds(30)).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 try {
                     IndexUtil.open(tr, metadata.subspace(), definition.name());

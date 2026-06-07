@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,17 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,7 +39,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gt";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 21 documents with age > 22 (ages 23-43)
@@ -62,19 +67,19 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 43, 'name': 'Person21'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().limit(2).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = createTransaction()) {
             int totalProcessedDocuments = 0;
             int nonEmptyBatchCount = 0;
             int totalIterations = 0;
 
             while (true) {
-                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+                List<ByteBuffer> results = readExecutor.execute(tr, ctx);
                 totalIterations++;
 
                 if (results.isEmpty()) {
@@ -115,7 +120,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gte";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 21 documents with ages 23-43
@@ -143,20 +148,20 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 43, 'name': 'Person21'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query for age >= 33, which should match 11 documents (ages 33-43)
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gte': 33}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gte': 33}}");
         QueryOptions config = QueryOptions.builder().limit(2).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = createTransaction()) {
             int totalProcessedDocuments = 0;
             int nonEmptyBatchCount = 0;
             int totalIterations = 0;
 
             while (true) {
-                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+                List<ByteBuffer> results = readExecutor.execute(tr, ctx);
                 totalIterations++;
 
                 if (results.isEmpty()) {
@@ -200,7 +205,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-logic-gte-reverse";
 
         // Create an age index for this test
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 21 documents with ages 23-43
@@ -228,21 +233,21 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 43, 'name': 'Person21'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query for age >= 33 with reverse order, which should match 11 documents (ages 33-43) in reverse order (43-33)
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gte': 33}}");
-        QueryOptions config = QueryOptions.builder().limit(2).reverse(true).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gte': 33}}");
+        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = createTransaction()) {
             int totalProcessedDocuments = 0;
             int nonEmptyBatchCount = 0;
             int totalIterations = 0;
             int previousAge = Integer.MAX_VALUE; // Track descending order
 
             while (true) {
-                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+                List<ByteBuffer> results = readExecutor.execute(tr, ctx);
                 totalIterations++;
 
                 if (results.isEmpty()) {
@@ -297,21 +302,21 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 200 documents with ages 0-199
         List<byte[]> documents = createDocumentsWithAges(200);
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Create pipeline executor with limit=2 and query age > 22
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().limit(2).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         // Expected calculations:
         // Total documents: 200 (ages 0-199)
-        // Matching condition age > 22: ages 23-199 = 177 documents  
+        // Matching condition age > 22: ages 23-199 = 177 documents
         // Batch size (limit): 2
         // Expected iterations: ceil(177 / 2) = 89 iterations
         int expectedTotalMatches = 177;
@@ -327,8 +332,8 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
 
         // Iterate through all batches using cursor-based pagination with index scan
         while (true) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+            try (Transaction tr = createTransaction()) {
+                List<ByteBuffer> results = readExecutor.execute(tr, ctx);
                 actualIterations++;
 
                 if (results.isEmpty()) {
@@ -396,17 +401,17 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs-reverse";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
 
         // Insert 200 documents with ages 0-199
         List<byte[]> documents = createDocumentsWithAges(200);
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Create pipeline executor with limit=2 and query age > 22
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
-        QueryOptions config = QueryOptions.builder().limit(2).reverse(true).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
+        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         // Expected calculations for REVERSE order:
         // Total documents: 200 (ages 0-199)
@@ -427,8 +432,8 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
 
         // Iterate through all batches using cursor-based pagination in reverse order with index scan
         while (true) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+            try (Transaction tr = createTransaction()) {
+                List<ByteBuffer> results = readExecutor.execute(tr, ctx);
                 actualIterations++;
 
                 if (results.isEmpty()) {

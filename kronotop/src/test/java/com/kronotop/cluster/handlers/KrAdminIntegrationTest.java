@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.kronotop.BaseUninitializedKronotopInstanceTest;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.RouteKind;
-import com.kronotop.commandbuilder.kronotop.KrAdminCommandBuilder;
+import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -51,7 +51,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
 
         ByteBuf buf = Unpooled.buffer();
         // it can be any command that requires an initialized cluster.
-        cmd.route("SET", "STANDBY", "REDIS", 1, MemberIdGenerator.generateId()).encode(buf);
+        cmd.route("SET", "STANDBY", "STASH", 1, MemberIdGenerator.generateId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -65,7 +65,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
         initializeCluster(cmd);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.route("SET", "STANDBY", "REDIS", 1, kronotopInstance.getMember().getId()).encode(buf);
+        cmd.route("SET", "STANDBY", "STASH", 1, kronotopInstance.getMember().getId()).encode(buf);
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -80,7 +80,7 @@ public class KrAdminIntegrationTest extends BaseUninitializedKronotopInstanceTes
 
         for (RouteKind routeKind : RouteKind.values()) {
             ByteBuf buf = Unpooled.buffer();
-            cmd.route("SET", routeKind.name(), "REDIS", 1, MemberIdGenerator.generateId()).encode(buf);
+            cmd.route("SET", routeKind.name(), "STASH", 1, MemberIdGenerator.generateId()).encode(buf);
 
             Object msg = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, msg);

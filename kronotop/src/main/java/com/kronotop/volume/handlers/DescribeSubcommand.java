@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,24 +18,40 @@ package com.kronotop.volume.handlers;
 
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.*;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.resp3.DoubleRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeConfig;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import io.netty.buffer.ByteBuf;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static com.kronotop.server.RESPUtil.bulkString;
+import static com.kronotop.server.RESPUtil.wrapBytes;
 
 class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
+    private static final byte[] NAME_BYTES = "name".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] STATUS_BYTES = "status".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] DATA_DIR_BYTES = "data_dir".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] SEGMENT_SIZE_BYTES = "segment_size".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] SEGMENTS_BYTES = "segments".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] SIZE_BYTES = "size".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] FREE_BYTES_BYTES = "free_bytes".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] USED_BYTES_BYTES = "used_bytes".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] GARBAGE_PERCENTAGE_BYTES = "garbage_percentage".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] CARDINALITY_BYTES = "cardinality".getBytes(StandardCharsets.UTF_8);
 
     public DescribeSubcommand(VolumeService service) {
         super(service);
@@ -50,24 +66,24 @@ class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHand
             Volume volume = service.findVolume(parameters.name);
             VolumeConfig config = volume.getConfig();
 
-            result.put(new SimpleStringRedisMessage("name"), new SimpleStringRedisMessage(config.name()));
-            result.put(new SimpleStringRedisMessage("status"), new SimpleStringRedisMessage(volume.getStatus().name()));
-            result.put(new SimpleStringRedisMessage("data_dir"), new SimpleStringRedisMessage(config.dataDir()));
-            result.put(new SimpleStringRedisMessage("segment_size"), new IntegerRedisMessage(config.segmentSize()));
+            result.put(wrapBytes(NAME_BYTES), bulkString(config.name()));
+            result.put(wrapBytes(STATUS_BYTES), bulkString(volume.getStatus().name()));
+            result.put(wrapBytes(DATA_DIR_BYTES), bulkString(config.dataDir()));
+            result.put(wrapBytes(SEGMENT_SIZE_BYTES), new IntegerRedisMessage(config.segmentSize()));
 
             List<SegmentAnalysis> segments = volume.analyze();
             Map<RedisMessage, RedisMessage> segmentAnalysis = new LinkedHashMap<>();
             for (SegmentAnalysis analysis : segments) {
                 Map<RedisMessage, RedisMessage> segment = new LinkedHashMap<>();
-                segment.put(new SimpleStringRedisMessage("size"), new IntegerRedisMessage(analysis.size()));
-                segment.put(new SimpleStringRedisMessage("free_bytes"), new IntegerRedisMessage(analysis.freeBytes()));
-                segment.put(new SimpleStringRedisMessage("used_bytes"), new IntegerRedisMessage(analysis.usedBytes()));
-                segment.put(new SimpleStringRedisMessage("garbage_ratio"), new DoubleRedisMessage(analysis.garbageRatio()));
-                segment.put(new SimpleStringRedisMessage("cardinality"), new IntegerRedisMessage(analysis.cardinality()));
+                segment.put(wrapBytes(SIZE_BYTES), new IntegerRedisMessage(analysis.size()));
+                segment.put(wrapBytes(FREE_BYTES_BYTES), new IntegerRedisMessage(analysis.freeBytes()));
+                segment.put(wrapBytes(USED_BYTES_BYTES), new IntegerRedisMessage(analysis.usedBytes()));
+                segment.put(wrapBytes(GARBAGE_PERCENTAGE_BYTES), new DoubleRedisMessage(analysis.garbagePercentage()));
+                segment.put(wrapBytes(CARDINALITY_BYTES), new IntegerRedisMessage(analysis.cardinality()));
 
                 segmentAnalysis.put(new IntegerRedisMessage(analysis.segmentId()), new MapRedisMessage(segment));
             }
-            result.put(new SimpleStringRedisMessage("segments"), new MapRedisMessage(segmentAnalysis));
+            result.put(wrapBytes(SEGMENTS_BYTES), new MapRedisMessage(segmentAnalysis));
             return result;
         }, response::writeMap);
     }

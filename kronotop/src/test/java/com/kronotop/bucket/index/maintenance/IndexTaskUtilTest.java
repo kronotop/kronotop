@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,6 +37,11 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests for IndexTaskUtil covering task subspace management.
  */
 class IndexTaskUtilTest extends BaseBucketHandlerTest {
+
+    @BeforeEach
+    void setUp() {
+        createBucket(TEST_BUCKET);
+    }
 
     @Test
     void shouldOpenTasksSubspace() {

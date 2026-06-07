@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,36 @@
 
 package com.kronotop.bucket.pipeline;
 
+import org.bson.types.ObjectId;
+import org.roaringbitmap.longlong.Roaring64Bitmap;
+
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Mutable, per-node state that a pipeline node carries across paginated executions.
+ * <p>
+ * Every node in the query pipeline owns one instance, stored inside the cursor so it
+ * survives between ADVANCE calls. The state captures where a scan left off (bounds and
+ * selectors), how many results the node may still produce (limit), whether the
+ * underlying data source is fully consumed (exhausted flag), and which documents have
+ * already been emitted (for deduplication across pages). Union nodes additionally
+ * snapshot their children's checkpoints before execution so they can rewind a child
+ * that overproduced.
+ *
+ * @see QueryContext#getOrCreateExecutionState(int)
+ */
 public class ExecutionState {
     private final AtomicInteger limit = new AtomicInteger();
     private volatile Bound lower;
     private volatile Bound upper;
     private volatile boolean exhausted;
     private volatile SelectorPair selector;
+    private volatile Roaring64Bitmap returnedHandles;
+    private volatile Set<ObjectId> returnedObjectIds;
+    private volatile Map<Integer, SavedCursorCheckpoint> savedChildCheckpoints;
+    private volatile boolean scanReversed;
 
     public boolean isEmpty() {
         return upper == null && lower == null;
@@ -43,22 +65,6 @@ public class ExecutionState {
 
     public void setLower(Bound lower) {
         this.lower = lower;
-    }
-
-    /**
-     * Initializes the execution limit for processing by updating the internal state only if it has not been set previously.
-     * If the current limit is zero, it will be set to the provided value; otherwise, the limit remains unchanged.
-     *
-     * @param limit the maximum limit to be initialized, applicable if the current limit is zero
-     */
-    public void initializeLimit(int limit) {
-        // Limit cannot be zero, because it means "fetch all data" in FDB jargon.
-        this.limit.updateAndGet((current) -> {
-            if (current == 0) {
-                return limit;
-            }
-            return current;
-        });
     }
 
     public int getLimit() {
@@ -83,5 +89,44 @@ public class ExecutionState {
 
     public void setSelector(SelectorPair selector) {
         this.selector = selector;
+    }
+
+    public Roaring64Bitmap getReturnedHandles() {
+        return returnedHandles;
+    }
+
+    public void setReturnedHandles(Roaring64Bitmap returnedHandles) {
+        this.returnedHandles = returnedHandles;
+    }
+
+    public Set<ObjectId> getReturnedObjectIds() {
+        return returnedObjectIds;
+    }
+
+    public void setReturnedObjectIds(Set<ObjectId> returnedObjectIds) {
+        this.returnedObjectIds = returnedObjectIds;
+    }
+
+    public Map<Integer, SavedCursorCheckpoint> getSavedChildCheckpoints() {
+        return savedChildCheckpoints;
+    }
+
+    public void setSavedChildCheckpoints(Map<Integer, SavedCursorCheckpoint> savedChildCheckpoints) {
+        this.savedChildCheckpoints = savedChildCheckpoints;
+    }
+
+    public boolean isScanReversed() {
+        return scanReversed;
+    }
+
+    public void setScanReversed(boolean scanReversed) {
+        this.scanReversed = scanReversed;
+    }
+
+    /**
+     * Snapshot of a child node's cursor position taken before a union execution round,
+     * used to rewind the child if it produces more entries than the union budget allows.
+     */
+    public record SavedCursorCheckpoint(Bound lower, Bound upper, SelectorPair selector) {
     }
 }

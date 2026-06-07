@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ public class IndexAnalyzeTaskState extends AbstractTaskState {
      * Creates a new analyze task state with the specified status and error.
      *
      * @param status current task status
-     * @param error error message if failed, null otherwise
+     * @param error  error message if failed, null otherwise
      */
     public IndexAnalyzeTaskState(IndexTaskStatus status, String error) {
         super(status, error);
@@ -85,9 +85,9 @@ public class IndexAnalyzeTaskState extends AbstractTaskState {
      * {@link AbstractTaskState#loadCommonFields}. No additional fields are loaded
      * as analyze tasks only track execution status.
      *
-     * @param tr transaction for reading state
+     * @param tr       transaction for reading state
      * @param subspace task subspace
-     * @param taskId task identifier
+     * @param taskId   task identifier
      * @return loaded analyze task state
      */
     public static IndexAnalyzeTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {

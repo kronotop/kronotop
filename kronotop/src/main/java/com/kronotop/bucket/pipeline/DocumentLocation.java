@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,56 @@
 
 package com.kronotop.bucket.pipeline;
 
-import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.volume.EntryMetadata;
+import org.bson.types.ObjectId;
+
+import javax.annotation.Nonnull;
+import java.util.Objects;
 
 /**
- * Record representing document location information.
+ * Represents document location information for retrieval from storage.
  */
-public record DocumentLocation(Versionstamp versionstamp, int shardId, EntryMetadata entryMetadata) {
+public class DocumentLocation implements DocumentRef {
+    private final ObjectId objectId;
+    private final int shardId;
+    private final EntryMetadata entryMetadata;
+    private BqlValue cursorIndexValue;
+
+    public DocumentLocation(
+            @Nonnull ObjectId objectId,
+            int shardId,
+            @Nonnull EntryMetadata entryMetadata
+    ) {
+        this.objectId = objectId;
+        this.shardId = shardId;
+        this.entryMetadata = entryMetadata;
+
+        Objects.requireNonNull(objectId);
+        Objects.requireNonNull(entryMetadata);
+    }
+
+    @Override
+    public ObjectId objectId() {
+        return objectId;
+    }
+
+    @Override
+    public int shardId() {
+        return shardId;
+    }
+
+    @Override
+    public EntryMetadata entryMetadata() {
+        return entryMetadata;
+    }
+
+    @Override
+    public BqlValue cursorIndexValue() {
+        return cursorIndexValue;
+    }
+
+    public void setCursorIndexValue(BqlValue cursorIndexValue) {
+        this.cursorIndexValue = cursorIndexValue;
+    }
 }

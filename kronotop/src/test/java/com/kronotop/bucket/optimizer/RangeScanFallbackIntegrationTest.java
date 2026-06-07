@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.physical.*;
 import org.junit.jupiter.api.Test;
 
@@ -32,13 +33,13 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     @Test
     void shouldApplyRangeScanFallbackInOptimizerPipeline() {
         // Create a PhysicalRangeScan with null index (simulating no available index)
-        PlannerContext context = new PlannerContext();
+        PlannerContext context = new PlannerContext(metadata);
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 context.nextId(), "nonIndexedField", 10, 50, true, false, null
         );
 
         // Run through the optimizer
-        PhysicalNode optimized = optimizer.optimize(metadata, rangeScan, context);
+        PhysicalNode optimized = optimizer.optimize(context, rangeScan);
 
         // Should contain the composite filter
         assertInstanceOf(PhysicalAnd.class, optimized);
@@ -49,19 +50,19 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     @Test
     void shouldKeepRangeScanWithIndexUnchanged() {
         // Create an index for this test
-        IndexDefinition ageIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
                 "age-index", "age", org.bson.BsonType.INT32
-        );
+                , false, IndexStatus.WAITING);
         createIndex(ageIndex);
 
         // Create a PhysicalRangeScan with a valid index
-        PlannerContext context = new PlannerContext();
+        PlannerContext context = new PlannerContext(metadata);
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
                 context.nextId(), "age", 18, 65, true, false, ageIndex
         );
 
         // Run through the optimizer
-        PhysicalNode optimized = optimizer.optimize(metadata, rangeScan, context);
+        PhysicalNode optimized = optimizer.optimize(context, rangeScan);
 
         // Should remain as PhysicalRangeScan (not converted to full scan)
         assertInstanceOf(PhysicalRangeScan.class, optimized);
@@ -73,12 +74,12 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     @Test
     void shouldHandleComplexPlanWithMixedRangeScans() {
         // Create an index for one field but not another
-        IndexDefinition ageIndex = IndexDefinition.create(
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
                 "age-index", "age", org.bson.BsonType.INT32
-        );
+                , false, IndexStatus.WAITING);
         createIndex(ageIndex);
 
-        PlannerContext context = new PlannerContext();
+        PlannerContext context = new PlannerContext(metadata);
 
         // One range scan with index, one without
         PhysicalRangeScan indexedScan = new PhysicalRangeScan(
@@ -94,7 +95,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         );
 
         // Run through the optimizer
-        PhysicalNode optimized = optimizer.optimize(metadata, andPlan, context);
+        PhysicalNode optimized = optimizer.optimize(context, andPlan);
 
         // Should still be an AND
         assertInstanceOf(PhysicalAnd.class, optimized);
@@ -122,7 +123,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
 
     @Test
     void shouldHandleNestedStructuresWithRangeScanFallback() {
-        PlannerContext context = new PlannerContext();
+        PlannerContext context = new PlannerContext(metadata);
 
         // Create a nested structure with range scan that needs fallback
         PhysicalRangeScan rangeScan = new PhysicalRangeScan(
@@ -138,7 +139,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         );
 
         // Run through the optimizer
-        PhysicalNode optimized = optimizer.optimize(metadata, orPlan, context);
+        PhysicalNode optimized = optimizer.optimize(context, orPlan);
 
         // Should still be an OR
         assertInstanceOf(PhysicalOr.class, optimized);
@@ -155,7 +156,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
     @Test
     void shouldApplyOptimizerRuleOrderingWithRangeScanFallback() {
         // Test that the range scan fallback rule works in conjunction with other rules
-        PlannerContext context = new PlannerContext();
+        PlannerContext context = new PlannerContext(metadata);
 
         // Create a plan that could be optimized by multiple rules
         PhysicalRangeScan rangeScan1 = new PhysicalRangeScan(
@@ -171,7 +172,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
         );
 
         // Run through the optimizer (multiple rules should apply)
-        PhysicalNode optimized = optimizer.optimize(metadata, andPlan, context);
+        PhysicalNode optimized = optimizer.optimize(context, andPlan);
 
         // Both range scans should be converted to full scans
         // Note: The exact result depends on other optimization rules, 
@@ -183,14 +184,14 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
 
     @Test
     void shouldApplySingleBoundRangeScanFallback() {
-        PlannerContext context = new PlannerContext();
+        PlannerContext context = new PlannerContext(metadata);
 
         // Test with only lower bound
         PhysicalRangeScan lowerBoundOnly = new PhysicalRangeScan(
                 context.nextId(), "temperature", 20, null, true, false, null
         );
 
-        PhysicalNode optimized = optimizer.optimize(metadata, lowerBoundOnly, context);
+        PhysicalNode optimized = optimizer.optimize(context, lowerBoundOnly);
 
         assertInstanceOf(PhysicalFullScan.class, optimized);
         PhysicalFullScan fullScan = (PhysicalFullScan) optimized;
@@ -201,7 +202,7 @@ class RangeScanFallbackIntegrationTest extends BaseOptimizerTest {
                 context.nextId(), "humidity", null, 80, false, true, null
         );
 
-        PhysicalNode optimized2 = optimizer.optimize(metadata, upperBoundOnly, context);
+        PhysicalNode optimized2 = optimizer.optimize(context, upperBoundOnly);
 
         assertInstanceOf(PhysicalFullScan.class, optimized2);
         PhysicalFullScan fullScan2 = (PhysicalFullScan) optimized2;

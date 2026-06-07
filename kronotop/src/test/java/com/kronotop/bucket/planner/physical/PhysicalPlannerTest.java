@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ class PhysicalPlannerTest extends BasePhysicalPlannerTest {
         BqlExpr expr = BqlParser.parse(query);
 
         LogicalNode logicalPlan = logicalPlanner.plan(expr);
-        PhysicalNode node = physicalPlanner.plan(metadata, logicalPlan, new PlannerContext());
+        PhysicalNode node = physicalPlanner.plan(new PlannerContext(metadata), logicalPlan);
 
         assertInstanceOf(PhysicalFullScan.class, node);
         PhysicalFullScan fullScan = (PhysicalFullScan) node;

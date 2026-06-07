@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.internal.JSONUtil;
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ConsumerTest extends BaseStandaloneInstanceTest {
     private final String CONSUMER_ID = "consumer-id";
     private final String JOURNAL_NAME = "test-journal";
-    private final List<String> EVENTS = new LinkedList<>(List.of(
+    private final List<String> EVENTS = new ArrayList<>(List.of(
             "{\"key1\": \"value1\"}",
             "{\"key2\": \"value2\"}",
             "{\"key3\": \"value3\"}"
@@ -40,7 +40,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
-        List<String> expectedEvents = new LinkedList<>();
+        List<String> expectedEvents = new ArrayList<>();
         for (String event : EVENTS) {
             publisher.publish(JOURNAL_NAME, event).complete();
             // publisher encodes the event into JSON.
@@ -51,7 +51,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         Consumer consumer = new Consumer(context, config);
         consumer.start();
 
-        List<String> consumedEvents = new LinkedList<>();
+        List<String> consumedEvents = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             while (true) {
                 Event event = consumer.consume(tr);
@@ -93,14 +93,14 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         Consumer consumer = new Consumer(context, config);
         consumer.start();
 
-        List<String> expectedEvents = new LinkedList<>();
+        List<String> expectedEvents = new ArrayList<>();
         for (String event : EVENTS) {
             publisher.publish(JOURNAL_NAME, event).complete();
             // publisher encodes the event into JSON.
             expectedEvents.add(new String(JSONUtil.writeValueAsBytes(event)));
         }
 
-        List<String> consumedEvents = new LinkedList<>();
+        List<String> consumedEvents = new ArrayList<>();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             while (true) {
                 Event event = consumer.consume(tr);

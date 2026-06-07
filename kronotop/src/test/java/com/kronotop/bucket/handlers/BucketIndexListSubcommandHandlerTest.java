@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,29 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.server.resp3.*;
+import com.kronotop.commands.BucketCommandBuilder;
+import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class BucketIndexListSubcommandHandlerTest extends BaseBucketHandlerTest {
 
     @BeforeEach
     void beforeEach() {
-        getBucketMetadata(TEST_BUCKET);
+        createBucket(TEST_BUCKET);
     }
 
     @Test
@@ -71,8 +76,8 @@ class BucketIndexListSubcommandHandlerTest extends BaseBucketHandlerTest {
 
         List<String> names = new ArrayList<>();
         for (RedisMessage message : actualMessage.children()) {
-            SimpleStringRedisMessage actual = (SimpleStringRedisMessage) message;
-            names.add(actual.content());
+            FullBulkStringRedisMessage actual = (FullBulkStringRedisMessage) message;
+            names.add(actual.content().toString(StandardCharsets.UTF_8));
         }
         assertEquals(expectedNames, names);
     }

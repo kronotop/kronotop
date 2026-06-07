@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.transaction.TransactionUtil;
 
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
@@ -47,14 +48,17 @@ public class BucketRemoveHandler extends AbstractBucketHandler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        // Command hierarchy: remove -> purge
         runAsync(context, response, () -> {
             String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
             BucketRemoveMessage message = request.attr(MessageTypes.BUCKETREMOVE).get();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, namespace, message.getBucket());
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, namespace, message.getBucket());
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 BucketMetadataUtil.setRemoved(tx, metadata);
                 tr.commit().join();
+
+                context.getBucketMetadataCache().invalidate(namespace, message.getBucket());
             }
         }, response::writeOK);
     }

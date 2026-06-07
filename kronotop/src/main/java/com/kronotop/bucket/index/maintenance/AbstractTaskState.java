@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -148,10 +148,10 @@ public abstract class AbstractTaskState {
      * transitioning status to FAILED. The error message can be retrieved later
      * via the {@link #error()} accessor method.
      *
-     * @param tr transaction for state update
+     * @param tr       transaction for state update
      * @param subspace task subspace
-     * @param taskId task identifier
-     * @param error error message describing the failure
+     * @param taskId   task identifier
+     * @param error    error message describing the failure
      */
     public static void setError(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, String error) {
         TaskStorage.setStateField(tr, subspace, taskId, ERROR, error.getBytes(StandardCharsets.UTF_8));
@@ -178,19 +178,28 @@ public abstract class AbstractTaskState {
      *   <li>WAITING → FAILED: Rejected (must be RUNNING first)</li>
      * </ul>
      *
-     * @param tr transaction for reading current state
+     * @param tr       transaction for reading current state
      * @param subspace task subspace
-     * @param taskId task identifier
-     * @param target desired target status
+     * @param taskId   task identifier
+     * @param target   desired target status
      * @throws InvalidTaskStateException if transition violates state machine rules
      */
     private static void checkStatusTransitionRules(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, IndexTaskStatus target) {
         Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
 
         byte[] rawStatus = entries.get(STATUS);
-        IndexTaskStatus current = rawStatus == null
-                ? IndexTaskStatus.WAITING // initial
-                : IndexTaskStatus.valueOf(new String(rawStatus));
+        IndexTaskStatus current;
+        if (rawStatus == null) {
+            // No status field found. Check if the task was purged by the watchdog.
+            byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
+            if (definition == null) {
+                // Task has been purged — no state left to update
+                throw new TaskPurgedException();
+            }
+            current = IndexTaskStatus.WAITING; // initial
+        } else {
+            current = IndexTaskStatus.valueOf(new String(rawStatus));
+        }
 
         if (current == target) {
             return;
@@ -237,14 +246,19 @@ public abstract class AbstractTaskState {
      * AbstractTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
      * }</pre>
      *
-     * @param tr transaction for status update
+     * @param tr       transaction for status update
      * @param subspace task subspace
-     * @param taskId task identifier
-     * @param target new status to set
+     * @param taskId   task identifier
+     * @param target   new status to set
      * @throws InvalidTaskStateException if transition violates state machine rules
      */
     public static void setStatus(Transaction tr, DirectorySubspace subspace, Versionstamp taskId, IndexTaskStatus target) {
-        checkStatusTransitionRules(tr, subspace, taskId, target);
+        try {
+            checkStatusTransitionRules(tr, subspace, taskId, target);
+        } catch (TaskPurgedException e) {
+            // Task was purged by watchdog — nothing to update
+            return;
+        }
         TaskStorage.setStateField(tr, subspace, taskId, STATUS, target.name().getBytes());
     }
 
@@ -270,7 +284,7 @@ public abstract class AbstractTaskState {
      * Record holding common task state fields loaded from FoundationDB.
      *
      * @param status current task execution status
-     * @param error error message if failed, null otherwise
+     * @param error  error message if failed, null otherwise
      */
     public record TaskStateFields(IndexTaskStatus status, String error) {
     }

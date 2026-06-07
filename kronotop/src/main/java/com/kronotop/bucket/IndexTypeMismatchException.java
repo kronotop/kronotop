@@ -17,7 +17,7 @@
 package com.kronotop.bucket;
 
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.server.RESPError;
 import org.bson.BsonValue;
 
@@ -26,7 +26,7 @@ public class IndexTypeMismatchException extends KronotopException {
         super(RESPError.INDEXTYPE_MISMATCH, message);
     }
 
-    public IndexTypeMismatchException(IndexDefinition definition, BsonValue bsonValue) {
+    public IndexTypeMismatchException(SingleFieldIndexDefinition definition, BsonValue bsonValue) {
         this(String.format(
                 "Index type mismatch: index '%s' expects '%s', but selector '%s' matched a value of type '%s'",
                 definition.name(),

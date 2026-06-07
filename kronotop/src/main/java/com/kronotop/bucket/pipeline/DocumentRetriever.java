@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,8 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.index.IndexEntry;
@@ -38,6 +36,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import org.bson.types.ObjectId;
 import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
@@ -92,29 +91,31 @@ public class DocumentRetriever {
 
     /**
      * Extracts document location information from a regular index scan entry.
-     * For regular indexes, the key structure is [ENTRIES_MAGIC, indexed_value, Versionstamp]
+     * For regular indexes, the key structure is [ENTRIES_MAGIC, indexed_value, ObjectId]
+     * For _id index, the key structure is [ENTRIES_MAGIC, ObjectId]
      *
      * @param indexSubspace the index directory subspace
      * @param indexEntry    the key-value pair from the index scan
-     * @return document location containing ID, shard, and metadata
+     * @return document location containing ObjectId, shard, and metadata
      */
     DocumentLocation extractDocumentLocationFromIndexScan(DirectorySubspace indexSubspace, KeyValue indexEntry) {
-        // Extract the Versionstamp from the index key
-        Tuple indexKeyTuple = indexSubspace.unpack(indexEntry.getKey());
-        Versionstamp documentId;
+        // Extract the ObjectId from the index key
+        Tuple keyTuple = indexSubspace.unpack(indexEntry.getKey());
+        ObjectId documentId;
 
         // Handle different index structures:
-        // Regular indexes: (ENTRIES_MAGIC, indexed_value, Versionstamp) - 3 elements
-        // _id index: (ENTRIES_MAGIC, Versionstamp) - 2 elements (Versionstamp is both indexed value and document ID)
-        if (indexKeyTuple.size() == 3) {
-            documentId = (Versionstamp) indexKeyTuple.get(2); // Regular index: get Versionstamp from position 2
-        } else if (indexKeyTuple.size() == 2) {
-            documentId = (Versionstamp) indexKeyTuple.get(1); // _id index: get Versionstamp from position 1
+        // Regular indexes: (ENTRIES_MAGIC, indexed_value, ObjectId) - 3 elements
+        // _id index: (ENTRIES_MAGIC, ObjectId) - 2 elements
+        if (keyTuple.size() == 3) {
+            byte[] objectIdBytes = keyTuple.getBytes(2);
+            documentId = new ObjectId(objectIdBytes);
+        } else if (keyTuple.size() == 2) {
+            byte[] objectIdBytes = keyTuple.getBytes(1);
+            documentId = new ObjectId(objectIdBytes);
         } else {
-            throw new IllegalStateException("Unexpected index key tuple size: " + indexKeyTuple.size());
+            throw new IllegalStateException("Unexpected index key tuple size: " + keyTuple.size());
         }
 
-        // Decode the IndexEntry from the value
         IndexEntry indexEntryData = IndexEntry.decode(indexEntry.getValue());
         int shardId = indexEntryData.shardId();
         EntryMetadata entryMetadata = EntryMetadata.decode(indexEntryData.entryMetadata());
@@ -123,18 +124,45 @@ public class DocumentRetriever {
     }
 
     /**
+     * Extracts document location and raw index value from an index scan entry in a single unpack operation.
+     * Handles both single field indexes (ENTRIES_MAGIC, indexed_value, ObjectId) and
+     * the primary index (ENTRIES_MAGIC, ObjectId).
+     *
+     * @param indexSubspace the index directory subspace
+     * @param indexEntry    the key-value pair from the index scan
+     * @return IndexScanResult containing both the DocumentLocation and the raw index value
+     */
+    IndexScanResult extractFromIndexScanWithValue(DirectorySubspace indexSubspace, KeyValue indexEntry) {
+        Tuple keyTuple = indexSubspace.unpack(indexEntry.getKey());
+
+        Object rawIndexValue = keyTuple.get(1);
+        ObjectId documentId;
+
+        if (keyTuple.size() == 3) {
+            documentId = new ObjectId(keyTuple.getBytes(2));
+        } else if (keyTuple.size() == 2) {
+            documentId = new ObjectId(keyTuple.getBytes(1));
+        } else {
+            throw new IllegalStateException("Unexpected index key tuple size: " + keyTuple.size());
+        }
+
+        IndexEntry indexEntryData = IndexEntry.decode(indexEntry.getValue());
+        int shardId = indexEntryData.shardId();
+        EntryMetadata entryMetadata = EntryMetadata.decode(indexEntryData.entryMetadata());
+
+        DocumentLocation location = new DocumentLocation(documentId, shardId, entryMetadata);
+        return new IndexScanResult(location, rawIndexValue);
+    }
+
+    /**
      * Retrieves multiple documents, grouping by shard and segment for locality optimization.
      * Fetches locally or remotely based on routing. Uses single-threaded execution for a single
      * group, otherwise spawns virtual threads with bounded concurrency.
      *
-     * @param metadata  bucket metadata containing volume prefix
      * @param locations document locations to retrieve
      * @return documents in the same order as input locations
      */
-    List<ByteBuffer> retrieveDocuments(
-            BucketMetadata metadata,
-            List<DocumentLocation> locations
-    ) {
+    List<ByteBuffer> retrieveDocuments(List<DocumentLocation> locations) {
         int size = locations.size();
         if (size == 0) return List.of();
 
@@ -162,13 +190,13 @@ public class DocumentRetriever {
                 if (groups.size() == 1 && bySegment.size() == 1) {
                     // switch to the single-thread
                     if (isLocal) {
-                        fetchLocal(metadata, locations, group, result);
+                        fetchLocal(locations, group, result);
                     } else {
                         fetchRemote(primary, locations, group, result);
                     }
                 } else {
                     if (isLocal) {
-                        tasks.add(() -> fetchLocal(metadata, locations, group, result));
+                        tasks.add(() -> fetchLocal(locations, group, result));
                     } else {
                         tasks.add(() -> fetchRemote(primary, locations, group, result));
                     }
@@ -229,9 +257,9 @@ public class DocumentRetriever {
 
     /**
      * Fetches documents from local volume storage for a given (shard, segment) group.
+     * Uses EntryMetadata for direct segment access.
      */
     private void fetchLocal(
-            BucketMetadata metadata,
             List<DocumentLocation> locations,
             Group group,
             ByteBuffer[] result
@@ -245,10 +273,11 @@ public class DocumentRetriever {
             int idx = group.indices.a[i];
             DocumentLocation loc = locations.get(idx);
             try {
-                result[idx] = shard.volume().get(metadata.volumePrefix(), loc.versionstamp(), loc.entryMetadata());
+                // Use direct segment access via EntryMetadata
+                result[idx] = shard.volume().getByEntryMetadata(loc.entryMetadata());
             } catch (IOException e) {
                 throw new KronotopException(
-                        "Failed to retrieve document with ID: " + loc.versionstamp() + " from shard: " + loc.shardId(), e
+                        "Failed to retrieve document with ID: " + loc.objectId() + " from shard: " + loc.shardId(), e
                 );
             }
         }

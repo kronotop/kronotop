@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,9 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexDefinition;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 
@@ -42,39 +41,39 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
     private static final int MIN_INDEXES_FOR_INTERSECTION = 2;
 
     @Override
-    public PhysicalNode apply(PhysicalNode node, BucketMetadata metadata, PlannerContext context) {
+    public PhysicalNode apply(PlannerContext context, PhysicalNode node) {
         return switch (node) {
-            case PhysicalAnd and -> optimizeAnd(and, metadata, context);
-            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(not.child(), metadata, context));
+            case PhysicalAnd and -> optimizeAnd(context, and);
+            case PhysicalNot not -> new PhysicalNot(context.nextId(), apply(context, not.child()));
             case PhysicalElemMatch elemMatch -> new PhysicalElemMatch(
                     context.nextId(),
                     elemMatch.selector(),
-                    apply(elemMatch.subPlan(), metadata, context)
+                    apply(context, elemMatch.subPlan())
             );
             case PhysicalOr or -> new PhysicalOr(
                     context.nextId(),
                     or.children().stream()
-                            .map(child -> apply(child, metadata, context))
+                            .map(child -> apply(context, child))
                             .toList()
             );
             default -> node; // No optimization for other nodes
         };
     }
 
-    private PhysicalNode optimizeAnd(PhysicalAnd and, BucketMetadata metadata, PlannerContext context) {
+    private PhysicalNode optimizeAnd(PlannerContext context, PhysicalAnd and) {
         List<PhysicalNode> nonIndexedChildren = new ArrayList<>();
         List<IndexScanCandidate> indexCandidates = new ArrayList<>();
 
         // First, recursively optimize children and categorize them
         for (PhysicalNode child : and.children()) {
-            PhysicalNode optimized = apply(child, metadata, context);
+            PhysicalNode optimized = apply(context, child);
 
             // Check if this is an index scan with an equality condition
             if (optimized instanceof PhysicalIndexScan(int ignoredId, PhysicalNode node, var ignoredIndex) &&
                     node instanceof PhysicalFilter filter &&
                     isEqualityOperator(filter.op())) {
 
-                Index index = metadata.indexes().getIndex(filter.selector(), IndexSelectionPolicy.READ);
+                Index index = context.getMetadata().indexes().getIndex(filter.selector(), IndexSelectionPolicy.READ);
                 if (index != null) {
                     indexCandidates.add(new IndexScanCandidate(filter, index.definition()));
                 } else {
@@ -87,7 +86,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
 
         // Only create intersection if we have multiple indexed conditions
         if (indexCandidates.size() >= MIN_INDEXES_FOR_INTERSECTION) {
-            List<IndexDefinition> indexes = indexCandidates.stream()
+            List<SingleFieldIndexDefinition> indexes = indexCandidates.stream()
                     .map(candidate -> candidate.index)
                     .toList();
 
@@ -106,7 +105,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
 
         // Return simplified structure
         if (nonIndexedChildren.size() == 1) {
-            return nonIndexedChildren.get(0);
+            return nonIndexedChildren.getFirst();
         } else if (nonIndexedChildren.size() < and.children().size()) {
             return new PhysicalAnd(context.nextId(), nonIndexedChildren);
         } else {
@@ -145,6 +144,6 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
     /**
      * Helper record to group index scan candidates
      */
-    private record IndexScanCandidate(PhysicalFilter filter, IndexDefinition index) {
+    private record IndexScanCandidate(PhysicalFilter filter, SingleFieldIndexDefinition index) {
     }
 }

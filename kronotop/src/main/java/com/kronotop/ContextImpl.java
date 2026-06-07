@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,19 @@
 package com.kronotop;
 
 import com.apple.foundationdb.Database;
+import com.apple.foundationdb.directory.DirectoryLayer;
 import com.kronotop.bucket.BucketMetadataCache;
 import com.kronotop.cluster.Member;
+import com.kronotop.cluster.ShardRegistry;
 import com.kronotop.cluster.client.InternalClientPool;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.internal.DirectorySubspaceCache;
+import com.kronotop.internal.KronotopDirectoryLayer;
 import com.kronotop.journal.Journal;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.SessionStore;
+import com.kronotop.server.TLSConfig;
 import com.kronotop.worker.WorkerRegistry;
 import com.typesafe.config.Config;
 import io.netty.util.AttributeMap;
@@ -50,6 +54,7 @@ public class ContextImpl implements Context {
     private final Config config;
     private final Member member;
     private final Database database;
+    private final DirectoryLayer directoryLayer;
     private final ExecutorService virtualThreadPerTaskExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final DirectorySubspaceCache directorySubspaceCache;
     private final EnumMap<ServerKind, CommandHandlerRegistry> handlers = new EnumMap<>(ServerKind.class);
@@ -64,15 +69,11 @@ public class ContextImpl implements Context {
     private final String defaultNamespace;
     private final AttributeMap memberAttributes = new DefaultAttributeMap();
     private final InternalClientPool internalClientPool;
-
-    // Shortcut to CachedTimeService, it's used in the hot path for Bucket and Redis commands
-    private volatile CachedTimeService cachedTimeService;
-
+    private final ShardRegistry shardRegistry;
+    private final SessionStore sessionStore = new SessionStore();
     // Direct field access for minimal overhead on the hot path.
     // Initialized only once to avoid runtime lookup and casting costs.
     private BucketMetadataCache bucketMetadataCache;
-
-    private final SessionStore sessionStore = new SessionStore();
 
     /**
      * Creates a new context for a Kronotop instance.
@@ -102,11 +103,13 @@ public class ContextImpl implements Context {
         this.config = config;
         this.member = member;
         this.database = database;
+        this.directoryLayer = KronotopDirectoryLayer.fromConfig(config);
         this.journal = new Journal(config, database);
         this.workerRegistry = new WorkerRegistry();
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
-        this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database);
-        this.internalClientPool = new InternalClientPool();
+        this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database, directoryLayer);
+        this.internalClientPool = new InternalClientPool(TLSConfig.fromConfig(config, ServerKind.INTERNAL));
+        this.shardRegistry = new ShardRegistry(config, clusterName);
 
         for (ServerKind kind : ServerKind.values()) {
             this.handlers.put(kind, new CommandHandlerRegistry());
@@ -161,6 +164,11 @@ public class ContextImpl implements Context {
     @Override
     public Database getFoundationDB() {
         return database;
+    }
+
+    @Override
+    public DirectoryLayer getDirectoryLayer() {
+        return directoryLayer;
     }
 
     @Override
@@ -227,10 +235,7 @@ public class ContextImpl implements Context {
 
     @Override
     public long now() {
-        if (cachedTimeService == null) {
-            cachedTimeService = getService(CachedTimeService.NAME);
-        }
-        return cachedTimeService.getCurrentTimeInMilliseconds();
+        return System.currentTimeMillis();
     }
 
     @Override
@@ -246,5 +251,10 @@ public class ContextImpl implements Context {
     @Override
     public InternalClientPool getInternalClientPool() {
         return internalClientPool;
+    }
+
+    @Override
+    public ShardRegistry getShardRegistry() {
+        return shardRegistry;
     }
 }

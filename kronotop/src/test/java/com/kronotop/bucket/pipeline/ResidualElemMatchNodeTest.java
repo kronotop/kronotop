@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,32 +17,31 @@
 package com.kronotop.bucket.pipeline;
 
 import com.kronotop.bucket.BSONUtil;
-import com.kronotop.bucket.bql.ast.BooleanVal;
-import com.kronotop.bucket.bql.ast.DoubleVal;
-import com.kronotop.bucket.bql.ast.Int32Val;
-import com.kronotop.bucket.bql.ast.Int64Val;
-import com.kronotop.bucket.bql.ast.StringVal;
+import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.planner.Operator;
-import org.bson.BsonArray;
-import org.bson.BsonBoolean;
-import org.bson.BsonDocument;
-import org.bson.BsonDouble;
-import org.bson.BsonInt32;
-import org.bson.BsonInt64;
-import org.bson.BsonString;
+import org.bson.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResidualElemMatchNodeTest {
 
     private static ByteBuffer toBuffer(BsonDocument doc) {
         return BSONUtil.toByteBuffer(doc);
+    }
+
+    private static DocumentView toView(ByteBuffer buffer) {
+        DocumentView view = new DocumentView();
+        view.reset(null, buffer);
+        return view;
     }
 
     @Nested
@@ -58,10 +57,10 @@ class ResidualElemMatchNodeTest {
                     new BsonDocument("price", new BsonInt32(150))
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Int32Val(100));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Operand.Literal(new Int32Val(100)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -73,10 +72,10 @@ class ResidualElemMatchNodeTest {
                     new BsonDocument("price", new BsonInt32(80))
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Int32Val(100));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Operand.Literal(new Int32Val(100)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -89,12 +88,12 @@ class ResidualElemMatchNodeTest {
             )));
 
             ResidualAndNode subPredicate = new ResidualAndNode(List.of(
-                    new ResidualPredicate(1, "price", Operator.GT, new Int32Val(100)),
-                    new ResidualPredicate(2, "category", Operator.EQ, new StringVal("electronics"))
+                    new ResidualPredicate(1, "price", Operator.GT, new Operand.Literal(new Int32Val(100))),
+                    new ResidualPredicate(2, "category", Operator.EQ, new Operand.Literal(new StringVal("electronics")))
             ));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -108,12 +107,12 @@ class ResidualElemMatchNodeTest {
             )));
 
             ResidualAndNode subPredicate = new ResidualAndNode(List.of(
-                    new ResidualPredicate(1, "price", Operator.GT, new Int32Val(100)),
-                    new ResidualPredicate(2, "category", Operator.EQ, new StringVal("electronics"))
+                    new ResidualPredicate(1, "price", Operator.GT, new Operand.Literal(new Int32Val(100))),
+                    new ResidualPredicate(2, "category", Operator.EQ, new Operand.Literal(new StringVal("electronics")))
             ));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
     }
 
@@ -125,40 +124,40 @@ class ResidualElemMatchNodeTest {
         void shouldReturnFalseForMissingField() {
             BsonDocument doc = new BsonDocument("other", new BsonString("value"));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Int32Val(100));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Operand.Literal(new Int32Val(100)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
         void shouldReturnFalseForNonArrayField() {
             BsonDocument doc = new BsonDocument("items", new BsonString("not an array"));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Int32Val(100));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Operand.Literal(new Int32Val(100)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
         void shouldReturnFalseForEmptyArray() {
             BsonDocument doc = new BsonDocument("items", new BsonArray());
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Int32Val(100));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Operand.Literal(new Int32Val(100)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
         void shouldReturnFalseForNullField() {
             BsonDocument doc = new BsonDocument("items", org.bson.BsonNull.VALUE);
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Int32Val(100));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, new Operand.Literal(new Int32Val(100)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
     }
 
@@ -175,10 +174,10 @@ class ResidualElemMatchNodeTest {
                     new BsonDocument("details", new BsonDocument("amount", new BsonInt32(200)))
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "details.amount", Operator.GTE, new Int32Val(150));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "details.amount", Operator.GTE, new Operand.Literal(new Int32Val(150)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("orders", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
     }
 
@@ -196,37 +195,37 @@ class ResidualElemMatchNodeTest {
 
         @Test
         void shouldMatchWithEqOperator() {
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.EQ, new Int32Val(50));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.EQ, new Operand.Literal(new Int32Val(50)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
-            assertTrue(elemMatch.test(toBuffer(createTestDoc())));
+            assertTrue(elemMatch.test(toView(toBuffer(createTestDoc())), Collections.emptyList()));
         }
 
         @Test
         void shouldMatchWithNeOperator() {
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.NE, new Int32Val(999));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.NE, new Operand.Literal(new Int32Val(999)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
-            assertTrue(elemMatch.test(toBuffer(createTestDoc())));
+            assertTrue(elemMatch.test(toView(toBuffer(createTestDoc())), Collections.emptyList()));
         }
 
         @Test
         void shouldMatchWithLtOperator() {
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.LT, new Int32Val(50));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.LT, new Operand.Literal(new Int32Val(50)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
-            assertTrue(elemMatch.test(toBuffer(createTestDoc())));
+            assertTrue(elemMatch.test(toView(toBuffer(createTestDoc())), Collections.emptyList()));
         }
 
         @Test
         void shouldMatchWithLteOperator() {
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.LTE, new Int32Val(10));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.LTE, new Operand.Literal(new Int32Val(10)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
-            assertTrue(elemMatch.test(toBuffer(createTestDoc())));
+            assertTrue(elemMatch.test(toView(toBuffer(createTestDoc())), Collections.emptyList()));
         }
 
         @Test
         void shouldMatchWithGteOperator() {
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.GTE, new Int32Val(100));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "value", Operator.GTE, new Operand.Literal(new Int32Val(100)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
-            assertTrue(elemMatch.test(toBuffer(createTestDoc())));
+            assertTrue(elemMatch.test(toView(toBuffer(createTestDoc())), Collections.emptyList()));
         }
     }
 
@@ -245,10 +244,10 @@ class ResidualElemMatchNodeTest {
             )));
 
             // For scalar arrays, the selector is empty string "" because elements are wrapped
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new StringVal("urgent"));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new Operand.Literal(new StringVal("urgent")));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("tags", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -261,10 +260,10 @@ class ResidualElemMatchNodeTest {
                     new BsonString("enhancement")
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new StringVal("urgent"));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new Operand.Literal(new StringVal("urgent")));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("tags", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -277,20 +276,20 @@ class ResidualElemMatchNodeTest {
                     new BsonString("bug")
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.NE, new StringVal("critical"));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.NE, new Operand.Literal(new StringVal("critical")));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("tags", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
         void shouldHandleEmptyStringArray() {
             BsonDocument doc = new BsonDocument("tags", new BsonArray());
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new StringVal("urgent"));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new Operand.Literal(new StringVal("urgent")));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("tags", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
     }
 
@@ -308,10 +307,10 @@ class ResidualElemMatchNodeTest {
                     new BsonInt32(92)
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.GT, new Int32Val(90));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.GT, new Operand.Literal(new Int32Val(90)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("scores", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -324,10 +323,10 @@ class ResidualElemMatchNodeTest {
                     new BsonInt32(89)
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.GT, new Int32Val(90));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.GT, new Operand.Literal(new Int32Val(90)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("scores", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -340,10 +339,10 @@ class ResidualElemMatchNodeTest {
                     new BsonInt32(30)
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.LTE, new Int32Val(15));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.LTE, new Operand.Literal(new Int32Val(15)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("values", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -358,20 +357,20 @@ class ResidualElemMatchNodeTest {
                     new BsonInt32(5)
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new Int32Val(3));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new Operand.Literal(new Int32Val(3)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("values", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
         void shouldHandleEmptyNumberArray() {
             BsonDocument doc = new BsonDocument("scores", new BsonArray());
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.GT, new Int32Val(50));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.GT, new Operand.Literal(new Int32Val(50)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("scores", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -383,10 +382,10 @@ class ResidualElemMatchNodeTest {
                     new BsonInt64(2000000000000L)
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.GTE, new Int64Val(1500000000000L));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.GTE, new Operand.Literal(new Int64Val(1500000000000L)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("bigNumbers", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -399,10 +398,10 @@ class ResidualElemMatchNodeTest {
                     new BsonDouble(29.99)
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.LT, new DoubleVal(15.0));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.LT, new Operand.Literal(new DoubleVal(15.0)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("prices", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
     }
 
@@ -420,10 +419,10 @@ class ResidualElemMatchNodeTest {
                     BsonBoolean.FALSE
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new BooleanVal(true));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new Operand.Literal(new BooleanVal(true)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("flags", subPredicate);
 
-            assertTrue(elemMatch.test(toBuffer(doc)));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
         }
 
         @Test
@@ -436,10 +435,128 @@ class ResidualElemMatchNodeTest {
                     BsonBoolean.FALSE
             )));
 
-            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new BooleanVal(true));
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.EQ, new Operand.Literal(new BooleanVal(true)));
             ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("flags", subPredicate);
 
-            assertFalse(elemMatch.test(toBuffer(doc)));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), Collections.emptyList()));
+        }
+    }
+
+    @Nested
+    @DisplayName("Parameterized Execution")
+    class ParameterizedExecution {
+
+        private static Operand param(int index) {
+            return new Operand.Param(new ParamRef(index));
+        }
+
+        private static Operand paramList(int... indices) {
+            List<ParamRef> refs = Arrays.stream(indices).mapToObj(ParamRef::new).toList();
+            return new Operand.ParamList(refs);
+        }
+
+        @Test
+        void shouldMatchDocumentArrayWithParamOperand() {
+            // Behavior: Param(0) in sub-predicate resolves and matches a document array element.
+            // Document: { items: [{price: 50}, {price: 150}] }
+            // Query: { items: { $elemMatch: { price: { $gt: ?0 } } } } with ?0 = 100
+            BsonDocument doc = new BsonDocument("items", new BsonArray(List.of(
+                    new BsonDocument("price", new BsonInt32(50)),
+                    new BsonDocument("price", new BsonInt32(150))
+            )));
+
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "price", Operator.GT, param(0));
+            ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
+
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), List.of(new Int32Val(100))));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), List.of(new Int32Val(200))));
+        }
+
+        @Test
+        void shouldMatchScalarArrayWithParamOperand() {
+            // Behavior: Param(0) in sub-predicate resolves and matches a scalar array element.
+            // Document: { scores: [75, 88, 92] }
+            // Query: { scores: { $elemMatch: { $gte: ?0 } } } with ?0 = 90
+            BsonDocument doc = new BsonDocument("scores", new BsonArray(List.of(
+                    new BsonInt32(75),
+                    new BsonInt32(88),
+                    new BsonInt32(92)
+            )));
+
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "", Operator.GTE, param(0));
+            ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("scores", subPredicate);
+
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), List.of(new Int32Val(90))));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), List.of(new Int32Val(95))));
+        }
+
+        @Test
+        void shouldMatchWithParamListInCondition() {
+            // Behavior: ParamList resolves and matches with the IN operator within $elemMatch.
+            // Document: { items: [{status: "pending"}, {status: "shipped"}] }
+            // Query: { items: { $elemMatch: { status: { $in: [?0, ?1] } } } }
+            BsonDocument doc = new BsonDocument("items", new BsonArray(List.of(
+                    new BsonDocument("status", new BsonString("pending")),
+                    new BsonDocument("status", new BsonString("shipped"))
+            )));
+
+            ResidualPredicate subPredicate = new ResidualPredicate(1, "status", Operator.IN, paramList(0, 1));
+            ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
+
+            List<BqlValue> params = List.of(new StringVal("shipped"), new StringVal("delivered"));
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), params));
+
+            List<BqlValue> params2 = List.of(new StringVal("cancelled"), new StringVal("returned"));
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), params2));
+        }
+
+        @Test
+        void shouldMatchWithMultipleConditionsUsingParams() {
+            // Behavior: The AND condition with multiple Param operands resolves correctly.
+            // Document: { items: [{price: 50, qty: 2}, {price: 150, qty: 5}] }
+            // Query: { items: { $elemMatch: { price: { $gt: ?0 }, qty: { $gte: ?1 } } } }
+            BsonDocument doc = new BsonDocument("items", new BsonArray(List.of(
+                    new BsonDocument("price", new BsonInt32(50)).append("qty", new BsonInt32(2)),
+                    new BsonDocument("price", new BsonInt32(150)).append("qty", new BsonInt32(5))
+            )));
+
+            ResidualAndNode subPredicate = new ResidualAndNode(List.of(
+                    new ResidualPredicate(1, "price", Operator.GT, param(0)),
+                    new ResidualPredicate(2, "qty", Operator.GTE, param(1))
+            ));
+            ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
+
+            // Second element matches: price 150 > 100, qty 5 >= 3
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), List.of(new Int32Val(100), new Int32Val(3))));
+
+            // No element matches: price > 100 requires qty >= 10, but the second element has qty=5
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), List.of(new Int32Val(100), new Int32Val(10))));
+        }
+
+        @Test
+        void shouldMatchWithOrConditionUsingParams() {
+            // Behavior: OR condition with Param operands matches if any branch satisfies.
+            // Document: { items: [{status: "pending", priority: 1}, {status: "shipped", priority: 3}] }
+            // Query: { items: { $elemMatch: { $or: [{ status: { $eq: ?0 } }, { priority: { $gte: ?1 } }] } } }
+            BsonDocument doc = new BsonDocument("items", new BsonArray(List.of(
+                    new BsonDocument("status", new BsonString("pending")).append("priority", new BsonInt32(1)),
+                    new BsonDocument("status", new BsonString("shipped")).append("priority", new BsonInt32(3))
+            )));
+
+            ResidualOrNode subPredicate = new ResidualOrNode(List.of(
+                    new ResidualPredicate(1, "status", Operator.EQ, param(0)),
+                    new ResidualPredicate(2, "priority", Operator.GTE, param(1))
+            ));
+            ResidualElemMatchNode elemMatch = new ResidualElemMatchNode("items", subPredicate);
+
+            // First element matches: status = "pending"
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), List.of(new StringVal("pending"), new Int32Val(5))));
+
+            // The second element matches: priority 3 >= 2
+            assertTrue(elemMatch.test(toView(toBuffer(doc)), List.of(new StringVal("cancelled"), new Int32Val(2))));
+
+            // No element matches: status not "cancelled", priority not >= 5
+            assertFalse(elemMatch.test(toView(toBuffer(doc)), List.of(new StringVal("cancelled"), new Int32Val(5))));
         }
     }
 }

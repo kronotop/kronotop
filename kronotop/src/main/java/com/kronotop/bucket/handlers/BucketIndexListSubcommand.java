@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -23,14 +23,17 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,11 +52,11 @@ class BucketIndexListSubcommand implements SubcommandHandler {
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
             List<RedisMessage> children = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, parameters.bucket);
                 List<String> names = IndexUtil.list(tr, metadata.subspace());
                 for (String name : names) {
-                    children.add(new SimpleStringRedisMessage(name));
+                    children.add(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(name.getBytes(StandardCharsets.UTF_8))));
                 }
             }
             return children;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,21 @@ import com.kronotop.internal.FoundationDBFactory;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestPlan;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 // See https://stackoverflow.com/questions/75290490/junit5-before-and-after-suite-method-invocation
 public class BeforeAfterSuiteListener implements TestExecutionListener {
+    private static final AtomicBoolean SHUTDOWN_HOOK_REGISTERED = new AtomicBoolean(false);
 
     @Override
-    public void testPlanExecutionFinished(TestPlan testPlan) {
-        FoundationDBFactory.closeDatabase();
+    public void testPlanExecutionStarted(TestPlan testPlan) {
+        // With reuseForks=true a single fork JVM runs many test plans back to back. The global
+        // FoundationDB connection can be opened only once per JVM and cannot be reopened after it is
+        // closed, so closing it at the end of every test plan would poison the next test class in the
+        // same JVM. Register one shutdown hook instead, closing the connection exactly once when the
+        // fork JVM exits.
+        if (SHUTDOWN_HOOK_REGISTERED.compareAndSet(false, true)) {
+            Runtime.getRuntime().addShutdownHook(new Thread(FoundationDBFactory::closeDatabase));
+        }
     }
 }

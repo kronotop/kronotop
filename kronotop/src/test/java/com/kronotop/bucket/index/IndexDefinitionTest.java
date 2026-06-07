@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,10 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class IndexDefinitionTest {
     @Test
     void shouldEncodeDecode() {
-        IndexDefinition index = IndexDefinition.create("index-name", "_id", BsonType.BINARY);
+        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.BINARY, false, IndexStatus.WAITING);
         byte[] data = JSONUtil.writeValueAsBytes(index);
 
-        IndexDefinition decoded = JSONUtil.readValue(data, IndexDefinition.class);
+        SingleFieldIndexDefinition decoded = JSONUtil.readValue(data, SingleFieldIndexDefinition.class);
 
         assertEquals(index.id(), decoded.id());
         assertEquals(index.name(), decoded.name());
@@ -40,20 +40,20 @@ class IndexDefinitionTest {
 
     @Test
     void DECIMAL128NotImplementedYet() {
-        assertThrows(NotImplementedException.class, () -> IndexDefinition.create("index-name", "_id", BsonType.DECIMAL128));
+        assertThrows(NotImplementedException.class, () -> SingleFieldIndexDefinition.create("index-name", "_id", BsonType.DECIMAL128, false, IndexStatus.WAITING));
     }
 
     @Test
     void shouldUpdateStatus() {
-        IndexDefinition definition = IndexDefinition.create("index-name", "_id", BsonType.INT32);
-        IndexDefinition updated = definition.updateStatus(IndexStatus.BUILDING);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition updated = definition.updateStatus(IndexStatus.BUILDING);
         assertEquals(IndexStatus.BUILDING, updated.status());
     }
 
     @Test
     void shouldNotUpdateStatusFromDroppedToOtherStatus() {
-        IndexDefinition definition = IndexDefinition.create("index-name", "_id", BsonType.INT32);
-        IndexDefinition dropped = definition.updateStatus(IndexStatus.DROPPED);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition dropped = definition.updateStatus(IndexStatus.DROPPED);
         assertEquals(IndexStatus.DROPPED, dropped.status());
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
@@ -64,12 +64,12 @@ class IndexDefinitionTest {
 
     @Test
     void shouldAllowUpdatingDroppedStatusToDroppedAgain() {
-        IndexDefinition definition = IndexDefinition.create("index-name", "_id", BsonType.INT32);
-        IndexDefinition dropped = definition.updateStatus(IndexStatus.DROPPED);
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition dropped = definition.updateStatus(IndexStatus.DROPPED);
         assertEquals(IndexStatus.DROPPED, dropped.status());
 
         // Idempotent operation - should not throw
-        IndexDefinition droppedAgain = dropped.updateStatus(IndexStatus.DROPPED);
+        SingleFieldIndexDefinition droppedAgain = dropped.updateStatus(IndexStatus.DROPPED);
         assertEquals(IndexStatus.DROPPED, droppedAgain.status());
     }
 }

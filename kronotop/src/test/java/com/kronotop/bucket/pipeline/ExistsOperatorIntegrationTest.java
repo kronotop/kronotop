@@ -17,26 +17,17 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.DefaultIndexDefinition;
-import com.kronotop.bucket.bql.BqlParseException;
-import com.kronotop.bucket.bql.ast.StringVal;
-import com.kronotop.bucket.index.IndexDefinition;
-import com.kronotop.bucket.planner.Operator;
-import com.kronotop.internal.VersionstampUtil;
-import org.bson.BsonType;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class ExistsOperatorIntegrationTest extends BasePipelineTest {
 
@@ -53,19 +44,19 @@ class ExistsOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'George'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query for documents where 'age' field exists (not null, not missing)
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$exists': true}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$exists': true}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -87,18 +78,18 @@ class ExistsOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$exists': true}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$exists': true}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -117,18 +108,18 @@ class ExistsOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$exists': true}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$exists': true}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -147,18 +138,18 @@ class ExistsOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$exists': false}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$exists': false}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -178,18 +169,18 @@ class ExistsOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'Bob'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$exists': false}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$exists': false}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -212,18 +203,18 @@ class ExistsOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 25}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'user.name': {'$exists': true}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'user.name': {'$exists': true}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 
@@ -243,18 +234,18 @@ class ExistsOperatorIntegrationTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'name': 'John'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$exists': true}, 'name': {'$eq': 'John'}}");
-        assertInstanceOf(FullScanNode.class, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$exists': true}, 'name': {'$eq': 'John'}}");
+        assertInstanceOf(FullScanNode.class, planWithParams.plan());
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                actualResult.add(BSONUtil.fromBson(buffer.array()).toJson());
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                actualResult.add(TestUtil.bsonToJsonWithoutId(buffer));
             }
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,130 +18,160 @@ package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.bucket.BSONUtil;
-import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.DefaultIndexDefinition;
-import com.kronotop.bucket.IndexTypeMismatchException;
+import com.kronotop.bucket.*;
+import com.kronotop.bucket.bql.BqlParser;
+import com.kronotop.bucket.bql.ast.BqlAnd;
+import com.kronotop.bucket.bql.ast.BqlEq;
+import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.vector.CollectedVector;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
-import org.bson.BsonArray;
-import org.bson.BsonNull;
-import org.bson.BsonValue;
+import org.bson.*;
+import org.bson.types.ObjectId;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Executes document update operations on buckets, applying both SET and UNSET operations
- * while maintaining index consistency across affected and unaffected indexes.
- * <p>
- * The UpdateExecutor performs the following workflow:
- * <ol>
- *   <li>Executes the pipeline to identify matching documents</li>
- *   <li>Groups documents by shard ID for efficient batch processing</li>
- *   <li>Applies SET operations (field updates/additions) and UNSET operations (field removals)</li>
- *   <li>Updates documents in the Volume storage layer</li>
- *   <li>Updates affected indexes with new/removed field values</li>
- *   <li>Updates unaffected indexes with new metadata only</li>
- * </ol>
- * <p>
- * Index consistency is maintained by:
- * <ul>
- *   <li><b>Affected indexes</b>: Indexes on fields being SET or UNSET - entries are dropped and recreated</li>
- *   <li><b>Unaffected indexes</b>: Indexes on unchanged fields - only metadata is updated</li>
- * </ul>
+ * Executes document update operations on buckets using ObjectId as the document identifier.
  */
-public final class UpdateExecutor extends BaseExecutor implements Executor<List<Versionstamp>> {
+public final class UpdateExecutor extends BaseExecutor implements Executor<List<ObjectId>> {
+    private final Context context;
     private final boolean strictTypes;
     private final PipelineExecutor executor;
+    private final VolumeFacade volumeFacade;
+    private final Map<Integer, VolumeSubspace> subspaces = new ConcurrentHashMap<>();
 
     public UpdateExecutor(Context context, PipelineExecutor executor) {
+        this.context = context;
         this.strictTypes = context.getConfig().getBoolean("bucket.index.strict_types");
         this.executor = executor;
+        this.volumeFacade = new VolumeFacade(context);
     }
 
     /**
-     * Executes document update operations within the provided transaction context.
-     * <p>
-     * This method orchestrates the entire update process by:
-     * <ol>
-     *   <li>Running the pipeline execution to find matching documents</li>
-     *   <li>Grouping found documents by shard for batch processing</li>
-     *   <li>Applying SET and UNSET operations from the query context</li>
-     *   <li>Updating documents in the volume storage</li>
-     *   <li>Maintaining index consistency for both affected and unaffected indexes</li>
-     * </ol>
-     *
-     * @param tr  the FoundationDB transaction for atomic operations
-     * @param ctx the query context containing the pipeline plan, update operations (SET/UNSET),
-     *            and bucket metadata including index definitions
-     * @return a list of versionstamps representing the successfully updated documents
-     * @throws UncheckedIOException if volume I/O operations fail
-     * @throws KronotopException    if document retrieval fails or update consistency is violated
+     * Collects the document paths modified by the update, with positional operators normalized
+     * to match index selectors.
      */
+    private static Set<String> collectAffectedPaths(QueryContext ctx) {
+        Set<String> affectedPaths = new HashSet<>();
+        for (String key : ctx.options().update().setOps().keySet()) {
+            affectedPaths.add(BSONUpdateUtil.normalizeSelector(key));
+        }
+        for (String key : ctx.options().update().unsetOps()) {
+            affectedPaths.add(BSONUpdateUtil.normalizeSelector(key));
+        }
+        return affectedPaths;
+    }
+
+    /**
+     * Checks whether an op path and an index selector touch overlapping document subtrees.
+     */
+    private static boolean pathsOverlap(String opPath, String selector) {
+        return opPath.equals(selector)
+                || selector.startsWith(opPath + ".")
+                || opPath.startsWith(selector + ".");
+    }
+
+    private static boolean isSelectorAffected(Set<String> affectedPaths, String selector) {
+        for (String opPath : affectedPaths) {
+            if (pathsOverlap(opPath, selector)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isVectorIndexAffected(VectorIndex vectorIndex, Set<String> affectedPaths) {
+        return isSelectorAffected(affectedPaths, vectorIndex.definition().selector());
+    }
+
+    private static boolean isCompoundIndexAffected(CompoundIndex compoundIndex, Set<String> affectedPaths) {
+        for (CompoundIndexField field : compoundIndex.definition().fields()) {
+            if (isSelectorAffected(affectedPaths, field.selector())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void handleNoMatch(Transaction tr, QueryContext ctx) {
+        if (ctx.options().update().upsert()) {
+            try {
+                executeUpsert(tr, ctx);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+    }
+
     @Override
-    public List<Versionstamp> execute(Transaction tr, QueryContext ctx) {
+    public List<ObjectId> execute(Transaction tr, QueryContext ctx) {
         executor.execute(tr, ctx);
 
         PipelineNode head = findHeadNode(ctx.plan());
 
         if (head == null) {
+            handleNoMatch(tr, ctx);
             return List.of();
         }
 
         DataSink sink = ctx.sinks().load(head.id());
         if (sink == null) {
+            handleNoMatch(tr, ctx);
             return List.of();
         }
 
         try {
-            Map<Integer, List<Versionstamp>> byShardId = accumulateAndGroupVersionstampsByShardId(sink);
+            Map<Integer, List<DocumentRef>> byShardId = accumulateDocumentRefsByShardId(ctx, sink);
 
-            Map<Versionstamp, UpdateResultContainer> updateResultContainers = new LinkedHashMap<>();
-
-            for (Map.Entry<Integer, List<Versionstamp>> versionstampGroupByShard : byShardId.entrySet()) {
-                int shardId = versionstampGroupByShard.getKey();
-                BucketShard shard = ctx.env().bucketService().getShard(shardId);
-
-                VolumeSession session = new VolumeSession(tr, ctx.metadata().volumePrefix());
-
-                List<KeyEntry> updatedEntries = new ArrayList<>();
-                for (Versionstamp versionstamp : versionstampGroupByShard.getValue()) {
-                    ByteBuffer document = shard.volume().get(session, versionstamp);
-                    if (document == null) {
-                        throw new KeyNotFoundException(versionstamp);
-                    }
-
-                    BSONUpdateUtil.DocumentUpdateResult setResult = BSONUpdateUtil.applyUpdateOperations(
-                            document,
-                            ctx.options().update().setOps(),
-                            ctx.options().update().unsetOps()
-                    );
-                    KeyEntry updatedEntry = new KeyEntry(versionstamp, setResult.document());
-                    updatedEntries.add(updatedEntry);
-                    updateResultContainers.put(versionstamp, new UpdateResultContainer(shardId, setResult));
-                }
-
-                // Update the documents at Volume level
-                UpdateResult updateResult = shard.volume().update(session, updatedEntries.toArray(new KeyEntry[0]));
-                ctx.registerPostCommitHook(new PostCommitHook(updateResult));
-
-                setUpdatedEntryMetadata(updateResultContainers, updateResult.entries());
+            if (byShardId.isEmpty()) {
+                handleNoMatch(tr, ctx);
+                return List.of();
             }
 
-            updateAffectedIndexes(ctx, tr, updateResultContainers);
-            updateUnaffectedIndexes(ctx, tr, updateResultContainers);
+            // Pre-parse query for $ positional operator
+            BqlExpr parsedQuery = null;
+            Set<String> positionalFields = ctx.options().update().positionalFields();
+            if (!positionalFields.isEmpty()) {
+                if (ctx.queryBytes() == null) {
+                    throw new IllegalArgumentException("Positional operator $ requires a query filter");
+                }
+                parsedQuery = BqlParser.parse(ctx.queryBytes());
+            }
 
-            return updateResultContainers.keySet().stream().toList();
+            Map<ObjectId, UpdateResultContainer> updateResultContainers = new LinkedHashMap<>();
+
+            for (Map.Entry<Integer, List<DocumentRef>> documentRefGroupByShard : byShardId.entrySet()) {
+                int shardId = documentRefGroupByShard.getKey();
+                BucketShard shard = ctx.env().bucketService().getShard(shardId);
+
+                if (shard != null) {
+                    handleLocalUpdate(tr, ctx, shard, shardId, documentRefGroupByShard.getValue(), parsedQuery, positionalFields, updateResultContainers);
+                } else {
+                    handleRemoteUpdate(tr, ctx, shardId, documentRefGroupByShard.getValue(), parsedQuery, positionalFields, updateResultContainers);
+                }
+            }
+
+            Set<String> affectedPaths = collectAffectedPaths(ctx);
+            updateAffectedIndexes(ctx, tr, updateResultContainers, affectedPaths);
+            updateUnaffectedIndexes(ctx, tr, updateResultContainers, affectedPaths);
+
+            return new ArrayList<>(updateResultContainers.keySet());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
-        } catch (KeyNotFoundException e) {
+        } catch (KeyNotFoundException | VersionstampAlreadyExistsException e) {
             throw new KronotopException("Failed to update bucket entry", e);
         } finally {
             sink.clear();
@@ -149,237 +179,613 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
     }
 
     /**
-     * Updates the metadata for each updated entry in the provided array by using the corresponding update result container.
-     * This method ensures that each updated entry is properly reflected in the update result containers.
-     *
-     * @param updateResultContainers a map containing the association between version stamps and update result containers,
-     *                               where each container holds metadata and update-related information
-     * @param updatedEntries         an array of updated entry objects containing version stamps and encoded metadata
-     *                               to be used for metadata update
-     * @throws IllegalStateException if no corresponding update result container is found for a given updated entry
+     * Updates documents residing on a shard owned by this node. Applies update operations in-place
+     * via {@code Volume.updateByVersionstampedEntryUpdate} without changing the document's shard assignment.
      */
-    private void setUpdatedEntryMetadata(Map<Versionstamp, UpdateResultContainer> updateResultContainers, UpdatedEntry[] updatedEntries) {
-        for (UpdatedEntry updatedEntry : updatedEntries) {
-            UpdateResultContainer container = updateResultContainers.get(updatedEntry.versionstamp());
+    private void handleLocalUpdate(
+            Transaction tr,
+            QueryContext ctx,
+            BucketShard shard,
+            int shardId,
+            List<DocumentRef> docRefs,
+            BqlExpr parsedQuery,
+            Set<String> positionalFields,
+            Map<ObjectId, UpdateResultContainer> updateResultContainers
+    ) throws IOException, KeyNotFoundException {
+        Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
+        List<VersionstampedEntryUpdate> updatedEntries = new ArrayList<>();
+        List<ObjectId> objectIds = new ArrayList<>();
+
+        for (DocumentRef docRef : docRefs) {
+            ByteBuffer document = shard.volume().getByEntryMetadata(docRef.entryMetadata());
+            if (document == null) {
+                throw new KeyNotFoundException(docRef.entryMetadata());
+            }
+
+            Map<String, Integer> matchedPositions = Map.of();
+            if (parsedQuery != null) {
+                matchedPositions = PositionalMatchFinder.findMatchedPositions(document, parsedQuery, positionalFields);
+                for (String field : positionalFields) {
+                    if (!matchedPositions.containsKey(field)) {
+                        throw new IllegalStateException(
+                                "No array element in '" + field + "' matches the query condition");
+                    }
+                }
+            }
+
+            BSONUpdateUtil.DocumentUpdateResult setResult = BSONUpdateUtil.applyUpdateOperations(
+                    document,
+                    ctx.options().update().setOps(),
+                    ctx.options().update().unsetOps(),
+                    ctx.options().update().arrayFilters(),
+                    matchedPositions
+            );
+            if (!setResult.changed()) {
+                continue;
+            }
+            Versionstamp versionstamp = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, docRef.objectId().toByteArray(), ctx.metadata());
+            VersionstampedEntryUpdate updatedEntry = new VersionstampedEntryUpdate(versionstamp, docRef.entryMetadata(), setResult.document());
+            updatedEntries.add(updatedEntry);
+            objectIds.add(docRef.objectId());
+            updateResultContainers.put(docRef.objectId(), new UpdateResultContainer(shardId, setResult));
+        }
+
+        if (updatedEntries.isEmpty()) {
+            return;
+        }
+
+        UpdateResult updateResult = shard.volume().updateByVersionstampedEntryUpdate(session, updatedEntries.toArray(new VersionstampedEntryUpdate[0]));
+        TransactionUtil.addPostCommitHook(new PostCommitHook(updateResult), ctx.getSession());
+
+        for (VersionstampedEntryUpdate entry : updatedEntries) {
+            entry.entry().rewind();
+        }
+
+        setUpdatedEntryMetadata(objectIds, updateResultContainers, updateResult.entries());
+    }
+
+    /**
+     * Migrates and updates documents residing on a remote shard. Fetches documents via
+     * {@code DocumentRetriever}, applies update operations, inserts the updated documents into a
+     * local shard, and deletes the originals from the remote volume using {@link VolumeFacade}.
+     * All index entries are updated to reflect the new local shard assignment.
+     */
+    private void handleRemoteUpdate(
+            Transaction tr,
+            QueryContext ctx,
+            int remoteShardId,
+            List<DocumentRef> docRefs,
+            BqlExpr parsedQuery,
+            Set<String> positionalFields,
+            Map<ObjectId, UpdateResultContainer> updateResultContainers
+    ) throws IOException, VersionstampAlreadyExistsException {
+        Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+
+        // Fetch remote document bodies via DocumentRetriever
+        List<DocumentLocation> locations = new ArrayList<>(docRefs.size());
+        for (DocumentRef docRef : docRefs) {
+            locations.add(new DocumentLocation(docRef.objectId(), remoteShardId, docRef.entryMetadata()));
+        }
+        List<ByteBuffer> documents = ctx.env().documentRetriever().retrieveDocuments(locations);
+
+        VolumeSubspace remoteSubspace = subspaces.computeIfAbsent(remoteShardId, (ignored) -> {
+            VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.BUCKET, remoteShardId);
+            return new VolumeSubspace(generator.openVolumeSubspace());
+        });
+
+        // Pick a local shard from the bucket's shard list
+        BucketShard localShard = findLocalBucketShard(ctx);
+
+        VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
+
+        for (int i = 0; i < docRefs.size(); i++) {
+            DocumentRef docRef = docRefs.get(i);
+            ByteBuffer document = documents.get(i);
+
+            Map<String, Integer> matchedPositions = Map.of();
+            if (parsedQuery != null) {
+                matchedPositions = PositionalMatchFinder.findMatchedPositions(document, parsedQuery, positionalFields);
+                for (String field : positionalFields) {
+                    if (!matchedPositions.containsKey(field)) {
+                        throw new IllegalStateException(
+                                "No array element in '" + field + "' matches the query condition");
+                    }
+                }
+            }
+
+            BSONUpdateUtil.DocumentUpdateResult setResult = BSONUpdateUtil.applyUpdateOperations(
+                    document,
+                    ctx.options().update().setOps(),
+                    ctx.options().update().unsetOps(),
+                    ctx.options().update().arrayFilters(),
+                    matchedPositions
+            );
+            if (!setResult.changed()) {
+                continue;
+            }
+
+            Versionstamp versionstamp = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, docRef.objectId().toByteArray(), ctx.metadata());
+            KeyEntry keyEntry = new KeyEntry(versionstamp, setResult.document());
+            InsertResult insertResult = localShard.volume().insert(session, keyEntry);
+            TransactionUtil.addPostCommitHook(new InsertPostCommitHook(insertResult), ctx.getSession());
+
+            // Delete from remote volume
+            VersionstampedEntry versionstampedEntry = new VersionstampedEntry(versionstamp, docRef.entryMetadata());
+            volumeFacade.deleteByVersionstampedEntry(remoteSubspace, session, versionstampedEntry);
+
+            // Populate UpdateResultContainer with the local shard's metadata
+            InsertedEntry inserted = insertResult.entries()[0];
+            UpdateResultContainer container = new UpdateResultContainer(localShard.id(), setResult);
+            container.setEntryMetadata(inserted.encodedMetadata());
+            container.setVersionstamp(inserted.versionstamp());
+            updateResultContainers.put(docRef.objectId(), container);
+        }
+    }
+
+    private BucketShard findLocalBucketShard(QueryContext ctx) {
+        for (int shardId : ctx.metadata().shards()) {
+            BucketShard shard = ctx.env().bucketService().getShard(shardId);
+            if (shard != null) {
+                return shard;
+            }
+        }
+        throw new IllegalStateException("No local shard found in the bucket's shard list");
+    }
+
+    private void setUpdatedEntryMetadata(List<ObjectId> objectIds, Map<ObjectId, UpdateResultContainer> updateResultContainers, UpdatedEntry[] updatedEntries) {
+        for (int i = 0; i < updatedEntries.length; i++) {
+            ObjectId objectId = objectIds.get(i);
+            UpdateResultContainer container = updateResultContainers.get(objectId);
             if (container == null) {
                 throw new IllegalStateException("Update result could not be found");
             }
-            container.setEntryMetadata(updatedEntry.encodedMetadata());
+            container.setEntryMetadata(updatedEntries[i].encodedMetadata());
+            container.setVersionstamp(updatedEntries[i].versionstamp());
         }
     }
 
-    /**
-     * Updates metadata for indexes that are unaffected by the current set of update operations
-     * in the query context. For each unaffected index, entry metadata is updated based on the
-     * provided transaction and update result containers.
-     * <p>
-     * Iterates over index selectors from the query context metadata to identify indexes that are
-     * not targeted by the update operations. For these indexes, metadata entries are updated using
-     * the defined index subspace and the result containers. This ensures that unaffected indexes
-     * maintain consistency without altering their main data structure.
-     *
-     * @param ctx                    the query context containing metadata, execution state, and configuration options
-     * @param tr                     the current transaction object facilitating the atomic updates within a single transaction scope
-     * @param updateResultContainers a map of version stamps to update result containers used to
-     *                               generate index entries and update metadata for unaffected indexes
-     */
-    private void updateUnaffectedIndexes(QueryContext ctx, Transaction tr, Map<Versionstamp, UpdateResultContainer> updateResultContainers) {
+    private void updateUnaffectedIndexes(QueryContext ctx, Transaction tr, Map<ObjectId, UpdateResultContainer> updateResultContainers, Set<String> affectedPaths) {
         for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
-            // Skip the default ID index as it'll be handled separately
-            if (index.definition().equals(DefaultIndexDefinition.ID)) {
+            if (PrimaryIndex.isPrimary(index.definition())) {
                 continue;
             }
-            String selector = index.definition().selector();
-            if (ctx.options().update().setOps().containsKey(selector) || ctx.options().update().unsetOps().contains(selector)) {
+            if (isSelectorAffected(affectedPaths, index.definition().selector())) {
                 continue;
             }
-            for (Map.Entry<Versionstamp, UpdateResultContainer> entry : updateResultContainers.entrySet()) {
+            for (Map.Entry<ObjectId, UpdateResultContainer> entry : updateResultContainers.entrySet()) {
                 DirectorySubspace unaffectedIndexSubspace = index.subspace();
-                Versionstamp versionstamp = entry.getKey();
+                ObjectId objectId = entry.getKey();
                 UpdateResultContainer updateResultContainer = entry.getValue();
                 IndexEntry indexEntry = new IndexEntry(updateResultContainer.getShardId(), updateResultContainer.getEntryMetadata());
-                IndexBuilder.updateEntryMetadata(tr, versionstamp, indexEntry.encode(), unaffectedIndexSubspace);
+                SingleFieldIndexMaintainer.updateIndexEntry(
+                        tr,
+                        objectId.toByteArray(),
+                        indexEntry.encode(),
+                        unaffectedIndexSubspace
+                );
+            }
+        }
+
+        // Update unaffected compound indexes
+        for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            if (isCompoundIndexAffected(compoundIndex, affectedPaths)) {
+                continue;
+            }
+            for (Map.Entry<ObjectId, UpdateResultContainer> entry : updateResultContainers.entrySet()) {
+                ObjectId objectId = entry.getKey();
+                UpdateResultContainer container = entry.getValue();
+                IndexEntry indexEntry = new IndexEntry(container.getShardId(), container.getEntryMetadata());
+                CompoundIndexMaintainer.updateIndexEntry(
+                        tr,
+                        objectId.toByteArray(),
+                        indexEntry.encode(),
+                        compoundIndex.subspace(),
+                        compoundIndex.definition().fields().size()
+                );
+            }
+        }
+
+        // Update unaffected vector indexes (metadata only, preserve vector)
+        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            if (isVectorIndexAffected(vectorIndex, affectedPaths)) {
+                continue;
+            }
+            for (Map.Entry<ObjectId, UpdateResultContainer> entry : updateResultContainers.entrySet()) {
+                ObjectId objectId = entry.getKey();
+                UpdateResultContainer container = entry.getValue();
+                VectorIndexMaintainer.updateIndexEntry(
+                        tr,
+                        objectId.toByteArray(),
+                        vectorIndex,
+                        container.getShardId(),
+                        container.getEntryMetadata()
+                );
             }
         }
     }
 
-    /**
-     * Updates the indexes that are affected by the current set of update operations
-     * in the query context. For each affected index, entries are updated or dropped
-     * based on the provided transaction and update result containers.
-     * <p>
-     * The method processes each entry in the update result containers and updates
-     * the primary index, removes stale entries, and sets new index entries for the
-     * affected indexes. This ensures that the indexes remain consistent with the
-     * latest update operations applied to the data.
-     *
-     * @param ctx                    the query context containing metadata, execution state, and configuration options
-     * @param tr                     the current transaction object facilitating the atomic updates within a single transaction scope
-     * @param updateResultContainers a map of version stamps to update result containers used to
-     *                               update or remove index entries and ensure consistency of affected indexes
-     */
-    private void updateAffectedIndexes(QueryContext ctx, Transaction tr, Map<Versionstamp, UpdateResultContainer> updateResultContainers) {
-        for (Map.Entry<Versionstamp, UpdateResultContainer> updatedEntry : updateResultContainers.entrySet()) {
-            Versionstamp versionstamp = updatedEntry.getKey();
-            UpdateResultContainer updateResultContainer = updatedEntry.getValue();
-            IndexBuilder.updatePrimaryIndex(
+    private void updateAffectedIndexes(QueryContext ctx, Transaction tr, Map<ObjectId, UpdateResultContainer> updateResultContainers, Set<String> affectedPaths) {
+        // Validate vector fields that were modified
+        for (VectorIndex vi : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            if (!isVectorIndexAffected(vi, affectedPaths)) {
+                continue;
+            }
+            for (UpdateResultContainer container : updateResultContainers.values()) {
+                BsonValue newValue = SelectorMatcher.match(vi.definition().selector(), container.getDocumentUpdateResult().document());
+                if (newValue != null) {
+                    VectorIndexUtil.validateVectorField(vi.definition(), newValue);
+                }
+            }
+        }
+
+        Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        for (Map.Entry<ObjectId, UpdateResultContainer> updatedEntry : updateResultContainers.entrySet()) {
+            ObjectId objectId = updatedEntry.getKey();
+            byte[] objectIdBytes = objectId.toByteArray();
+            UpdateResultContainer container = updatedEntry.getValue();
+            PrimaryIndexMaintainer.updateIndexEntry(
                     tr,
-                    versionstamp,
-                    ctx.metadata(),
-                    updateResultContainer.getShardId(),
-                    updateResultContainer.getEntryMetadata()
+                    objectIdBytes,
+                    primaryIndex,
+                    container.getShardId(),
+                    container.getEntryMetadata()
             );
-            dropStaleEntriesOnAffectedIndexes(ctx, tr, versionstamp, updateResultContainer);
-            setIndexEntriesOnAffectedIndexes(ctx, tr, versionstamp, updateResultContainer);
-            setNullIndexEntriesForDroppedSelectors(ctx, tr, versionstamp, updateResultContainer);
+            for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+                if (PrimaryIndex.isPrimary(index.definition())) {
+                    continue;
+                }
+                if (!isSelectorAffected(affectedPaths, index.definition().selector())) {
+                    continue;
+                }
+                refreshSingleFieldIndexEntry(ctx, tr, objectIdBytes, container, index);
+            }
+        }
+
+        // Handle affected compound indexes: drop old entries and set new ones
+        for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            if (!isCompoundIndexAffected(compoundIndex, affectedPaths)) {
+                continue;
+            }
+            for (Map.Entry<ObjectId, UpdateResultContainer> updatedEntry : updateResultContainers.entrySet()) {
+                ObjectId objectId = updatedEntry.getKey();
+                byte[] objectIdBytes = objectId.toByteArray();
+                UpdateResultContainer container = updatedEntry.getValue();
+
+                // Drop old entries
+                CompoundIndexMaintainer.dropEntry(
+                        tr, objectIdBytes, compoundIndex.definition(),
+                        compoundIndex.subspace(), ctx.metadata().subspace()
+                );
+
+                // Extract new values from the updated document and set new entries
+                ByteBuffer updatedDoc = container.getDocumentUpdateResult().document();
+                List<List<Object>> valueCombinations = CompoundIndexMaintainer.extractFieldValues(compoundIndex, updatedDoc, strictTypes);
+                for (List<Object> fieldValues : valueCombinations) {
+                    CompoundIndexMaintainer.insertEntry(
+                            tr, compoundIndex, ctx.metadata(),
+                            container.getVersionstamp(), objectIdBytes,
+                            fieldValues, container.getShardId(), container.getEntryMetadata(),
+                            ctx.env().collatorCache()
+                    );
+                }
+            }
+        }
+
+        // Handle affected vector indexes: drop old entries and re-set with a new vector
+        List<CollectedVector> collectedVectors = new ArrayList<>();
+        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            if (!isVectorIndexAffected(vectorIndex, affectedPaths)) {
+                continue;
+            }
+            List<DeletedVector> deletedVectors = new ArrayList<>();
+            for (Map.Entry<ObjectId, UpdateResultContainer> updatedEntry : updateResultContainers.entrySet()) {
+                ObjectId objectId = updatedEntry.getKey();
+                byte[] objectIdBytes = objectId.toByteArray();
+                UpdateResultContainer container = updatedEntry.getValue();
+
+                // Drop old entry
+                VectorIndexMaintainer.dropEntry(tr, objectIdBytes, vectorIndex, ctx.metadata());
+                int deleteUserVersion = ctx.getAndIncrementUserVersion();
+                VectorIndexMaintainer.deleteMutationLog(
+                        tr, vectorIndex.subspace(), objectIdBytes, deleteUserVersion
+                );
+                deletedVectors.add(new DeletedVector(objectId, deleteUserVersion));
+
+                // Extract the new vector from the updated document and re-set
+                BsonValue newValue = SelectorMatcher.match(vectorIndex.definition().selector(), container.getDocumentUpdateResult().document());
+                float[] vector = VectorIndexMaintainer.parseVector(newValue);
+                if (vector != null) {
+                    VectorIndexMaintainer.insertEntry(
+                            tr, vectorIndex, ctx.metadata(),
+                            container.getVersionstamp(), objectIdBytes,
+                            container.getShardId(), container.getEntryMetadata(), vector
+                    );
+
+                    // Write mutation log entry for crash recovery
+                    int userVersion = ctx.getAndIncrementUserVersion();
+                    VectorIndexMaintainer.setMutationLog(
+                            tr, vectorIndex.subspace(), MutationLogMarker.UPDATE,
+                            objectIdBytes,
+                            new IndexEntry(container.getShardId(), container.getEntryMetadata()).encode(),
+                            vector,
+                            userVersion
+                    );
+
+                    // Collect for on-heap graph addition
+                    collectedVectors.add(new CollectedVector(
+                            objectId,
+                            container.getShardId(),
+                            EntryMetadata.decode(container.getEntryMetadata()),
+                            vector,
+                            vectorIndex.definition().id(),
+                            vectorIndex.definition(),
+                            userVersion
+                    ));
+                }
+            }
+            // Schedule on-heap graph node deletion after commit
+            TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
+                    ctx.env().bucketService(),
+                    ctx.metadata(),
+                    vectorIndex.definition().id(),
+                    deletedVectors,
+                    tr.getVersionstamp()
+            ), ctx.getSession());
+        }
+
+        // Schedule on-heap graph node addition for all updated vectors
+        if (!collectedVectors.isEmpty()) {
+            CompletableFuture<byte[]> trVersionFuture = tr.getVersionstamp();
+            TransactionUtil.addPostCommitHook(
+                    new VectorNodeAddHook(ctx.env().bucketService(), ctx.metadata(), collectedVectors, trVersionFuture),
+                    ctx.getSession()
+            );
         }
     }
 
     /**
-     * Creates null index entries for fields that were unset (dropped) from the document.
-     * This ensures that documents with missing indexed fields are still queryable via null queries.
+     * Brings a single-field index entry in sync with the updated document. Drops all existing
+     * entries for the document and re-creates them from the document's current content, matching
+     * the state a fresh insert of the same document would produce.
      */
-    private void setNullIndexEntriesForDroppedSelectors(QueryContext ctx, Transaction tr, Versionstamp versionstamp, UpdateResultContainer updateResultContainer) {
-        Set<String> droppedSelectors = updateResultContainer.getDocumentUpdateResult().droppedSelectors();
-        for (String selector : droppedSelectors) {
-            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READ);
-            if (index == null) {
-                continue;
-            }
-            DirectorySubspace affectedIndex = index.subspace();
-            IndexDefinition indexDefinition = index.definition();
+    private void refreshSingleFieldIndexEntry(QueryContext ctx, Transaction tr, byte[] objectIdBytes, UpdateResultContainer container, Index index) {
+        DirectorySubspace indexSubspace = index.subspace();
+        SingleFieldIndexDefinition indexDefinition = index.definition();
 
-            // Create a null index entry for the dropped field
-            IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
-                    ctx.metadata(),
-                    null, // null value for dropped field
-                    indexDefinition,
-                    affectedIndex,
-                    updateResultContainer.getShardId(),
-                    updateResultContainer.getEntryMetadata()
-            );
-            IndexBuilder.setIndexEntryByVersionstamp(tr, versionstamp, indexEntryContainer);
+        SingleFieldIndexMaintainer.dropEntry(tr, objectIdBytes, indexDefinition, indexSubspace, ctx.metadata().subspace());
+
+        BsonValue bsonValue = SelectorMatcher.match(indexDefinition.selector(), container.getDocumentUpdateResult().document());
+
+        if (bsonValue instanceof BsonArray bsonArray) {
+            Set<Object> uniqueIndexValues = extractUniqueIndexValues(bsonArray, indexDefinition);
+            for (Object indexValue : uniqueIndexValues) {
+                setSingleFieldIndexEntry(ctx, tr, objectIdBytes, container, indexDefinition, indexSubspace, indexValue);
+            }
+        } else if (bsonValue == null || bsonValue.equals(BsonNull.VALUE)) {
+            setSingleFieldIndexEntry(ctx, tr, objectIdBytes, container, indexDefinition, indexSubspace, null);
+        } else {
+            Object indexValue = BSONUtil.toObject(bsonValue, indexDefinition.bsonType());
+            if (indexValue == null) {
+                if (!strictTypes) {
+                    return;
+                }
+                throw new IndexTypeMismatchException(indexDefinition, bsonValue);
+            }
+            setSingleFieldIndexEntry(ctx, tr, objectIdBytes, container, indexDefinition, indexSubspace, indexValue);
         }
     }
 
-    /**
-     * Sets new index entries for the indexes affected by the current update operation
-     * in the specified query context. For each affected index, the method generates
-     * and updates the index entry based on the provided transaction, versionstamp,
-     * and update result container.
-     * <p>
-     * This method processes the updated values, identifies affected indexes, and
-     * builds the corresponding index entry. The entries are then set in the transaction
-     * to ensure consistency with the current update operation on the primary data.
-     *
-     * @param ctx                   the query context containing metadata, execution state, and configuration options
-     * @param tr                    the current transaction object facilitating atomic updates within a single transaction scope
-     * @param versionstamp          the versionstamp representing the unique version of the current transactional operation
-     * @param updateResultContainer the container holding the results of the update operation, including new and old values,
-     *                              entry metadata, and shard information
-     */
-    private void setIndexEntriesOnAffectedIndexes(QueryContext ctx, Transaction tr, Versionstamp versionstamp, UpdateResultContainer updateResultContainer) {
-        Map<String, BsonValue> newValues = updateResultContainer.getDocumentUpdateResult().newValues();
-        for (Map.Entry<String, BsonValue> newValue : newValues.entrySet()) {
-            String selector = newValue.getKey();
-            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READ);
-            if (index == null) {
-                continue;
-            }
-            DirectorySubspace affectedIndex = index.subspace();
-            IndexDefinition indexDefinition = index.definition();
+    private void setSingleFieldIndexEntry(QueryContext ctx, Transaction tr, byte[] objectIdBytes, UpdateResultContainer container,
+                                          SingleFieldIndexDefinition indexDefinition, DirectorySubspace indexSubspace, Object indexValue) {
+        IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
+                ctx.metadata(),
+                indexValue,
+                indexDefinition,
+                indexSubspace,
+                container.getShardId(),
+                container.getEntryMetadata(),
+                container.getVersionstamp()
+        );
+        SingleFieldIndexMaintainer.setEntryByObjectId(tr, objectIdBytes, indexEntryContainer, ctx.env().collatorCache());
+    }
 
-            BsonValue bsonValue = updateResultContainer.getDocumentUpdateResult().newValues().get(selector);
-            if (bsonValue == null || bsonValue.equals(BsonNull.VALUE)) {
+    private void checkDuplicateId(Transaction tr, BucketMetadata metadata, ObjectId objectId) {
+        Index index = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        DirectorySubspace indexSubspace = index.subspace();
+        Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), objectId.toByteArray());
+        byte[] key = indexSubspace.pack(tuple);
+        if (tr.get(key).join() != null) {
+            throw new DuplicateKeyException(objectId);
+        }
+    }
+
+    private void executeUpsert(Transaction tr, QueryContext ctx) throws IOException {
+        BsonDocument upsertDoc = buildUpsertDocument(ctx);
+
+        ObjectId objectId;
+        BsonValue existingId = upsertDoc.get(ReservedFieldName.ID.getValue());
+        if (existingId != null) {
+            if (existingId.getBsonType() != BsonType.OBJECT_ID) {
+                throw new InvalidBsonTypeException(ReservedFieldName.ID.getValue(), BsonType.OBJECT_ID);
+            }
+            objectId = existingId.asObjectId().getValue();
+            checkDuplicateId(tr, ctx.metadata(), objectId);
+        } else {
+            objectId = new ObjectId();
+            upsertDoc.put(ReservedFieldName.ID.getValue(), new BsonObjectId(objectId));
+        }
+
+        ByteBuffer docBuffer = BSONUtil.toByteBuffer(upsertDoc);
+
+        BucketShard shard = findLocalBucketShard(ctx);
+        VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
+
+        AppendResult appendResult = shard.volume().append(session, docBuffer);
+
+        AppendedEntry[] appendedEntries = appendResult.getAppendedEntries();
+        byte[] objectIdBytes = objectId.toByteArray();
+        byte[] encodedIndexEntry = new IndexEntry(shard.id(), appendedEntries[0].metadataBytes()).encode();
+        Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        PrimaryIndexMaintainer.setEntry(tr, primaryIndex, ctx.metadata(), objectIdBytes, encodedIndexEntry, appendedEntries[0].userVersion());
+
+        // Set single field indexes
+        setSecondaryIndexesForUpsert(tr, ctx, objectIdBytes, encodedIndexEntry, appendedEntries[0].userVersion(), upsertDoc);
+
+        // Schedule on-heap graph node addition for upserted vectors
+        List<CollectedVector> collectedVectors = new ArrayList<>();
+        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), upsertDoc);
+            if (vector == null) {
                 continue;
             }
+            collectedVectors.add(new CollectedVector(
+                    objectId,
+                    shard.id(),
+                    appendedEntries[0].metadata(),
+                    vector,
+                    vectorIndex.definition().id(),
+                    vectorIndex.definition(),
+                    appendedEntries[0].userVersion()
+            ));
+        }
+        if (!collectedVectors.isEmpty()) {
+            CompletableFuture<byte[]> trVersionFuture = tr.getVersionstamp();
+            TransactionUtil.addPostCommitHook(
+                    new VectorNodeAddHook(ctx.env().bucketService(), ctx.metadata(), collectedVectors, trVersionFuture),
+                    ctx.getSession()
+            );
+        }
+
+        // Store the upsert result for ObjectId resolution after commit
+        ctx.setUpsertResult(new UpsertResult(objectId));
+    }
+
+    private void setSecondaryIndexesForUpsert(
+            Transaction tr,
+            QueryContext ctx,
+            byte[] objectIdBytes,
+            byte[] encodedIndexEntry,
+            int userVersion,
+            BsonDocument document
+    ) {
+        for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            if (PrimaryIndex.isPrimary(index.definition())) {
+                continue;
+            }
+
+            BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), document);
 
             if (bsonValue instanceof BsonArray bsonArray) {
-                // Multikey index: create an index entry for each unique value in the array
-                Set<Object> uniqueIndexValues = new HashSet<>();
-                for (BsonValue element : bsonArray) {
-                    if (element == null || element.equals(BsonNull.VALUE)) {
-                        continue;
-                    }
-                    Object indexValue = BSONUtil.toObject(element, index.definition().bsonType());
-                    if (indexValue == null) {
-                        if (strictTypes) {
-                            throw new IndexTypeMismatchException(index.definition(), element);
-                        }
-                        continue;
-                    }
-                    uniqueIndexValues.add(indexValue);
-                }
+                Set<Object> uniqueIndexValues = extractUniqueIndexValues(bsonArray, index.definition());
                 for (Object indexValue : uniqueIndexValues) {
-                    IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
-                            ctx.metadata(),
-                            indexValue,
-                            indexDefinition,
-                            affectedIndex,
-                            updateResultContainer.getShardId(),
-                            updateResultContainer.getEntryMetadata()
-                    );
-                    IndexBuilder.setIndexEntryByVersionstamp(tr, versionstamp, indexEntryContainer);
+                    SingleFieldIndexMaintainer.setEntry(tr, index, ctx.metadata(), indexValue, objectIdBytes, encodedIndexEntry, userVersion, ctx.env().collatorCache());
                 }
             } else {
-                // Single value index
-                Object indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
-                if (indexValue == null) {
-                    if (!strictTypes) {
-                        // Type mismatch, drop the value and continue
-                        IndexBuilder.dropIndexEntry(tr, versionstamp, indexDefinition, affectedIndex, ctx.metadata().subspace());
-                        continue;
+                Object indexValue = null;
+                if (bsonValue != null && !bsonValue.equals(BsonNull.VALUE)) {
+                    indexValue = BSONUtil.toObject(bsonValue, index.definition().bsonType());
+                    if (indexValue == null) {
+                        if (!strictTypes) {
+                            continue;
+                        }
+                        throw new IndexTypeMismatchException(index.definition(), bsonValue);
                     }
-                    throw new IndexTypeMismatchException(index.definition(), bsonValue);
                 }
-                IndexEntryContainer indexEntryContainer = new IndexEntryContainer(
-                        ctx.metadata(),
-                        indexValue,
-                        indexDefinition,
-                        affectedIndex,
-                        updateResultContainer.getShardId(),
-                        updateResultContainer.getEntryMetadata()
-                );
-                IndexBuilder.setIndexEntryByVersionstamp(tr, versionstamp, indexEntryContainer);
+                SingleFieldIndexMaintainer.setEntry(tr, index, ctx.metadata(), indexValue, objectIdBytes, encodedIndexEntry, userVersion, ctx.env().collatorCache());
             }
         }
-    }
 
-    /**
-     * Removes stale index entries from the indexes affected by the current update operation
-     * in the provided query context. This method identifies the relevant indexes based on
-     * the updated values in the update result container and removes outdated entries.
-     *
-     * @param ctx                   the query context containing metadata, execution state, and configuration options
-     * @param tr                    the current transaction object facilitating atomic updates within a single transaction scope
-     * @param versionstamp          the versionstamp representing the unique version of the current transactional operation
-     * @param updateResultContainer the container holding the results of the update operation, including new and old values,
-     *                              entry metadata, and shard information
-     */
-    private void dropStaleEntriesOnAffectedIndexes(QueryContext ctx, Transaction tr, Versionstamp versionstamp, UpdateResultContainer updateResultContainer) {
-        Set<String> matchedSelectors = new HashSet<>();
-        matchedSelectors.addAll(updateResultContainer.getDocumentUpdateResult().newValues().keySet());
-        matchedSelectors.addAll(updateResultContainer.getDocumentUpdateResult().droppedSelectors());
-        for (String selector : matchedSelectors) {
-            Index index = ctx.metadata().indexes().getIndex(selector, IndexSelectionPolicy.READ);
-            if (index == null) {
+        // Set compound index entries for upsert
+        for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            List<List<Object>> valueCombinations = CompoundIndexMaintainer.extractFieldValues(compoundIndex, document, strictTypes);
+            for (List<Object> fieldValues : valueCombinations) {
+                CompoundIndexMaintainer.setEntry(
+                        tr, compoundIndex, ctx.metadata(), fieldValues,
+                        objectIdBytes, encodedIndexEntry, userVersion,
+                        ctx.env().collatorCache()
+                );
+            }
+        }
+
+        // Set vector index entries for upsert
+        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), document);
+            if (vector == null) {
                 continue;
             }
-            DirectorySubspace affectedIndex = index.subspace();
-            IndexDefinition indexDefinition = index.definition();
-            IndexBuilder.dropIndexEntry(tr, versionstamp, indexDefinition, affectedIndex, ctx.metadata().subspace());
+            VectorIndexMaintainer.setEntry(
+                    tr, vectorIndex, ctx.metadata(), objectIdBytes,
+                    encodedIndexEntry, vector, userVersion
+            );
+            VectorIndexMaintainer.setMutationLog(
+                    tr, vectorIndex.subspace(), MutationLogMarker.INSERT,
+                    objectIdBytes, encodedIndexEntry, vector, userVersion
+            );
         }
     }
 
-    /**
-     * A container class for holding the results of update operations performed on documents.
-     * The container encapsulates the shard identifier, the result of the document update operation,
-     * and metadata associated with the update operation.
-     */
+    private Set<Object> extractUniqueIndexValues(BsonArray bsonArray, SingleFieldIndexDefinition indexDefinition) {
+        Set<Object> uniqueIndexValues = new HashSet<>();
+        boolean hasNull = false;
+        for (BsonValue element : bsonArray) {
+            if (element == null || element.equals(BsonNull.VALUE)) {
+                hasNull = true;
+                continue;
+            }
+            Object indexValue = BSONUtil.toObject(element, indexDefinition.bsonType());
+            if (indexValue == null) {
+                if (strictTypes) {
+                    throw new IndexTypeMismatchException(indexDefinition, element);
+                }
+                continue;
+            }
+            uniqueIndexValues.add(indexValue);
+        }
+        if (hasNull) {
+            uniqueIndexValues.add(null);
+        }
+        return uniqueIndexValues;
+    }
+
+    private BsonDocument buildUpsertDocument(QueryContext ctx) {
+        BsonDocument doc = new BsonDocument();
+
+        if (ctx.queryBytes() != null) {
+            BqlExpr expr = BqlParser.parse(ctx.queryBytes());
+            extractEqualityConditions(expr, doc);
+        }
+
+        for (Map.Entry<String, BsonValue> entry : ctx.options().update().setOps().entrySet()) {
+            BSONUtil.setNestedField(doc, entry.getKey(), entry.getValue());
+        }
+
+        return doc;
+    }
+
+    private void extractEqualityConditions(BqlExpr expr, BsonDocument doc) {
+        switch (expr) {
+            case BqlEq eq -> {
+                BsonValue bsonValue = BSONUtil.bqlValueToBsonValue(eq.value());
+                if (bsonValue != null) {
+                    BSONUtil.setNestedField(doc, eq.selector(), bsonValue);
+                }
+            }
+            case BqlAnd and -> {
+                for (BqlExpr child : and.children()) {
+                    extractEqualityConditions(child, doc);
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
     private static final class UpdateResultContainer {
         private final int shardId;
         private final BSONUpdateUtil.DocumentUpdateResult documentUpdateResult;
         private byte[] entryMetadata;
+        private Versionstamp versionstamp;
 
         UpdateResultContainer(int shardId, BSONUpdateUtil.DocumentUpdateResult documentUpdateResult) {
             this.documentUpdateResult = documentUpdateResult;
@@ -398,6 +804,14 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             this.entryMetadata = entryMetadata;
         }
 
+        public Versionstamp getVersionstamp() {
+            return versionstamp;
+        }
+
+        public void setVersionstamp(Versionstamp versionstamp) {
+            this.versionstamp = versionstamp;
+        }
+
         public int getShardId() {
             return shardId;
         }
@@ -409,4 +823,12 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             updateResult.complete();
         }
     }
+
+    private record InsertPostCommitHook(InsertResult insertResult) implements CommitHook {
+        @Override
+        public void run() {
+            insertResult.complete();
+        }
+    }
+
 }

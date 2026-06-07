@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 import org.bson.BsonType;
@@ -40,9 +41,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should consolidate GTE and LT into range scan")
         void shouldConsolidateGteAndLtIntoRangeScan() {
             // Create index for age field
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "age-index", "age", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Test: AND(age >= 18, age < 65)
             String query = "{ $and: [{ \"age\": { $gte: 18 } }, { \"age\": { $lt: 65 } }] }";
@@ -65,9 +66,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should consolidate GT and LTE into range scan")
         void shouldConsolidateGtAndLteIntoRangeScan() {
             // Create index for score field
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "score-index", "score", BsonType.DOUBLE
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Test: AND(score > 50.0, score <= 100.0)
             String query = "{ $and: [{ \"score\": { $gt: 50.0 } }, { \"score\": { $lte: 100.0 } }] }";
@@ -88,9 +89,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should consolidate multiple range conditions")
         void shouldConsolidateMultipleRangeConditions() {
             // Create index for price field
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "price-index", "price", BsonType.DOUBLE
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Test: AND(price >= 10.0, price < 100.0, price > 5.0, price <= 99.0)
             String query = "{ $and: [" +
@@ -122,8 +123,8 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldConsolidateRangeAndPreserveNonRange() {
             // Create indexes
             createIndexes(
-                    IndexDefinition.create("age-index", "age", BsonType.INT32),
-                    IndexDefinition.create("name-index", "name", BsonType.STRING)
+                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING)
             );
 
             // Test: AND(age >= 18, age < 65, name = "john")
@@ -158,8 +159,8 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         void shouldHandleRangeConditionsOnDifferentFieldsSeparately() {
             // Create indexes
             createIndexes(
-                    IndexDefinition.create("age-index", "age", BsonType.INT32),
-                    IndexDefinition.create("score-index", "score", BsonType.DOUBLE)
+                    SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING),
+                    SingleFieldIndexDefinition.create("score-index", "score", BsonType.DOUBLE, false, IndexStatus.WAITING)
             );
 
             // Test: AND(age >= 18, age < 65, score > 50, score <= 100)
@@ -221,9 +222,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should not consolidate single range condition")
         void shouldNotConsolidateSingleRangeCondition() {
             // Create index
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "age-index", "age", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Test: age >= 18 (single condition)
             String query = "{ \"age\": { $gte: 18 } }";
@@ -237,9 +238,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should consolidate overlapping lower bound conditions to most restrictive")
         void shouldConsolidateOverlappingLowerBoundConditions() {
             // Create index
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "age-index", "age", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Test: AND(age >= 18, age > 21) - should consolidate to age > 21 (most restrictive)
             String query = "{ $and: [{ \"age\": { $gte: 18 } }, { \"age\": { $gt: 21 } }] }";
@@ -261,9 +262,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should consolidate overlapping upper bound conditions to most restrictive")
         void shouldConsolidateOverlappingUpperBoundConditions() {
             // Create index
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "age-index", "age", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Test: AND(age < 65, age <= 50) - should consolidate to age <= 50 (most restrictive)
             String query = "{ $and: [{ \"age\": { $lt: 65 } }, { \"age\": { $lte: 50 } }] }";
@@ -290,9 +291,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should consolidate range conditions in nested AND operations")
         void shouldConsolidateRangeConditionsInNestedAnd() {
             // Create index
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "age-index", "age", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Create simple nested structure: AND(age >= 18, age < 65) - should consolidate to PhysicalRangeScan
             PhysicalFilter ageGte = createFilter("age", Operator.GTE, 18);
@@ -319,9 +320,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should handle range consolidation with NOT operations")
         void shouldHandleRangeConsolidationWithNotOperations() {
             // Create index
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "age-index", "age", BsonType.INT32
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Create: NOT(AND(age >= 18, age < 65))
             PhysicalFilter ageGte = createFilter("age", Operator.GTE, 18);
@@ -351,9 +352,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should reduce number of index scans through consolidation")
         void shouldReduceNumberOfIndexScansThoughConsolidation() {
             // Create index
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "price-index", "price", BsonType.DOUBLE
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Test: AND(price >= 10, price < 100, price > 5, price <= 95)
             String query = "{ $and: [" +
@@ -383,9 +384,9 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should preserve plan structure when no optimization possible")
         void shouldPreservePlanStructureWhenNoOptimizationPossible() {
             // Create index for different field
-            createIndex(IndexDefinition.create(
+            createIndex(SingleFieldIndexDefinition.create(
                     "status-index", "status", BsonType.STRING
-            ));
+                    , false, IndexStatus.WAITING));
 
             // Test: AND(status = "active", name = "john") - no range conditions
             String query = "{ $and: [{ \"status\": \"active\" }, { \"name\": \"john\" }] }";
@@ -412,7 +413,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should preserve index from PhysicalIndexScan when filter has empty selector")
         void shouldPreserveIndexFromPhysicalIndexScanWithEmptySelector() {
             // Create index on array field
-            IndexDefinition pricesIndex = IndexDefinition.create("prices-index", "prices", BsonType.DOUBLE);
+            SingleFieldIndexDefinition pricesIndex = SingleFieldIndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, false, IndexStatus.WAITING);
             createIndex(pricesIndex);
 
             // Simulate what PhysicalPlanner produces for scalar array $elemMatch:
@@ -462,7 +463,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should use empty selector for residual predicate in scalar array $elemMatch")
         void shouldUseEmptySelectorForResidualPredicateInScalarArrayElemMatch() {
             // Create index on array field
-            IndexDefinition scoresIndex = IndexDefinition.create("scores-index", "scores", BsonType.INT32);
+            SingleFieldIndexDefinition scoresIndex = SingleFieldIndexDefinition.create("scores-index", "scores", BsonType.INT32, false, IndexStatus.WAITING);
             createIndex(scoresIndex);
 
             // Create filters with empty selector
@@ -496,8 +497,8 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should group range conditions by index selector not filter selector")
         void shouldGroupByIndexSelectorNotFilterSelector() {
             // Create indexes on two array fields
-            IndexDefinition pricesIndex = IndexDefinition.create("prices-index", "prices", BsonType.DOUBLE);
-            IndexDefinition ratingsIndex = IndexDefinition.create("ratings-index", "ratings", BsonType.INT32);
+            SingleFieldIndexDefinition pricesIndex = SingleFieldIndexDefinition.create("prices-index", "prices", BsonType.DOUBLE, false, IndexStatus.WAITING);
+            SingleFieldIndexDefinition ratingsIndex = SingleFieldIndexDefinition.create("ratings-index", "ratings", BsonType.INT32, false, IndexStatus.WAITING);
             createIndexes(pricesIndex, ratingsIndex);
 
             // Create filters with empty selector but different indexes
@@ -542,7 +543,7 @@ class RangeScanConsolidationRuleTest extends BaseOptimizerTest {
         @DisplayName("Should handle single range operator in scalar array $elemMatch")
         void shouldHandleSingleRangeOperatorInScalarArrayElemMatch() {
             // Create index on array field
-            IndexDefinition tagsIndex = IndexDefinition.create("values-index", "values", BsonType.INT32);
+            SingleFieldIndexDefinition tagsIndex = SingleFieldIndexDefinition.create("values-index", "values", BsonType.INT32, false, IndexStatus.WAITING);
             createIndex(tagsIndex);
 
             // Single GT operator - should not consolidate to range scan (needs both bounds)

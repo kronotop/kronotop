@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
-import com.kronotop.internal.TransactionUtils;
-import com.kronotop.volume.segment.Segment;
+import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.segment.SegmentUtil;
 import io.github.resilience4j.retry.Retry;
 
 import java.io.FileNotFoundException;
@@ -33,6 +33,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 import static com.google.common.base.Throwables.getRootCause;
 
@@ -48,22 +50,39 @@ public abstract class AbstractReplication {
     protected final ReplicationClient client;
     protected final ReplicationSession session;
     protected final Retry transactionWithRetry;
+    protected final long reconnectBackoffNanos;
     protected final CountDownLatch latch = new CountDownLatch(1);
+    protected final Object fileLock = new Object();
     protected volatile RandomAccessFile file;
     protected volatile boolean started;
     protected volatile boolean shutdown;
+    private boolean fileClosed = false; // guarded by fileLock
 
     protected AbstractReplication(Context context, DirectorySubspace subspace, ReplicationClient client, ReplicationSession session) {
         this.context = context;
         this.subspace = subspace;
         this.client = client;
         this.session = session;
-        this.transactionWithRetry = TransactionUtils.retry(10, Duration.ofMillis(100));
+        this.transactionWithRetry = TransactionUtil.retry(10, Duration.ofMillis(100));
+        this.reconnectBackoffNanos =
+                TimeUnit.MILLISECONDS.toNanos(context.getConfig().getLong("volume.replication.reconnect_backoff"));
         try {
             this.file = createOrOpenSegmentFile(session.segmentId());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Parks for the configured backoff before the replication loop re-dispatches a stage that
+     * aborted because the client was not connected to the primary. Without this, the loop would
+     * busy-spin while the client is mid-reconnect. Returns immediately if shutdown is in progress.
+     */
+    protected void parkBeforeReconnectRetry() {
+        if (shutdown) {
+            return;
+        }
+        LockSupport.parkNanos(reconnectBackoffNanos);
     }
 
     /**
@@ -107,10 +126,11 @@ public abstract class AbstractReplication {
      */
     protected void markReplicationStageFailed(long segmentId, Throwable throwable) {
         Throwable root = getRootCause(throwable);
+        String message = root.getMessage() != null ? root.getMessage() : root.getClass().getName();
         transactionWithRetry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 ReplicationState.setStatus(tr, subspace, segmentId, ReplicationStatus.FAILED);
-                ReplicationState.setErrorMessage(tr, subspace, segmentId, root.getMessage());
+                ReplicationState.setErrorMessage(tr, subspace, segmentId, message);
                 tr.commit().join();
             }
         });
@@ -144,7 +164,7 @@ public abstract class AbstractReplication {
      * Creates or opens a segment file, extending it to the configured segment size if needed.
      */
     protected RandomAccessFile createOrOpenSegmentFile(long segmentId) throws IOException {
-        Path segmenFilePath = Segment.getSegmentFilePath(session.destination().toAbsolutePath().toString(), segmentId);
+        Path segmenFilePath = SegmentUtil.getFilePath(session.destination().toAbsolutePath().toString(), segmentId);
         Files.createDirectories(segmenFilePath.getParent());
         try {
             RandomAccessFile file = new RandomAccessFile(segmenFilePath.toFile(), "rw");
@@ -156,6 +176,26 @@ public abstract class AbstractReplication {
         } catch (FileNotFoundException e) {
             // This should not be possible.
             throw new KronotopException(e);
+        }
+    }
+
+    /**
+     * Syncs and closes the segment file at most once.
+     *
+     * <p>Callers may invoke this concurrently (worker loop teardown and the shutdown thread both
+     * close the stage). The {@code fileLock} serializes the sync-then-close so a closed file
+     * descriptor is never synced, and the idempotency flag makes repeated calls a no-op.</p>
+     */
+    protected void syncAndCloseFile() throws IOException {
+        synchronized (fileLock) {
+            if (fileClosed) {
+                return;
+            }
+            fileClosed = true;
+            if (file.getChannel().isOpen()) {
+                file.getFD().sync();
+                file.close();
+            }
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,14 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -46,12 +50,12 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
 
         // Insert 200 documents with ages 0-199
         List<byte[]> documents = createDocumentsWithAges(200);
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Create a plan for the query with limit=2
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}})");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
         QueryOptions config = QueryOptions.builder().limit(2).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         // Expected calculations:
         // Total documents: 200 (ages 0-199)
@@ -71,8 +75,8 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
 
         // Iterate through all batches using cursor-based pagination
         while (true) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+            try (Transaction tr = createTransaction()) {
+                List<ByteBuffer> results = readExecutor.execute(tr, ctx);
                 actualIterations++;
 
                 if (results.isEmpty()) {
@@ -144,12 +148,12 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
 
         // Insert 200 documents with ages 0-199
         List<byte[]> documents = createDocumentsWithAges(200);
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Create pipeline executor with limit=2 and query age > 22
-        PipelineNode plan = createExecutionPlan(metadata, "{'age': {'$gt': 22}}");
-        QueryOptions config = QueryOptions.builder().limit(2).reverse(true).build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
+        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         // Expected calculations for REVERSE order:
         // Total documents: 200 (ages 0-199)
@@ -170,8 +174,8 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
 
         // Iterate through all batches using cursor-based pagination in reverse order
         while (true) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+            try (Transaction tr = createTransaction()) {
+                List<ByteBuffer> results = readExecutor.execute(tr, ctx);
                 actualIterations++;
 
                 if (results.isEmpty()) {

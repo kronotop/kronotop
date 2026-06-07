@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,18 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
+import com.ibm.icu.text.Collator;
+import com.kronotop.bucket.Collation;
+import com.kronotop.bucket.TypeBracketComparator;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.SelectorMatcher;
+import com.kronotop.internal.StringUtil;
+import org.bson.BsonType;
+import org.bson.BsonValue;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Executor responsible for performing document read operations in the Kronotop Cluster.
@@ -33,29 +38,17 @@ import java.util.Map;
  * persisted entries (where documents are already in memory) and document locations
  * (where documents need to be retrieved from storage).
  *
- * <p>The execution process involves:
- * <ol>
- *   <li>Executing the underlying pipeline to populate data sinks</li>
- *   <li>Processing the populated sinks to extract document data</li>
- *   <li>For persisted entries: directly accessing document content</li>
- *   <li>For document locations: retrieving documents from storage via DocumentRetriever</li>
- *   <li>Returning a map of versionstamps to document content</li>
- * </ol>
- *
  * <p>This executor supports reading from two types of data sinks:
  * <ul>
  *   <li>{@link PersistedEntrySink} - Contains complete document entries already in memory</li>
  *   <li>{@link DocumentLocationSink} - Contains document location metadata requiring retrieval</li>
  * </ul>
  *
- * <p>The returned map maintains insertion order using {@link LinkedHashMap}, preserving
- * the order in which documents were processed from the pipeline.
- *
  * @see Executor
  * @see PipelineExecutor
  * @see DataSink
  */
-public final class ReadExecutor extends BaseExecutor implements Executor<Map<Versionstamp, ByteBuffer>> {
+public final class ReadExecutor extends BaseExecutor implements Executor<List<ByteBuffer>> {
     private final PipelineExecutor executor;
 
     /**
@@ -70,69 +63,116 @@ public final class ReadExecutor extends BaseExecutor implements Executor<Map<Ver
     /**
      * Executes the read operation by processing the pipeline and retrieving identified documents.
      *
-     * <p>This method first executes the underlying pipeline to populate data sinks with documents
-     * to be read. It then processes these sinks to extract document content, either directly
-     * from memory (for persisted entries) or by retrieving from storage (for document locations).
-     *
-     * <p>The method ensures proper cleanup by clearing the data sink after processing,
-     * even if an exception occurs during document retrieval.
-     *
      * @param tr  the FoundationDB transaction to use for read operations
      * @param ctx the query context containing the pipeline plan and execution environment
-     * @return a map of versionstamps to document content (ByteBuffer) for all retrieved documents,
-     * maintaining insertion order
+     * @return a list of document content (ByteBuffer) for all retrieved documents
      * @throws RuntimeException if document retrieval operations fail
      */
     @Override
-    public Map<Versionstamp, ByteBuffer> execute(Transaction tr, QueryContext ctx) {
+    public List<ByteBuffer> execute(Transaction tr, QueryContext ctx) {
         executor.execute(tr, ctx);
 
         PipelineNode head = findHeadNode(ctx.plan());
 
         if (head == null) {
-            return Map.of();
+            return List.of();
         }
 
         DataSink sink = ctx.sinks().load(head.id());
         if (sink == null) {
-            return Map.of();
+            return List.of();
         }
 
-        Map<Versionstamp, ByteBuffer> result = new LinkedHashMap<>();
+        List<ByteBuffer> result = new ArrayList<>();
         try {
             return switch (sink) {
                 case PersistedEntrySink persistedEntrySink -> {
-                    persistedEntrySink.forEach((versionstamp, entry) -> {
-                        result.put(versionstamp, entry.document());
-                    });
-                    yield result;
+                    for (PersistedEntry entry : persistedEntrySink.entries()) {
+                        result.add(entry.document());
+                    }
+                    yield applyLimit(ctx, resultSortIfNeeded(ctx, result));
                 }
                 case DocumentLocationSink documentLocationSink -> {
-                    // Phase 1: Collect all locations
-                    List<Versionstamp> versionstamps = new ArrayList<>();
-                    List<DocumentLocation> locations = new ArrayList<>();
-                    documentLocationSink.forEach((entryHandle, location) -> {
-                        versionstamps.add(location.versionstamp());
-                        locations.add(location);
-                    });
+                    // Phase 1: Deduplicate by ObjectId only when a multi-key index produced the results
+                    if (ctx.isScannedIndexMultiKey()) {
+                        documentLocationSink.dedupByObjectId();
+                    }
 
-                    if (locations.isEmpty()) {
+                    if (documentLocationSink.size() == 0) {
                         yield result;
                     }
 
                     // Phase 2: Batch retrieve all documents
-                    List<ByteBuffer> documents = ctx.env().documentRetriever()
-                            .retrieveDocuments(ctx.metadata(), locations);
+                    List<ByteBuffer> documents = ctx.env().documentRetriever().retrieveDocuments(documentLocationSink.entries());
 
-                    // Phase 3: Build result map
-                    for (int i = 0; i < documents.size(); i++) {
-                        result.put(versionstamps.get(i), documents.get(i));
-                    }
-                    yield result;
+                    result.addAll(documents);
+
+                    // Phase 3: Apply in-memory sorting if needed
+                    yield applyLimit(ctx, resultSortIfNeeded(ctx, result));
                 }
             };
         } finally {
             sink.clear();
         }
+    }
+
+    private List<ByteBuffer> applyLimit(QueryContext ctx, List<ByteBuffer> result) {
+        int limit = ctx.options().limit();
+        if (result.size() > limit) {
+            return result.subList(0, limit);
+        }
+        return result;
+    }
+
+    /**
+     * Applies in-memory sorting when RESULTSORT is specified.
+     * Uses decorate-sort-undecorate to extract sort keys once instead of per comparison.
+     */
+    private List<ByteBuffer> resultSortIfNeeded(QueryContext ctx, List<ByteBuffer> result) {
+        if (result.size() <= 1) {
+            return result;
+        }
+
+        String resultSortByField = ctx.options().getResultSortField();
+        if (resultSortByField == null) {
+            return result;
+        }
+
+        SortDirection direction = ctx.options().getResultSortDirection();
+
+        Collation collation = CollationResolver.resolve(ctx.metadata(), resultSortByField, ctx.options().getCollation());
+        Collator collator = collation != null ? ctx.env().collatorCache().acquire(collation) : null;
+
+        // Decorate: extract sort keys once (O(N) extractions)
+        String[] sortSegments = StringUtil.split(resultSortByField);
+        List<SortEntry> decorated = new ArrayList<>(result.size());
+        for (ByteBuffer doc : result) {
+            BsonValue key = SelectorMatcher.match(sortSegments, doc);
+            decorated.add(new SortEntry(key, doc));
+        }
+
+        // Sort: compare pre-extracted keys only
+        decorated.sort((e1, e2) -> {
+            BsonValue a = e1.key();
+            BsonValue b = e2.key();
+            int cmp;
+            if (collator != null && a != null && b != null
+                    && a.getBsonType() == BsonType.STRING && b.getBsonType() == BsonType.STRING) {
+                cmp = collator.compare(a.asString().getValue(), b.asString().getValue());
+            } else {
+                cmp = TypeBracketComparator.INSTANCE.compare(a, b);
+            }
+            return direction == SortDirection.DESC ? -cmp : cmp;
+        });
+
+        // Undecorate: collect documents in sorted order
+        List<ByteBuffer> sorted = new ArrayList<>(decorated.size());
+        for (SortEntry entry : decorated) {
+            sorted.add(entry.document());
+        }
+        return sorted;
+    }
+
+    private record SortEntry(BsonValue key, ByteBuffer document) {
     }
 }

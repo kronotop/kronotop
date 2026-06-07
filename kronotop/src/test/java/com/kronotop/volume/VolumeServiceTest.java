@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
     @BeforeEach
     public void setUp() {
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.REDIS, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.STASH, 1);
         volumeConfig = generator.volumeConfig();
         service = context.getService(VolumeService.NAME);
     }

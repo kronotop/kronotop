@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,19 @@ package com.kronotop.bucket;
 
 public enum BucketMetadataMagic {
     HEADER((byte) 0x01),
-    ID((byte) 0x02),
     REMOVED((byte) 0x03),
     VERSION((byte) 0x04),
-    INDEX_DEFINITION((byte) 0x05),
-    VOLUME_PREFIX((byte) 0x06),
+    SINGLE_FIELD_INDEX_DEFINITION((byte) 0x05),
+    PREFIX_BINDING_KEY((byte) 0x06),
     INDEX_STATISTICS((byte) 0x07),
     CARDINALITY((byte) 0x08),
-    HISTOGRAM((byte) 0x09);
+    HISTOGRAM((byte) 0x09),
+    SHARDS((byte) 0x0A),
+    COMPOUND_INDEX_DEFINITION((byte) 0x0B),
+    VECTOR_INDEX_DEFINITION((byte) 0x0C),
+    COLLATION((byte) 0x0D),
+    NAMESPACE_BINDING_KEY((byte) 0x0E),
+    BUCKET_NAME((byte) 0x0F);
 
     public final byte value;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ public class ProcessIdGeneratorImplTest extends BaseTest {
     public void tearDown() {
         try (Transaction tr = database.createTransaction()) {
             String clusterName = config.getString("cluster.name");
-            DirectoryLayer directoryLayer = DirectoryLayer.getDefault();
+            DirectoryLayer directoryLayer = KronotopDirectoryLayer.fromConfig(config);
             List<String> subpath = KronotopDirectory.kronotop().cluster(clusterName).toList();
             directoryLayer.remove(tr, subpath).join();
             tr.commit().join();

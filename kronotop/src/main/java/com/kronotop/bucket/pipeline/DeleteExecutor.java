@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,74 +19,39 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
+import com.kronotop.Context;
 import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.DefaultIndexDefinition;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexBuilder;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.volume.DeleteResult;
-import com.kronotop.volume.VolumeSession;
+import com.kronotop.bucket.index.*;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.*;
+import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Executor responsible for performing document deletion operations in the Kronotop Cluster.
  *
  * <p>The DeleteExecutor processes a query pipeline to identify documents to be deleted,
- * then executes the actual deletion operations across multiple shards. It handles both
- * persisted entries and document locations by grouping them by shard ID and performing
- * volume deletion operations on each affected shard.
- *
- * <p>The execution process involves:
- * <ol>
- *   <li>Executing the underlying pipeline to populate data sinks</li>
- *   <li>Extracting versionstamps from the populated sinks</li>
- *   <li>Grouping versionstamps by their associated shard ID</li>
- *   <li>Performing volume deletion operations for each shard</li>
- *   <li>Returning the list of all deleted document versionstamps</li>
- * </ol>
- *
- * <p>This executor supports deletion from two types of data sinks:
- * <ul>
- *   <li>{@link PersistedEntrySink} - Contains complete document entries with metadata</li>
- *   <li>{@link DocumentLocationSink} - Contains document location information</li>
- * </ul>
- *
- * @see Executor
- * @see PipelineExecutor
- * @see DataSink
+ * then executes the actual deletion operations across multiple shards.
  */
-public final class DeleteExecutor extends BaseExecutor implements Executor<List<Versionstamp>> {
+public final class DeleteExecutor extends BaseExecutor implements Executor<List<ObjectId>> {
+    private final Context context;
     private final PipelineExecutor executor;
+    private final VolumeFacade volumeFacade;
+    private final Map<Integer, VolumeSubspace> subspaces = new ConcurrentHashMap<>();
 
-    /**
-     * Constructs a new DeleteExecutor with the specified pipeline executor.
-     *
-     * @param executor the pipeline executor used to process the query and populate data sinks
-     */
-    public DeleteExecutor(PipelineExecutor executor) {
+    public DeleteExecutor(Context context, PipelineExecutor executor) {
+        this.context = context;
         this.executor = executor;
+        this.volumeFacade = new VolumeFacade(context);
     }
 
-    /**
-     * Executes the deletion operation by processing the pipeline and deleting identified documents.
-     *
-     * <p>This method first executes the underlying pipeline to populate data sinks with documents
-     * to be deleted. It then processes these sinks to extract versionstamps, groups them by
-     * shard ID, and performs the actual volume deletion operations on each affected shard.
-     *
-     * <p>The method ensures proper cleanup by clearing the data sink after processing,
-     * even if an exception occurs during deletion.
-     *
-     * @param tr  the FoundationDB transaction to use for deletion operations
-     * @param ctx the query context containing the pipeline plan and execution environment
-     * @return a list of versionstamps for all successfully deleted documents
-     * @throws RuntimeException if deletion operations fail on any shard
-     */
     @Override
-    public List<Versionstamp> execute(Transaction tr, QueryContext ctx) {
+    public List<ObjectId> execute(Transaction tr, QueryContext ctx) {
         executor.execute(tr, ctx);
 
         PipelineNode head = findHeadNode(ctx.plan());
@@ -101,34 +66,98 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
         }
 
         try {
-            Map<Integer, List<Versionstamp>> byShardId = accumulateAndGroupVersionstampsByShardId(sink);
+            Map<Integer, List<DocumentRef>> byShardId = accumulateDocumentRefsByShardId(ctx, sink);
 
-            // Collected all affected versionstamps and grouped by ShardID.
+            Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+
+            List<ObjectId> deletedIds = new ArrayList<>();
             List<Versionstamp> versionstamps = new ArrayList<>();
-            for (Map.Entry<Integer, List<Versionstamp>> item : byShardId.entrySet()) {
-                BucketShard shard = ctx.env().bucketService().getShard(item.getKey());
-                VolumeSession session = new VolumeSession(tr, ctx.metadata().volumePrefix());
-                versionstamps.addAll(item.getValue());
-                DeleteResult deleteResult = shard.volume().delete(session, item.getValue().toArray(new Versionstamp[0]));
-                PostCommitHook postCommitHook = new PostCommitHook(deleteResult);
-                ctx.registerPostCommitHook(postCommitHook);
+            for (Map.Entry<Integer, List<DocumentRef>> item : byShardId.entrySet()) {
+                int shardId = item.getKey();
+
+                BucketShard shard = ctx.env().bucketService().getShard(shardId);
+                VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
+
+                List<DocumentRef> docRefs = item.getValue();
+                VersionstampedEntry[] entries = new VersionstampedEntry[docRefs.size()];
+                for (int i = 0; i < docRefs.size(); i++) {
+                    DocumentRef docRef = docRefs.get(i);
+                    Versionstamp versionstamp = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, docRef.objectId().toByteArray(), ctx.metadata());
+                    entries[i] = new VersionstampedEntry(versionstamp, docRef.entryMetadata());
+                    deletedIds.add(docRef.objectId());
+                    versionstamps.add(versionstamp);
+                }
+
+                if (shard != null) {
+                    DeleteResult deleteResult = shard.volume().deleteByVersionstampedEntry(session, entries);
+                    PostCommitHook postCommitHook = new PostCommitHook(deleteResult);
+                    TransactionUtil.addPostCommitHook(postCommitHook, ctx.getSession());
+                } else {
+                    VolumeSubspace subspace = subspaces.computeIfAbsent(shardId, (ignored) -> {
+                        VolumeConfigGenerator generator = new VolumeConfigGenerator(context, ShardKind.BUCKET, shardId);
+                        return new VolumeSubspace(generator.openVolumeSubspace());
+                    });
+                    volumeFacade.deleteByVersionstampedEntry(subspace, session, entries);
+                }
             }
 
+            // Drop index entries for all deleted documents
             for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
                 // Skip the default ID index as it'll be handled separately
-                if (index.definition().equals(DefaultIndexDefinition.ID)) {
+                if (PrimaryIndex.isPrimary(index.definition())) {
                     continue;
                 }
-                for (Versionstamp versionstamp : versionstamps) {
-                    IndexBuilder.dropIndexEntry(tr, versionstamp, index.definition(), index.subspace(), ctx.metadata().subspace());
+                for (ObjectId objectId : deletedIds) {
+                    SingleFieldIndexMaintainer.dropEntry(
+                            tr, objectId.toByteArray(), index.definition(), index.subspace(), ctx.metadata().subspace()
+                    );
                 }
             }
 
-            for (Versionstamp versionstamp : versionstamps) {
-                IndexBuilder.dropPrimaryIndexEntry(tr, versionstamp, ctx.metadata());
+            // Drop compound index entries for all deleted documents
+            for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+                for (ObjectId objectId : deletedIds) {
+                    CompoundIndexMaintainer.dropEntry(
+                            tr,
+                            objectId.toByteArray(),
+                            compoundIndex.definition(),
+                            compoundIndex.subspace(),
+                            ctx.metadata().subspace()
+                    );
+                }
             }
 
-            return versionstamps;
+            // Drop vector index entries for all deleted documents
+            for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+                List<DeletedVector> deletedVectors = new ArrayList<>();
+                for (ObjectId objectId : deletedIds) {
+                    VectorIndexMaintainer.dropEntry(tr, objectId.toByteArray(), vectorIndex, ctx.metadata());
+                    int userVersion = ctx.getAndIncrementUserVersion();
+                    VectorIndexMaintainer.deleteMutationLog(
+                            tr,
+                            vectorIndex.subspace(),
+                            objectId.toByteArray(),
+                            userVersion
+                    );
+                    deletedVectors.add(new DeletedVector(objectId, userVersion));
+                }
+                // Schedule on-heap graph node deletion after commit
+                TransactionUtil.addPostCommitHook(new VectorNodeDeleteHook(
+                        ctx.env().bucketService(),
+                        ctx.metadata(),
+                        vectorIndex.definition().id(),
+                        deletedVectors,
+                        tr.getVersionstamp()
+                ), ctx.getSession());
+            }
+
+            for (int i = 0; i < deletedIds.size(); i++) {
+                ObjectId objectId = deletedIds.get(i);
+                Versionstamp versionstamp = versionstamps.get(i);
+                PrimaryIndexMaintainer.dropEntry(tr, objectId.toByteArray(), versionstamp, primaryIndex, ctx.metadata());
+            }
+
+            return deletedIds;
         } finally {
             sink.clear();
         }
@@ -140,4 +169,5 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             deleteResult.complete();
         }
     }
+
 }

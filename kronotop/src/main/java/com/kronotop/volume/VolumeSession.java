@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,22 +19,17 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 
 import javax.annotation.Nonnull;
+import java.util.function.IntSupplier;
 
 /**
- * VolumeSession encapsulates the context for Volume operations, managing the transaction,
- * namespace prefix, and user version tracking for entries within a single session.
+ * Carries the per-operation context for Volume calls: an optional FoundationDB
+ * transaction, the {@link Prefix} that scopes all entries, and a user version
+ * counter that orders entries written within the same transaction.
  *
- * <p><b>Core Responsibilities:</b></p>
- * <ul>
- *   <li><b>Transaction Management</b>: Associates Volume operations with a FoundationDB transaction</li>
- *   <li><b>Namespace Isolation</b>: Enforces prefix-based logical partitioning of entries</li>
- *   <li><b>Entry Ordering</b>: Tracks user versions for ordering multiple entries within a transaction</li>
- * </ul>
- *
- * <p><b>Two Usage Modes:</b></p>
- *
- * <p><b>1. Transactional Mode (Write Operations)</b></p>
- * <p>Used for operations that modify data (append, update, delete). Requires a FoundationDB transaction:</p>
+ * <p><b>Transactional mode.</b> A session created with a transaction supports all
+ * operations: append, update, delete, and transactional reads that resolve entry
+ * metadata through the transaction. Volume never commits; committing or rolling
+ * back the transaction is the caller's responsibility.
  * <pre>{@code
  * try (Transaction tr = context.getFoundationDB().createTransaction()) {
  *     VolumeSession session = new VolumeSession(tr, prefix);
@@ -43,159 +38,128 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  *
- * <p><b>2. Read-Only Mode (Cached Reads)</b></p>
- * <p>Used for read operations that can leverage the entry metadata cache without a transaction:</p>
+ * <p><b>Read-only mode.</b> A session created without a transaction serves reads
+ * of previously committed entries from the entry metadata cache. Write operations
+ * require a transaction and fail with a read-only session.
  * <pre>{@code
  * VolumeSession session = new VolumeSession(prefix);
  * ByteBuffer data = volume.get(session, versionstampedKey);
- * // Reads from cache, no transaction needed
  * }</pre>
  *
- * <p><b>Prefix-Based Isolation:</b></p>
- * <p>The prefix parameter provides logical namespace isolation within a Volume. Common use cases:</p>
- * <ul>
- *   <li><b>Bucket separation</b>: Each bucket gets its own prefix for isolated storage</li>
- *   <li><b>Redis compatibility</b>: Redis data structures use dedicated prefixes</li>
- *   <li><b>Multi-tenancy</b>: Different tenants or applications can share a Volume with isolated prefixes</li>
- * </ul>
+ * <p><b>Prefix isolation.</b> The prefix logically partitions entries within a
+ * shared Volume; buckets and Stash data structures each store their entries under
+ * their own prefix, and all operations in a session are scoped to it.
  *
- * <p><b>Example - Multiple Prefixes:</b></p>
- * <pre>{@code
- * Prefix bucketPrefix = new Prefix("bucket:users");
- * Prefix redisPrefix = new Prefix("redis:strings");
+ * <p><b>User versions.</b> The user version is the 2-byte component (0-65535) of
+ * the FoundationDB versionstamped key that orders entries committed in the same
+ * transaction. By default each session keeps its own counter starting at 0. When
+ * multiple requests write within the same transaction, an external
+ * {@link IntSupplier} can be shared across their sessions to keep versionstamped
+ * keys unique and ordered.
  *
- * // Operations on different prefixes are isolated
- * try (Transaction tr = context.getFoundationDB().createTransaction()) {
- *     VolumeSession bucketSession = new VolumeSession(tr, bucketPrefix);
- *     VolumeSession redisSession = new VolumeSession(tr, redisPrefix);
- *
- *     volume.append(bucketSession, userData);   // Stored under bucket:users prefix
- *     volume.append(redisSession, stringData);  // Stored under redis:strings prefix
- *     tr.commit().join();
- * }
- * }</pre>
- *
- * <p><b>User Version Tracking:</b></p>
- * <p>Each session maintains its own {@link UserVersion} counter (0-65535) to order entries
- * within a transaction. This enables FoundationDB to create unique, ordered versionstamped keys
- * for all entries in a single transaction commit.</p>
- *
- * <p><b>Session Lifecycle:</b></p>
- * <ul>
- *   <li>Sessions are lightweight, short-lived objects (typically one per transaction)</li>
- *   <li>Each session has an independent user version counter starting at 0</li>
- *   <li>Sessions do not need explicit cleanup (no close() method)</li>
- *   <li>A new session should be created for each transaction</li>
- * </ul>
- *
- * <p><b>Thread Safety:</b></p>
- * <p>VolumeSession instances are not thread-safe and should not be shared across threads.
- * Each thread should create its own session with its own FoundationDB transaction.</p>
+ * <p>Sessions are lightweight, short-lived objects, typically one per transaction,
+ * with no cleanup required. They are not thread-safe and must not be shared across
+ * threads.
  *
  * @see Volume
  * @see Prefix
  * @see UserVersion
- * @see com.apple.foundationdb.Transaction
  */
 public class VolumeSession {
     /**
-     * User version tracker for ordering entries within this session's transaction.
-     * Each entry appended increments this counter to ensure proper ordering.
+     * Internal user version counter, used when no external supplier is set.
      */
     private final UserVersion userVersion = new UserVersion();
 
     /**
-     * FoundationDB transaction for this session, or null for read-only cached operations.
+     * FoundationDB transaction for this session, or null in read-only mode.
      */
     private final Transaction transaction;
 
     /**
-     * Namespace prefix for logical isolation of entries within the Volume.
+     * Prefix that scopes all entries accessed through this session.
      */
     private final Prefix prefix;
 
     /**
-     * Creates a read-only VolumeSession without a transaction for cached read operations.
+     * Optional external user version supplier, shared across sessions when multiple
+     * requests write within the same transaction.
+     */
+    private final IntSupplier userVersionSupplier;
+
+    /**
+     * Creates a read-only session without a transaction. Reads of previously committed
+     * entries are served from the entry metadata cache; write operations fail.
      *
-     * <p>This constructor is used when reading data that can be served from the entry metadata
-     * cache without requiring a FoundationDB transaction. Suitable for:</p>
-     * <ul>
-     *   <li>Reading previously committed entries via {@link Volume#get(VolumeSession, com.apple.foundationdb.tuple.Versionstamp)}</li>
-     *   <li>Operations that don't require transactional consistency</li>
-     * </ul>
-     *
-     * <p><b>Note:</b> Write operations (append, update, delete) require a transaction and will
-     * fail if attempted with a read-only session.</p>
-     *
-     * @param prefix the namespace prefix for entry isolation, must not be null
+     * @param prefix the prefix that scopes entries, must not be null
      */
     public VolumeSession(@Nonnull Prefix prefix) {
         this.prefix = prefix;
         this.transaction = null;
+        this.userVersionSupplier = null;
     }
 
     /**
-     * Creates a transactional VolumeSession for read and write operations.
-     *
-     * <p>This constructor is used for all operations that modify data or require
-     * transactional consistency:</p>
-     * <ul>
-     *   <li>Appending new entries: {@link Volume#append(VolumeSession, java.nio.ByteBuffer...)}</li>
-     *   <li>Updating existing entries: {@link Volume#update(VolumeSession, KeyEntry...)}</li>
-     *   <li>Deleting entries: {@link Volume#delete(VolumeSession, com.apple.foundationdb.tuple.Versionstamp...)}</li>
-     *   <li>Transactional reads: Reading data within the context of an active transaction</li>
-     * </ul>
-     *
-     * <p><b>Important:</b> The caller is responsible for committing or rolling back the
-     * transaction. Volume operations do NOT commit transactions automatically.</p>
+     * Creates a transactional session for reads and writes. The caller is responsible
+     * for committing or rolling back the transaction; Volume never commits.
      *
      * @param tr     the FoundationDB transaction for this session, must not be null
-     * @param prefix the namespace prefix for entry isolation, must not be null
+     * @param prefix the prefix that scopes entries, must not be null
      */
     public VolumeSession(@Nonnull Transaction tr, @Nonnull Prefix prefix) {
         this.transaction = tr;
         this.prefix = prefix;
+        this.userVersionSupplier = null;
     }
 
     /**
-     * Returns the namespace prefix for this session.
+     * Creates a transactional session that draws user versions from an external supplier.
+     * Used when multiple requests write within the same transaction: each request gets
+     * its own session, but all entries must receive unique, sequential user versions
+     * to avoid versionstamp collisions.
      *
-     * <p>The prefix determines the logical namespace within the Volume where entries
-     * will be stored or retrieved. All operations within this session are scoped to
-     * this prefix.</p>
+     * @param tr                  the FoundationDB transaction for this session, must not be null
+     * @param prefix              the prefix that scopes entries, must not be null
+     * @param userVersionSupplier supplier that returns the next user version, must not be null
+     */
+    public VolumeSession(@Nonnull Transaction tr, @Nonnull Prefix prefix, @Nonnull IntSupplier userVersionSupplier) {
+        this.transaction = tr;
+        this.prefix = prefix;
+        this.userVersionSupplier = userVersionSupplier;
+    }
+
+    /**
+     * Returns the prefix that scopes all operations in this session.
      *
-     * @return the prefix for namespace isolation
+     * @return the prefix
      */
     public Prefix prefix() {
         return prefix;
     }
 
     /**
-     * Returns the FoundationDB transaction for this session, or null for read-only sessions.
+     * Returns the FoundationDB transaction for this session, or null if this is a
+     * read-only session backed by the entry metadata cache.
      *
-     * <p>A null transaction indicates this is a read-only session that uses the entry
-     * metadata cache. Non-null transactions are required for all write operations.</p>
-     *
-     * @return the FoundationDB transaction, or null for read-only sessions
+     * @return the transaction, or null for read-only sessions
      */
     public Transaction transaction() {
         return transaction;
     }
 
     /**
-     * Returns the current user version and increments it for the next entry.
-     *
-     * <p>This method is called internally by Volume operations to assign sequential
-     * user versions to entries within a transaction. Each entry gets a unique user
-     * version (0, 1, 2, ...) that becomes part of its final versionstamped key.</p>
-     *
-     * <p><b>Internal Use Only:</b> This method is package-protected and should only
-     * be called by Volume implementation classes.</p>
+     * Returns the next user version for an entry written in this session. Each entry
+     * gets a unique, sequential value that becomes part of its versionstamped key.
+     * Drawn from the external supplier if one was provided at construction, otherwise
+     * from the session's internal counter. Called by Volume internals only.
      *
      * @return the current user version before incrementing
-     * @throws TooManyEntriesException if more than 65535 entries are appended in this session
+     * @throws TooManyEntriesException if the internal counter exceeds 65535 entries
      */
     protected int getAndIncrementUserVersion() {
+        if (userVersionSupplier != null) {
+            return userVersionSupplier.getAsInt();
+        }
         return userVersion.getAndIncrement();
     }
 }

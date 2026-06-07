@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import org.bson.BsonValue;
 public class ProbabilisticSelector {
     private static final HashFunction MURMUR3_32_FIXED = Hashing.murmur3_32_fixed();
 
-    // 14-bit mask: probability of 1/16,384 (~1/10,000 target)
+    // 14-bit mask: the probability of 1/16,384 (~1/10,000 target)
     // Using (hash & MASK) == 0 gives us approximately 1 in 16,384 selection rate
     private static final int MASK = 0x3FFF;
 
@@ -40,7 +40,7 @@ public class ProbabilisticSelector {
      */
     public static boolean match(BsonValue value) {
         // Fast probabilistic filter using MurmurHash3 (non-cryptographic)
-        // Deterministic for same input, minimal allocations for hot-path performance
+        // Deterministic for the same input, minimal allocations for hot-path performance
         int hash = computeHash(value);
         return (hash & MASK) == 0;
     }
@@ -54,6 +54,18 @@ public class ProbabilisticSelector {
      */
     public static boolean match(long value) {
         int hash = (int) (value ^ (value >>> 32));
+        return (hash & MASK) == 0;
+    }
+
+    /**
+     * Determines whether the given byte array should be selected for sampling.
+     * Uses MurmurHash3 for uniform distribution over arbitrary byte sequences.
+     *
+     * @param bytes the byte array to evaluate
+     * @return true if selected based on a ~1/16,384 probability, false otherwise
+     */
+    public static boolean match(byte[] bytes) {
+        int hash = MURMUR3_32_FIXED.hashBytes(bytes).asInt();
         return (hash & MASK) == 0;
     }
 
@@ -90,6 +102,9 @@ public class ProbabilisticSelector {
                     .asInt();
             case BINARY -> MURMUR3_32_FIXED
                     .hashBytes(value.asBinary().getData())
+                    .asInt();
+            case OBJECT_ID -> MURMUR3_32_FIXED
+                    .hashBytes(value.asObjectId().getValue().toByteArray())
                     .asInt();
             case NULL -> 0;
             default -> throw new IllegalArgumentException("Unknown BsonType: " + value.getBsonType());

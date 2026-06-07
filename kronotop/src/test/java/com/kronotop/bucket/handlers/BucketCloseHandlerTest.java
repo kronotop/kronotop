@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,14 +17,16 @@
 package com.kronotop.bucket.handlers;
 
 import com.kronotop.bucket.BSONUtil;
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
-import com.kronotop.commandbuilder.kronotop.BucketQueryArgs;
+import com.kronotop.commands.BucketCommandBuilder;
+import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.bson.types.ObjectId;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -34,6 +36,11 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketCloseHandlerTest extends BaseBucketHandlerTest {
+
+    @BeforeEach
+    void setUp() {
+        createBucket(TEST_BUCKET);
+    }
 
     @Test
     void shouldCloseCursorAndPreventFurtherAccess() {
@@ -50,7 +57,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         // Insert documents
-        Map<String, byte[]> insertedDocs = insertDocuments(testDocuments);
+        Map<ObjectId, byte[]> insertedDocs = insertDocumentsAndGetObjectIds(testDocuments);
         assertEquals(5, insertedDocs.size(), "Should have inserted 5 documents");
 
         // Step 2: Run a query with limit to get a cursor
@@ -72,9 +79,9 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
             // Verify we got entries
             RedisMessage entries = findInMapMessage(queryResponse, "entries");
             assertNotNull(entries, "Query response should contain entries");
-            assertInstanceOf(MapRedisMessage.class, entries);
-            MapRedisMessage entriesMap = (MapRedisMessage) entries;
-            assertEquals(2, entriesMap.children().size(), "Should have 2 entries with limit=2");
+            assertInstanceOf(ArrayRedisMessage.class, entries);
+            ArrayRedisMessage entriesArray = (ArrayRedisMessage) entries;
+            assertEquals(2, entriesArray.children().size(), "Should have 2 entries with limit=2");
         }
 
         // Step 3: Close the cursor via BUCKET.CLOSE
@@ -125,7 +132,7 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        insertDocuments(testDocuments);
+        insertDocumentsAndGetObjectIds(testDocuments);
 
         // Test QUERY cursor
         int queryCursorId;
@@ -183,5 +190,156 @@ class BucketCloseHandlerTest extends BaseBucketHandlerTest {
             assertInstanceOf(ErrorRedisMessage.class, msg);
             assertEquals("ERR no cursor found", ((ErrorRedisMessage) msg).content());
         }
+    }
+
+    @Test
+    void shouldCloseDeleteCursor() {
+        // Behavior: BUCKET.CLOSE should work for DELETE operation cursors, removing the cursor
+        // and preventing further ADVANCE calls.
+
+        List<byte[]> testDocuments = Arrays.asList(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 35}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Charlie\", \"age\": 45}")
+        );
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(testDocuments);
+
+        // Create a DELETE cursor with limit
+        int deleteCursorId;
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.delete(TEST_BUCKET, "{\"age\": {\"$gte\": 25}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage deleteResponse = (MapRedisMessage) msg;
+            RedisMessage rawCursorId = findInMapMessage(deleteResponse, "cursor_id");
+            assertNotNull(rawCursorId, "DELETE response should contain cursor_id");
+            deleteCursorId = Math.toIntExact(((IntegerRedisMessage) rawCursorId).value());
+        }
+
+        // Close DELETE cursor
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.close("DELETE", deleteCursorId).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
+        }
+
+        // Verify the cursor is closed - the second close should fail
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.close("DELETE", deleteCursorId).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+            assertEquals("ERR no cursor found", ((ErrorRedisMessage) msg).content());
+        }
+    }
+
+    @Test
+    void shouldNotAffectOtherCursorsWhenClosingOne() {
+        // Behavior: Closing one cursor should not affect other active cursors in the same session.
+        // Each cursor is independent and can be advanced or closed separately.
+
+        List<byte[]> testDocuments = Arrays.asList(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 35}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Charlie\", \"age\": 45}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Diana\", \"age\": 55}")
+        );
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(testDocuments);
+
+        // Create first QUERY cursor
+        int cursor1;
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$lt\": 40}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            MapRedisMessage response = (MapRedisMessage) msg;
+            assertNotNull(response);
+            cursor1 = Math.toIntExact(((IntegerRedisMessage) findInMapMessage(response, "cursor_id")).value());
+        }
+
+        // Create a second QUERY cursor
+        int cursor2;
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$gte\": 40}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            MapRedisMessage response = (MapRedisMessage) msg;
+            assertNotNull(response);
+            cursor2 = Math.toIntExact(((IntegerRedisMessage) findInMapMessage(response, "cursor_id")).value());
+        }
+
+        // Close cursor1
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.close("QUERY", cursor1).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
+        }
+
+        // Verify cursor1 is closed
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.advanceQuery(cursor1).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(ErrorRedisMessage.class, msg);
+        }
+
+        // Verify cursor2 is still active - ADVANCE should succeed
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.advanceQuery(cursor2).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(MapRedisMessage.class, msg);
+            MapRedisMessage response = (MapRedisMessage) msg;
+            RedisMessage entries = findInMapMessage(response, "entries");
+            assertNotNull(entries, "cursor2 should still return entries after cursor1 is closed");
+        }
+
+        // Close cursor2
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.close("QUERY", cursor2).encode(buf);
+            Object msg = runCommand(channel, buf);
+
+            assertInstanceOf(SimpleStringRedisMessage.class, msg);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) msg).content());
+        }
+    }
+
+    @Test
+    void shouldRejectInvalidOperationType() {
+        // Behavior: BUCKET.CLOSE with an invalid operation type should return an error.
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.close("INVALID_OP", 123).encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorResponse = (ErrorRedisMessage) msg;
+        assertTrue(errorResponse.content().contains("ERR"),
+                "Invalid operation type should return an error");
     }
 }

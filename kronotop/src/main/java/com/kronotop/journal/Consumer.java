@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterator;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.subspace.Subspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
@@ -85,7 +84,7 @@ public class Consumer {
                         journal(config.journal()).
                         consumers().
                         consumer(config.id());
-        return context.getFoundationDB().run(tr -> DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join());
+        return context.getFoundationDB().run(tr -> context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join());
     }
 
     /**
@@ -102,7 +101,7 @@ public class Consumer {
                         journals().
                         journal(config.journal());
         return context.getFoundationDB().run(tr -> {
-            DirectorySubspace subspace = DirectoryLayer.getDefault().createOrOpen(tr, directory.toList()).join();
+            DirectorySubspace subspace = context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join();
             return new JournalMetadata(subspace);
         });
     }
@@ -144,7 +143,7 @@ public class Consumer {
 
         try {
             // Reload offset from FDB to rewind to last committed checkpoint if previous transaction failed
-            byte[] checkpoint = tr.get(offsetKey).join();
+            byte[] checkpoint = tr.snapshot().get(offsetKey).join();
             if (checkpoint != null) {
                 offset = checkpoint;
             } else {
@@ -156,7 +155,7 @@ public class Consumer {
             KeySelector begin = KeySelector.firstGreaterThan(offset);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(subspace.pack()));
 
-            AsyncIterator<KeyValue> iterable = tr.getRange(begin, end, 1).iterator();
+            AsyncIterator<KeyValue> iterable = tr.snapshot().getRange(begin, end, 1).iterator();
             if (!iterable.hasNext()) {
                 return null;
             }
@@ -172,7 +171,7 @@ public class Consumer {
     /**
      * Marks an event as successfully processed by updating the offset. Changes are only persisted if transaction commits.
      *
-     * @param tr Transaction to record offset update.
+     * @param tr    Transaction to record offset update.
      * @param event Event that was processed.
      * @throws IllegalConsumerStateException if consumer is not started or already stopped.
      */
@@ -198,7 +197,7 @@ public class Consumer {
      */
     public void stop() {
         if (!started) {
-            throw new IllegalStateException("Consumer is not started");
+            return;
         }
         stopped = true;
     }

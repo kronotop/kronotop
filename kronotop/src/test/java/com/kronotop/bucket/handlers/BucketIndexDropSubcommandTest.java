@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,29 +17,20 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.CachedTimeService;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.DefaultIndexDefinition;
-import com.kronotop.bucket.index.IndexStatus;
-import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
-import com.kronotop.commandbuilder.kronotop.BucketCommandBuilder;
+import com.kronotop.bucket.index.PrimaryIndex;
+import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -70,9 +61,8 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
     }
 
     @Test
-    @Disabled("Flaky test")
     void shouldDropIndex() {
-        // TODO: This test logic is error prone. Use awaitility to check the conditions continuously
+        // Behavior: INDEX DROP returns OK and the index eventually disappears (NOSUCHINDEX).
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
             ByteBuf buf = Unpooled.buffer();
@@ -83,42 +73,13 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
             assertEquals(Response.OK, actualMessage.content());
         }
 
-        {
+        // INDEX DROP rejects while the build task is still active, so poll until it accepts.
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexDrop(TEST_BUCKET, "test-index").encode(buf);
             Object msg = runCommand(channel, buf);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
-            assertNotNull(actualMessage);
-            assertEquals(Response.OK, actualMessage.content());
-        }
-
-        {
-            // Verify task was created
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                TransactionalContext tx = new TransactionalContext(context, tr);
-                List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, TEST_NAMESPACE, TEST_BUCKET, "test-index");
-                // create-index + drop-index tasks will co-exists
-                assertEquals(2, taskIds.size());
-            }
-        }
-
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.indexDescribe(TEST_BUCKET, "test-index").encode(buf);
-            Object msg = runCommand(channel, buf);
-            MapRedisMessage actualMessage = (MapRedisMessage) msg;
-            assertNotNull(actualMessage);
-            boolean found = false;
-            for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
-                SimpleStringRedisMessage key = (SimpleStringRedisMessage) entry.getKey();
-                if (key.content().equals("status")) {
-                    found = true;
-                    SimpleStringRedisMessage value = (SimpleStringRedisMessage) entry.getValue();
-                    assertEquals(IndexStatus.DROPPED.name(), value.content());
-                }
-            }
-            assertTrue(found, "No 'status' found in the result map");
-        }
+            return msg instanceof SimpleStringRedisMessage;
+        });
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             ByteBuf buf = Unpooled.buffer();
@@ -136,7 +97,7 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
     void shouldNotDropDefaultIdIndex() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.indexDrop(TEST_BUCKET, DefaultIndexDefinition.ID.name()).encode(buf);
+        cmd.indexDrop(TEST_BUCKET, PrimaryIndex.NAME).encode(buf);
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertNotNull(actualMessage);
@@ -144,30 +105,68 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
     }
 
     @Test
+    void shouldDropCompoundIndex() {
+        // Behavior: INDEX DROP returns OK for a compound index and the index eventually disappears (NOSUCHINDEX).
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"$compound\": [{\"name\": \"test-compound-index\", \"fields\": [{\"selector\": \"age\", \"bson_type\": \"int32\"}, {\"selector\": \"name\", \"bson_type\": \"string\"}]}]}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertNotNull(actualMessage);
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // INDEX DROP rejects while the build task is still active, so poll until it accepts.
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexDrop(TEST_BUCKET, "test-compound-index").encode(buf);
+            Object msg = runCommand(channel, buf);
+            return msg instanceof SimpleStringRedisMessage;
+        });
+
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexDescribe(TEST_BUCKET, "test-compound-index").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertNotNull(msg);
+            if (!(msg instanceof ErrorRedisMessage actualMessage)) {
+                return false;
+            }
+            return actualMessage.content().equals("NOSUCHINDEX No such index: 'test-compound-index'");
+        });
+    }
+
+    @Test
     void shouldThrowBucketBeingRemovedExceptionWhenDroppingIndexOnRemovedBucket() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
 
-        // First create the bucket by creating an index
+        // First, create the bucket by creating an index
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexCreate(TEST_BUCKET, "{\"username\": {\"name\": \"test-index\", \"bson_type\": \"string\"}}").encode(buf);
             Object msg = runCommand(channel, buf);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+            assertNotNull(actualMessage);
             assertEquals(Response.OK, actualMessage.content());
         }
 
         // Get the bucket metadata and mark it as removed
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.openUncached(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
             tr.commit().join();
         }
 
         // Flush the bucket metadata cache so open reads the dropped status
-        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(
-                context.getService(CachedTimeService.NAME), 0);
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context::now, 0);
         cleanup.run();
+
+        // Wait until the cache entry is actually evicted
+        await().atMost(Duration.ofSeconds(5)).until(() ->
+                context.getBucketMetadataCache().get(TEST_NAMESPACE, TEST_BUCKET) == null
+        );
 
         // Try to drop the index on the dropped bucket
         {

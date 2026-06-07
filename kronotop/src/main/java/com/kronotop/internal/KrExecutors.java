@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import java.util.concurrent.*;
  * <p>
  * This class provides factory methods for creating bounded thread pool executors with specific characteristics:
  * <ul>
- *   <li>Dynamic thread scaling from 0 to a maximum number of threads</li>
+ *   <li>Fixed core pool size equal to the maximum thread count for reliable concurrency</li>
  *   <li>LinkedBlockingQueue for unbounded task queuing with efficient buffering</li>
  *   <li>Core thread timeout to reclaim resources during idle periods</li>
  *   <li>Customizable thread naming for debugging and monitoring</li>
@@ -47,23 +47,20 @@ public final class KrExecutors {
      * Creates a bounded executor service with customizable thread pool parameters.
      * <p>
      * This executor uses a {@link LinkedBlockingQueue} for task queuing, allowing tasks to be buffered
-     * when all threads are busy. The executor scales dynamically from 0 to {@code maxThreads}, creating
-     * new threads on demand up to the maximum limit. Once the maximum thread count is reached, additional
-     * tasks are queued until threads become available.
+     * when all threads are busy. The core and maximum pool sizes are both set to {@code maxThreads},
+     * ensuring up to {@code maxThreads} threads can run concurrently. Additional tasks beyond thread
+     * capacity are queued until threads become available.
      * <p>
      * Core thread timeout is enabled, allowing all threads (including core threads) to terminate after
      * being idle for the specified {@code keepAliveTime}. This ensures resource cleanup during low-activity periods.
-     * <p>
-     * The unbounded queue prevents task rejection under load, making this executor suitable for scenarios
-     * where task buffering is preferred over immediate task rejection or caller-runs policies.
      *
-     * @param maxThreads the maximum number of threads to allow in the pool. Must be greater than 0.
+     * @param maxThreads    the maximum number of threads to allow in the pool. Must be greater than 0.
      * @param keepAliveTime the time limit for which idle threads may remain alive before being terminated.
-     * @param timeUnit the time unit for the {@code keepAliveTime} parameter.
-     * @param factory the factory to use when creating new threads. Typically used to set thread names and daemon status.
+     * @param timeUnit      the time unit for the {@code keepAliveTime} parameter.
+     * @param factory       the factory to use when creating new threads. Typically used to set thread names and daemon status.
      * @return a new bounded {@link ExecutorService} configured with the specified parameters.
      * @throws IllegalArgumentException if {@code maxThreads} is less than or equal to 0.
-     * @throws NullPointerException if {@code timeUnit} or {@code factory} is null.
+     * @throws NullPointerException     if {@code timeUnit} or {@code factory} is null.
      * @see ThreadPoolExecutor
      * @see LinkedBlockingQueue
      */
@@ -74,7 +71,7 @@ public final class KrExecutors {
             ThreadFactory factory
     ) {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                0,
+                maxThreads,
                 maxThreads,
                 keepAliveTime,
                 timeUnit,

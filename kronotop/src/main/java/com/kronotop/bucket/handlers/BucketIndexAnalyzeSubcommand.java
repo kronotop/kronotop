@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,18 +25,22 @@ import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.index.IndexUtil;
+import com.kronotop.bucket.index.CompoundIndex;
+import com.kronotop.bucket.index.CompoundIndexUtil;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.SingleFieldIndexUtil;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceTask;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskKind;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.task.TaskStorage;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SessionAttributes;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -50,8 +54,7 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
     }
 
     private boolean isAnalyzeTask(Transaction tr, Versionstamp taskId) {
-        BucketService service = context.getService(BucketService.NAME);
-        for (int shardId = 0; shardId < service.getNumberOfShards(); shardId++) {
+        for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
             byte[] base = TaskStorage.getDefinition(tr, taskSubspace, taskId);
             if (base == null) {
@@ -70,7 +73,7 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
         AnalyzeParameters parameters = new AnalyzeParameters(request.getParams());
         AsyncCommandExecutor.runAsync(context, response, () -> {
             String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, parameters.bucket, parameters.index);
                 for (Versionstamp taskId : taskIds) {
@@ -79,7 +82,12 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
                     }
                 }
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, parameters.bucket);
-                IndexUtil.analyze(tx, metadata, parameters.index);
+                CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
+                if (compoundIndex != null) {
+                    CompoundIndexUtil.analyze(tx, metadata, parameters.index);
+                } else {
+                    SingleFieldIndexUtil.analyze(tx, metadata, parameters.index);
+                }
                 tr.commit().join();
             }
         }, response::writeOK);

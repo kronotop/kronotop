@@ -99,4 +99,168 @@ class StringUtilTest {
         String[] result = StringUtil.split("field_name.field-name.field$name");
         assertArrayEquals(new String[]{"field_name", "field-name", "field$name"}, result);
     }
+
+    // toUpperCaseAscii(String) tests
+
+    @Test
+    void shouldReturnSameReferenceWhenAlreadyUppercase() {
+        // Behavior: Zero-copy optimization returns original reference when no conversion needed.
+        String input = "HELLO";
+        String result = StringUtil.toUpperCaseAscii(input);
+        assertSame(input, result);
+    }
+
+    @Test
+    void shouldConvertLowercaseToUppercase() {
+        // Behavior: Converts all lowercase ASCII letters to uppercase.
+        assertEquals("HELLO", StringUtil.toUpperCaseAscii("hello"));
+    }
+
+    @Test
+    void shouldConvertMixedCaseToUppercase() {
+        // Behavior: Converts mixed case strings, only changing lowercase letters.
+        assertEquals("HELLO", StringUtil.toUpperCaseAscii("HeLLo"));
+    }
+
+    @Test
+    void shouldReturnSameReferenceForEmptyStringUppercase() {
+        // Behavior: Empty string returns same reference (zero-copy).
+        String input = "";
+        String result = StringUtil.toUpperCaseAscii(input);
+        assertSame(input, result);
+    }
+
+    @Test
+    void shouldPassThroughNumbersAndSymbolsUppercase() {
+        // Behavior: Non-letter characters are unchanged.
+        String input = "123!@#";
+        String result = StringUtil.toUpperCaseAscii(input);
+        assertSame(input, result);
+    }
+
+    @Test
+    void shouldOnlyConvertAsciiLettersToUppercase() {
+        // Behavior: Non-ASCII characters are passed through unchanged.
+        assertEquals("CAFé", StringUtil.toUpperCaseAscii("café"));
+    }
+
+    @Test
+    void shouldConvertRespCommandToUppercase() {
+        // Behavior: Typical RESP protocol commands are converted correctly.
+        assertEquals("BUCKET.INSERT", StringUtil.toUpperCaseAscii("bucket.insert"));
+    }
+
+    // toLowerCaseAscii(String) tests
+
+    @Test
+    void shouldReturnSameReferenceWhenAlreadyLowercase() {
+        // Behavior: Zero-copy optimization returns original reference when no conversion needed.
+        String input = "hello";
+        String result = StringUtil.toLowerCaseAscii(input);
+        assertSame(input, result);
+    }
+
+    @Test
+    void shouldConvertUppercaseToLowercase() {
+        // Behavior: Converts all uppercase ASCII letters to lowercase.
+        assertEquals("hello", StringUtil.toLowerCaseAscii("HELLO"));
+    }
+
+    @Test
+    void shouldConvertMixedCaseToLowercase() {
+        // Behavior: Converts mixed case strings, only changing uppercase letters.
+        assertEquals("hello", StringUtil.toLowerCaseAscii("HeLLo"));
+    }
+
+    @Test
+    void shouldReturnSameReferenceForEmptyStringLowercase() {
+        // Behavior: Empty string returns same reference (zero-copy).
+        String input = "";
+        String result = StringUtil.toLowerCaseAscii(input);
+        assertSame(input, result);
+    }
+
+    @Test
+    void shouldPassThroughNumbersAndSymbolsLowercase() {
+        // Behavior: Non-letter characters are unchanged.
+        String input = "123!@#";
+        String result = StringUtil.toLowerCaseAscii(input);
+        assertSame(input, result);
+    }
+
+    @Test
+    void shouldOnlyConvertAsciiLettersToLowercase() {
+        // Behavior: Non-ASCII characters are passed through unchanged.
+        assertEquals("cafÉ", StringUtil.toLowerCaseAscii("CAFÉ"));
+    }
+
+    // toUpperCaseAscii(byte[]) tests
+
+    @Test
+    void shouldConvertByteArrayToUppercaseInPlace() {
+        // Behavior: Modifies byte array in-place, converting lowercase to uppercase.
+        byte[] bytes = "hello".getBytes();
+        boolean modified = StringUtil.toUpperCaseAscii(bytes, 0, bytes.length);
+        assertTrue(modified);
+        assertArrayEquals("HELLO".getBytes(), bytes);
+    }
+
+    @Test
+    void shouldReturnFalseWhenByteArrayAlreadyUppercase() {
+        // Behavior: Returns false when no conversion was needed.
+        byte[] bytes = "HELLO".getBytes();
+        boolean modified = StringUtil.toUpperCaseAscii(bytes, 0, bytes.length);
+        assertFalse(modified);
+    }
+
+    @Test
+    void shouldConvertPartialByteArrayToUppercase() {
+        // Behavior: Only converts bytes within specified offset and length.
+        byte[] bytes = "hello world".getBytes();
+        StringUtil.toUpperCaseAscii(bytes, 0, 5);
+        assertArrayEquals("HELLO world".getBytes(), bytes);
+    }
+
+    @Test
+    void shouldConvertByteArrayWithOffsetToUppercase() {
+        // Behavior: Offset parameter correctly skips initial bytes.
+        byte[] bytes = "hello world".getBytes();
+        StringUtil.toUpperCaseAscii(bytes, 6, 5);
+        assertArrayEquals("hello WORLD".getBytes(), bytes);
+    }
+
+    // toLowerCaseAscii(byte[]) tests
+
+    @Test
+    void shouldConvertByteArrayToLowercaseInPlace() {
+        // Behavior: Modifies byte array in-place, converting uppercase to lowercase.
+        byte[] bytes = "HELLO".getBytes();
+        boolean modified = StringUtil.toLowerCaseAscii(bytes, 0, bytes.length);
+        assertTrue(modified);
+        assertArrayEquals("hello".getBytes(), bytes);
+    }
+
+    @Test
+    void shouldReturnFalseWhenByteArrayAlreadyLowercase() {
+        // Behavior: Returns false when no conversion was needed.
+        byte[] bytes = "hello".getBytes();
+        boolean modified = StringUtil.toLowerCaseAscii(bytes, 0, bytes.length);
+        assertFalse(modified);
+    }
+
+    @Test
+    void shouldConvertPartialByteArrayToLowercase() {
+        // Behavior: Only converts bytes within specified offset and length.
+        byte[] bytes = "HELLO WORLD".getBytes();
+        StringUtil.toLowerCaseAscii(bytes, 0, 5);
+        assertArrayEquals("hello WORLD".getBytes(), bytes);
+    }
+
+    @Test
+    void shouldConvertByteArrayWithOffsetToLowercase() {
+        // Behavior: Offset parameter correctly skips initial bytes.
+        byte[] bytes = "HELLO WORLD".getBytes();
+        StringUtil.toLowerCaseAscii(bytes, 6, 5);
+        assertArrayEquals("HELLO world".getBytes(), bytes);
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package com.kronotop.volume.segment;
 
 public record SegmentAnalysis(long segmentId, long size, long usedBytes, long freeBytes, int cardinality) {
 
-    public float garbageRatio() {
+    public float garbagePercentage() {
         return (float) (100 * ((size - freeBytes) - usedBytes)) / size;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
 
 package com.kronotop;
 
+import com.kronotop.server.RESPError;
+
 /**
  * Exception thrown when the barrier cannot be satisfied within the configured retry attempts.
  * Indicates that not all shards have observed the target metadata version in time.
  */
 public class BarrierNotSatisfiedException extends KronotopException {
     public BarrierNotSatisfiedException(String message) {
-        super(message);
+        super(RESPError.BARRIERNOTSATISFIED, message);
     }
 }

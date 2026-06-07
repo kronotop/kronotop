@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,9 +20,19 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 public class BucketQueryMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.QUERY";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
+    private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(
+            QueryArgumentKey.SORTBY,
+            QueryArgumentKey.RESULTSORT,
+            QueryArgumentKey.LIMIT,
+            QueryArgumentKey.PROJECTION,
+            QueryArgumentKey.COLLATION
+    );
     private final Request request;
     private byte[] query;
     private String bucket;
@@ -36,7 +46,7 @@ public class BucketQueryMessage extends AbstractBucketMessage implements Protoco
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
         query = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
-        arguments = parseCommonQueryArguments(request, 2);
+        arguments = parseCommonQueryArguments(request, 2, supportedArguments);
     }
 
     public QueryArguments getArguments() {

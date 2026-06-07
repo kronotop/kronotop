@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.optimizer;
 
-import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;
 
@@ -44,29 +43,29 @@ import java.util.List;
 public class RangeScanFallbackRule implements PhysicalOptimizationRule {
 
     @Override
-    public PhysicalNode apply(PhysicalNode node, BucketMetadata metadata, PlannerContext context) {
+    public PhysicalNode apply(PlannerContext context, PhysicalNode node) {
         return switch (node) {
             case PhysicalRangeScan rangeScan when rangeScan.index() == null -> convertToFullScan(rangeScan, context);
             case PhysicalAnd and -> new PhysicalAnd(
                     context.nextId(),
                     and.children().stream()
-                            .map(child -> apply(child, metadata, context))
+                            .map(child -> apply(context, child))
                             .toList()
             );
             case PhysicalOr or -> new PhysicalOr(
                     context.nextId(),
                     or.children().stream()
-                            .map(child -> apply(child, metadata, context))
+                            .map(child -> apply(context, child))
                             .toList()
             );
             case PhysicalNot not -> new PhysicalNot(
                     context.nextId(),
-                    apply(not.child(), metadata, context)
+                    apply(context, not.child())
             );
             case PhysicalElemMatch elemMatch -> new PhysicalElemMatch(
                     context.nextId(),
                     elemMatch.selector(),
-                    apply(elemMatch.subPlan(), metadata, context)
+                    apply(context, elemMatch.subPlan())
             );
             default -> node; // No optimization for other nodes
         };
@@ -101,7 +100,7 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
         }
 
         if (filters.size() == 1) {
-            return new PhysicalFullScan(context.nextId(), filters.get(0));
+            return new PhysicalFullScan(context.nextId(), filters.getFirst());
         }
 
         filters.replaceAll(physicalNode -> new PhysicalFullScan(context.nextId(), physicalNode));

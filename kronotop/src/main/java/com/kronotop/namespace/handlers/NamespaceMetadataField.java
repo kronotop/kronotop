@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -18,9 +18,10 @@ package com.kronotop.namespace.handlers;
 
 public enum NamespaceMetadataField {
     ID((byte) 0x00),
-    NAME((byte) 0x01),
-    REMOVED((byte) 0x02),
-    VERSION((byte) 0x03);
+    REMOVED((byte) 0x01),
+    VERSION((byte) 0x02),
+    LEAF((byte) 0x03),
+    PARENT_POINTER((byte) 0x04);
 
     public final byte value;
 

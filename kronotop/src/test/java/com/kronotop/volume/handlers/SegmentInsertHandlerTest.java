@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.volume.*;
-import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -37,7 +36,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
@@ -58,7 +58,7 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         KronotopTestInstance secondInstance = addNewInstance();
         // SEGMEN.TINSERT requires an already opened volume to run.
-        VolumeConfigGenerator generator = new VolumeConfigGenerator(secondInstance.getContext(), ShardKind.REDIS, 1);
+        VolumeConfigGenerator generator = new VolumeConfigGenerator(secondInstance.getContext(), ShardKind.STASH, 1);
         VolumeService volumeService = secondInstance.getContext().getService(VolumeService.NAME);
         Volume secondVolume = volumeService.newVolume(generator.volumeConfig());
 
@@ -85,10 +85,10 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
             Versionstamp[] versionstamps = result.getVersionstampedKeys();
 
             ByteBuffer firstBuffer = secondVolume.get(session, versionstamps[0]);
-            assertArrayEquals(first, firstBuffer.array());
+            assertEquals(ByteBuffer.wrap(first), firstBuffer);
 
             ByteBuffer secondBuffer = secondVolume.get(session, versionstamps[1]);
-            assertArrayEquals(second, secondBuffer.array());
+            assertEquals(ByteBuffer.wrap(second), secondBuffer);
         }
     }
 

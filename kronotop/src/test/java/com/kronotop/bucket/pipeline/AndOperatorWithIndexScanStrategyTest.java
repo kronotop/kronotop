@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,12 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.IndexDefinition;
+import com.kronotop.bucket.handlers.protocol.SortDirection;
+import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonReader;
 import org.bson.BsonType;
@@ -29,19 +32,290 @@ import org.junit.jupiter.api.Test;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
+
+    @Test
+    void shouldAndQueryWithTwoFieldsAndSingleIndex() {
+        // Behavior: AND query with one indexed field and one non-indexed field returns correct results.
+        final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-single-index";
+
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'John'}"), // match
+                BSONUtil.jsonToDocumentThenBytes("{'age': 40, 'name': 'Alison'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 47, 'name': 'John'}") // match
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $and: [ { 'age': { '$gt': 22 } }, { 'name': { '$eq': 'John' } } ] }");
+        QueryOptions config = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            assertEquals(2, results.size(), "Should return exactly 2 documents with age > 22 and name = John");
+
+            assertEquals(Set.of("John"), extractNamesFromResults(results));
+            assertEquals(Set.of(35, 47), extractIntegerFieldFromResults(results, "age"));
+        }
+    }
+
+    @Test
+    void shouldAndQueryWithBatchedIterationAndLimit() {
+        // Behavior: AND query with limit returns correct batches across multiple cursor advances.
+        final String TEST_BUCKET_NAME = "test-intersection-batched-iteration";
+
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        // Insert 20 documents with 7 matching the query criteria
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Alice'}"),    // no match (age <= 22)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 21, 'name': 'John'}"),     // no match (age <= 22)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 22, 'name': 'Bob'}"),      // no match (age <= 22)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'John'}"),     // match 1
+                BSONUtil.jsonToDocumentThenBytes("{'age': 24, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'John'}"),     // match 2
+                BSONUtil.jsonToDocumentThenBytes("{'age': 26, 'name': 'Bob'}"),      // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 27, 'name': 'John'}"),     // match 3
+                BSONUtil.jsonToDocumentThenBytes("{'age': 28, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 29, 'name': 'John'}"),     // match 4
+                BSONUtil.jsonToDocumentThenBytes("{'age': 30, 'name': 'Bob'}"),      // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 31, 'name': 'John'}"),     // match 5
+                BSONUtil.jsonToDocumentThenBytes("{'age': 32, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 33, 'name': 'John'}"),     // match 6
+                BSONUtil.jsonToDocumentThenBytes("{'age': 34, 'name': 'Bob'}"),      // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'John'}"),     // match 7
+                BSONUtil.jsonToDocumentThenBytes("{'age': 36, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 37, 'name': 'Bob'}"),      // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 38, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 39, 'name': 'Bob'}")       // no match (name != John)
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $and: [ { 'age': { '$gt': 22 } }, { 'name': { '$eq': 'John' } } ] }");
+        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
+
+        // Expected ages for matching documents
+        List<Integer> expectedAges = List.of(23, 25, 27, 29, 31, 33, 35);
+
+        try (Transaction tr = createTransaction()) {
+            // Batch 1: Should return 2 results
+            List<ByteBuffer> batch1 = readExecutor.execute(tr, ctx);
+            assertEquals(2, batch1.size());
+            assertEquals(Set.of(23, 25), extractIntegerFieldFromResults(batch1, "age"));
+
+            // Batch 2: Should return 2 results
+            List<ByteBuffer> batch2 = readExecutor.execute(tr, ctx);
+            assertEquals(2, batch2.size());
+            assertEquals(Set.of(27, 29), extractIntegerFieldFromResults(batch2, "age"));
+
+            // Batch 3: Should return 2 results
+            List<ByteBuffer> batch3 = readExecutor.execute(tr, ctx);
+            assertEquals(2, batch3.size());
+            assertEquals(Set.of(31, 33), extractIntegerFieldFromResults(batch3, "age"));
+
+            // Batch 4: Should return 1 result (last match)
+            List<ByteBuffer> batch4 = readExecutor.execute(tr, ctx);
+            assertEquals(1, batch4.size());
+            assertEquals(Set.of(35), extractIntegerFieldFromResults(batch4, "age"));
+
+            // Batch 5: Should be empty
+            List<ByteBuffer> batch5 = readExecutor.execute(tr, ctx);
+            assertEquals(0, batch5.size());
+        }
+    }
+
+    @Test
+    void shouldAndQueryWithBatchedIterationAndLimitReverse() {
+        // Behavior: AND query with limit and DESC sort returns correct batches in reverse order.
+        final String TEST_BUCKET_NAME = "test-intersection-batched-iteration-reverse";
+
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
+
+        // Insert 20 documents with 7 matching the query criteria
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'Alice'}"),    // no match (age <= 22)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 21, 'name': 'John'}"),     // no match (age <= 22)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 22, 'name': 'Bob'}"),      // no match (age <= 22)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'John'}"),     // match 1
+                BSONUtil.jsonToDocumentThenBytes("{'age': 24, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'John'}"),     // match 2
+                BSONUtil.jsonToDocumentThenBytes("{'age': 26, 'name': 'Bob'}"),      // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 27, 'name': 'John'}"),     // match 3
+                BSONUtil.jsonToDocumentThenBytes("{'age': 28, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 29, 'name': 'John'}"),     // match 4
+                BSONUtil.jsonToDocumentThenBytes("{'age': 30, 'name': 'Bob'}"),      // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 31, 'name': 'John'}"),     // match 5
+                BSONUtil.jsonToDocumentThenBytes("{'age': 32, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 33, 'name': 'John'}"),     // match 6
+                BSONUtil.jsonToDocumentThenBytes("{'age': 34, 'name': 'Bob'}"),      // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'John'}"),     // match 7
+                BSONUtil.jsonToDocumentThenBytes("{'age': 36, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 37, 'name': 'Bob'}"),      // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 38, 'name': 'Alice'}"),    // no match (name != John)
+                BSONUtil.jsonToDocumentThenBytes("{'age': 39, 'name': 'Bob'}")       // no match (name != John)
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $and: [ { 'age': { '$gt': 22 } }, { 'name': { '$eq': 'John' } } ] }");
+        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            // Batch 1: Should return 2 results (highest ages first)
+            List<ByteBuffer> batch1 = readExecutor.execute(tr, ctx);
+            assertEquals(2, batch1.size());
+            assertEquals(Set.of(35, 33), extractIntegerFieldFromResults(batch1, "age"));
+
+            // Batch 2: Should return 2 results
+            List<ByteBuffer> batch2 = readExecutor.execute(tr, ctx);
+            assertEquals(2, batch2.size());
+            assertEquals(Set.of(31, 29), extractIntegerFieldFromResults(batch2, "age"));
+
+            // Batch 3: Should return 2 results
+            List<ByteBuffer> batch3 = readExecutor.execute(tr, ctx);
+            assertEquals(2, batch3.size());
+            assertEquals(Set.of(27, 25), extractIntegerFieldFromResults(batch3, "age"));
+
+            // Batch 4: Should return 1 result (last match)
+            List<ByteBuffer> batch4 = readExecutor.execute(tr, ctx);
+            assertEquals(1, batch4.size());
+            assertEquals(Set.of(23), extractIntegerFieldFromResults(batch4, "age"));
+
+            // Batch 5: Should be empty
+            List<ByteBuffer> batch5 = readExecutor.execute(tr, ctx);
+            assertEquals(0, batch5.size());
+        }
+    }
+
+    @Test
+    void shouldAndQueryWithTwoFieldsAndDoubleIndex() {
+        // Behavior: AND query with two indexed fields returns correct results using index intersection strategy.
+        final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-double-index";
+
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'John'}"), // match
+                BSONUtil.jsonToDocumentThenBytes("{'age': 40, 'name': 'Alison'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 47, 'name': 'John'}") // match
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $and: [ { 'age': { '$gt': 22 } }, { 'name': { '$eq': 'John' } } ] }");
+        QueryOptions config = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            assertEquals(2, results.size(), "Should return exactly 2 documents with age > 22 and name = John");
+
+            assertEquals(Set.of("John"), extractNamesFromResults(results));
+            assertEquals(Set.of(35, 47), extractIntegerFieldFromResults(results, "age"));
+        }
+    }
+
+    @Test
+    void shouldAndQueryWithRangeScanAndDoubleIndex() {
+        // Behavior: AND query with range condition and two indexes returns correct results.
+        final String TEST_BUCKET_NAME = "test-intersection-with-two-fields-and-double-index";
+
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
+
+        // Insert multiple documents with different field types and values
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{'age': 20, 'name': 'John'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 23, 'name': 'Alice'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 25, 'name': 'George'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Claire'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'John'}"), // match
+                BSONUtil.jsonToDocumentThenBytes("{'age': 40, 'name': 'Alison'}"),
+                BSONUtil.jsonToDocumentThenBytes("{'age': 47, 'name': 'John'}") // match
+        );
+
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
+
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $and: [ { 'age': { '$gt': 22, '$lt': 50 } }, { 'name': { '$eq': 'John' } } ] }");
+        QueryOptions config = QueryOptions.builder().build();
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
+
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            assertEquals(2, results.size(), "Should return exactly 2 documents with age > 22 and name = John");
+
+            assertEquals(Set.of("John"), extractNamesFromResults(results));
+            assertEquals(Set.of(35, 47), extractIntegerFieldFromResults(results, "age"));
+        }
+    }
+
+    @Test
+    void shouldExecuteAndQueryWithTwoEqPredicates() {
+        // Behavior: AND query with two EQ conditions on indexed fields returns the single matching document.
+
+        // Create two secondary indexes
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET, ageIndex, nameIndex);
+
+        // Insert documents with both fields
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 30}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Charlie\", \"age\": 25}")
+        );
+        insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
+
+        // Create an execution plan with $and on two indexed fields
+        String query = "{ $and: [ { age: { $eq: 25 } }, { name: { $eq: \"Alice\" } } ] }";
+        PlanWithParams planWithParams = createPlanWithParams(metadata, query);
+
+        assertNotNull(planWithParams.plan());
+
+        // Run the query and verify the result
+        List<String> results = runQueryOnBucket(metadata, query);
+        assertEquals(1, results.size());
+
+        // Verify the returned document is Alice with age 25
+        String resultJson = results.getFirst();
+        assertTrue(resultJson.contains("\"name\": \"Alice\""));
+        assertTrue(resultJson.contains("\"age\": 25"));
+    }
+
     @Test
     @Disabled
     void shouldHandleAndOperatorWithTwoIndex() {
+        // Behavior: AND query with two indexed range conditions returns only matching documents.
         final String TEST_BUCKET_NAME = "test-bucket-and-index-scan";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         // Insert multiple documents with different field types and values
@@ -52,30 +326,23 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'price': 35, 'quantity': 140}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{ 'price': { '$gt': 22 }, 'quantity': { '$gt': 80 } }");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ 'price': { '$gt': 22 }, 'quantity': { '$gt': 80 } }");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-
-            // Expected results: documents with price > 22 AND quantity > 80
-            // Document 1: {'price': 20, 'quantity': 100} - NO (price <= 22)
-            // Document 2: {'price': 23, 'quantity': 120} - YES (price > 22 AND quantity > 80)
-            // Document 3: {'price': 25, 'quantity': 80} - NO (quantity <= 80)
-            // Document 4: {'price': 35, 'quantity': 140} - YES (price > 22 AND quantity > 80)
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             assertEquals(2, results.size(), "Should return exactly 2 documents matching both conditions");
 
             // Verify the actual content of returned documents
-            List<String> resultJsons = results.values().stream()
-                    .map(buffer -> BSONUtil.fromBson(buffer.array()).toJson())
+            List<String> resultJsons = results.stream()
+                    .map(TestUtil::bsonToJsonWithoutId)
                     .sorted() // Sort for consistent comparison
                     .toList();
 
-            // The two matching documents should have these price/quantity combinations
             boolean hasDoc23_120 = resultJsons.stream()
                     .anyMatch(json -> json.contains("\"price\": 23") && json.contains("\"quantity\": 120"));
             boolean hasDoc35_140 = resultJsons.stream()
@@ -84,7 +351,6 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             assertTrue(hasDoc23_120, "Results should contain document with price=23 and quantity=120");
             assertTrue(hasDoc35_140, "Results should contain document with price=35 and quantity=140");
 
-            // Verify no unwanted documents are included
             boolean hasDoc20_100 = resultJsons.stream()
                     .anyMatch(json -> json.contains("\"price\": 20") && json.contains("\"quantity\": 100"));
             boolean hasDoc25_80 = resultJsons.stream()
@@ -98,11 +364,12 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
     @Disabled
     void shouldHandleDifferentIndexTypes() {
+        // Behavior: AND query with different index types (INT32 and STRING) returns correct results.
         final String TEST_BUCKET_NAME = "test-with-different-index-types";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert multiple documents with different field types and values
@@ -113,14 +380,14 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 35, 'name': 'Frank'}")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{ 'age': {'$gt': 22}, 'name': {'$eq': 'Claire'} }");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ 'age': {'$gt': 22}, 'name': {'$eq': 'Claire'} }");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return 1 document with age > 22 AND name == 'Claire' (only age=25, name='Claire')
             assertEquals(1, results.size(), "Should return exactly 1 document with age > 22 AND name == 'Claire'");
@@ -131,7 +398,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             Set<String> actualNames = new HashSet<>();
             Set<Integer> actualAges = new HashSet<>();
 
-            for (ByteBuffer documentBuffer : results.values()) {
+            for (ByteBuffer documentBuffer : results) {
                 // Parse the BSON document to verify its content
                 documentBuffer.rewind();
                 try (BsonReader reader = new BsonBinaryReader(documentBuffer)) {
@@ -174,11 +441,12 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
     @Disabled
     void shouldHandleEqualityWithMultipleDocuments() {
+        // Behavior: AND query with equality on multiple matching documents returns all matches.
         final String TEST_BUCKET_NAME = "test-equality-with-multiple-documents";
 
         // Create indexes for age and name
-        IndexDefinition ageIndex = IndexDefinition.create("age-index", "age", BsonType.INT32);
-        IndexDefinition nameIndex = IndexDefinition.create("name-index", "name", BsonType.STRING);
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex, nameIndex);
 
         // Insert documents where exactly 3 match the AND condition (age > 22 AND name == 'John')
@@ -191,14 +459,14 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{'age': 30, 'name': 'Dennis'}")      // No match: name != 'John'
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        PipelineNode plan = createExecutionPlan(metadata, "{ 'age': {'$gt': 22}, 'name': {'$eq': 'John'} }");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ 'age': {'$gt': 22}, 'name': {'$eq': 'John'} }");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Should return exactly 3 documents with age > 22 AND name == 'John' (ages 23, 25, 35)
             assertEquals(3, results.size(), "Should return exactly 3 documents with age > 22 AND name == 'John'");
@@ -209,7 +477,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             Set<String> actualNames = new HashSet<>();
             Set<Integer> actualAges = new HashSet<>();
 
-            for (ByteBuffer documentBuffer : results.values()) {
+            for (ByteBuffer documentBuffer : results) {
                 // Parse the BSON document to verify its content
                 documentBuffer.rewind();
                 try (BsonReader reader = new BsonBinaryReader(documentBuffer)) {
@@ -252,10 +520,11 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
     @Disabled
     void shouldHandleAndOperatorWithPriceQuantityRelation() {
+        // Behavior: AND query with large dataset (350 documents) returns all matching documents.
         final String TEST_BUCKET_NAME = "test-bucket-price-quantity-relation";
 
-        IndexDefinition priceIndex = IndexDefinition.create("price-index", "price", BsonType.INT32);
-        IndexDefinition quantityIndex = IndexDefinition.create("quantity-index", "quantity", BsonType.INT32);
+        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, priceIndex, quantityIndex);
 
         // Insert 350 documents with pattern {'price': $price, 'quantity': $price*20}
@@ -265,30 +534,24 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
             documents.add(BSONUtil.jsonToDocumentThenBytes(String.format("{'price': %d, 'quantity': %d}", price, quantity)));
         }
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         // Query for documents where price > 100 AND quantity > 2500
-        // This should match documents where price > 100 AND price*20 > 2500
         // Since price*20 > 2500 means price > 125, the effective condition is price > 125
         // So we expect documents with price from 126 to 350 = 225 documents
-        PipelineNode plan = createExecutionPlan(metadata, "{ 'price': { '$gt': 100 }, 'quantity': { '$gt': 2500 } }");
+        PlanWithParams planWithParams = createPlanWithParams(metadata, "{ 'price': { '$gt': 100 }, 'quantity': { '$gt': 2500 } }");
         QueryOptions config = QueryOptions.builder().build();
-        QueryContext ctx = new QueryContext(metadata, config, plan);
+        QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+        try (Transaction tr = createTransaction()) {
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-            // Expected results: documents with price > 100 AND quantity > 2500
-            // Since quantity = price * 20, quantity > 2500 means price > 125
-            // Combined with price > 100, the effective condition is price > 125
-            // Documents matching: price 126-350 = 225 documents
             assertEquals(225, results.size(), "Should return exactly 225 documents matching both conditions");
 
             // Verify some sample documents from the results
             Set<Integer> actualPrices = new HashSet<>();
-            Set<Integer> actualQuantities = new HashSet<>();
 
-            for (ByteBuffer documentBuffer : results.values()) {
+            for (ByteBuffer documentBuffer : results) {
                 documentBuffer.rewind();
                 try (BsonReader reader = new BsonBinaryReader(documentBuffer)) {
                     reader.readStartDocument();
@@ -312,15 +575,14 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
                     assertEquals(price * 20, quantity.intValue(), "Quantity should equal price * 20");
 
                     actualPrices.add(price);
-                    actualQuantities.add(quantity);
                 }
             }
 
             // Verify that we have the expected range of prices (126-350)
             assertTrue(actualPrices.contains(126), "Results should contain document with price=126");
             assertTrue(actualPrices.contains(350), "Results should contain document with price=350");
-            assertFalse(actualPrices.contains(125), "Results should not contain document with price=125 (quantity=2500 fails quantity > 2500)");
-            assertFalse(actualPrices.contains(100), "Results should not contain document with price=100 (fails price > 100)");
+            assertFalse(actualPrices.contains(125), "Results should not contain document with price=125");
+            assertFalse(actualPrices.contains(100), "Results should not contain document with price=100");
 
             // Verify price range bounds
             int minPrice = actualPrices.stream().mapToInt(Integer::intValue).min().orElse(0);

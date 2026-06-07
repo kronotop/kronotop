@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.lettuce.core.*;
@@ -47,7 +48,8 @@ public class ReplicationClient {
     private RedisClient client;
 
     // Store options for reconnection.
-    private ClientOptions options;
+    // Volatile: written under lock in connect(), read lock-free in reconnect().
+    private volatile ClientOptions options;
 
     // connection and connected are kept volatile (since conn() method is lock-free)
     private volatile StatefulInternalConnection<byte[], byte[]> connection;
@@ -121,10 +123,13 @@ public class ReplicationClient {
         if (shutdown) {
             throw new ReplicationClientShutdownException();
         }
-        if (!connected || connection == null) {
+        // Read the volatile once: a second read in the return statement could observe a concurrent
+        // shutdown() nulling the field after the check passed, handing back null to the caller.
+        StatefulInternalConnection<byte[], byte[]> c = connection;
+        if (!connected || c == null) {
             throw new ReplicationClientNotConnectedException();
         }
-        return connection;
+        return c;
     }
 
     public void shutdown() {
@@ -144,8 +149,6 @@ public class ReplicationClient {
     // Helper method that must be called while holding the lock
     private void cleanupResources() {
         if (client != null) {
-            client.getOptions().mutate().autoReconnect(false);
-
             if (connection != null) {
                 connection.close();
                 connection = null;
@@ -164,14 +167,6 @@ public class ReplicationClient {
         server = null;
     }
 
-    private Throwable getRootCause(Throwable t) {
-        Throwable result = t;
-        while (result.getCause() != null && result.getCause() != result) {
-            result = result.getCause();
-        }
-        return result;
-    }
-
     private Retry connectionRetry() {
         return Retry.of("replication-client-connect", RetryConfig.custom()
                 .maxAttempts(3)
@@ -180,7 +175,7 @@ public class ReplicationClient {
                     if (shutdown) {
                         return false;
                     }
-                    Throwable root = getRootCause(throwable);
+                    Throwable root = TransactionUtil.getRootCause(throwable);
                     return root instanceof ConnectException ||
                             root instanceof SocketTimeoutException ||
                             root instanceof UnknownHostException ||

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 package com.kronotop.bucket.bql;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.internal.VersionstampUtil;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonDocument;
 import org.bson.BsonReader;
 import org.bson.BsonType;
-import org.bson.codecs.Codec;
-import org.bson.codecs.DecoderContext;
+import org.bson.types.ObjectId;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -60,8 +60,8 @@ import java.util.Map;
  * Example: {@code { tags: { $elemMatch: { $eq: "urgent" } } }} parses with selector {@code ""}.
  */
 public class BqlParser {
-    private static final byte OPENING_BRACE_ASCII_CODE = 123;
-    private static final Codec<BsonDocument> CODEC = BsonDocument.DEFAULT_CODEC_REGISTRY.get(BsonDocument.class);
+    private static final int MINIMUM_BSON_DOCUMENT_SIZE = 5;
+    private static final byte BSON_TERMINATOR = 0x00;
 
     public static String explain(BqlExpr expr) {
         return Explain.explain(expr, 0);
@@ -91,15 +91,22 @@ public class BqlParser {
     }
 
     /**
-     * Determines if the given byte array represents a JSON object
-     * by checking if the first byte corresponds to the opening
-     * brace '{' ASCII code.
-     *
-     * @param query the byte array to check, where the first byte is analyzed
-     * @return true if the first byte indicates a JSON object, false otherwise
+     * Determines if the given byte array is a valid BSON document by checking
+     * the BSON structural invariants: minimum size, null terminator, and
+     * declared length matching actual length.
      */
-    public static boolean isJSON(byte[] query) {
-        return query.length != 0 && query[0] == OPENING_BRACE_ASCII_CODE;
+    public static boolean isBSON(byte[] query) {
+        if (query.length < MINIMUM_BSON_DOCUMENT_SIZE) {
+            return false;
+        }
+        if (query[query.length - 1] != BSON_TERMINATOR) {
+            return false;
+        }
+        int declaredLength = (query[0] & 0xFF)
+                | ((query[1] & 0xFF) << 8)
+                | ((query[2] & 0xFF) << 16)
+                | ((query[3] & 0xFF) << 24);
+        return declaredLength == query.length;
     }
 
     /**
@@ -110,20 +117,17 @@ public class BqlParser {
      * @throws BqlParseException if the BSON format is invalid or an error occurs during parsing
      */
     public static BqlExpr parse(byte[] query) {
-        if (isJSON(query)) {
-            // Fallback mode: query in plain JSON
+        if (!isBSON(query)) {
             return parse(new String(query));
         }
 
-        BsonDocument document;
-        try {
-            BsonReader reader = new BsonBinaryReader(ByteBuffer.wrap(query));
-            document = CODEC.decode(reader, DecoderContext.builder().build());
+        try (BsonReader reader = new BsonBinaryReader(ByteBuffer.wrap(query))) {
+            return new BqlParser().parse(reader);
+        } catch (BqlParseException e) {
+            throw e;
         } catch (Exception e) {
             throw new BqlParseException("Invalid BSON format", e);
         }
-
-        return parse(document);
     }
 
     /**
@@ -197,6 +201,7 @@ public class BqlParser {
             return switch (key) {
                 case "$and" -> new BqlAnd(readArray(reader));
                 case "$or" -> new BqlOr(readArray(reader));
+                case "$nor" -> new BqlNot(new BqlOr(readArray(reader)));
                 case "$not" -> new BqlNot(readExpr(reader));
                 default -> throw new BqlParseException("Unknown operator: " + key);
             };
@@ -228,6 +233,7 @@ public class BqlParser {
             return switch (key) {
                 case "$and" -> new BqlAnd(readArrayInElemMatch(reader, elemMatchSelector));
                 case "$or" -> new BqlOr(readArrayInElemMatch(reader, elemMatchSelector));
+                case "$nor" -> new BqlNot(new BqlOr(readArrayInElemMatch(reader, elemMatchSelector)));
                 case "$not" -> new BqlNot(readElemMatchExpr(reader, elemMatchSelector));
                 // For scalar array $elemMatch (e.g., {'tags': {'$elemMatch': {'$eq': 'urgent'}}}),
                 // use empty selector "" because scalar elements are wrapped in {"": value}
@@ -444,10 +450,9 @@ public class BqlParser {
      * @return true if the string appears to be a Versionstamp encoding
      */
     private boolean isVersionstampString(String value) {
-        // Versionstamps have a specific encoded length and character set
+        // Versionstamps have a specific encoded length
         return value != null &&
-                value.length() == VersionstampUtil.EncodedVersionstampSize &&
-                value.matches("[0-9A-V]+[x]*"); // Base32Hex characters + padding
+                value.length() == VersionstampUtil.EncodedVersionstampSize;
     }
 
     /**
@@ -465,17 +470,32 @@ public class BqlParser {
         return switch (reader.getCurrentBsonType()) {
             case STRING -> {
                 String stringValue = reader.readString();
-                // Check if the string represents a Versionstamp (Base32Hex encoded)
+                // First, check for the ObjectId
+                if (ObjectId.isValid(stringValue)) {
+                    try {
+                        yield new ObjectIdVal(new ObjectId(stringValue));
+                    } catch (Exception ignored) {
+                        // fall through as string
+                    }
+                }
+
+                // Best-effort interpretation for VersionstampVal:
+                //  - Check if the string represents a Versionstamp (Base32Hex encoded)
                 if (isVersionstampString(stringValue)) {
                     try {
-                        yield new VersionstampVal(VersionstampUtil.base32HexDecode(stringValue));
+                        Versionstamp versionstamp = VersionstampUtil.base32HexDecode(stringValue);
+                        if (versionstamp.isComplete()) {
+                            yield new VersionstampVal(versionstamp);
+                        }
+                        // incomplete versionstamp: fall through as string
                     } catch (Exception e) {
-                        // If decoding fails, treat as regular string
+                        // If decoding fails, treat as regular StringVal
                         yield new StringVal(stringValue);
                     }
                 }
                 yield new StringVal(stringValue);
             }
+            case OBJECT_ID -> new ObjectIdVal(reader.readObjectId());
             case INT32 -> new Int32Val(reader.readInt32());
             case INT64 -> new Int64Val(reader.readInt64());
             case DECIMAL128 -> new Decimal128Val(reader.readDecimal128().bigDecimalValue());
@@ -485,7 +505,24 @@ public class BqlParser {
                 reader.readNull();
                 yield NullVal.INSTANCE;
             }
-            case BINARY -> new BinaryVal(reader.readBinaryData().getData());
+            case BINARY -> {
+                byte[] data = reader.readBinaryData().getData();
+                // Best-effort interpretation: 12 bytes (10 transaction + 2 user) binaries may represent versionstamps.
+                // Incomplete or invalid candidates are treated as opaque binary values.
+                if (data.length == Versionstamp.LENGTH) {
+                    try {
+                        Versionstamp versionstamp = Versionstamp.fromBytes(data);
+                        if (versionstamp.isComplete()) {
+                            yield new VersionstampVal(versionstamp);
+                        }
+                        // incomplete versionstamp: fall through as binary
+                    } catch (Exception e) {
+                        // If decoding fails, treat as regular BinaryVal
+                        yield new BinaryVal(data);
+                    }
+                }
+                yield new BinaryVal(data);
+            }
             case DATE_TIME -> new DateTimeVal(reader.readDateTime());
             case TIMESTAMP -> new TimestampVal(reader.readTimestamp().getValue());
             case DOCUMENT -> {

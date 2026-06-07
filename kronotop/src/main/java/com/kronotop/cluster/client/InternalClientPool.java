@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,11 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.kronotop.cluster.Member;
 import com.kronotop.network.Address;
+import com.kronotop.server.TLSConfig;
+import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
+import io.lettuce.core.SslOptions;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 
@@ -40,12 +43,19 @@ public class InternalClientPool {
 
     private final LoadingCache<Member, PooledConnection<String, String>> stringPool;
     private final LoadingCache<Member, PooledConnection<byte[], byte[]>> byteArrayPool;
+    private final TLSConfig tlsConfig;
 
     public InternalClientPool() {
-        this(DEFAULT_IDLE_TIMEOUT_MINUTES);
+        this(TLSConfig.disabled(), DEFAULT_IDLE_TIMEOUT_MINUTES);
     }
 
-    public InternalClientPool(long idleTimeoutMinutes) {
+    public InternalClientPool(TLSConfig tlsConfig) {
+        this(tlsConfig, DEFAULT_IDLE_TIMEOUT_MINUTES);
+    }
+
+    public InternalClientPool(TLSConfig tlsConfig, long idleTimeoutMinutes) {
+        this.tlsConfig = tlsConfig;
+
         this.stringPool = CacheBuilder.newBuilder()
                 .expireAfterAccess(idleTimeoutMinutes, TimeUnit.MINUTES)
                 .removalListener((RemovalListener<Member, PooledConnection<String, String>>) notification -> {
@@ -118,8 +128,23 @@ public class InternalClientPool {
         RedisURI uri = RedisURI.builder()
                 .withHost(address.getHost())
                 .withPort(address.getPort())
+                .withSsl(tlsConfig.enabled())
+                .withVerifyPeer(tlsConfig.enabled())
                 .build();
-        return RedisClient.create(uri);
+
+        RedisClient client = RedisClient.create(uri);
+
+        if (tlsConfig.enabled()) {
+            SslOptions.Builder sslBuilder = SslOptions.builder();
+            if (tlsConfig.caFile() != null) {
+                sslBuilder.trustManager(tlsConfig.caFile());
+            }
+            client.setOptions(ClientOptions.builder()
+                    .sslOptions(sslBuilder.build())
+                    .build());
+        }
+
+        return client;
     }
 
     /**

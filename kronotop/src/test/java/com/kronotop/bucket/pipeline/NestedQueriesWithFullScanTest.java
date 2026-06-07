@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,14 +17,13 @@
 package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -47,9 +46,9 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Notebook\", \"quantity\": 15, \"price\": 6, \"category\": \"stationery\" }")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = createTransaction()) {
             String complexQuery = """
                     {
                       "$and": [
@@ -74,13 +73,13 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                     }
                     """;
 
-            PipelineNode plan = createExecutionPlan(metadata, complexQuery);
+            PlanWithParams planWithParams = createPlanWithParams(metadata, complexQuery);
             QueryOptions config = QueryOptions.builder().build();
-            QueryContext ctx = new QueryContext(metadata, config, plan);
+            QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                System.out.println("Result >> " + TestUtil.bsonToJsonWithoutId(buffer));
             }
 
             // Verify correct intersection: should return exactly Laptop and Book A
@@ -88,8 +87,8 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                     "Nested AND/OR query should return exactly 2 documents (Laptop and Book A)");
 
             // Extract document names for verification
-            List<String> resultNames = results.values().stream()
-                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
+            List<String> resultNames = results.stream()
+                    .map(buf -> TestUtil.BsonDocumentFromByteBuffer(buf).getString("name").getValue())
                     .sorted()
                     .toList();
 
@@ -114,9 +113,9 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Chair\", \"quantity\": 15, \"price\": 45, \"category\": \"furniture\" }")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = createTransaction()) {
             String nestedOrQuery = """
                     {
                       "$or": [
@@ -135,17 +134,17 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                       ]
                     }
                     """;
-            PipelineNode plan = createExecutionPlan(metadata, nestedOrQuery);
+            PlanWithParams planWithParams = createPlanWithParams(metadata, nestedOrQuery);
             QueryOptions config = QueryOptions.builder().build();
-            QueryContext ctx = new QueryContext(metadata, config, plan);
+            QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
             List<String> expectedNames = List.of("Book D", "Phone");
 
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(2, results.size(), "Should return 2 matching documents");
 
-            List<String> actualNames = results.values().stream()
-                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
+            List<String> actualNames = results.stream()
+                    .map(buf -> TestUtil.BsonDocumentFromByteBuffer(buf).getString("name").getValue())
                     .sorted()
                     .toList();
             assertEquals(expectedNames, actualNames);
@@ -170,9 +169,9 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Marker Set\", \"quantity\": 40, \"price\": 15, \"category\": \"stationery\", \"inStock\": true }")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = createTransaction()) {
             String deepNestedQuery = """
                     {
                       "$and": [
@@ -202,22 +201,19 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                     }
                     """;
 
-            PipelineNode plan = createExecutionPlan(metadata, deepNestedQuery);
+            PlanWithParams planWithParams = createPlanWithParams(metadata, deepNestedQuery);
             QueryOptions config = QueryOptions.builder().build();
-            QueryContext ctx = new QueryContext(metadata, config, plan);
+            QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
-            }
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
             // Verify correct intersection: should return exactly Smartphone
             assertEquals(1, results.size(),
                     "Deep nested AND/OR query should return exactly 1 document (Smartphone)");
 
             // Extract document names for verification
-            List<String> resultNames = results.values().stream()
-                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
+            List<String> resultNames = results.stream()
+                    .map(buf -> TestUtil.BsonDocumentFromByteBuffer(buf).getString("name").getValue())
                     .sorted()
                     .toList();
 
@@ -274,9 +270,9 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Printer Paper\", \"quantity\": 200, \"price\": 12, \"category\": \"office\", \"brand\": \"PaperCo\" }")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = createTransaction()) {
             String nestedOrWithAndQuery = """
                     {
                       "$or": [
@@ -302,13 +298,13 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                     }
                     """;
 
-            PipelineNode plan = createExecutionPlan(metadata, nestedOrWithAndQuery);
+            PlanWithParams planWithParams = createPlanWithParams(metadata, nestedOrWithAndQuery);
             QueryOptions config = QueryOptions.builder().build();
-            QueryContext ctx = new QueryContext(metadata, config, plan);
+            QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                System.out.println("Result >> " + TestUtil.bsonToJsonWithoutId(buffer));
             }
 
             // Verify correct union: should return exactly Math Textbook, Mouse Pad, Printer Paper, and Standing Desk
@@ -316,8 +312,8 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                     "Nested OR with AND branches should return exactly 4 documents");
 
             // Extract document names for verification
-            List<String> resultNames = results.values().stream()
-                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
+            List<String> resultNames = results.stream()
+                    .map(buf -> TestUtil.BsonDocumentFromByteBuffer(buf).getString("name").getValue())
                     .sorted()
                     .toList();
 
@@ -383,9 +379,9 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                 BSONUtil.jsonToDocumentThenBytes("{ \"name\": \"Printer Paper\", \"quantity\": 200, \"price\": 12, \"category\": \"office\", \"brand\": \"PaperCo\" }")
         );
 
-        insertDocumentsAndGetVersionstamps(TEST_BUCKET_NAME, documents);
+        insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = createTransaction()) {
             String nestedOrWithAndQuery = """
                     {
                       "$or": [
@@ -411,13 +407,13 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                     }
                     """;
 
-            PipelineNode plan = createExecutionPlan(metadata, nestedOrWithAndQuery);
+            PlanWithParams planWithParams = createPlanWithParams(metadata, nestedOrWithAndQuery);
             QueryOptions config = QueryOptions.builder().build();
-            QueryContext ctx = new QueryContext(metadata, config, plan);
+            QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
-            Map<?, ByteBuffer> results = readExecutor.execute(tr, ctx);
-            for (ByteBuffer buffer : results.values()) {
-                System.out.println("Result >> " + BSONUtil.fromBson(buffer.array()).toJson());
+            List<ByteBuffer> results = readExecutor.execute(tr, ctx);
+            for (ByteBuffer buffer : results) {
+                System.out.println("Result >> " + TestUtil.bsonToJsonWithoutId(buffer));
             }
 
             // Verify correct union: should return exactly Math Textbook, Mouse Pad, Printer Paper
@@ -425,8 +421,8 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
                     "Nested OR with AND branches should return exactly 4 documents");
 
             // Extract document names for verification
-            List<String> resultNames = results.values().stream()
-                    .map(buf -> BSONUtil.fromBson(buf.array()).getString("name").getValue())
+            List<String> resultNames = results.stream()
+                    .map(buf -> TestUtil.BsonDocumentFromByteBuffer(buf).getString("name").getValue())
                     .sorted()
                     .toList();
 

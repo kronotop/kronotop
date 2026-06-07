@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@
 package com.kronotop.bucket;
 
 import com.kronotop.Context;
-import com.kronotop.internal.TransactionUtils;
+import com.kronotop.namespace.NamespaceBeingRemovedException;
+import com.kronotop.transaction.TransactionUtil;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +51,7 @@ import java.util.concurrent.locks.LockSupport;
  * @see BucketMetadataVersionBarrier
  */
 public class BucketMetadataConvergence {
-    
+
     /**
      * Waits for cluster-wide metadata convergence and transaction expiration.
      *
@@ -74,11 +75,13 @@ public class BucketMetadataConvergence {
      */
     public static void await(Context context, String namespace, String bucket) throws InterruptedException {
         try {
-            BucketMetadata metadata = TransactionUtils.execute(context,
-                    tr -> BucketMetadataUtil.openUncached(context, tr, namespace, bucket)
+            BucketMetadata metadata = TransactionUtil.execute(context,
+                    tr -> BucketMetadataUtil.reload(context, tr, namespace, bucket)
             );
             BucketMetadataVersionBarrier barrier = new BucketMetadataVersionBarrier(context, metadata);
             barrier.await(metadata.version(), 120, Duration.ofMillis(500));
+        } catch (NoSuchBucketException | BucketBeingRemovedException | NamespaceBeingRemovedException exp) {
+            throw exp;
         } catch (Exception exp) {
             throw new BucketMetadataConvergenceException(exp);
         }

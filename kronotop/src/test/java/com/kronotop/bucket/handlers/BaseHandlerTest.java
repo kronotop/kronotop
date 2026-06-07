@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ public class BaseHandlerTest extends BaseTest {
     protected void setupCommon(Config config) throws UnknownHostException, InterruptedException {
         instance = new KronotopTestInstance(config);
         instance.start();
-        channel = instance.getChannel();
+        channel = newChannel();
     }
 
     @BeforeEach

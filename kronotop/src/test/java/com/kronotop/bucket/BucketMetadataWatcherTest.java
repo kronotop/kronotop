@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,24 +17,31 @@
 package com.kronotop.bucket;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
+import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.awaitility.Awaitility.await;
 
 class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
+
+    @BeforeEach
+    void setUp() {
+        createBucket(TEST_BUCKET);
+    }
 
     private DirectorySubspace openLastSeenVersionsSubspace(Transaction tr, int shardId, Map<Integer, DirectorySubspace> subspaces) {
         KronotopDirectoryNode directory = KronotopDirectory.
@@ -46,13 +53,14 @@ class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
                 shard(shardId).
                 lastSeenVersions();
         return subspaces.computeIfAbsent(shardId,
-                (ignored) -> DirectoryLayer.getDefault().open(tr, directory.toList()).join()
+                (ignored) -> context.getDirectoryLayer().open(tr, directory.toList()).join()
         );
     }
 
     @Test
     void shouldUpdateLastSeenVersion() {
-        BucketMetadata metadata = BucketMetadataUtil.createOrOpen(context, getSession(), TEST_BUCKET);
+        createBucket(TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
@@ -62,13 +70,13 @@ class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
 
         final Map<Integer, DirectorySubspace> subspaces = new HashMap<>();
 
-        int shards = config.getInt("bucket.shards");
+        List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             int total = 0;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                for (int shardId = 0; shardId < shards; shardId++) {
+                for (int shardId : shardIds) {
                     DirectorySubspace subspace = openLastSeenVersionsSubspace(tr, shardId, subspaces);
-                    byte[] key = subspace.pack(Tuple.from(metadata.id()));
+                    byte[] key = subspace.pack(Tuple.from(metadata.uuid()));
                     byte[] value = tr.get(key).join();
                     long version = ByteBuffer.wrap(value).order(ByteOrder.LITTLE_ENDIAN).getLong();
                     if (version == metadata.version()) {
@@ -77,7 +85,7 @@ class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
                 }
             }
             // Updated by all shard owners
-            return total == shards;
+            return total == shardIds.size();
         });
     }
 }

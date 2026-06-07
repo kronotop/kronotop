@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,19 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketObjectIdArrayResponse;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.BucketVersionstampArrayResponse;
 import com.kronotop.bucket.handlers.protocol.BucketDeleteMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
-import com.kronotop.internal.TransactionUtils;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.transaction.TransactionUtil;
+import org.bson.types.ObjectId;
 
 import java.util.List;
 
@@ -50,24 +52,30 @@ public class BucketDeleteHandler extends AbstractBucketHandler implements Handle
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketDeleteMessage message = request.attr(MessageTypes.BUCKETDELETE).get();
-
             Session session = request.getSession();
-            QueryContext ctx = buildQueryContext(request, message.getBucket(), message.getQuery(), message.getArguments());
+            Transaction tr = TransactionUtil.getOrCreateTransaction(service.getContext(), session);
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, message.getBucket());
+
+            if (!metadata.vectorIndexes().isEmpty()) {
+                checkBucketOwnership(metadata);
+                checkVectorIndexRecoveryState(metadata);
+            }
+
+            QueryContext ctx = buildQueryContext(request, metadata, message.getQuery(), message.getArguments());
             int cursorId = session.nextCursorId();
             session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().put(cursorId, ctx);
 
-            Transaction tr = TransactionUtils.getOrCreateTransaction(service.getContext(), session);
-            List<Versionstamp> versionstamps = service.getQueryExecutor().delete(tr, ctx);
+            List<ObjectId> objectIds = service.getQueryExecutor().delete(tr, ctx);
 
-            TransactionUtils.addPostCommitHook(new QueryContextCommitHook(ctx), request.getSession());
-            TransactionUtils.commitIfAutoCommitEnabled(tr, request.getSession());
-            return new BucketVersionstampArrayResponse(cursorId, versionstamps);
-        }, (versionstampResponse) -> {
+            TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());
+            return new BucketObjectIdArrayResponse(cursorId, objectIds);
+        }, (objectIdResponse) -> {
+            ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
-                resp3VersionstampArrayResponse(response, versionstampResponse);
+                resp3ObjectIdArrayResponse(response, format, objectIdResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {
-                resp2VersionstampArrayResponse(response, versionstampResponse);
+                resp2ObjectIdArrayResponse(response, format, objectIdResponse);
             } else {
                 throw new KronotopException("Unknown protocol version " + protoVer.getValue());
             }

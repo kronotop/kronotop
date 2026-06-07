@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,9 +19,11 @@ package com.kronotop.bucket;
 import org.bson.*;
 import org.bson.types.Binary;
 import org.bson.types.Decimal128;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -195,5 +197,50 @@ class BSONUtilTest {
 
         assertTrue(exception.getMessage().contains("Unsupported value type for BSON conversion"));
         assertTrue(exception.getMessage().contains("Object"));
+    }
+
+    @Test
+    void shouldConvertIdStringToObjectIdInFromJson() {
+        // Behavior: fromJson converts _id field from the 24-char hex string to BsonObjectId
+        String input = "{\"name\": \"John\", \"age\": 25, \"_id\": \"6983d9358aa577b1d69e60cb\"}";
+        BsonDocument document = BSONUtil.fromJson(input.getBytes(StandardCharsets.UTF_8));
+
+        BsonValue idValue = document.get("_id");
+        assertInstanceOf(BsonObjectId.class, idValue);
+        assertEquals(new ObjectId("6983d9358aa577b1d69e60cb"), idValue.asObjectId().getValue());
+    }
+
+    @Test
+    void shouldPreserveNonObjectIdStringInFromJson() {
+        // Behavior: fromJson keeps _id as BsonString when it's not a valid 24-char hex ObjectId
+        String input = "{\"name\": \"John\", \"_id\": \"not-an-object-id\"}";
+        BsonDocument document = BSONUtil.fromJson(input.getBytes(StandardCharsets.UTF_8));
+
+        BsonValue idValue = document.get("_id");
+        assertInstanceOf(BsonString.class, idValue);
+        assertEquals("not-an-object-id", idValue.asString().getValue());
+    }
+
+    @Test
+    void shouldEnforceStrictTypeEqualityForIntegerTypes() {
+        // Behavior: BSONUtil.equals enforces strict type matching — INT64 is not equivalent to INT32.
+        assertFalse(BSONUtil.equals(BsonType.INT64, BsonType.INT32));
+        assertFalse(BSONUtil.equals(BsonType.INT32, BsonType.INT64));
+
+        // Same types must match
+        assertTrue(BSONUtil.equals(BsonType.INT32, BsonType.INT32));
+        assertTrue(BSONUtil.equals(BsonType.INT64, BsonType.INT64));
+        assertTrue(BSONUtil.equals(BsonType.STRING, BsonType.STRING));
+        assertTrue(BSONUtil.equals(BsonType.DOUBLE, BsonType.DOUBLE));
+    }
+
+    @Test
+    void shouldHandleDocumentWithoutIdInFromJson() {
+        // Behavior: fromJson works correctly when _id field is absent
+        String input = "{\"name\": \"John\", \"age\": 25}";
+        BsonDocument document = BSONUtil.fromJson(input.getBytes(StandardCharsets.UTF_8));
+
+        assertNull(document.get("_id"));
+        assertEquals("John", document.getString("name").getValue());
     }
 }

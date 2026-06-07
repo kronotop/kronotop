@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,110 +16,96 @@
 
 package com.kronotop.volume.handlers;
 
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
+import com.kronotop.KronotopException;
+import com.kronotop.cluster.Route;
+import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.redis.server.SubcommandHandler;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.IntegerRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.UnknownSubcommandException;
 import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.VolumeService;
-import com.kronotop.volume.replication.ReplicationStatusInfo;
-import com.kronotop.volume.replication.ReplicationUtil;
+import com.kronotop.volume.replication.ReplicationService;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
-import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static com.kronotop.AsyncCommandExecutor.runAsync;
 
-public class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
-    public ReplicationSubcommand(VolumeService service) {
+class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandHandler {
+    ReplicationSubcommand(VolumeService service) {
         super(service);
-    }
-
-    private RedisMessage mapCursor(ReplicationStatusInfo info) {
-        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
-        map.put(new SimpleStringRedisMessage("segment_id"), new IntegerRedisMessage(info.cursor().segmentId()));
-        map.put(new SimpleStringRedisMessage("position"), new IntegerRedisMessage(info.cursor().position()));
-        return new MapRedisMessage(map);
-    }
-
-    private RedisMessage mapCDCStage(ReplicationStatusInfo.ChangeDataCaptureStage cdcStage) {
-        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
-        map.put(new SimpleStringRedisMessage("sequence_number"), new IntegerRedisMessage(cdcStage.sequenceNumber()));
-        map.put(new SimpleStringRedisMessage("position"), new IntegerRedisMessage(cdcStage.position()));
-        return new MapRedisMessage(map);
-    }
-
-    private RedisMessage mapSegmentReplicationStage(ReplicationStatusInfo.SegmentReplicationStage segmentStage) {
-        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
-        map.put(new SimpleStringRedisMessage("tail_sequence_number"), new IntegerRedisMessage(segmentStage.tailSequenceNumber()));
-        map.put(new SimpleStringRedisMessage("tail_next_position"), new IntegerRedisMessage(segmentStage.tailNextPosition()));
-        return new MapRedisMessage(map);
-    }
-
-    private Map<RedisMessage, RedisMessage> mapReplicationStatusInfo(ReplicationStatusInfo info) {
-        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-
-        // Root level fields
-        result.put(
-                new SimpleStringRedisMessage("stage"),
-                new SimpleStringRedisMessage(info.stage() != null ? info.stage().name() : "")
-        );
-        result.put(new SimpleStringRedisMessage("cursor"), mapCursor(info));
-        result.put(
-                new SimpleStringRedisMessage("status"),
-                new SimpleStringRedisMessage(info.status() != null ? info.status().name() : "")
-        );
-        result.put(
-                new SimpleStringRedisMessage("error_message"),
-                new SimpleStringRedisMessage(info.errorMessage() != null ? info.errorMessage() : "")
-        );
-
-        // Nested DTOs
-        result.put(new SimpleStringRedisMessage("cdc_stage"), mapCDCStage(info.cdcStageInfo()));
-        result.put(new SimpleStringRedisMessage("segment_replication_stage"), mapSegmentReplicationStage(info.segmentReplicationInfo()));
-
-        return result;
     }
 
     @Override
     public void execute(Request request, Response response) {
-        ReplicationParameters parameters = new ReplicationParameters(request.getParams());
-
-        supplyAsync(context, response, () -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                String volumeName = VolumeNames.format(parameters.shardKind, parameters.shardId);
-                DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
-                        context, tr, volumeName, parameters.standById
-                );
-                ReplicationStatusInfo info = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
-                return mapReplicationStatusInfo(info);
-            }
-        }, response::writeMap);
+        ArrayList<ByteBuf> params = request.getParams();
+        if (params.size() < 2) {
+            throw new InvalidNumberOfParametersException();
+        }
+        String operation = ProtocolMessageUtil.readAsString(params.get(1)).toUpperCase();
+        switch (operation) {
+            case "START" -> startReplication(request, response);
+            case "STOP" -> stopReplication(request, response);
+            default -> throw new UnknownSubcommandException(operation);
+        }
     }
 
-    private class ReplicationParameters {
-        private final ShardKind shardKind;
-        private final int shardId;
-        private final String standById;
+    private void startReplication(Request request, Response response) {
+        Parameters parameters = new Parameters(request.getParams());
+        RoutingService routing = service.getContext().getService(RoutingService.NAME);
+        ReplicationService replications = service.getContext().getService(ReplicationService.NAME);
 
-        private ReplicationParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 4) {
+        runAsync(context, response, () -> {
+            VolumeNames.Parsed parsed = VolumeNames.parse(parameters.volumeName);
+            Route route = routing.findRoute(parsed.shardKind(), parsed.shardId());
+            if (route == null) {
+                throw new KronotopException(
+                        String.format("No route found for %s", parameters.volumeName)
+                );
+            }
+            if (!route.standbys().contains(service.getContext().getMember())) {
+                throw new KronotopException(
+                        String.format("This node is not a standby for %s", parameters.volumeName)
+                );
+            }
+            replications.startReplication(parsed.shardKind(), parsed.shardId(), true);
+        }, response::writeOK);
+    }
+
+    private void stopReplication(Request request, Response response) {
+        Parameters parameters = new Parameters(request.getParams());
+        RoutingService routing = service.getContext().getService(RoutingService.NAME);
+        ReplicationService replications = service.getContext().getService(ReplicationService.NAME);
+
+        runAsync(context, response, () -> {
+            VolumeNames.Parsed parsed = VolumeNames.parse(parameters.volumeName);
+            Route route = routing.findRoute(parsed.shardKind(), parsed.shardId());
+            if (route == null) {
+                throw new KronotopException(
+                        String.format("No route found for %s", parameters.volumeName)
+                );
+            }
+            if (!route.standbys().contains(service.getContext().getMember())) {
+                throw new KronotopException(
+                        String.format("This node is not a standby for %s", parameters.volumeName)
+                );
+            }
+            replications.stopReplication(parsed.shardKind(), parsed.shardId(), true);
+        }, response::writeOK);
+    }
+
+    private static class Parameters {
+        private final String volumeName;
+
+        private Parameters(ArrayList<ByteBuf> params) {
+            if (params.size() != 3) {
                 throw new InvalidNumberOfParametersException();
             }
 
-            shardKind = ProtocolMessageUtil.readShardKind(params.get(1));
-            shardId = ProtocolMessageUtil.readShardId(service.getContext().getConfig(), shardKind, params.get(2));
-            standById = ProtocolMessageUtil.readMemberId(service.getContext(), params.get(3));
+            volumeName = ProtocolMessageUtil.readAsString(params.get(2));
         }
     }
 }

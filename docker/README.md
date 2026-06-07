@@ -6,13 +6,15 @@
 ./mvnw clean install -DskipTests
 ```
 
-**2-** Copy the JAR file to `docker` folder, the copied file must be named as `kronotop-SNAPSHOT.jar`.
+**2-** Copy the JAR files to `docker` folder:
 
 ```
-cp kronotop/target/kronotop-$VERSION-SNAPSHOT.jar docker/kronotop-SNAPSHOT.jar
+cp kronotop/target/kronotop-2026.06-1.jar docker/kronotop.jar
+cp kronotop-ctl/target/kronotop-ctl-2026.06-1.jar docker/kronotop-ctl.jar
+cp kronotop-cli/target/kronotop-cli-2026.06-1.jar docker/kronotop-cli.jar
 ```
 
-Go to `docker` folder after copying the JAR.
+Go to `docker` folder after copying the JARs.
 
 **3-** Build the image, you may want to change the `tag`.
 
@@ -35,3 +37,5 @@ It's as simple as the following:
 ```
 docker compose up
 ```
+
+The primary node will automatically bootstrap the cluster once all nodes are ready.

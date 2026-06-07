@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Burak Sezer
+ * Copyright (c) 2023-2026 Burak Sezer
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@ package com.kronotop.bucket.index.maintenance;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.kronotop.bucket.index.IndexType;
 import com.kronotop.internal.VersionstampDeserializer;
 import com.kronotop.internal.VersionstampSerializer;
+import tools.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonSerialize;
 
 public class IndexBuildingTask extends IndexMaintenanceTask {
     @JsonSerialize(using = VersionstampSerializer.class)
@@ -33,6 +34,8 @@ public class IndexBuildingTask extends IndexMaintenanceTask {
     @JsonDeserialize(using = VersionstampDeserializer.class)
     private final Versionstamp upper;
 
+    private final IndexType indexType;
+
     @JsonCreator
     public IndexBuildingTask(
             @JsonProperty("namespace") String namespace,
@@ -40,10 +43,17 @@ public class IndexBuildingTask extends IndexMaintenanceTask {
             @JsonProperty("indexId") long indexId,
             @JsonProperty("shardId") int shardId,
             @JsonProperty("lower") Versionstamp lower,
-            @JsonProperty("upper") Versionstamp upper) {
+            @JsonProperty("upper") Versionstamp upper,
+            @JsonProperty("indexType") IndexType indexType) {
         super(IndexMaintenanceTaskKind.BUILD, namespace, bucket, indexId, shardId);
         this.lower = lower;
         this.upper = upper;
+        this.indexType = indexType;
+    }
+
+    public IndexBuildingTask(String namespace, String bucket, long indexId, int shardId,
+                             Versionstamp lower, Versionstamp upper) {
+        this(namespace, bucket, indexId, shardId, lower, upper, IndexType.SINGLE_FIELD);
     }
 
     public Versionstamp getLower() {
@@ -52,5 +62,9 @@ public class IndexBuildingTask extends IndexMaintenanceTask {
 
     public Versionstamp getUpper() {
         return upper;
+    }
+
+    public IndexType getIndexType() {
+        return indexType;
     }
 }
