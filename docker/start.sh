@@ -36,4 +36,4 @@ if [ -n "${KRONOTOP_BOOTSTRAP:-}" ]; then
     ) &
 fi
 
-exec java $JAVA_OPTS -Dnetwork.external.host=0.0.0.0 -Dnetwork.internal.host=0.0.0.0 -Ddata_dir=/var/kronotop -jar ${KR_HOME}/kronotop.jar
+exec java $JAVA_OPTS -Dlog.level=INFO -Dnetwork.external.host=0.0.0.0 -Dnetwork.internal.host=0.0.0.0 -Ddata_dir=/var/kronotop -jar ${KR_HOME}/kronotop.jar
