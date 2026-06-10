@@ -25,6 +25,7 @@ import com.kronotop.core.handlers.connection.protocol.HelloMessage;
 import com.kronotop.core.handlers.connection.protocol.PingMessage;
 import com.kronotop.core.handlers.protocol.InfoMessage;
 import com.kronotop.core.handlers.server.protocol.CommandMessage;
+import com.kronotop.core.handlers.server.protocol.TimeMessage;
 import com.kronotop.core.handlers.session.protocol.SessionAttributeMessage;
 import com.kronotop.core.handlers.session.protocol.SessionCloseMessage;
 import com.kronotop.core.handlers.transaction.protocol.*;
@@ -90,6 +91,7 @@ public class MessageTypes {
     public static final AttributeKey<EchoMessage> ECHO = AttributeKey.valueOf(EchoMessage.COMMAND);
     public static final AttributeKey<SelectMessage> SELECT = AttributeKey.valueOf(SelectMessage.COMMAND);
     public static final AttributeKey<CommandMessage> COMMAND = AttributeKey.valueOf(CommandMessage.COMMAND);
+    public static final AttributeKey<TimeMessage> TIME = AttributeKey.valueOf(TimeMessage.COMMAND);
     public static final AttributeKey<FlushAllMessage> FLUSHALL = AttributeKey.valueOf(FlushAllMessage.COMMAND);
     public static final AttributeKey<FlushDBMessage> FLUSHDB = AttributeKey.valueOf(FlushDBMessage.COMMAND);
     public static final AttributeKey<DiscardMessage> DISCARD = AttributeKey.valueOf(DiscardMessage.COMMAND);

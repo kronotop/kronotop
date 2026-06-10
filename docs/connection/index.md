@@ -67,3 +67,4 @@ instance, which makes them suitable for health checks and bootstrap scripts.
 | [HELLO](commands/hello.md)     | Negotiates the protocol version and optionally authenticates |
 | [INFO](commands/info.md)       | Returns server information and statistics                    |
 | [PING](commands/ping.md)       | Returns PONG or echoes back the given message                |
+| [TIME](commands/time.md)       | Returns the current server time                              |

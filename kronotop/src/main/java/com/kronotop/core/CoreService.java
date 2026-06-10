@@ -26,6 +26,7 @@ import com.kronotop.core.handlers.connection.EchoHandler;
 import com.kronotop.core.handlers.connection.HelloHandler;
 import com.kronotop.core.handlers.connection.PingHandler;
 import com.kronotop.core.handlers.server.CommandHandler;
+import com.kronotop.core.handlers.server.TimeHandler;
 import com.kronotop.core.handlers.session.SessionAttributeHandler;
 import com.kronotop.core.handlers.session.SessionCloseHandler;
 import com.kronotop.core.handlers.transaction.*;
@@ -44,6 +45,7 @@ public class CoreService extends CommandHandlerService implements KronotopServic
         handlerMethod(ServerKind.EXTERNAL, new ClientHandler());
         handlerMethod(ServerKind.EXTERNAL, new InfoHandler());
         handlerMethod(ServerKind.EXTERNAL, new CommandHandler(context));
+        handlerMethod(ServerKind.EXTERNAL, new TimeHandler());
         handlerMethod(ServerKind.EXTERNAL, new SessionAttributeHandler());
         handlerMethod(ServerKind.EXTERNAL, new SessionCloseHandler(context));
 

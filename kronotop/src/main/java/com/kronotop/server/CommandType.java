@@ -27,6 +27,7 @@ public enum CommandType {
     SELECT,
     HELLO,
     AUTH,
+    TIME,
 
     // String commands
     GET,
@@ -201,6 +202,7 @@ public enum CommandType {
             case "SELECT" -> SELECT;
             case "HELLO" -> HELLO;
             case "AUTH" -> AUTH;
+            case "TIME" -> TIME;
 
             // String commands
             case "GET" -> GET;

@@ -3163,7 +3163,7 @@ public class RedisCommandBuilder<K, V> extends BaseRedisCommandBuilder<K, V> {
         return createCommand(SYNC, new StatusOutput<>(codec));
     }
 
-    Command<K, V, List<V>> time() {
+    public Command<K, V, List<V>> time() {
         CommandArgs<K, V> args = new CommandArgs<>(codec);
         return createCommand(TIME, new ValueListOutput<>(codec), args);
     }
