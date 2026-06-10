@@ -15,7 +15,7 @@ This command takes no parameters.
 
 ## Return Value
 
-Simple string: the read version as a numeric string (e.g., `"1234567890"`).
+Integer: the read version of the active transaction.
 
 ## Behavior
 
@@ -43,7 +43,7 @@ A transaction must be started with `BEGIN` before calling this command.
 OK
 
 > GETREADVERSION
-1234567890
+(integer) 1391961467874
 ```
 
 **Attempt without an active transaction:**

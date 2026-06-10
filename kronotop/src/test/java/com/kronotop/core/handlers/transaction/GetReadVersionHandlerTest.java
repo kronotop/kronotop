@@ -20,6 +20,7 @@ import com.kronotop.BaseHandlerTest;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -33,6 +34,7 @@ class GetReadVersionHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldGetReadVersion() {
+        // Behavior: GETREADVERSION returns the read version of the active transaction as a RESP integer
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 
@@ -51,14 +53,15 @@ class GetReadVersionHandlerTest extends BaseHandlerTest {
             cmd.getreadversion().encode(buf);
 
             Object response = runCommand(channel, buf);
-            assertInstanceOf(SimpleStringRedisMessage.class, response);
-            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
-            assertTrue(Long.parseLong(actualMessage.content()) > 0);
+            assertInstanceOf(IntegerRedisMessage.class, response);
+            IntegerRedisMessage actualMessage = (IntegerRedisMessage) response;
+            assertTrue(actualMessage.value() > 0);
         }
     }
 
     @Test
     void shouldRejectGetReadVersionWhenNoTransactionInProgress() {
+        // Behavior: GETREADVERSION returns a TRANSACTION error when no transaction is in progress on the session
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
 

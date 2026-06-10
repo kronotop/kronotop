@@ -56,6 +56,6 @@ public class GetReadVersionHandler implements Handler {
             Attribute<Transaction> transactionAttr = request.getSession().attr(SessionAttributes.TRANSACTION);
             Transaction tr = transactionAttr.get();
             return tr.getReadVersion().join();
-        }, (readVersion) -> response.writeSimpleString(readVersion.toString()));
+        }, response::writeInteger);
     }
 }
