@@ -254,3 +254,4 @@ a single command.
 | [GETREADVERSION](commands/getreadversion.md)         | Get the read version of the current transaction  |
 | [GETAPPROXIMATESIZE](commands/getapproximatesize.md) | Get the approximate byte size of the transaction |
 | [SNAPSHOTREAD](commands/snapshotread.md)             | Enable or disable snapshot read mode             |
+| [TICK](commands/tick.md)                             | Get a monotonically increasing 64-bit integer    |

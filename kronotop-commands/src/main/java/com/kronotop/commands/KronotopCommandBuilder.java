@@ -238,6 +238,18 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
     }
 
     /**
+     * Creates and returns a command to retrieve a fresh or cached read version of the database.
+     *
+     * @param tickArgs the arguments selecting the read version mode, FRESH or CACHED
+     * @return a Command object that fetches the read version in Long format
+     */
+    public Command<K, V, Long> tick(TickArgs tickArgs) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec);
+        tickArgs.build(args);
+        return createCommand(CommandType.TICK, new IntegerOutput<>(codec), args);
+    }
+
+    /**
      * Lists all session attributes and their current values.
      *
      * @return a {@link Command} instance representing the SESSION.ATTRIBUTE LIST operation,
