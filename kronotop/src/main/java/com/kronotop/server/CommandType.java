@@ -114,6 +114,9 @@ public enum CommandType {
     GETREADVERSION,
     GETAPPROXIMATESIZE,
 
+    // Distsys primitives
+    TICK,
+
     // ZMap commands
     ZGET,
     ZSET,
@@ -284,6 +287,9 @@ public enum CommandType {
             case "SNAPSHOTREAD" -> SNAPSHOTREAD;
             case "GETREADVERSION" -> GETREADVERSION;
             case "GETAPPROXIMATESIZE" -> GETAPPROXIMATESIZE;
+
+            // Distsys primitives
+            case "TICK" -> TICK;
 
             // ZMap commands
             case "ZGET" -> ZGET;
