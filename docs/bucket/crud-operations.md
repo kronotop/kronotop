@@ -15,7 +15,7 @@ more readable for this tutorial:
 ```kronotop
 127.0.0.1:5484> HELLO 3
 1# "server" => "Kronotop"
-2# "version" => "2026.06-1"
+2# "version" => "2026.06-2"
 3# "proto" => (integer) 3
 4# "id" => (integer) 0
 5# "mode" => "cluster"

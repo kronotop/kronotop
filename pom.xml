@@ -6,7 +6,7 @@
 
     <groupId>com.kronotop</groupId>
     <artifactId>kronotop-root</artifactId>
-    <version>2026.06-1</version>
+    <version>2026.06-2</version>
     <packaging>pom</packaging>
     <name>Kronotop Root</name>
     <description>Kronotop is a distributed, transactional document database designed for horizontal scalability

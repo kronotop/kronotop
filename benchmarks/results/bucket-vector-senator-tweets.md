@@ -13,7 +13,7 @@ See [kronotop-benchmark](../../kronotop-benchmark/README.md) for dataset prepara
 ## Command
 
 ```
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-1.jar vector tweets --host 172.31.8.56 --threads 50 --search-rounds 100 --top-k 10 --data ~/senator-tweets/train.jsonl
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-2.jar vector tweets --host 172.31.8.56 --threads 50 --search-rounds 100 --top-k 10 --data ~/senator-tweets/train.jsonl
 
 ```
 

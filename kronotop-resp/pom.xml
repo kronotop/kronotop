@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.kronotop</groupId>
         <artifactId>kronotop-root</artifactId>
-        <version>2026.06-1</version>
+        <version>2026.06-2</version>
     </parent>
     <name>Kronotop RESP</name>
     <description>Java implementation of RESP2 and RESP3 protocols for the Kronotop ecosystem</description>

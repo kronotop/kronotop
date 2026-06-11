@@ -161,10 +161,10 @@ sudo apt install -y openjdk-25-jdk
 ### 2. Run benchmarks
 
 ```bash
-java -jar kronotop-benchmark-2026.06-1.jar bucket insert --host <HOST_B_PRIVATE_IP> --threads 50
-java -jar kronotop-benchmark-2026.06-1.jar bucket query --host <HOST_B_PRIVATE_IP> --threads 50
-java -jar kronotop-benchmark-2026.06-1.jar bucket mixed --host <HOST_B_PRIVATE_IP> --threads 50
-java -jar kronotop-benchmark-2026.06-1.jar vector tweets --host <HOST_B_PRIVATE_IP> --threads 50
+java -jar kronotop-benchmark-2026.06-2.jar bucket insert --host <HOST_B_PRIVATE_IP> --threads 50
+java -jar kronotop-benchmark-2026.06-2.jar bucket query --host <HOST_B_PRIVATE_IP> --threads 50
+java -jar kronotop-benchmark-2026.06-2.jar bucket mixed --host <HOST_B_PRIVATE_IP> --threads 50
+java -jar kronotop-benchmark-2026.06-2.jar vector tweets --host <HOST_B_PRIVATE_IP> --threads 50
 ```
 
 Threads are virtual threads, so high thread counts do not require proportional CPU cores.

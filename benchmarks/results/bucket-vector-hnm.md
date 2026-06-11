@@ -15,7 +15,7 @@ See [kronotop-benchmark](../../kronotop-benchmark/README.md) for dataset prepara
 ## Command
 
 ```
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-1.jar vector hnm --host 172.31.8.56 --threads 8 --search-rounds 100 --top-k 10 --data-dir ~/Code/hnm-data/
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-2.jar vector hnm --host 172.31.8.56 --threads 8 --search-rounds 100 --top-k 10 --data-dir ~/Code/hnm-data/
 ```
 
 ## Result
