@@ -33,6 +33,7 @@ import com.kronotop.stash.handlers.transactions.protocol.MultiMessage;
 import com.kronotop.stash.handlers.transactions.protocol.WatchMessage;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.watcher.Watcher;
+import com.kronotop.zmap.ZMapService;
 import com.typesafe.config.Config;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
@@ -50,6 +51,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -96,6 +98,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private final ReadWriteLock transactionLock = new ReentrantReadWriteLock(true);
     private final Watcher watcher;
     private final StashService stashService;
+    private final ZMapService zmapService;
     private final CommandHandlerRegistry commands;
     private final ServerKind serverKind;
     private final boolean logCommandForDebugging;
@@ -107,6 +110,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         this.serverKind = serverKind;
         this.watcher = context.getService(Watcher.NAME);
         this.stashService = context.getService(StashService.NAME);
+        this.zmapService = context.getService(ZMapService.NAME);
 
         Config config = context.getConfig();
         this.logCommandForDebugging = config.hasPath("log_command_for_debugging") && config.getBoolean("log_command_for_debugging");
@@ -147,8 +151,21 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         Session session = Session.extractSessionFromChannel(ctx.channel());
         watcher.unwatchWatchedKeys(session);
+        releaseZWatch(session);
         session.channelUnregistered();
         super.channelUnregistered(ctx);
+    }
+
+    /**
+     * Releases this client's demand on every key it is blocked on with ZWATCH. Removing the client
+     * from each key's waiter set unblocks its handler and cancels the underlying watch once that set
+     * drains to empty.
+     */
+    private void releaseZWatch(Session session) {
+        Set<byte[]> watchedKeys = session.attr(SessionAttributes.ZWATCH_KEYS).get();
+        for (byte[] packedKey : watchedKeys) {
+            zmapService.getZWatcher().leave(packedKey, session.getClientId());
+        }
     }
 
     private void exceptionToRespError(Request request, Response response, Exception exception) {

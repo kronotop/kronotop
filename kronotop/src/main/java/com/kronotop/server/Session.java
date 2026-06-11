@@ -114,6 +114,7 @@ public class Session {
         channel.attr(SessionAttributes.MULTI).set(false);
         channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
         channel.attr(SessionAttributes.POST_COMMIT_HOOKS).set(new ArrayList<>());
+        channel.attr(SessionAttributes.ZWATCH_KEYS).set(ConcurrentHashMap.newKeySet());
 
         resetSessionAttributes();
     }

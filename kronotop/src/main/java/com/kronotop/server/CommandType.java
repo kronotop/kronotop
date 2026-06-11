@@ -127,6 +127,7 @@ public enum CommandType {
     ZGETRANGE,
     ZGETRANGESIZE,
     ZGETKEY,
+    ZWATCH,
     ZGET_I64("ZGET.I64"),
     ZGET_F64("ZGET.F64"),
     ZGET_D128("ZGET.D128"),
@@ -302,6 +303,7 @@ public enum CommandType {
             case "ZGETRANGE" -> ZGETRANGE;
             case "ZGETRANGESIZE" -> ZGETRANGESIZE;
             case "ZGETKEY" -> ZGETKEY;
+            case "ZWATCH" -> ZWATCH;
             case "ZGET.I64" -> ZGET_I64;
             case "ZGET.F64" -> ZGET_F64;
             case "ZGET.D128" -> ZGET_D128;

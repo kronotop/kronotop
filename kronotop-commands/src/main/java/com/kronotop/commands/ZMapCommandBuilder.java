@@ -70,6 +70,20 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
     }
 
     /**
+     * Constructs a ZWATCH command for the specified key. This command blocks the connection until
+     * the value at the key changes, then returns a status reply.
+     *
+     * @param key the key to watch; must not be null.
+     * @return a {@link Command} instance representing the ZWATCH operation,
+     * containing the result as a string response from the server.
+     */
+    public Command<K, V, String> zwatch(K key) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                addKey(key);
+        return createCommand(CommandType.ZWATCH, new StatusOutput<>(codec), args);
+    }
+
+    /**
      * Constructs and executes a ZDEL command with the specified key.
      * This command is used to delete a key from a sorted set.
      *
