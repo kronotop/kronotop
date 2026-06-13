@@ -22,6 +22,7 @@ import com.kronotop.internal.VersionstampUtil;
 import org.bson.BsonBinaryReader;
 import org.bson.BsonDocument;
 import org.bson.BsonReader;
+import org.bson.BsonRegularExpression;
 import org.bson.BsonType;
 import org.bson.types.ObjectId;
 
@@ -211,8 +212,19 @@ public class BqlParser {
             if (type == BsonType.DOCUMENT) {
                 return readSelectorExpression(reader, key);
             }
+            if (type == BsonType.REGULAR_EXPRESSION) {
+                return nativeRegex(key, reader.readRegularExpression());
+            }
             return new BqlEq(key, readValue(reader));
         }
+    }
+
+    /**
+     * Builds a {@code BqlRegex} for the given selector from a native BSON regular expression value,
+     * carrying its pattern and options.
+     */
+    private static BqlRegex nativeRegex(String selector, BsonRegularExpression regex) {
+        return new BqlRegex(selector, new RegexVal(regex.getPattern(), regex.getOptions()));
     }
 
     /**
@@ -245,6 +257,9 @@ public class BqlParser {
             BsonType type = reader.getCurrentBsonType();
             if (type == BsonType.DOCUMENT) {
                 return readSelectorExpression(reader, key);
+            }
+            if (type == BsonType.REGULAR_EXPRESSION) {
+                return nativeRegex(key, reader.readRegularExpression());
             }
             return new BqlEq(key, readValue(reader));
         }
@@ -346,18 +361,59 @@ public class BqlParser {
 
         List<BqlExpr> expressions = new ArrayList<>();
 
+        // $regex and $options are sibling fields in the same selector document, so they are
+        // buffered here and combined into a single BqlRegex after the document is fully read.
+        String regexPattern = null;
+        String regexOptions = null;
+        boolean hasOptions = false;
+
         // Process all operators in the selector document
         do {
             String op = reader.readName();
-            BqlExpr expr = switch (op) {
-                case "$elemMatch" -> new BqlElemMatch(selector, readElemMatchExpr(reader, selector));
-                case "$not" -> new BqlNot(readSelectorExpression(reader, selector));
-                default -> parseSelectorOperator(reader, op, selector);
-            };
-            expressions.add(expr);
+            switch (op) {
+                case "$regex" -> {
+                    BsonType regexType = reader.getCurrentBsonType();
+                    if (regexType == BsonType.STRING) {
+                        regexPattern = reader.readString();
+                    } else if (regexType == BsonType.REGULAR_EXPRESSION) {
+                        // A regular expression value carries the pattern and, optionally, its own options.
+                        // An explicit $options sibling, if present, takes precedence.
+                        BsonRegularExpression regex = reader.readRegularExpression();
+                        regexPattern = regex.getPattern();
+                        if (regexOptions == null && !regex.getOptions().isEmpty()) {
+                            regexOptions = regex.getOptions();
+                        }
+                    } else {
+                        throw new BqlParseException("$regex expects a string pattern or a regular expression");
+                    }
+                }
+                case "$options" -> {
+                    if (reader.getCurrentBsonType() != BsonType.STRING) {
+                        throw new BqlParseException("$options expects a string");
+                    }
+                    regexOptions = reader.readString();
+                    hasOptions = true;
+                }
+                case "$elemMatch" -> expressions.add(new BqlElemMatch(selector, readElemMatchExpr(reader, selector)));
+                case "$not" -> {
+                    // $not may negate an operator document ({$gt: 5}) or a regex value directly ({$not: /foo/}).
+                    if (reader.getCurrentBsonType() == BsonType.REGULAR_EXPRESSION) {
+                        expressions.add(new BqlNot(nativeRegex(selector, reader.readRegularExpression())));
+                    } else {
+                        expressions.add(new BqlNot(readSelectorExpression(reader, selector)));
+                    }
+                }
+                default -> expressions.add(parseSelectorOperator(reader, op, selector));
+            }
         } while (reader.readBsonType() != BsonType.END_OF_DOCUMENT);
 
         reader.readEndDocument();
+
+        if (regexPattern != null) {
+            expressions.add(new BqlRegex(selector, new RegexVal(regexPattern, regexOptions)));
+        } else if (hasOptions) {
+            throw new BqlParseException("$options requires $regex");
+        }
 
         // If only one expression, return it directly
         if (expressions.size() == 1) {

@@ -40,6 +40,29 @@ class ParameterExtractorTest {
     }
 
     @Test
+    void shouldExtractRegexValueParameter() {
+        // Behavior: $regex extracts its RegexVal (pattern + options) as a single parameter
+        List<BqlValue> params = ParameterExtractor.extract(parse("{\"name\": {\"$regex\": \"^foo\", \"$options\": \"i\"}}"));
+        assertEquals(1, params.size());
+        assertInstanceOf(RegexVal.class, params.get(0));
+        RegexVal regex = (RegexVal) params.get(0);
+        assertEquals("^foo", regex.pattern());
+        assertEquals("i", regex.options());
+    }
+
+    @Test
+    void shouldExtractRegexInCanonicalOrderWithinAnd() {
+        // Behavior: a $regex parameter is extracted in canonical order alongside another operator's parameter
+        List<BqlValue> params = ParameterExtractor.extract(
+                parse("{\"$and\": [{\"name\": {\"$regex\": \"^a\"}}, {\"age\": {\"$gt\": 5}}]}"));
+        assertEquals(2, params.size());
+        assertInstanceOf(RegexVal.class, params.get(0));
+        assertEquals("^a", ((RegexVal) params.get(0)).pattern());
+        assertInstanceOf(Int32Val.class, params.get(1));
+        assertEquals(5, ((Int32Val) params.get(1)).value());
+    }
+
+    @Test
     void shouldExtractSingleValueFromNe() {
         // Behavior: $ne extracts its single value parameter
         List<BqlValue> params = ParameterExtractor.extract(parse("{\"status\": {\"$ne\": \"inactive\"}}"));

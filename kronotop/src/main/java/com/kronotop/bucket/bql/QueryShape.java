@@ -135,6 +135,8 @@ public final class QueryShape extends BaseShapeHash {
                 yield h;
             }
 
+            case BqlRegex(String selector, RegexVal value) -> hashComparison(hash, OP_REGEX, selector, value);
+
             case BqlAnd(List<BqlExpr> children) -> hashLogical(hash, OP_AND, children);
 
             case BqlOr(List<BqlExpr> children) -> hashLogical(hash, OP_OR, children);

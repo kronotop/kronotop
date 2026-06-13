@@ -155,6 +155,8 @@ public final class LogicalPlanner {
         if (expr instanceof BqlSize(String selector, int size)) return toFilter(selector, Operator.SIZE, size);
         if (expr instanceof BqlExists(String selector, boolean exists))
             return toFilter(selector, Operator.EXISTS, exists);
+        if (expr instanceof BqlRegex(String selector, RegexVal value))
+            return toFilter(selector, Operator.REGEX, value);
 
         throw new IllegalArgumentException("Unsupported BqlExpr type: " + expr.getClass());
     }

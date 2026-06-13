@@ -96,6 +96,13 @@
             <version>78.3</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/com.google.re2j/re2j -->
+        <dependency>
+            <groupId>com.google.re2j</groupId>
+            <artifactId>re2j</artifactId>
+            <version>1.8</version>
+        </dependency>
+
         <dependency>
             <groupId>io.lettuce</groupId>
             <artifactId>lettuce-core</artifactId>

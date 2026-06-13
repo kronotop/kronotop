@@ -272,6 +272,7 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
                 case EXISTS -> 15.0; // EXISTS is not very selective
                 case SIZE -> 10.0; // SIZE is moderately selective
                 case ALL -> 6.0;   // ALL is moderately selective
+                case REGEX -> 10.0; // REGEX runs as a full scan, treated as not very selective
             };
         }
     }

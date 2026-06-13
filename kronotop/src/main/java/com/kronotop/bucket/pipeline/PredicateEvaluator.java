@@ -199,6 +199,16 @@ public class PredicateEvaluator {
             return (op == Operator.IN) == matches;
         }
 
+        // $regex against an array field: match if any string element matches the pattern
+        if (bsonValue.isArray() && operand instanceof RegexVal regex) {
+            for (BsonValue element : bsonValue.asArray()) {
+                if (element.isString() && regex.compiled().matcher(element.asString().getValue()).find()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // Handle comparison operators when the field is an array and operand is a scalar BqlValue
         if (bsonValue.isArray() && operand instanceof BqlValue expectedValue) {
             if (op == Operator.EQ || op == Operator.NE || op == Operator.GT ||
@@ -221,6 +231,9 @@ public class PredicateEvaluator {
         return switch (operand) {
             case StringVal(String expected) -> bsonValue.isString() &&
                     evaluateComparison(op, bsonValue.asString().getValue(), expected, collator);
+
+            case RegexVal regex -> bsonValue.isString() &&
+                    regex.compiled().matcher(bsonValue.asString().getValue()).find();
 
             case Int32Val(int expected) -> {
                 if (bsonValue.isInt32()) {

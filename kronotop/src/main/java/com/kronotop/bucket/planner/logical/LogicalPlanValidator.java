@@ -251,6 +251,12 @@ public final class LogicalPlanValidator {
             case EQ, NE -> {
                 // EQ and NE can work with any operand type
             }
+            case REGEX -> {
+                if (!(operand instanceof RegexVal)) {
+                    issues.add(new ValidationIssue(Severity.ERROR,
+                            "REGEX operator requires a regex operand", selector, null));
+                }
+            }
         }
     }
 

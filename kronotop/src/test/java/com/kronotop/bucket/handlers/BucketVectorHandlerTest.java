@@ -37,6 +37,9 @@ import io.netty.buffer.Unpooled;
 import org.bson.*;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketVectorHandlerTest extends BaseBucketHandlerTest {
@@ -105,6 +108,26 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
         cmd.insert(TEST_BUCKET, docBytes).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
+    }
+
+    /**
+     * Collects the "label" field of every document returned by a BUCKET.VECTOR response.
+     */
+    private List<String> vectorResultLabels(Object response) {
+        if (response instanceof ErrorRedisMessage err) {
+            fail("Unexpected error: " + err.content());
+        }
+        assertInstanceOf(ArrayRedisMessage.class, response);
+        List<String> labels = new ArrayList<>();
+        for (RedisMessage child : ((ArrayRedisMessage) response).children()) {
+            MapRedisMessage map = (MapRedisMessage) child;
+            RedisMessage entryMsg = findInMapMessage(map, "entry");
+            assertNotNull(entryMsg);
+            byte[] docBytes = io.netty.buffer.ByteBufUtil.getBytes(((FullBulkStringRedisMessage) entryMsg).content());
+            BsonDocument doc = BSONUtil.toBsonDocument(docBytes);
+            labels.add(doc.getString("label").getValue());
+        }
+        return labels;
     }
 
     @Test
@@ -733,5 +756,72 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
         assertEquals("beta", doc.getString("label").getValue());
         assertFalse(doc.containsKey("category"));
         assertFalse(doc.containsKey("embedding"));
+    }
+
+    @Test
+    void shouldFilterWithRegexInVectorSearch() {
+        // Behavior: BUCKET.VECTOR with a $regex FILTER post-filters candidates, returning only
+        // documents whose string field matches the pattern.
+        createBucketWithVectorIndexOnly();
+
+        insertDocument("alpha", new float[]{0.1f, 0.2f, 0.3f});
+        insertDocument("alpine", new float[]{0.15f, 0.25f, 0.35f});
+        insertDocument("beta", new float[]{0.4f, 0.5f, 0.6f});
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.vector(TEST_BUCKET, "embedding", new float[]{0.1f, 0.2f, 0.3f},
+                BucketVectorArgs.Builder.filter("{\"label\": {\"$regex\": \"^al\"}}")).encode(buf);
+        Object response = runCommand(channel, buf);
+
+        List<String> labels = vectorResultLabels(response);
+        assertEquals(2, labels.size(), "Only labels starting with 'al' should match");
+        assertTrue(labels.contains("alpha"));
+        assertTrue(labels.contains("alpine"));
+    }
+
+    @Test
+    void shouldFilterWithCaseInsensitiveRegexInVectorSearch() {
+        // Behavior: the i option makes the $regex FILTER in BUCKET.VECTOR case-insensitive.
+        createBucketWithVectorIndexOnly();
+
+        insertDocument("Alpha", new float[]{0.1f, 0.2f, 0.3f});
+        insertDocument("ALPHA", new float[]{0.15f, 0.25f, 0.35f});
+        insertDocument("beta", new float[]{0.4f, 0.5f, 0.6f});
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.vector(TEST_BUCKET, "embedding", new float[]{0.1f, 0.2f, 0.3f},
+                BucketVectorArgs.Builder.filter("{\"label\": {\"$regex\": \"^alpha$\", \"$options\": \"i\"}}")).encode(buf);
+        Object response = runCommand(channel, buf);
+
+        List<String> labels = vectorResultLabels(response);
+        assertEquals(2, labels.size(), "Case-insensitive match should find both 'Alpha' and 'ALPHA'");
+        assertTrue(labels.contains("Alpha"));
+        assertTrue(labels.contains("ALPHA"));
+    }
+
+    @Test
+    void shouldReturnNoResultsWhenRegexFilterMatchesNothing() {
+        // Behavior: a $regex FILTER that matches no candidate returns an empty result set.
+        createBucketWithVectorIndexOnly();
+
+        insertDocument("alpha", new float[]{0.1f, 0.2f, 0.3f});
+        insertDocument("beta", new float[]{0.4f, 0.5f, 0.6f});
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.vector(TEST_BUCKET, "embedding", new float[]{0.1f, 0.2f, 0.3f},
+                BucketVectorArgs.Builder.filter("{\"label\": {\"$regex\": \"^zzz\"}}")).encode(buf);
+        Object response = runCommand(channel, buf);
+
+        List<String> labels = vectorResultLabels(response);
+        assertEquals(0, labels.size(), "No label matches the pattern");
     }
 }

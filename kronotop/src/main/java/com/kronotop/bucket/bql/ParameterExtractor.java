@@ -84,6 +84,7 @@ public final class ParameterExtractor {
             case BqlNin(String ignored, List<BqlValue> values) -> output.addAll(values);
             case BqlAll(String ignored, List<BqlValue> values) -> output.addAll(values);
             case BqlSize(String ignored, int size) -> output.add(new Int32Val(size));
+            case BqlRegex(String ignored, RegexVal value) -> output.add(value);
             case BqlExists(String ignored1, boolean ignored2) -> {
                 // No parameters - boolean is part of the shape
             }

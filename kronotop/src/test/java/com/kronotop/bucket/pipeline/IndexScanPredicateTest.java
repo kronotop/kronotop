@@ -223,4 +223,15 @@ class IndexScanPredicateTest {
         assertThrows(IllegalStateException.class, () -> predicate.test(new StringVal("test"), Collections.emptyList()),
                 "Should throw IllegalStateException when resolving LiteralList to single value");
     }
+
+    @Test
+    void shouldThrowWhenRegexEvaluatedOnIndexScan() {
+        // Behavior: a RegexVal operand can never be resolved on an index scan. Only the NE path reaches
+        // operand resolution, so NE+RegexVal exercises the guard that rejects regex on an index scan.
+        IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.NE, lit(new RegexVal("^foo", "")));
+
+        assertThrows(UnsupportedOperationException.class,
+                () -> predicate.test(new StringVal("foobar"), Collections.emptyList()),
+                "Should throw UnsupportedOperationException because $regex cannot run on an index scan");
+    }
 }

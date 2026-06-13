@@ -73,6 +73,9 @@ class Explain {
             case BqlSize size -> {
                 return pad + "BqlSize(selector=" + size.selector() + ", size=" + size.size() + ")";
             }
+            case BqlRegex regex -> {
+                return pad + "BqlRegex(selector=" + regex.selector() + ", value=" + regex.value() + ")";
+            }
             default -> {
                 return pad + expr;
             }

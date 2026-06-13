@@ -17,6 +17,7 @@
 package com.kronotop.bucket.bql.ast;
 
 public sealed interface BqlValue permits StringVal, Int32Val, Int64Val, Decimal128Val,
-        DoubleVal, DateTimeVal, TimestampVal, BooleanVal, NullVal, BinaryVal, ArrayVal, DocumentVal, VersionstampVal, ObjectIdVal {
+        DoubleVal, DateTimeVal, TimestampVal, BooleanVal, NullVal, BinaryVal, ArrayVal,
+        DocumentVal, VersionstampVal, ObjectIdVal, RegexVal {
     String toJson();
 }

@@ -75,6 +75,31 @@ class PhysicalNodeShapeTest {
     }
 
     @Test
+    void shouldProduceSameHashForRegexWithDifferentPatterns() {
+        // Behavior: two REGEX filters on the same field produce the same shape hash; the pattern is
+        // a parameter, not part of the plan shape. This is what lets regex queries share a cached plan.
+        PhysicalFilter filter1 = filter(Operator.REGEX, "name", new RegexVal("^Al", ""));
+        PhysicalFilter filter2 = filter(Operator.REGEX, "name", new RegexVal("^Bo", "i"));
+
+        long hash1 = PhysicalNodeShape.compute(filter1);
+        long hash2 = PhysicalNodeShape.compute(filter2);
+
+        assertEquals(hash1, hash2);
+    }
+
+    @Test
+    void shouldProduceDifferentHashForRegexVsEq() {
+        // Behavior: a REGEX filter and an EQ filter on the same field produce different hashes.
+        PhysicalFilter filterRegex = filter(Operator.REGEX, "name", new RegexVal("Alice", ""));
+        PhysicalFilter filterEq = filter(Operator.EQ, "name", new StringVal("Alice"));
+
+        long hashRegex = PhysicalNodeShape.compute(filterRegex);
+        long hashEq = PhysicalNodeShape.compute(filterEq);
+
+        assertNotEquals(hashRegex, hashEq);
+    }
+
+    @Test
     void shouldProduceDifferentHashForDifferentSelectors() {
         // Behavior: PhysicalFilter on "age" vs "score" produce different hashes
         PhysicalFilter filterAge = filter(Operator.EQ, "age", new Int32Val(25));

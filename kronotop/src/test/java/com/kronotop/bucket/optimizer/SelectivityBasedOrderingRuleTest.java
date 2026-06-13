@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.optimizer;
 
+import com.kronotop.bucket.bql.ast.RegexVal;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
@@ -381,6 +382,28 @@ public class SelectivityBasedOrderingRuleTest extends BaseOptimizerTest {
             PhysicalIndexScan firstScan = (PhysicalIndexScan) result.children().getFirst();
             PhysicalFilter firstFilter = (PhysicalFilter) firstScan.node();
             assertEquals(Operator.EQ, firstFilter.op());
+        }
+
+        @Test
+        @DisplayName("Should order REGEX as low selectivity between equality and exists")
+        void shouldOrderRegexAsLowSelectivity() {
+            // Behavior: REGEX runs as a full scan, so it is less selective than EQ but more
+            // selective than EXISTS, and is ordered accordingly within an AND.
+            PhysicalFilter eqFilter = createFilter("status", Operator.EQ, "active");
+            PhysicalFilter regexFilter = createFilter("name", Operator.REGEX, new RegexVal("^foo", ""));
+            PhysicalFilter existsFilter = createFilter("note", Operator.EXISTS, true);
+
+            // Suboptimal order: EXISTS, REGEX, EQ
+            PhysicalAnd originalAnd = createAnd(existsFilter, regexFilter, eqFilter);
+            PhysicalNode optimized = rule.apply(new PlannerContext(metadata), originalAnd);
+
+            assertInstanceOf(PhysicalAnd.class, optimized);
+            PhysicalAnd result = (PhysicalAnd) optimized;
+            assertEquals(3, result.children().size());
+
+            assertEquals(Operator.EQ, ((PhysicalFilter) result.children().get(0)).op());
+            assertEquals(Operator.REGEX, ((PhysicalFilter) result.children().get(1)).op());
+            assertEquals(Operator.EXISTS, ((PhysicalFilter) result.children().get(2)).op());
         }
     }
 }

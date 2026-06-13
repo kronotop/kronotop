@@ -107,6 +107,55 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldShareCachedPlanAcrossRegexQueriesWithDifferentPatterns() {
+        // Behavior: regex queries on the same field share one cached plan because the pattern is a
+        // parameter, not part of the plan shape. Each query still matches with its own pattern.
+        insertDocumentsAndGetObjectIds(List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alana\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\"}")
+        ));
+
+        BucketService bucketService = context.getService(BucketService.NAME);
+        BucketMetadata metadata;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+        }
+        long maxTtl = context.getConfig().getInt("bucket.plan_cache.max_ttl");
+
+        BqlExpr exprAl = BqlParser.parse("{\"name\": {\"$regex\": \"^Al\"}}".getBytes());
+        BqlExpr exprBo = BqlParser.parse("{\"name\": {\"$regex\": \"^Bo\"}}".getBytes());
+
+        // Same shape across different patterns
+        assertEquals(QueryShape.compute(exprAl), QueryShape.compute(exprBo),
+                "Regex queries on the same field share the same shape");
+
+        // The differing patterns are extracted as differing parameters
+        List<BqlValue> paramsAl = ParameterExtractor.extract(exprAl);
+        List<BqlValue> paramsBo = ParameterExtractor.extract(exprBo);
+        assertNotEquals(paramsAl, paramsBo, "Different patterns must produce different parameters");
+
+        PipelineNode plan1 = bucketService.getPlanner().plan(context, metadata, exprAl, paramsAl, true, maxTtl);
+        PipelineNode plan2 = bucketService.getPlanner().plan(context, metadata, exprBo, paramsBo, true, maxTtl);
+        assertSame(plan1, plan2, "Same-shape regex queries should reuse the cached plan");
+
+        // End-to-end: the cached plan applies each query's own pattern, not a stale one
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf1 = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"name\": {\"$regex\": \"^Al\"}}").encode(buf1);
+        List<BsonDocument> al = extractEntries(runCommand(channel, buf1));
+        assertEquals(2, al.size(), "'^Al' should match Alice and Alana");
+
+        ByteBuf buf2 = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"name\": {\"$regex\": \"^Bo\"}}").encode(buf2);
+        List<BsonDocument> bo = extractEntries(runCommand(channel, buf2));
+        assertEquals(1, bo.size(), "'^Bo' should match only Bob");
+        assertEquals("Bob", BsonHelper.getString(bo.getFirst(), "name"));
+    }
+
+    @Test
     void shouldInvalidatePlanCacheOnBucketMetadataUpdatedEvent() {
         // Insert a document to create the bucket
         insertDocumentsAndGetObjectIds(List.of(BSONUtil.jsonToDocumentThenBytes("{\"age\": 30}")));
@@ -1619,5 +1668,118 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertTrue(errorMessage.content().contains("SORTBY and RESULTSORT cannot use the same field"));
+    }
+
+    @Test
+    void shouldMatchStringFieldWithRegex() {
+        // Behavior: $regex selects documents whose string field matches the pattern, via a full-scan residual filter.
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alana\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\"}")
+        );
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"name\": {\"$regex\": \"^Al\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        List<BsonDocument> entries = extractEntries(msg);
+        assertEquals(2, entries.size(), "Should match the two names starting with 'Al'");
+        for (BsonDocument doc : entries) {
+            assertThat(BsonHelper.getString(doc, "name")).startsWith("Al");
+        }
+    }
+
+    @Test
+    void shouldMatchRegexCaseInsensitivelyWithOption() {
+        // Behavior: the i option makes $regex matching case-insensitive.
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"ALICE\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\"}")
+        );
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"name\": {\"$regex\": \"^alice$\", \"$options\": \"i\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        List<BsonDocument> entries = extractEntries(msg);
+        assertEquals(2, entries.size(), "Case-insensitive match should find both 'Alice' and 'ALICE'");
+    }
+
+    @Test
+    void shouldNotMatchRegexAgainstNonStringField() {
+        // Behavior: $regex never matches a non-string field value, only the string-typed field.
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"code\": \"123\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"code\": 123}")
+        );
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"code\": {\"$regex\": \"12\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        List<BsonDocument> entries = extractEntries(msg);
+        assertEquals(1, entries.size(), "Only the string-typed 'code' should match");
+        assertEquals("123", BsonHelper.getString(entries.getFirst(), "code"));
+    }
+
+    @Test
+    void shouldMatchRegexAgainstArrayElement() {
+        // Behavior: $regex matches if any string element of an array field matches the pattern.
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"tags\": [\"red\", \"green\"]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"tags\": [\"blue\"]}")
+        );
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"tags\": {\"$regex\": \"een$\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        List<BsonDocument> entries = extractEntries(msg);
+        assertEquals(1, entries.size(), "Only the document with a matching array element should be returned");
+    }
+
+    @Test
+    void shouldNegateRegexWithNot() {
+        // Behavior: $not over $regex returns documents whose string field does not match the pattern.
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alana\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\"}")
+        );
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{\"name\": {\"$not\": {\"$regex\": \"^Al\"}}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        List<BsonDocument> entries = extractEntries(msg);
+        assertEquals(1, entries.size(), "Only 'Bob' should remain after negating the prefix match");
+        assertEquals("Bob", BsonHelper.getString(entries.getFirst(), "name"));
     }
 }
