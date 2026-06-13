@@ -132,6 +132,7 @@ public class MessageTypes {
     public static final AttributeKey<ZDelRangeMessage> ZDELRANGE = AttributeKey.valueOf(ZDelRangeMessage.COMMAND);
     public static final AttributeKey<ZGetMessage> ZGET = AttributeKey.valueOf(ZGetMessage.COMMAND);
     public static final AttributeKey<ZGetKeyMessage> ZGETKEY = AttributeKey.valueOf(ZGetKeyMessage.COMMAND);
+    public static final AttributeKey<ZWatchMessage> ZWATCH = AttributeKey.valueOf(ZWatchMessage.COMMAND);
     public static final AttributeKey<ZGetRangeMessage> ZGETRANGE = AttributeKey.valueOf(ZGetRangeMessage.COMMAND);
     public static final AttributeKey<ZGetRangeSizeMessage> ZGETRANGESIZE = AttributeKey.valueOf(ZGetRangeSizeMessage.COMMAND);
     public static final AttributeKey<ZMutateMessage> ZMUTATE = AttributeKey.valueOf(ZMutateMessage.COMMAND);

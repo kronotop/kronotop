@@ -33,6 +33,7 @@ import com.kronotop.stash.handlers.transactions.protocol.MultiMessage;
 import com.kronotop.stash.handlers.transactions.protocol.WatchMessage;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.watcher.Watcher;
+import com.kronotop.zmap.ZMapService;
 import com.typesafe.config.Config;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
@@ -96,6 +97,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private final ReadWriteLock transactionLock = new ReentrantReadWriteLock(true);
     private final Watcher watcher;
     private final StashService stashService;
+    private final ZMapService zmapService;
     private final CommandHandlerRegistry commands;
     private final ServerKind serverKind;
     private final boolean logCommandForDebugging;
@@ -107,6 +109,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         this.serverKind = serverKind;
         this.watcher = context.getService(Watcher.NAME);
         this.stashService = context.getService(StashService.NAME);
+        this.zmapService = context.getService(ZMapService.NAME);
 
         Config config = context.getConfig();
         this.logCommandForDebugging = config.hasPath("log_command_for_debugging") && config.getBoolean("log_command_for_debugging");
@@ -147,8 +150,21 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         Session session = Session.extractSessionFromChannel(ctx.channel());
         watcher.unwatchWatchedKeys(session);
+        releaseZWatch(session);
         session.channelUnregistered();
         super.channelUnregistered(ctx);
+    }
+
+    /**
+     * Releases this client's demand on the key it is blocked on with ZWATCH, if any. Removing the
+     * client from the key's waiter set unblocks its handler and cancels the underlying watch once that
+     * set drains to empty.
+     */
+    private void releaseZWatch(Session session) {
+        byte[] packedKey = session.attr(SessionAttributes.ZWATCH_KEY).get();
+        if (packedKey != null) {
+            zmapService.getZWatcher().leave(packedKey, session.getClientId());
+        }
     }
 
     private void exceptionToRespError(Request request, Response response, Exception exception) {
