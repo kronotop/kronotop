@@ -32,6 +32,7 @@ public enum CommandType implements ProtocolKeyword {
     ZDELRANGE,
     ZGETRANGE,
     ZGETKEY,
+    ZWATCH,
     SNAPSHOTREAD,
     ZMUTATE,
     ZGETRANGESIZE,

@@ -29,11 +29,16 @@ import com.kronotop.zmap.handlers.*;
 public class ZMapService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "ZMap";
 
+    private final ZWatcher zwatcher;
+
     public ZMapService(Context context) {
         super(context, NAME);
 
+        this.zwatcher = new ZWatcher(context);
+
         handlerMethod(ServerKind.EXTERNAL, new ZSetHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZGetHandler(this));
+        handlerMethod(ServerKind.EXTERNAL, new ZWatchHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZDelHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZDelRangeHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZGetRangeHandler(this));
@@ -49,5 +54,14 @@ public class ZMapService extends CommandHandlerService implements KronotopServic
         handlerMethod(ServerKind.EXTERNAL, new ZSetI64Handler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZSetF64Handler(this));
         handlerMethod(ServerKind.EXTERNAL, new ZSetD128Handler(this));
+    }
+
+    public ZWatcher getZWatcher() {
+        return zwatcher;
+    }
+
+    @Override
+    public void shutdown() {
+        zwatcher.shutdown();
     }
 }

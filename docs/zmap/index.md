@@ -162,6 +162,7 @@ FoundationDB constraints.
 | [ZGETKEY](commands/zgetkey.md)             | Resolve a key name by key selector         |
 | [ZGETRANGESIZE](commands/zgetrangesize.md) | Get the estimated byte size of a key range |
 | [ZMUTATE](commands/zmutate.md)             | Perform an atomic mutation on a key        |
+| [ZWATCH](commands/zwatch.md)               | Block until the value at a key changes     |
 | [ZSET.I64](commands/zseti64.md)            | Set a value as a signed 64-bit integer     |
 | [ZINC.I64](commands/zinci64.md)            | Atomically increment a 64-bit integer      |
 | [ZGET.I64](commands/zgeti64.md)            | Get a value as a signed 64-bit integer     |

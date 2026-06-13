@@ -56,6 +56,8 @@ public class SessionAttributes {
 
     public static final AttributeKey<HashMap<String, Long>> WATCHED_KEYS = AttributeKey.valueOf("watched_keys");
 
+    public static final AttributeKey<byte[]> ZWATCH_KEY = AttributeKey.valueOf("zwatch_key");
+
     public static final AttributeKey<Long> CLIENT_ID = AttributeKey.valueOf("client_id");
 
     public static final AttributeKey<Session> SESSION = AttributeKey.valueOf("session");
