@@ -2,17 +2,17 @@
 
 [![Website](https://img.shields.io/badge/kronotop.com-docs-00c5d1?labelColor=061827)](https://kronotop.com) [![Build](https://img.shields.io/github/actions/workflow/status/kronotop/kronotop/maven.yaml?branch=main&label=build)](https://github.com/kronotop/kronotop/actions/workflows/maven.yaml) [![Release](https://img.shields.io/github/v/release/kronotop/kronotop)](https://github.com/kronotop/kronotop/releases/latest) [![Docker](https://img.shields.io/badge/ghcr.io-kronotop%2Fkronotop-2496ED?logo=docker&logoColor=white)](https://github.com/kronotop/kronotop/pkgs/container/kronotop) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Discord](https://img.shields.io/discord/1004765247212638239.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/VPRNvdh2C)
 
-Kronotop is a distributed multi-model database built on [FoundationDB](https://github.com/apple/foundationdb).
+Kronotop is an open-source, distributed, transactional document database built on [FoundationDB](https://github.com/apple/foundationdb).
 
 > One transaction, multiple models.
 
-Kronotop allows different data models and namespaces to participate in the same strictly serializable transaction
-boundary.
+Beyond its document model, Kronotop provides a transactional ordered key-value data structure that can participate
+in the same strictly serializable transaction boundary.
 
 Kronotop currently provides:
 
 - **Bucket**: document model with secondary indexes and vector search
-- **ZMap**: RESP-compatible ordered key-value model
+- **ZMap**: ordered key-value model with range queries and conflict-free counters
 - **Volume**: internal storage engine that backs data models with segment-based I/O and primary-standby replication
 - **Namespaces**: lightweight logical isolation built on FoundationDB directories
 
