@@ -3,8 +3,30 @@ name: Java CI with Maven
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - '**.svg'
+      - '**.png'
+      - 'docs/**'
+      - 'internals/**'
+      - 'recipes/**'
+      - 'development/**'
+      - 'contrib/**'
+      - 'benchmarks/**'
+      - 'LICENSE'
   pull_request:
     branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - '**.svg'
+      - '**.png'
+      - 'docs/**'
+      - 'internals/**'
+      - 'recipes/**'
+      - 'development/**'
+      - 'contrib/**'
+      - 'benchmarks/**'
+      - 'LICENSE'
 
 env:
   FOUNDATIONDB_VERSION: 7.3.68
