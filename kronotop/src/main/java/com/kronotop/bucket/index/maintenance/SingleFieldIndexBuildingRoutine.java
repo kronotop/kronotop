@@ -119,7 +119,7 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
                     uniqueBsonValues.add(BsonNull.VALUE);
                 }
                 for (Object indexValue : uniqueIndexValues) {
-                    SingleFieldIndexMaintainer.insertEntry(tr, index, metadata, versionstamp,
+                    SingleFieldIndexMaintainer.insertEntry(tr, index, metadata,
                             objectIdBytes, indexValue, shardId, pair.metadata(), service.getCollatorCache());
                 }
                 // Track stats for each unique element
@@ -140,7 +140,7 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
                     }
                 }
 
-                SingleFieldIndexMaintainer.insertEntry(tr, index, metadata, versionstamp,
+                SingleFieldIndexMaintainer.insertEntry(tr, index, metadata,
                         objectIdBytes, indexValue, shardId, pair.metadata(), service.getCollatorCache());
                 IndexStatsBuilder.setHintForStats(tr, index, objectIdBytes, bsonValue);
             }

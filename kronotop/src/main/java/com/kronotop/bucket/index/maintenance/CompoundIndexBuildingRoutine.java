@@ -89,7 +89,7 @@ public class CompoundIndexBuildingRoutine extends AbstractBuildingRoutine {
 
             List<List<Object>> valueCombinations = CompoundIndexMaintainer.extractFieldValues(compoundIndex, pair.entry(), strictTypes);
             for (List<Object> fieldValues : valueCombinations) {
-                CompoundIndexMaintainer.insertEntry(tr, compoundIndex, metadata, versionstamp,
+                CompoundIndexMaintainer.insertEntry(tr, compoundIndex, metadata,
                         objectIdBytes, fieldValues, shardId, pair.metadata(), service.getCollatorCache());
             }
             IndexStatsBuilder.setHintForStatsIfSelected(tr, compoundIndex, objectIdBytes);

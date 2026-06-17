@@ -22,7 +22,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.CollatorCache;
@@ -71,7 +70,6 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
      * @param indexValue    the field value being indexed
      * @param objectId      the document's ObjectId as bytes
      * @param indexEntry    the pre-encoded IndexEntry bytes
-     * @param userVersion   the user version for the incomplete versionstamp
      * @param collatorCache the collator cache for collation-aware indexing
      */
     public static void setEntry(
@@ -81,7 +79,6 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
             Object indexValue,
             byte[] objectId,
             byte[] indexEntry,
-            int userVersion,
             CollatorCache collatorCache
     ) {
         if (indexValue instanceof ObjectId objectIdValue) {
@@ -103,22 +100,17 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
         );
         byte[] backPointer = index.subspace().pack(backPointerTuple);
         tr.set(backPointer, NULL_VALUE);
-
-        if (index.definition().status() != IndexStatus.READY) {
-            addWatermark(tr, index.subspace(), userVersion);
-        }
     }
 
     /**
-     * Inserts a single field index entry with a complete versionstamp.
+     * Inserts a single field index entry, building the IndexEntry from the supplied shard and metadata.
      *
-     * <p>Unlike {@link #setEntry} which uses an incomplete versionstamp via atomic mutation,
-     * this method accepts a pre-computed versionstamp and writes directly.
+     * <p>Unlike {@link #setEntry} which uses an incomplete versionstamp via atomic mutation, this method
+     * accepts pre-computed shard and entry metadata and writes the entry directly.
      *
      * @param tr            the FoundationDB transaction
      * @param index         the resolved index
      * @param metadata      the bucket metadata
-     * @param versionstamp  the document's versionstamp
      * @param objectId      the document's ObjectId as bytes
      * @param indexValue    the field value being indexed
      * @param shardId       the shard containing the document
@@ -129,7 +121,6 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
             Transaction tr,
             Index index,
             BucketMetadata metadata,
-            Versionstamp versionstamp,
             byte[] objectId,
             Object indexValue,
             int shardId,
@@ -155,10 +146,6 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
         );
         byte[] backPointer = index.subspace().pack(backPointerTuple);
         tr.set(backPointer, NULL_VALUE);
-
-        if (index.definition().status() != IndexStatus.READY) {
-            addWatermark(tr, index.subspace(), versionstamp);
-        }
     }
 
     /**
@@ -265,10 +252,6 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
 
         byte[] backPointer = container.indexSubspace().pack(backPointerTuple);
         tr.set(backPointer, NULL_VALUE);
-
-        if (container.indexDefinition().status() != IndexStatus.READY) {
-            addWatermark(tr, container.indexSubspace(), container.versionstamp());
-        }
 
         IndexUtil.mutateCardinality(tr, container.metadata().subspace(), container.indexDefinition().id(), 1);
     }

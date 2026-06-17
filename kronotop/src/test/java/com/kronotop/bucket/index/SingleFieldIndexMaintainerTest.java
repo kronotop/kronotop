@@ -77,7 +77,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            SingleFieldIndexMaintainer.setEntry(tr, index, metadata, indexValue, objectIdBytes, encodedIndexEntry, entry.userVersion(), new CollatorCache());
+            SingleFieldIndexMaintainer.setEntry(tr, index, metadata, indexValue, objectIdBytes, encodedIndexEntry, new CollatorCache());
             tr.commit().join();
         }
     }
@@ -119,21 +119,12 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
     }
 
-    int getWatermarkCount(DirectorySubspace indexSubspace) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.WATERMARK.getValue()));
-        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return tr.getRange(begin, end).asList().join().size();
-        }
-    }
-
     void insertIndexEntryAndCommit(SingleFieldIndexDefinition definition, BucketMetadata metadata,
-                                   Versionstamp versionstamp, Object indexValue, ObjectId objectId, int shardId, byte[] entry) {
+                                   Object indexValue, ObjectId objectId, int shardId, byte[] entry) {
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
         byte[] objectIdBytes = objectId.toByteArray();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            SingleFieldIndexMaintainer.insertEntry(tr, index, metadata, versionstamp,
+            SingleFieldIndexMaintainer.insertEntry(tr, index, metadata,
                     objectIdBytes, indexValue, shardId, entry, new CollatorCache());
             tr.commit().join();
         }
@@ -142,7 +133,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @ParameterizedTest
     @MethodSource("indexValueTestData")
     void shouldSetSingleFieldIndexValueForAllBsonTypes(String indexName, String fieldName, BsonType bsonType, Object inputValue, Object expectedStoredValue) {
-        // Behavior: Verifies that setEntry creates an index entry, back pointer, and watermark for each supported BSON type.
+        // Behavior: Verifies that setEntry creates an index entry and back pointer for each supported BSON type.
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(indexName, fieldName, bsonType, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         AppendedEntry[] entries = getAppendedEntries();
@@ -172,9 +163,6 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
             ).asList().join();
             assertEquals(1, backPointers.size(), "Should have exactly one back pointer for " + bsonType);
         }
-
-        // Verify watermark was created
-        assertEquals(0, getWatermarkCount(indexSubspace), "Should not have watermark entry for " + bsonType);
     }
 
     @Test
@@ -662,7 +650,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldSetSingleFieldIndexEntryByObjectId() {
         // Behavior: Verifies that setEntryByObjectId creates an index entry, back pointer,
-        // watermark, and cardinality update.
+        // and cardinality update.
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
@@ -742,15 +730,12 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after adding one entry");
         }
-
-        // Verify watermark was created
-        assertTrue(getWatermarkCount(indexSubspace) > 0, "Should have at least one watermark entry");
     }
 
     @Test
     void shouldSetSingleFieldIndexEntryByObjectIdWithObjectIdValue() {
         // Behavior: Verifies that setEntryByObjectId correctly converts an ObjectId index value
-        // to its byte array representation when creating the index entry, back pointer, and watermark.
+        // to its byte array representation when creating the index entry and back pointer.
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "ref_id", BsonType.OBJECT_ID, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
@@ -834,7 +819,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldInsertSingleFieldIndexEntry() {
-        // Behavior: Verifies that insertEntry creates an index entry, back pointer, watermark, and cardinality
+        // Behavior: Verifies that insertEntry creates an index entry, back pointer, and cardinality
         // update using direct tr.set() instead of atomic mutation.
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
@@ -842,9 +827,8 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         String indexValue = "insert-test";
         ObjectId objectId = new ObjectId();
         byte[] entryMetadata = getEncodedEntryMetadata();
-        Versionstamp versionstamp = TestUtil.generateVersionstamp(1);
 
-        insertIndexEntryAndCommit(definition, metadata, versionstamp, indexValue, objectId, SHARD_ID, entryMetadata);
+        insertIndexEntryAndCommit(definition, metadata, indexValue, objectId, SHARD_ID, entryMetadata);
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
@@ -896,9 +880,6 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
             assertArrayEquals(IndexMaintainer.NULL_VALUE, backPointer.getValue(), "Back pointer value should be NULL_VALUE");
         }
 
-        // Verify watermark was created
-        assertEquals(0, getWatermarkCount(indexSubspace), "Should not have at least one watermark entry");
-
         // Verify cardinality
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
@@ -915,9 +896,8 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         ObjectId objectId = new ObjectId();
         byte[] entryMetadata = getEncodedEntryMetadata();
-        Versionstamp versionstamp = TestUtil.generateVersionstamp(1);
 
-        insertIndexEntryAndCommit(definition, metadata, versionstamp, inputValue, objectId, SHARD_ID, entryMetadata);
+        insertIndexEntryAndCommit(definition, metadata, inputValue, objectId, SHARD_ID, entryMetadata);
 
         Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist for " + bsonType);
@@ -940,8 +920,5 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
             ).asList().join();
             assertEquals(1, backPointers.size(), "Should have exactly one back pointer for " + bsonType);
         }
-
-        // Verify watermark was created
-        assertEquals(0, getWatermarkCount(indexSubspace), "Should not have watermark entry for " + bsonType);
     }
 }

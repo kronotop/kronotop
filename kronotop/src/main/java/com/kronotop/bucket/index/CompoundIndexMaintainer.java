@@ -22,7 +22,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.*;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
@@ -81,7 +80,7 @@ public final class CompoundIndexMaintainer extends IndexMaintainer {
     }
 
     /**
-     * Creates a compound index entry with associated back pointer and watermark.
+     * Creates a compound index entry with an associated back pointer.
      *
      * @param tr            the FoundationDB transaction
      * @param compoundIndex the resolved compound index
@@ -89,7 +88,6 @@ public final class CompoundIndexMaintainer extends IndexMaintainer {
      * @param fieldValues   ordered list of field values for the compound key
      * @param objectId      the document's ObjectId as bytes
      * @param indexEntry    the pre-encoded IndexEntry bytes
-     * @param userVersion   the user version for the incomplete versionstamp
      * @param collatorCache cache for collation-aware key encoding
      */
     public static void setEntry(
@@ -99,7 +97,6 @@ public final class CompoundIndexMaintainer extends IndexMaintainer {
             List<Object> fieldValues,
             byte[] objectId,
             byte[] indexEntry,
-            int userVersion,
             CollatorCache collatorCache
     ) {
         Collation collation = resolveCollation(compoundIndex.definition(), metadata);
@@ -112,19 +109,14 @@ public final class CompoundIndexMaintainer extends IndexMaintainer {
         Tuple backPointerTuple = buildBackPointerTuple(fieldValues, objectId, collation, collatorCache);
         byte[] backPointer = compoundIndex.subspace().pack(backPointerTuple);
         tr.set(backPointer, NULL_VALUE);
-
-        if (compoundIndex.definition().status() != IndexStatus.READY) {
-            addWatermark(tr, compoundIndex.subspace(), userVersion);
-        }
     }
 
     /**
-     * Inserts a compound index entry with an explicit versionstamp and watermark.
+     * Inserts a compound index entry, building the IndexEntry from the supplied shard and metadata.
      *
      * @param tr            the FoundationDB transaction
      * @param compoundIndex the resolved compound index
      * @param metadata      the bucket metadata
-     * @param versionstamp  the document's versionstamp
      * @param objectId      the document's ObjectId as bytes
      * @param fieldValues   ordered list of field values for the compound key
      * @param shardId       the shard containing the document
@@ -135,7 +127,6 @@ public final class CompoundIndexMaintainer extends IndexMaintainer {
             Transaction tr,
             CompoundIndex compoundIndex,
             BucketMetadata metadata,
-            Versionstamp versionstamp,
             byte[] objectId,
             List<Object> fieldValues,
             int shardId,
@@ -153,10 +144,6 @@ public final class CompoundIndexMaintainer extends IndexMaintainer {
         Tuple backPointerTuple = buildBackPointerTuple(fieldValues, objectId, collation, collatorCache);
         byte[] backPointer = compoundIndex.subspace().pack(backPointerTuple);
         tr.set(backPointer, NULL_VALUE);
-
-        if (compoundIndex.definition().status() != IndexStatus.READY) {
-            addWatermark(tr, compoundIndex.subspace(), versionstamp);
-        }
     }
 
     /**

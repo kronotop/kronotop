@@ -16,22 +16,13 @@
 
 package com.kronotop.bucket.index;
 
-import com.apple.foundationdb.MutationType;
-import com.apple.foundationdb.Range;
-import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.CollatorCache;
 
-// IndexSubspaceMagic.WATERMARK and IndexSubspaceMagic.VOLUME_POINTER exist because there is no way to maintain a single
-// watermark key for tracking the latest versionstamp written to an index. With many JVMs writing concurrently,
-// SET_VERSIONSTAMPED_VALUE would cause transaction conflicts, and BYTE_MAX (conflict-free)
-// does not support commit-time versionstamp injection. FoundationDB cannot combine these two
-// primitives, so each insert must write its own versionstamped key. The background index builder
-// finds the last written entry via a reverse range read on VOLUME_POINTER.
+// The background index builder determines its scan boundaries from the primary index VOLUME_POINTER
+// subspace: the first entry is the inclusive lower bound and the last entry (reverse range read) gives
+// the exclusive upper bound. The build always covers the full range and re-sets entries idempotently.
 
 public class IndexMaintainer {
     /**
@@ -49,53 +40,5 @@ public class IndexMaintainer {
             return cache.acquire(collation).getCollationKey(str).toByteArray();
         }
         return value;
-    }
-
-    /**
-     * Appends a versionstamped watermark key to track index write progress.
-     *
-     * <p>Each insert writes its own key because FDB cannot combine conflict-free mutations
-     * with commit-time versionstamp injection. The background index builder finds the latest
-     * watermark via a reverse range read to determine where to resume.
-     *
-     * <p>Uses {@code SET_VERSIONSTAMPED_KEY} which is conflict-free on the write path.
-     *
-     * @param tr            the FoundationDB transaction
-     * @param indexSubspace the index's directory subspace
-     * @param userVersion   the user version for ordering within a single transaction
-     */
-    protected static void addWatermark(Transaction tr, DirectorySubspace indexSubspace, int userVersion) {
-        // Watermark: (WATERMARK, Versionstamp)
-        Tuple watermarkTuple = Tuple.from(
-                IndexSubspaceMagic.WATERMARK.getValue(),
-                Versionstamp.incomplete(userVersion)
-        );
-        byte[] watermarkKey = indexSubspace.packWithVersionstamp(watermarkTuple);
-        tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, watermarkKey, NULL_VALUE);
-    }
-
-    protected static void addWatermark(Transaction tr, DirectorySubspace indexSubspace, Versionstamp versionstamp) {
-        // Watermark: (WATERMARK, Versionstamp)
-        Tuple watermarkTuple = Tuple.from(
-                IndexSubspaceMagic.WATERMARK.getValue(),
-                versionstamp
-        );
-        byte[] watermarkKey = indexSubspace.pack(watermarkTuple);
-        tr.set(watermarkKey, NULL_VALUE);
-    }
-
-    /**
-     * Clears all watermark keys for an index.
-     *
-     * @param tr            the FoundationDB transaction
-     * @param indexSubspace the index's directory subspace
-     */
-    public static void cleanWatermark(Transaction tr, DirectorySubspace indexSubspace) {
-        // Watermark: (WATERMARK, Versionstamp)
-        Tuple watermarkTuple = Tuple.from(
-                IndexSubspaceMagic.WATERMARK.getValue()
-        );
-        byte[] begin = indexSubspace.pack(watermarkTuple);
-        tr.clear(Range.startsWith(begin));
     }
 }

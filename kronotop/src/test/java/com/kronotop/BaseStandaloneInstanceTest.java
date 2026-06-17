@@ -81,8 +81,6 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
 
-        KronotopCommandBuilder<String, String> c = new KronotopCommandBuilder<>(StringCodec.UTF8);
-
         cmd.create(bucket, BucketCreateArgs.Builder.shards(shards).indexes(indexes).ifNotExists()).encode(buf);
         Object response = runCommand(instance.getChannel(), buf);
         assertInstanceOf(SimpleStringRedisMessage.class, response);

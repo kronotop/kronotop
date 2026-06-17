@@ -506,7 +506,7 @@ public abstract class AbstractBucketHandler implements Handler {
     protected void checkVectorIndexRecoveryState(BucketMetadata metadata) {
         String namespace = metadata.namespace();
         String bucket = metadata.name();
-        for (VectorIndex vectorIndex : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (VectorIndex vectorIndex : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             long indexId = vectorIndex.definition().id();
             VectorGraphIndexGroup group = service.getVectorGraphRegistry().computeIfAbsent(
                     metadata,

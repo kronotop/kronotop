@@ -121,7 +121,7 @@ public abstract class AbstractBoundaryRoutine extends AbstractIndexMaintenanceRo
                     throw new IndexMaintenanceRoutineException("Index could not be found");
                 }
 
-                Boundaries boundaries = BoundaryLocator.locate(tr.snapshot(), metadata, holder.subspace());
+                Boundaries boundaries = BoundaryLocator.locate(tr.snapshot(), metadata);
                 emptyBucket = (boundaries.lower() == null && boundaries.upper() == null);
 
                 // Always transition to BUILDING first — even for empty buckets.

@@ -54,8 +54,10 @@ public class BucketEntryEvacuator implements EntryEvacuator {
         Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
         PrimaryIndexMaintainer.updateIndexEntry(tr, objectId, primaryIndex, shardId, encodedMetadata);
 
-        // Single field indexes
-        for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        // Single field indexes. WRITABLE so WAITING indexes (which the write path now maintains)
+        // get their relocated entry pointers refreshed; skipping them would leave stale physical
+        // positions that resolve incorrectly once the index becomes READY.
+        for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (PrimaryIndex.isPrimary(index.definition())) {
                 continue;
             }
@@ -63,7 +65,7 @@ public class BucketEntryEvacuator implements EntryEvacuator {
         }
 
         // Compound indexes
-        for (CompoundIndex compoundIndex : metadata.compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (CompoundIndex compoundIndex : metadata.compoundIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             CompoundIndexMaintainer.updateIndexEntry(
                     tr,
                     objectId,
@@ -73,8 +75,10 @@ public class BucketEntryEvacuator implements EntryEvacuator {
             );
         }
 
-        // Vector indexes
-        for (VectorIndex vectorIndex : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        // Vector indexes. WRITABLE for the same reason as the single-field and compound loops above:
+        // the write path maintains WAITING vector indexes, so their relocated entry pointers must be
+        // refreshed here too, otherwise they resolve to stale physical positions once the index is READY.
+        for (VectorIndex vectorIndex : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             VectorIndexMaintainer.updateIndexEntry(tr, objectId, vectorIndex, shardId, encodedMetadata);
         }
     }

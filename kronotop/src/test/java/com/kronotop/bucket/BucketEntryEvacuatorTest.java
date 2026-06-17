@@ -362,6 +362,73 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldRefreshVectorIndexPointerForWaitingIndexAfterEvacuation() throws IOException {
+        // Behavior: VACUUM relocates an entry and refreshes every index pointer. The write path now
+        // maintains a WAITING vector index, so its ENTRIES key carries the document's physical pointer
+        // and the evacuator must refresh it too. With the vector loop on WRITABLE the pointer is updated
+        // to the relocated entry; on READWRITE the WAITING index would be skipped and its pointer would
+        // resolve to a stale, freed position once the index becomes READY.
+        createBucket(TEST_BUCKET);
+
+        // Pin a vector index at WAITING: create it directly without advancing it to READY.
+        String vectorIndexName = VectorIndexNameGenerator.generate("embedding", 3, DistanceFunction.COSINE);
+        VectorIndexDefinition vectorDef = VectorIndexDefinition.create(
+                vectorIndexName, "embedding", 3, DistanceFunction.COSINE, IndexStatus.WAITING
+        );
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            VectorIndexUtil.create(tx, getBucketMetadata(TEST_BUCKET), vectorDef);
+            tr.commit().join();
+        }
+
+        float[] vector = new float[]{1.0f, 2.0f, 3.0f};
+        Map<ObjectId, byte[]> inserted = insertDocumentsAndGetObjectIds(
+                List.of(BSONUtil.jsonToDocumentThenBytes("{\"embedding\": [1.0, 2.0, 3.0]}"))
+        );
+        ObjectId objectId = inserted.keySet().iterator().next();
+
+        Volume volume = getShard(TEST_SHARD_ID).volume();
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        VolumeEntry entry;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
+            assertEquals(1, entries.size());
+            entry = entries.getFirst();
+        }
+
+        BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
+            tr.commit().join();
+            assertTrue(result);
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
+            verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
+
+            // The WAITING vector index is selectable only with WRITABLE; verifyVectorIndex uses READWRITE
+            // and would silently skip it, so assert its refreshed pointer inline.
+            List<VectorIndex> waitingVectorIndexes =
+                    new ArrayList<>(metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE));
+            assertEquals(1, waitingVectorIndexes.size());
+            VectorIndex vectorIndex = waitingVectorIndexes.getFirst();
+
+            byte[] key = vectorIndex.subspace().pack(
+                    Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), objectId.toByteArray())
+            );
+            byte[] value = tr.get(key).join();
+            assertNotNull(value);
+            VectorIndexValue decoded = VectorIndexValue.decode(value);
+            assertEquals(TEST_SHARD_ID, decoded.indexEntry().shardId());
+            assertArrayEquals(newEncodedMetadata, decoded.indexEntry().entryMetadata(),
+                    "The WAITING vector index pointer must be refreshed to the relocated entry's metadata");
+            assertArrayEquals(vector, decoded.vector());
+        }
+    }
+
+    @Test
     void shouldEvacuateEntryAndUpdateAllIndexTypes() throws IOException {
         // Behavior: evacuating an entry updates the primary index, single field index, compound index, and vector index simultaneously
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create(
@@ -794,6 +861,77 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         List<BsonDocument> singleEntry = extractEntries(msg);
         assertEquals(1, singleEntry.size());
         assertEquals("Bob", singleEntry.getFirst().getString("name").getValue());
+    }
+
+    @Test
+    void shouldUpdateWaitingSingleFieldIndexEntryOnEvacuation() throws IOException {
+        // Behavior: evacuating an entry must refresh the pointer of a WAITING single-field index,
+        // because the write path maintains WAITING indexes. Skipping it would leave a stale physical
+        // position that resolves incorrectly once the index becomes READY.
+        createBucket(TEST_BUCKET);
+
+        // Create a single-field index that stays WAITING: the low-level create persists the
+        // definition without scheduling a boundary/build task, so it never flips to READY.
+        SingleFieldIndexDefinition waitingIndex = SingleFieldIndexDefinition.create(
+                "age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING
+        );
+        BucketMetadata initial = getBucketMetadata(TEST_BUCKET);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            SingleFieldIndexUtil.create(tr, initial.subspace(), waitingIndex);
+            tr.commit().join();
+        }
+
+        // Reload so the cache exposes the WAITING index to the insert path. reload (not the
+        // version-barrier refresh) is used because the low-level create publishes no metadata event.
+        reloadBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        Map<ObjectId, byte[]> inserted = insertDocumentsAndGetObjectIds(
+                List.of(BSONUtil.jsonToDocumentThenBytes("{\"age\": 25}"))
+        );
+        ObjectId objectId = inserted.keySet().iterator().next();
+
+        Volume volume = getShard(TEST_SHARD_ID).volume();
+        BucketMetadata metadata = reloadBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        VolumeEntry entry;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
+            assertEquals(1, entries.size());
+            entry = entries.getFirst();
+        }
+
+        BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
+            tr.commit().join();
+            assertTrue(result);
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
+            verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
+
+            // The index is still WAITING, and its entry must point to the new (relocated) position.
+            Index sfIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.ALL);
+            assertNotNull(sfIndex);
+            assertEquals(IndexStatus.WAITING, SingleFieldIndexUtil.loadIndexDefinition(tr, sfIndex.subspace()).status());
+
+            byte[] prefix = sfIndex.subspace().pack(
+                    Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), objectId.toByteArray())
+            );
+            List<KeyValue> backPointers = tr.getRange(Range.startsWith(prefix)).asList().join();
+            assertFalse(backPointers.isEmpty(), "The WAITING index must hold an entry written by the insert path");
+            for (KeyValue bp : backPointers) {
+                Tuple unpacked = sfIndex.subspace().unpack(bp.getKey());
+                Tuple entryTuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), unpacked.get(2), objectId.toByteArray());
+                byte[] entryValue = tr.get(sfIndex.subspace().pack(entryTuple)).join();
+                assertNotNull(entryValue);
+                IndexEntry decoded = IndexEntry.decode(entryValue);
+                assertEquals(TEST_SHARD_ID, decoded.shardId());
+                assertArrayEquals(newEncodedMetadata, decoded.entryMetadata(),
+                        "Evacuation must refresh the WAITING index entry pointer, not leave it stale");
+            }
+        }
     }
 
     private record VolumeEntry(Versionstamp versionstamp, EntryMetadata entryMetadata) {

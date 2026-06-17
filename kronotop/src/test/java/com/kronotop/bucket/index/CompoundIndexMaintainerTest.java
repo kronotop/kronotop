@@ -79,7 +79,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            CompoundIndexMaintainer.setEntry(tr, compoundIndex, metadata, fieldValues, objectIdBytes, encodedIndexEntry, entry.userVersion(), new CollatorCache());
+            CompoundIndexMaintainer.setEntry(tr, compoundIndex, metadata, fieldValues, objectIdBytes, encodedIndexEntry, new CollatorCache());
             tr.commit().join();
         }
     }
@@ -104,19 +104,10 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
 
     // --- setEntry tests ---
 
-    int getWatermarkCount(DirectorySubspace indexSubspace) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.WATERMARK.getValue()));
-        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return tr.getRange(begin, end).asList().join().size();
-        }
-    }
-
     @Test
     void shouldSetCompoundIndexEntry() {
         // Behavior: setEntry creates an ENTRIES key with field values in order plus ObjectId,
-        // a BACK_POINTER, a watermark, and increments cardinality.
+        // a BACK_POINTER, and increments cardinality.
         CompoundIndexDefinition definition = CompoundIndexDefinition.create("name_age_idx", NAME_AGE_FIELDS, IndexStatus.WAITING);
         BucketMetadata metadata = createCompoundIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(definition.name(), IndexSelectionPolicy.ALL);
@@ -159,9 +150,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());
         }
-
-        // Verify watermark was created
-        assertTrue(getWatermarkCount(indexSubspace) > 0, "Should have at least one watermark entry");
     }
 
     @Test
@@ -251,19 +239,18 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
     // --- insertEntry tests ---
 
     @Test
-    void shouldInsertCompoundIndexEntryWithExplicitVersionstamp() {
-        // Behavior: insertEntry creates entries with an explicit versionstamp for the watermark.
+    void shouldInsertCompoundIndexEntry() {
+        // Behavior: insertEntry creates the ENTRIES key, back pointer, and cardinality for a document.
         CompoundIndexDefinition definition = CompoundIndexDefinition.create("name_age_idx", NAME_AGE_FIELDS, IndexStatus.WAITING);
         BucketMetadata metadata = createCompoundIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
         CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(definition.name(), IndexSelectionPolicy.ALL);
 
         ObjectId objectId = new ObjectId();
         byte[] entryMetadata = getEncodedEntryMetadata();
-        Versionstamp versionstamp = TestUtil.generateVersionstamp(1);
         List<Object> fieldValues = List.of("John", 25);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            CompoundIndexMaintainer.insertEntry(tr, compoundIndex, metadata, versionstamp,
+            CompoundIndexMaintainer.insertEntry(tr, compoundIndex, metadata,
                     objectId.toByteArray(), fieldValues, SHARD_ID, entryMetadata, new CollatorCache());
             tr.commit().join();
         }
@@ -296,9 +283,6 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals("John", bpUnpacked.get(2), "Back pointer first field value should match");
         assertEquals(25L, bpUnpacked.get(3), "Back pointer second field value should match");
         assertArrayEquals(IndexMaintainer.NULL_VALUE, backPointers.get(0).getValue(), "Back pointer value should be NULL_VALUE");
-
-        // Verify watermark was created
-        assertTrue(getWatermarkCount(indexSubspace) > 0, "Should have at least one watermark entry");
 
         // Verify cardinality
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -918,8 +902,5 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());
         }
-
-        // Verify watermark
-        assertTrue(getWatermarkCount(indexSubspace) > 0, "Should have at least one watermark entry");
     }
 }

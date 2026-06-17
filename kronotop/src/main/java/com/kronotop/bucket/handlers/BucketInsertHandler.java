@@ -139,7 +139,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             byte[] objectIdBytes = objectIdBytesArray[i];
             byte[] encodedIndexEntry = encodedIndexEntries[i];
 
-            for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 // Skip the default ID index as it's already handled above
                 if (PrimaryIndex.isPrimary(index.definition())) {
                     continue;
@@ -183,7 +183,6 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                                 indexValue,
                                 objectIdBytes,
                                 encodedIndexEntry,
-                                appendedEntry.userVersion(),
                                 service.getCollatorCache()
                         );
                     }
@@ -212,7 +211,6 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                             indexValue,
                             objectIdBytes,
                             encodedIndexEntry,
-                            appendedEntry.userVersion(),
                             service.getCollatorCache()
                     );
                     IndexStatsBuilder.setHintForStats(tr, index, objectIdBytes, bsonValue);
@@ -244,7 +242,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             byte[] objectIdBytes = objectIdBytesArray[i];
             byte[] encodedIndexEntry = encodedIndexEntries[i];
 
-            for (VectorIndex vectorIndex : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            for (VectorIndex vectorIndex : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), document);
                 if (vector == null) {
                     continue;
@@ -255,8 +253,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                         metadata,
                         objectIdBytes,
                         encodedIndexEntry,
-                        vector,
-                        appendedEntry.userVersion()
+                        vector
                 );
                 VectorIndexMaintainer.setMutationLog(
                         tr,
@@ -308,7 +305,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             byte[] objectIdBytes = objectIdBytesArray[i];
             byte[] encodedIndexEntry = encodedIndexEntries[i];
 
-            for (CompoundIndex compoundIndex : metadata.compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            for (CompoundIndex compoundIndex : metadata.compoundIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 List<List<Object>> valueCombinations = CompoundIndexMaintainer.extractFieldValues(compoundIndex, document, strictTypes);
                 for (List<Object> fieldValues : valueCombinations) {
                     CompoundIndexMaintainer.setEntry(
@@ -318,7 +315,6 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                             fieldValues,
                             objectIdBytes,
                             encodedIndexEntry,
-                            appendedEntry.userVersion(),
                             service.getCollatorCache()
                     );
                 }
@@ -382,7 +378,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                 checkDuplicateIds(tr, metadata, userProvidedIds);
             }
 
-            if (!metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE).isEmpty()) {
+            if (!metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
                 checkVectorIndexRecoveryState(metadata);
                 for (SerializedDocument doc : documents) {
                     VectorIndexUtil.validateVectorFields(metadata, doc.document());
@@ -437,15 +433,15 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
 
             // Index creation for all user-defined indexes
             // Minimum number of indexes is 1. The primary index is the default one.
-            if (metadata.indexes().getIndexes(IndexSelectionPolicy.READWRITE).size() > 1) {
+            if (metadata.indexes().getIndexes(IndexSelectionPolicy.WRITABLE).size() > 1) {
                 setSecondaryIndexes(tr, metadata, appendResult, documents, objectIdBytesArray, encodedIndexEntries);
             }
 
-            if (!metadata.compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE).isEmpty()) {
+            if (!metadata.compoundIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
                 setCompoundIndexes(tr, metadata, appendResult, documents, objectIdBytesArray, encodedIndexEntries);
             }
 
-            if (!metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE).isEmpty()) {
+            if (!metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
                 setVectorIndexes(tr, metadata, appendResult, documents, objectIdBytesArray, encodedIndexEntries, shard.id(), session);
             }
 

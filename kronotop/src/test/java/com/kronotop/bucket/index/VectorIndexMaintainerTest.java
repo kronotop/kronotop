@@ -68,19 +68,10 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
     }
 
-    private int getWatermarkCount(DirectorySubspace indexSubspace) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.WATERMARK.getValue()));
-        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return tr.getRange(begin, end).asList().join().size();
-        }
-    }
-
     @Test
     void shouldSetEntry() {
         // Behavior: setEntry creates an ENTRIES key with ObjectId, stores VectorIndexValue
-        // with encoded index entry and vector, adds a watermark, and increments cardinality.
+        // with encoded index entry and vector, and increments cardinality.
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
         assertNotNull(vectorIndex);
@@ -92,7 +83,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
+            VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
 
@@ -106,9 +97,6 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertArrayEquals(entry.metadataBytes(), value.indexEntry().entryMetadata());
         assertArrayEquals(TEST_VECTOR, value.vector());
 
-        // Verify watermark was created
-        assertTrue(getWatermarkCount(vectorIndex.subspace()) > 0, "Should have at least one watermark entry");
-
         // Verify cardinality
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
@@ -119,8 +107,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldInsertEntry() {
         // Behavior: insertEntry creates an ENTRIES key with ObjectId, stores VectorIndexValue
-        // with encoded index entry and vector using an explicit versionstamp, adds a watermark,
-        // and increments cardinality.
+        // with encoded index entry and vector, and increments cardinality.
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
         assertNotNull(vectorIndex);
@@ -128,10 +115,8 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId objectId = new ObjectId();
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] entryMetadata = getEncodedEntryMetadata();
-        Versionstamp versionstamp = TestUtil.generateVersionstamp(1);
-
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata, versionstamp,
+            VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata,
                     objectIdBytes, SHARD_ID, entryMetadata, TEST_VECTOR);
             tr.commit().join();
         }
@@ -148,8 +133,6 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(SHARD_ID, value.indexEntry().shardId(), "Shard ID should match");
         assertArrayEquals(entryMetadata, value.indexEntry().entryMetadata(), "Entry metadata should match");
         assertArrayEquals(TEST_VECTOR, value.vector(), "Vector should match");
-
-        assertTrue(getWatermarkCount(vectorIndex.subspace()) > 0, "Should have at least one watermark entry");
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
@@ -172,7 +155,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
                 objectIds[i] = new ObjectId();
                 byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode();
                 float[] vector = {i * 0.1f, i * 0.2f, i * 0.3f};
-                VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIds[i].toByteArray(), encodedIndexEntry, vector, entries[i].userVersion());
+                VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIds[i].toByteArray(), encodedIndexEntry, vector);
             }
             tr.commit().join();
         }
@@ -214,7 +197,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
+            VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
 
@@ -275,7 +258,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode();
-                VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIds[i].toByteArray(), encodedIndexEntry, TEST_VECTOR, entries[i].userVersion());
+                VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIds[i].toByteArray(), encodedIndexEntry, TEST_VECTOR);
             }
             tr.commit().join();
         }

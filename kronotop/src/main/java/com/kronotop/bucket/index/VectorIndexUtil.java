@@ -216,7 +216,7 @@ public class VectorIndexUtil {
      * Validates all vector fields in a document against the bucket's vector index definitions.
      */
     public static void validateVectorFields(BucketMetadata metadata, BsonDocument document) {
-        for (VectorIndex vi : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (VectorIndex vi : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             BsonValue value = SelectorMatcher.match(vi.definition().selector(), document);
             validateVectorField(vi.definition(), value);
         }
@@ -275,7 +275,6 @@ public class VectorIndexUtil {
         if (IndexTaskUtil.hasActiveNonBoundaryTasks(tx, index.subspace())) {
             return false;
         }
-        IndexMaintainer.cleanWatermark(tx.tr(), index.subspace());
         VectorIndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
         VectorIndexUtil.saveIndexDefinition(tx.tr(), metadata, definition);
         BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);

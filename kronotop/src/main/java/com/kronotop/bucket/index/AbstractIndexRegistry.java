@@ -33,6 +33,7 @@ public abstract class AbstractIndexRegistry<I extends IndexHolder<D>, D extends 
     protected final Map<String, I> entries = new LinkedHashMap<>();
     private List<I> readonly = new ArrayList<>();
     private List<I> readwrite = new ArrayList<>();
+    private List<I> writable = new ArrayList<>();
     private List<I> all = new ArrayList<>();
 
     /**
@@ -84,18 +85,25 @@ public abstract class AbstractIndexRegistry<I extends IndexHolder<D>, D extends 
     private void segregateIndexesByPolicy() {
         List<I> readonly = new ArrayList<>();
         List<I> readwrite = new ArrayList<>();
+        List<I> writable = new ArrayList<>();
         List<I> all = new ArrayList<>();
         for (I holder : entries.values()) {
             all.add(holder);
-            if (holder.definition().status() == IndexStatus.READY) {
+            IndexStatus status = holder.definition().status();
+            if (status == IndexStatus.READY) {
                 readonly.add(holder);
                 readwrite.add(holder);
-            } else if (holder.definition().status() == IndexStatus.BUILDING) {
+                writable.add(holder);
+            } else if (status == IndexStatus.BUILDING) {
                 readwrite.add(holder);
+                writable.add(holder);
+            } else if (status == IndexStatus.WAITING) {
+                writable.add(holder);
             }
         }
         this.readonly = Collections.unmodifiableList(readonly);
         this.readwrite = Collections.unmodifiableList(readwrite);
+        this.writable = Collections.unmodifiableList(writable);
         this.all = Collections.unmodifiableList(all);
     }
 
@@ -107,6 +115,8 @@ public abstract class AbstractIndexRegistry<I extends IndexHolder<D>, D extends 
         return switch (policy) {
             case READ -> status == IndexStatus.READY ? holder : null;
             case READWRITE -> (status == IndexStatus.READY || status == IndexStatus.BUILDING) ? holder : null;
+            case WRITABLE ->
+                    (status == IndexStatus.READY || status == IndexStatus.BUILDING || status == IndexStatus.WAITING) ? holder : null;
             case ALL -> holder;
         };
     }
@@ -136,6 +146,7 @@ public abstract class AbstractIndexRegistry<I extends IndexHolder<D>, D extends 
             case ALL -> all;
             case READ -> readonly;
             case READWRITE -> readwrite;
+            case WRITABLE -> writable;
         };
     }
 }

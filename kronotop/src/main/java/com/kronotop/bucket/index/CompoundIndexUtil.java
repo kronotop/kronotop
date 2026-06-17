@@ -265,7 +265,6 @@ public class CompoundIndexUtil {
         if (IndexTaskUtil.hasActiveNonBoundaryTasks(tx, compoundIndex.subspace())) {
             return false;
         }
-        IndexMaintainer.cleanWatermark(tx.tr(), compoundIndex.subspace());
         CompoundIndexDefinition updated = compoundIndex.definition().updateStatus(IndexStatus.READY);
         CompoundIndexUtil.saveIndexDefinition(tx.tr(), metadata, updated);
         BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);

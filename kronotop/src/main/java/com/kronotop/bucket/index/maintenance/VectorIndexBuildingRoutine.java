@@ -132,7 +132,7 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
             }
 
             // Write FDB entry
-            VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata, versionstamp,
+            VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata,
                     objectIdBytes, shardId, pair.metadata(), vector);
 
             // Add to the on-heap graph via VectorGraphIndexGroup.

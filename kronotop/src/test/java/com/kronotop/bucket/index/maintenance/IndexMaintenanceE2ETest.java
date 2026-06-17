@@ -16,8 +16,11 @@
 
 package com.kronotop.bucket.index.maintenance;
 
+import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.*;
@@ -84,6 +87,34 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             for (IndexStatistics stats : statistics.values()) {
                 assertEquals(expected, stats.cardinality());
             }
+        }
+    }
+
+    // Verifies the background build over a window that overlaps synchronous writes. Coverage is the hard
+    // guarantee: the secondary index holds exactly one entry per document. The cardinality counter is a
+    // hint that may over-count documents indexed both synchronously and by the build, so it is only
+    // required to be at least the document count. The primary index is maintained synchronously only, so
+    // its cardinality stays exact.
+    private void checkBuildCoverageAndCardinality(String secondarySelector, long expected) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
+            Map<Long, IndexStatistics> statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            assertEquals(2, statistics.size());
+
+            Index primary = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL);
+            assertEquals(expected, statistics.get(primary.definition().id()).cardinality(),
+                    "primary index cardinality must be exact");
+
+            Index secondary = metadata.indexes().getIndex(secondarySelector, IndexSelectionPolicy.ALL);
+            byte[] prefix = secondary.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+            KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+            long entryCount = tr.getRange(begin, end).asList().join().size();
+            assertEquals(expected, entryCount, "secondary index must cover every document exactly once");
+
+            long secondaryCardinality = statistics.get(secondary.definition().id()).cardinality();
+            assertTrue(secondaryCardinality >= expected,
+                    "secondary cardinality must be at least " + expected + " but was " + secondaryCardinality);
         }
     }
 
@@ -158,7 +189,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             assertEquals(0, tasks.getAndIncrement());
         }
 
-        checkCardinality(2, 2000);
+        checkBuildCoverageAndCardinality("age", 2000);
     }
 
     @Test
@@ -367,7 +398,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             }
         });
 
-        checkCardinality(2, 1000);
+        checkBuildCoverageAndCardinality("numeric", 1000);
     }
 
     @Test
@@ -424,8 +455,8 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             waitUntilUpdated(metadata);
         }
 
-        checkCardinality(2, 1000);
-        checkCardinalityFromMetadata(1000, "numeric", PrimaryIndex.SELECTOR);
+        checkBuildCoverageAndCardinality("numeric", 1000);
+        checkCardinalityFromMetadata(1000, PrimaryIndex.SELECTOR);
     }
 
     @Test

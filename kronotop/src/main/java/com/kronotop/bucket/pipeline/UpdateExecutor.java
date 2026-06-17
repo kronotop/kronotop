@@ -346,7 +346,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
     }
 
     private void updateUnaffectedIndexes(QueryContext ctx, Transaction tr, Map<ObjectId, UpdateResultContainer> updateResultContainers, Set<String> affectedPaths) {
-        for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (PrimaryIndex.isPrimary(index.definition())) {
                 continue;
             }
@@ -368,7 +368,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         }
 
         // Update unaffected compound indexes
-        for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (isCompoundIndexAffected(compoundIndex, affectedPaths)) {
                 continue;
             }
@@ -387,7 +387,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         }
 
         // Update unaffected vector indexes (metadata only, preserve vector)
-        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (isVectorIndexAffected(vectorIndex, affectedPaths)) {
                 continue;
             }
@@ -407,7 +407,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
     private void updateAffectedIndexes(QueryContext ctx, Transaction tr, Map<ObjectId, UpdateResultContainer> updateResultContainers, Set<String> affectedPaths) {
         // Validate vector fields that were modified
-        for (VectorIndex vi : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (VectorIndex vi : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (!isVectorIndexAffected(vi, affectedPaths)) {
                 continue;
             }
@@ -431,7 +431,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     container.getShardId(),
                     container.getEntryMetadata()
             );
-            for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 if (PrimaryIndex.isPrimary(index.definition())) {
                     continue;
                 }
@@ -443,7 +443,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         }
 
         // Handle affected compound indexes: drop old entries and set new ones
-        for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (!isCompoundIndexAffected(compoundIndex, affectedPaths)) {
                 continue;
             }
@@ -464,7 +464,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                 for (List<Object> fieldValues : valueCombinations) {
                     CompoundIndexMaintainer.insertEntry(
                             tr, compoundIndex, ctx.metadata(),
-                            container.getVersionstamp(), objectIdBytes,
+                            objectIdBytes,
                             fieldValues, container.getShardId(), container.getEntryMetadata(),
                             ctx.env().collatorCache()
                     );
@@ -474,7 +474,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
         // Handle affected vector indexes: drop old entries and re-set with a new vector
         List<CollectedVector> collectedVectors = new ArrayList<>();
-        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (!isVectorIndexAffected(vectorIndex, affectedPaths)) {
                 continue;
             }
@@ -498,7 +498,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                 if (vector != null) {
                     VectorIndexMaintainer.insertEntry(
                             tr, vectorIndex, ctx.metadata(),
-                            container.getVersionstamp(), objectIdBytes,
+                            objectIdBytes,
                             container.getShardId(), container.getEntryMetadata(), vector
                     );
 
@@ -634,7 +634,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
         // Schedule on-heap graph node addition for upserted vectors
         List<CollectedVector> collectedVectors = new ArrayList<>();
-        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), upsertDoc);
             if (vector == null) {
                 continue;
@@ -669,7 +669,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             int userVersion,
             BsonDocument document
     ) {
-        for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (PrimaryIndex.isPrimary(index.definition())) {
                 continue;
             }
@@ -679,7 +679,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             if (bsonValue instanceof BsonArray bsonArray) {
                 Set<Object> uniqueIndexValues = extractUniqueIndexValues(bsonArray, index.definition());
                 for (Object indexValue : uniqueIndexValues) {
-                    SingleFieldIndexMaintainer.setEntry(tr, index, ctx.metadata(), indexValue, objectIdBytes, encodedIndexEntry, userVersion, ctx.env().collatorCache());
+                    SingleFieldIndexMaintainer.setEntry(tr, index, ctx.metadata(), indexValue, objectIdBytes, encodedIndexEntry, ctx.env().collatorCache());
                 }
             } else {
                 Object indexValue = null;
@@ -692,31 +692,31 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                         throw new IndexTypeMismatchException(index.definition(), bsonValue);
                     }
                 }
-                SingleFieldIndexMaintainer.setEntry(tr, index, ctx.metadata(), indexValue, objectIdBytes, encodedIndexEntry, userVersion, ctx.env().collatorCache());
+                SingleFieldIndexMaintainer.setEntry(tr, index, ctx.metadata(), indexValue, objectIdBytes, encodedIndexEntry, ctx.env().collatorCache());
             }
         }
 
         // Set compound index entries for upsert
-        for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             List<List<Object>> valueCombinations = CompoundIndexMaintainer.extractFieldValues(compoundIndex, document, strictTypes);
             for (List<Object> fieldValues : valueCombinations) {
                 CompoundIndexMaintainer.setEntry(
                         tr, compoundIndex, ctx.metadata(), fieldValues,
-                        objectIdBytes, encodedIndexEntry, userVersion,
+                        objectIdBytes, encodedIndexEntry,
                         ctx.env().collatorCache()
                 );
             }
         }
 
         // Set vector index entries for upsert
-        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+        for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             float[] vector = VectorIndexMaintainer.extractVector(vectorIndex.definition(), document);
             if (vector == null) {
                 continue;
             }
             VectorIndexMaintainer.setEntry(
                     tr, vectorIndex, ctx.metadata(), objectIdBytes,
-                    encodedIndexEntry, vector, userVersion
+                    encodedIndexEntry, vector
             );
             VectorIndexMaintainer.setMutationLog(
                     tr, vectorIndex.subspace(), MutationLogMarker.INSERT,

@@ -283,7 +283,6 @@ public class SingleFieldIndexUtil {
         if (IndexTaskUtil.hasActiveNonBoundaryTasks(tx, index.subspace())) {
             return false;
         }
-        IndexMaintainer.cleanWatermark(tx.tr(), index.subspace());
         SingleFieldIndexDefinition definition = index.definition().updateStatus(IndexStatus.READY);
         SingleFieldIndexUtil.saveIndexDefinition(tx.tr(), metadata, definition);
         BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);

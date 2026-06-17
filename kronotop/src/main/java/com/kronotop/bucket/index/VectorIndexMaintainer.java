@@ -33,8 +33,7 @@ import org.bson.BsonValue;
 public final class VectorIndexMaintainer extends IndexMaintainer {
 
     /**
-     * Creates a vector index entry with an incomplete versionstamp watermark that is resolved at commit time.
-     * Also increments the index cardinality.
+     * Creates a vector index entry. Also increments the index cardinality.
      */
     public static void setEntry(
             Transaction tr,
@@ -42,8 +41,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
             BucketMetadata metadata,
             byte[] objectId,
             byte[] indexEntry,
-            float[] vector,
-            int userVersion
+            float[] vector
     ) {
         DirectorySubspace indexSubspace = vectorIndex.subspace();
 
@@ -51,22 +49,17 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
         byte[] key = indexSubspace.pack(tuple);
         tr.set(key, VectorIndexValue.encode(indexEntry, vector));
 
-        if (vectorIndex.definition().status() != IndexStatus.READY) {
-            addWatermark(tr, indexSubspace, userVersion);
-        }
-
         IndexUtil.mutateCardinality(tr, metadata.subspace(), vectorIndex.definition().id(), 1);
     }
 
     /**
-     * Creates a vector index entry with an explicit versionstamp watermark, used during index backfill.
+     * Creates a vector index entry, used during index backfill and the in-place update path.
      * Also increments the index cardinality.
      */
     public static void insertEntry(
             Transaction tr,
             VectorIndex vectorIndex,
             BucketMetadata metadata,
-            Versionstamp versionstamp,
             byte[] objectId,
             int shardId,
             byte[] entryMetadata,
@@ -78,10 +71,6 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
         Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), objectId);
         byte[] key = indexSubspace.pack(tuple);
         tr.set(key, VectorIndexValue.encode(encodedIndexEntry, vector));
-
-        if (vectorIndex.definition().status() != IndexStatus.READY) {
-            addWatermark(tr, indexSubspace, versionstamp);
-        }
 
         IndexUtil.mutateCardinality(tr, metadata.subspace(), vectorIndex.definition().id(), 1);
     }

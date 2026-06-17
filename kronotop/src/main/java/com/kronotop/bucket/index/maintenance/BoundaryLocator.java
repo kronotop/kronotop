@@ -33,7 +33,7 @@ import java.util.List;
 
 /**
  * Locates versionstamp scan boundaries for index building by examining VOLUME_POINTER
- * entries in primary and single field indexes.
+ * entries in the primary index.
  *
  * <p>Returns an inclusive lower and exclusive upper boundary defining the document range
  * to be indexed. If the bucket is empty, both boundaries are null.
@@ -89,17 +89,16 @@ public class BoundaryLocator {
     /**
      * Determines the versionstamp scan range [lower, upper) for index building.
      *
-     * <p>The lower boundary comes from the primary index VOLUME_POINTER. The upper boundary comes from
-     * the target index subspace VOLUME_POINTER, or falls back to the primary index last entry + 1.
-     * Returns (null, null) if the bucket is empty.
+     * <p>The lower boundary is the first primary index VOLUME_POINTER entry (inclusive). The upper
+     * boundary is the last primary index entry + 1 (exclusive), so the build covers every document that
+     * existed at boundary capture. Returns (null, null) if the bucket is empty.
      *
-     * @param tr            transaction for reading index entries
-     * @param metadata      bucket metadata containing index definitions
-     * @param indexSubspace target index subspace for upper boundary detection
+     * @param tr       transaction for reading index entries
+     * @param metadata bucket metadata containing index definitions
      * @return boundaries with lower (inclusive) and upper (exclusive) versionstamps
      * @throws IndexMaintenanceRoutineException if the primary index is unexpectedly empty
      */
-    public static Boundaries locate(ReadTransaction tr, BucketMetadata metadata, DirectorySubspace indexSubspace) {
+    public static Boundaries locate(ReadTransaction tr, BucketMetadata metadata) {
         Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL);
         DirectorySubspace primarySubspace = primaryIndex.subspace();
         byte[] primaryIndexPrefix = primarySubspace.pack(Tuple.from(IndexSubspaceMagic.VOLUME_POINTER.getValue()));
@@ -108,26 +107,7 @@ public class BoundaryLocator {
             return new Boundaries(null, null);
         }
 
-        byte[] targetPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.WATERMARK.getValue()));
-        Versionstamp upper = locateBoundary(tr, indexSubspace, targetPrefix);
-        if (upper == null) {
-            upper = locateUpperBoundaryFromPrimaryIndex(tr, primarySubspace);
-        }
-
+        Versionstamp upper = locateUpperBoundaryFromPrimaryIndex(tr, primarySubspace);
         return new Boundaries(lower, upper);
-    }
-
-    /**
-     * Determines the versionstamp scan range [lower, upper) for single-field index building.
-     *
-     * @param tr       transaction for reading index entries
-     * @param metadata bucket metadata containing index definitions
-     * @param indexId  single field index identifier
-     * @return boundaries with lower (inclusive) and upper (exclusive) versionstamps
-     * @throws IndexMaintenanceRoutineException if the primary index is unexpectedly empty
-     */
-    public static Boundaries locate(ReadTransaction tr, BucketMetadata metadata, long indexId) {
-        Index secondaryIndex = metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.ALL);
-        return locate(tr, metadata, secondaryIndex.subspace());
     }
 }

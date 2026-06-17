@@ -73,7 +73,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            SingleFieldIndexMaintainer.setEntry(tr, index, metadata, indexValue, objectIdBytes, encodedIndexEntry, entry.userVersion(), new CollatorCache());
+            SingleFieldIndexMaintainer.setEntry(tr, index, metadata, indexValue, objectIdBytes, encodedIndexEntry, new CollatorCache());
             tr.commit().join();
         }
     }

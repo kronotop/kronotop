@@ -89,7 +89,17 @@ public class BucketCreateHandler extends AbstractBucketHandler implements Handle
                 }
 
                 tr.commit().join();
-                context.getBucketMetadataCache().set(namespace, message.getBucket(), metadata);
+
+                if (message.getIndexes() != null) {
+                    // Inline indexes are persisted to FoundationDB but are not reflected in the
+                    // in-memory metadata snapshot built before they were created. Drop the entry so
+                    // the next access reloads fresh and sees them, closing the window where an insert
+                    // would read cached metadata that lacks the freshly created index and silently
+                    // skip indexing the document.
+                    context.getBucketMetadataCache().invalidate(namespace, message.getBucket());
+                } else {
+                    context.getBucketMetadataCache().set(namespace, message.getBucket(), metadata);
+                }
             }
         }, response::writeOK);
     }

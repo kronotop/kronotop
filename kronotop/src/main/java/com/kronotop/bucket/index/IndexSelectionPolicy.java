@@ -23,6 +23,7 @@ package com.kronotop.bucket.index;
  * <ul>
  *   <li>{@link #READ} — only {@link IndexStatus#READY} indexes</li>
  *   <li>{@link #READWRITE} — {@link IndexStatus#BUILDING} or {@link IndexStatus#READY} indexes</li>
+ *   <li>{@link #WRITABLE} — {@link IndexStatus#WAITING}, {@link IndexStatus#BUILDING}, or {@link IndexStatus#READY} indexes</li>
  *   <li>{@link #ALL} — all indexes regardless of status</li>
  * </ul>
  *
@@ -44,6 +45,21 @@ public enum IndexSelectionPolicy {
      * Excludes {@link IndexStatus#WAITING}, {@link IndexStatus#DROPPED}, and {@link IndexStatus#FAILED} indexes.
      */
     READWRITE,
+
+    /**
+     * Selects indexes in {@link IndexStatus#WAITING}, {@link IndexStatus#BUILDING}, or
+     * {@link IndexStatus#READY} states.
+     *
+     * <p>Use for document write maintenance (insert, update, delete). An index becomes writable the
+     * moment it durably exists, before the background boundary routine flips it to
+     * {@link IndexStatus#BUILDING}. Combined with the boundary routine's pre-snapshot metadata
+     * convergence, maintaining {@link IndexStatus#WAITING} indexes closes the window where a
+     * concurrent write on a remote node would be indexed by neither the synchronous write path nor
+     * the bounded background build.
+     *
+     * <p>Excludes {@link IndexStatus#DROPPED} and {@link IndexStatus#FAILED} indexes.
+     */
+    WRITABLE,
 
     /**
      * Selects all indexes regardless of status.

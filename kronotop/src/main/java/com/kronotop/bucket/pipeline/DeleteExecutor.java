@@ -102,7 +102,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             }
 
             // Drop index entries for all deleted documents
-            for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 // Skip the default ID index as it'll be handled separately
                 if (PrimaryIndex.isPrimary(index.definition())) {
                     continue;
@@ -115,7 +115,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             }
 
             // Drop compound index entries for all deleted documents
-            for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            for (CompoundIndex compoundIndex : ctx.metadata().compoundIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 for (ObjectId objectId : deletedIds) {
                     CompoundIndexMaintainer.dropEntry(
                             tr,
@@ -128,7 +128,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             }
 
             // Drop vector index entries for all deleted documents
-            for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.READWRITE)) {
+            for (VectorIndex vectorIndex : ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 List<DeletedVector> deletedVectors = new ArrayList<>();
                 for (ObjectId objectId : deletedIds) {
                     VectorIndexMaintainer.dropEntry(tr, objectId.toByteArray(), vectorIndex, ctx.metadata());
