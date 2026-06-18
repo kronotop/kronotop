@@ -83,6 +83,46 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldUpdateWithRegexFilter() {
+        // Behavior: BUCKET.UPDATE with a $regex filter applies the mutation only to matching string documents.
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alana\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\"}")
+        );
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(documents);
+
+        List<ObjectId> updatedObjectIds;
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.update(TEST_BUCKET, "{\"name\": {\"$regex\": \"^Al\"}}", "{\"$set\": {\"group\": \"a\"}}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+            updatedObjectIds = extractObjectIds(msg);
+        }
+
+        assertEquals(2, updatedObjectIds.size(), "Should update the two documents whose name starts with 'Al'");
+
+        ByteBuf queryBuf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}").encode(queryBuf);
+        Object queryMsg = runCommand(channel, queryBuf);
+        assertInstanceOf(MapRedisMessage.class, queryMsg);
+
+        for (BsonDocument doc : extractEntries(queryMsg)) {
+            String name = BsonHelper.getString(doc, "name");
+            if ("Alice".equals(name) || "Alana".equals(name)) {
+                assertEquals("a", BsonHelper.getString(doc, "group"), name + " should have group 'a'");
+            } else {
+                assertNull(BsonHelper.getString(doc, "group"), name + " should not have a group field");
+            }
+        }
+    }
+
+    @Test
     void shouldUpdateWithSetOperation() {
         // Step 1: Insert test documents with different ages
         List<byte[]> testDocuments = Arrays.asList(

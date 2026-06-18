@@ -254,6 +254,7 @@ public final class PhysicalNodeShape extends BaseShapeHash {
             case ALL -> OP_ALL;
             case SIZE -> OP_SIZE;
             case EXISTS -> OP_EXISTS;
+            case REGEX -> OP_REGEX;
         };
     }
 }

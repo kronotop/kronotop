@@ -86,6 +86,33 @@ Field must not exist:
 { "deletedAt": { "$exists": false } }
 ```
 
+## String Operators
+
+| Operator | Description                                  | Example                                             |
+|----------|----------------------------------------------|-----------------------------------------------------|
+| `$regex` | Match a string field against a regex pattern | `{ "name": { "$regex": "^foo", "$options": "i" } }` |
+
+`$regex` matches a string field against a regular expression pattern. It is pattern matching, not full-text search.
+Only string values match, and an array field matches if any string element matches.
+
+```json
+{ "name": { "$regex": "^foo" } }
+{ "name": { "$regex": "^foo", "$options": "i" } }
+```
+
+| Option | Meaning                                                     |
+|--------|-------------------------------------------------------------|
+| `i`    | Case-insensitive matching                                   |
+| `m`    | Multiline: `^` and `$` match at line boundaries             |
+| `s`    | Dotall: `.` matches newline characters                      |
+| `u`    | Accepted but has no effect; matching is already UTF-8 aware |
+
+Regular expression literals are also accepted as elements of `$in`, `$nin`, and `$all` (BSON input only), where each
+regex element is matched with `$regex` semantics.
+
+Patterns use RE2 syntax. Backreferences and lookaround are not supported. See [$regex](regex.md) for matching
+semantics, negation with `$not`, use inside `$in`/`$nin`/`$all`, vector search filtering, and indexing behavior.
+
 ## Logical Operators
 
 ### $and

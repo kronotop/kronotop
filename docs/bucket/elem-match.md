@@ -436,3 +436,6 @@ Quick reference for all operators supported inside `$elemMatch`:
 | `$or`        | scalar, document       | `{ "$or": [{ "$gt": 90 }, { "$lt": 25 }] }`        |
 | `$not`       | scalar, document field | `{ "status": { "$not": { "$eq": "cancelled" } } }` |
 | `$elemMatch` | document field (array) | Nested `$elemMatch` for arrays within arrays       |
+
+`$in`, `$nin`, and `$all` also accept regular expression literals as elements, matched with `$regex` semantics. See
+[$regex](regex.md).

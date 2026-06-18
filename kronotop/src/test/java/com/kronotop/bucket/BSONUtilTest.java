@@ -243,4 +243,11 @@ class BSONUtilTest {
         assertNull(document.get("_id"));
         assertEquals("John", document.getString("name").getValue());
     }
+
+    @Test
+    void shouldThrowWhenConvertingRegexValToBson() {
+        // Behavior: a RegexVal is a matcher, never a storable document value, so converting it throws.
+        assertThrows(UnsupportedOperationException.class,
+                () -> BSONUtil.bqlValueToBsonValue(new com.kronotop.bucket.bql.ast.RegexVal("^foo", "")));
+    }
 }

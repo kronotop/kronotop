@@ -130,6 +130,8 @@ public record IndexScanPredicate(int id, String selector, Operator op, Operand o
                 }
                 yield !expectedValue.equals(actualValue);
             }
+            // $regex is never index-resolved: it always runs as a residual full-scan filter.
+            case RegexVal ignored -> throw new UnsupportedOperationException("$regex cannot be evaluated on an index scan");
         };
     }
 

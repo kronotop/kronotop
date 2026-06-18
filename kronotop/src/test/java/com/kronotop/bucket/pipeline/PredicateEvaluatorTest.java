@@ -676,6 +676,184 @@ class PredicateEvaluatorTest {
     }
 
     @Nested
+    @DisplayName("testResidualPredicate - Regex Fields")
+    class ResidualPredicateRegexTests {
+
+        private ResidualPredicate regex(String selector, String pattern, String options) {
+            return new ResidualPredicate(1, selector, Operator.REGEX, lit(new RegexVal(pattern, options)));
+        }
+
+        @Test
+        void shouldMatchStringFieldWithRegex() {
+            // Behavior: $regex matches when the string field matches the pattern.
+            BsonDocument doc = new BsonDocument("name", new BsonString("Alice"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            assertTrue(PredicateEvaluator.testResidualPredicate(
+                    regex("name", "^Al", ""), toView(buffer), Collections.emptyList()));
+        }
+
+        @Test
+        void shouldNotMatchStringFieldWhenRegexDiffers() {
+            // Behavior: $regex does not match when the string field does not match the pattern.
+            BsonDocument doc = new BsonDocument("name", new BsonString("Bob"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            assertFalse(PredicateEvaluator.testResidualPredicate(
+                    regex("name", "^Al", ""), toView(buffer), Collections.emptyList()));
+        }
+
+        @Test
+        void shouldMatchStringFieldCaseInsensitivelyWithIOption() {
+            // Behavior: the i option makes $regex matching case-insensitive.
+            BsonDocument doc = new BsonDocument("name", new BsonString("ALICE"));
+            ByteBuffer buffer = toBuffer(doc);
+
+            assertTrue(PredicateEvaluator.testResidualPredicate(
+                    regex("name", "^alice$", "i"), toView(buffer), Collections.emptyList()));
+        }
+
+        @Test
+        void shouldNotMatchRegexAgainstNonStringField() {
+            // Behavior: $regex never matches a non-string field (no type coercion).
+            BsonDocument doc = new BsonDocument("name", new BsonInt32(42));
+            ByteBuffer buffer = toBuffer(doc);
+
+            assertFalse(PredicateEvaluator.testResidualPredicate(
+                    regex("name", "42", ""), toView(buffer), Collections.emptyList()));
+        }
+
+        @Test
+        void shouldMatchRegexAgainstArrayElement() {
+            // Behavior: $regex on an array field matches if any string element matches the pattern.
+            BsonArray tags = new BsonArray(Arrays.asList(
+                    new BsonString("java"),
+                    new BsonString("python")
+            ));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            assertTrue(PredicateEvaluator.testResidualPredicate(
+                    regex("tags", "^py", ""), toView(buffer), Collections.emptyList()));
+        }
+
+        @Test
+        void shouldNotMatchRegexWhenNoArrayElementMatches() {
+            // Behavior: $regex on an array field returns false when no string element matches.
+            BsonArray tags = new BsonArray(Arrays.asList(
+                    new BsonString("java"),
+                    new BsonString("go")
+            ));
+            BsonDocument doc = new BsonDocument("tags", tags);
+            ByteBuffer buffer = toBuffer(doc);
+
+            assertFalse(PredicateEvaluator.testResidualPredicate(
+                    regex("tags", "^py", ""), toView(buffer), Collections.emptyList()));
+        }
+
+        @Test
+        void shouldRespectMultilineOption() {
+            // Behavior: the m option makes ^ and $ match line boundaries, changing the result.
+            BsonDocument doc = new BsonDocument("text", new BsonString("first line\nsecond line"));
+
+            assertTrue(PredicateEvaluator.testResidualPredicate(
+                    regex("text", "^second", "m"), toView(toBuffer(doc)), Collections.emptyList()));
+            assertFalse(PredicateEvaluator.testResidualPredicate(
+                    regex("text", "^second", ""), toView(toBuffer(doc)), Collections.emptyList()));
+        }
+
+        @Test
+        void shouldRespectDotallOption() {
+            // Behavior: the s option makes . match newlines, changing the result.
+            BsonDocument doc = new BsonDocument("text", new BsonString("a\nb"));
+
+            assertTrue(PredicateEvaluator.testResidualPredicate(
+                    regex("text", "a.b", "s"), toView(toBuffer(doc)), Collections.emptyList()));
+            assertFalse(PredicateEvaluator.testResidualPredicate(
+                    regex("text", "a.b", ""), toView(toBuffer(doc)), Collections.emptyList()));
+        }
+    }
+
+    @Nested
+    @DisplayName("testResidualPredicate - Regex in $in/$nin/$all")
+    class ResidualPredicateRegexListTests {
+
+        private ResidualPredicate listPred(String selector, Operator op, BqlValue... values) {
+            return new ResidualPredicate(1, selector, op, new Operand.LiteralList(List.of(values)));
+        }
+
+        private boolean test(ResidualPredicate pred, BsonDocument doc) {
+            return PredicateEvaluator.testResidualPredicate(pred, toView(toBuffer(doc)), Collections.emptyList());
+        }
+
+        @Test
+        void shouldMatchScalarFieldWithRegexElementInIn() {
+            // Behavior: $in with a regex element matches a string field whose value matches the pattern.
+            BsonDocument doc = new BsonDocument("name", new BsonString("Alice"));
+            assertTrue(test(listPred("name", Operator.IN, new RegexVal("^Al", "")), doc));
+        }
+
+        @Test
+        void shouldNotMatchScalarFieldWhenRegexElementDiffers() {
+            // Behavior: $in with a regex element does not match when the pattern fails.
+            BsonDocument doc = new BsonDocument("name", new BsonString("Bob"));
+            assertFalse(test(listPred("name", Operator.IN, new RegexVal("^Al", "")), doc));
+        }
+
+        @Test
+        void shouldMatchScalarFieldViaEitherRegexOrLiteralInIn() {
+            // Behavior: $in mixing a regex and a literal matches when either alternative holds.
+            assertTrue(test(listPred("name", Operator.IN, new RegexVal("^Al", ""), new StringVal("Bob")),
+                    new BsonDocument("name", new BsonString("Bob"))));
+            assertTrue(test(listPred("name", Operator.IN, new RegexVal("^Al", ""), new StringVal("Bob")),
+                    new BsonDocument("name", new BsonString("Alice"))));
+        }
+
+        @Test
+        void shouldMatchCaseInsensitiveRegexElementInIn() {
+            // Behavior: the i option applies to a regex element inside $in.
+            BsonDocument doc = new BsonDocument("name", new BsonString("ALICE"));
+            assertTrue(test(listPred("name", Operator.IN, new RegexVal("^alice$", "i")), doc));
+        }
+
+        @Test
+        void shouldNotMatchRegexElementAgainstNonStringField() {
+            // Behavior: a regex element never matches a non-string field (no type coercion).
+            BsonDocument doc = new BsonDocument("code", new BsonInt32(42));
+            assertFalse(test(listPred("code", Operator.IN, new RegexVal("42", "")), doc));
+        }
+
+        @Test
+        void shouldMatchArrayFieldWhenAnyElementMatchesRegexElementInIn() {
+            // Behavior: $in with a regex element matches an array field if any string element matches.
+            BsonDocument doc = new BsonDocument("tags",
+                    new BsonArray(Arrays.asList(new BsonString("java"), new BsonString("python"))));
+            assertTrue(test(listPred("tags", Operator.IN, new RegexVal("^py", "")), doc));
+        }
+
+        @Test
+        void shouldNegateRegexElementWithNin() {
+            // Behavior: $nin with a regex element excludes documents whose field matches the pattern.
+            assertFalse(test(listPred("name", Operator.NIN, new RegexVal("^Al", "")),
+                    new BsonDocument("name", new BsonString("Alice"))));
+            assertTrue(test(listPred("name", Operator.NIN, new RegexVal("^Al", "")),
+                    new BsonDocument("name", new BsonString("Bob"))));
+        }
+
+        @Test
+        void shouldRequireEveryRegexElementToMatchInAll() {
+            // Behavior: $all with regex elements requires each pattern to match some string array element.
+            BsonDocument matching = new BsonDocument("tags",
+                    new BsonArray(Arrays.asList(new BsonString("alpha"), new BsonString("beta"))));
+            assertTrue(test(listPred("tags", Operator.ALL, new RegexVal("^al", ""), new RegexVal("^be", "")), matching));
+
+            BsonDocument partial = new BsonDocument("tags",
+                    new BsonArray(Arrays.asList(new BsonString("alpha"), new BsonString("gamma"))));
+            assertFalse(test(listPred("tags", Operator.ALL, new RegexVal("^al", ""), new RegexVal("^be", "")), partial));
+        }
+    }
+
+    @Nested
     @DisplayName("testResidualPredicate - Numeric Fields")
     class ResidualPredicateNumericTests {
 

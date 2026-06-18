@@ -51,6 +51,23 @@ class QueryShapeTest {
     }
 
     @Test
+    void shouldProduceSameShapeForDifferentRegexPatterns() {
+        // Behavior: two $regex queries on the same field share one shape; pattern and options are
+        // parameters, not part of the shape. This is what lets regex queries share a cached plan.
+        long shape1 = QueryShape.compute(parse("{\"name\": {\"$regex\": \"^Al\"}}"));
+        long shape2 = QueryShape.compute(parse("{\"name\": {\"$regex\": \"^Bo\", \"$options\": \"i\"}}"));
+        assertEquals(shape1, shape2);
+    }
+
+    @Test
+    void shouldProduceDifferentShapeForRegexVsEq() {
+        // Behavior: a $regex query and an $eq query on the same field produce different shapes.
+        long shapeRegex = QueryShape.compute(parse("{\"name\": {\"$regex\": \"Alice\"}}"));
+        long shapeEq = QueryShape.compute(parse("{\"name\": {\"$eq\": \"Alice\"}}"));
+        assertNotEquals(shapeRegex, shapeEq);
+    }
+
+    @Test
     void shouldProduceDifferentShapeForDifferentValueTypes() {
         long shapeInt = QueryShape.compute(parse("{\"value\": {\"$eq\": 100}}"));
         long shapeString = QueryShape.compute(parse("{\"value\": {\"$eq\": \"100\"}}"));

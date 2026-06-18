@@ -71,9 +71,10 @@ containing field names and operator expressions.
 
 ### Other Operators
 
-| Operator  | Description               |
-|-----------|---------------------------|
-| `$exists` | Field exists or is absent |
+| Operator  | Description                                  |
+|-----------|----------------------------------------------|
+| `$exists` | Field exists or is absent                    |
+| `$regex`  | Match a string field against a regex pattern |
 
 ### Sorting and Pagination
 

@@ -86,6 +86,41 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldDeleteWithRegexFilter() {
+        // Behavior: BUCKET.DELETE with a $regex filter removes only the matching string documents and returns their ObjectIds.
+        List<byte[]> documents = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alana\"}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\"}")
+        );
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(documents);
+
+        List<ObjectId> deletedObjectIds;
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.delete(TEST_BUCKET, "{\"name\": {\"$regex\": \"^Al\"}}").encode(buf);
+            Object msg = runCommand(channel, buf);
+            assertInstanceOf(MapRedisMessage.class, msg);
+            deletedObjectIds = extractObjectIds(msg);
+        }
+
+        assertEquals(2, deletedObjectIds.size(), "Should delete the two documents whose name starts with 'Al'");
+
+        ByteBuf queryBuf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}").encode(queryBuf);
+        Object queryMsg = runCommand(channel, queryBuf);
+        assertInstanceOf(MapRedisMessage.class, queryMsg);
+
+        List<BsonDocument> remaining = extractEntries(queryMsg);
+        assertEquals(1, remaining.size(), "Only 'Bob' should remain after the regex delete");
+        assertEquals("Bob", remaining.getFirst().getString("name").getValue());
+    }
+
+    @Test
     void shouldDeleteWithAgeFilter() {
         // Behavior: Deleting documents with a filter returns ObjectIds of matched documents and removes them from the bucket.
 

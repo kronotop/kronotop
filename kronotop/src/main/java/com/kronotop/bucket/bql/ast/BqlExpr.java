@@ -17,6 +17,6 @@
 package com.kronotop.bucket.bql.ast;
 
 public sealed interface BqlExpr permits BqlAnd, BqlOr, BqlNot, BqlEq, BqlGt, BqlLt, BqlGte, BqlLte, BqlNe, BqlIn, BqlNin,
-        BqlExists, BqlAll, BqlSize, BqlElemMatch {
+        BqlExists, BqlAll, BqlSize, BqlElemMatch, BqlRegex {
     String toJson();
 }

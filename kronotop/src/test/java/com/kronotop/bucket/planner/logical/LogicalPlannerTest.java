@@ -244,6 +244,23 @@ class LogicalPlannerTest {
             assertEquals(Operator.EXISTS, filter.op());
             assertEquals(false, extractValue(filter.operand()));
         }
+
+        @Test
+        @DisplayName("REGEX operator should convert to LogicalFilter with regex operand")
+        void shouldHandleRegexOperator() {
+            // Behavior: $regex converts to a LogicalFilter carrying Operator.REGEX and a RegexVal operand.
+            BqlExpr expr = BqlParser.parse("{ \"name\": { \"$regex\": \"^foo\", \"$options\": \"i\" } }");
+            LogicalNode result = planner.plan(expr);
+
+            assertInstanceOf(LogicalFilter.class, result);
+            LogicalFilter filter = (LogicalFilter) result;
+            assertEquals("name", filter.selector());
+            assertEquals(Operator.REGEX, filter.op());
+            assertInstanceOf(RegexVal.class, filter.operand());
+            RegexVal regex = (RegexVal) filter.operand();
+            assertEquals("^foo", regex.pattern());
+            assertEquals("i", regex.options());
+        }
     }
 
     // ============================================================================

@@ -39,6 +39,7 @@ public class BaseShapeHash extends FNV1A {
     protected static final int OP_OR = 13;
     protected static final int OP_NOT = 14;
     protected static final int OP_ELEMMATCH = 15;
+    protected static final int OP_REGEX = 16;
 
     // Value type constants for hashing
     protected static final int TYPE_STRING = 1;
@@ -55,6 +56,7 @@ public class BaseShapeHash extends FNV1A {
     protected static final int TYPE_DOCUMENT = 12;
     protected static final int TYPE_VERSIONSTAMP = 13;
     protected static final int TYPE_OBJECT_ID = 14;
+    protected static final int TYPE_REGEX = 15;
     protected static final int TYPE_UNKNOWN = 99;
 
     protected static int valueType(Object value) {
@@ -73,6 +75,7 @@ public class BaseShapeHash extends FNV1A {
             case DocumentVal ignored -> TYPE_DOCUMENT;
             case VersionstampVal ignored -> TYPE_VERSIONSTAMP;
             case ObjectIdVal ignored -> TYPE_OBJECT_ID;
+            case RegexVal ignored -> TYPE_REGEX;
             case List<?> ignored -> TYPE_ARRAY;
             case Boolean ignored -> TYPE_BOOLEAN;  // For EXISTS operand
             case Integer ignored -> TYPE_INT32;     // For SIZE operand

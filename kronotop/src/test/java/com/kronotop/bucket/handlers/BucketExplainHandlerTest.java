@@ -203,6 +203,31 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldExplainRegexAsFullScanWithResidualPredicate() {
+        // Behavior: a $regex query is not index-eligible, so EXPLAIN reports a full scan with a REGEX residual predicate.
+        insertDocumentsAndGetObjectIds(List.of(BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\"}")));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.explain(TEST_BUCKET, "{\"name\": {\"$regex\": \"^Al\"}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(MapRedisMessage.class, msg);
+        MapRedisMessage plan = getPlan((MapRedisMessage) msg);
+
+        assertEquals("FullScan", getStringValue(plan, "nodeType"));
+        assertEquals("FULL_SCAN", getStringValue(plan, "scanType"));
+
+        MapRedisMessage predicate = getMapValue(plan, "predicate");
+        assertNotNull(predicate);
+        assertEquals("PREDICATE", getStringValue(predicate, "type"));
+        assertEquals("name", getStringValue(predicate, "selector"));
+        assertEquals("REGEX", getStringValue(predicate, "operator"));
+    }
+
+    @Test
     void shouldIncludeNodeTypeAndId() {
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
 

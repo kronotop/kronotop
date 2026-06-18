@@ -357,6 +357,143 @@ class PositionalMatchFinderTest {
         }
     }
 
+    // ==================== $regex Operator Tests ====================
+
+    @Nested
+    @DisplayName("$regex Operator")
+    class RegexOperator {
+
+        @Test
+        void shouldFindFirstMatchWithRegexOnNestedField() {
+            // Behavior: $regex on a nested field finds the first element whose string field matches.
+            BsonDocument doc = new BsonDocument()
+                    .append("items", new BsonArray(List.of(
+                            new BsonDocument().append("name", new BsonString("Alice")),
+                            new BsonDocument().append("name", new BsonString("Bob")),
+                            new BsonDocument().append("name", new BsonString("Bert"))
+                    )));
+
+            ByteBuffer buffer = createDocument(doc);
+            BqlExpr query = new BqlRegex("items.name", new RegexVal("^B", ""));
+
+            Map<String, Integer> result = PositionalMatchFinder.findMatchedPositions(
+                    buffer, query, Set.of("items"));
+
+            assertEquals(1, result.get("items"), "Should match index 1 (first name starting with B)");
+        }
+
+        @Test
+        void shouldFindFirstMatchWithRegexOnScalarArray() {
+            // Behavior: $regex on a plain scalar string array finds the first matching string element.
+            BsonDocument doc = new BsonDocument()
+                    .append("tags", new BsonArray(List.of(
+                            new BsonString("red"),
+                            new BsonString("green"),
+                            new BsonString("grey")
+                    )));
+
+            ByteBuffer buffer = createDocument(doc);
+            BqlExpr query = new BqlRegex("tags", new RegexVal("^gr", ""));
+
+            Map<String, Integer> result = PositionalMatchFinder.findMatchedPositions(
+                    buffer, query, Set.of("tags"));
+
+            assertEquals(1, result.get("tags"), "Should match index 1 (first string starting with 'gr')");
+        }
+
+        @Test
+        void shouldFindFirstMatchWithRegexInsideElemMatch() {
+            // Behavior: $regex nested inside $elemMatch finds the first element whose field matches.
+            BsonDocument doc = new BsonDocument()
+                    .append("items", new BsonArray(List.of(
+                            new BsonDocument().append("name", new BsonString("red")),
+                            new BsonDocument().append("name", new BsonString("blue")),
+                            new BsonDocument().append("name", new BsonString("black"))
+                    )));
+
+            ByteBuffer buffer = createDocument(doc);
+            BqlExpr query = new BqlElemMatch("items", new BqlRegex("name", new RegexVal("^bl", "")));
+
+            Map<String, Integer> result = PositionalMatchFinder.findMatchedPositions(
+                    buffer, query, Set.of("items"));
+
+            assertEquals(1, result.get("items"), "Should match index 1 (first name starting with 'bl')");
+        }
+
+        @Test
+        void shouldMatchRegexCaseInsensitivelyWithIOption() {
+            // Behavior: the i option makes positional $regex matching case-insensitive.
+            BsonDocument doc = new BsonDocument()
+                    .append("items", new BsonArray(List.of(
+                            new BsonDocument().append("name", new BsonString("ALICE")),
+                            new BsonDocument().append("name", new BsonString("BOB"))
+                    )));
+
+            ByteBuffer buffer = createDocument(doc);
+            BqlExpr query = new BqlRegex("items.name", new RegexVal("^bob$", "i"));
+
+            Map<String, Integer> result = PositionalMatchFinder.findMatchedPositions(
+                    buffer, query, Set.of("items"));
+
+            assertEquals(1, result.get("items"), "Should match index 1 case-insensitively");
+        }
+
+        @Test
+        void shouldNotMatchRegexAgainstNonStringField() {
+            // Behavior: $regex never matches a non-string field, so no position is found.
+            BsonDocument doc = new BsonDocument()
+                    .append("items", new BsonArray(List.of(
+                            new BsonDocument().append("code", new BsonInt32(42)),
+                            new BsonDocument().append("code", new BsonInt32(99))
+                    )));
+
+            ByteBuffer buffer = createDocument(doc);
+            BqlExpr query = new BqlRegex("items.code", new RegexVal("42", ""));
+
+            Map<String, Integer> result = PositionalMatchFinder.findMatchedPositions(
+                    buffer, query, Set.of("items"));
+
+            assertTrue(result.isEmpty(), "Regex against a non-string field should yield no matched position");
+        }
+
+        @Test
+        void shouldFindFirstMatchWithRegexLiteralInsideInElemMatch() {
+            // Behavior: a regex literal inside $in (within $elemMatch) finds the first matching element.
+            BsonDocument doc = new BsonDocument()
+                    .append("items", new BsonArray(List.of(
+                            new BsonDocument().append("name", new BsonString("Alice")),
+                            new BsonDocument().append("name", new BsonString("Bob")),
+                            new BsonDocument().append("name", new BsonString("Bert"))
+                    )));
+
+            ByteBuffer buffer = createDocument(doc);
+            BqlExpr query = new BqlElemMatch("items", new BqlIn("name", List.of(new RegexVal("^B", ""))));
+
+            Map<String, Integer> result = PositionalMatchFinder.findMatchedPositions(
+                    buffer, query, Set.of("items"));
+
+            assertEquals(1, result.get("items"), "Should match index 1 (first name starting with B)");
+        }
+
+        @Test
+        void shouldFindFirstMatchWithRegexLiteralInsideNinElemMatch() {
+            // Behavior: $nin with a regex literal excludes matching elements and finds the first that survives.
+            BsonDocument doc = new BsonDocument()
+                    .append("items", new BsonArray(List.of(
+                            new BsonDocument().append("name", new BsonString("Alice")),
+                            new BsonDocument().append("name", new BsonString("Bob"))
+                    )));
+
+            ByteBuffer buffer = createDocument(doc);
+            BqlExpr query = new BqlElemMatch("items", new BqlNin("name", List.of(new RegexVal("^Al", ""))));
+
+            Map<String, Integer> result = PositionalMatchFinder.findMatchedPositions(
+                    buffer, query, Set.of("items"));
+
+            assertEquals(1, result.get("items"), "Should skip Alice and match Bob at index 1");
+        }
+    }
+
     // ==================== Edge Cases ====================
 
     @Nested

@@ -20,6 +20,7 @@ import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.ast.BooleanVal;
 import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.bql.ast.Int32Val;
+import com.kronotop.bucket.bql.ast.RegexVal;
 import com.kronotop.bucket.bql.ast.StringVal;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.logical.LogicalPlanValidator.Severity;
@@ -296,6 +297,33 @@ class LogicalPlanValidatorTest {
             assertTrue(result.hasErrors());
             assertEquals(1, result.issues().size());
             assertTrue(result.issues().get(0).message().contains("requires boolean operand"));
+        }
+
+        @Test
+        @DisplayName("REGEX operator with regex operand should be valid")
+        void shouldAcceptRegexWithRegexOperand() {
+            // Behavior: a REGEX filter whose operand is a RegexVal passes validation with no issues.
+            LogicalNode plan = new LogicalFilter("name", Operator.REGEX, new RegexVal("^foo", "i"));
+
+            ValidationResult result = validator.validate(plan);
+
+            assertTrue(result.valid());
+            assertFalse(result.hasErrors());
+        }
+
+        @Test
+        @DisplayName("REGEX operator with non-regex operand should be invalid")
+        void shouldRejectRegexWithNonRegexOperand() {
+            // Behavior: a REGEX filter whose operand is not a RegexVal is rejected with an error.
+            LogicalNode plan = new LogicalFilter("name", Operator.REGEX, new StringVal("^foo"));
+
+            ValidationResult result = validator.validate(plan);
+
+            assertFalse(result.valid());
+            assertTrue(result.hasErrors());
+            assertEquals(1, result.issues().size());
+            assertEquals(Severity.ERROR, result.issues().get(0).severity());
+            assertTrue(result.issues().get(0).message().contains("requires a regex operand"));
         }
 
         @Test

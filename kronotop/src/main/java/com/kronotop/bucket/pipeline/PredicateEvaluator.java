@@ -148,7 +148,9 @@ public class PredicateEvaluator {
             return list.stream()
                     .filter(v -> v instanceof BqlValue)
                     .map(v -> (BqlValue) v)
-                    .allMatch(expected -> found.stream().anyMatch(actual -> valuesEqual(actual, expected, collator)));
+                    .allMatch(expected ->
+                            found.stream().anyMatch(actual -> matchesListItem(actual, expected, collator))
+                    );
         }
 
         // Handle SIZE with int operand
@@ -176,7 +178,7 @@ public class PredicateEvaluator {
                     BqlValue elementValue = BSONUtil.convertBsonValueToBqlValue(element);
                     if (elementValue != null) {
                         for (Object item : list) {
-                            if (item instanceof BqlValue expected && valuesEqual(elementValue, expected, collator)) {
+                            if (item instanceof BqlValue expected && matchesListItem(elementValue, expected, collator)) {
                                 matches = true;
                                 break;
                             }
@@ -195,8 +197,18 @@ public class PredicateEvaluator {
             boolean matches = list.stream()
                     .filter(v -> v instanceof BqlValue)
                     .map(v -> (BqlValue) v)
-                    .anyMatch(expected -> valuesEqual(actual, expected, collator));
+                    .anyMatch(expected -> matchesListItem(actual, expected, collator));
             return (op == Operator.IN) == matches;
+        }
+
+        // $regex against an array field: match if any string element matches the pattern
+        if (bsonValue.isArray() && operand instanceof RegexVal regex) {
+            for (BsonValue element : bsonValue.asArray()) {
+                if (element.isString() && regex.compiled().matcher(element.asString().getValue()).find()) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         // Handle comparison operators when the field is an array and operand is a scalar BqlValue
@@ -221,6 +233,9 @@ public class PredicateEvaluator {
         return switch (operand) {
             case StringVal(String expected) -> bsonValue.isString() &&
                     evaluateComparison(op, bsonValue.asString().getValue(), expected, collator);
+
+            case RegexVal regex -> bsonValue.isString() &&
+                    regex.compiled().matcher(bsonValue.asString().getValue()).find();
 
             case Int32Val(int expected) -> {
                 if (bsonValue.isInt32()) {
@@ -306,6 +321,17 @@ public class PredicateEvaluator {
     }
 
     // ==================== BqlValue Comparison ====================
+
+    /**
+     * Matches a single value from $in/$nin/$all against one list element. A regex element is a matcher:
+     * it matches only string values, consistent with $regex. Any other element uses value equality.
+     */
+    private static boolean matchesListItem(BqlValue actual, BqlValue expected, Collator collator) {
+        if (expected instanceof RegexVal regex) {
+            return actual instanceof StringVal(String s) && regex.compiled().matcher(s).find();
+        }
+        return valuesEqual(actual, expected, collator);
+    }
 
     private static boolean valuesEqual(BqlValue v1, BqlValue v2, Collator collator) {
         if (v1.getClass() != v2.getClass()) {

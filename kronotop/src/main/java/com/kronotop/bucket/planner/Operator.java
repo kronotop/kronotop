@@ -17,5 +17,5 @@
 package com.kronotop.bucket.planner;
 
 public enum Operator {
-    EQ, NE, GT, GTE, LT, LTE, IN, NIN, ALL, SIZE, EXISTS
+    EQ, NE, GT, GTE, LT, LTE, IN, NIN, ALL, SIZE, EXISTS, REGEX
 }

@@ -189,6 +189,7 @@ public final class PositionalMatchFinder {
             case BqlIn in -> addInPredicate(in.selector(), in.values(), arrayPath, predicates);
             case BqlNin nin -> addNinPredicate(nin.selector(), nin.values(), arrayPath, predicates);
             case BqlExists exists -> addExistsPredicate(exists.selector(), exists.exists(), arrayPath, predicates);
+            case BqlRegex regex -> addRegexPredicate(regex.selector(), regex.value(), arrayPath, predicates);
             case BqlAnd and -> {
                 for (BqlExpr child : and.children()) {
                     collectPredicates(child, arrayPath, predicates);
@@ -284,6 +285,18 @@ public final class PositionalMatchFinder {
         }
     }
 
+    private static void addRegexPredicate(String selector, RegexVal value, String arrayPath, Set<ArrayPredicate> predicates) {
+        if (selector.equals(arrayPath)) {
+            predicates.add(new RegexPredicate("", value));
+        } else {
+            String prefix = arrayPath + ".";
+            if (selector.startsWith(prefix)) {
+                String subPath = selector.substring(prefix.length());
+                predicates.add(new RegexPredicate(subPath, value));
+            }
+        }
+    }
+
     /**
      * Finds the first array element that matches all predicates.
      */
@@ -304,6 +317,35 @@ public final class PositionalMatchFinder {
             }
         }
         return true;
+    }
+
+    /**
+     * Matches a regex against a value, consistent with PredicateEvaluator semantics: only strings
+     * match (no type coercion), and an array matches if any of its string elements matches.
+     */
+    private static boolean regexMatches(BsonValue actual, RegexVal regex) {
+        if (actual.isString()) {
+            return regex.compiled().matcher(actual.asString().getValue()).find();
+        }
+        if (actual.isArray()) {
+            for (BsonValue element : actual.asArray()) {
+                if (element.isString() && regex.compiled().matcher(element.asString().getValue()).find()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Matches a single value from $in/$nin/$all against one list element. A regex element is a matcher
+     * applied to the value; any other element uses equality.
+     */
+    private static boolean listElementMatches(BsonValue actual, BqlValue expected) {
+        if (expected instanceof RegexVal regex) {
+            return regexMatches(actual, regex);
+        }
+        return compareValues(actual, expected, ComparisonOp.EQ);
     }
 
     private static boolean compareValues(BsonValue actual, BqlValue expected, ComparisonOp op) {
@@ -395,7 +437,7 @@ public final class PositionalMatchFinder {
         EQ, NE, GT, GTE, LT, LTE
     }
 
-    private sealed interface ArrayPredicate permits ScalarPredicate, InPredicate, NinPredicate, ExistsPredicate, ElemMatchPredicate, OrPredicate {
+    private sealed interface ArrayPredicate permits ScalarPredicate, InPredicate, NinPredicate, ExistsPredicate, ElemMatchPredicate, OrPredicate, RegexPredicate {
         boolean matches(BsonValue element);
     }
 
@@ -419,6 +461,26 @@ public final class PositionalMatchFinder {
         }
     }
 
+    private record RegexPredicate(String subPath, RegexVal regex) implements ArrayPredicate {
+        @Override
+        public boolean matches(BsonValue element) {
+            BsonValue actualValue;
+            if (subPath.isEmpty() || subPath.equals("$")) {
+                actualValue = element;
+            } else if (element.isDocument()) {
+                actualValue = SelectorMatcher.match(subPath, element.asDocument());
+            } else {
+                return false;
+            }
+
+            if (actualValue == null) {
+                return false;
+            }
+
+            return regexMatches(actualValue, regex);
+        }
+    }
+
     private record InPredicate(String subPath, List<BqlValue> expectedValues) implements ArrayPredicate {
         @Override
         public boolean matches(BsonValue element) {
@@ -436,7 +498,7 @@ public final class PositionalMatchFinder {
             }
 
             for (BqlValue expected : expectedValues) {
-                if (compareValues(actualValue, expected, ComparisonOp.EQ)) {
+                if (listElementMatches(actualValue, expected)) {
                     return true;
                 }
             }
@@ -461,7 +523,7 @@ public final class PositionalMatchFinder {
             }
 
             for (BqlValue excluded : excludedValues) {
-                if (compareValues(actualValue, excluded, ComparisonOp.EQ)) {
+                if (listElementMatches(actualValue, excluded)) {
                     return false;
                 }
             }
@@ -517,6 +579,7 @@ public final class PositionalMatchFinder {
                 case BqlIn in -> matchInField(element, in.selector(), in.values());
                 case BqlNin nin -> matchNinField(element, nin.selector(), nin.values());
                 case BqlExists exists -> matchExistsField(element, exists.selector(), exists.exists());
+                case BqlRegex regex -> matchRegexField(element, regex.selector(), regex.value());
                 case BqlNot not -> !evaluateExpr(element, not.expr());
                 case BqlElemMatch nested -> evaluateNestedElemMatch(element, nested);
                 case BqlAnd and -> {
@@ -571,7 +634,7 @@ public final class PositionalMatchFinder {
             }
 
             for (BqlValue value : values) {
-                if (compareValues(actual, value, ComparisonOp.EQ)) {
+                if (listElementMatches(actual, value)) {
                     return true;
                 }
             }
@@ -593,7 +656,7 @@ public final class PositionalMatchFinder {
             }
 
             for (BqlValue value : values) {
-                if (compareValues(actual, value, ComparisonOp.EQ)) {
+                if (listElementMatches(actual, value)) {
                     return false;
                 }
             }
@@ -612,6 +675,23 @@ public final class PositionalMatchFinder {
             BsonValue fieldValue = SelectorMatcher.match(selector, element.asDocument());
             boolean exists = fieldValue != null;
             return exists == shouldExist;
+        }
+
+        private boolean matchRegexField(BsonValue element, String selector, RegexVal regex) {
+            BsonValue actual;
+            if (selector.isEmpty()) {
+                actual = element;
+            } else if (element.isDocument()) {
+                actual = SelectorMatcher.match(selector, element.asDocument());
+            } else {
+                return false;
+            }
+
+            if (actual == null) {
+                return false;
+            }
+
+            return regexMatches(actual, regex);
         }
 
         private boolean evaluateNestedElemMatch(BsonValue element, BqlElemMatch nested) {
