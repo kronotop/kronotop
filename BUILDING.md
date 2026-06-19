@@ -143,9 +143,9 @@ The build produces three runnable jars:
 
 | Jar                                              | Purpose                            |
 |--------------------------------------------------|------------------------------------|
-| `kronotop/target/kronotop-2026.06-2.jar`         | The server                         |
-| `kronotop-cli/target/kronotop-cli-2026.06-2.jar` | Interactive command-line client    |
-| `kronotop-ctl/target/kronotop-ctl-2026.06-2.jar` | Cluster control and bootstrap tool |
+| `kronotop/target/kronotop-2026.06-3.jar`         | The server                         |
+| `kronotop-cli/target/kronotop-cli-2026.06-3.jar` | Interactive command-line client    |
+| `kronotop-ctl/target/kronotop-ctl-2026.06-3.jar` | Cluster control and bootstrap tool |
 
 ### Running Tests
 
@@ -198,7 +198,7 @@ java --sun-misc-unsafe-memory-access=allow \
      --add-opens java.base/sun.misc=ALL-UNNAMED \
      --enable-native-access=ALL-UNNAMED \
      --add-modules jdk.incubator.vector \
-     -jar kronotop/target/kronotop-2026.06-2.jar
+     -jar kronotop/target/kronotop-2026.06-3.jar
 ```
 
 On startup the node binds two ports: the client port `5484` and the internal/admin port `3320`.
@@ -222,7 +222,7 @@ control tool, bootstraps the cluster in one step.
 Run it from the built jar:
 
 ```
-java -jar kronotop-ctl/target/kronotop-ctl-2026.06-2.jar bootstrap --primary BUCKET 127.0.0.1:3320=0
+java -jar kronotop-ctl/target/kronotop-ctl-2026.06-3.jar bootstrap --primary BUCKET 127.0.0.1:3320=0
 ```
 
 This initializes the cluster, waits for shard discovery, assigns shard `0` to the node as primary, and opens it for
@@ -234,7 +234,7 @@ comma-separated. Valid shard kinds are `BUCKET` and `STASH`.
 For a two-node primary/standby setup:
 
 ```
-java -jar kronotop-ctl/target/kronotop-ctl-2026.06-2.jar bootstrap \
+java -jar kronotop-ctl/target/kronotop-ctl-2026.06-3.jar bootstrap \
   --primary BUCKET 127.0.0.1:3320=0 \
   --standby BUCKET 127.0.0.1:3322=0
 ```
@@ -247,7 +247,7 @@ follow the [Cluster Operations Guide](docs/admin/cluster/operations-guide.md).
 Connect with `kronotop-cli` on the client port:
 
 ```
-java -jar kronotop-cli/target/kronotop-cli-2026.06-2.jar -h 127.0.0.1 -p 5484
+java -jar kronotop-cli/target/kronotop-cli-2026.06-3.jar -h 127.0.0.1 -p 5484
 ```
 
 The CLI defaults to host `127.0.0.1` and port `5484`, so `-h` and `-p` can be omitted for a local node. Admin
@@ -303,7 +303,7 @@ Node 2 (standby):
 Then bootstrap with both nodes:
 
 ```
-java -jar kronotop-ctl/target/kronotop-ctl-2026.06-2.jar bootstrap \
+java -jar kronotop-ctl/target/kronotop-ctl-2026.06-3.jar bootstrap \
   --primary BUCKET 127.0.0.1:3320=0 \
   --standby BUCKET 127.0.0.1:3322=0
 ```

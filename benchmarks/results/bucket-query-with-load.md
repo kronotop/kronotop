@@ -11,7 +11,7 @@ threads.
 ## Command
 
 ```
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-2.jar bucket query --host 172.31.8.56 --total-docs 50000 --threads 50 --queries 50000 --output-dir latencies
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-3.jar bucket query --host 172.31.8.56 --total-docs 50000 --threads 50 --queries 50000 --output-dir latencies
 ```
 
 ## Result

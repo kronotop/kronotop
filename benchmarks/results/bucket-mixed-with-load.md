@@ -10,7 +10,7 @@ update, 5% delete. 10,000 total operations across 50 virtual threads.
 ## Command
 
 ```
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-2.jar bucket mixed --host 172.31.8.56 --total-ops 10000 --preload-docs 50000 --threads 50 --output-dir latencies
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-3.jar bucket mixed --host 172.31.8.56 --total-ops 10000 --preload-docs 50000 --threads 50 --output-dir latencies
 ```
 
 ## Result

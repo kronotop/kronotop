@@ -16,7 +16,7 @@ Command-line control tool for managing Kronotop clusters.
 
 ```bash
 # JAR
-java -jar kronotop-ctl/target/kronotop-ctl-2026.06-2.jar <command> [options]
+java -jar kronotop-ctl/target/kronotop-ctl-2026.06-3.jar <command> [options]
 
 # Native binary
 ./kronotop-ctl <command> [options]

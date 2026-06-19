@@ -9,9 +9,9 @@
 **2-** Copy the JAR files to `docker` folder:
 
 ```
-cp kronotop/target/kronotop-2026.06-2.jar docker/kronotop.jar
-cp kronotop-ctl/target/kronotop-ctl-2026.06-2.jar docker/kronotop-ctl.jar
-cp kronotop-cli/target/kronotop-cli-2026.06-2.jar docker/kronotop-cli.jar
+cp kronotop/target/kronotop-2026.06-3.jar docker/kronotop.jar
+cp kronotop-ctl/target/kronotop-ctl-2026.06-3.jar docker/kronotop-ctl.jar
+cp kronotop-cli/target/kronotop-cli-2026.06-3.jar docker/kronotop-cli.jar
 ```
 
 Go to `docker` folder after copying the JARs.
