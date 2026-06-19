@@ -1,5 +1,5 @@
 ---
-title: "$regex"
+title: "Regular Expressions"
 description: "$regex matches a string field against a regular expression pattern."
 ---
 
