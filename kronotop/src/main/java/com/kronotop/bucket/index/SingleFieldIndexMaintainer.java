@@ -27,7 +27,9 @@ import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.CollatorCache;
 import org.bson.types.ObjectId;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Maintains single field indexes in FoundationDB for Bucket data structure.
@@ -146,6 +148,42 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
         );
         byte[] backPointer = index.subspace().pack(backPointerTuple);
         tr.set(backPointer, NULL_VALUE);
+    }
+
+    /**
+     * Returns the ObjectIds that already have at least one back pointer in this index within the
+     * inclusive range {@code [minObjectId, maxObjectId]}.
+     *
+     * <p>Scans the {@code (BACK_POINTER, ObjectId, indexValue)} keyspace, which is ordered by
+     * ObjectId. The read is not a snapshot read, so it registers a read conflict range over the
+     * scanned span. A concurrent writer that adds or removes an entry for an ObjectId in that span
+     * forces this transaction to conflict on commit. This lets the background index builder skip
+     * ObjectIds already indexed by online writers without double counting cardinality.
+     *
+     * @param tr            the FoundationDB transaction
+     * @param indexSubspace the index's directory subspace
+     * @param minObjectId   inclusive lower bound ObjectId as bytes
+     * @param maxObjectId   inclusive upper bound ObjectId as bytes
+     * @return the set of already-indexed ObjectIds within the range
+     */
+    public static Set<ObjectId> findIndexedObjectIds(
+            Transaction tr,
+            DirectorySubspace indexSubspace,
+            byte[] minObjectId,
+            byte[] maxObjectId
+    ) {
+        byte[] beginKey = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), minObjectId));
+        byte[] endPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), maxObjectId));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(beginKey);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(endPrefix));
+
+        Set<ObjectId> objectIds = new HashSet<>();
+        for (KeyValue kv : tr.getRange(begin, end)) {
+            Tuple unpacked = indexSubspace.unpack(kv.getKey());
+            byte[] objectIdBytes = (byte[]) unpacked.get(1);
+            objectIds.add(new ObjectId(objectIdBytes));
+        }
+        return objectIds;
     }
 
     /**

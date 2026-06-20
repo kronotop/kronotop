@@ -36,8 +36,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -920,5 +923,98 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
             ).asList().join();
             assertEquals(1, backPointers.size(), "Should have exactly one back pointer for " + bsonType);
         }
+    }
+
+    /**
+     * Sorts ObjectIds by their unsigned byte representation, matching FoundationDB key order.
+     */
+    private List<ObjectId> sortByBytes(ObjectId... objectIds) {
+        List<ObjectId> sorted = new ArrayList<>(Arrays.asList(objectIds));
+        sorted.sort(Comparator.comparing(ObjectId::toByteArray, Arrays::compareUnsigned));
+        return sorted;
+    }
+
+    private Set<ObjectId> findIndexedObjectIds(DirectorySubspace indexSubspace, ObjectId minObjectId, ObjectId maxObjectId) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return SingleFieldIndexMaintainer.findIndexedObjectIds(
+                    tr, indexSubspace, minObjectId.toByteArray(), maxObjectId.toByteArray());
+        }
+    }
+
+    @Test
+    void shouldFindIndexedObjectIdsWithinRange() {
+        // Behavior: Verifies that findIndexedObjectIds returns every ObjectId that has a back pointer
+        // within the inclusive [minObjectId, maxObjectId] range.
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
+        byte[] entryMetadata = getEncodedEntryMetadata();
+
+        List<ObjectId> ids = sortByBytes(new ObjectId(), new ObjectId(), new ObjectId());
+        insertIndexEntryAndCommit(definition, metadata, "value0", ids.get(0), SHARD_ID, entryMetadata);
+        insertIndexEntryAndCommit(definition, metadata, "value1", ids.get(1), SHARD_ID, entryMetadata);
+        insertIndexEntryAndCommit(definition, metadata, "value2", ids.get(2), SHARD_ID, entryMetadata);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
+
+        Set<ObjectId> found = findIndexedObjectIds(indexSubspace, ids.get(0), ids.get(2));
+        assertEquals(3, found.size(), "Should find all three ObjectIds in range");
+        assertTrue(found.containsAll(ids), "Should contain every indexed ObjectId");
+    }
+
+    @Test
+    void shouldFindIndexedObjectIdsRespectingRangeBounds() {
+        // Behavior: Verifies that findIndexedObjectIds excludes ObjectIds outside the inclusive range
+        // and includes both range endpoints.
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
+        byte[] entryMetadata = getEncodedEntryMetadata();
+
+        List<ObjectId> ids = sortByBytes(new ObjectId(), new ObjectId(), new ObjectId(), new ObjectId());
+        for (int i = 0; i < ids.size(); i++) {
+            insertIndexEntryAndCommit(definition, metadata, "value" + i, ids.get(i), SHARD_ID, entryMetadata);
+        }
+
+        DirectorySubspace indexSubspace = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
+
+        Set<ObjectId> found = findIndexedObjectIds(indexSubspace, ids.get(1), ids.get(2));
+        assertEquals(2, found.size(), "Should only find the two ObjectIds inside the range");
+        assertTrue(found.contains(ids.get(1)), "Lower bound should be inclusive");
+        assertTrue(found.contains(ids.get(2)), "Upper bound should be inclusive");
+        assertFalse(found.contains(ids.get(0)), "ObjectId below the range should be excluded");
+        assertFalse(found.contains(ids.get(3)), "ObjectId above the range should be excluded");
+    }
+
+    @Test
+    void shouldDeduplicateObjectIdWithMultipleBackPointers() {
+        // Behavior: Verifies that findIndexedObjectIds returns a single ObjectId even when it has
+        // several back pointers (multikey index with multiple values).
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("multi-index", "tag", BsonType.STRING, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
+        byte[] entryMetadata = getEncodedEntryMetadata();
+
+        ObjectId objectId = new ObjectId();
+        insertIndexEntryAndCommit(definition, metadata, "tag1", objectId, SHARD_ID, entryMetadata);
+        insertIndexEntryAndCommit(definition, metadata, "tag2", objectId, SHARD_ID, entryMetadata);
+        insertIndexEntryAndCommit(definition, metadata, "tag3", objectId, SHARD_ID, entryMetadata);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
+
+        Set<ObjectId> found = findIndexedObjectIds(indexSubspace, objectId, objectId);
+        assertEquals(1, found.size(), "ObjectId with multiple back pointers should appear once");
+        assertTrue(found.contains(objectId), "Should contain the indexed ObjectId");
+    }
+
+    @Test
+    void shouldReturnEmptyWhenNoObjectIdsIndexedInRange() {
+        // Behavior: Verifies that findIndexedObjectIds returns an empty set when no back pointers
+        // exist in the requested range.
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("empty-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
+
+        DirectorySubspace indexSubspace = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
+
+        List<ObjectId> ids = sortByBytes(new ObjectId(), new ObjectId());
+        Set<ObjectId> found = findIndexedObjectIds(indexSubspace, ids.get(0), ids.get(1));
+        assertTrue(found.isEmpty(), "Empty index should return no ObjectIds");
     }
 }
