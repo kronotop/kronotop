@@ -37,7 +37,9 @@ import org.bson.BsonNull;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -467,5 +469,77 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         nullFieldDoc.put(SELECTOR, BsonNull.VALUE);
         assertNull(VectorIndexMaintainer.extractVector(definition, nullFieldDoc),
                 "Should return null when vector field is BsonNull");
+    }
+
+    // --- findIndexedObjectIds tests ---
+
+    private void indexObjectIds(VectorIndex vectorIndex, BucketMetadata metadata, ObjectId... objectIds) {
+        AppendedEntry[] entries = getAppendedEntries();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int i = 0; i < objectIds.length; i++) {
+                byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entries[0].metadataBytes()).encode();
+                VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIds[i].toByteArray(), encodedIndexEntry, TEST_VECTOR);
+            }
+            tr.commit().join();
+        }
+    }
+
+    private Set<ObjectId> findIndexedObjectIds(DirectorySubspace indexSubspace, ObjectId... objectIds) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<byte[]> ids = Arrays.stream(objectIds).map(ObjectId::toByteArray).toList();
+            return VectorIndexMaintainer.findIndexedObjectIds(tr, indexSubspace, ids);
+        }
+    }
+
+    @Test
+    void shouldFindIndexedObjectIdsForListedIds() {
+        // Behavior: findIndexedObjectIds returns every queried ObjectId that has an ENTRIES key.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        ObjectId a = new ObjectId();
+        ObjectId b = new ObjectId();
+        ObjectId c = new ObjectId();
+        indexObjectIds(vectorIndex, metadata, a, b, c);
+
+        Set<ObjectId> result = findIndexedObjectIds(vectorIndex.subspace(), a, b, c);
+        assertEquals(Set.of(a, b, c), result);
+    }
+
+    @Test
+    void shouldReturnOnlyIndexedIdsFromList() {
+        // Behavior: findIndexedObjectIds returns only the queried ObjectIds that are actually indexed,
+        // omitting an ObjectId that has no ENTRIES key.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        ObjectId indexedA = new ObjectId();
+        ObjectId indexedB = new ObjectId();
+        ObjectId notIndexed = new ObjectId();
+        indexObjectIds(vectorIndex, metadata, indexedA, indexedB);
+
+        Set<ObjectId> result = findIndexedObjectIds(vectorIndex.subspace(), indexedA, indexedB, notIndexed);
+        assertEquals(Set.of(indexedA, indexedB), result);
+    }
+
+    @Test
+    void shouldReturnEmptyWhenNoObjectIdsIndexed() {
+        // Behavior: findIndexedObjectIds returns an empty set when none of the queried ObjectIds
+        // have an ENTRIES key.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        Set<ObjectId> result = findIndexedObjectIds(vectorIndex.subspace(), new ObjectId(), new ObjectId());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void shouldReturnEmptyForEmptyInput() {
+        // Behavior: findIndexedObjectIds returns an empty set for an empty input list.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        Set<ObjectId> result = findIndexedObjectIds(vectorIndex.subspace());
+        assertTrue(result.isEmpty());
     }
 }

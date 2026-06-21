@@ -31,7 +31,9 @@ import com.kronotop.volume.VolumeSession;
 import org.bson.BsonValue;
 import org.bson.types.ObjectId;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Builds compound indexes on existing bucket data in the background.
@@ -55,6 +57,9 @@ public class CompoundIndexBuildingRoutine extends AbstractBuildingRoutine {
         super(context, subspace, shardId, taskId, task);
     }
 
+    private record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes) {
+    }
+
     @Override
     protected IndexHolder<?> lookupIndex(BucketMetadata metadata) {
         return metadata.compoundIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
@@ -73,6 +78,9 @@ public class CompoundIndexBuildingRoutine extends AbstractBuildingRoutine {
 
         CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
         Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
+
+        // Drain the batch and extract ObjectIds.
+        List<BufferedEntry> buffer = new ArrayList<>();
         Versionstamp versionstamp = null;
         for (VolumeEntry pair : entries) {
             checkForShutdown();
@@ -85,7 +93,21 @@ public class CompoundIndexBuildingRoutine extends AbstractBuildingRoutine {
                 throw new IndexMaintenanceRoutineException("Document missing _id field or _id is not an ObjectId");
             }
             ObjectId objectId = idValue.asObjectId().getValue();
-            byte[] objectIdBytes = objectId.toByteArray();
+            buffer.add(new BufferedEntry(pair, objectId, objectId.toByteArray()));
+        }
+
+        // Find which ObjectIds in this batch are already indexed (e.g., by online writers),
+        // so they are not processed again and cardinality is not double-counted.
+        Set<ObjectId> alreadyIndexed = IndexMaintainer.findIndexedObjectIds(
+                tr, compoundIndex.subspace(), buffer.stream().map(BufferedEntry::objectIdBytes).toList());
+
+        // Index only the entries that are not already present.
+        for (BufferedEntry buffered : buffer) {
+            if (alreadyIndexed.contains(buffered.objectId())) {
+                continue;
+            }
+            VolumeEntry pair = buffered.entry();
+            byte[] objectIdBytes = buffered.objectIdBytes();
 
             List<List<Object>> valueCombinations = CompoundIndexMaintainer.extractFieldValues(compoundIndex, pair.entry(), strictTypes);
             for (List<Object> fieldValues : valueCombinations) {

@@ -405,4 +405,50 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         }
     }
 
+    @Test
+    void shouldNotDoubleCountCardinalityWhenEntriesAlreadyIndexedByOnlineWrites() {
+        // Behavior: When the vector index is created first, the online write path (WRITABLE) writes the
+        // FDB entry for each inserted document while the index is still building. Those same documents
+        // also fall within the background builder's scan range. The builder must skip ObjectIds that
+        // already have an entry so that cardinality is not double-counted: exactly one ENTRIES key per
+        // document and cardinality equals the document count.
+
+        // Create the index first so the online insert path maintains it during the build.
+        VectorIndexDefinition definition = createVectorIndex(IndexStatus.WAITING);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
+
+        // Insert documents through the online path; these are indexed online and also fall within the
+        // background builder's scan range, creating the overlap the dedup logic must handle.
+        insertDocumentWithVector(0.1, 0.2, 0.3);
+        insertDocumentWithVector(0.4, 0.5, 0.6);
+        insertDocumentWithVector(0.7, 0.8, 0.9);
+
+        // Wait for the background build task to complete and be swept.
+        await().atMost(30, TimeUnit.SECONDS).until(() -> {
+            AtomicInteger counter = new AtomicInteger();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TaskStorage.tasks(tr, taskSubspace, (id) -> {
+                    counter.incrementAndGet();
+                    return true;
+                });
+                return counter.get() == 0;
+            }
+        });
+
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
+
+        // Exactly one ENTRIES key per document — the builder did not re-create online-written entries.
+        assertEquals(3, countFdbEntries(vectorIndex), "Should have exactly one index entry per document");
+
+        // Cardinality must be exact, not double-counted by the builder.
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata);
+            IndexStatistics indexStats = stats.get(definition.id());
+            assertNotNull(indexStats, "Index statistics should be present");
+            assertEquals(3L, indexStats.cardinality(), "Cardinality must equal document count, not double counted");
+        }
+    }
+
 }

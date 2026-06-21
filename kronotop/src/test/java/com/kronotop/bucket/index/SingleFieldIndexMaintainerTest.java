@@ -926,7 +926,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     private Set<ObjectId> findIndexedObjectIds(DirectorySubspace indexSubspace, ObjectId... objectIds) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             List<byte[]> ids = Arrays.stream(objectIds).map(ObjectId::toByteArray).toList();
-            return SingleFieldIndexMaintainer.findIndexedObjectIds(tr, indexSubspace, ids);
+            return IndexMaintainer.findIndexedObjectIds(tr, indexSubspace, ids);
         }
     }
 

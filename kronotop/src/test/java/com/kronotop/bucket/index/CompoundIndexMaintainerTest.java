@@ -36,7 +36,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -902,5 +904,89 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());
         }
+    }
+
+    // --- findIndexedObjectIds tests ---
+
+    private Set<ObjectId> findIndexedObjectIds(DirectorySubspace indexSubspace, ObjectId... objectIds) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            List<byte[]> ids = Arrays.stream(objectIds).map(ObjectId::toByteArray).toList();
+            return IndexMaintainer.findIndexedObjectIds(tr, indexSubspace, ids);
+        }
+    }
+
+    @Test
+    void shouldFindIndexedObjectIdsForListedIds() {
+        // Behavior: Verifies that findIndexedObjectIds returns every listed ObjectId that has a back
+        // pointer in a compound index.
+        CompoundIndexDefinition definition = CompoundIndexDefinition.create("name_age_idx", NAME_AGE_FIELDS, IndexStatus.WAITING);
+        BucketMetadata metadata = createCompoundIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
+        CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(definition.name(), IndexSelectionPolicy.ALL);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        ObjectId id0 = new ObjectId();
+        ObjectId id1 = new ObjectId();
+        ObjectId id2 = new ObjectId();
+        setCompoundIndexEntryAndCommit(compoundIndex, metadata, List.of("Alice", 20), id0, entries[0]);
+        setCompoundIndexEntryAndCommit(compoundIndex, metadata, List.of("Bob", 30), id1, entries[1]);
+        setCompoundIndexEntryAndCommit(compoundIndex, metadata, List.of("Carol", 40), id2, entries[2]);
+
+        Set<ObjectId> found = findIndexedObjectIds(compoundIndex.subspace(), id0, id1, id2);
+
+        assertEquals(Set.of(id0, id1, id2), found);
+    }
+
+    @Test
+    void shouldReturnOnlyIndexedIdsFromList() {
+        // Behavior: Verifies that findIndexedObjectIds returns only the listed ObjectIds that are
+        // actually indexed, excluding ones with no back pointer.
+        CompoundIndexDefinition definition = CompoundIndexDefinition.create("name_age_idx", NAME_AGE_FIELDS, IndexStatus.WAITING);
+        BucketMetadata metadata = createCompoundIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
+        CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(definition.name(), IndexSelectionPolicy.ALL);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        ObjectId indexed0 = new ObjectId();
+        ObjectId notIndexed = new ObjectId();
+        ObjectId indexed1 = new ObjectId();
+        setCompoundIndexEntryAndCommit(compoundIndex, metadata, List.of("Alice", 20), indexed0, entries[0]);
+        setCompoundIndexEntryAndCommit(compoundIndex, metadata, List.of("Bob", 30), indexed1, entries[1]);
+
+        Set<ObjectId> found = findIndexedObjectIds(compoundIndex.subspace(), indexed0, notIndexed, indexed1);
+
+        assertEquals(Set.of(indexed0, indexed1), found);
+    }
+
+    @Test
+    void shouldDeduplicateObjectIdWithMultipleBackPointers() {
+        // Behavior: Verifies that findIndexedObjectIds returns a single ObjectId even when a multi-key
+        // field produced multiple back pointers for that document.
+        CompoundIndexDefinition definition = CompoundIndexDefinition.create("name_tags_idx", NAME_TAGS_FIELDS, IndexStatus.WAITING);
+        BucketMetadata metadata = createCompoundIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
+        CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(definition.name(), IndexSelectionPolicy.ALL);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        ObjectId objectId = new ObjectId();
+        setCompoundIndexEntryAndCommit(compoundIndex, metadata, List.of("John", "a"), objectId, entries[0]);
+        setCompoundIndexEntryAndCommit(compoundIndex, metadata, List.of("John", "b"), objectId, entries[0]);
+        setCompoundIndexEntryAndCommit(compoundIndex, metadata, List.of("John", "c"), objectId, entries[0]);
+
+        assertEquals(3, getBackPointers(compoundIndex.subspace()).size());
+
+        Set<ObjectId> found = findIndexedObjectIds(compoundIndex.subspace(), objectId);
+
+        assertEquals(Set.of(objectId), found);
+    }
+
+    @Test
+    void shouldReturnEmptyWhenNoObjectIdsIndexed() {
+        // Behavior: Verifies that findIndexedObjectIds returns an empty set when none of the listed
+        // ObjectIds are indexed.
+        CompoundIndexDefinition definition = CompoundIndexDefinition.create("name_age_idx", NAME_AGE_FIELDS, IndexStatus.WAITING);
+        BucketMetadata metadata = createCompoundIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
+        CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(definition.name(), IndexSelectionPolicy.ALL);
+
+        Set<ObjectId> found = findIndexedObjectIds(compoundIndex.subspace(), new ObjectId(), new ObjectId());
+
+        assertTrue(found.isEmpty());
     }
 }

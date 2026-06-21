@@ -37,6 +37,10 @@ import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.BsonValue;
 import org.bson.types.ObjectId;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 /**
  * Builds vector graph indexes on existing bucket data in the background.
  *
@@ -51,6 +55,9 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
     private VectorGraphIndexGroup group;
     private VectorIndexDefinition vectorDefinition;
     private VectorSimilarityFunction similarityFunction;
+
+    private record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes, float[] vector) {
+    }
 
     public VectorIndexBuildingRoutine(
             Context context,
@@ -102,8 +109,11 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
                     "Vector index with id " + task.getIndexId() + " is not in BUILDING or READY status");
         }
         Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
-        Versionstamp versionstamp = null;
 
+        // Drain the batch, extracting ObjectIds and vectors. Documents without a vector field or with
+        // mismatched dimensions are skipped here, matching the previous per-entry behavior.
+        List<BufferedEntry> buffer = new ArrayList<>();
+        Versionstamp versionstamp = null;
         for (VolumeEntry pair : entries) {
             checkForShutdown();
             total++;
@@ -115,7 +125,6 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
                 throw new IndexMaintenanceRoutineException("Document missing _id field or _id is not an ObjectId");
             }
             ObjectId objectId = idValue.asObjectId().getValue();
-            byte[] objectIdBytes = objectId.toByteArray();
 
             // Extract vector
             BsonValue vectorValue = SelectorMatcher.match(vectorDefinition.selector(), pair.entry());
@@ -131,9 +140,26 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
                 continue;
             }
 
-            // Write FDB entry
-            VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata,
-                    objectIdBytes, shardId, pair.metadata(), vector);
+            buffer.add(new BufferedEntry(pair, objectId, objectId.toByteArray(), vector));
+        }
+
+        // Find which ObjectIds in this batch already have an FDB entry (e.g., written by online writers),
+        // so their entry is not re-created and cardinality is not double-counted. The on-heap graph is not
+        // part of this dedup and is maintained unconditionally below.
+        Set<ObjectId> alreadyIndexed = VectorIndexMaintainer.findIndexedObjectIds(
+                tr, vectorIndex.subspace(), buffer.stream().map(BufferedEntry::objectIdBytes).toList());
+
+        for (BufferedEntry buffered : buffer) {
+            VolumeEntry pair = buffered.entry();
+            byte[] objectIdBytes = buffered.objectIdBytes();
+            float[] vector = buffered.vector();
+            ObjectId objectId = buffered.objectId();
+
+            // Write FDB entry only if it is not already present.
+            if (!alreadyIndexed.contains(objectId)) {
+                VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata,
+                        objectIdBytes, shardId, pair.metadata(), vector);
+            }
 
             // Add to the on-heap graph via VectorGraphIndexGroup.
             OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(
@@ -142,7 +168,7 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
 
             EntryMetadata entryMetadata = EntryMetadata.decode(pair.metadata());
             graph.addGraphNode(objectId, shardId, entryMetadata, vector, service.getVectorGraphExecutor()).join();
-            graph.advanceVersionstamp(versionstamp);
+            graph.advanceVersionstamp(pair.key());
 
             // Flush to disk when the threshold exceeded, then continue with a fresh graph
             if (graph.ramBytesUsed() > service.getVectorFlushThresholdBytes()) {

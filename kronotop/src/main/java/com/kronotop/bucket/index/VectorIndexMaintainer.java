@@ -26,11 +26,60 @@ import com.kronotop.bucket.BucketMetadata;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
 import org.bson.BsonValue;
+import org.bson.types.ObjectId;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Manages vector index entries and mutation logs for crash recovery in FoundationDB.
  */
 public final class VectorIndexMaintainer extends IndexMaintainer {
+
+    /**
+     * Returns which of the given ObjectIds already have an entry in this vector index.
+     *
+     * <p>Issues one point request per ObjectId against the {@code (ENTRIES, ObjectId)} key. A vector
+     * index keys its entry directly by ObjectId with exactly one entry per ObjectId, so a single get
+     * answers existence. All requests are dispatched before any is awaited, so the FoundationDB client
+     * pipelines them over a single connection, giving a few round trips instead of one per ObjectId.
+     * Each read is not a snapshot read, so it registers a read conflict on exactly that ObjectId's
+     * entry key. A concurrent writer that sets the entry for one of these ObjectIds forces this
+     * transaction to conflict on commit. This lets the background index builder skip ObjectIds already
+     * indexed by online writers without double counting cardinality.
+     *
+     * @param tr            the FoundationDB transaction
+     * @param indexSubspace the vector index's directory subspace
+     * @param objectIds     the ObjectIds to probe, each as bytes
+     * @return the subset of the given ObjectIds that are already indexed
+     */
+    public static Set<ObjectId> findIndexedObjectIds(
+            Transaction tr,
+            DirectorySubspace indexSubspace,
+            List<byte[]> objectIds
+    ) {
+        if (objectIds.isEmpty()) {
+            return Set.of();
+        }
+
+        // Dispatch all point requests without awaiting so the client pipelines them.
+        List<CompletableFuture<byte[]>> futures = new ArrayList<>(objectIds.size());
+        for (byte[] objectIdBytes : objectIds) {
+            byte[] key = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), objectIdBytes));
+            futures.add(tr.get(key));
+        }
+
+        Set<ObjectId> indexed = new HashSet<>();
+        for (int i = 0; i < objectIds.size(); i++) {
+            if (futures.get(i).join() != null) {
+                indexed.add(new ObjectId(objectIds.get(i)));
+            }
+        }
+        return indexed;
+    }
 
     /**
      * Creates a vector index entry. Also increments the index cardinality.

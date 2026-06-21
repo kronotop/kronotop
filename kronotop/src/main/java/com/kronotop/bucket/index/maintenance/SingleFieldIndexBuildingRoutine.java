@@ -100,7 +100,7 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
 
         // Find which ObjectIds in this batch are already indexed (e.g., by online writers),
         // so they are not processed again and cardinality is not double-counted.
-        Set<ObjectId> alreadyIndexed = SingleFieldIndexMaintainer.findIndexedObjectIds(
+        Set<ObjectId> alreadyIndexed = IndexMaintainer.findIndexedObjectIds(
                 tr, index.subspace(), buffer.stream().map(BufferedEntry::objectIdBytes).toList());
 
         // Index only the entries that are not already present.

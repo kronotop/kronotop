@@ -26,6 +26,7 @@ import com.kronotop.TestUtil;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
@@ -771,5 +772,74 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 return true;
             }
         });
+    }
+
+    @Test
+    void shouldNotDoubleCountCardinalityWhenEntriesAlreadyIndexedByOnlineWrites() {
+        // Behavior: When the compound index is created first, the online write path (WRITABLE) indexes
+        // the inserted documents while the index is still building. Those same documents also fall within
+        // the background builder's scan range. The builder must skip ObjectIds already indexed so that
+        // cardinality is not double-counted: exactly one entry per document and cardinality equals the
+        // document count.
+
+        // Create the index first so the online insert path maintains it during the build.
+        CompoundIndexDefinition definition = CompoundIndexDefinition.create(
+                "name-age-dedup-index",
+                List.of(
+                        new CompoundIndexField("name", BsonType.STRING, false),
+                        new CompoundIndexField("age", BsonType.INT32, false)
+                )
+                , IndexStatus.WAITING);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
+            tr.commit().join();
+        }
+
+        // Insert documents through the online path; these are indexed online and also fall within the
+        // background builder's scan range, creating the overlap the dedup logic must handle.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[][] docs = makeDocumentsArray(
+                List.of(
+                        BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 10}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 20}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Carol\", \"age\": 30}")
+                ));
+        cmd.insert(TEST_BUCKET, docs).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        assertEquals(3, TestUtil.extractObjectIds((ArrayRedisMessage) msg).size());
+
+        // Wait for the background build task to complete and be swept.
+        await().atMost(30, TimeUnit.SECONDS).until(() -> {
+            AtomicInteger counter = new AtomicInteger();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TaskStorage.tasks(tr, taskSubspace, (id) -> {
+                    counter.incrementAndGet();
+                    return true;
+                });
+                return counter.get() == 0;
+            }
+        });
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+            CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
+
+            // Exactly one index entry per document — the builder did not re-create online-written entries.
+            byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            byte[] end = ByteArrayUtil.strinc(begin);
+            List<KeyValue> entries = tr.getRange(begin, end).asList().join();
+            assertEquals(3, entries.size(), "Should have exactly one index entry per document");
+
+            // Cardinality must be exact, not double-counted by the builder.
+            IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
+            assertNotNull(stats, "Index statistics should be present");
+            assertEquals(3L, stats.cardinality(), "Cardinality must equal document count, not double counted");
+        }
     }
 }
