@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class IndexMaintenanceRoutineMetrics {
     private final AtomicLong processedEntries = new AtomicLong();
+    private final AtomicLong retriedCommitConflicts = new AtomicLong();
     private final long initiatedAt;
     private volatile long latestExecution;
 
@@ -45,5 +46,13 @@ public class IndexMaintenanceRoutineMetrics {
 
     public long getProcessedEntries() {
         return processedEntries.get();
+    }
+
+    public void incrementRetriedCommitConflicts() {
+        retriedCommitConflicts.incrementAndGet();
+    }
+
+    public long getRetriedCommitConflicts() {
+        return retriedCommitConflicts.get();
     }
 }

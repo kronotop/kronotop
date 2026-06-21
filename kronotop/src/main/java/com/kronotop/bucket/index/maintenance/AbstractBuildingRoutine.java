@@ -16,10 +16,12 @@
 
 package com.kronotop.bucket.index.maintenance;
 
+import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
+import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.IndexHolder;
 import com.kronotop.bucket.index.IndexStatus;
@@ -30,6 +32,9 @@ import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * Base class for index building routines that process existing bucket data in the background.
@@ -43,6 +48,11 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRoutine {
     protected static final int INDEX_SCAN_BATCH_SIZE = 100;
+    // Upper bound on consecutive in-place batch retries after a retriable FDB commit conflict.
+    // Resets after any successful batch commit. When exceeded, the conflict is rethrown so the
+    // worker-level retry and watchdog respawn act as the final backstop.
+    private static final int MAX_CONSECUTIVE_COMMIT_CONFLICTS = 10;
+    private static final long COMMIT_CONFLICT_BACKOFF_MILLIS = 100;
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractBuildingRoutine.class);
     protected final boolean strictTypes = context.getConfig().getBoolean("bucket.index.strict_types");
     protected final int shardId;
@@ -123,6 +133,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
 
     private void buildIndex() {
         BucketShard shard = service.getShard(shardId);
+        int consecutiveCommitConflicts = 0;
         while (!stopped && !Thread.currentThread().isInterrupted()) {
             // Fetch the metadata with an independent TX to prevent conflicts during commit time.
             BucketMetadata metadata = TransactionUtil.execute(context, tr ->
@@ -198,6 +209,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
 
                 int processedEntries = indexBucketEntries(tr, shard, metadata, state);
                 commit(tr);
+                consecutiveCommitConflicts = 0;
                 if (processedEntries == 0) {
                     setIndexTaskStatus(IndexTaskStatus.COMPLETED);
                     break;
@@ -231,10 +243,45 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                 }
                 stopped = true;
                 break;
+            } catch (KronotopException exp) {
+                // The findIndexedObjectIds probe registers read conflicts on purpose; a concurrent
+                // online write to a probed ObjectId aborts this batch with a retriable FDB error.
+                // Retry the batch in place (it resumes from the persisted cursor and the dedup probe
+                // keeps it idempotent) instead of letting the whole build unwind and respawn.
+                if (!isRetriableConflict(exp)) {
+                    throw exp;
+                }
+                if (++consecutiveCommitConflicts > MAX_CONSECUTIVE_COMMIT_CONFLICTS) {
+                    // Sustained conflicts: fall back to the worker-level retry and watchdog respawn.
+                    throw exp;
+                }
+                metrics.incrementRetriedCommitConflicts();
+                LOGGER.debug("Retrying index build batch for namespace={}, bucket={}, index={} on Bucket shard: {} after a retriable commit conflict (attempt {})",
+                        task.getNamespace(),
+                        task.getBucket(),
+                        task.getIndexId(),
+                        shardId,
+                        consecutiveCommitConflicts
+                );
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(COMMIT_CONFLICT_BACKOFF_MILLIS));
             } finally {
                 metrics.setLatestExecution(System.currentTimeMillis());
             }
         }
+    }
+
+    /**
+     * Returns whether the exception wraps a retriable FoundationDB transaction error, in which case
+     * the failing batch can be retried in place rather than unwinding the whole build. The retriable
+     * set matches {@link com.kronotop.bucket.RetryMethods}: 1007 (transaction_too_old),
+     * 1020 (not_committed), 1021 (commit_unknown_result), 1031 (transaction_timed_out).
+     */
+    static boolean isRetriableConflict(KronotopException exp) {
+        if (!(exp.getCause() instanceof FDBException fdb)) {
+            return false;
+        }
+        int code = fdb.getCode();
+        return code == 1007 || code == 1020 || code == 1021 || code == 1031;
     }
 
     @Override
