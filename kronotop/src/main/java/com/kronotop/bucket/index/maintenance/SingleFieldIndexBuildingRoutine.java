@@ -32,6 +32,7 @@ import org.bson.BsonValue;
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -58,6 +59,9 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
         super(context, subspace, shardId, taskId, task);
     }
 
+    private record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes) {
+    }
+
     @Override
     protected IndexHolder<?> lookupIndex(BucketMetadata metadata) {
         return metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
@@ -76,6 +80,11 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
 
         Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
         Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
+
+        // Drain the batch, extract ObjectIds, and track the ObjectId byte range.
+        List<BufferedEntry> buffer = new ArrayList<>();
+        byte[] minObjectId = null;
+        byte[] maxObjectId = null;
         Versionstamp versionstamp = null;
         for (VolumeEntry pair : entries) {
             checkForShutdown();
@@ -90,6 +99,29 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
             }
             ObjectId objectId = idValue.asObjectId().getValue();
             byte[] objectIdBytes = objectId.toByteArray();
+
+            if (minObjectId == null || Arrays.compareUnsigned(objectIdBytes, minObjectId) < 0) {
+                minObjectId = objectIdBytes;
+            }
+            if (maxObjectId == null || Arrays.compareUnsigned(objectIdBytes, maxObjectId) > 0) {
+                maxObjectId = objectIdBytes;
+            }
+            buffer.add(new BufferedEntry(pair, objectId, objectIdBytes));
+        }
+
+        // Find which ObjectIds in this batch are already indexed (e.g., by online writers),
+        // so they are not processed again and cardinality is not double-counted.
+        Set<ObjectId> alreadyIndexed = buffer.isEmpty() ?
+                Set.of() :
+                SingleFieldIndexMaintainer.findIndexedObjectIds(tr, index.subspace(), minObjectId, maxObjectId);
+
+        // Index only the entries that are not already present.
+        for (BufferedEntry buffered : buffer) {
+            if (alreadyIndexed.contains(buffered.objectId())) {
+                continue;
+            }
+            VolumeEntry pair = buffered.entry();
+            byte[] objectIdBytes = buffered.objectIdBytes();
 
             BsonValue bsonValue = SelectorMatcher.match(index.definition().selector(), pair.entry());
 
