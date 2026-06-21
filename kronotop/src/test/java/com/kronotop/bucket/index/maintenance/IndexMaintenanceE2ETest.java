@@ -23,7 +23,10 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
-import com.kronotop.bucket.*;
+import com.kronotop.bucket.BSONUtil;
+import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.HistogramBucket;
@@ -54,6 +57,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -146,7 +150,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         return half * 2;
     }
 
-    private SingleFieldIndexDefinition createAgeIndex() {
+    private void createAgeIndex() {
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
                 "test-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -154,7 +158,6 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
         }
-        return definition;
     }
 
     private void awaitIndexStatus(DirectorySubspace indexSubspace, IndexStatus status) {
@@ -165,15 +168,20 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         });
     }
 
+    private boolean isConflict(ErrorRedisMessage err) {
+        String content = err.content();
+        return content.contains("NOT_COMMITTED") || content.toLowerCase().contains("conflict");
+    }
+
     // Issues a mutating command and returns its object_ids, retrying on transaction conflicts. The
     // builder's read-conflict range can abort a concurrent online write; a real client retries. Any
     // non-conflict error is a real failure and is surfaced immediately.
-    private List<ObjectId> mutateWithRetry(Supplier<ByteBuf> commandSupplier) {
+    private void mutateWithRetry(Supplier<ByteBuf> commandSupplier) {
         AtomicReference<Object> success = new AtomicReference<>();
         await().atMost(Duration.ofSeconds(30)).until(() -> {
             Object resp = runCommand(channel, commandSupplier.get());
             if (resp instanceof ErrorRedisMessage err) {
-                if (!err.content().contains("NOT_COMMITTED") && !err.content().toLowerCase().contains("conflict")) {
+                if (!isConflict(err)) {
                     throw new AssertionError("unexpected error from concurrent mutation: " + err.content());
                 }
                 return false;
@@ -181,7 +189,23 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             success.set(resp);
             return true;
         });
-        return extractObjectIds(success.get());
+        extractObjectIds(success.get());
+    }
+
+    // Churns the bucket while the index builds: repeatedly issues the given commands (round-robin) on a
+    // background thread until `stop` is set, retrying each on transaction conflicts.
+    private Future<?> startMutationLoop(ExecutorService service, AtomicBoolean stop, List<Supplier<ByteBuf>> commands) {
+        return service.submit(() -> {
+            int i = 0;
+            while (!stop.get()) {
+                mutateWithRetry(commands.get(i++ % commands.size()));
+            }
+        });
+    }
+
+    private DirectorySubspace ageIndexSubspace() {
+        return refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET)
+                .indexes().getIndex("age", IndexSelectionPolicy.ALL).subspace();
     }
 
     private void awaitAllTasksSwept() {
@@ -190,7 +214,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 for (int shardId : context.getShardRegistry().getShardIds(ShardKind.BUCKET)) {
                     DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
-                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                    TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                         counter.getAndIncrement();
                         return true;
                     });
@@ -201,60 +225,76 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldKeepCardinalityExactWhenDocumentsDeletedDuringBackgroundBuild() {
-        // Behavior: When documents are deleted while the secondary index is still building, the surviving
-        // documents are each indexed exactly once and cardinality stays exact. Deleted documents leave no
-        // phantom entry behind, even if the builder is scanning concurrently.
+    void shouldKeepCardinalityExactWhenDocumentsDeletedDuringBackgroundBuild() throws Exception {
+        // Behavior: When documents are repeatedly deleted while the secondary index is still building, the
+        // surviving documents are each indexed exactly once and cardinality stays exact. Deleted documents
+        // leave no phantom entry behind, even though the builder scans concurrently.
         int total = insertSplitAgeDocuments(500);
 
         createAgeIndex();
-        DirectorySubspace indexSubspace = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET)
-                .indexes().getIndex("age", IndexSelectionPolicy.ALL).subspace();
+        DirectorySubspace indexSubspace = ageIndexSubspace();
 
-        // Delete a subset while the build is in progress.
-        awaitIndexStatus(indexSubspace, IndexStatus.BUILDING);
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         switchProtocol(cmd, RESPVersion.RESP3);
-        int deleted = mutateWithRetry(() -> {
+        Supplier<ByteBuf> deleteAge32 = () -> {
             ByteBuf buf = Unpooled.buffer();
             cmd.delete(TEST_BUCKET, "{\"age\": 32}").encode(buf);
             return buf;
-        }).size();
-        assertTrue(deleted > 0, "delete should remove at least one document during the build");
+        };
 
-        awaitIndexStatus(indexSubspace, IndexStatus.READY);
-        awaitAllTasksSwept();
+        // Continuously delete the age=32 group while the build runs.
+        AtomicBoolean stop = new AtomicBoolean(false);
+        try (ExecutorService service = Executors.newSingleThreadExecutor()) {
+            Future<?> loop = startMutationLoop(service, stop, List.of(deleteAge32));
+            awaitIndexStatus(indexSubspace, IndexStatus.READY);
+            awaitAllTasksSwept();
+            stop.set(true);
+            loop.get();
+        }
 
-        checkBuildCoverageAndCardinality("age", total - deleted);
+        // Drain any age=32 document that survived the build window for a deterministic survivor count.
+        mutateWithRetry(deleteAge32);
+
+        // Only the untouched age=40 group remains, each indexed exactly once.
+        checkBuildCoverageAndCardinality("age", total / 2);
     }
 
     @Test
-    void shouldKeepCardinalityExactWhenDocumentsUpdatedDuringBackgroundBuild() {
-        // Behavior: When the indexed field is updated while the secondary index is still building, each
-        // document remains indexed exactly once under its new value and cardinality stays exact. The
-        // builder skips ObjectIds already maintained online, so no stale entry under the old value remains.
+    void shouldKeepCardinalityExactWhenDocumentsUpdatedDuringBackgroundBuild() throws Exception {
+        // Behavior: When the indexed field is repeatedly updated while the secondary index is still
+        // building, each document remains indexed exactly once under its current value and cardinality
+        // stays exact. The builder skips ObjectIds already maintained online, so no stale entry under a
+        // previous value lingers. No deletes occur, so every document stays indexed.
         int total = insertSplitAgeDocuments(500);
 
         createAgeIndex();
-        DirectorySubspace indexSubspace = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET)
-                .indexes().getIndex("age", IndexSelectionPolicy.ALL).subspace();
+        DirectorySubspace indexSubspace = ageIndexSubspace();
 
-        // Update the indexed field on a subset while the build is in progress.
-        awaitIndexStatus(indexSubspace, IndexStatus.BUILDING);
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         switchProtocol(cmd, RESPVersion.RESP3);
-        int updated = mutateWithRetry(() -> {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.update(TEST_BUCKET, "{\"age\": 32}", "{\"$set\": {\"age\": 99}}").encode(buf);
-            return buf;
-        }).size();
-        assertTrue(updated > 0, "update should touch at least one document during the build");
 
-        awaitIndexStatus(indexSubspace, IndexStatus.READY);
-        awaitAllTasksSwept();
+        // Continuously flip the indexed field 32<->99 on the same group while the build runs.
+        AtomicBoolean stop = new AtomicBoolean(false);
+        try (ExecutorService service = Executors.newSingleThreadExecutor()) {
+            Future<?> loop = startMutationLoop(service, stop, List.of(
+                    updateAge(cmd, 32, 99),
+                    updateAge(cmd, 99, 32)
+            ));
+            awaitIndexStatus(indexSubspace, IndexStatus.READY);
+            awaitAllTasksSwept();
+            stop.set(true);
+            loop.get();
+        }
 
-        // No deletes: every document is still indexed exactly once.
         checkBuildCoverageAndCardinality("age", total);
+    }
+
+    private Supplier<ByteBuf> updateAge(BucketCommandBuilder<byte[], byte[]> cmd, int from, int to) {
+        return () -> {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.update(TEST_BUCKET, "{\"age\": " + from + "}", "{\"$set\": {\"age\": " + to + "}}").encode(buf);
+            return buf;
+        };
     }
 
     @Test
@@ -306,7 +346,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                 List<Integer> shards = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
                 for (int shardId : shards) {
                     DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
-                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                    TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                         tasks.getAndIncrement();
                         return true;
                     });
@@ -386,7 +426,6 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
             bgFuture.get();
 
-            BucketService bucketService = context.getService(BucketService.NAME);
             await().atMost(Duration.ofSeconds(20)).until(() -> {
                 // All build & drop tasks are killed and removed
                 AtomicInteger counter = new AtomicInteger();
@@ -394,7 +433,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                     List<Integer> shards = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
                     for (int shardId : shards) {
                         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
-                        TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                        TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                             counter.getAndIncrement();
                             return true;
                         });
@@ -439,7 +478,6 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             tr.commit().join();
         }
 
-        BucketService bucketService = context.getService(BucketService.NAME);
         await().atMost(Duration.ofSeconds(30)).until(() -> {
             // All build & drop tasks are killed and removed
             AtomicInteger counter = new AtomicInteger();
@@ -447,7 +485,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                 List<Integer> shards = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
                 for (int shardId : shards) {
                     DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
-                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                    TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                         counter.getAndIncrement();
                         return true;
                     });
@@ -652,7 +690,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                 List<Integer> shards = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
                 for (int shardId : shards) {
                     DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, shardId);
-                    TaskStorage.tasks(tr, taskSubspace, (taskId) -> {
+                    TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                         tasks.getAndIncrement();
                         return true;
                     });
