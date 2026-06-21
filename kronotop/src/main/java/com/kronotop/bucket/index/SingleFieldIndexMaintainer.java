@@ -27,9 +27,11 @@ import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.CollatorCache;
 import org.bson.types.ObjectId;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Maintains single field indexes in FoundationDB for Bucket data structure.
@@ -151,39 +153,44 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
     }
 
     /**
-     * Returns the ObjectIds that already have at least one back pointer in this index within the
-     * inclusive range {@code [minObjectId, maxObjectId]}.
+     * Returns which of the given ObjectIds already have at least one back pointer in this index.
      *
-     * <p>Scans the {@code (BACK_POINTER, ObjectId, indexValue)} keyspace, which is ordered by
-     * ObjectId. The read is not a snapshot read, so it registers a read conflict range over the
-     * scanned span. A concurrent writer that adds or removes an entry for an ObjectId in that span
-     * forces this transaction to conflict on commit. This lets the background index builder skip
-     * ObjectIds already indexed by online writers without double counting cardinality.
+     * <p>Issues one point request per ObjectId against the {@code (BACK_POINTER, ObjectId, indexValue)}
+     * keyspace. All requests are dispatched before any is awaited, so the FoundationDB client
+     * pipelines them over a single connection, giving a few round trips instead of one per ObjectId.
+     * Each read is not a snapshot read, so it registers a narrow read conflict range over exactly that
+     * ObjectId's back pointers. A concurrent writer that adds or removes an entry for one of these
+     * ObjectIds forces this transaction to conflict on commit. This lets the background index builder
+     * skip ObjectIds already indexed by online writers without double counting cardinality.
      *
      * @param tr            the FoundationDB transaction
      * @param indexSubspace the index's directory subspace
-     * @param minObjectId   inclusive lower bound ObjectId as bytes
-     * @param maxObjectId   inclusive upper bound ObjectId as bytes
-     * @return the set of already-indexed ObjectIds within the range
+     * @param objectIds     the ObjectIds to probe, each as bytes
+     * @return the subset of the given ObjectIds that are already indexed
      */
     public static Set<ObjectId> findIndexedObjectIds(
             Transaction tr,
             DirectorySubspace indexSubspace,
-            byte[] minObjectId,
-            byte[] maxObjectId
+            List<byte[]> objectIds
     ) {
-        byte[] beginKey = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), minObjectId));
-        byte[] endPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), maxObjectId));
-        KeySelector begin = KeySelector.firstGreaterOrEqual(beginKey);
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(endPrefix));
-
-        Set<ObjectId> objectIds = new HashSet<>();
-        for (KeyValue kv : tr.getRange(begin, end)) {
-            Tuple unpacked = indexSubspace.unpack(kv.getKey());
-            byte[] objectIdBytes = (byte[]) unpacked.get(1);
-            objectIds.add(new ObjectId(objectIdBytes));
+        if (objectIds.isEmpty()) {
+            return Set.of();
         }
-        return objectIds;
+
+        // Dispatch all point requests without awaiting so the client pipelines them.
+        List<CompletableFuture<List<KeyValue>>> futures = new ArrayList<>(objectIds.size());
+        for (byte[] objectIdBytes : objectIds) {
+            byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), objectIdBytes));
+            futures.add(tr.getRange(prefix, ByteArrayUtil.strinc(prefix), 1).asList());
+        }
+
+        Set<ObjectId> indexed = new HashSet<>();
+        for (int i = 0; i < objectIds.size(); i++) {
+            if (!futures.get(i).join().isEmpty()) {
+                indexed.add(new ObjectId(objectIds.get(i)));
+            }
+        }
+        return indexed;
     }
 
     /**
