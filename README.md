@@ -22,19 +22,19 @@ Kronotop currently provides:
 
 Kronotop speaks RESP2 and RESP3 and works with existing RESP-compatible clients.
 
-With `kronotop-cli` or `valkey-cli`, a single transaction can atomically write a document and update a counter across
+With `kronotop-cli` or `valkey-cli`, a single transaction can atomically store a document and update a counter across
 isolated namespaces:
 
 ```
 BEGIN
 
-# In the sales namespace: record a new order.
-NAMESPACE USE production.sales
-BUCKET.INSERT orders DOCS '{"item": "keyboard", "qty": 2, "price": 49.99}'
+# In an agent's namespace: store a memory with its embedding.
+NAMESPACE USE agents.support-bot
+BUCKET.INSERT memories DOCS '{"text": "prefers email", "embedding": [0.12, 0.07, 0.91]}'
 
-# In the inventory namespace: decrement stock, conflict-free.
-NAMESPACE USE production.inventory
-ZINC.I64 keyboard -2
+# In the billing namespace: bump a shared usage counter, conflict-free.
+NAMESPACE USE billing
+ZINC.I64 support-bot:tokens 1240
 
 COMMIT
 ```
@@ -42,10 +42,19 @@ COMMIT
 Read it back with the Bucket Query Language (BQL):
 
 ```
-NAMESPACE USE production.sales
-BUCKET.QUERY orders '{ "qty": { "$gte": 2 } }'
+NAMESPACE USE agents.support-bot
+BUCKET.QUERY memories '{ "text": { "$eq": "prefers email" } }'
 1# "cursor_id" => (integer) 1
-2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "item": "keyboard", "qty": 2, "price": 49.99}
+2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "text": "prefers email", "embedding": [0.12, 0.07, 0.91]}
+```
+
+Or, with a vector index on `embedding`, recall it by similarity over the same field:
+
+```
+NAMESPACE USE agents.support-bot
+BUCKET.VECTOR memories embedding '[0.10, 0.09, 0.88]' TOP 3
+1) 1# "score" => (double) 0.9981
+   2# "entry" => {"_id": "6a133c8806bf494c9e7e00cb", "text": "prefers email", "embedding": [0.12, 0.07, 0.91]}
 ```
 
 Jump to [Quickstart](#quickstart) for more details and quickly spin up a cluster.
