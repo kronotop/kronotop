@@ -4,9 +4,13 @@
 
 Kronotop is an open-source, distributed, transactional document database built on [FoundationDB](https://github.com/apple/foundationdb).
 
-> One transaction, multiple models.
+> Millions of databases. One cluster.
 
-Beyond its document model, Kronotop provides a transactional ordered key-value data structure that can participate
+Kronotop gives every AI agent, tenant, or app its own logical database, called a namespace, and runs many
+namespaces on a single cluster. A namespace is a prefix in the keyspace, so creating one is free, and isolation comes
+from the prefix, not from application code. One transaction still commits across any number of namespaces.
+
+Beyond its document model, Kronotop provides a transactional ordered key-value data structure (ZMap) that participates
 in the same strictly serializable transaction boundary.
 
 Kronotop currently provides:
@@ -62,7 +66,6 @@ See the [roadmap](ROADMAP.md) for where Kronotop is headed.
 - [Quickstart](#quickstart)
 - [Building from Source](#building-from-source)
 - [Core Concepts](#core-concepts)
-- [Why Kronotop?](#why-kronotop)
 - [Benchmarks](#benchmarks)
 - [Use Cases](#use-cases)
 - [Namespaces](#namespaces)
@@ -191,18 +194,6 @@ Strictly serializable by default, inherited from FoundationDB. Both auto-commit 
 
 Metadata and indexes live in FoundationDB. Document bodies are stored in Volume, Kronotop’s segment-based storage engine
 with primary-standby replication. ZMap data is stored directly in FoundationDB.
-
-## Why Kronotop?
-
-When an application uses separate systems for documents, queues, key-value data, and counters, each system has its own
-consistency model and failure modes. They share no distributed commit protocol like 2PC or XA, so there is no atomic
-write across them; the workarounds are retry loops, outbox tables, and saga coordinators.
-
-Kronotop places multiple data models behind **one transaction boundary**. Consensus and conflict detection come from
-FoundationDB, so a single transaction can atomically span the Bucket and ZMap models across namespaces without any
-application-level coordination.
-
-FoundationDB has a decade of production use and is validated with deterministic simulation testing.
 
 ## Benchmarks
 
