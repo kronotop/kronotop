@@ -217,6 +217,74 @@ BUCKET.QUERY students '{"name": "Alice"}' PROJECTION '{"grades.$": 1}'
 
 The query filters on `name`, not on `grades`. The `$` operator returns `grades[0]`.
 
+## Slice Operator (`$slice`)
+
+The `$slice` operator returns a subset of an array field instead of the whole array. The value is either a single number 
+or a `[skip, limit]` pair.
+
+```kronotop
+BUCKET.QUERY users '{}' PROJECTION '{"comments": {"$slice": 2}}'
+```
+
+Input document:
+
+```json
+{"_id": {"$oid": "..."}, "name": "Alice", "comments": ["a", "b", "c", "d"]}
+```
+
+Returned:
+
+```json
+{"_id": {"$oid": "..."}, "name": "Alice", "comments": ["a", "b"]}
+```
+
+### Single Number
+
+- A positive `n` returns the first `n` elements.
+- A negative `n` returns the last `|n|` elements.
+- When `|n|` is larger than the array length, the whole array is returned.
+
+```kronotop
+BUCKET.QUERY users '{}' PROJECTION '{"comments": {"$slice": -2}}'
+```
+
+Returns the last two comments.
+
+### Skip and Limit
+
+`[skip, limit]` skips elements first, then caps how many are returned. The `limit` must be positive.
+
+- A non-negative `skip` skips from the start. A `skip` past the array length returns an empty array.
+- A negative `skip` counts back from the end. When its magnitude exceeds the length, it clamps to the start of the array.
+
+```kronotop
+BUCKET.QUERY users '{}' PROJECTION '{"comments": {"$slice": [1, 2]}}'
+```
+
+Skips the first comment and returns the next two.
+
+### Nested Paths
+
+The `$slice` operator works with nested paths:
+
+```kronotop
+BUCKET.QUERY products '{}' PROJECTION '{"details.colors": {"$slice": 1}}'
+```
+
+### Inclusion and Exclusion
+
+`$slice` used by itself behaves like exclusion: every other field is returned, with the named array sliced. Sibling fields under a nested path are kept.
+
+When the spec also lists inclusion fields, `$slice` behaves within that inclusion: only the included fields and the sliced array are returned, and sibling fields under the nested path are dropped. `_id` is returned by default unless `_id: 0` is set.
+
+### Rules
+
+- The slice value must be an integer, or an `[skip, limit]` pair of integers. Fractional or out-of-range values are rejected.
+- The `limit` in `[skip, limit]` must be positive.
+- A non-array value passes through unchanged.
+- `$slice` cannot be combined with the positional `$` operator in the same spec.
+- A `$slice` path and any projected field cannot overlap. Neither may be a prefix of the other, so you cannot project a field embedded in a sliced array, slice inside a fully projected parent, or use two overlapping `$slice` paths.
+
 ## Usage
 
 | Command         | Syntax                                                             |

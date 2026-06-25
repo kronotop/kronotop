@@ -2,28 +2,17 @@
 
 [![Website](https://img.shields.io/badge/kronotop.com-docs-00c5d1?labelColor=061827)](https://kronotop.com) [![Build](https://img.shields.io/github/actions/workflow/status/kronotop/kronotop/maven.yaml?branch=main&label=build)](https://github.com/kronotop/kronotop/actions/workflows/maven.yaml) [![Release](https://img.shields.io/github/v/release/kronotop/kronotop)](https://github.com/kronotop/kronotop/releases/latest) [![Docker](https://img.shields.io/badge/ghcr.io-kronotop%2Fkronotop-2496ED?logo=docker&logoColor=white)](https://github.com/kronotop/kronotop/pkgs/container/kronotop) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Discord](https://img.shields.io/discord/1004765247212638239.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/VPRNvdh2C)
 
-Kronotop is an open-source, distributed, transactional document database built on [FoundationDB](https://github.com/apple/foundationdb).
+Kronotop is a distributed, transactional document database backed by [FoundationDB](https://github.com/apple/foundationdb).
 
 > Millions of databases. One cluster.
 
-Kronotop gives every AI agent, tenant, or app its own logical database, called a namespace, and runs many
-namespaces on a single cluster. A namespace is a prefix in the keyspace, so creating one is free, and isolation comes
-from the prefix, not from application code. One transaction still commits across any number of namespaces.
+Kronotop gives every AI agent, tenant, or application its own logical database, called a namespace. A namespace is 
+implemented as a FoundationDB key prefix, so creating one is essentially free and provides isolation.
 
-Beyond its document model, Kronotop provides a transactional ordered key-value data structure (ZMap) that participates
-in the same strictly serializable transaction boundary.
+A single transaction can commit atomically across any number of namespaces.
 
-Kronotop currently provides:
-
-- **Bucket**: document model with secondary indexes and vector search
-- **ZMap**: ordered key-value model with range queries and conflict-free counters
-- **Volume**: internal storage engine that backs data models with segment-based I/O and primary-standby replication
-- **Namespaces**: lightweight logical isolation built on FoundationDB directories
-
-Kronotop speaks RESP2 and RESP3 and works with existing RESP-compatible clients.
-
-With `kronotop-cli` or `valkey-cli`, a single transaction can atomically store a document and update a counter across
-isolated namespaces:
+Kronotop speaks RESP2 and RESP3, so you can use existing RESP-compatible clients, including `redis-cli` or `valkey-cli`, 
+without a new driver.
 
 ```
 BEGIN
@@ -549,12 +538,6 @@ The original plan was to build on FoundationDB Record Layer and Apache Calcite, 
 components. Both projects are in Java. After implementing key components, the project shifted toward developing a native document
 layer. The FoundationDB Java client and the Directory Layer are officially supported. Being on the JVM also gives access to
 libraries like [JVector](https://github.com/datastax/jvector), which powers Kronotop's vector search. These were the main reasons behind the language choice.
-
-## Contribution
-
-Kronotop is not accepting external contributions at this time. This policy will change as the project stabilizes. Until
-then, all pull requests will be closed regardless of their content.
-For bug reports and suggestions, please use the **Issues** section.
 
 ## Support
 

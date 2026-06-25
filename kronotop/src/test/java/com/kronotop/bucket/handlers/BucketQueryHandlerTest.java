@@ -1393,6 +1393,56 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertFalse(doc.containsKey("age"), "Second page (via ADVANCE) should also not include 'age'");
     }
 
+    @Test
+    void shouldSliceArrayWithProjection() {
+        // Behavior: PROJECTION with {"items": {"$slice": [1, 2]}} returns the requested array slice end to end.
+        List<byte[]> docs = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"items\": [1, 2, 3, 4, 5]}")
+        );
+        insertDocumentsAndGetObjectIds(docs);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.projection("{\"items\": {\"$slice\": [1, 2]}}")).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        List<BsonDocument> entries = extractEntries(msg);
+        assertEquals(1, entries.size());
+        BsonDocument doc = entries.getFirst();
+        BsonArray items = doc.getArray("items");
+        assertEquals(2, items.size());
+        assertEquals(2, items.get(0).asInt32().getValue());
+        assertEquals(3, items.get(1).asInt32().getValue());
+    }
+
+    @Test
+    void shouldSliceAloneReturnsAllOtherFields() {
+        // Behavior: $slice by itself acts as exclusion, returning every other field with the named array sliced.
+        List<byte[]> docs = List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 30, \"items\": [1, 2, 3, 4, 5]}")
+        );
+        insertDocumentsAndGetObjectIds(docs);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.projection("{\"items\": {\"$slice\": 2}}")).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        List<BsonDocument> entries = extractEntries(msg);
+        assertEquals(1, entries.size());
+        BsonDocument doc = entries.getFirst();
+        assertTrue(doc.containsKey("_id"));
+        assertTrue(doc.containsKey("name"), "Other fields should pass through when $slice is used alone");
+        assertTrue(doc.containsKey("age"));
+        assertEquals(2, doc.getArray("items").size());
+    }
+
     // --- Collation tests ---
 
     @Test

@@ -964,4 +964,392 @@ class ProjectorTest {
         assertTrue(result.containsKey("_id"));
         assertFalse(result.containsKey("items"));
     }
+
+    // --- $slice Operator ---
+
+    private static BsonArray intArray(int... values) {
+        BsonArray array = new BsonArray();
+        for (int value : values) {
+            array.add(new BsonInt32(value));
+        }
+        return array;
+    }
+
+    @Test
+    void shouldSliceFirstNElements() {
+        // Behavior: $slice with positive n returns the first n elements of the array
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("comments", intArray(1, 2, 3, 4, 5));
+
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": 3}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonArray comments = results.get(0).getArray("comments");
+        assertEquals(3, comments.size());
+        assertEquals(1, comments.get(0).asInt32().getValue());
+        assertEquals(3, comments.get(2).asInt32().getValue());
+    }
+
+    @Test
+    void shouldSliceLastNElements() {
+        // Behavior: $slice with negative n returns the last |n| elements of the array
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("comments", intArray(1, 2, 3, 4, 5));
+
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": -2}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonArray comments = results.get(0).getArray("comments");
+        assertEquals(2, comments.size());
+        assertEquals(4, comments.get(0).asInt32().getValue());
+        assertEquals(5, comments.get(1).asInt32().getValue());
+    }
+
+    @Test
+    void shouldReturnWholeArrayWhenNExceedsLength() {
+        // Behavior: positive n larger than the array length returns the whole array
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("comments", intArray(1, 2, 3));
+
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": 10}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        assertEquals(3, results.get(0).getArray("comments").size());
+    }
+
+    @Test
+    void shouldReturnWholeArrayWhenNegativeNExceedsLength() {
+        // Behavior: negative n whose magnitude exceeds the length returns the whole array
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("comments", intArray(1, 2, 3));
+
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": -10}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        assertEquals(3, results.get(0).getArray("comments").size());
+    }
+
+    @Test
+    void shouldSliceWithSkipAndLimit() {
+        // Behavior: [skip, limit] skips from the start and caps the number of returned elements
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("comments", intArray(1, 2, 3, 4, 5));
+
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": [2, 2]}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonArray comments = results.get(0).getArray("comments");
+        assertEquals(2, comments.size());
+        assertEquals(3, comments.get(0).asInt32().getValue());
+        assertEquals(4, comments.get(1).asInt32().getValue());
+    }
+
+    @Test
+    void shouldReturnEmptyWhenSkipPastLength() {
+        // Behavior: a positive skip past the array length yields an empty array
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("comments", intArray(1, 2, 3));
+
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": [10, 5]}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        assertTrue(results.get(0).getArray("comments").isEmpty());
+    }
+
+    @Test
+    void shouldClampNegativeSkipBeyondLength() {
+        // Behavior: a negative skip whose magnitude exceeds the length clamps the start to index 0
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("comments", intArray(1, 2, 3));
+
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": [-10, 2]}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonArray comments = results.get(0).getArray("comments");
+        assertEquals(2, comments.size());
+        assertEquals(1, comments.get(0).asInt32().getValue());
+        assertEquals(2, comments.get(1).asInt32().getValue());
+    }
+
+    @Test
+    void shouldSliceNestedPath() {
+        // Behavior: $slice applies to an array reached through dot notation
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("details", new BsonDocument()
+                        .append("colors", new BsonArray(List.of(
+                                new BsonString("blue"), new BsonString("red"), new BsonString("green")))));
+
+        BsonDocument spec = BsonDocument.parse("{\"details.colors\": {\"$slice\": 1}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonArray colors = results.get(0).getDocument("details").getArray("colors");
+        assertEquals(1, colors.size());
+        assertEquals("blue", colors.get(0).asString().getValue());
+    }
+
+    @Test
+    void shouldSliceAloneActsAsExclusionKeepingSiblings() {
+        // Behavior: $slice by itself behaves as exclusion - all other fields and nested siblings pass through
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("item", new BsonString("book"))
+                .append("qty", new BsonInt32(5))
+                .append("details", new BsonDocument()
+                        .append("colors", new BsonArray(List.of(
+                                new BsonString("blue"), new BsonString("red"))))
+                        .append("sizes", new BsonArray(List.of(
+                                new BsonString("S"), new BsonString("M")))));
+
+        BsonDocument spec = BsonDocument.parse("{\"details.colors\": {\"$slice\": 1}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonDocument result = results.get(0);
+        assertTrue(result.containsKey("_id"));
+        assertEquals("book", result.getString("item").getValue());
+        assertEquals(5, result.getInt32("qty").getValue());
+        BsonDocument details = result.getDocument("details");
+        assertEquals(1, details.getArray("colors").size());
+        assertTrue(details.containsKey("sizes"), "sibling field 'sizes' should be preserved in exclusion mode");
+        assertEquals(2, details.getArray("sizes").size());
+    }
+
+    @Test
+    void shouldSliceWithInclusionDropsSiblings() {
+        // Behavior: with inclusion fields present, $slice's nested doc keeps only the sliced array; siblings drop
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("item", new BsonString("book"))
+                .append("qty", new BsonInt32(5))
+                .append("details", new BsonDocument()
+                        .append("colors", new BsonArray(List.of(
+                                new BsonString("blue"), new BsonString("red"))))
+                        .append("sizes", new BsonArray(List.of(
+                                new BsonString("S"), new BsonString("M")))));
+
+        BsonDocument spec = BsonDocument.parse("{\"qty\": 1, \"details.colors\": {\"$slice\": 1}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonDocument result = results.get(0);
+        assertTrue(result.containsKey("_id"));
+        assertEquals(5, result.getInt32("qty").getValue());
+        assertFalse(result.containsKey("item"), "non-included field 'item' should be dropped in inclusion mode");
+        BsonDocument details = result.getDocument("details");
+        assertEquals(1, details.getArray("colors").size());
+        assertFalse(details.containsKey("sizes"), "sibling field 'sizes' should be dropped in inclusion mode");
+    }
+
+    @Test
+    void shouldPassThroughNonArrayValue() {
+        // Behavior: $slice on a non-array value leaves the field unchanged
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("name", new BsonString("Alice"))
+                .append("comments", new BsonString("hello"));
+
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": 3}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonDocument result = results.get(0);
+        assertEquals("hello", result.getString("comments").getValue());
+        assertEquals("Alice", result.getString("name").getValue());
+    }
+
+    @Test
+    void shouldExcludeIdWithSlice() {
+        // Behavior: _id: 0 alongside $slice excludes _id while slicing the named array
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("comments", intArray(1, 2, 3));
+
+        BsonDocument spec = BsonDocument.parse("{\"_id\": 0, \"comments\": {\"$slice\": 2}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonDocument result = results.get(0);
+        assertFalse(result.containsKey("_id"));
+        assertEquals(2, result.getArray("comments").size());
+    }
+
+    @Test
+    void shouldRejectSliceWithPositional() {
+        // Behavior: $slice cannot be combined with the positional $ operator
+        BsonDocument spec = BsonDocument.parse("{\"grades.$\": 1, \"comments\": {\"$slice\": 2}}");
+
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), spec));
+    }
+
+    @Test
+    void shouldRejectSlicePathCollision() {
+        // Behavior: a spec cannot both $slice an array and project a field embedded in that array
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": 5}, \"comments.author\": 1}");
+
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), spec));
+    }
+
+    @Test
+    void shouldRejectNonPositiveSliceLimit() {
+        // Behavior: the limit in [skip, limit] must be positive
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), BsonDocument.parse("{\"comments\": {\"$slice\": [0, 0]}}")));
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), BsonDocument.parse("{\"comments\": {\"$slice\": [1, -1]}}")));
+    }
+
+    @Test
+    void shouldRejectMalformedSliceArg() {
+        // Behavior: $slice argument must be a number or a [skip, limit] pair
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), BsonDocument.parse("{\"comments\": {\"$slice\": [1]}}")));
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), BsonDocument.parse("{\"comments\": {\"$slice\": [1, 2, 3]}}")));
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), BsonDocument.parse("{\"comments\": {\"$slice\": \"x\"}}")));
+    }
+
+    @Test
+    void shouldNotMutateSourceDocumentWhenSlicing() {
+        // Behavior: slicing a nested array never mutates the source document, in either projection mode
+        BsonDocument source = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("qty", new BsonInt32(5))
+                .append("details", new BsonDocument()
+                        .append("colors", new BsonArray(List.of(
+                                new BsonString("blue"), new BsonString("red"), new BsonString("green")))));
+
+        // Exclusion mode ($slice alone)
+        Projector.project(List.of(source), BsonDocument.parse("{\"details.colors\": {\"$slice\": 1}}"));
+        assertEquals(3, source.getDocument("details").getArray("colors").size(),
+                "exclusion-mode slice must not mutate the source array");
+
+        // Inclusion mode (sibling inclusion field present)
+        Projector.project(List.of(source), BsonDocument.parse("{\"qty\": 1, \"details.colors\": {\"$slice\": 1}}"));
+        assertEquals(3, source.getDocument("details").getArray("colors").size(),
+                "inclusion-mode slice must not mutate the source array");
+    }
+
+    @Test
+    void shouldRejectSliceWhenIncludingParentOfSlicedPath() {
+        // Behavior: projecting a parent path and slicing a field inside it is a path collision
+        BsonDocument spec = BsonDocument.parse("{\"details\": 1, \"details.colors\": {\"$slice\": 1}}");
+
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), spec));
+    }
+
+    @Test
+    void shouldSliceArrayCrossingPathInExclusion() {
+        // Behavior: in exclusion mode $slice on a path crossing an array of documents slices the leaf in each element
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("name", new BsonString("x"))
+                .append("orders", new BsonArray(List.of(
+                        new BsonDocument().append("items", intArray(1, 2, 3)),
+                        new BsonDocument().append("items", intArray(4, 5, 6, 7)))));
+
+        BsonDocument spec = BsonDocument.parse("{\"orders.items\": {\"$slice\": 2}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonDocument result = results.get(0);
+        assertEquals("x", result.getString("name").getValue(), "sibling field preserved in exclusion mode");
+        BsonArray orders = result.getArray("orders");
+        assertEquals(intArray(1, 2), orders.get(0).asDocument().getArray("items"));
+        assertEquals(intArray(4, 5), orders.get(1).asDocument().getArray("items"));
+    }
+
+    @Test
+    void shouldSliceArrayCrossingPathInInclusion() {
+        // Behavior: in inclusion mode $slice on an array-crossing path keeps only the sliced leaf per element
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("qty", new BsonInt32(5))
+                .append("orders", new BsonArray(List.of(
+                        new BsonDocument().append("items", intArray(1, 2, 3)).append("note", new BsonString("a")),
+                        new BsonDocument().append("items", intArray(4, 5, 6, 7)).append("note", new BsonString("b")))));
+
+        BsonDocument spec = BsonDocument.parse("{\"qty\": 1, \"orders.items\": {\"$slice\": 2}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonDocument result = results.get(0);
+        assertEquals(5, result.getInt32("qty").getValue());
+        BsonArray orders = result.getArray("orders");
+        assertEquals(intArray(1, 2), orders.get(0).asDocument().getArray("items"));
+        assertEquals(intArray(4, 5), orders.get(1).asDocument().getArray("items"));
+        assertFalse(orders.get(0).asDocument().containsKey("note"), "non-included sibling dropped in inclusion mode");
+    }
+
+    @Test
+    void shouldReturnRemainingElementsWhenLimitIsHuge() {
+        // Behavior: a very large limit returns the remaining elements without integer overflow
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("comments", intArray(1, 2, 3, 4, 5));
+
+        BsonDocument spec = BsonDocument.parse("{\"comments\": {\"$slice\": [1, 2147483647]}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        assertEquals(intArray(2, 3, 4, 5), results.get(0).getArray("comments"));
+    }
+
+    @Test
+    void shouldRejectNonIntegerSliceArg() {
+        // Behavior: $slice values must be integers; fractional or out-of-range values are rejected, not truncated
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), BsonDocument.parse("{\"comments\": {\"$slice\": 2.5}}")));
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), BsonDocument.parse("{\"comments\": {\"$slice\": [1.0, 2.0]}}")));
+        assertThrows(IllegalArgumentException.class, () ->
+                Projector.project(List.of(), BsonDocument.parse("{\"comments\": {\"$slice\": 3000000000}}")));
+    }
+
+    @Test
+    void shouldKeepSliceAlignedWithSiblingAcrossInterleavedNonDocumentElement() {
+        // Behavior: in inclusion mode, $slice on an array-crossing path stays aligned with a sibling
+        // inclusion field on the same array even when a non-document element is interleaved; the scalar
+        // is dropped and each document element keeps both its sliced leaf and the sibling, with no split.
+        BsonDocument doc = new BsonDocument()
+                .append("_id", new BsonObjectId(new ObjectId()))
+                .append("a", new BsonArray(List.of(
+                        new BsonDocument().append("tags", intArray(1, 2, 3)).append("note", new BsonString("x")),
+                        new BsonString("junk"),
+                        new BsonDocument().append("tags", intArray(9, 8)).append("note", new BsonString("y")))));
+
+        BsonDocument spec = BsonDocument.parse("{\"a.note\": 1, \"a.tags\": {\"$slice\": 1}}");
+
+        List<BsonDocument> results = Projector.project(List.of(doc), spec);
+
+        BsonArray a = results.get(0).getArray("a");
+        assertEquals(2, a.size(), "non-document element is dropped; document elements must not be split or duplicated");
+
+        BsonDocument first = a.get(0).asDocument();
+        assertEquals("x", first.getString("note").getValue());
+        assertEquals(intArray(1), first.getArray("tags"));
+
+        BsonDocument second = a.get(1).asDocument();
+        assertEquals("y", second.getString("note").getValue());
+        assertEquals(intArray(9), second.getArray("tags"));
+    }
 }
