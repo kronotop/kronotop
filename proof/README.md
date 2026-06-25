@@ -1,8 +1,8 @@
 # Proof: Millions of databases
 
 This proof creates **1,000,001 namespaces** in a single Kronotop cluster to back the
-claim *"Millions of databases."* Every namespace is an isolated database living on top
-of one shared FoundationDB.
+claim *"Millions of databases."* Every namespace is an isolated database on a single
+shared FoundationDB.
 
 ## Structure
 
@@ -20,8 +20,7 @@ global.millions.<parent-uuid>.<leaf-uuid> 999 leaves
 ```
 
 `total = 1 + parents + (parents * leaves)`. With the defaults `parents=1000` and
-`leaves=999` that is exactly 1,000,001. Each level is created explicitly, so the
-counter matches the tree one-to-one.
+`leaves=999` that is exactly 1,000,001. Each level is created explicitly.
 
 ## How it works
 
@@ -32,7 +31,7 @@ every two seconds.
 ## Run
 
 The script declares its dependencies inline (PEP 723), so [uv](https://docs.astral.sh/uv/)
-fetches them into an ephemeral environment on the fly. No virtualenv, no `pip install`.
+fetches them into an ephemeral environment. No virtualenv, no `pip install`.
 
 Spin up a local Kronotop cluster with Docker Compose.
 
