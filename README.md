@@ -72,7 +72,6 @@ See the [roadmap](ROADMAP.md) for where Kronotop is headed.
 - [Transactions](#transactions)
 - [Clustering](#clustering)
 - [Why These Building Blocks?](#why-these-building-blocks)
-- [Contribution](#contribution)
 - [Support](#support)
 - [About the Name](#about-the-name)
 - [License](#license)
