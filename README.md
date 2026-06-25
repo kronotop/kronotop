@@ -9,6 +9,8 @@ Kronotop is a distributed, transactional document database backed by [Foundation
 Kronotop gives every AI agent, tenant, or application its own logical database, called a namespace. A namespace is 
 implemented as a FoundationDB key prefix, so creating one is essentially free and provides isolation.
 
+**Proof**: [Created 1,000,001 namespaces in a single cluster.](proof/README.md)
+
 A single transaction can commit atomically across any number of namespaces.
 
 Kronotop speaks RESP2 and RESP3, so you can use existing RESP-compatible clients, including `redis-cli` or `valkey-cli`, 
@@ -474,7 +476,7 @@ counters, flags, and coordination mechanisms without transaction conflicts.
 See the [ZMap documentation](https://kronotop.com/docs/zmap) for the full command reference, atomic mutations, and range
 operations.
 
-The [recipes](recipes/) directory shows how to compose these primitives into higher-level coordination patterns.
+The [recipes](recipes) directory shows how to compose these primitives into higher-level coordination patterns.
 See the [distributed lock on ZMap](recipes/distributed-lock-on-zmap.md) draft recipe for a lease-based lock with a fencing token.
 
 ## Transactions
