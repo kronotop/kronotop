@@ -56,6 +56,23 @@ negotiation and authentication can happen in a single round trip. See [Configura
 No connection command requires the cluster to be initialized. `PING`, `HELLO`, and `AUTH` work on a freshly started
 instance, which makes them suitable for health checks and bootstrap scripts.
 
+## Pipelining
+
+Pipelining means sending several commands at once without waiting for the reply to each one. It saves network round
+trips. The server runs the commands in the order it receives them and sends the replies back in the same order.
+
+Pipelining is not a transaction. The commands stay independent, and commands from other connections may run between
+them. When you need a group of commands to run as one unit, use a transaction instead. See
+[Transactions](../transactions/index.md).
+
+**Pipelining is not supported for Kronotop's own commands.** These commands carry session and transaction state, 
+so they expect a request and a reply in pairs: read the reply before you send the next command. Sending them in a pipeline
+is undefined behavior, and the results are not guaranteed.
+
+Transaction control is the clearest case. If you pipeline `BEGIN`, the writes, and `COMMIT` together, and `COMMIT` fails
+because of a conflict, the commands you already sent after it have no defined outcome. The same is true when `BEGIN`
+fails. For this reason, never pipeline `BEGIN`, `COMMIT`, or `ROLLBACK`, or any command that runs inside a transaction.
+
 ## Commands
 
 | Command                        | Description                                                  |
