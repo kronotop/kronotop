@@ -61,7 +61,7 @@ java -jar target/kronotop-benchmark-*.jar vector tweets \
 ```
 
 ```bash
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-3.jar vector tweets 
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-4.jar vector tweets 
     --threads 8 
     --search-rounds 100 
     --top-k 10 
@@ -69,7 +69,7 @@ java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-3.jar vector twee
 ```
 
 ```bash
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-3.jar vector tweets 
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-4.jar vector tweets 
     --threads 8 
     --skip-load 
     --search-rounds 100 
@@ -95,7 +95,7 @@ Options:
 Results on Apple Silicon M4 Pro with 48GB of RAM:
 
 ```bash
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-3.jar vector tweets --threads 8 --skip-load --search-rounds 100 --top-k 10
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-4.jar vector tweets --threads 8 --skip-load --search-rounds 100 --top-k 10
 === Kronotop Vector Search Benchmark (Tweets) ===
 Host: localhost:5484
 Bucket: senator-tweets
@@ -166,13 +166,13 @@ java -jar target/kronotop-benchmark-*.jar vector hnm \
 ```
 
 ```bash
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-3.jar vector hnm --threads 8 --search-rounds 100 --top-k 10 --data-dir ~/Downloads/hnm
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-4.jar vector hnm --threads 8 --search-rounds 100 --top-k 10 --data-dir ~/Downloads/hnm
 ```
 
 Results on Apple Silicon M4 Pro with 48GB of RAM:
 
 ```bash
-java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-3.jar vector hnm --threads 8 --search-rounds 100 --top-k 10 --skip-load
+java -jar kronotop-benchmark/target/kronotop-benchmark-2026.06-4.jar vector hnm --threads 8 --search-rounds 100 --top-k 10 --skip-load
 === Kronotop Vector Search Benchmark (H&M) ===
 Host: localhost:5484
 Bucket: hnm-products
