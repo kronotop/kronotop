@@ -24,6 +24,9 @@ import com.kronotop.core.handlers.connection.protocol.EchoMessage;
 import com.kronotop.core.handlers.connection.protocol.HelloMessage;
 import com.kronotop.core.handlers.connection.protocol.PingMessage;
 import com.kronotop.core.handlers.protocol.InfoMessage;
+import com.kronotop.core.handlers.pubsub.protocol.SPublishMessage;
+import com.kronotop.core.handlers.pubsub.protocol.SSubscribeMessage;
+import com.kronotop.core.handlers.pubsub.protocol.SUnsubscribeMessage;
 import com.kronotop.core.handlers.server.protocol.CommandMessage;
 import com.kronotop.core.handlers.server.protocol.TimeMessage;
 import com.kronotop.core.handlers.session.protocol.SessionAttributeMessage;
@@ -178,4 +181,9 @@ public class MessageTypes {
     // Session management
     public static final AttributeKey<SessionAttributeMessage> SESSIONATTRIBUTE = AttributeKey.valueOf(SessionAttributeMessage.COMMAND);
     public static final AttributeKey<SessionCloseMessage> SESSIONCLOSE = AttributeKey.valueOf(SessionCloseMessage.COMMAND);
+
+    // Sharded Pub/Sub commands
+    public static final AttributeKey<SSubscribeMessage> SSUBSCRIBE = AttributeKey.valueOf(SSubscribeMessage.COMMAND);
+    public static final AttributeKey<SUnsubscribeMessage> SUNSUBSCRIBE = AttributeKey.valueOf(SUnsubscribeMessage.COMMAND);
+    public static final AttributeKey<SPublishMessage> SPUBLISH = AttributeKey.valueOf(SPublishMessage.COMMAND);
 }

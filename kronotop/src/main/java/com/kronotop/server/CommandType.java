@@ -90,6 +90,11 @@ public enum CommandType {
     WATCH,
     UNWATCH,
 
+    // Sharded Pub/Sub commands
+    SSUBSCRIBE,
+    SUNSUBSCRIBE,
+    SPUBLISH,
+
     // Server commands
     COMMAND,
     FLUSHDB,
@@ -265,6 +270,11 @@ public enum CommandType {
             case "DISCARD" -> DISCARD;
             case "WATCH" -> WATCH;
             case "UNWATCH" -> UNWATCH;
+
+            // Sharded Pub/Sub commands
+            case "SSUBSCRIBE" -> SSUBSCRIBE;
+            case "SUNSUBSCRIBE" -> SUNSUBSCRIBE;
+            case "SPUBLISH" -> SPUBLISH;
 
             // Server commands
             case "COMMAND" -> COMMAND;

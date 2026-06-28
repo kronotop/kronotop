@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.*;
 import com.kronotop.cluster.*;
+import com.kronotop.cluster.sharding.HashSlots;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.ExecutorServiceUtil;
@@ -52,7 +53,7 @@ public class StashService extends ShardOwnerService<StashShard> implements Krono
     public static final String NAME = "Stash";
     public static final String LogicalDatabase = "0";
     private static final Logger LOGGER = LoggerFactory.getLogger(StashService.class);
-    public final int NUM_HASH_SLOTS = 16384;
+    public final int NUM_HASH_SLOTS = HashSlots.NUM_HASH_SLOTS;
     private final Map<Integer, Integer> hashSlots;
     private final Watcher watcher;
     private final RoutingService routing;
@@ -74,7 +75,7 @@ public class StashService extends ShardOwnerService<StashShard> implements Krono
         }
         this.routing = context.getService(RoutingService.NAME);
         this.membership = context.getService(MembershipService.NAME);
-        this.hashSlots = distributeHashSlots();
+        this.hashSlots = HashSlots.distribute(numberOfShards);
 
         handlerMethod(ServerKind.EXTERNAL, new SetHandler(this));
         handlerMethod(ServerKind.EXTERNAL, new SetEXHandler(this));
@@ -213,30 +214,6 @@ public class StashService extends ShardOwnerService<StashShard> implements Krono
         initializeVolumeSyncerWorkers();
 
         scheduler.scheduleAtFixedRate(new EvictionWorker(context), 0, 100, TimeUnit.MILLISECONDS);
-    }
-
-    /**
-     * This method is used to distribute the hash slots among the shards in a Kronotop cluster.
-     *
-     * @return a map where the key represents the hash slot and the value represents the shard ID.
-     */
-    private Map<Integer, Integer> distributeHashSlots() {
-        HashMap<Integer, Integer> result = new HashMap<>();
-        int hashSlotsPerShard = NUM_HASH_SLOTS / numberOfShards;
-        int counter = 1;
-        int partId = 0;
-        for (int hashSlot = 0; hashSlot < NUM_HASH_SLOTS; hashSlot++) {
-            if (counter >= hashSlotsPerShard) {
-                counter = 1;
-                partId++;
-                if (partId >= numberOfShards) {
-                    partId = 0;
-                }
-            }
-            result.put(hashSlot, partId);
-            counter++;
-        }
-        return Collections.unmodifiableMap(result);
     }
 
     public int getNumberOfShards() {

@@ -25,6 +25,7 @@ import io.netty.util.AttributeKey;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -55,6 +56,10 @@ public class SessionAttributes {
     public static final AttributeKey<Boolean> MULTI_DISCARDED = AttributeKey.valueOf("multi_discarded");
 
     public static final AttributeKey<HashMap<String, Long>> WATCHED_KEYS = AttributeKey.valueOf("watched_keys");
+
+    public static final AttributeKey<Set<String>> SUBSCRIPTIONS = AttributeKey.valueOf("subscriptions");
+
+    public static final AttributeKey<Boolean> SUBSCRIPTION_MODE = AttributeKey.valueOf("subscription_mode");
 
     public static final AttributeKey<byte[]> ZWATCH_KEY = AttributeKey.valueOf("zwatch_key");
 

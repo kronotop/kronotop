@@ -20,6 +20,7 @@ import com.apple.foundationdb.FDBException;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.MemberAttributes;
+import com.kronotop.core.CoreService;
 import com.kronotop.instance.KronotopInstanceStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.impl.RESP3Request;
@@ -98,6 +99,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private final Watcher watcher;
     private final StashService stashService;
     private final ZMapService zmapService;
+    private final CoreService coreService;
     private final CommandHandlerRegistry commands;
     private final ServerKind serverKind;
     private final boolean logCommandForDebugging;
@@ -110,6 +112,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         this.watcher = context.getService(Watcher.NAME);
         this.stashService = context.getService(StashService.NAME);
         this.zmapService = context.getService(ZMapService.NAME);
+        this.coreService = context.getService(CoreService.NAME);
 
         Config config = context.getConfig();
         this.logCommandForDebugging = config.hasPath("log_command_for_debugging") && config.getBoolean("log_command_for_debugging");
@@ -151,6 +154,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         Session session = Session.extractSessionFromChannel(ctx.channel());
         watcher.unwatchWatchedKeys(session);
         releaseZWatch(session);
+        coreService.getSubscriptionRegistry().unsubscribeAll(session);
         session.channelUnregistered();
         super.channelUnregistered(ctx);
     }
@@ -206,6 +210,14 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
                 response.writeError(exception.getMessage());
             }
         }
+    }
+
+    private static boolean isAllowedInSubscriptionMode(String command) {
+        return switch (command) {
+            case "SSUBSCRIBE", "SUNSUBSCRIBE", "SUBSCRIBE", "UNSUBSCRIBE",
+                 "PSUBSCRIBE", "PUNSUBSCRIBE", "PING", "QUIT", "RESET" -> true;
+            default -> false;
+        };
     }
 
     private void beforeExecute(HandlerEntry entry, Request request) {
@@ -448,6 +460,18 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         Attribute<Boolean> multiAttr = session.attr(SessionAttributes.MULTI);
         if (Boolean.TRUE.equals(multiAttr.get())) {
             if (executeRedisCompatibleCommandInTransaction(session, request, response)) {
+                return;
+            }
+        }
+
+        // While a RESP2 connection is in subscription mode it may only issue a small set of
+        // commands. RESP3 connections are never restricted.
+        Attribute<Boolean> subscriptionMode = session.attr(SessionAttributes.SUBSCRIPTION_MODE);
+        if (Boolean.TRUE.equals(subscriptionMode.get()) && session.protocolVersion() == RESPVersion.RESP2) {
+            if (!isAllowedInSubscriptionMode(request.getCommand())) {
+                response.writeError(String.format(
+                        "Can't execute '%s': only (S)SUBSCRIBE / (S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context",
+                        request.getCommand().toLowerCase()));
                 return;
             }
         }

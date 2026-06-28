@@ -21,6 +21,10 @@ import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.core.handlers.client.ClientHandler;
+import com.kronotop.core.handlers.pubsub.SPublishHandler;
+import com.kronotop.core.handlers.pubsub.SSubscribeHandler;
+import com.kronotop.core.handlers.pubsub.SUnsubscribeHandler;
+import com.kronotop.core.pubsub.SubscriptionRegistry;
 import com.kronotop.core.handlers.connection.AuthHandler;
 import com.kronotop.core.handlers.connection.EchoHandler;
 import com.kronotop.core.handlers.connection.HelloHandler;
@@ -35,8 +39,12 @@ import com.kronotop.server.ServerKind;
 public class CoreService extends CommandHandlerService implements KronotopService {
     public static final String NAME = "Core";
 
+    private final SubscriptionRegistry subscriptionRegistry;
+
     public CoreService(Context context) {
         super(context, NAME);
+
+        this.subscriptionRegistry = new SubscriptionRegistry(context);
 
         handlerMethod(ServerKind.EXTERNAL, new PingHandler());
         handlerMethod(ServerKind.EXTERNAL, new EchoHandler());
@@ -58,6 +66,11 @@ public class CoreService extends CommandHandlerService implements KronotopServic
         handlerMethod(ServerKind.EXTERNAL, new GetApproximateSizeHandler(context));
         handlerMethod(ServerKind.EXTERNAL, new TickHandler(context));
 
+        // Sharded Pub/Sub
+        handlerMethod(ServerKind.EXTERNAL, new SSubscribeHandler(subscriptionRegistry));
+        handlerMethod(ServerKind.EXTERNAL, new SUnsubscribeHandler(subscriptionRegistry));
+        handlerMethod(ServerKind.EXTERNAL, new SPublishHandler(subscriptionRegistry));
+
         handlerMethod(ServerKind.INTERNAL, new PingHandler());
         handlerMethod(ServerKind.INTERNAL, new EchoHandler());
         handlerMethod(ServerKind.INTERNAL, new HelloHandler(context));
@@ -66,6 +79,10 @@ public class CoreService extends CommandHandlerService implements KronotopServic
         handlerMethod(ServerKind.INTERNAL, new CommandHandler(context));
         handlerMethod(ServerKind.INTERNAL, new SessionAttributeHandler());
         handlerMethod(ServerKind.INTERNAL, new SessionCloseHandler(context));
+    }
+
+    public SubscriptionRegistry getSubscriptionRegistry() {
+        return subscriptionRegistry;
     }
 
     @Override

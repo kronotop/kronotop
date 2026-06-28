@@ -27,6 +27,7 @@ import io.netty.util.AttributeKey;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -114,6 +115,8 @@ public class Session {
         channel.attr(SessionAttributes.MULTI).set(false);
         channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
         channel.attr(SessionAttributes.POST_COMMIT_HOOKS).set(new ArrayList<>());
+        channel.attr(SessionAttributes.SUBSCRIPTIONS).set(new HashSet<>());
+        channel.attr(SessionAttributes.SUBSCRIPTION_MODE).set(false);
 
         resetSessionAttributes();
     }
