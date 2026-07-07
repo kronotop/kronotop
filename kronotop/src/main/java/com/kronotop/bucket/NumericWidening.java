@@ -46,9 +46,9 @@ import java.math.BigDecimal;
  *   INT32 + DOUBLE -> DOUBLE (cheap cast)
  *   INT32 + DECIMAL128 -> DECIMAL128 (BigDecimal allocation)
  *   INT64 + INT64 -> INT64 (identity, no conversion)
- *   INT64 + DOUBLE -> DECIMAL128 (BigDecimal allocation — unavoidable, INT64→DOUBLE is lossy)
+ *   INT64 + DOUBLE -> DECIMAL128 (BigDecimal allocation, unavoidable since INT64 -> DOUBLE is lossy)
  *   DOUBLE and DOUBLE -> DOUBLE (identity, no conversion)
- *   DOUBLE + DECIMAL128→ DECIMAL128 (BigDecimal allocation)
+ *   DOUBLE + DECIMAL128 -> DECIMAL128 (BigDecimal allocation)
  * </pre>
  * <p>
  * DECIMAL128 (BigDecimal) is only used when one side is already DECIMAL128,

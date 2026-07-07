@@ -58,49 +58,29 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * Watches bucket metadata change events and maintains version tracking for shards.
+ * Consumes the BUCKET_EVENTS journal and reacts to bucket changes on this member.
  *
- * <p>This watcher subscribes to the BUCKET_METADATA_EVENTS journal and processes metadata
- * change events as they occur. For each event, it updates the last seen version for all
- * shards where this member is the primary owner. This version tracking serves as a witness
- * mechanism to coordinate metadata synchronization across the cluster.
+ * <p>The watcher runs in a background thread and handles four event kinds: metadata
+ * updates, bucket removal, vector index drops, and index statistics updates. Depending on
+ * the event, it invalidates the plan cache and the bucket metadata cache, removes in-memory
+ * vector indexes and their on-disk files, and records the latest metadata version for every
+ * shard this member owns as primary.
  *
- * <h2>How It Works</h2>
+ * <p>The version record lives under each shard's {@code lastSeenVersions} subspace and acts
+ * as a witness. Coordination logic such as {@link BucketMetadataVersionBarrier} uses it to
+ * confirm that all relevant shards have seen a given metadata version before proceeding.
+ * Versions are stored as an 8-byte little-endian long.
  *
- * <p><b>Event Consumption:</b>
- * The watcher uses a journal Consumer to read BucketMetadataEvent entries from FoundationDB.
- * It maintains a per-member consumer offset to ensure events are processed exactly once,
- * even across restarts (RESUME offset mode).
+ * <p>A journal {@link Consumer} with RESUME offset reads events so each one is processed
+ * once, even across restarts. The watcher waits on a FoundationDB watch over the journal
+ * trigger key. When it fires, the watcher drains all pending events in one batch, then
+ * re-arms the watch.
  *
- * <p><b>Watch Mechanism:</b>
- * Uses FoundationDB's watch feature on the journal trigger key to efficiently wait for new
- * events. When the trigger fires, the watcher processes all available events in a batch
- * before resuming the watch. This reduces polling overhead while maintaining low latency.
- *
- * <p><b>Version Tracking:</b>
- * For each metadata change event, the watcher:
- * <ol>
- *   <li>Loads the current BucketMetadata to get the latest version number
- *   <li>Iterates through all bucket shards
- *   <li>For shards where this member is the primary, updates lastSeenVersions/[metadataId]
- *   <li>Stores the version as an 8-byte little-endian long value
- * </ol>
- *
- * <p>This creates a distributed record of which versions each shard has witnessed, enabling
- * coordination protocols like {@link BucketMetadataVersionBarrier} to ensure all relevant
- * shards have seen a particular metadata version before proceeding with operations.
- *
- * <p><b>Lifecycle:</b>
- * The watcher runs in a background thread. It maintains
- * a shutdown latch to allow graceful termination with a 5-second timeout. On shutdown, it
- * unwatches all keys and stops the consumer, ensuring clean resource cleanup.
- *
- * <p><b>Error Handling:</b>
- * Individual event processing errors break the inner consumption loop, leaving the failed
- * event unconsumed so it will be retried on the next watcher trigger. The outer watcher loop
- * applies a 1-second backoff on errors to prevent tight spinning. Transaction operations use
- * automatic retries via Resilience4j. If a bucket no longer exists, NoSuchBucketException is
- * silently ignored since the metadata change may have been a deletion.
+ * <p>If a single event fails, the batch loop stops and leaves that event unconsumed so it is
+ * retried on the next trigger. The outer loop backs off one second after an error, and
+ * transactions retry through Resilience4j. Events for buckets or namespaces that no longer
+ * exist are ignored, since the change may have been a deletion. On shutdown the watcher
+ * drains any remaining events and waits up to 10 seconds to stop.
  */
 public class BucketEventsWatcher implements Runnable {
     protected static final Logger LOGGER = LoggerFactory.getLogger(BucketEventsWatcher.class);
@@ -117,7 +97,8 @@ public class BucketEventsWatcher implements Runnable {
     /**
      * Creates a new watcher for the current cluster member.
      *
-     * @param context the system context providing services and configuration
+     * @param context   the system context providing services and configuration
+     * @param planCache the plan cache to invalidate when buckets change
      */
     public BucketEventsWatcher(Context context, PlanCache planCache) {
         this.context = context;
@@ -187,10 +168,10 @@ public class BucketEventsWatcher implements Runnable {
     }
 
     /**
-     * Processes a bucket metadata change event and records the version.
+     * Dispatches a single bucket event to the handling for its kind.
      *
      * @param tr    the FoundationDB transaction
-     * @param event the journal event containing metadata change details
+     * @param event the journal event to process
      */
     private void processBucketEvent(Transaction tr, Event event) {
         BaseBroadcastEvent base = JSONUtil.readValue(event.value(), BaseBroadcastEvent.class);
@@ -225,7 +206,6 @@ public class BucketEventsWatcher implements Runnable {
                 List<Worker> workers = context.getWorkerRegistry().get(metadata.namespace(), tag);
                 planCache.invalidateBucket(evt.namespace(), evt.id());
 
-                // Try to reduce entropy
                 // Invalidate bucket metadata cache to prevent stale prefix on recreation
                 context.getBucketMetadataCache().invalidate(evt.namespace(), evt.bucket());
 
@@ -282,7 +262,7 @@ public class BucketEventsWatcher implements Runnable {
                         processBucketEvent(tr, event);
                         consumer.markConsumed(tr, event);
                     } catch (Exception e) {
-                        LOGGER.error("Bucket event processing failed – will retry on next trigger", e);
+                        LOGGER.error("Bucket event processing failed, will retry on next trigger", e);
                         break;
                     }
                 }
@@ -313,7 +293,7 @@ public class BucketEventsWatcher implements Runnable {
                         // Drain any pending events before exiting. During shutdown,
                         // BucketService calls flushAll() after this watcher stops.
                         // Without this drain, a VectorIndexDroppedEvent could remain
-                        // unprocessed, leaving the dropped index in the registry —
+                        // unprocessed, leaving the dropped index in the registry, so
                         // flushAll() would then re-persist its on-heap data to disk
                         // as stale files.
                         LOGGER.debug("Draining remaining {} events before shutdown", JournalName.BUCKET_EVENTS);

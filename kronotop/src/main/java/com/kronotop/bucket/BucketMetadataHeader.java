@@ -37,26 +37,29 @@ import java.util.Map;
 /**
  * Represents the header section of bucket metadata stored in FoundationDB.
  * <p>
- * The header contains core bucket identification, versioning information, and per-index statistics.
- * This record is reconstructed by reading and parsing structured key-value pairs from FoundationDB
- * under the HEADER magic prefix.
+ * The header holds the removal flag, the metadata version, the shard list, the collation, and
+ * per-index statistics. It is rebuilt by reading structured key-value pairs stored under the HEADER
+ * magic prefix.
  *
- * @param version         Bucket metadata version timestamp for optimistic concurrency control
- * @param indexStatistics Map of index ID to statistics (cardinality and histogram) for query optimization
- * @param shards          Shard IDs this bucket is distributed across
+ * @param removed         whether the bucket has been marked as removed
+ * @param version         metadata version used for optimistic concurrency control
+ * @param indexStatistics map of index ID to statistics (cardinality and histogram) for query optimization
+ * @param shards          shard IDs this bucket is distributed across
+ * @param collation       the bucket collation, or {@code null} if none is set
  */
 public record BucketMetadataHeader(boolean removed, long version, Map<Long, IndexStatistics> indexStatistics,
                                    List<Integer> shards, Collation collation) {
 
     /**
-     * Reads and reconstructs bucket metadata header from FoundationDB.
+     * Reads and rebuilds the bucket metadata header from FoundationDB.
      * <p>
-     * Performs a range scan over the HEADER prefix to collect bucket ID, version, and index statistics.
-     * Index statistics are assembled by grouping consecutive CARDINALITY and HISTOGRAM entries by index ID.
+     * Scans the range under the HEADER prefix and collects the removal flag, version, shard list,
+     * collation, and index statistics. Statistics are assembled by grouping consecutive CARDINALITY
+     * and HISTOGRAM entries by index ID.
      *
-     * @param tr       Active FoundationDB transaction for reading metadata
-     * @param subspace Directory subspace containing the bucket metadata
-     * @return Reconstructed header containing bucket ID, version, and all index statistics
+     * @param tr       active FoundationDB transaction for reading metadata
+     * @param subspace directory subspace containing the bucket metadata
+     * @return the reconstructed header
      */
     public static BucketMetadataHeader read(ReadTransaction tr, DirectorySubspace subspace) {
         Tuple tuple = Tuple.from(BucketMetadataMagic.HEADER.getValue());

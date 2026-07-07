@@ -25,14 +25,11 @@ import java.util.concurrent.locks.StampedLock;
 import java.util.function.LongSupplier;
 
 /**
- * BucketMetadataCache is responsible for managing and caching metadata associated
- * with buckets within a specific namespace. This class provides efficient storage
- * and retrieval of bucket metadata by internally maintaining a cache of
- * {@link BucketMetadataRegistry} instances for namespaces.
- * <p>
- * The class supports invalidation of cached entries either by specific bucket or by
- * namespace prefix. It also supports eviction of expired metadata entries through a
- * dedicated worker thread, ensuring that the cache does not grow indefinitely.
+ * Caches bucket metadata per namespace, backed by a {@link BucketMetadataRegistry} for each
+ * namespace.
+ *
+ * <p>Entries can be invalidated by bucket or by namespace prefix. A background eviction worker
+ * drops entries that have not been accessed within their TTL, so the cache stays bounded.
  */
 public class BucketMetadataCache {
     private final Context context;
@@ -145,20 +142,13 @@ public class BucketMetadataCache {
     }
 
     /**
-     * The EvictionWorker class is used to manage the cleanup of expired bucket metadata
-     * from a {@link BucketMetadataCache}. It implements the {@link Runnable} interface, allowing
-     * it to be executed in a separate thread for periodic eviction tasks.
-     * <p>
-     * This worker operates by iterating over all registered {@link BucketMetadataRegistry}
-     * instances and removing metadata entries that have exceeded their time-to-live (TTL) value.
-     * Once a registry is cleared of all expired entries, it is removed from the cache if it
-     * becomes empty.
-     * <p>
-     * The eviction process uses the following rules:
-     * - An entry is considered expired if its last access time is older than the current time
-     * minus the TTL value.
-     * - A maximum of 10,000 entries are cleaned up in a single call to the
-     * {@code cleanupBucketMetadataRegistry} method to avoid excessive processing.
+     * Removes bucket metadata that has outlived its TTL. Runs on a separate thread and is meant to
+     * be scheduled periodically.
+     *
+     * <p>It walks the registries in the cache, drops entries whose last access is older than
+     * {@code now - ttl}, and removes a registry once it becomes empty. Each sweep drops at most
+     * {@value #MAX_ENTRIES_PER_CLEANUP} entries, and a run visits at most that many registries, to
+     * bound the work.
      */
     class EvictionWorker implements Runnable {
         private static final int MAX_ENTRIES_PER_CLEANUP = 10000;

@@ -32,22 +32,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Implementation of the {@link BucketShard} interface, representing a specific type of shard
- * (Bucket Shard) that is associated with a unique {@link Volume}.
+ * The {@link BucketShard} implementation, backed by its own {@link Volume}.
  *
- * <p>This class extends {@link AbstractShard}, inheriting common shard functionalities,
- * and implements specific behaviors for bucket-based shard interactions, such as handling
- * volume configurations and resources.
- *
- * <p>A {@code BucketShardImpl} is initialized with a {@link Context} and a unique identifier.
- * During initialization, it sets up a {@link Volume} instance associated with the shard and
- * assigns relevant attributes such as the shard ID and kind.
- *
- * <p>The class ensures proper exception handling during the volume creation process by wrapping
- * {@link IOException} with {@link UncheckedIOException} to simplify error management.
- *
- * <p>The {@code close()} method is implemented to release the resources associated with
- * the volume when the shard is no longer needed.
+ * <p>On construction it opens the shard's volume, tags it with the shard ID and kind, and starts a
+ * background {@link IndexMaintenanceWatchDog} on a single-threaded executor. Volume creation wraps
+ * any {@link IOException} in an {@link UncheckedIOException}. {@link #close()} stops the watchdog and
+ * its executor, then closes the volume.
  *
  * @see AbstractShard
  * @see BucketShard

@@ -41,24 +41,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Synchronization barrier for bucket metadata version propagation across cluster shards.
  * <p>
- * This barrier ensures that metadata changes (index additions, etc.) have been
- * observed by all shards before allowing dependent operations to proceed. It polls FoundationDB's
- * lastSeenVersions witness keys for each shard until all shards report observing the target version.
+ * The barrier makes dependent operations wait until every shard has observed a target metadata
+ * version. Each shard records the latest version it has seen under a {@code lastSeenVersions} witness
+ * key, which {@link BucketEventsWatcher} updates as metadata events arrive. The barrier polls those
+ * keys with snapshot reads and releases once all shards report a version at or above the target. If
+ * they do not converge within the allowed attempts, it fails.
  * <p>
- * The barrier uses a retry mechanism with configurable attempts and wait duration, making it suitable
- * for eventual consistency scenarios where metadata propagation may take time due to network latency
- * or shard processing delays.
- * <p>
- * <strong>How it works:</strong>
- * <ol>
- *   <li>Each shard maintains a lastSeenVersions key in FoundationDB tracking the latest metadata version observed</li>
- *   <li>When metadata changes occur, the version is incremented and propagated via BucketMetadataWatcher</li>
- *   <li>The barrier polls all shard lastSeenVersions keys in snapshot reads</li>
- *   <li>Once all shards report a version >= target, the barrier releases</li>
- *   <li>If shards don't converge within maxAttempts, the barrier throws an exception</li>
- * </ol>
- * <p>
- * Thread-safe for concurrent barrier creation, but individual await() calls should not be shared across threads.
+ * Retries use a configurable attempt count and wait duration, which suits eventual-consistency cases
+ * where propagation lags behind network or shard processing. Barriers can be created concurrently,
+ * but a single {@code await()} call must not be shared across threads.
  */
 public class BucketMetadataVersionBarrier {
     private final Context context;

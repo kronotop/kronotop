@@ -357,16 +357,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     /**
-     * A private class that implements the {@link RoutingEventHook} interface to handle
-     * shard initialization events for bucket shards.
-     * <p>
-     * This hook is designed to initialize a bucket shard for a specific shard ID when a routing
-     * event is triggered, provided the current member is eligible (either as the primary or a
-     * standby member) to own and manage the shard.
-     * <p>
-     * The {@code initializeBucketShardsIfOwned} method is invoked within the {@code run}
-     * method of the hook, which ensures that the bucket shard is appropriately initialized
-     * in the service context if ownership conditions are satisfied.
+     * Routing hook that initializes a bucket shard when this member becomes its primary or standby.
+     * Ignores events for other shard kinds.
      */
     private class InitializeBucketShardHook implements RoutingEventHook {
         @Override
@@ -379,22 +371,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     /**
-     * HandOverShardOwnershipHook is a private implementation of the {@code RoutingEventHook} interface
-     * within the {@code BucketService} class. This hook is invoked to handle the process of transitioning
-     * ownership of a shard, ensuring it is properly managed and removed from operation.
-     *
-     * <p>This implementation focuses specifically on shards of kind {@code BUCKET}. If the shard kind
-     * does not match {@code BUCKET}, the process is halted, and no further operations are performed.
-     *
-     * <p>The {@code run} method is executed during routing events, where it performs the following steps:
-     * 1. Validates that the shard kind matches {@code BUCKET}.
-     * 2. Retrieves the {@code BucketShard} instance associated with the given shard ID using
-     * {@code getShard(int shardId)}.
-     * 3. Sets the shard's operable state to {@code false} using {@code shard.setOperable(boolean operable)}.
-     * 4. Removes the shard from the shard selector using {@code shardSelector.remove(BucketShard shard)}.
-     *
-     * <p>This functionality ensures that shards of kind {@code BUCKET} are appropriately disabled
-     * and excluded from the shard selector during ownership transitions.
+     * Routing hook that relinquishes a bucket shard when ownership moves away from this member. It
+     * marks the shard inoperable, closes it, and drops it from the shard selector. Ignores events for
+     * other shard kinds.
      */
     private class HandOverShardOwnershipHook implements RoutingEventHook {
         @Override

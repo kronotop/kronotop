@@ -292,19 +292,21 @@ public class BucketMetadataUtil {
     }
 
     /**
-     * Loads bucket metadata directly from FDB. Reads the UUID pointer from the
-     * namespace-bucket subspace, opens the registry subspace, then reads the volume prefix,
-     * header, and indexes from the registry.
+     * Builds bucket metadata from an already-resolved registry subspace and prefix. Reads the header
+     * and index definitions, assembles the {@link BucketMetadata}, and refreshes the cache entry
+     * unless the bucket is removed.
      *
-     * @param context   the context providing environment and services
-     * @param tr        the transaction for database access
-     * @param namespace the namespace containing the bucket
-     * @param bucket    the bucket name
-     * @param force     if true, returns metadata even for buckets marked as removed
+     * @param context         the context providing environment and services
+     * @param tr              the transaction for database access
+     * @param bucketSubspace  the resolved registry subspace holding the bucket header and indexes
+     * @param pointerSubspace the pointer subspace binding the bucket name to its registry
+     * @param pointer         the bucket UUID
+     * @param namespace       the namespace containing the bucket
+     * @param bucket          the bucket name
+     * @param prefix          the volume prefix for the bucket
+     * @param force           if true, returns metadata even for buckets marked as removed
      * @return the bucket metadata
-     * @throws NoSuchBucketException       if the bucket does not exist
      * @throws BucketBeingRemovedException if the bucket is marked as removed and force is false
-     * @throws KronotopException           if the volume prefix is not found
      */
     private static BucketMetadata loadMetadata(
             Context context,
@@ -569,7 +571,7 @@ public class BucketMetadataUtil {
      * Publishes a bucket metadata-updated event to the cluster journal for propagation.
      *
      * <p>Creates a broadcast event containing the bucket's namespace, name, ID, and version, then publishes it
-     * to the BUCKET_METADATA_EVENTS journal. Other cluster members watch this journal to detect metadata changes
+     * to the BUCKET_EVENTS journal. Other cluster members watch this journal to detect metadata changes
      * and invalidate their local caches, ensuring eventual consistency across the cluster.
      *
      * @param tx       the transactional context containing both the transaction and system context
@@ -651,7 +653,7 @@ public class BucketMetadataUtil {
         // This loop scans index statistics directly from FoundationDB.
         // We deliberately avoid extra abstractions and object churn here.
         // Histograms are only decoded when the version changes to minimize GC pressure.
-        // Refactor with caution—readability trade-offs are intentional.
+        // Refactor with caution. Readability trade-offs are intentional.
 
         HashMap<Long, IndexStatistics> stats = new HashMap<>();
         Long currentIndexId = null;

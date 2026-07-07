@@ -24,12 +24,8 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 /**
- * Unified facade for executing queries against a bucket.
- * <p>
- * QueryExecutor provides a single entry point for all query operations (read, delete, update)
- * by coordinating the pipeline execution infrastructure. It initializes shared components
- * like document retrieval and cursor management, then delegates to specialized executors
- * for each operation type.
+ * Entry point for query operations against a bucket: read, delete, update, and materialized read.
+ * Builds the shared pipeline components once and delegates each operation to its own executor.
  *
  * @see ReadExecutor for document retrieval
  * @see DeleteExecutor for document deletion
@@ -43,9 +39,6 @@ public class QueryExecutor {
 
     /**
      * Creates a new query executor for the specified bucket service.
-     * <p>
-     * Initializes the pipeline environment with document retrieval and cursor management,
-     * then creates specialized executors for each operation type.
      *
      * @param service the bucket service providing storage and index access
      */

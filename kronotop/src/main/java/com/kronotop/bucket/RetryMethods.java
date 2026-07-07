@@ -51,7 +51,7 @@ public class RetryMethods {
                         .maxAttempts(10)
                         .waitDuration(Duration.ofMillis(100))
                         .retryOnException(throwable -> {
-                            // Deterministic validation errors — never retry
+                            // Deterministic validation errors, never retry
                             if (throwable instanceof CollationTypeMismatchException) {
                                 return false;
                             }

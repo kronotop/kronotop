@@ -41,11 +41,11 @@ import java.util.Map;
  *
  * <p>Transforms a parsed BQL expression into an executable pipeline through these stages:</p>
  * <ol>
- *   <li>Logical planning: AST → logical plan ({@link LogicalPlanner})</li>
- *   <li>Physical planning: logical plan → physical plan ({@link PhysicalPlanner})</li>
+ *   <li>Logical planning: AST -> logical plan ({@link LogicalPlanner})</li>
+ *   <li>Physical planning: logical plan -> physical plan ({@link PhysicalPlanner})</li>
  *   <li>Optimization: applies index selection and plan transformations ({@link Optimizer})</li>
  *   <li>Parameter binding: maps physical nodes to parameter indices ({@link PhysicalPlanParameterBinder})</li>
- *   <li>Pipeline rewriting: physical plan → executable pipeline ({@link PipelineRewriter})</li>
+ *   <li>Pipeline rewriting: physical plan -> executable pipeline ({@link PipelineRewriter})</li>
  * </ol>
  *
  * <p>Plan caching uses {@link QueryShape} to compute a structural hash of queries.
@@ -119,8 +119,8 @@ public class Planner {
      * @param parameters   the extracted parameter values for binding to the plan
      * @param usePlanCache if true, attempts to retrieve a cached plan or caches the newly created plan
      * @param maxTTL       maximum time-to-live in milliseconds for cached plans
-     * @param sortByField  the field to sort by, used to prefer matching indexes (maybe null)
-     * @param collation    the per-query collation override (maybe null)
+     * @param sortByField  the field to sort by, used to prefer matching indexes (may be null)
+     * @param collation    the per-query collation override (may be null)
      * @return the executable pipeline node
      */
     public PipelineNode plan(

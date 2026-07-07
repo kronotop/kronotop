@@ -224,12 +224,13 @@ public class BSONUtil {
     }
 
     /**
-     * Converts a {@link BsonValue} to its corresponding Java object if it matches the desired type.
-     * Returns null on type mismatch (strict type checking, no implicit conversions).
+     * Converts a {@link BsonValue} to its corresponding Java object.
+     * Numeric values are losslessly widened to the desired numeric type. Non-numeric
+     * values must match the desired type exactly; a mismatch returns null.
      *
      * @param value           the {@link BsonValue} to convert
      * @param desiredBsonType the required {@link BsonType}
-     * @return the Java object, or null if types don't match
+     * @return the Java object, or null if the value cannot be represented as the desired type
      * @throws IllegalArgumentException if the BSON type is unsupported
      */
     public static Object toObject(BsonValue value, BsonType desiredBsonType) {

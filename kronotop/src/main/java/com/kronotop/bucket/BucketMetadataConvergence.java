@@ -25,53 +25,29 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * Utility for ensuring cluster-wide bucket metadata synchronization.
+ * Blocks until every shard in the cluster has observed the latest bucket metadata version, then
+ * waits out any transactions that started before the update.
  *
- * <p>Provides a critical synchronization step that ensures all cluster nodes have observed
- * the latest bucket metadata version before operations that require consistent metadata views.
- * This prevents inconsistencies where some nodes might operate on stale metadata.
+ * <p>This guards operations that must not run against stale metadata. It first drives a
+ * {@link BucketMetadataVersionBarrier}, polling all shards for up to 60 seconds (120 attempts at
+ * 500ms) until they report the target version. It then sleeps 10 seconds so that transactions
+ * opened before the update, which have a 5-second FoundationDB lifetime, are guaranteed to have
+ * expired.
  *
- * <p><strong>Synchronization Strategy:</strong>
- * <ol>
- *   <li>Wait for all shards to observe target metadata version via {@link BucketMetadataVersionBarrier}</li>
- *   <li>Sleep 10 seconds to ensure all in-flight transactions expire</li>
- * </ol>
- *
- * <p><strong>Version Barrier:</strong> Uses {@link BucketMetadataVersionBarrier} to poll
- * all shards until they've witnessed the target version. Waits up to 60 seconds (120 attempts
- * × 500ms intervals) before failing.
- *
- * <p><strong>Transaction Expiration Window:</strong> After metadata convergence, sleeps 10
- * seconds to ensure any transactions opened before the metadata update have expired. FoundationDB
- * transactions have a 5-second default lifetime, so 10 seconds guarantees expiration.
- *
- * <p><strong>Test Override:</strong> Config path {@code __test__.bucket_metadata_convergence.skip_wait_transaction_limit}
- * allows skipping the 10-second sleep for faster test execution.
+ * <p>The 10-second grace period can be skipped in tests by setting
+ * {@code __test__.bucket_metadata_convergence.skip_wait_transaction_limit}.
  *
  * @see BucketMetadataVersionBarrier
  */
 public class BucketMetadataConvergence {
 
     /**
-     * Waits for cluster-wide metadata convergence and transaction expiration.
-     *
-     * <p><strong>Phase 1: Version Barrier (up to 60 seconds):</strong>
-     * <ul>
-     *   <li>Loads current bucket metadata and version</li>
-     *   <li>Creates {@link BucketMetadataVersionBarrier} for the bucket</li>
-     *   <li>Polls all shards until they observe the current version</li>
-     * </ul>
-     *
-     * <p><strong>Phase 2: Transaction Expiration (10 seconds):</strong>
-     * <ul>
-     *   <li>Sleeps 10 seconds to ensure all pre-update transactions expire</li>
-     *   <li>Skipped if {@code __test__.bucket_metadata_convergence.skip_wait_transaction_limit} is true</li>
-     * </ul>
+     * Waits for cluster-wide metadata convergence, then for pre-update transactions to expire.
      *
      * @param context   application context with cluster config and FoundationDB access
      * @param namespace bucket namespace
      * @param bucket    bucket name
-     * @throws BucketMetadataConvergenceException if barrier fails or other errors occur
+     * @throws BucketMetadataConvergenceException if the barrier fails or another error occurs
      */
     public static void await(Context context, String namespace, String bucket) throws InterruptedException {
         try {
