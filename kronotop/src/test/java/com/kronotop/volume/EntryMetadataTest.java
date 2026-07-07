@@ -25,7 +25,7 @@ class EntryMetadataTest {
 
     @Test
     void shouldDecodeToCorrespondingEntryMetadata2() {
-        // Behavior: encode → decode round-trip preserves all fields
+        // Behavior: encode -> decode round-trip preserves all fields
         Prefix prefix = new Prefix("test");
         long segmentId = 10;
         long position = 1L;
@@ -48,7 +48,7 @@ class EntryMetadataTest {
 
     @Test
     void shouldEncodeToCorrespondingByteBuffer2() {
-        // Behavior: encode → decode produces recursively equal EntryMetadata
+        // Behavior: encode -> decode produces recursively equal EntryMetadata
         Prefix prefix = new Prefix("test");
 
         int segmentId = 10;

@@ -40,8 +40,8 @@ import java.util.Map;
  *
  * <p><strong>State Lifecycle:</strong>
  * <pre>
- * WAITING → RUNNING → COMPLETED (success)
- *                  → FAILED (error during boundary detection)
+ * WAITING -> RUNNING -> COMPLETED (success)
+ *                  -> FAILED (error during boundary detection)
  * </pre>
  *
  * <p><strong>State Fields:</strong>

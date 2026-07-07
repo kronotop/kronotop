@@ -42,9 +42,9 @@ import java.util.Map;
  *
  * <p><strong>State Lifecycle:</strong>
  * <pre>
- * WAITING → RUNNING → COMPLETED (success)
- *                  → FAILED (error during analysis)
- *                  → STOPPED (manual cancellation)
+ * WAITING -> RUNNING -> COMPLETED (success)
+ *                  -> FAILED (error during analysis)
+ *                  -> STOPPED (manual cancellation)
  * </pre>
  *
  * <p><strong>State Fields:</strong>

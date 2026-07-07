@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Comprehensive test suite for LogicalPlanner covering all operators, transforms, and edge cases.
- * Tests the complete BQL → LogicalNode conversion pipeline and optimization transforms.
+ * Tests the complete BQL -> LogicalNode conversion pipeline and optimization transforms.
  */
 class LogicalPlannerTest {
 

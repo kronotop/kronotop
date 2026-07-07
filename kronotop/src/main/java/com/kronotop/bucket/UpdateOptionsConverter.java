@@ -131,8 +131,8 @@ public class UpdateOptionsConverter {
     /**
      * Parses a single array filter document.
      * Supports formats:
-     * - { "identifier": { "$gte": 8 } } → operator with operand
-     * - { "identifier": 5 } → implicit $eq
+     * - { "identifier": { "$gte": 8 } } -> operator with operand
+     * - { "identifier": 5 } -> implicit $eq
      */
     private static ArrayFilter parseArrayFilter(BsonDocument filterDoc) {
         if (filterDoc.size() != 1) {

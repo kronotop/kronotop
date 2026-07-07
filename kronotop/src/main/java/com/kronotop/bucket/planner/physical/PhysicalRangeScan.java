@@ -25,7 +25,7 @@ import java.util.Objects;
  * <p>
  * Consolidates multiple range conditions on the same field into a single scan.
  * <p>
- * Example: AND(age >= 18, age < 65) → PhysicalRangeScan("age", 18, 65, true, false, age_index)
+ * Example: AND(age >= 18, age < 65) -> PhysicalRangeScan("age", 18, 65, true, false, age_index)
  */
 public record PhysicalRangeScan(
         int id,

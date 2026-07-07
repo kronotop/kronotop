@@ -221,24 +221,24 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
             DEEP NESTED QUERY ANALYSIS:
 
             First OR branch: quantity >= 8 OR (price < 50 AND inStock = true)
-            - Smartphone: quantity=20 (✓) → Match ✓
-            - Tablet: quantity=5 (✗), price=300 (✗) → No match
-            - Science Book: quantity=8 (✓) → Match ✓
-            - History Book: quantity=3 (✗), price=35 (✓) AND inStock=true (✓) → Match ✓
-            - Sofa: quantity=2 (✗), price=800 (✗) → No match
-            - Table: quantity=7 (✗), price=250 (✗) → No match
-            - Marker Set: quantity=40 (✓) → Match ✓
-            → First OR: {Smartphone, Science Book, History Book, Marker Set}
+            - Smartphone: quantity=20 (✓) -> Match ✓
+            - Tablet: quantity=5 (✗), price=300 (✗) -> No match
+            - Science Book: quantity=8 (✓) -> Match ✓
+            - History Book: quantity=3 (✗), price=35 (✓) AND inStock=true (✓) -> Match ✓
+            - Sofa: quantity=2 (✗), price=800 (✗) -> No match
+            - Table: quantity=7 (✗), price=250 (✗) -> No match
+            - Marker Set: quantity=40 (✓) -> Match ✓
+            -> First OR: {Smartphone, Science Book, History Book, Marker Set}
 
             Second OR branch: (category=electronics AND price>=400) OR category=furniture
-            - Smartphone: category=electronics (✓) AND price=650 (✓) → Match ✓
-            - Tablet: category=electronics (✓) AND price=300 (✗) → No match
-            - Science Book: category=book (✗) → No match
-            - History Book: category=book (✗) → No match
-            - Sofa: category=furniture (✓) → Match ✓
-            - Table: category=furniture (✓) → Match ✓
-            - Marker Set: category=stationery (✗) → No match
-            → Second OR: {Smartphone, Sofa, Table}
+            - Smartphone: category=electronics (✓) AND price=650 (✓) -> Match ✓
+            - Tablet: category=electronics (✓) AND price=300 (✗) -> No match
+            - Science Book: category=book (✗) -> No match
+            - History Book: category=book (✗) -> No match
+            - Sofa: category=furniture (✓) -> Match ✓
+            - Table: category=furniture (✓) -> Match ✓
+            - Marker Set: category=stationery (✗) -> No match
+            -> Second OR: {Smartphone, Sofa, Table}
 
             Final AND intersection:
             {Smartphone, Science Book, History Book, Marker Set} ∩ {Smartphone, Sofa, Table}
@@ -318,34 +318,34 @@ class NestedQueriesWithFullScanTest extends BasePipelineTest {
             NESTED OR WITH COMPLEX AND BRANCHES ANALYSIS:
 
             First AND branch: category=book AND price>50
-            - Laptop Pro: category=electronics (✗) → No match
-            - Mouse Pad: category=accessories (✗) → No match
-            - Math Textbook: category=book (✓) AND price=85 (✓) → Match ✓
-            - Novel Collection: category=book (✓) AND price=25 (✗) → No match
-            - Gaming Chair: category=furniture (✗) → No match
-            - Standing Desk: category=furniture (✗) → No match
-            - Printer Paper: category=office (✗) → No match
-            → First AND: {Math Textbook}
+            - Laptop Pro: category=electronics (✗) -> No match
+            - Mouse Pad: category=accessories (✗) -> No match
+            - Math Textbook: category=book (✓) AND price=85 (✓) -> Match ✓
+            - Novel Collection: category=book (✓) AND price=25 (✗) -> No match
+            - Gaming Chair: category=furniture (✗) -> No match
+            - Standing Desk: category=furniture (✗) -> No match
+            - Printer Paper: category=office (✗) -> No match
+            -> First AND: {Math Textbook}
 
             Second AND branch: quantity>=100 AND price<20
-            - Laptop Pro: quantity=15 (✗) → No match
-            - Mouse Pad: quantity=100 (✓) AND price=8 (✓) → Match ✓
-            - Math Textbook: quantity=12 (✗) → No match
-            - Novel Collection: quantity=6 (✗) → No match
-            - Gaming Chair: quantity=3 (✗) → No match
-            - Standing Desk: quantity=8 (✗) → No match
-            - Printer Paper: quantity=200 (✓) AND price=12 (✓) → Match ✓
-            → Second AND: {Mouse Pad, Printer Paper}
+            - Laptop Pro: quantity=15 (✗) -> No match
+            - Mouse Pad: quantity=100 (✓) AND price=8 (✓) -> Match ✓
+            - Math Textbook: quantity=12 (✗) -> No match
+            - Novel Collection: quantity=6 (✗) -> No match
+            - Gaming Chair: quantity=3 (✗) -> No match
+            - Standing Desk: quantity=8 (✗) -> No match
+            - Printer Paper: quantity=200 (✓) AND price=12 (✓) -> Match ✓
+            -> Second AND: {Mouse Pad, Printer Paper}
 
             Third AND branch: category=furniture AND brand=WorkSpace
-            - Laptop Pro: category=electronics (✗) → No match
-            - Mouse Pad: category=accessories (✗) → No match
-            - Math Textbook: category=book (✗) → No match
-            - Novel Collection: category=book (✗) → No match
-            - Gaming Chair: category=furniture (✓) AND brand=ComfortMax (✗) → No match
-            - Standing Desk: category=furniture (✓) AND brand=WorkSpace (✓) → Match ✓
-            - Printer Paper: category=office (✗) → No match
-            → Third AND: {Standing Desk}
+            - Laptop Pro: category=electronics (✗) -> No match
+            - Mouse Pad: category=accessories (✗) -> No match
+            - Math Textbook: category=book (✗) -> No match
+            - Novel Collection: category=book (✗) -> No match
+            - Gaming Chair: category=furniture (✓) AND brand=ComfortMax (✗) -> No match
+            - Standing Desk: category=furniture (✓) AND brand=WorkSpace (✓) -> Match ✓
+            - Printer Paper: category=office (✗) -> No match
+            -> Third AND: {Standing Desk}
 
             OR union: {Math Textbook} ∪ {Mouse Pad, Printer Paper} ∪ {Standing Desk}
             = {Math Textbook, Mouse Pad, Printer Paper, Standing Desk}

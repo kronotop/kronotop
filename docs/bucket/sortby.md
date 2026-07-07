@@ -91,13 +91,13 @@ the sort field must use equality (`EQ`) filters. A range filter on a prefix fiel
 Example: compound index on `(status, age)`.
 
 ```kronotop
--- EQ on 'status', SORTBY on 'age' → works
+-- EQ on 'status', SORTBY on 'age' -> works
 BUCKET.QUERY users '{"status": "active"}' SORTBY age ASC LIMIT 10
 
--- Range on 'age', SORTBY on 'age' → works (sort field = range field)
+-- Range on 'age', SORTBY on 'age' -> works (sort field = range field)
 BUCKET.QUERY users '{"age": {"$gt": 5, "$lt": 100}}' SORTBY age ASC LIMIT 10
 
--- Range on 'status', SORTBY on 'age' → rejected
+-- Range on 'status', SORTBY on 'age' -> rejected
 BUCKET.QUERY users '{"status": {"$gt": "a"}}' SORTBY age ASC LIMIT 10
 ```
 

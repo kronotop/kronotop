@@ -91,7 +91,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             runCommand(node2.getChannel(), buf);
         }
 
-        // INSERT {"name": "Alice"} on node1 → shard 0 (local to node1)
+        // INSERT {"name": "Alice"} on node1 -> shard 0 (local to node1)
         {
             BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             ByteBuf buf = Unpooled.buffer();
@@ -104,7 +104,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             assertInstanceOf(ArrayRedisMessage.class, response);
         }
 
-        // INSERT {"name": "Bob"} on node2 → shard 4 (local to node2)
+        // INSERT {"name": "Bob"} on node2 -> shard 4 (local to node2)
         {
             BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             ByteBuf buf = Unpooled.buffer();
@@ -194,7 +194,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             runCommand(node2.getChannel(), buf);
         }
 
-        // INSERT {"name": "Alice", "age": 25} on node1 → shard 0 (local to node1)
+        // INSERT {"name": "Alice", "age": 25} on node1 -> shard 0 (local to node1)
         {
             BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             ByteBuf buf = Unpooled.buffer();
@@ -207,7 +207,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             assertInstanceOf(ArrayRedisMessage.class, response);
         }
 
-        // INSERT {"name": "Bob", "age": 30} on node2 → shard 4 (local to node2)
+        // INSERT {"name": "Bob", "age": 30} on node2 -> shard 4 (local to node2)
         {
             BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
             ByteBuf buf = Unpooled.buffer();
@@ -377,7 +377,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             runCommand(node2.getChannel(), buf);
         }
 
-        // INSERT {"name": "Bob", "age": 30} on node2 → shard 4 (local to node2)
+        // INSERT {"name": "Bob", "age": 30} on node2 -> shard 4 (local to node2)
         ObjectId bobObjectId;
         {
             BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);

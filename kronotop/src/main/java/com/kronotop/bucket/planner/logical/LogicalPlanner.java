@@ -132,7 +132,7 @@ public final class LogicalPlanner {
         if (expr instanceof BqlElemMatch(String selector, BqlExpr _expr)) {
             return new LogicalElemMatch(selector, convert(_expr));
         }
-        // Selector comparisons → filter
+        // Selector comparisons -> filter
         if (expr instanceof BqlEq(String selector, BqlValue value)) return toFilter(selector, Operator.EQ, value);
         if (expr instanceof BqlNe(String selector, BqlValue value)) return toFilter(selector, Operator.NE, value);
         if (expr instanceof BqlGt(String selector, BqlValue value)) return toFilter(selector, Operator.GT, value);
@@ -415,7 +415,7 @@ public final class LogicalPlanner {
             if (n instanceof LogicalNot(LogicalNode child)) {
                 LogicalNode inner = rewrite(child);
                 if (inner instanceof LogicalNot(LogicalNode child1)) {
-                    // NOT(NOT(x)) → x             (double negation elimination)
+                    // NOT(NOT(x)) -> x             (double negation elimination)
                     return rewrite(child1);
                 }
                 return new LogicalNot(inner);
@@ -437,9 +437,9 @@ public final class LogicalPlanner {
     /**
      * Detects contradictory conditions and replaces them with FALSE.
      * Examples:
-     * - AND(selector = A, selector = B) → FALSE
-     * - AND(selector > 100, selector < 50) → FALSE
-     * - AND(selector = A, selector != A) → FALSE
+     * - AND(selector = A, selector = B) -> FALSE
+     * - AND(selector > 100, selector < 50) -> FALSE
+     * - AND(selector = A, selector != A) -> FALSE
      */
     private static final class ContradictionDetectionTransform implements LogicalTransform {
         @Override
@@ -601,10 +601,10 @@ public final class LogicalPlanner {
     /**
      * Eliminates tautological conditions and simplifies logical expressions.
      * Examples:
-     * - OR(selector = A, selector != A) → TRUE
-     * - OR(selector > 5, selector <= 5) → TRUE
-     * - AND(TRUE, condition) → condition
-     * - OR(FALSE, condition) → condition
+     * - OR(selector = A, selector != A) -> TRUE
+     * - OR(selector > 5, selector <= 5) -> TRUE
+     * - AND(TRUE, condition) -> condition
+     * - OR(FALSE, condition) -> condition
      */
     private static final class TautologyEliminationTransform implements LogicalTransform {
         @Override
@@ -706,11 +706,11 @@ public final class LogicalPlanner {
     /**
      * Eliminates redundant conditions in logical expressions.
      * Examples:
-     * - AND(selector > 5, selector > 3) → selector > 5 (more restrictive)
-     * - OR(selector < 10, selector < 15) → selector < 15 (less restrictive)
-     * - AND(selector = A, selector = A) → selector = A (duplicates)
-     * - AND(selector >= 5, selector > 4) → selector >= 5 (subsumption)
-     * - OR(selector IN [A,B], selector = A) → selector IN [A,B] (subsumption)
+     * - AND(selector > 5, selector > 3) -> selector > 5 (more restrictive)
+     * - OR(selector < 10, selector < 15) -> selector < 15 (less restrictive)
+     * - AND(selector = A, selector = A) -> selector = A (duplicates)
+     * - AND(selector >= 5, selector > 4) -> selector >= 5 (subsumption)
+     * - OR(selector IN [A,B], selector = A) -> selector IN [A,B] (subsumption)
      */
     private static final class RedundantConditionEliminationTransform implements LogicalTransform {
         @Override
@@ -990,11 +990,11 @@ public final class LogicalPlanner {
     /**
      * Performs constant folding and simplification of boolean expressions.
      * Examples:
-     * - AND(TRUE, TRUE) → TRUE
-     * - AND(TRUE, FALSE) → FALSE
-     * - OR(FALSE, FALSE) → FALSE
-     * - OR(TRUE, FALSE) → TRUE
-     * - NOT(NOT(x)) → x (handled by RemoveDoubleNotTransform)
+     * - AND(TRUE, TRUE) -> TRUE
+     * - AND(TRUE, FALSE) -> FALSE
+     * - OR(FALSE, FALSE) -> FALSE
+     * - OR(TRUE, FALSE) -> TRUE
+     * - NOT(NOT(x)) -> x (handled by RemoveDoubleNotTransform)
      */
     private static final class ConstantFoldingTransform implements LogicalTransform {
         @Override

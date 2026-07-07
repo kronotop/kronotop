@@ -40,7 +40,7 @@ public class EntryHandleGenerator {
      *   handle  = hi64(hash128) XOR ROTL64(lo64(hash128), 32)
      * </pre>
      *
-     * <p><b>Why 128-bit → 64-bit reduction?</b><br>
+     * <p><b>Why 128-bit -> 64-bit reduction?</b><br>
      * - The storage coordinates already form a high-entropy domain.
      * - Murmur3_128 provides excellent avalanche and uniform distribution.
      * - Reducing to 64 bits is a practical trade-off for fast bitmap

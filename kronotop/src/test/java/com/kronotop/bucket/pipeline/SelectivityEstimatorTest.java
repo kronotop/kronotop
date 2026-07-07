@@ -84,8 +84,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with LT predicates:
-        // age < 10 → ~10% percentile → estimation = 0.10 * 1000 = ~100 rows
-        // score < 90 → ~90% percentile → estimation = 0.90 * 1000 = ~900 rows
+        // age < 10 -> ~10% percentile -> estimation = 0.10 * 1000 = ~100 rows
+        // score < 90 -> ~90% percentile -> estimation = 0.90 * 1000 = ~900 rows
         IndexScanPredicate lowValuePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(10)));
         IndexScanNode lowValueNode = new IndexScanNode(1, ageIndex, lowValuePredicate);
 
@@ -118,8 +118,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with GT predicates:
-        // age > 90 → ~90% percentile → estimation = (1 - 0.90) * 1000 = ~100 rows
-        // score > 10 → ~10% percentile → estimation = (1 - 0.10) * 1000 = ~900 rows
+        // age > 90 -> ~90% percentile -> estimation = (1 - 0.90) * 1000 = ~100 rows
+        // score > 10 -> ~10% percentile -> estimation = (1 - 0.10) * 1000 = ~900 rows
         IndexScanPredicate highValuePredicate = new IndexScanPredicate(1, "age", Operator.GT, lit(new Int32Val(90)));
         IndexScanNode highValueNode = new IndexScanNode(1, ageIndex, highValuePredicate);
 
@@ -152,8 +152,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Compare LT vs GT at same value (20):
-        // age < 20 → ~20% percentile → estimation = 0.20 * 1000 = ~200 rows
-        // score > 20 → ~20% percentile → estimation = (1 - 0.20) * 1000 = ~800 rows
+        // age < 20 -> ~20% percentile -> estimation = 0.20 * 1000 = ~200 rows
+        // score > 20 -> ~20% percentile -> estimation = (1 - 0.20) * 1000 = ~800 rows
         IndexScanPredicate ltPredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(20)));
         IndexScanNode ltNode = new IndexScanNode(1, ageIndex, ltPredicate);
 
@@ -186,8 +186,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Compare LT vs GT at same value (80):
-        // age < 80 → ~80% percentile → estimation = 0.80 * 1000 = ~800 rows
-        // score > 80 → ~80% percentile → estimation = (1 - 0.80) * 1000 = ~200 rows
+        // age < 80 -> ~80% percentile -> estimation = 0.80 * 1000 = ~800 rows
+        // score > 80 -> ~80% percentile -> estimation = (1 - 0.80) * 1000 = ~200 rows
         IndexScanPredicate ltPredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(80)));
         IndexScanNode ltNode = new IndexScanNode(1, ageIndex, ltPredicate);
 
@@ -220,9 +220,9 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with LT predicates:
-        // age < 10 → below histogram range → percentile clamped to EPSILON (0.01)
-        //          → estimation = 0.01 * 1000 = 10 rows
-        // score < 75 → ~50% percentile → estimation = 0.50 * 1000 = 500 rows
+        // age < 10 -> below histogram range -> percentile clamped to EPSILON (0.01)
+        //          -> estimation = 0.01 * 1000 = 10 rows
+        // score < 75 -> ~50% percentile -> estimation = 0.50 * 1000 = 500 rows
         IndexScanPredicate belowRangePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(10)));
         IndexScanNode belowRangeNode = new IndexScanNode(1, ageIndex, belowRangePredicate);
 
@@ -255,9 +255,9 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with GT predicates:
-        // age > 100 → above histogram range → percentile clamped to 0.99
-        //           → estimation = (1 - 0.99) * 1000 = 10 rows
-        // score > 25 → ~50% percentile → estimation = (1 - 0.50) * 1000 = 500 rows
+        // age > 100 -> above histogram range -> percentile clamped to 0.99
+        //           -> estimation = (1 - 0.99) * 1000 = 10 rows
+        // score > 25 -> ~50% percentile -> estimation = (1 - 0.50) * 1000 = 500 rows
         IndexScanPredicate aboveRangePredicate = new IndexScanPredicate(1, "age", Operator.GT, lit(new Int32Val(100)));
         IndexScanNode aboveRangeNode = new IndexScanNode(1, ageIndex, aboveRangePredicate);
 
@@ -292,8 +292,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with identical predicates (same operator, same value):
-        // age < 50 → ~50% percentile → estimation = 0.50 * 1000 = 500 rows
-        // score < 50 → ~50% percentile → estimation = 0.50 * 1000 = 500 rows
+        // age < 50 -> ~50% percentile -> estimation = 0.50 * 1000 = 500 rows
+        // score < 50 -> ~50% percentile -> estimation = 0.50 * 1000 = 500 rows
         IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode ageNode = new IndexScanNode(1, ageIndex, agePredicate);
 
@@ -330,8 +330,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create two RangeScanNodes:
-        // age: 40-60 → ~40% to ~60% → (0.60 - 0.40) * 1000 = ~200 rows
-        // score: 20-80 → ~20% to ~80% → (0.80 - 0.20) * 1000 = ~600 rows
+        // age: 40-60 -> ~40% to ~60% -> (0.60 - 0.40) * 1000 = ~200 rows
+        // score: 20-80 -> ~20% to ~80% -> (0.80 - 0.20) * 1000 = ~600 rows
         RangeScanPredicate narrowPredicate = new RangeScanPredicate(
                 "age", lit(new Int32Val(40)), lit(new Int32Val(60)), true, true);
         RangeScanNode narrowNode = new RangeScanNode(1, ageIndex, narrowPredicate);
@@ -366,8 +366,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create two RangeScanNodes with identical ranges on different indexes:
-        // age: 40-60 → same percentiles → same estimation
-        // score: 40-60 → same percentiles → same estimation
+        // age: 40-60 -> same percentiles -> same estimation
+        // score: 40-60 -> same percentiles -> same estimation
         RangeScanPredicate agePredicate = new RangeScanPredicate(
                 "age", lit(new Int32Val(40)), lit(new Int32Val(60)), true, true);
         RangeScanNode ageNode = new RangeScanNode(1, ageIndex, agePredicate);
@@ -405,14 +405,14 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
         metadata.indexes().updateStatistics(stats);
 
-        // Create inverted range (upper < lower) → returns UNKNOWN
-        // age: 60-40 (inverted) → high percentile < low percentile → UNKNOWN
+        // Create inverted range (upper < lower) -> returns UNKNOWN
+        // age: 60-40 (inverted) -> high percentile < low percentile -> UNKNOWN
         RangeScanPredicate invertedPredicate = new RangeScanPredicate(
                 "age", lit(new Int32Val(60)), lit(new Int32Val(40)), true, true);
         RangeScanNode invertedNode = new RangeScanNode(1, ageIndex, invertedPredicate);
 
         // Create valid range for comparison
-        // score: 40-60 → valid range → produces finite estimate
+        // score: 40-60 -> valid range -> produces finite estimate
         RangeScanPredicate validPredicate = new RangeScanPredicate(
                 "score", lit(new Int32Val(40)), lit(new Int32Val(60)), true, true);
         RangeScanNode validNode = new RangeScanNode(2, scoreIndex, validPredicate);
@@ -443,15 +443,15 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create range with lower bound below histogram range:
-        // age: 10-75 → lower clamped to EPSILON (0.01), upper ~50%
-        //            → (0.50 - 0.01) * 1000 = ~490 rows
+        // age: 10-75 -> lower clamped to EPSILON (0.01), upper ~50%
+        //            -> (0.50 - 0.01) * 1000 = ~490 rows
         RangeScanPredicate belowRangePredicate = new RangeScanPredicate(
                 "age", lit(new Int32Val(10)), lit(new Int32Val(75)), true, true);
         RangeScanNode belowRangeNode = new RangeScanNode(1, ageIndex, belowRangePredicate);
 
         // Create range with lower bound inside histogram range:
-        // score: 60-75 → lower ~20%, upper ~50%
-        //              → (0.50 - 0.20) * 1000 = ~300 rows
+        // score: 60-75 -> lower ~20%, upper ~50%
+        //              -> (0.50 - 0.20) * 1000 = ~300 rows
         RangeScanPredicate inRangePredicate = new RangeScanPredicate(
                 "score", lit(new Int32Val(60)), lit(new Int32Val(75)), true, true);
         RangeScanNode inRangeNode = new RangeScanNode(2, scoreIndex, inRangePredicate);
@@ -482,15 +482,15 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create range with upper bound above histogram range:
-        // age: 25-150 → lower ~50%, upper clamped to 0.99
-        //             → (0.99 - 0.50) * 1000 = ~490 rows
+        // age: 25-150 -> lower ~50%, upper clamped to 0.99
+        //             -> (0.99 - 0.50) * 1000 = ~490 rows
         RangeScanPredicate aboveRangePredicate = new RangeScanPredicate(
                 "age", lit(new Int32Val(25)), lit(new Int32Val(150)), true, true);
         RangeScanNode aboveRangeNode = new RangeScanNode(1, ageIndex, aboveRangePredicate);
 
         // Create range with upper bound inside histogram range:
-        // score: 25-40 → lower ~50%, upper ~80%
-        //              → (0.80 - 0.50) * 1000 = ~300 rows
+        // score: 25-40 -> lower ~50%, upper ~80%
+        //              -> (0.80 - 0.50) * 1000 = ~300 rows
         RangeScanPredicate inRangePredicate = new RangeScanPredicate(
                 "score", lit(new Int32Val(25)), lit(new Int32Val(40)), true, true);
         RangeScanNode inRangeNode = new RangeScanNode(2, scoreIndex, inRangePredicate);
@@ -521,13 +521,13 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create RangeScan with narrow range:
-        // age: 45-55 → ~45% to ~55% → (0.55 - 0.45) * 1000 = ~100 rows
+        // age: 45-55 -> ~45% to ~55% -> (0.55 - 0.45) * 1000 = ~100 rows
         RangeScanPredicate rangePredicate = new RangeScanPredicate(
                 "age", lit(new Int32Val(45)), lit(new Int32Val(55)), true, true);
         RangeScanNode rangeNode = new RangeScanNode(1, ageIndex, rangePredicate);
 
         // Create IndexScan with wider coverage:
-        // score < 50 → ~50% percentile → 0.50 * 1000 = ~500 rows
+        // score < 50 -> ~50% percentile -> 0.50 * 1000 = ~500 rows
         IndexScanPredicate indexPredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode indexNode = new IndexScanNode(2, scoreIndex, indexPredicate);
 
@@ -559,12 +559,12 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         metadata.indexes().updateStatistics(stats);
 
         // Create IndexScan with narrow coverage:
-        // age < 10 → ~10% percentile → 0.10 * 1000 = ~100 rows
+        // age < 10 -> ~10% percentile -> 0.10 * 1000 = ~100 rows
         IndexScanPredicate indexPredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(10)));
         IndexScanNode indexNode = new IndexScanNode(1, ageIndex, indexPredicate);
 
         // Create RangeScan with wide range:
-        // score: 20-80 → ~20% to ~80% → (0.80 - 0.20) * 1000 = ~600 rows
+        // score: 20-80 -> ~20% to ~80% -> (0.80 - 0.20) * 1000 = ~600 rows
         RangeScanPredicate rangePredicate = new RangeScanPredicate(
                 "score", lit(new Int32Val(20)), lit(new Int32Val(80)), true, true);
         RangeScanNode rangeNode = new RangeScanNode(2, scoreIndex, rangePredicate);
@@ -669,8 +669,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
         metadata.indexes().updateStatistics(stats);
 
-        // age <= 10 → ~10% → ~100 rows
-        // score <= 90 → ~90% → ~900 rows
+        // age <= 10 -> ~10% -> ~100 rows
+        // score <= 90 -> ~90% -> ~900 rows
         IndexScanPredicate lowPredicate = new IndexScanPredicate(1, "age", Operator.LTE, lit(new Int32Val(10)));
         IndexScanNode lowNode = new IndexScanNode(1, ageIndex, lowPredicate);
 
@@ -697,8 +697,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
         metadata.indexes().updateStatistics(stats);
 
-        // age >= 90 → (1 - 0.90) * 1000 = ~100 rows
-        // score >= 10 → (1 - 0.10) * 1000 = ~900 rows
+        // age >= 90 -> (1 - 0.90) * 1000 = ~100 rows
+        // score >= 10 -> (1 - 0.10) * 1000 = ~900 rows
         IndexScanPredicate highPredicate = new IndexScanPredicate(1, "age", Operator.GTE, lit(new Int32Val(90)));
         IndexScanNode highNode = new IndexScanNode(1, ageIndex, highPredicate);
 
@@ -787,11 +787,11 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
         metadata.indexes().updateStatistics(stats);
 
-        // Int64Val with INT32 index → type mismatch → UNKNOWN
+        // Int64Val with INT32 index -> type mismatch -> UNKNOWN
         IndexScanPredicate mismatchPredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int64Val(50L)));
         IndexScanNode mismatchNode = new IndexScanNode(1, ageIndex, mismatchPredicate);
 
-        // Int32Val with INT32 index → valid
+        // Int32Val with INT32 index -> valid
         IndexScanPredicate validPredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode validNode = new IndexScanNode(2, scoreIndex, validPredicate);
 
@@ -833,7 +833,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         createIndexThenWaitForReadiness(ageIndex, scoreIndex);
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
-        // No statistics injected → all nodes return UNKNOWN
+        // No statistics injected -> all nodes return UNKNOWN
 
         // Both use EQ operator which returns UNKNOWN
         IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.EQ, lit(new Int32Val(50)));
@@ -881,8 +881,8 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
 
         // Use BUCKET.EXPLAIN to verify index selection
         // Query: age < 10 AND score < 90
-        // age < 10 → ~10% → more selective
-        // score < 90 → ~90% → less selective
+        // age < 10 -> ~10% -> more selective
+        // score < 90 -> ~90% -> less selective
         // Expected: age-index should be selected as the primary scan
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
@@ -916,11 +916,11 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
         metadata.indexes().updateStatistics(stats);
 
-        // age < ?0 with ?0 = 10 → ~10% percentile → ~100 rows
+        // age < ?0 with ?0 = 10 -> ~10% percentile -> ~100 rows
         IndexScanPredicate lowValuePredicate = new IndexScanPredicate(1, "age", Operator.LT, param(0));
         IndexScanNode lowValueNode = new IndexScanNode(1, ageIndex, lowValuePredicate);
 
-        // score < ?1 with ?1 = 90 → ~90% percentile → ~900 rows
+        // score < ?1 with ?1 = 90 -> ~90% percentile -> ~900 rows
         IndexScanPredicate highValuePredicate = new IndexScanPredicate(2, "score", Operator.LT, param(1));
         IndexScanNode highValueNode = new IndexScanNode(2, scoreIndex, highValuePredicate);
 
@@ -947,11 +947,11 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
         metadata.indexes().updateStatistics(stats);
 
-        // age > ?0 with ?0 = 90 → ~90% percentile → (1 - 0.90) * 1000 = ~100 rows
+        // age > ?0 with ?0 = 90 -> ~90% percentile -> (1 - 0.90) * 1000 = ~100 rows
         IndexScanPredicate highValuePredicate = new IndexScanPredicate(1, "age", Operator.GT, param(0));
         IndexScanNode highValueNode = new IndexScanNode(1, ageIndex, highValuePredicate);
 
-        // score > ?1 with ?1 = 10 → ~10% percentile → (1 - 0.10) * 1000 = ~900 rows
+        // score > ?1 with ?1 = 10 -> ~10% percentile -> (1 - 0.10) * 1000 = ~900 rows
         IndexScanPredicate lowValuePredicate = new IndexScanPredicate(2, "score", Operator.GT, param(1));
         IndexScanNode lowValueNode = new IndexScanNode(2, scoreIndex, lowValuePredicate);
 
@@ -978,11 +978,11 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
         metadata.indexes().updateStatistics(stats);
 
-        // age: ?0 <= age <= ?1 with ?0 = 40, ?1 = 60 → 20% range → ~200 rows
+        // age: ?0 <= age <= ?1 with ?0 = 40, ?1 = 60 -> 20% range -> ~200 rows
         RangeScanPredicate narrowRange = new RangeScanPredicate("age", param(0), param(1), true, true);
         RangeScanNode narrowNode = new RangeScanNode(1, ageIndex, narrowRange);
 
-        // score: ?2 <= score <= ?3 with ?2 = 10, ?3 = 90 → 80% range → ~800 rows
+        // score: ?2 <= score <= ?3 with ?2 = 10, ?3 = 90 -> 80% range -> ~800 rows
         RangeScanPredicate wideRange = new RangeScanPredicate("score", param(2), param(3), true, true);
         RangeScanNode wideNode = new RangeScanNode(2, scoreIndex, wideRange);
 
@@ -1063,14 +1063,14 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
         metadata.indexes().updateStatistics(singleStats);
 
-        // Compound: category = 5 AND price < 50 → narrow estimate
+        // Compound: category = 5 AND price < 50 -> narrow estimate
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
                 new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),
                 new CompoundIndexScanNode.CompoundIndexScanFilter("price", Operator.LT, lit(new Int32Val(50)), BsonType.INT32)
         );
         CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
 
-        // Single: score < 90 → ~90% percentile → ~900 rows
+        // Single: score < 90 -> ~90% percentile -> ~900 rows
         IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(90)));
         IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
 
@@ -1105,14 +1105,14 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
         metadata.indexes().updateStatistics(singleStats);
 
-        // Compound: category = 5 AND price > 80 → narrow estimate (high percentile, small 1-p)
+        // Compound: category = 5 AND price > 80 -> narrow estimate (high percentile, small 1-p)
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
                 new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),
                 new CompoundIndexScanNode.CompoundIndexScanFilter("price", Operator.GT, lit(new Int32Val(80)), BsonType.INT32)
         );
         CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
 
-        // Single: score > 10 → ~10% percentile → (1-0.10)*1000 = ~900 rows
+        // Single: score > 10 -> ~10% percentile -> (1-0.10)*1000 = ~900 rows
         IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.GT, lit(new Int32Val(10)));
         IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
 
@@ -1147,14 +1147,14 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
         metadata.indexes().updateStatistics(singleStats);
 
-        // Compound: category = 5 AND status = 3 → all-EQ → est = 1000/bucketCount
+        // Compound: category = 5 AND status = 3 -> all-EQ -> est = 1000/bucketCount
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
                 new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),
                 new CompoundIndexScanNode.CompoundIndexScanFilter("status", Operator.EQ, lit(new Int32Val(3)), BsonType.INT32)
         );
         CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
 
-        // Single: score < 80 → ~80% percentile → ~800 rows
+        // Single: score < 80 -> ~80% percentile -> ~800 rows
         IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(80)));
         IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
 
@@ -1192,7 +1192,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
         metadata.indexes().updateStatistics(singleStats);
 
-        // Compound: category = 1 AND price > 20 AND price < 80 → bounds in different buckets
+        // Compound: category = 1 AND price > 20 AND price < 80 -> bounds in different buckets
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
                 new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(1)), BsonType.INT32),
                 new CompoundIndexScanNode.CompoundIndexScanFilter("price", Operator.GT, lit(new Int32Val(20)), BsonType.INT32),
@@ -1200,7 +1200,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         );
         CompoundIndexScanNode compoundNode = new CompoundIndexScanNode(1, compoundDef, filters);
 
-        // Single: score < 90 → ~90% percentile → ~900 rows
+        // Single: score < 90 -> ~90% percentile -> ~900 rows
         IndexScanPredicate scorePredicate = new IndexScanPredicate(2, "score", Operator.LT, lit(new Int32Val(90)));
         IndexScanNode scoreNode = new IndexScanNode(2, scoreIndex, scorePredicate);
 

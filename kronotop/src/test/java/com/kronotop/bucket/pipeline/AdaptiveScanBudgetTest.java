@@ -59,8 +59,8 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
 
-        // 5000 docs, 10 rare → step=500, rare at 0, 500, 1000, ..., 4500
-        // Budget sequence: 5 → 1000 → 1500 → 2250 → ... must grow past the first rare gaps
+        // 5000 docs, 10 rare -> step=500, rare at 0, 500, 1000, ..., 4500
+        // Budget sequence: 5 -> 1000 -> 1500 -> 2250 -> ... must grow past the first rare gaps
         List<byte[]> documents = createDocumentsWithLowSelectivity(5000, 10);
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
@@ -162,7 +162,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
 
-        // 5000 docs, 8 rare → step=625, budget must grow well past 1000 to find them all
+        // 5000 docs, 8 rare -> step=625, budget must grow well past 1000 to find them all
         List<byte[]> documents = createDocumentsWithLowSelectivity(5000, 8);
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
@@ -191,7 +191,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
 
-        // 3000 docs, 20 rare → step=150, rare at 0, 150, 300, ..., 2850
+        // 3000 docs, 20 rare -> step=150, rare at 0, 150, 300, ..., 2850
         List<byte[]> documents = createDocumentsWithLowSelectivity(3000, 20);
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 

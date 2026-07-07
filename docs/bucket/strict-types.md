@@ -84,7 +84,7 @@ It does NOT always promote to `DECIMAL128`.
 | INT32 + DOUBLE          | DOUBLE      | Cheap cast                                                     |
 | INT32 + DECIMAL128      | DECIMAL128  | BigDecimal allocation                                          |
 | INT64 + INT64           | INT64       | Identity, no conversion                                        |
-| INT64 + DOUBLE          | DECIMAL128  | BigDecimal allocation, unavoidable since INT64→DOUBLE is lossy |
+| INT64 + DOUBLE          | DECIMAL128  | BigDecimal allocation, unavoidable since INT64->DOUBLE is lossy |
 | DOUBLE + DOUBLE         | DOUBLE      | Identity, no conversion                                        |
 | DOUBLE + DECIMAL128     | DECIMAL128  | BigDecimal allocation                                          |
 | DECIMAL128 + DECIMAL128 | DECIMAL128  | Identity, no conversion                                        |
@@ -165,7 +165,7 @@ a document where `age` is a `STRING`.
 - `Decimal128Val` matches `INT32`, `INT64`, `DOUBLE`, `DECIMAL128`
 
 Every numeric predicate can match every numeric document type. Both values are promoted to the cheapest lossless common
-type before comparison (e.g., `INT32` + `INT64` → `INT64`, `INT64` + `DOUBLE` → `DECIMAL128`).
+type before comparison (e.g., `INT32` + `INT64` -> `INT64`, `INT64` + `DOUBLE` -> `DECIMAL128`).
 
 ## Practical example
 

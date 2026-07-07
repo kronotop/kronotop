@@ -444,7 +444,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         );
         insertDocumentsAndGetObjectIds(BUCKET, documents);
 
-        // $or: price > 100 OR quantity < 10 → matches A(100,5), C(200,3), E(150,8)
+        // $or: price > 100 OR quantity < 10 -> matches A(100,5), C(200,3), E(150,8)
         PlanWithParams planWithParams = createPlanWithParams(metadata,
                 "{'$or': [{'price': {'$gt': 100}}, {'quantity': {'$lt': 10}}]}");
 

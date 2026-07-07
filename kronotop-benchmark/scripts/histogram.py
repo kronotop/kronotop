@@ -124,7 +124,7 @@ def main() -> None:
 
     if save_path:
         fig.savefig(save_path, dpi=200, bbox_inches="tight")
-        print(f"Saved → {pathlib.Path(save_path).resolve()}")
+        print(f"Saved -> {pathlib.Path(save_path).resolve()}")
         plt.close(fig)
     else:
         plt.show()

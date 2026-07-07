@@ -284,7 +284,7 @@ class PhysicalPlanValidatorTest extends BasePhysicalPlannerTest {
     @Test
     void shouldRejectThreeFieldCompoundWhenMiddleRangeAndNoSeparateIndex() {
         // Behavior: Compound index {a, b, c} with EQ on a, range on b, SORTBY c —
-        // range on b breaks ordering of c. No separate index on c → "create an index".
+        // range on b breaks ordering of c. No separate index on c -> "create an index".
         createCompoundIndex(CompoundIndexDefinition.create("idx_abc", List.of(
                 new CompoundIndexField("a", BsonType.INT32, false),
                 new CompoundIndexField("b", BsonType.INT32, false),

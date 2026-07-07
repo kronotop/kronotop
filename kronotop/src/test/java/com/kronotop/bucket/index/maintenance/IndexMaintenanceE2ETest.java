@@ -70,7 +70,7 @@ import static org.junit.jupiter.api.Assertions.*;
 // for reproducing production conditions: there is no global lock protecting index state
 // transitions, so we rely on FDB's hard 5-second transaction limit plus a 5-second
 // safety buffer (10 seconds total per convergence call). The boundary routine calls
-// convergence twice — once for WAITING→BUILDING and once for BUILDING→READY — because
+// convergence twice — once for WAITING->BUILDING and once for BUILDING->READY — because
 // each state transition must be fully visible to all in-flight insert transactions
 // before the next phase begins. Without the sleep, the boundary captures the upper
 // versionstamp while inserts are still in progress, and those inserts see stale

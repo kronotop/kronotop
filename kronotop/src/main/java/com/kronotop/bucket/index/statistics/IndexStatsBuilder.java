@@ -27,7 +27,7 @@ import org.bson.BsonValue;
  * selection during index operations. {@link IndexAnalyzeRoutine} uses these hints as pivots
  * when building histograms for query optimization.
  *
- * <p>Key structure: {@code (STAT_HINTS, ObjectId) → null}
+ * <p>Key structure: {@code (STAT_HINTS, ObjectId) -> null}
  */
 public class IndexStatsBuilder {
     private static final byte[] NULL_BYTES = new byte[]{};

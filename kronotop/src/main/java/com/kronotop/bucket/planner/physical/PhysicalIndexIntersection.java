@@ -27,7 +27,7 @@ import java.util.Objects;
  * Finds documents matching several indexed conditions by intersecting the results
  * of multiple single-field indexes.
  * <p>
- * Example: AND(name="john", age=25) → PhysicalIndexIntersection([name_index, age_index], [filters])
+ * Example: AND(name="john", age=25) -> PhysicalIndexIntersection([name_index, age_index], [filters])
  */
 public record PhysicalIndexIntersection(
         int id,

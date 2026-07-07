@@ -1778,7 +1778,7 @@ class PhysicalPlanParameterBinderTest {
         // NOT 0 and 1.
 
         // Simulating the optimized plan after RedundantScanEliminationRule:
-        // Original: $nin: ['admin', 'admin', 'editor'] → params [admin(0), admin(1), editor(2)]
+        // Original: $nin: ['admin', 'admin', 'editor'] -> params [admin(0), admin(1), editor(2)]
         // Optimized: AND(NE('admin'), NE('editor'))
 
         StringVal admin = new StringVal("admin");

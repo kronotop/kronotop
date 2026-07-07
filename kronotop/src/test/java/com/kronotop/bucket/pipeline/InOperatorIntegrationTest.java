@@ -889,7 +889,7 @@ class InOperatorIntegrationTest extends BasePipelineTest {
 
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Single value $in optimizes to EQ → single IndexScanNode
+        // Single value $in optimizes to EQ -> single IndexScanNode
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'tags': {'$in': ['python']}}");
         assertInstanceOf(IndexScanNode.class, planWithParams.plan());
 

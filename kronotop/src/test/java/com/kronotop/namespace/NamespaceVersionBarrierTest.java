@@ -43,7 +43,7 @@ class NamespaceVersionBarrierTest extends BaseClusterTest {
         Context context = firstInstance.getContext();
         String namespace = "test.barrier.namespace";
 
-        // Create a namespace and set removed (version → 1)
+        // Create a namespace and set removed (version -> 1)
         NamespaceUtil.create(context, namespace);
         NamespaceMetadata metadata = NamespaceUtil.readMetadata(context, namespace);
         NamespaceUtil.setRemoved(context, namespace);
@@ -82,11 +82,11 @@ class NamespaceVersionBarrierTest extends BaseClusterTest {
         Context context = firstInstance.getContext();
         String namespace = "test.barrier.higher.version";
 
-        // Create a namespace (version=0), then increment the version twice (version → 2)
+        // Create a namespace (version=0), then increment the version twice (version -> 2)
         NamespaceUtil.create(context, namespace);
         NamespaceMetadata metadata = NamespaceUtil.readMetadata(context, namespace);
-        NamespaceUtil.setRemoved(context, namespace); // version → 1
-        NamespaceUtil.incrementVersion(context, namespace); // version → 2
+        NamespaceUtil.setRemoved(context, namespace); // version -> 1
+        NamespaceUtil.incrementVersion(context, namespace); // version -> 2
 
         // For each member, set the lastSeenNamespaceVersion (will be 2)
         NamespaceRemovedEvent event = new NamespaceRemovedEvent(metadata.id(), namespace);
@@ -123,7 +123,7 @@ class NamespaceVersionBarrierTest extends BaseClusterTest {
         Context context = firstInstance.getContext();
         String namespace = "test.barrier.no.version";
 
-        // Create a namespace and set removed (version → 1)
+        // Create a namespace and set removed (version -> 1)
         NamespaceUtil.create(context, namespace);
         NamespaceUtil.setRemoved(context, namespace);
 
@@ -146,7 +146,7 @@ class NamespaceVersionBarrierTest extends BaseClusterTest {
         Context context = firstInstance.getContext();
         String namespace = "test.barrier.partial.version";
 
-        // Create a namespace and set removed (version → 1)
+        // Create a namespace and set removed (version -> 1)
         NamespaceUtil.create(context, namespace);
         NamespaceMetadata metadata = NamespaceUtil.readMetadata(context, namespace);
         NamespaceUtil.setRemoved(context, namespace);
@@ -181,7 +181,7 @@ class NamespaceVersionBarrierTest extends BaseClusterTest {
         Context context = firstInstance.getContext();
         String namespace = "test.barrier.timing";
 
-        // Create a namespace and set removed (version → 1)
+        // Create a namespace and set removed (version -> 1)
         NamespaceUtil.create(context, namespace);
         NamespaceUtil.setRemoved(context, namespace);
 

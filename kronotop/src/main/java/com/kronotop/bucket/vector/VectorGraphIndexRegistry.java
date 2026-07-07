@@ -31,7 +31,7 @@ import java.util.function.Supplier;
 /**
  * A thread-safe registry for managing vector graph index groups organized by namespace, bucket, and index ID.
  *
- * <p>Groups are stored in a three-level hierarchy: namespace → bucket → indexId → VectorGraphIndexGroup.
+ * <p>Groups are stored in a three-level hierarchy: namespace -> bucket -> indexId -> VectorGraphIndexGroup.
  * The namespace key supports prefix-based removal using a sorted map, enabling efficient
  * cleanup of entire namespace trees.
  */

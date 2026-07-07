@@ -339,8 +339,8 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // TOP 1 → batchSize = ceil(1 * 1.5) = 2
-        // Filter matches 10 docs → needs 5 batches of 2 to exhaust
+        // TOP 1 -> batchSize = ceil(1 * 1.5) = 2
+        // Filter matches 10 docs -> needs 5 batches of 2 to exhaust
         // Vector must grow past 20 noise docs to reach any target
         ByteBuf buf = Unpooled.buffer();
         cmd.vector(TEST_BUCKET, "embedding", new float[]{0.1f, 0.2f, 0.3f},

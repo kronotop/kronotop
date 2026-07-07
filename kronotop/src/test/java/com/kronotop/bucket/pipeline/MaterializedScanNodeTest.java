@@ -314,7 +314,7 @@ class MaterializedScanNodeTest extends BasePipelineTest {
             return List.of();
         };
 
-        // Filter: age > 25 → from subset (Bob=20, Charlie=30, Diana=40) only Charlie and Diana match
+        // Filter: age > 25 -> from subset (Bob=20, Charlie=30, Diana=40) only Charlie and Diana match
         MaterializedPlan plan = buildMaterializedPlan(
                 metadata, "{'age': {'$gt': 25}}", supplier);
         assertNotNull(plan);
@@ -350,7 +350,7 @@ class MaterializedScanNodeTest extends BasePipelineTest {
             return allLocations.subList(start, Math.min(start + batchSize, allLocations.size()));
         };
 
-        // Filter: age > 25 → should return C(30), D(40), E(50), F(60) across batch boundaries
+        // Filter: age > 25 -> should return C(30), D(40), E(50), F(60) across batch boundaries
         MaterializedPlan plan = buildMaterializedPlan(
                 metadata, "{'age': {'$gt': 25}}", supplier);
         assertNotNull(plan);

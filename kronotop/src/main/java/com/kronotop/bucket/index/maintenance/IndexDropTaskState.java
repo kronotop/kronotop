@@ -39,8 +39,8 @@ import java.util.Map;
  *
  * <p><strong>State Lifecycle:</strong>
  * <pre>
- * WAITING → RUNNING → COMPLETED (success)
- *                  → FAILED (error during deletion)
+ * WAITING -> RUNNING -> COMPLETED (success)
+ *                  -> FAILED (error during deletion)
  * </pre>
  *
  * <p><strong>State Fields:</strong>

@@ -32,8 +32,8 @@ import java.util.Map;
  * Optimization rule that consolidates multiple range scans on the same field into a single range scan.
  * <p>
  * Examples:
- * - AND(age >= 18, age < 65) → PhysicalRangeScan("age", 18, 65, true, false, age_index)
- * - AND(score > 50, score <= 100) → PhysicalRangeScan("score", 50, 100, false, true, score_index)
+ * - AND(age >= 18, age < 65) -> PhysicalRangeScan("age", 18, 65, true, false, age_index)
+ * - AND(score > 50, score <= 100) -> PhysicalRangeScan("score", 50, 100, false, true, score_index)
  */
 public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 

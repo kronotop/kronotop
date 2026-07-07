@@ -211,7 +211,7 @@ Per-segment replication state is stored in FoundationDB via the `ReplicationStat
 |-----------------|------------|--------------|--------------------------------------------------------|
 | Position        | 0x01       | long         | Current byte offset within the segment                 |
 | Error message   | 0x02       | String       | Last failure root cause                                |
-| Status          | 0x03       | enum         | WAITING → RUNNING → DONE / FAILED / STOPPED            |
+| Status          | 0x03       | enum         | WAITING -> RUNNING -> DONE / FAILED / STOPPED            |
 | Tail pointer    | 0x04       | (long, long) | `(sequenceNumber, nextPosition)` at segment completion |
 | Stage           | 0x05       | enum         | SEGMENT_REPLICATION or CHANGE_DATA_CAPTURE             |
 | Sequence number | 0x06       | long         | Last applied changelog sequence number                 |
@@ -227,7 +227,7 @@ Segment replication transfers existing segment data from the primary in configur
 
 **Algorithm:**
 
-1. Fetch tail pointer via `SEGMENT.TAILPOINTER(volume, segmentId)` → `(limitPosition, sequenceNumber)`
+1. Fetch tail pointer via `SEGMENT.TAILPOINTER(volume, segmentId)` -> `(limitPosition, sequenceNumber)`
 2. Store tail pointer in the replication state
 3. Loop while `position < limitPosition`:
     - Calculate chunk length: `min(chunkSize, segmentSize − position)`
@@ -280,7 +280,7 @@ CDC uses a separate `ReplicationClient` without timeouts for the blocking `CHANG
 | Status           | Action                                                                                        |
 |------------------|-----------------------------------------------------------------------------------------------|
 | WAITING, RUNNING | Continue current segment; switch to CDC if stage is CHANGE_DATA_CAPTURE                       |
-| DONE             | Find next segment via binary search on the primary's segment list; if none exists → start CDC |
+| DONE             | Find next segment via binary search on the primary's segment list; if none exists -> start CDC |
 | FAILED, STOPPED  | Stop replication                                                                              |
 
 Each iteration creates either a `SegmentReplication` or `ChangeDataCapture` stage. The stage runs to completion or

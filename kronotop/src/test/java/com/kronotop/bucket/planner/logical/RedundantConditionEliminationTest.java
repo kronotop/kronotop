@@ -693,9 +693,9 @@ class RedundantConditionEliminationTest {
 
             // Should combine:
             // 1. Duplicate elimination: status=active (once)
-            // 2. Tautology elimination: OR(role=admin, role!=admin) → TRUE
+            // 2. Tautology elimination: OR(role=admin, role!=admin) -> TRUE
             // 3. Redundancy elimination: price > 100 (more restrictive)
-            // 4. Constant folding: AND(status=active, TRUE, price>100) → AND(status=active, price>100)
+            // 4. Constant folding: AND(status=active, TRUE, price>100) -> AND(status=active, price>100)
 
             assertInstanceOf(LogicalAnd.class, result);
             LogicalAnd andNode = (LogicalAnd) result;

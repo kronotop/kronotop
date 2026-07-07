@@ -34,7 +34,7 @@ import java.util.List;
  * <p>
  * Examples:
  * - AND(PhysicalIndexScan(name="john"), PhysicalIndexScan(age=25))
- * → PhysicalIndexIntersection([name_index, age_index], [filters])
+ * -> PhysicalIndexIntersection([name_index, age_index], [filters])
  */
 public class IndexIntersectionRule implements PhysicalOptimizationRule {
 

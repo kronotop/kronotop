@@ -502,7 +502,7 @@ public class Volume {
      * <p>This method performs multiple operations atomically within the session's transaction:</p>
      * <ul>
      *   <li>Stores entry metadata with versionstamped keys (prefix + versionstamp)</li>
-     *   <li>Creates reverse index (metadata bytes → versionstamp) for efficient lookups</li>
+     *   <li>Creates reverse index (metadata bytes -> versionstamp) for efficient lookups</li>
      *   <li>Updates segment cardinality (increments entry count)</li>
      *   <li>Updates segment used bytes (adds entry length)</li>
      *   <li>Appends operation to segment log for replication</li>

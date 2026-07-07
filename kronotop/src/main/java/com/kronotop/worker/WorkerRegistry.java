@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 /**
  * A thread-safe registry for managing workers organized by prefix and tag.
  *
- * <p>Workers are stored in a two-level hierarchy: prefix → tag → list of workers.
+ * <p>Workers are stored in a two-level hierarchy: prefix -> tag -> list of workers.
  * This enables efficient prefix-based lookups for operations like namespace removal,
  * where all workers under a namespace prefix must be shut down.
  *

@@ -99,7 +99,7 @@ public class BucketMetadataUtil {
 
     /**
      * Resolves the UUID pointer bytes for a given volume prefix by walking the FDB binding chain
-     * in reverse: prefix bytes → prefixBindingKey → pointerSubspace → pointer (UUID) bytes.
+     * in reverse: prefix bytes -> prefixBindingKey -> pointerSubspace -> pointer (UUID) bytes.
      *
      * @param context the context providing environment and services
      * @param tr      the active transaction

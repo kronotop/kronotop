@@ -44,7 +44,7 @@ class BucketIndexStatisticsEventTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldInvalidatePlanCacheAfterAnalyze() {
-        // Behavior: ANALYZE completes → INDEX_STATISTICS_UPDATED_EVENT → plan cache invalidated
+        // Behavior: ANALYZE completes -> INDEX_STATISTICS_UPDATED_EVENT -> plan cache invalidated
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
 

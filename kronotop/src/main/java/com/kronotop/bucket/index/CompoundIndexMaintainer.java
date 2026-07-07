@@ -37,8 +37,8 @@ import java.util.*;
  *
  * <p>Compound indexes use concatenated multi-field keys with the following key structures:
  * <ul>
- *   <li>Index entries: {@code (ENTRIES, val1, val2, ..., valN, ObjectId) → IndexEntry}</li>
- *   <li>Back pointers: {@code (BACK_POINTER, ObjectId, val1, val2, ..., valN) → null}</li>
+ *   <li>Index entries: {@code (ENTRIES, val1, val2, ..., valN, ObjectId) -> IndexEntry}</li>
+ *   <li>Back pointers: {@code (BACK_POINTER, ObjectId, val1, val2, ..., valN) -> null}</li>
  * </ul>
  */
 public final class CompoundIndexMaintainer extends IndexMaintainer {

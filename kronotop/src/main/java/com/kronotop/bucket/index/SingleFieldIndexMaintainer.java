@@ -34,8 +34,8 @@ import java.util.List;
  *
  * <p>Single field indexes use the following key structures:
  * <ul>
- *   <li>Index entries: {@code (ENTRIES, indexValue, ObjectId) → IndexEntry}</li>
- *   <li>Back pointers: {@code (BACK_POINTER, ObjectId, indexValue) → null}</li>
+ *   <li>Index entries: {@code (ENTRIES, indexValue, ObjectId) -> IndexEntry}</li>
+ *   <li>Back pointers: {@code (BACK_POINTER, ObjectId, indexValue) -> null}</li>
  * </ul>
  *
  * <p>Back pointers enable efficient deletion by allowing reverse lookup from ObjectId to all

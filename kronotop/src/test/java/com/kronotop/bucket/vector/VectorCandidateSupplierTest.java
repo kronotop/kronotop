@@ -137,7 +137,7 @@ class VectorCandidateSupplierTest {
             VectorSearchSession session = new VectorSearchSession(List.of(handle));
             Map<ObjectId, Float> scoreMap = new HashMap<>();
 
-            // maxScanCandidates=3, batchSize=3 → first fetch returns 3 candidates and hits the cap
+            // maxScanCandidates=3, batchSize=3 -> first fetch returns 3 candidates and hits the cap
             try (VectorCandidateSupplier supplier = new VectorCandidateSupplier(session, 3, 0.0f, scoreMap, 3, 1.0f)) {
                 List<DocumentLocation> first = supplier.fetch();
                 assertEquals(3, first.size());

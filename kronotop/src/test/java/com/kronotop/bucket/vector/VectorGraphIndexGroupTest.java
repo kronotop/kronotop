@@ -896,8 +896,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldLoadOnDiskIndexesWithCompleteSentinel() throws IOException {
-        // Behavior: End-to-end: flush produces .complete sentinel → openOnDiskIndexes recognizes valid
-        // index set → search returns results from the loaded on-disk index.
+        // Behavior: End-to-end: flush produces .complete sentinel -> openOnDiskIndexes recognizes valid
+        // index set -> search returns results from the loaded on-disk index.
         OnHeapVectorGraphIndex heapIndex = newIndex();
         heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();

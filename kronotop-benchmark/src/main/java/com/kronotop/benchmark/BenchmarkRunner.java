@@ -206,7 +206,7 @@ public class BenchmarkRunner {
                 w.newLine();
             }
         }
-        System.out.printf("  Latencies written → %s%n", file.toAbsolutePath());
+        System.out.printf("  Latencies written -> %s%n", file.toAbsolutePath());
     }
 
     public static <K, V, T> void dispatch(StatefulRedisConnection<K, V> connection,

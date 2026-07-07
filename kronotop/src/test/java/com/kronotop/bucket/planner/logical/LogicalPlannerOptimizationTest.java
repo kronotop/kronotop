@@ -589,10 +589,10 @@ class LogicalPlannerOptimizationTest {
 
             // After all optimizations:
             // 1. FlattenAndOrTransform: Flattens nested ANDs
-            // 2. RemoveDoubleNotTransform: NOT(NOT(deleted=false)) → deleted=false
-            // 3. TautologyEliminationTransform: OR(role=admin, role!=admin) → TRUE
+            // 2. RemoveDoubleNotTransform: NOT(NOT(deleted=false)) -> deleted=false
+            // 3. TautologyEliminationTransform: OR(role=admin, role!=admin) -> TRUE
             // 4. ConstantFoldingTransform: AND(tenant_id=123, status=active, TRUE, deleted=false) 
-            //    → AND(tenant_id=123, status=active, deleted=false)
+            //    -> AND(tenant_id=123, status=active, deleted=false)
 
             assertInstanceOf(LogicalAnd.class, result);
             LogicalAnd andNode = (LogicalAnd) result;

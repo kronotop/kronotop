@@ -48,10 +48,10 @@ MIXED results (8710 queries, 50 threads):
     UPDATE      70 ops (  0.8%)  Avg:  49.53 ms  P50:  49.75 ms  P95:  93.52 ms  P99:  95.37 ms  Min:  13.06 ms  Max:  95.37 ms
     DELETE     177 ops (  2.0%)  Avg:  45.79 ms  P50:  40.38 ms  P95:  83.38 ms  P99:  88.49 ms  Min:  11.64 ms  Max:  88.72 ms
     CONFLICT  1290 skipped ( 12.9% of attempts)
-  Latencies written → /home/ubuntu/Code/kronotop/latencies/mixed_query_20260514_132829.csv
-  Latencies written → /home/ubuntu/Code/kronotop/latencies/mixed_insert_20260514_132829.csv
-  Latencies written → /home/ubuntu/Code/kronotop/latencies/mixed_update_20260514_132829.csv
-  Latencies written → /home/ubuntu/Code/kronotop/latencies/mixed_delete_20260514_132829.csv
+  Latencies written -> /home/ubuntu/Code/kronotop/latencies/mixed_query_20260514_132829.csv
+  Latencies written -> /home/ubuntu/Code/kronotop/latencies/mixed_insert_20260514_132829.csv
+  Latencies written -> /home/ubuntu/Code/kronotop/latencies/mixed_update_20260514_132829.csv
+  Latencies written -> /home/ubuntu/Code/kronotop/latencies/mixed_delete_20260514_132829.csv
 
 Benchmark complete.
 ```

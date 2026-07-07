@@ -29,7 +29,7 @@ import static com.kronotop.bucket.pipeline.IndexUtil.getKeySelector;
 /**
  * Manages cursor positioning and checkpoints for paginated query execution in the pipeline.
  *
- * <p>Tracks the scan position across primary (_id → ObjectId) and secondary (BqlValue | ObjectId)
+ * <p>Tracks the scan position across primary (_id -> ObjectId) and secondary (BqlValue | ObjectId)
  * indexes, enabling efficient pagination by saving and restoring bounds between requests.</p>
  *
  * <p>Scan direction is controlled by the caller via the {@code scanReversed} flag passed to

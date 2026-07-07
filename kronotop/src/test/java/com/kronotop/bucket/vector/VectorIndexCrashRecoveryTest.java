@@ -597,7 +597,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
 
-        // Bootstrap detects mutation log entries → slow-path (not immediately ready)
+        // Bootstrap detects mutation log entries -> slow-path (not immediately ready)
         VectorGraphIndexGroup group = service.bootstrapVectorGroup(metadata, vectorIndex);
         assertFalse(group.isReady());
 

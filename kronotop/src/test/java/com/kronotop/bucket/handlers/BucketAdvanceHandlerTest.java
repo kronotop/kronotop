@@ -727,7 +727,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         // Insert documents with type and age fields
-        // Type A: ages 30, 10, 20 → sorted: 10, 20, 30
+        // Type A: ages 30, 10, 20 -> sorted: 10, 20, 30
         // Type B: ages 25, 40, 15
         List<byte[]> documents = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"type\": \"A\", \"name\": \"Alice\", \"age\": 30}"),
@@ -1270,11 +1270,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         // Insert documents with price and quantity fields
         // $or: price > 100 OR quantity < 10
-        // A: price=100, quantity=5 → matches quantity<10 only (100 is NOT > 100)
-        // B: price=50, quantity=15 → no match
-        // C: price=200, quantity=3 → matches BOTH conditions
-        // D: price=30, quantity=25 → no match
-        // E: price=150, quantity=8 → matches BOTH conditions
+        // A: price=100, quantity=5 -> matches quantity<10 only (100 is NOT > 100)
+        // B: price=50, quantity=15 -> no match
+        // C: price=200, quantity=3 -> matches BOTH conditions
+        // D: price=30, quantity=25 -> no match
+        // E: price=150, quantity=8 -> matches BOTH conditions
         // Expected: A, C, E (3 unique documents)
         List<byte[]> documents = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"A\", \"price\": 100, \"quantity\": 5}"),
@@ -1925,16 +1925,16 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         // Insert documents with price, quantity, and score fields
         // $or: price > 50 OR quantity < 20
-        // A: price=100, quantity=25, score=5 → matches price>50
-        // B: price=30, quantity=10, score=2 → matches quantity<20
-        // C: price=80, quantity=5, score=8 → matches BOTH
-        // D: price=20, quantity=30, score=1 → no match
-        // E: price=60, quantity=15, score=4 → matches BOTH
-        // F: price=40, quantity=8, score=6 → matches quantity<20
-        // G: price=90, quantity=22, score=3 → matches price>50
-        // H: price=25, quantity=18, score=7 → matches quantity<20
-        // I: price=70, quantity=12, score=9 → matches BOTH
-        // J: price=15, quantity=35, score=10 → no match
+        // A: price=100, quantity=25, score=5 -> matches price>50
+        // B: price=30, quantity=10, score=2 -> matches quantity<20
+        // C: price=80, quantity=5, score=8 -> matches BOTH
+        // D: price=20, quantity=30, score=1 -> no match
+        // E: price=60, quantity=15, score=4 -> matches BOTH
+        // F: price=40, quantity=8, score=6 -> matches quantity<20
+        // G: price=90, quantity=22, score=3 -> matches price>50
+        // H: price=25, quantity=18, score=7 -> matches quantity<20
+        // I: price=70, quantity=12, score=9 -> matches BOTH
+        // J: price=15, quantity=35, score=10 -> no match
         // Expected matches: A, B, C, E, F, G, H, I (8 documents)
         List<byte[]> documents = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"A\", \"price\": 100, \"quantity\": 25, \"score\": 5}"),

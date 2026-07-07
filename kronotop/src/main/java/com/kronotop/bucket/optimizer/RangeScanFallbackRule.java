@@ -31,9 +31,9 @@ import java.util.List;
  * <p>
  * Examples:
  * - PhysicalRangeScan("age", 18, null, true, false, null)
- * → PhysicalFullScan(age >= 18)
+ * -> PhysicalFullScan(age >= 18)
  * - PhysicalRangeScan("age", 18, 65, true, false, null)
- * → PhysicalAnd([PhysicalFullScan(age >= 18), PhysicalFullScan(age < 65)])
+ * -> PhysicalAnd([PhysicalFullScan(age >= 18), PhysicalFullScan(age < 65)])
  */
 public class RangeScanFallbackRule implements PhysicalOptimizationRule {
 

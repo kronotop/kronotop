@@ -1597,7 +1597,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         int length = 1024;
         int entriesPerSegment = Math.toIntExact(volume.getConfig().segmentSize() / length);
 
-        // 1. Fill one segment + overflow to trigger segment replication → CDC transition
+        // 1. Fill one segment + overflow to trigger segment replication -> CDC transition
         appendEntries(entriesPerSegment + (entriesPerSegment / 2), length);
 
         // 2. Start replication
@@ -1672,7 +1672,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         int length = 1024;
         int entriesPerSegment = Math.toIntExact(volume.getConfig().segmentSize() / length);
 
-        // 1. Fill one segment + overflow → CDC on segment 1
+        // 1. Fill one segment + overflow -> CDC on segment 1
         appendEntries(entriesPerSegment + (entriesPerSegment / 2), length);
 
         // 2. Start replication

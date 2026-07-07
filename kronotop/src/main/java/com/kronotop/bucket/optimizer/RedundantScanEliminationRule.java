@@ -26,8 +26,8 @@ import java.util.List;
  * Optimization rule that eliminates redundant scans in AND/OR operations.
  * <p>
  * Examples:
- * - OR(PhysicalIndexScan(A), PhysicalIndexScan(A)) → PhysicalIndexScan(A)
- * - AND(PhysicalFullScan(A), PhysicalFullScan(A)) → PhysicalFullScan(A)
+ * - OR(PhysicalIndexScan(A), PhysicalIndexScan(A)) -> PhysicalIndexScan(A)
+ * - AND(PhysicalFullScan(A), PhysicalFullScan(A)) -> PhysicalFullScan(A)
  */
 public class RedundantScanEliminationRule implements PhysicalOptimizationRule {
 

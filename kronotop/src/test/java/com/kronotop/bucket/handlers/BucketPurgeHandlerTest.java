@@ -300,7 +300,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldRecreateBucketAfterPurgeWithFreshMetadata() {
-        // Behavior: After remove → purge → recreate sequence, the recreated bucket should use
+        // Behavior: After remove -> purge -> recreate sequence, the recreated bucket should use
         // fresh metadata with a new prefix. Data inserted after recreation should be accessible,
         // proving the cache was invalidated and no stale metadata was used.
 

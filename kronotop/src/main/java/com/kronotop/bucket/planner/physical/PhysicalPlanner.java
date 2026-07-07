@@ -386,11 +386,11 @@ public class PhysicalPlanner {
      * Examples:
      * <ul>
      *   <li>{@code {'role': {'$in': ['admin', 'editor']}}} with index on 'role'
-     *       → {@code PhysicalOr([PhysicalIndexScan(EQ, 'admin'), PhysicalIndexScan(EQ, 'editor')])}</li>
+     *       -> {@code PhysicalOr([PhysicalIndexScan(EQ, 'admin'), PhysicalIndexScan(EQ, 'editor')])}</li>
      *   <li>{@code {'role': {'$in': ['admin']}}} with index on 'role'
-     *       → {@code PhysicalIndexScan(EQ, 'admin')} (single value optimization)</li>
+     *       -> {@code PhysicalIndexScan(EQ, 'admin')} (single value optimization)</li>
      *   <li>{@code {'role': {'$in': []}}} with index on 'role'
-     *       → {@code PhysicalFalse} (an empty list matches nothing)</li>
+     *       -> {@code PhysicalFalse} (an empty list matches nothing)</li>
      * </ul>
      */
     @SuppressWarnings("unchecked")
@@ -433,11 +433,11 @@ public class PhysicalPlanner {
      * Examples:
      * <ul>
      *   <li>{@code {'role': {'$nin': ['admin', 'editor']}}} with index on 'role'
-     *       → {@code PhysicalAnd([PhysicalIndexScan(NE, 'admin'), PhysicalIndexScan(NE, 'editor')])}</li>
+     *       -> {@code PhysicalAnd([PhysicalIndexScan(NE, 'admin'), PhysicalIndexScan(NE, 'editor')])}</li>
      *   <li>{@code {'role': {'$nin': ['admin']}}} with index on 'role'
-     *       → {@code PhysicalIndexScan(NE, 'admin')} (single value optimization)</li>
+     *       -> {@code PhysicalIndexScan(NE, 'admin')} (single value optimization)</li>
      *   <li>{@code {'role': {'$nin': []}}} with index on 'role'
-     *       → {@code PhysicalTrue} (empty list matches everything)</li>
+     *       -> {@code PhysicalTrue} (empty list matches everything)</li>
      * </ul>
      */
     @SuppressWarnings("unchecked")

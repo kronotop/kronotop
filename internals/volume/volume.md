@@ -158,7 +158,7 @@ to force all buffered writes to stable storage.
 ### Segment Lifecycle
 
 ```
-creation → writing → full → cleanup/deletion
+creation -> writing -> full -> cleanup/deletion
 ```
 
 Segments are created on demand when existing segments cannot accommodate a new entry.

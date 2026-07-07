@@ -40,17 +40,17 @@ import java.util.Map;
  *
  * <p><strong>Status Lifecycle:</strong>
  * <pre>
- * WAITING → RUNNING → COMPLETED (success)
- *                  → FAILED (error, terminal)
- *                  → STOPPED (manual, terminal)
+ * WAITING -> RUNNING -> COMPLETED (success)
+ *                  -> FAILED (error, terminal)
+ *                  -> STOPPED (manual, terminal)
  * </pre>
  *
  * <p><strong>State Transition Rules:</strong>
  * <ol>
  *   <li>COMPLETED is terminal - no further transitions allowed</li>
  *   <li>STOPPED is terminal - only FAILED transition permitted (to record error)</li>
- *   <li>WAITING → COMPLETED: Invalid (task hasn't started)</li>
- *   <li>WAITING → FAILED: Invalid (task hasn't started)</li>
+ *   <li>WAITING -> COMPLETED: Invalid (task hasn't started)</li>
+ *   <li>WAITING -> FAILED: Invalid (task hasn't started)</li>
  *   <li>Same-state transitions: Silently accepted (idempotent)</li>
  * </ol>
  *
@@ -174,8 +174,8 @@ public abstract class AbstractTaskState {
      *   <li>Same-state transitions: Allowed (idempotent)</li>
      *   <li>From COMPLETED: Always rejected (terminal)</li>
      *   <li>From STOPPED: Only FAILED allowed (to record error)</li>
-     *   <li>WAITING → COMPLETED: Rejected (must be RUNNING first)</li>
-     *   <li>WAITING → FAILED: Rejected (must be RUNNING first)</li>
+     *   <li>WAITING -> COMPLETED: Rejected (must be RUNNING first)</li>
+     *   <li>WAITING -> FAILED: Rejected (must be RUNNING first)</li>
      * </ul>
      *
      * @param tr       transaction for reading current state

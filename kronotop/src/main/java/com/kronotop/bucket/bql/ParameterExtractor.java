@@ -40,8 +40,8 @@ import java.util.List;
  *
  * <pre>{@code
  * // Same shape hash, but different parameter order:
- * {"$or": [{"brand": "Apple"}, {"brand": "Samsung"}]}  → [Apple, Samsung]
- * {"$or": [{"brand": "Samsung"}, {"brand": "Apple"}]}  → [Samsung, Apple]
+ * {"$or": [{"brand": "Apple"}, {"brand": "Samsung"}]}  -> [Apple, Samsung]
+ * {"$or": [{"brand": "Samsung"}, {"brand": "Apple"}]}  -> [Samsung, Apple]
  * }</pre>
  *
  * <p>This is semantically correct because AND and OR are commutative operations -

@@ -187,7 +187,7 @@ public final class UpdateOptions {
                 throw new IllegalArgumentException("arrayFilter identifier is null/blank");
             }
             // Extract the base identifier (before any dot) for the map key
-            // e.g., "expensive.price" → map key is "expensive", matching $[expensive]
+            // e.g., "expensive.price" -> map key is "expensive", matching $[expensive]
             String identifier = filter.identifier();
             int dotIndex = identifier.indexOf('.');
             String mapKey = dotIndex > 0 ? identifier.substring(0, dotIndex) : identifier;

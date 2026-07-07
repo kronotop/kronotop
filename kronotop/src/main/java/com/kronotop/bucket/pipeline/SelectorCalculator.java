@@ -328,17 +328,17 @@ class SelectorCalculator {
      *
      * <p><strong>Type Mapping:</strong></p>
      * <ul>
-     *   <li>StringVal → String</li>
-     *   <li>Int32Val → Long (stored as long for consistent storage)</li>
-     *   <li>Int64Val → Long</li>
-     *   <li>DoubleVal → Double</li>
-     *   <li>BooleanVal → Boolean</li>
-     *   <li>DateTimeVal → Long</li>
-     *   <li>TimestampVal → Long</li>
-     *   <li>Decimal128Val → BigDecimal</li>
-     *   <li>BinaryVal → byte array</li>
-     *   <li>ObjectIdVal → byte[] (ObjectId bytes for consistent index storage)</li>
-     *   <li>NullVal → null</li>
+     *   <li>StringVal -> String</li>
+     *   <li>Int32Val -> Long (stored as long for consistent storage)</li>
+     *   <li>Int64Val -> Long</li>
+     *   <li>DoubleVal -> Double</li>
+     *   <li>BooleanVal -> Boolean</li>
+     *   <li>DateTimeVal -> Long</li>
+     *   <li>TimestampVal -> Long</li>
+     *   <li>Decimal128Val -> BigDecimal</li>
+     *   <li>BinaryVal -> byte array</li>
+     *   <li>ObjectIdVal -> byte[] (ObjectId bytes for consistent index storage)</li>
+     *   <li>NullVal -> null</li>
      * </ul>
      *
      * @param bqlValue the BQL value to extract from

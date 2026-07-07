@@ -2370,7 +2370,7 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         List<byte[]> testDocuments = Collections.singletonList(BSONUtil.toBytes(document));
         insertDocumentsAndGetObjectIds(testDocuments);
 
-        // Query with $elemMatch: price >= 100 AND discount >= 10 → matches B (index 1)
+        // Query with $elemMatch: price >= 100 AND discount >= 10 -> matches B (index 1)
         ByteBuf buf = Unpooled.buffer();
         cmd.update(TEST_BUCKET,
                 "{\"items\": {\"$elemMatch\": {\"price\": {\"$gte\": 100}, \"discount\": {\"$gte\": 10}}}}",

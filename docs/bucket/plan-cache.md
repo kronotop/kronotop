@@ -1,10 +1,10 @@
 ---
 title: "Plan Cache"
-description: "The plan cache stores compiled execution plans so that structurally identical queries skip the planning pipeline (parse → logical plan → physical plan → optimize) and reuse a previously compiled plan."
+description: "The plan cache stores compiled execution plans so that structurally identical queries skip the planning pipeline (parse -> logical plan -> physical plan -> optimize) and reuse a previously compiled plan."
 ---
 
 The plan cache stores compiled execution plans so that structurally identical queries skip the planning pipeline
-(parse → logical plan → physical plan → optimize) and reuse a previously compiled plan. Queries that differ only
+(parse -> logical plan -> physical plan -> optimize) and reuse a previously compiled plan. Queries that differ only
 in literal values skip planning entirely.
 
 ## How It Works

@@ -41,7 +41,7 @@ def convert(parquet_path: str, output_path: str) -> None:
             if total % 10000 == 0:
                 print(f"  {total:,} rows written...")
 
-    print(f"Done: {total:,} rows → {output_path}")
+    print(f"Done: {total:,} rows -> {output_path}")
 
 
 def main() -> None:

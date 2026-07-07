@@ -48,7 +48,7 @@ import java.util.stream.Stream;
  * <ul>
  *   <li>Remove COMPLETED/STOPPED tasks from task subspaces</li>
  *   <li>Clear task back pointers from index subspaces</li>
- *   <li>Trigger index BUILDING → READY transition attempts</li>
+ *   <li>Trigger index BUILDING -> READY transition attempts</li>
  *   <li>Clean up orphaned tasks when indexes are deleted</li>
  * </ul>
  *

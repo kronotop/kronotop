@@ -244,9 +244,9 @@ class IndexIntersectionRuleTest extends BaseOptimizerTest {
             );
 
             // Test: AND(name="john", age > 18, score="high")
-            // - name: EQ with STRING index, STRING value → IndexScan
-            // - age: GT with INT32 index, INT32 value → IndexScan
-            // - score: EQ with DOUBLE index, STRING value → FullScan (type mismatch)
+            // - name: EQ with STRING index, STRING value -> IndexScan
+            // - age: GT with INT32 index, INT32 value -> IndexScan
+            // - score: EQ with DOUBLE index, STRING value -> FullScan (type mismatch)
             String query = "{ $and: [" +
                     "{ \"name\": \"john\" }, " +
                     "{ \"age\": { $gt: 18 } }, " +

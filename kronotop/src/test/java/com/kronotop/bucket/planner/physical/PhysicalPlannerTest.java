@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Comprehensive test suite for PhysicalPlanner covering all LogicalNode transposition cases.
- * Tests the complete LogicalNode → PhysicalNode conversion pipeline with optimizations.
+ * Tests the complete LogicalNode -> PhysicalNode conversion pipeline with optimizations.
  */
 class PhysicalPlannerTest extends BasePhysicalPlannerTest {
 

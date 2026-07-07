@@ -1995,7 +1995,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Object insertMsg = runCommand(channel, insertBuf);
         assertInstanceOf(ArrayRedisMessage.class, insertMsg);
 
-        // Update: $set value to INT64 — should fail because INT64→DOUBLE is lossy
+        // Update: $set value to INT64 — should fail because INT64->DOUBLE is lossy
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
@@ -2742,7 +2742,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     void shouldApplyIndexLevelCollationToIndexEntryOnUpdateIgnoringQueryCollation() {
         // Behavior: When index has explicit Turkish PRIMARY collation but UPDATE uses English PRIMARY
         // query collation, new index entries must be written using the index-level TR collation — not the
-        // query-level EN collation. Uses ANKARA → TRABZON (pure ASCII) so EN query collation trivially
+        // query-level EN collation. Uses ANKARA -> TRABZON (pure ASCII) so EN query collation trivially
         // matches the filter; the collation distinction shows only in how the new index entry is stored.
         // A follow-up query with TR collation for "trabzon" (lowercase) finds stored "TRABZON" via
         // TR PRIMARY case-insensitivity, proving the index entry used TR — not EN — for key encoding.

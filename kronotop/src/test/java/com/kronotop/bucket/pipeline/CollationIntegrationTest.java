@@ -2155,7 +2155,7 @@ class CollationIntegrationTest extends BasePipelineTest {
     void shouldTreatExponentNotationAsLiteralWithNumericOrdering() {
         // Behavior: ICU numericOrdering does not interpret exponent notation. The letter 'e' acts as a
         // literal separator. Digit groups on each side are compared independently as integers:
-        // 1e5 vs 2e3 → first group 1 < 2, so 1e5 < 2e3.
+        // 1e5 vs 2e3 -> first group 1 < 2, so 1e5 < 2e3.
 
         final String BUCKET_NAME = "test-numeric-ordering-exponent-notation-sortby-asc";
 
