@@ -115,8 +115,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
     }
 
     private boolean isEqualityOperator(Operator op) {
-        // For now, only optimize EQ operators for intersection
-        // Could be extended to include IN with small value sets
+        // Only EQ conditions qualify for index intersection.
         return op == Operator.EQ;
     }
 

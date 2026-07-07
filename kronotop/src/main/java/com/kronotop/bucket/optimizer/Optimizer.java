@@ -29,10 +29,10 @@ import java.util.List;
  */
 
 /**
- * Physical plan optimizer that applies rule-based optimizations to PhysicalNode trees.
+ * Applies rule-based optimizations to a PhysicalNode tree.
  * <p>
- * The optimizer runs after the PhysicalPlanner and before the PlanExecutor,
- * applying a series of optimization rules to improve query execution performance.
+ * Runs after the PhysicalPlanner and before the PipelineExecutor. Each rule
+ * rewrites the plan to make query execution cheaper.
  */
 public class Optimizer {
     private final List<PhysicalOptimizationRule> rules;
@@ -88,7 +88,6 @@ public class Optimizer {
                     if (!optimized.equals(current)) {
                         current = optimized;
                         changed = true;
-                        // Note: We could add metrics tracking here
                     }
                 }
             }

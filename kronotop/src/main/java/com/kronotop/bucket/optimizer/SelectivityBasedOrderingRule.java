@@ -24,31 +24,18 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Selectivity-Based Ordering Rule that reorders conditions in AND/OR operations
- * based on their estimated selectivity to optimize execution performance.
+ * Reorders the children of AND and OR nodes so short-circuit evaluation does less work.
  * <p>
- * This rule performs statistics-free ordering of boolean predicates (AND / OR) to optimize execution efficiency via
- * short-circuiting. It does not change the access path or estimate absolute cardinality; instead, it applies lightweight
- * heuristics (operator type, index availability, and node kind) to determine the most efficient evaluation order of
- * physical nodes.
- * <p>
- * While histogram-based optimization can provide finer-grained costs, this rule ensures a performant baseline ordering
- * at the physical plan level, even when statistics are unavailable or stale.
- *
- * <p>
- * This rule implements execution order optimization by:
+ * The ordering uses no statistics. It ranks each child with a lightweight heuristic based on operator type, index
+ * availability, and node kind. It never changes the access path or estimates real cardinality, so results stay the
+ * same; only the evaluation order changes.
  * <ul>
- * <li>For AND operations: Orders conditions from most selective (lowest cost) to least selective</li>
- * <li>For OR operations: Orders conditions from least selective to most selective for better short-circuiting</li>
- * <li>Considers index availability, operator type, and field characteristics for selectivity estimation</li>
+ * <li>AND: most selective child first, so a failing condition stops the rest early.</li>
+ * <li>OR: least selective child first, so a matching condition succeeds early.</li>
  * </ul>
  * <p>
- * Selectivity estimation considers:
- * <ul>
- * <li>Index availability (indexed conditions are generally more selective)</li>
- * <li>Operator type (equality is more selective than range operations)</li>
- * <li>Node type (PhysicalIndexScan > PhysicalRangeScan > PhysicalFullScan)</li>
- * </ul>
+ * The ranking prefers indexed conditions over unindexed ones, equality over range operators, and PhysicalIndexScan
+ * over PhysicalRangeScan over PhysicalFullScan.
  */
 public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
 

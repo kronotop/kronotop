@@ -54,8 +54,8 @@ public class RedundantScanEliminationRule implements PhysicalOptimizationRule {
             optimizedChildren.add(apply(context, child));
         }
 
-        // Remove duplicates while preserving order using LinkedHashSet
-        // Since PhysicalNode records now have proper equals/hashCode that ignore IDs
+        // Remove duplicates while preserving order. PhysicalNode records define
+        // equals/hashCode that ignore node IDs, so equal scans collapse into one.
         LinkedHashSet<PhysicalNode> uniqueChildren = new LinkedHashSet<>(optimizedChildren);
         List<PhysicalNode> deduplicatedChildren = new ArrayList<>(uniqueChildren);
 
@@ -78,8 +78,8 @@ public class RedundantScanEliminationRule implements PhysicalOptimizationRule {
             optimizedChildren.add(apply(context, child));
         }
 
-        // Remove duplicates while preserving order using LinkedHashSet
-        // Since PhysicalNode records now have proper equals/hashCode that ignore IDs
+        // Remove duplicates while preserving order. PhysicalNode records define
+        // equals/hashCode that ignore node IDs, so equal scans collapse into one.
         LinkedHashSet<PhysicalNode> uniqueChildren = new LinkedHashSet<>(optimizedChildren);
         List<PhysicalNode> deduplicatedChildren = new ArrayList<>(uniqueChildren);
 
@@ -109,8 +109,7 @@ public class RedundantScanEliminationRule implements PhysicalOptimizationRule {
         return switch (node) {
             case PhysicalAnd and -> !and.children().isEmpty(); // Apply to single child too
             case PhysicalOr or -> !or.children().isEmpty(); // Apply to single child too
-            case PhysicalNot not -> true;
-            case PhysicalElemMatch elemMatch -> true;
+            case PhysicalNot _, PhysicalElemMatch _ -> true;
             default -> false;
         };
     }

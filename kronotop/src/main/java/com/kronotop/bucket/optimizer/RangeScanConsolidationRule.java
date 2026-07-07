@@ -202,7 +202,8 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
         return index.definition();
     }
 
-    // Simple comparison helpers - in reality, these would need proper type handling
+    // Comparison helpers for bound values. They compare only when both operands
+    // are Comparable, and return false otherwise.
     @SuppressWarnings({"unchecked", "rawtypes"})
     private boolean isGreater(Object a, Object b) {
         if (a instanceof Comparable && b instanceof Comparable) {

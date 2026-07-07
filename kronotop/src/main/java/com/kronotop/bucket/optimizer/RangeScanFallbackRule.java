@@ -23,16 +23,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Optimization rule that converts PhysicalRangeScan nodes with null indexes
- * to PhysicalAnd or PhysicalFullScan nodes with appropriate filter conditions.
+ * Rewrites a PhysicalRangeScan that has no index into a full scan with filters.
  * <p>
- * This rule handles the fallback scenario where no suitable index is available
- * for a range scan operation. Instead of failing, it converts the range scan
- * to a full bucket scan with appropriate filter conditions.
- * <p>
- * The convertToFullScan method behavior:
- * - Single bound: converts to PhysicalFullScan with one filter
- * - Multiple bounds: converts to PhysicalAnd with PhysicalFullScan children
+ * When no index covers the range, the scan cannot run as-is. This rule turns each
+ * bound into a filter over a full bucket scan. A single bound becomes one
+ * PhysicalFullScan; two bounds become a PhysicalAnd of two full scans.
  * <p>
  * Examples:
  * - PhysicalRangeScan("age", 18, null, true, false, null)
