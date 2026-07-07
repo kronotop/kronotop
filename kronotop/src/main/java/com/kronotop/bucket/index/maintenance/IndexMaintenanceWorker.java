@@ -34,11 +34,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
- * Executes index maintenance tasks (BOUNDARY, BUILD, DROP, STATS) with retry logic and lifecycle management.
+ * Executes index maintenance tasks (BOUNDARY, BUILD, DROP, ANALYZE) with retry logic and lifecycle management.
  *
  * <p>Workers load task definitions from FoundationDB, create the appropriate routine, and execute it
  * until completion or shutdown. Upon reaching a terminal state (COMPLETED, FAILED, STOPPED), workers
- * notify the watchdog via completion hook and terminate gracefully.
+ * notify the watchdog via completion hook and terminate.
  *
  * @see IndexMaintenanceRoutine
  * @see IndexMaintenanceWatchDog
@@ -183,7 +183,7 @@ public class IndexMaintenanceWorker implements Runnable {
     @Override
     public void run() {
         if (!state.compareAndSet(NEW, RUNNING)) {
-            // Already SHUTDOWN before run() started — skip execution.
+            // Already SHUTDOWN before run() started, so skip execution.
             latch.countDown();
             return;
         }
@@ -215,13 +215,13 @@ public class IndexMaintenanceWorker implements Runnable {
     }
 
     /**
-     * Initiates graceful shutdown by stopping the routine and signaling retry loop exit.
+     * Initiates shutdown by stopping the routine and signaling retry loop exit.
      *
      * <p>Thread-safe and idempotent.
      */
     public void shutdown() {
         if (state.compareAndSet(NEW, SHUTDOWN)) {
-            // run() hasn't started — it either won't run (future cancelled)
+            // run() hasn't started: it either won't run (future cancelled)
             // or will see SHUTDOWN and count down immediately. Count down here
             // so await() never blocks when run() is never invoked.
             latch.countDown();

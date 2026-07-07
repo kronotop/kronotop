@@ -26,40 +26,22 @@ import com.kronotop.internal.task.TaskStorage;
 import java.util.Map;
 
 /**
- * State tracker for index statistics collection tasks.
+ * State tracker for index analyze tasks. An analyze task samples the index hint space,
+ * builds a value distribution histogram, and stores it in bucket metadata for the query
+ * planner to estimate selectivity.
  *
- * <p>IndexAnalyzeTaskState manages the lifecycle of index analysis operations that build
- * histogram statistics for query optimization. Analyze tasks scan index entries and
- * construct value distribution histograms to help the query planner estimate selectivity.
- *
- * <p><strong>Analyze Task Purpose:</strong>
- * <ul>
- *   <li>Build histogram statistics from index hint space</li>
- *   <li>Calculate value distribution for query optimizer</li>
- *   <li>Store histogram in bucket metadata for planner access</li>
- *   <li>Update index cardinality statistics</li>
- * </ul>
- *
- * <p><strong>State Lifecycle:</strong>
+ * <p>State lifecycle:
  * <pre>
  * WAITING -> RUNNING -> COMPLETED (success)
  *                  -> FAILED (error during analysis)
  *                  -> STOPPED (manual cancellation)
  * </pre>
  *
- * <p><strong>State Fields:</strong>
- * <ul>
- *   <li>status: Task execution status (inherited from AbstractTaskState)</li>
- *   <li>error: Error message if failed (inherited from AbstractTaskState)</li>
- * </ul>
- *
- * <p>Analyze tasks track only status and error. Unlike {@link com.kronotop.bucket.index.maintenance.IndexBuildingTaskState},
- * they don't persist cursor position as analysis operations complete quickly by sampling
- * the hint space rather than scanning the entire index.
- *
- * <p><strong>Cleanup:</strong> Completed or failed analyze tasks are removed by
- * {@link com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper} after
- * histogram storage.
+ * <p>Only status and error are tracked, both inherited from {@link AbstractTaskState}. Unlike
+ * {@link com.kronotop.bucket.index.maintenance.IndexBuildingTaskState}, no cursor position is
+ * persisted, because analysis samples the hint space instead of scanning the whole index.
+ * Completed or failed tasks are removed by
+ * {@link com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper}.
  *
  * @see IndexAnalyzeRoutine
  * @see IndexAnalyzeTask
@@ -79,11 +61,8 @@ public class IndexAnalyzeTaskState extends AbstractTaskState {
     }
 
     /**
-     * Loads the analyze task state from FoundationDB.
-     *
-     * <p>Retrieves common state fields (status and error) using the parent class
-     * {@link AbstractTaskState#loadCommonFields}. No additional fields are loaded
-     * as analyze tasks only track execution status.
+     * Loads the analyze task state from FoundationDB. Reads only the common status and
+     * error fields via {@link AbstractTaskState#loadCommonFields}.
      *
      * @param tr       transaction for reading state
      * @param subspace task subspace

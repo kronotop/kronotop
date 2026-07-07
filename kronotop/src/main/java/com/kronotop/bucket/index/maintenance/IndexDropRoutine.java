@@ -33,9 +33,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Background routine that executes index drop operations asynchronously.
  *
- * <p>This routine removes all index entries from FoundationDB storage and manages
- * task state transitions through the drop lifecycle. It ensures transactional
- * consistency and handles failures by updating task status appropriately.
+ * <p>This routine removes all index entries from FoundationDB storage and moves the
+ * task through the drop lifecycle, recording success or failure in the task status.
  */
 public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexDropRoutine.class);
@@ -83,7 +82,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     }
 
     /**
-     * Removes all index entries from storage. Handles both single-field and vector indexes.
+     * Removes all index entries from storage. Handles single-field, compound, and vector indexes.
      * No-op if the index no longer exists.
      *
      * @param tr       the transaction to use for the clear operation
@@ -115,10 +114,10 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     }
 
     /**
-     * Executes the index drop operation with transaction isolation and error handling.
+     * Executes the index drop operation within a single transaction.
      *
-     * <p>This method validates the task state, refreshes metadata to ensure transaction isolation,
-     * removes all index entries, and updates task status to reflect completion or failure.
+     * <p>Reloads the bucket metadata, clears the index entries, and sets the task status to
+     * COMPLETED or FAILED.
      *
      * @throws IndexMaintenanceRoutineShutdownException if interrupted during execution
      */
@@ -199,8 +198,9 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     /**
      * Initiates the index drop routine with automatic retry on transient failures.
      *
-     * <p>This method resets the stopped flag to enable restarts and delegates execution
-     * to {@link #startInternal()}. Transient failures are retried at the worker level.
+     * <p>Clears the stopped flag to allow restarts, runs {@link #initialize()}, then calls
+     * {@link #startInternal()} unless the routine was stopped or interrupted. Transient failures
+     * are retried at the worker level.
      */
     @Override
     public void start() {

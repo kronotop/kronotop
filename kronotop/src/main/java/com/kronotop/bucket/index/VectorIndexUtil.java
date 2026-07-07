@@ -39,9 +39,8 @@ import java.util.List;
 import static com.kronotop.bucket.BucketMetadataUtil.POSITIVE_DELTA_ONE;
 
 /**
- * Utility class for vector index lifecycle: creation, loading, dropping, background task
- * orchestration, and storage. Unlike single-field and compound indexes, vector indexes
- * have no cardinality tracking and no entries subspace.
+ * Vector index lifecycle helpers: creation, loading, dropping, background task
+ * orchestration, and storage.
  */
 public class VectorIndexUtil {
 
@@ -83,7 +82,7 @@ public class VectorIndexUtil {
             return indexSubspace;
         }
 
-        // Vector indexes require single-shard buckets — schedule the boundary task there.
+        // Vector indexes require single-shard buckets, so schedule the boundary task there.
         int shardId = metadata.shards().getFirst();
 
         IndexBoundaryTask task = new IndexBoundaryTask(metadata.namespace(), metadata.name(), definition.id(), shardId, IndexType.VECTOR);
@@ -179,7 +178,7 @@ public class VectorIndexUtil {
         IndexDropTask task = new IndexDropTask(metadata.namespace(), metadata.name(), latestDef.id());
         byte[] definition = JSONUtil.writeValueAsBytes(task);
 
-        // Vector index buckets have exactly one shard — schedule the task there.
+        // Vector index buckets have exactly one shard, so schedule the task there.
         int shardId = metadata.shards().getFirst();
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(tx.context(), shardId);

@@ -17,14 +17,13 @@
 package com.kronotop.bucket.index;
 
 /**
- * Filters indexes by {@link IndexStatus} during retrieval from
- * {@link SingleFieldIndexRegistry} and {@link CompoundIndexRegistry}.
+ * Filters indexes by {@link IndexStatus} during retrieval from the index registries.
  *
  * <ul>
- *   <li>{@link #READ} — only {@link IndexStatus#READY} indexes</li>
- *   <li>{@link #READWRITE} — {@link IndexStatus#BUILDING} or {@link IndexStatus#READY} indexes</li>
- *   <li>{@link #WRITABLE} — {@link IndexStatus#WAITING}, {@link IndexStatus#BUILDING}, or {@link IndexStatus#READY} indexes</li>
- *   <li>{@link #ALL} — all indexes regardless of status</li>
+ *   <li>{@link #READ}: only {@link IndexStatus#READY} indexes</li>
+ *   <li>{@link #READWRITE}: {@link IndexStatus#BUILDING} or {@link IndexStatus#READY} indexes</li>
+ *   <li>{@link #WRITABLE}: {@link IndexStatus#WAITING}, {@link IndexStatus#BUILDING}, or {@link IndexStatus#READY} indexes</li>
+ *   <li>{@link #ALL}: all indexes regardless of status</li>
  * </ul>
  *
  * @see IndexStatus

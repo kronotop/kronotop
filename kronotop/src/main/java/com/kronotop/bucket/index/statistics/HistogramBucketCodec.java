@@ -26,7 +26,7 @@ import java.util.EnumMap;
 
 /**
  * Encodes and decodes histogram buckets to and from byte arrays for storage in FoundationDB.
- * Supports both fixed-size types (INT32, INT64, DOUBLE, DATE_TIME, TIMESTAMP) and
+ * Supports fixed-size types (INT32, INT64, DOUBLE, DATE_TIME, TIMESTAMP, OBJECT_ID) and
  * variable-size types (BINARY, STRING) with length prefixes.
  */
 public class HistogramBucketCodec {
@@ -88,14 +88,14 @@ public class HistogramBucketCodec {
         if (bsonType == BsonType.BINARY) {
             int minLength = histogramBucket.min().asBinary().getData().length;
             int maxLength = histogramBucket.max().asBinary().getData().length;
-            // BsonType(byte) + min-length(short) + min-length-itself + max-length(short) + min-length-itself + int
+            // BsonType(byte) + min-length(short) + min-length-itself + max-length(short) + max-length-itself + int
             return 1 + 2 + minLength + 2 + maxLength + 4;
         }
 
         if (bsonType == BsonType.STRING) {
             int minLength = histogramBucket.min().asString().getValue().getBytes(StandardCharsets.UTF_8).length;
             int maxLength = histogramBucket.max().asString().getValue().getBytes(StandardCharsets.UTF_8).length;
-            // BsonType(byte) + min-length(short) + min-length-itself + max-length(short) + min-length-itself + int
+            // BsonType(byte) + min-length(short) + min-length-itself + max-length(short) + max-length-itself + int
             return 1 + 2 + minLength + 2 + maxLength + 4;
         }
 
@@ -129,7 +129,7 @@ public class HistogramBucketCodec {
 
     /**
      * Decodes a byte array into a histogram bucket using little-endian byte order.
-     * Reads the type byte first, then decodes min, max, and count accordingly.
+     * The leading type byte selects how min, max, and count are read.
      *
      * @param input the byte array to decode
      * @return the decoded histogram bucket

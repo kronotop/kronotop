@@ -26,66 +26,29 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
- * Base class for index maintenance task state management in FoundationDB.
+ * Base class for index maintenance task state stored in FoundationDB.
  *
- * <p>AbstractTaskState provides common state tracking functionality for all index maintenance
- * tasks including BUILD, DROP, BOUNDARY, and ANALYZE operations. It manages status transitions,
- * error tracking, and persistence through {@link TaskStorage}.
+ * <p>Tracks the shared status and error fields for all index maintenance tasks (BUILD, DROP,
+ * BOUNDARY, ANALYZE) and validates status transitions. State is persisted through
+ * {@link TaskStorage}. Subclasses add their own fields, such as a cursor position, and provide
+ * a load() method.
  *
- * <p><strong>Task State Model:</strong>
- * <ul>
- *   <li>Status: Current execution state (WAITING, RUNNING, COMPLETED, FAILED, STOPPED)</li>
- *   <li>Error: Optional error message when status is FAILED</li>
- * </ul>
- *
- * <p><strong>Status Lifecycle:</strong>
+ * <p>Status lifecycle:
  * <pre>
  * WAITING -> RUNNING -> COMPLETED (success)
  *                  -> FAILED (error, terminal)
  *                  -> STOPPED (manual, terminal)
  * </pre>
  *
- * <p><strong>State Transition Rules:</strong>
- * <ol>
- *   <li>COMPLETED is terminal - no further transitions allowed</li>
- *   <li>STOPPED is terminal - only FAILED transition permitted (to record error)</li>
- *   <li>WAITING -> COMPLETED: Invalid (task hasn't started)</li>
- *   <li>WAITING -> FAILED: Invalid (task hasn't started)</li>
- *   <li>Same-state transitions: Silently accepted (idempotent)</li>
- * </ol>
- *
- * <p><strong>Field Storage:</strong>
- * <pre>
- * Field Key | Value Type | Description
- * ----------|------------|-------------
- * "s"       | String     | Status enum name (e.g., "RUNNING")
- * "e"       | UTF-8      | Error message (only when FAILED)
- * </pre>
- *
- * <p><strong>Subclass Responsibilities:</strong>
+ * <p>Transition rules enforced by {@link #setStatus}:
  * <ul>
- *   <li>Define additional state fields (e.g., cursor position, boundaries)</li>
- *   <li>Implement load() method to deserialize full state</li>
- *   <li>Provide field-specific update methods</li>
+ *   <li>Same-state transitions are accepted (idempotent).</li>
+ *   <li>COMPLETED is terminal.</li>
+ *   <li>STOPPED is terminal, except a move to FAILED is allowed to record the error.</li>
+ *   <li>WAITING cannot go straight to COMPLETED or FAILED, it must reach RUNNING first.</li>
  * </ul>
  *
- * <p><strong>Usage Pattern:</strong>
- * <pre>{@code
- * // Load current state
- * IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
- *
- * // Check status
- * if (state.status() == IndexTaskStatus.RUNNING) {
- *     // Process task
- * }
- *
- * // Update status
- * AbstractTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
- *
- * // Record error
- * AbstractTaskState.setError(tr, subspace, taskId, "Index build failed: reason");
- * AbstractTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
- * }</pre>
+ * <p>Fields are stored under key "s" (status enum name) and "e" (UTF-8 error message).
  *
  * @see IndexBuildingTaskState
  * @see IndexBoundaryTaskState
@@ -112,19 +75,12 @@ public abstract class AbstractTaskState {
     }
 
     /**
-     * Loads common state fields (status and error) from TaskStorage entries.
+     * Loads the shared status and error fields from a raw TaskStorage field map.
      *
-     * <p>Deserializes status and error fields from the raw byte map returned by
-     * {@link TaskStorage#getStateFields}. Provides default values for missing fields.
-     *
-     * <p><strong>Default Values:</strong>
-     * <ul>
-     *   <li>status: WAITING (initial state for new tasks)</li>
-     *   <li>error: null (no error message)</li>
-     * </ul>
+     * <p>A missing status defaults to WAITING, and a missing error defaults to null.
      *
      * @param entries raw state field map from TaskStorage
-     * @return TaskStateFields record with deserialized status and error
+     * @return status and error as a {@link TaskStateFields} record
      */
     public static TaskStateFields loadCommonFields(Map<String, byte[]> entries) {
         String error = null;
@@ -142,11 +98,8 @@ public abstract class AbstractTaskState {
     }
 
     /**
-     * Records an error message for a task in FoundationDB.
-     *
-     * <p>Stores the error message in UTF-8 encoding. Typically called before
-     * transitioning status to FAILED. The error message can be retrieved later
-     * via the {@link #error()} accessor method.
+     * Records an error message for a task, stored as UTF-8. Usually called before moving the
+     * status to FAILED. Read it back via {@link #error()}.
      *
      * @param tr       transaction for state update
      * @param subspace task subspace
@@ -164,19 +117,8 @@ public abstract class AbstractTaskState {
     }
 
     /**
-     * Validates status transition rules before updating task status.
-     *
-     * <p>Enforces the state machine transition rules to prevent invalid state changes.
-     * Reads the current status from FoundationDB and validates the target status.
-     *
-     * <p><strong>Validation Rules:</strong>
-     * <ul>
-     *   <li>Same-state transitions: Allowed (idempotent)</li>
-     *   <li>From COMPLETED: Always rejected (terminal)</li>
-     *   <li>From STOPPED: Only FAILED allowed (to record error)</li>
-     *   <li>WAITING -> COMPLETED: Rejected (must be RUNNING first)</li>
-     *   <li>WAITING -> FAILED: Rejected (must be RUNNING first)</li>
-     * </ul>
+     * Reads the current status and rejects a transition that breaks the state machine rules.
+     * If the task was already purged by the watchdog, throws {@link TaskPurgedException}.
      *
      * @param tr       transaction for reading current state
      * @param subspace task subspace
@@ -193,7 +135,7 @@ public abstract class AbstractTaskState {
             // No status field found. Check if the task was purged by the watchdog.
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
-                // Task has been purged — no state left to update
+                // Task has been purged, so there is no state left to update
                 throw new TaskPurgedException();
             }
             current = IndexTaskStatus.WAITING; // initial
@@ -228,23 +170,8 @@ public abstract class AbstractTaskState {
     }
 
     /**
-     * Updates the task status with validation.
-     *
-     * <p>Performs atomic status update after validating transition rules via
-     * {@link #checkStatusTransitionRules}. Stores the new status as enum name.
-     *
-     * <p><strong>Usage:</strong>
-     * <pre>{@code
-     * // Start task execution
-     * AbstractTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.RUNNING);
-     *
-     * // Mark successful completion
-     * AbstractTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
-     *
-     * // Record failure
-     * AbstractTaskState.setError(tr, subspace, taskId, errorMsg);
-     * AbstractTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
-     * }</pre>
+     * Validates the transition via {@link #checkStatusTransitionRules}, then stores the new status
+     * as its enum name. If the task was already purged, does nothing.
      *
      * @param tr       transaction for status update
      * @param subspace task subspace
@@ -256,7 +183,7 @@ public abstract class AbstractTaskState {
         try {
             checkStatusTransitionRules(tr, subspace, taskId, target);
         } catch (TaskPurgedException e) {
-            // Task was purged by watchdog — nothing to update
+            // Task was purged by watchdog, so there is nothing to update
             return;
         }
         TaskStorage.setStateField(tr, subspace, taskId, STATUS, target.name().getBytes());

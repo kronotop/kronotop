@@ -24,58 +24,22 @@ import com.kronotop.internal.task.TaskStorage;
 import java.util.Map;
 
 /**
- * Represents the runtime state of an index builder task executing on a single shard.
+ * Runtime state of an index building task on a single shard.
  *
- * <p>IndexBuildingTaskState tracks the progress and status of background index building
- * operations. Each shard maintains its own task state in FoundationDB, allowing distributed
- * coordination and monitoring of index construction across the cluster.</p>
+ * <p>Tracks the progress of a background index build. Each shard keeps its own state in
+ * FoundationDB so builds can be monitored and resumed across the cluster.
  *
- * <p><b>State Components:</b></p>
+ * <p>State fields:
  * <ul>
- *   <li><b>cursorVersionstamp:</b> The current position in the index building process (last processed entry)</li>
- *   <li><b>status:</b> Current execution status (WAITING, RUNNING, COMPLETED, FAILED, STOPPED)</li>
- *   <li><b>error:</b> Error message if the task failed (null for successful tasks)</li>
+ *   <li>cursorVersionstamp: last processed entry, the position a build resumes from</li>
+ *   <li>bootstrapped: whether the first batch of entries has been processed</li>
+ *   <li>status: WAITING, RUNNING, COMPLETED, FAILED, or STOPPED (from {@link AbstractTaskState})</li>
+ *   <li>error: error message when the task failed, null otherwise (from {@link AbstractTaskState})</li>
  * </ul>
  *
- * <p><b>State Lifecycle:</b></p>
- * <ol>
- *   <li><b>WAITING:</b> Task created, waiting for execution (initial state)</li>
- *   <li><b>RUNNING:</b> Task actively building index entries</li>
- *   <li><b>COMPLETED:</b> Task finished successfully (terminal state)</li>
- *   <li><b>FAILED:</b> Task encountered an error (terminal state, error field populated)</li>
- *   <li><b>STOPPED:</b> Task was manually stopped (terminal state)</li>
- * </ol>
+ * <p>Fields are stored separately in FoundationDB via {@link TaskStorage}, so a single field
+ * can be updated without rewriting the whole state.
  *
- * <p><b>Persistence:</b></p>
- * <p>State fields are stored separately in FoundationDB using {@link TaskStorage}, allowing
- * atomic updates to individual fields without reading/writing the entire state. This enables
- * efficient progress tracking during long-running index builds.</p>
- *
- * <p><b>Coordination:</b></p>
- * <p>The {@link IndexMaintenanceTaskSweeper} monitors all shard states and only transitions
- * the index from BUILDING to READY when all shards report COMPLETED status, implementing
- * a distributed barrier synchronization pattern.</p>
- *
- * <p><b>Example Usage:</b></p>
- * <pre>{@code
- * // Load current state
- * IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, subspace, taskId);
- *
- * // Update cursor position during processing
- * IndexBuildingTaskState.setCursorVersionstamp(tr, subspace, taskId, newCursor);
- *
- * // Mark task as completed
- * IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.COMPLETED);
- *
- * // Check if terminal
- * if (IndexBuildingTaskState.isTerminal(state.status())) {
- *     // Task finished (success or failure)
- * }
- * }</pre>
- *
- * @param cursorVersionstamp the current processing position (null if not started)
- * @param status             the current execution status of the task
- * @param error              error message if status is FAILED, null otherwise
  * @see IndexBuildingTask
  * @see IndexTaskStatus
  * @see IndexMaintenanceTaskSweeper
@@ -100,31 +64,13 @@ public class IndexBuildingTaskState extends AbstractTaskState {
     }
 
     /**
-     * Loads the task state from FoundationDB for a specific task.
-     *
-     * <p>This method retrieves all state fields atomically within the given transaction
-     * and reconstructs the IndexBuildingTaskState object. If state fields don't exist
-     * (new task), default values are used.</p>
-     *
-     * <p><b>Default Values:</b></p>
-     * <ul>
-     *   <li><b>cursorVersionstamp:</b> null (task hasn't started processing)</li>
-     *   <li><b>status:</b> WAITING (initial status for new tasks)</li>
-     *   <li><b>error:</b> null (no error initially)</li>
-     * </ul>
-     *
-     * <p><b>Field Deserialization:</b></p>
-     * <p>Each field is deserialized from bytes stored in TaskStorage:</p>
-     * <ul>
-     *   <li>Versionstamps: Deserialized using Versionstamp.fromBytes()</li>
-     *   <li>Status: Deserialized as enum via IndexTaskStatus.valueOf()</li>
-     *   <li>Error: Deserialized as UTF-8 string</li>
-     * </ul>
+     * Loads task state from FoundationDB within the given transaction. Missing fields fall
+     * back to defaults: cursorVersionstamp null, bootstrapped false, status WAITING, error null.
      *
      * @param tr       the transaction to use for loading state
      * @param subspace the directory subspace containing the task
      * @param taskId   the versionstamp identifier of the task
-     * @return the loaded IndexBuildingTaskState with current field values or defaults
+     * @return the loaded state with stored values or defaults
      */
     public static IndexBuildingTaskState load(Transaction tr, DirectorySubspace subspace, Versionstamp taskId) {
         Map<String, byte[]> entries = TaskStorage.getStateFields(tr, subspace, taskId);
@@ -147,22 +93,8 @@ public class IndexBuildingTaskState extends AbstractTaskState {
     }
 
     /**
-     * Updates the cursor versionstamp to track progress during index building.
-     *
-     * <p>The cursor versionstamp represents the last successfully processed entry.
-     * This is updated periodically as the index builder processes batches of entries,
-     * allowing the task to resume from this position if interrupted.</p>
-     *
-     * <p><b>Usage Pattern:</b></p>
-     * <pre>{@code
-     * // Process batch of entries
-     * for (Entry entry : batch) {
-     *     // Add entry to index
-     * }
-     * // Update cursor to last processed entry
-     * IndexBuildingTaskState.setCursorVersionstamp(tr, subspace, taskId, lastVersionstamp);
-     * tr.commit();
-     * }</pre>
+     * Updates the cursor versionstamp to the last processed entry so the build can resume
+     * from this position after an interruption.
      *
      * @param tr       the transaction to use for the update
      * @param subspace the directory subspace containing the task
@@ -174,27 +106,11 @@ public class IndexBuildingTaskState extends AbstractTaskState {
     }
 
     /**
-     * Checks if the given status is a terminal state (task cannot transition further).
-     *
-     * <p>Terminal states indicate that the task has finished execution and no further
-     * processing will occur. Tasks in terminal states are eligible for cleanup by the
-     * {@link IndexMaintenanceTaskSweeper}.</p>
-     *
-     * <p><b>Terminal States:</b></p>
-     * <ul>
-     *   <li><b>COMPLETED:</b> Task finished successfully</li>
-     *   <li><b>FAILED:</b> Task encountered a fatal error</li>
-     *   <li><b>STOPPED:</b> Task was manually stopped</li>
-     * </ul>
-     *
-     * <p><b>Non-Terminal States:</b></p>
-     * <ul>
-     *   <li><b>WAITING:</b> Task can transition to RUNNING</li>
-     *   <li><b>RUNNING:</b> Task can transition to COMPLETED, FAILED, or STOPPED</li>
-     * </ul>
+     * Returns whether the status is terminal. A terminal task has finished execution and is
+     * eligible for cleanup by the {@link IndexMaintenanceTaskSweeper}.
      *
      * @param status the status to check
-     * @return true if the status is terminal (COMPLETED, FAILED, or STOPPED), false otherwise
+     * @return true if the status is COMPLETED, FAILED, or STOPPED, false otherwise
      */
     public static boolean isTerminal(IndexTaskStatus status) {
         return status.equals(IndexTaskStatus.COMPLETED) || status.equals(IndexTaskStatus.FAILED) || status.equals(IndexTaskStatus.STOPPED);

@@ -33,7 +33,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
- * Maintains compound indexes in FoundationDB for Bucket data structure.
+ * Maintains compound indexes in FoundationDB.
  *
  * <p>Compound indexes use concatenated multi-field keys with the following key structures:
  * <ul>

@@ -19,8 +19,8 @@ package com.kronotop.bucket.index;
 import com.kronotop.bucket.Collation;
 
 /**
- * Sealed interface representing an index definition in Kronotop buckets.
- * All index types (single-field and compound) implement this interface.
+ * An index definition in a Kronotop bucket.
+ * Implemented by the single-field, compound, and vector index types.
  */
 public sealed interface IndexDefinition permits SingleFieldIndexDefinition, CompoundIndexDefinition, VectorIndexDefinition {
     long id();

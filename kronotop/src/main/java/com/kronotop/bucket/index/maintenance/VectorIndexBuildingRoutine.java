@@ -111,7 +111,7 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
         Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
 
         // Drain the batch, extracting ObjectIds and vectors. Documents without a vector field or with
-        // mismatched dimensions are skipped here, matching the previous per-entry behavior.
+        // mismatched dimensions are skipped here.
         List<BufferedEntry> buffer = new ArrayList<>();
         Versionstamp versionstamp = null;
         for (VolumeEntry pair : entries) {
@@ -131,12 +131,12 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
             float[] vector = VectorIndexMaintainer.parseVector(vectorValue);
 
             if (vector == null) {
-                // Document doesn't have the vector field — skip
+                // Document doesn't have the vector field, so skip it
                 continue;
             }
 
             if (vector.length != vectorDefinition.dimensions()) {
-                // Pre-existing document with wrong dimensions — skip
+                // Pre-existing document with wrong dimensions, so skip it
                 continue;
             }
 

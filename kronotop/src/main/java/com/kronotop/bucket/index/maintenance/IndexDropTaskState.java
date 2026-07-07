@@ -24,37 +24,27 @@ import com.kronotop.internal.task.TaskStorage;
 import java.util.Map;
 
 /**
- * State tracker for index drop tasks that physically remove index data from FoundationDB.
+ * State tracker for an index drop task that removes index data from FoundationDB.
  *
- * <p>IndexDropTaskState manages the lifecycle of index deletion operations. Drop tasks
- * are created across all shards when an index is marked as DROPPED, and each shard
- * independently clears its portion of the index directory.
+ * <p>A drop task clears the index entries and publishes a metadata update so readers stop
+ * using the index. It runs as a single task, not one per shard. Only status and error are
+ * tracked, with no cursor, since the clear runs within a transaction.
  *
- * <p><strong>Drop Task Purpose:</strong>
- * <ul>
- *   <li>Remove index directory and all subspace data from FoundationDB</li>
- *   <li>Clean up index statistics from bucket metadata</li>
- *   <li>Coordinate distributed deletion across multiple shards</li>
- * </ul>
- *
- * <p><strong>State Lifecycle:</strong>
+ * <p>State lifecycle:
  * <pre>
  * WAITING -> RUNNING -> COMPLETED (success)
  *                  -> FAILED (error during deletion)
+ *                  -> STOPPED (manually stopped)
  * </pre>
  *
- * <p><strong>State Fields:</strong>
+ * <p>State fields, both inherited from {@link AbstractTaskState}:
  * <ul>
- *   <li>status: Task execution status (inherited from AbstractTaskState)</li>
- *   <li>error: Error message if failed (inherited from AbstractTaskState)</li>
+ *   <li>status: task execution status</li>
+ *   <li>error: error message if failed</li>
  * </ul>
  *
- * <p>Like {@link IndexBoundaryTaskState}, drop tasks only track status and error with no
- * additional state fields. Deletion operations are atomic and don't require cursor tracking.
- *
- * <p><strong>Cleanup:</strong> The {@link IndexMaintenanceTaskSweeper} removes completed
- * drop tasks when the index directory no longer exists in FoundationDB. Once all drop tasks
- * complete, the index is fully removed from bucket metadata.
+ * <p>The {@link IndexMaintenanceTaskSweeper} removes the completed task once the index no
+ * longer exists.
  *
  * @see IndexDropRoutine
  * @see IndexDropTask

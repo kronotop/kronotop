@@ -46,35 +46,19 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * Monitors and manages index maintenance tasks for a specific bucket shard.
+ * Watches the task queue of one bucket shard and runs its index maintenance tasks.
  *
- * <p>This watchdog service continuously monitors the task queue for new index building
- * tasks and manages their execution lifecycle. It performs the following key functions:
- * <ul>
- *   <li>Watches for new tasks using FoundationDB's watch mechanism</li>
- *   <li>Spawns worker threads to execute pending index building tasks</li>
- *   <li>Manages worker pool with backpressure control to prevent overload</li>
- *   <li>Cleans up stale or stuck workers that exceed the maximum stale period</li>
- *   <li>Coordinates task completion across shards using the task sweeper</li>
- * </ul>
+ * <p>The watchdog waits on a FoundationDB watch for new tasks, spawns {@link IndexMaintenanceWorker}
+ * threads for pending tasks, and hands COMPLETED or STOPPED tasks to the
+ * {@link IndexMaintenanceTaskSweeper}. A scheduled pass also runs periodically so stale workers are
+ * cleaned up and pending tasks are processed even if a watch is missed. Maintenance runs only on the
+ * primary owner of the shard.
  *
- * <p>The watchdog implements a bounded worker pool strategy using {@link KrExecutors#newBoundedExecutor}:
- * <ul>
- *   <li>Up to {@code WORKER_POOL_SIZE} concurrent threads (configurable via
- *       {@code bucket.index.maintenance.worker_pool_size}; defaults to number of CPU cores if set to 0)</li>
- *   <li>A maximum of {@code MAX_WORKER_POOL_SIZE} concurrent workers tracked in-memory (2x {@code WORKER_POOL_SIZE})</li>
- *   <li>LinkedBlockingQueue for task buffering when threads are busy</li>
- *   <li>1-minute thread keep-alive time for automatic thread cleanup during idle periods</li>
- *   <li>Automatic cleanup of stale workers that have been inactive for 60 seconds</li>
- * </ul>
- *
- * <p>Task coordination across shards is handled through a completion counter.
- * When all shards report a task as completed, the watchdog triggers the
- * {@link IndexMaintenanceTaskSweeper} to finalize the index and clean up task data.
- *
- * <p>The watchdog runs continuously until the shard is closed, using both reactive
- * (watch-based) and proactive (scheduled) approaches to ensure timely task processing
- * and resource cleanup.
+ * <p>Workers run in a bounded pool from {@link KrExecutors#newBoundedExecutor} sized by
+ * {@code bucket.index.maintenance.worker_pool_size} (defaults to CPU cores when 0), with a 1-minute
+ * thread keep-alive. At most {@code MAX_WORKER_POOL_SIZE} workers (twice the pool size) are tracked
+ * in memory, which provides backpressure. Workers idle beyond {@code WORKER_MAX_STALE_PERIOD} (60s)
+ * are shut down.
  *
  * @see IndexMaintenanceWorker
  * @see IndexMaintenanceTaskSweeper
@@ -96,18 +80,11 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private volatile CompletableFuture<Void> watcher;
 
     /**
-     * Constructs a new IndexMaintenanceWatchDog for the specified bucket shard.
+     * Creates a watchdog for the given bucket shard.
      *
-     * <p>Initializes the watchdog with:
-     * <ul>
-     *   <li>Task subspace for the shard's index maintenance tasks</li>
-     *   <li>Task sweeper for cross-shard coordination</li>
-     *   <li>Bounded worker executor using {@link KrExecutors#newBoundedExecutor} with configurable pool size
-     *       (via {@code bucket.index.maintenance.worker_pool_size}; defaults to CPU cores if 0),
-     *       task buffering via LinkedBlockingQueue, and 1-minute thread keep-alive timeout</li>
-     *   <li>Single-threaded scheduled executor for periodic cleanup operations
-     *       (runs at interval configured via {@code bucket.index.maintenance.worker_maintenance_interval})</li>
-     * </ul>
+     * <p>Opens the shard's task subspace, creates the sweeper, and sets up the bounded worker
+     * executor (pool size from {@code bucket.index.maintenance.worker_pool_size}, CPU cores when 0)
+     * and the single-threaded scheduler used for periodic maintenance.
      *
      * @param context the application context providing access to services and FoundationDB
      * @param shard   the bucket shard this watchdog will monitor
@@ -138,11 +115,10 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Creates a FoundationDB watch on the task trigger key.
+     * Registers a FoundationDB watch on the task trigger key.
      *
-     * <p>This method establishes a watch on the trigger key that will be notified
-     * when new tasks are added to the queue. The watch is committed in a transaction
-     * to ensure it's properly registered with FoundationDB.
+     * <p>The watch is committed so FoundationDB registers it, and completes when a new task
+     * is added to the queue.
      *
      * @return a CompletableFuture that completes when the watched key changes
      */
@@ -155,11 +131,10 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Callback hook invoked when an index task completes execution.
+     * Completion hook that workers call when they finish a task.
      *
-     * <p>This method is called by workers when they finish processing a task.
-     * It removes the completed task from the active workers map and triggers
-     * task queue processing to handle any pending tasks.
+     * <p>Removes the worker from the active map and reprocesses the queue so pending tasks
+     * can be picked up.
      *
      * @param taskId the versionstamp identifier of the completed task
      */
@@ -260,28 +235,15 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Spawns a new worker thread for the specified task if not already running.
+     * Spawns a worker for the task unless one already runs for it.
      *
-     * <p>This method creates and submits a new {@link IndexMaintenanceWorker} to the worker
-     * executor pool. The worker will execute the appropriate maintenance routine based on the
-     * task kind (BUILD or DROP).
-     *
-     * <p>Worker spawning logic:
-     * <ul>
-     *   <li>If a worker already exists for this task ID, returns {@code true} to continue processing</li>
-     *   <li>Creates a new IndexMaintenanceWorker with completion callback</li>
-     *   <li>Submits the worker to the bounded executor pool</li>
-     *   <li>Tracks the worker and its future in the workers map</li>
-     *   <li>Implements backpressure by returning {@code false} when pool limit is reached</li>
-     * </ul>
-     *
-     * <p>The worker is registered with a completion hook ({@link #indexTaskCompletionHook})
-     * that will be invoked when the task reaches a terminal state, allowing the watchdog
-     * to clean up and spawn new workers for pending tasks.
+     * <p>Submits a new {@link IndexMaintenanceWorker} to the bounded pool, tracks it in the
+     * workers map, and wires {@link #indexTaskCompletionHook} as its completion callback. If a
+     * worker already exists for this task ID, does nothing and returns {@code true}.
      *
      * @param taskId the versionstamp identifier of the task to spawn a worker for
-     * @return {@code true} if task queue processing should continue (worker spawned or already exists),
-     * {@code false} if the worker pool has reached capacity and processing should pause
+     * @return {@code true} if queue processing should continue, {@code false} when the worker pool
+     * has reached capacity and processing should pause
      */
     private boolean spawnWorker(Versionstamp taskId) {
         if (shuttingDown) return false;
@@ -320,35 +282,17 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Processes the task queue by spawning workers for pending tasks and cleaning up completed ones.
+     * Scans the task queue and acts on each task by its status.
      *
-     * <p>This synchronized method scans the task queue and takes appropriate action based on task status:
-     * <ul>
-     *   <li><b>WAITING/RUNNING tasks:</b> Spawns new worker threads if not already running</li>
-     *   <li><b>COMPLETED tasks:</b> Triggers task sweeping when all shards report completion</li>
-     *   <li><b>STOPPED tasks:</b> Immediately triggers task sweeping</li>
-     * </ul>
+     * <p>WAITING and RUNNING tasks get a worker via {@link #spawnWorker}. COMPLETED and STOPPED
+     * tasks are handed to the sweeper. Runs only on the shard's primary owner, and stops early
+     * when the worker pool is at capacity.
      *
-     * <p><b>Garbage Collection:</b> Before processing each task, this method checks if the referenced
-     * bucket still exists. If the bucket or its namespace has been purged, the task is considered
-     * orphaned and is dropped immediately. This handles cleanup of tasks that reference buckets
-     * removed during namespace or bucket purge operations.
+     * <p>Before checking status, each task is garbage collected: if its bucket, namespace, or
+     * index no longer exists, the task is orphaned and dropped. This cleans up tasks left behind
+     * by bucket or namespace purges and index deletions.
      *
-     * <p>Worker spawning behaviors:
-     * <ul>
-     *   <li>Respects the MAX_WORKER_POOL_SIZE limit to prevent overload</li>
-     *   <li>Skips tasks that already have active workers</li>
-     *   <li>Creates new IndexMaintenanceWorker instances for eligible tasks</li>
-     *   <li>Registers workers with completion callbacks for lifecycle management</li>
-     *   <li>Implements backpressure by stopping task spawning when pool limit is reached</li>
-     * </ul>
-     *
-     * <p>This method is called:
-     * <ul>
-     *   <li>When the watch detects new tasks added to the queue</li>
-     *   <li>After a worker completes execution</li>
-     *   <li>Periodically by the scheduled executor for maintenance</li>
-     * </ul>
+     * <p>Called when the watch fires, after a worker completes, and periodically by the scheduler.
      */
     synchronized void processTaskQueue() {
         if (shuttingDown) return;
@@ -397,32 +341,15 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Main execution loop for the watchdog service.
+     * Runs the watchdog until the shard is closed.
      *
-     * <p>This method runs continuously until the shard is closed and performs two
-     * primary functions:
-     * <ol>
-     *   <li>Schedules periodic cleanup and task spawning every 60 seconds</li>
-     *   <li>Watches for new tasks and spawns workers when detected</li>
-     * </ol>
+     * <p>Starts a periodic task at {@code bucket.index.maintenance.worker_maintenance_interval}
+     * seconds that cleans up stale workers and processes the queue, so pending tasks make progress
+     * even if a watch is missed. Then loops on the task watch: it waits for the trigger key to
+     * change, processes the queue, and re-arms the watch.
      *
-     * <p>The periodic scheduler ensures that:
-     * <ul>
-     *   <li>Stale workers are cleaned up even if no new tasks arrive</li>
-     *   <li>Pending tasks are eventually processed even if watches fail</li>
-     * </ul>
-     *
-     * <p>The watch loop:
-     * <ul>
-     *   <li>Creates a watch on the task trigger key</li>
-     *   <li>Blocks until the key changes (new task added)</li>
-     *   <li>Spawns workers for pending tasks when triggered</li>
-     *   <li>Recreates the watch for the next notification</li>
-     * </ul>
-     *
-     * <p>Exceptions are logged except for expected CancellationExceptions during
-     * shard closure. The method continues running even after exceptions to ensure
-     * resilience.
+     * <p>Exceptions are logged and the loop keeps running, except for the CancellationException
+     * expected when the shard closes.
      */
     @Override
     public void run() {
@@ -455,21 +382,13 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Gracefully shuts down the watchdog service and all active workers.
+     * Shuts down the watchdog and all active workers.
      *
-     * <p>This method performs a complete shutdown sequence:
-     * <ol>
-     *   <li>Cancels the active watch to stop waiting for new tasks</li>
-     *   <li>Shuts down all active workers by calling their shutdown methods</li>
-     *   <li>Initiates immediate shutdown of the worker executor service</li>
-     *   <li>Waits up to 6 seconds for all workers to terminate</li>
-     * </ol>
+     * <p>Cancels the watch, shuts down every active worker, then stops the worker executor and
+     * scheduler and waits up to the default termination timeout for them. A warning is logged if
+     * they do not terminate in time, so shard closure is never blocked indefinitely.
      *
-     * <p>If workers don't terminate within the timeout period, a warning is logged
-     * but the shutdown continues. This ensures the watchdog doesn't block the
-     * shard closure process indefinitely.
-     *
-     * @throws RuntimeException if interrupted while waiting for executor termination
+     * @throws KronotopException if interrupted while waiting for termination
      */
     public void shutdown() {
         shuttingDown = true;
@@ -506,16 +425,8 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * A handle that wraps an IndexMaintenanceWorker and its associated Future.
-     *
-     * <p>This class encapsulates:
-     * <ul>
-     *   <li>The IndexMaintenanceWorker instance performing the actual work</li>
-     *   <li>The Future representing the worker's execution in the thread pool</li>
-     * </ul>
-     *
-     * <p>Provides lifecycle management methods to gracefully stop the worker
-     * and cancel its future, ensuring clean termination of the task.
+     * Pairs an {@link IndexMaintenanceWorker} with the {@link Future} of its pool submission,
+     * so the worker can be stopped and its future cancelled together.
      */
     protected static class WorkerHandle implements Worker {
         private final IndexMaintenanceWorker worker;
@@ -552,11 +463,8 @@ public class IndexMaintenanceWatchDog implements Runnable {
         }
 
         /**
-         * Shuts down this worker by stopping its execution and canceling its future.
-         *
-         * <p>This method first calls the worker's shutdown method to signal
-         * graceful termination, then cancels the future with interruption to ensure
-         * the thread pool releases the task.
+         * Signals the worker to stop, then cancels its future with interruption so the thread
+         * pool releases the task.
          */
         @Override
         public void shutdown() {

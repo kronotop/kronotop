@@ -64,8 +64,8 @@ public class BoundaryLocator {
     }
 
     /**
-     * Finds the last versionstamp in primary index VOLUME_POINTER and returns userVersion + 1.
-     * Used as fallback when the target index has no VOLUME_POINTER entries.
+     * Finds the last versionstamp in the primary index VOLUME_POINTER range and returns it with
+     * userVersion + 1, giving the exclusive upper bound.
      *
      * @param tr                   transaction for range scan
      * @param primaryIndexSubspace primary index subspace to scan

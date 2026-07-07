@@ -38,53 +38,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Cleans up completed or orphaned index maintenance tasks and triggers index readiness checks.
+ * Removes completed or orphaned index maintenance tasks and triggers index readiness checks.
  *
- * <p>IndexMaintenanceTaskSweeper removes completed task definitions from task subspaces and
- * their back pointers from index subspaces. For BUILD tasks, it triggers index readiness
- * validation via {@link SingleFieldIndexUtil#markIndexAsReadyIfBuildDone}.
- *
- * <p><strong>Core Responsibilities:</strong>
+ * <p>The sweeper deletes task definitions from task subspaces and clears their back pointers
+ * from index subspaces. Cleanup depends on task kind:
  * <ul>
- *   <li>Remove COMPLETED/STOPPED tasks from task subspaces</li>
- *   <li>Clear task back pointers from index subspaces</li>
- *   <li>Trigger index BUILDING -> READY transition attempts</li>
- *   <li>Clean up orphaned tasks when indexes are deleted</li>
+ *   <li><strong>BOUNDARY / ANALYZE:</strong> removed when COMPLETED, STOPPED, or the index is gone</li>
+ *   <li><strong>BUILD:</strong> removed when COMPLETED, STOPPED, or the index is gone, then the
+ *       readiness check for the index type (single-field, compound, or vector) runs in a second
+ *       transaction to attempt the BUILDING to READY transition</li>
+ *   <li><strong>DROP:</strong> removed when the index is gone from metadata, or the task is in a
+ *       terminal state and the index directory no longer exists in FoundationDB</li>
  * </ul>
  *
- * <p><strong>Task Processing by Type:</strong>
- * <ul>
- *   <li><strong>BOUNDARY:</strong> Remove if COMPLETED/STOPPED or index deleted</li>
- *   <li><strong>BUILD:</strong> Remove if COMPLETED/STOPPED or index deleted, then attempt index READY transition</li>
- *   <li><strong>DROP:</strong> Remove if index deleted or index directory removed from FoundationDB</li>
- *   <li><strong>ANALYZE:</strong> Remove if COMPLETED/STOPPED or index deleted</li>
- * </ul>
- *
- * <p><strong>Workflow:</strong>
- * <ol>
- *   <li>Load task definition from task subspace</li>
- *   <li>Dispatch to a type-specific handler (sweepBuildTask, sweepDropTask, etc.)</li>
- *   <li>Check task completion status or index existence</li>
- *   <li>Remove task from all shard subspaces via {@link #dropIndexMaintenanceTask}</li>
- *   <li>Clear back pointer from the index subspace</li>
- *   <li>For BUILD tasks: Separately call {@link SingleFieldIndexUtil#markIndexAsReadyIfBuildDone}</li>
- * </ol>
- *
- * <p><strong>Index Readiness:</strong> The sweeper does NOT directly check if all shards are
- * complete. Instead, it delegates to {@link SingleFieldIndexUtil#markIndexAsReadyIfBuildDone}, which
- * scans all back pointers and validates remaining tasks before marking index READY.
- *
- * <p><strong>Orphaned Task Cleanup:</strong> When an index is deleted from bucket metadata,
- * the sweeper removes all associated tasks across all shards to prevent resource leaks.
- *
- * <p><strong>Atomicity:</strong> Each sweep operation runs in two transactions:
- * <ol>
- *   <li>First transaction: Remove task definitions and back pointers</li>
- *   <li>Second transaction (BUILD only): Attempt index READY transition</li>
- * </ol>
- *
- * <p><strong>Retry Behavior:</strong> Both transactions use {@link RetryMethods} to handle
- * FoundationDB conflicts automatically.
+ * <p>The sweeper does not check shard completion itself. The readiness check scans back pointers
+ * and validates remaining tasks before marking the index READY. When an index is deleted, all its
+ * tasks across every shard are removed. Transactions use {@link RetryMethods} to retry on conflict.
  *
  * @see SingleFieldIndexUtil#markIndexAsReadyIfBuildDone
  * @see IndexMaintenanceWatchDog
@@ -139,11 +108,9 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Cleans up completed index maintenance tasks with retry logic.
+     * Sweeps a single task, retrying on FoundationDB conflict.
      *
-     * <p>Entry point that wraps {@link #doSweep} with transaction retry handling.
-     * Removes task definitions and back pointers, then attempts index readiness
-     * transition for BUILD tasks.
+     * <p>Wraps {@link #doSweep} with retry handling.
      *
      * @param taskSubspace directory subspace containing the task definition
      * @param taskId       versionstamp identifier of the task to sweep
@@ -214,7 +181,7 @@ public class IndexMaintenanceTaskSweeper {
         }
 
         if (definition == null) {
-            // Index fully cleaned from metadata — drop the orphaned task.
+            // Index fully cleaned from metadata, so drop the orphaned task.
             dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.DROP);
             return;
         }
@@ -288,11 +255,10 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Main sweep logic that routes tasks to type-specific handlers.
+     * Loads the task definition and routes it to the handler for its kind.
      *
-     * <p>Loads task definition, dispatches to appropriate handler based on kind,
-     * commits cleanup transaction, then attempts index READY transition for BUILD tasks
-     * in a separate transaction.
+     * <p>Commits the cleanup transaction, then attempts the index READY transition for BUILD
+     * tasks in a separate transaction.
      *
      * @param taskSubspace directory subspace containing the task definition
      * @param taskId       versionstamp identifier of the task to sweep
@@ -386,20 +352,11 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Removes task definitions from all shard subspaces matching specified kinds.
+     * Removes the task from every bucket shard subspace where its kind matches one of the
+     * given kinds.
      *
-     * <p>Iterates through all shards (0..numShards-1), loads task definitions, and
-     * removes tasks whose kind matches any of the specified kinds.
-     *
-     * <p><strong>Operation:</strong>
-     * <ol>
-     *   <li>For each shard: Open/retrieve cached task subspace</li>
-     *   <li>Load task definition</li>
-     *   <li>Check if task kind matches any specified kind</li>
-     *   <li>If match: Delete via {@link TaskStorage#drop}</li>
-     * </ol>
-     *
-     * <p>Must be called within active transaction. All deletions batched in transaction.
+     * <p>Scans all bucket shards and drops the task via {@link TaskStorage#drop}. Must run
+     * within an active transaction.
      *
      * @param tr     transaction for task deletion
      * @param taskId versionstamp identifier of the task to drop

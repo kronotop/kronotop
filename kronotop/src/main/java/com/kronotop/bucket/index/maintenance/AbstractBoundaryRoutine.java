@@ -124,7 +124,7 @@ public abstract class AbstractBoundaryRoutine extends AbstractIndexMaintenanceRo
                 Boundaries boundaries = BoundaryLocator.locate(tr.snapshot(), metadata);
                 emptyBucket = (boundaries.lower() == null && boundaries.upper() == null);
 
-                // Always transition to BUILDING first — even for empty buckets.
+                // Always transition to BUILDING first, even for empty buckets.
                 // This ensures all nodes observe a READWRITE-visible state before READY.
                 saveDefinition(tr, metadata, holder.definition().updateStatus(IndexStatus.BUILDING));
                 TransactionalContext tx = new TransactionalContext(context, tr);

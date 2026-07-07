@@ -39,8 +39,6 @@ public class ProbabilisticSelector {
      * @return true if selected, false otherwise
      */
     public static boolean match(BsonValue value) {
-        // Fast probabilistic filter using MurmurHash3 (non-cryptographic)
-        // Deterministic for the same input, minimal allocations for hot-path performance
         int hash = computeHash(value);
         return (hash & MASK) == 0;
     }

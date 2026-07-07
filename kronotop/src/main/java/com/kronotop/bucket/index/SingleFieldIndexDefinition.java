@@ -25,56 +25,30 @@ import javax.annotation.Nonnull;
 import java.util.UUID;
 
 /**
- * Represents an immutable index definition for document fields in Kronotop buckets.
+ * Immutable definition of a single field index on a BSON document field.
  * <p>
- * This record encapsulates all metadata required to create and manage single field indexes on BSON document
- * fields. Each index definition contains a unique identifier, human-readable name, field selector path,
- * the expected BSON data type of the indexed field, and the current operational status.
+ * Holds the metadata needed to create and manage the index: a unique id, a name that is
+ * unique within the bucket, the field selector in dot notation, the indexed BSON type,
+ * whether the field is multi-key, the current status, and an optional collation.
  *
- * <h3>Index Identification</h3>
- * Each index is uniquely identified by a cryptographically secure hash-based ID generated from a random UUID.
- * This ensures global uniqueness across all buckets while avoiding collisions.
+ * <h3>Multi-key indexes</h3>
+ * When {@code multiKey} is true, an array field produces one index entry per array element.
  *
- * <h3>Field Selection</h3>
- * The selector specifies the document field path to be indexed using dot notation (e.g., "user.profile.age").
- * Only fields matching the specified BSON type will be included in the index.
+ * <h3>Supported types</h3>
+ * All BSON types are supported except DECIMAL128, which is not implemented yet.
  *
- * <h3>Index Status Management</h3>
- * The status field tracks the operational state of the index (e.g., READY, BUILDING, FAILED).
- * This enables background index building and status monitoring. Use {@link #updateStatus(IndexStatus)}
- * to create a new instance with updated status while preserving immutability.
+ * <h3>Status</h3>
+ * The status tracks the index state (READY, BUILDING, FAILED, and so on) and drives
+ * background building. Use {@link #updateStatus(IndexStatus)} to derive a new instance
+ * with a changed status. A DROPPED index cannot move to any other status.
  *
- * <h3>Multi-Key Indexes</h3>
- * When {@code multiKey} is true, the index supports array fields by creating separate index entries
- * for each array element. This enables efficient queries on array contents.
- *
- * <h3>Supported Data Types</h3>
- * Most BSON types are supported for indexing, with the exception of DECIMAL128 which is not yet implemented.
- * The type constraint ensures index consistency and enables type-specific optimizations.
- *
- * <h3>Usage Examples</h3>
- * <pre>{@code
- * // Create index with explicit name (defaults to READY status)
- * IndexDefinition userAgeIndex = IndexDefinition.create("user_age_idx", "user.age", BsonType.INT32, false, IndexStatus.WAITING);
- *
- * // Create index with auto-generated name
- * IndexDefinition emailIndex = IndexDefinition.create("email", BsonType.STRING);
- *
- * // Update index status
- * IndexDefinition buildingIndex = userAgeIndex.updateStatus(IndexStatus.BUILDING);
- * }</pre>
- *
- * <h3>Index Scope</h3>
- * Index definitions are scoped to individual buckets. The same index definition can be safely created
- * on multiple buckets without conflicts, as each bucket maintains its own index namespace.
- *
- * @param id        Unique identifier generated from UUID hash using SipHash24 algorithm
- * @param name      Human-readable index name, must be unique within a bucket
- * @param selector  Document field path in dot notation (e.g., "field.subfield")
- * @param bsonType  Expected BSON data type of the indexed field values
- * @param multiKey  If true, indexes array elements individually for efficient array queries
- * @param status    Current operational status of the index (READY, BUILDING, FAILED, etc.)
- * @param collation Optional collation for locale-aware string ordering, null means inherit bucket-level or binary default
+ * @param id        unique identifier generated from UUID hash using SipHash24 algorithm
+ * @param name      index name, must be unique within a bucket
+ * @param selector  document field path in dot notation (e.g., "field.subfield")
+ * @param bsonType  BSON type of the indexed field values
+ * @param multiKey  if true, indexes array elements individually
+ * @param status    current index status
+ * @param collation optional collation for locale-aware string ordering, null inherits the bucket default or binary ordering
  * @see SingleFieldIndexUtil#create(com.apple.foundationdb.Transaction, com.apple.foundationdb.directory.DirectorySubspace, SingleFieldIndexDefinition)
  * @see IndexNameGenerator#generate(String, BsonType)
  * @see IndexStatus
@@ -83,8 +57,8 @@ public record SingleFieldIndexDefinition(long id, String name, String selector, 
                                          IndexStatus status, Collation collation) implements IndexDefinition {
 
     /**
-     * Creates a new index definition with a unique ID and specified attributes.
-     * Generates a unique identifier using SipHash24 on a random UUID.
+     * Creates a new index definition with a unique ID and the given attributes.
+     * The ID is a SipHash24 hash of a random UUID.
      *
      * @param name     the human-readable name for the index, must be unique within a bucket
      * @param selector the document field path to index using dot notation (e.g., "user.address.city")
@@ -108,18 +82,15 @@ public record SingleFieldIndexDefinition(long id, String name, String selector, 
     }
 
     /**
-     * Creates a new IndexDefinition instance with the specified status while preserving all other fields.
+     * Returns a new instance with the given status, keeping all other fields.
+     * Used during index lifecycle changes, such as marking an index BUILDING while it is
+     * built in the background, or FAILED on error.
      * <p>
-     * This method maintains immutability by creating a new instance rather than modifying the existing one.
-     * It is commonly used during index lifecycle management, such as marking an index as BUILDING during
-     * background index construction or FAILED if an error occurs.
-     * <p>
-     * Once an index is marked as {@link IndexStatus#DROPPED}, its status cannot be changed to any other status
-     * to prevent accidental reactivation of dropped indexes. However, a dropped index can be updated to DROPPED
-     * again without error (idempotent operation).
+     * A {@link IndexStatus#DROPPED} index cannot move to any other status. Setting DROPPED
+     * again on a dropped index is allowed and does nothing.
      *
      * @param status the new status to assign to the index
-     * @return a new IndexDefinition instance with the updated status
+     * @return a new instance with the updated status
      * @throws IllegalStateException if the current status is DROPPED and the new status is not DROPPED
      * @see IndexStatus
      */

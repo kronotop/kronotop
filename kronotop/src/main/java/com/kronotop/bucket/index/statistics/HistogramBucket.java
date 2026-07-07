@@ -24,6 +24,6 @@ public record HistogramBucket(BsonValue min, BsonValue max, int count) {
     @Override
     @Nonnull
     public String toString() {
-        return "[" + min + " – " + max + "] (" + count + ")";
+        return "[" + min + " - " + max + "] (" + count + ")";
     }
 }

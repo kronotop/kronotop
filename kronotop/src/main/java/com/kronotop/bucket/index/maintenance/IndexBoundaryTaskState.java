@@ -24,38 +24,15 @@ import com.kronotop.internal.task.TaskStorage;
 import java.util.Map;
 
 /**
- * State tracker for index boundary detection tasks.
+ * State for an index boundary detection task.
  *
- * <p>IndexBoundaryTaskState manages the lifecycle of boundary detection operations that
- * determine the versionstamp scan range for index building. This is a short-lived task
- * that runs once per index creation to calculate lower and upper boundaries.
+ * <p>A boundary task runs once per index creation. It waits for cluster-wide bucket metadata
+ * convergence, scans the primary index to find the versionstamp scan range, creates a build task
+ * per shard, and marks the index READY early if the bucket is empty.
  *
- * <p><strong>Boundary Task Purpose:</strong>
- * <ul>
- *   <li>Wait for cluster-wide bucket metadata convergence</li>
- *   <li>Scan primary and single field indexes to determine versionstamp boundaries</li>
- *   <li>Create BUILD tasks for each shard with calculated boundaries</li>
- *   <li>Mark index as READY if bucket is empty (optimization)</li>
- * </ul>
- *
- * <p><strong>State Lifecycle:</strong>
- * <pre>
- * WAITING -> RUNNING -> COMPLETED (success)
- *                  -> FAILED (error during boundary detection)
- * </pre>
- *
- * <p><strong>State Fields:</strong>
- * <ul>
- *   <li>status: Task execution status (inherited from AbstractTaskState)</li>
- *   <li>error: Error message if failed (inherited from AbstractTaskState)</li>
- * </ul>
- *
- * <p>Unlike {@link IndexBuildingTaskState}, this task state has no additional fields
- * beyond status and error. Boundary tasks complete quickly and don't require cursor
- * tracking or progress persistence.
- *
- * <p><strong>Cleanup:</strong> Completed or failed boundary tasks are removed by
- * {@link IndexMaintenanceTaskSweeper} after execution.
+ * <p>Unlike {@link IndexBuildingTaskState}, this state carries only the inherited status and error
+ * fields. Boundary tasks are short-lived and need no cursor or progress tracking. Completed or
+ * failed tasks are removed by {@link IndexMaintenanceTaskSweeper}.
  *
  * @see IndexBoundaryRoutine
  * @see IndexBoundaryTask
@@ -74,11 +51,8 @@ public class IndexBoundaryTaskState extends AbstractTaskState {
     }
 
     /**
-     * Loads the boundary task state from FoundationDB.
-     *
-     * <p>Retrieves common state fields (status and error) using the parent class
-     * {@link AbstractTaskState#loadCommonFields}. No additional fields are loaded
-     * as boundary tasks only track execution status.
+     * Loads the boundary task state from FoundationDB. Only the shared status and error fields are
+     * read, via {@link AbstractTaskState#loadCommonFields}.
      *
      * @param tr       transaction for reading state
      * @param subspace task subspace

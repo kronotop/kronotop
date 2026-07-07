@@ -21,7 +21,7 @@ import com.kronotop.internal.UUIDUtil;
 import java.util.UUID;
 
 /**
- * Represents an immutable vector index definition for HNSW-based approximate nearest neighbor search.
+ * Immutable vector index definition for approximate nearest neighbor search.
  *
  * @param id         unique identifier generated from UUID hash using SipHash24 algorithm
  * @param name       a human-readable index name must be unique within a bucket

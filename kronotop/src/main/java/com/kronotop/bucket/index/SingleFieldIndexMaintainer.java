@@ -30,7 +30,7 @@ import org.bson.types.ObjectId;
 import java.util.List;
 
 /**
- * Maintains single field indexes in FoundationDB for Bucket data structure.
+ * Maintains single field indexes in FoundationDB.
  *
  * <p>Single field indexes use the following key structures:
  * <ul>
@@ -105,8 +105,8 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
     /**
      * Inserts a single field index entry, building the IndexEntry from the supplied shard and metadata.
      *
-     * <p>Unlike {@link #setEntry} which uses an incomplete versionstamp via atomic mutation, this method
-     * accepts pre-computed shard and entry metadata and writes the entry directly.
+     * <p>Unlike {@link #setEntry}, which takes an already encoded {@link IndexEntry}, this method builds
+     * the entry from the given shard and entry metadata.
      *
      * @param tr            the FoundationDB transaction
      * @param index         the resolved index
