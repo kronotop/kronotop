@@ -49,7 +49,7 @@ import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
  *
  * <pre>{@code
  * HEADER (40 bytes)
- * ──────────────────────────────────────────
+ * -------------------------------------------
  * offset  size  field
  *      0     4  magic (0x4B564D44)
  *      4     4  version (always 1)
@@ -61,7 +61,7 @@ import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
  *     36     4  reserved
  *
  * ORDINAL SECTION — (maxOrdinal + 1) × 64 bytes
- * ──────────────────────────────────────────
+ * -------------------------------------------
  * offset  size  field
  *      0     8  segmentId   (long)
  *      8     8  prefix      (byte[8])
@@ -74,7 +74,7 @@ import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
  *     57     7  reserved
  *
  * OBJECTID SECTION — count × 16 bytes, sorted by ObjectId (unsigned)
- * ──────────────────────────────────────────
+ * ---------------------------------------
  * offset  size  field
  *      0    12  objectId    (byte[12])
  *     12     4  ordinal     (int)

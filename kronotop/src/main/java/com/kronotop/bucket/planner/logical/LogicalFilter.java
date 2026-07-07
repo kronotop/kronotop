@@ -18,5 +18,9 @@ package com.kronotop.bucket.planner.logical;
 
 import com.kronotop.bucket.planner.Operator;
 
+/**
+ * A leaf condition on one selector, such as {@code age > 18}. It holds the selector
+ * name, the operator, and the operand to compare against.
+ */
 public record LogicalFilter(String selector, Operator op, Object operand) implements LogicalNode {
 }

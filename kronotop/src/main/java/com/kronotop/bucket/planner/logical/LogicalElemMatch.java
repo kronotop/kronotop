@@ -16,5 +16,10 @@
 
 package com.kronotop.bucket.planner.logical;
 
+/**
+ * Matches when at least one element of an array selector matches the sub-plan.
+ * The selector points at the array, and the sub-plan holds the condition each
+ * element is tested against.
+ */
 public record LogicalElemMatch(String selector, LogicalNode subPlan) implements LogicalNode {
 }

@@ -16,5 +16,8 @@
 
 package com.kronotop.bucket.planner.logical;
 
+/**
+ * Matches when the child does not match. The negation of its child.
+ */
 public record LogicalNot(LogicalNode child) implements LogicalNode {
 }

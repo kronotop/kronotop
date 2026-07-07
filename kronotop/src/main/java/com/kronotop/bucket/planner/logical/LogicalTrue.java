@@ -19,8 +19,8 @@ package com.kronotop.bucket.planner.logical;
 import javax.annotation.Nonnull;
 
 /**
- * Represents a logical constant TRUE.
- * Used in optimization passes when conditions are determined to always be true.
+ * The constant TRUE. Optimization passes produce it when a condition always matches,
+ * for example {@code x = 5 OR x != 5}.
  */
 public record LogicalTrue() implements LogicalNode {
 

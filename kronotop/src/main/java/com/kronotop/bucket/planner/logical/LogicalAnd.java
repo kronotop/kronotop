@@ -18,5 +18,8 @@ package com.kronotop.bucket.planner.logical;
 
 import java.util.List;
 
+/**
+ * Matches when every child matches. The AND of its children.
+ */
 public record LogicalAnd(List<LogicalNode> children) implements LogicalNode {
 }

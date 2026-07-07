@@ -17,8 +17,8 @@
 package com.kronotop.bucket.planner.logical;
 
 /**
- * Represents a logical constant FALSE.
- * Used in optimization passes when conditions are determined to always be false.
+ * The constant FALSE. Optimization passes produce it when a condition never matches,
+ * for example {@code x = 5 AND x != 5}.
  */
 public record LogicalFalse() implements LogicalNode {
 

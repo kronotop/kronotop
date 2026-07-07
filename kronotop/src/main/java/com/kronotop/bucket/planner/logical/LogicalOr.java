@@ -18,5 +18,8 @@ package com.kronotop.bucket.planner.logical;
 
 import java.util.List;
 
+/**
+ * Matches when at least one child matches. The OR of its children.
+ */
 public record LogicalOr(List<LogicalNode> children) implements LogicalNode {
 }

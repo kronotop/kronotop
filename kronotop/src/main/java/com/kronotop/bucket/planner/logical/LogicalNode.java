@@ -16,5 +16,10 @@
 
 package com.kronotop.bucket.planner.logical;
 
+/**
+ * A node in the logical plan tree. Every query becomes a tree of these nodes.
+ * The type is sealed, so the set of node kinds is fixed and each transform can
+ * handle them all.
+ */
 public sealed interface LogicalNode permits LogicalFilter, LogicalAnd, LogicalOr, LogicalNot, LogicalElemMatch, LogicalTrue, LogicalFalse {
 }

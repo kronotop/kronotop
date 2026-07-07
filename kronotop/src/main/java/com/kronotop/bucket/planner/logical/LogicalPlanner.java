@@ -25,24 +25,25 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-// ──────────────────────────────────────────────────────────────────────────────────
-// Logical plan node hierarchy + visitor
-// ──────────────────────────────────────────────────────────────────────────────────
-
 /**
- * LogicalPlanner orchestrates the full <b>logical‑planning pipeline</b>:
+ * Turns a parsed BQL query into a logical plan.
+ *
+ * <p>The planner works in two steps. First it converts a {@link BqlExpr} from the parser
+ * into a {@link LogicalNode} tree. Then it runs a list of transforms over that tree. Every
+ * transform simplifies the plan without changing what the query means. The result feeds the
+ * physical planner.
+ *
+ * <p>The default pipeline runs these passes in order:
  * <ol>
- *   <li>Converts a {@link BqlExpr} (parser AST) into an initial {@link LogicalNode} tree.</li>
- *   <li>Runs a configurable sequence of <i>logical transforms</i> (visitors) that
- *       simplify / normalise the tree while keeping the semantics intact.</li>
- *   <li>Returns the final, optimised logical plan which will later feed the physical planner.</li>
+ *   <li>{@code FlattenAndOrTransform}: merges nested AND/OR nodes.</li>
+ *   <li>{@code RemoveDoubleNotTransform}: removes double negation, so NOT(NOT(x)) becomes x.</li>
+ *   <li>{@code ContradictionDetectionTransform}: replaces impossible conditions with FALSE.</li>
+ *   <li>{@code TautologyEliminationTransform}: replaces always-true conditions with TRUE.</li>
+ *   <li>{@code RedundantConditionEliminationTransform}: drops conditions already covered by others.</li>
+ *   <li>{@code ConstantFoldingTransform}: folds TRUE and FALSE constants into the tree.</li>
  * </ol>
- * The default pipeline currently performs two semantics‑preserving passes:
- * <ul>
- *   <li><code>FlattenAndOrTransform</code> – merges nested AND/OR nodes.</li>
- *   <li><code>RemoveDoubleNotTransform</code> – eliminates redundant NOT NOT pairs.</li>
- * </ul>
- * New passes can be injected via the secondary constructor.
+ *
+ * <p>A second constructor takes a custom pipeline for tests or new rules.
  */
 public final class LogicalPlanner {
 
@@ -50,7 +51,7 @@ public final class LogicalPlanner {
     private final LogicalPlanValidator validator;
 
     /**
-     * Creates a planner with the built‑in optimisation passes.
+     * Creates a planner with the default pipeline.
      */
     public LogicalPlanner() {
         this.pipeline = List.of(
@@ -65,27 +66,23 @@ public final class LogicalPlanner {
     }
 
     /**
-     * Creates a planner with a custom pipeline (useful for tests or experimental rules).
+     * Creates a planner with a custom pipeline. Useful for tests or new rules.
      */
     public LogicalPlanner(List<LogicalTransform> customPipeline) {
         this.pipeline = List.copyOf(customPipeline);
         this.validator = new LogicalPlanValidator();
     }
 
-    // ────────────────────────────────────────────────────────────────────────────────
-    // Public API
-    // ────────────────────────────────────────────────────────────────────────────────
-
     /**
-     * Produces an <i>optimised</i> logical plan tree from the given parser AST.
+     * Builds an optimized logical plan from the parsed query.
      */
     public LogicalNode plan(BqlExpr root) {
         Objects.requireNonNull(root, "root expression must not be null");
 
-        // Step 1 – raw conversion
+        // Step 1: convert the parser AST into a logical tree
         LogicalNode logical = convert(root);
 
-        // Step 2 – run pipeline (each pass may rewrite the tree)
+        // Step 2: run the pipeline (each pass may rewrite the tree)
         for (LogicalTransform pass : pipeline) {
             logical = pass.transform(logical);
         }
@@ -121,10 +118,6 @@ public final class LogicalPlanner {
     public boolean isWellFormed(LogicalNode plan) {
         return validator.isWellFormed(plan);
     }
-
-    // ────────────────────────────────────────────────────────────────────────────────
-    // Raw AST → LogicalNode conversion (unchanged from previous version)
-    // ────────────────────────────────────────────────────────────────────────────────
 
     private LogicalNode convert(BqlExpr expr) {
         if (expr instanceof BqlAnd(List<BqlExpr> children)) {
@@ -169,12 +162,8 @@ public final class LogicalPlanner {
         return new LogicalFilter(selector, op, operand);
     }
 
-    // ────────────────────────────────────────────────────────────────────────────────
-    // Logical transform (pipeline) API + sample passes
-    // ────────────────────────────────────────────────────────────────────────────────
-
     /**
-     * One optimisation / normalisation pass that may rewrite the tree.
+     * A single pass that may rewrite the plan tree. Each pass keeps the query meaning the same.
      */
     public interface LogicalTransform {
         LogicalNode transform(LogicalNode root);
@@ -270,7 +259,7 @@ public final class LogicalPlanner {
 
             for (LogicalNode child : children) {
                 if (child instanceof LogicalFilter filter) {
-                    filtersBySelector.computeIfAbsent(filter.selector(), k -> new ArrayList<>()).add(filter);
+                    filtersBySelector.computeIfAbsent(filter.selector(), ignored -> new ArrayList<>()).add(filter);
                 }
             }
 
@@ -376,7 +365,7 @@ public final class LogicalPlanner {
     }
 
     /**
-     * Flattens nested AND/OR nodes: AND(a, AND(b,c))  → AND(a,b,c).
+     * Flattens nested AND/OR nodes, so AND(a, AND(b,c)) becomes AND(a,b,c).
      */
     private static final class FlattenAndOrTransform implements LogicalTransform {
         @Override
@@ -431,8 +420,7 @@ public final class LogicalPlanner {
                 }
                 return new LogicalNot(inner);
             }
-            // Use shared recursion pattern for other node types
-            // Use shared recursion for other node types
+            // Recurse into the other node types
             if (n instanceof LogicalAnd(List<LogicalNode> children)) {
                 return new LogicalAnd(children.stream().map(this::rewrite).toList());
             }
@@ -803,7 +791,6 @@ public final class LogicalPlanner {
 
             // Process each selector's filters for redundancy elimination
             for (Map.Entry<String, List<LogicalFilter>> entry : filtersBySelector.entrySet()) {
-                String selector = entry.getKey();
                 List<LogicalFilter> filters = entry.getValue();
 
                 if (filters.size() == 1) {
@@ -830,7 +817,6 @@ public final class LogicalPlanner {
 
             // Process each selector's filters for redundancy elimination
             for (Map.Entry<String, List<LogicalFilter>> entry : filtersBySelector.entrySet()) {
-                String selector = entry.getKey();
                 List<LogicalFilter> filters = entry.getValue();
 
                 if (filters.size() == 1) {
@@ -855,11 +841,11 @@ public final class LogicalPlanner {
                 for (int i = 0; i < result.size(); i++) {
                     LogicalFilter existing = result.get(i);
 
-                    if (isSubsumedInAnd(current, existing)) {
+                    if (isSubsumed(current, existing, true)) {
                         // Current is redundant (existing is more restrictive or equal)
                         isRedundant = true;
                         break;
-                    } else if (isSubsumedInAnd(existing, current)) {
+                    } else if (isSubsumed(existing, current, true)) {
                         // Existing is redundant (current is more restrictive)
                         result.set(i, current);
                         isRedundant = true;
@@ -885,11 +871,11 @@ public final class LogicalPlanner {
                 for (int i = 0; i < result.size(); i++) {
                     LogicalFilter existing = result.get(i);
 
-                    if (isSubsumedInOr(current, existing)) {
+                    if (isSubsumed(current, existing, false)) {
                         // Current is redundant (existing is less restrictive or equal)
                         isRedundant = true;
                         break;
-                    } else if (isSubsumedInOr(existing, current)) {
+                    } else if (isSubsumed(existing, current, false)) {
                         // Existing is redundant (current is less restrictive)
                         result.set(i, current);
                         isRedundant = true;
@@ -905,9 +891,10 @@ public final class LogicalPlanner {
             return result;
         }
 
-        // Check if filter1 is subsumed by filter2 in AND context
-        // (filter2 is more restrictive or equal, so filter1 is redundant)
-        private boolean isSubsumedInAnd(LogicalFilter filter1, LogicalFilter filter2) {
+        // Check if filter1 is subsumed by filter2.
+        // In AND context filter2 is more restrictive or equal; in OR context it is less restrictive or equal.
+        // In both cases filter1 is the redundant one.
+        private boolean isSubsumed(LogicalFilter filter1, LogicalFilter filter2, boolean andContext) {
             if (!filter1.selector().equals(filter2.selector())) {
                 return false;
             }
@@ -922,10 +909,10 @@ public final class LogicalPlanner {
                 return true;
             }
 
-            // Numeric range subsumption in AND
+            // Numeric range subsumption
             if (TransformUtil.areNumericOperands(operand1, operand2)) {
                 return checkNumericSubsumption(op1, TransformUtil.extractNumericValue(operand1),
-                        op2, TransformUtil.extractNumericValue(operand2), true);
+                        op2, TransformUtil.extractNumericValue(operand2), andContext);
             }
 
             // Set operation subsumption
@@ -933,48 +920,10 @@ public final class LogicalPlanner {
                 return checkSetSubsumption(op1, operand1, op2, operand2);
             }
 
-            // Semantic redundancy: EQ makes NE with different value redundant in AND
-            if ((op1 == Operator.NE && op2 == Operator.EQ) &&
-                    !Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2))) {
-                return true; // NE is redundant when EQ is more specific with different value
-            }
-            if ((op1 == Operator.EQ && op2 == Operator.NE) &&
-                    !Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2))) {
-                return false; // EQ is not redundant (it's more specific)
-            }
-
-            return false;
-        }
-
-        // Check if filter1 is subsumed by filter2 in OR context
-        // (filter2 is less restrictive or equal, so filter1 is redundant)
-        private boolean isSubsumedInOr(LogicalFilter filter1, LogicalFilter filter2) {
-            if (!filter1.selector().equals(filter2.selector())) {
-                return false;
-            }
-
-            Operator op1 = filter1.op();
-            Operator op2 = filter2.op();
-            Object operand1 = filter1.operand();
-            Object operand2 = filter2.operand();
-
-            // Exact duplicates
-            if (op1 == op2 && Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2))) {
-                return true;
-            }
-
-            // Numeric range subsumption in OR
-            if (TransformUtil.areNumericOperands(operand1, operand2)) {
-                return checkNumericSubsumption(op1, TransformUtil.extractNumericValue(operand1),
-                        op2, TransformUtil.extractNumericValue(operand2), false);
-            }
-
-            // Set operation subsumption
-            if (areSetOperators(op1, op2)) {
-                return checkSetSubsumption(op1, operand1, op2, operand2);
-            }
-
-            return false;
+            // Semantic redundancy: in AND context, EQ makes NE with a different value redundant.
+            // (EQ itself is never redundant since it is more specific.)
+            return andContext && op1 == Operator.NE && op2 == Operator.EQ &&
+                    !Objects.equals(TransformUtil.extractValue(operand1), TransformUtil.extractValue(operand2));
         }
 
         private boolean checkNumericSubsumption(Operator op1, Number val1, Operator op2, Number val2, boolean isAndContext) {
@@ -989,33 +938,23 @@ public final class LogicalPlanner {
                 if (op1 == Operator.EQ && op2 == Operator.NE && d1 != d2) {
                     return false; // EQ is not redundant (it's more specific)
                 }
-
-                // AND context: keep more restrictive condition
-                // GT/GTE subsumption: selector > 50 is subsumed by selector > 100 (100 is more restrictive)
-                if (op1 == Operator.GT && op2 == Operator.GT && d1 <= d2) return true;
-                if (op1 == Operator.GT && op2 == Operator.GTE && d1 < d2) return true;
-                if (op1 == Operator.GTE && op2 == Operator.GTE && d1 <= d2) return true;
-                if (op1 == Operator.GTE && op2 == Operator.GT && d1 <= d2) return true;
-
-                // LT/LTE subsumption: selector < 50 is subsumed by selector < 30 (30 is more restrictive)
-                if (op1 == Operator.LT && op2 == Operator.LT && d1 >= d2) return true;
-                if (op1 == Operator.LT && op2 == Operator.LTE && d1 > d2) return true;
-                if (op1 == Operator.LTE && op2 == Operator.LTE && d1 >= d2) return true;
-                return op1 == Operator.LTE && op2 == Operator.LT && d1 >= d2;
-            } else {
-                // OR context: keep less restrictive condition
-                // GT/GTE subsumption: selector > 100 is subsumed by selector > 50 in OR (50 covers more)
-                if (op1 == Operator.GT && op2 == Operator.GT && d1 >= d2) return true;
-                if (op1 == Operator.GT && op2 == Operator.GTE && d1 > d2) return true;
-                if (op1 == Operator.GTE && op2 == Operator.GTE && d1 >= d2) return true;
-                if (op1 == Operator.GTE && op2 == Operator.GT && d1 >= d2) return true;
-
-                // LT/LTE subsumption: selector < 30 is subsumed by selector < 50 in OR (50 covers more)
-                if (op1 == Operator.LT && op2 == Operator.LT && d1 <= d2) return true;
-                if (op1 == Operator.LT && op2 == Operator.LTE && d1 < d2) return true;
-                if (op1 == Operator.LTE && op2 == Operator.LTE && d1 <= d2) return true;
-                return op1 == Operator.LTE && op2 == Operator.LT && d1 <= d2;
             }
+
+            // GT/LT range subsumption. AND keeps the more restrictive bound (selector > 50 is subsumed
+            // by selector > 100); OR keeps the less restrictive one (selector > 100 is subsumed by
+            // selector > 50). The two contexts are mirror images, so a single signed difference,
+            // flipped by context, captures both.
+            double diff = isAndContext ? d1 - d2 : d2 - d1;
+
+            if (op1 == Operator.GT && op2 == Operator.GT) return diff <= 0;
+            if (op1 == Operator.GT && op2 == Operator.GTE) return diff < 0;
+            if (op1 == Operator.GTE && op2 == Operator.GTE) return diff <= 0;
+            if (op1 == Operator.GTE && op2 == Operator.GT) return diff <= 0;
+
+            if (op1 == Operator.LT && op2 == Operator.LT) return diff >= 0;
+            if (op1 == Operator.LT && op2 == Operator.LTE) return diff > 0;
+            if (op1 == Operator.LTE && op2 == Operator.LTE) return diff >= 0;
+            return op1 == Operator.LTE && op2 == Operator.LT && diff >= 0;
         }
 
         private boolean areSetOperators(Operator op1, Operator op2) {

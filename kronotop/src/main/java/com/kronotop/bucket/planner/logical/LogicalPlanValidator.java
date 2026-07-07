@@ -25,21 +25,23 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Validates logical plans for structural correctness and operator compatibility.
+ * Checks a logical plan for structural problems and operator misuse.
  *
- * <p><b>Post-Optimization Validator</b>: This validator is designed to work with optimized plans
- * where semantic issues (contradictions, tautologies, double negations) have already been
- * resolved by the LogicalPlanner's optimization transforms.
+ * <p>It expects a plan that the planner has already optimized. The transforms have
+ * removed contradictions, tautologies, and double negations before the plan reaches
+ * here, so this class does not repeat that work.
  *
- * <p>This validator focuses on:
+ * <p>It looks at four things:
  * <ul>
- *   <li><b>Structural Integrity</b>: Null checks, malformed trees</li>
- *   <li><b>Operator Compatibility</b>: Type mismatches, invalid operator-operand combinations</li>
- *   <li><b>Optimization Quality</b>: Detecting unoptimized patterns that should have been transformed</li>
- *   <li><b>Constant Nodes</b>: Validating LogicalTrue/LogicalFalse usage</li>
+ *   <li>Structure: null children and broken trees.</li>
+ *   <li>Operators: an operand whose type does not fit its operator.</li>
+ *   <li>Plan quality: patterns the optimizer should have removed.</li>
+ *   <li>Constant nodes: correct use of {@link LogicalTrue} and {@link LogicalFalse}.</li>
  * </ul>
  *
- * <p><b>Note</b>: For pre-optimization validation, use an unoptimized LogicalPlanner instance.
+ * <p>Errors make the plan invalid, for example a null child or an operand whose type
+ * does not fit its operator. Warnings do not. They point at plans that still run but
+ * could be simpler.
  */
 public final class LogicalPlanValidator {
 
@@ -189,7 +191,7 @@ public final class LogicalPlanValidator {
                     checkOperatorCompatibility(child, issues);
                 }
             }
-            case LogicalElemMatch(String selector, LogicalNode subPlan) -> {
+            case LogicalElemMatch(String ignored, LogicalNode subPlan) -> {
                 if (subPlan != null) {
                     checkOperatorCompatibility(subPlan, issues);
                 }
@@ -260,10 +262,6 @@ public final class LogicalPlanValidator {
         }
     }
 
-    // ────────────────────────────────────────────────────────────────────────────────
-    // Private validation methods
-    // ────────────────────────────────────────────────────────────────────────────────
-
     /**
      * Checks for patterns that should have been optimized away.
      */
@@ -323,7 +321,7 @@ public final class LogicalPlanValidator {
                     checkOptimizationQuality(child, issues);
                 }
             }
-            case LogicalElemMatch(String selector, LogicalNode subPlan) -> {
+            case LogicalElemMatch(String ignored, LogicalNode subPlan) -> {
                 if (subPlan != null) {
                     checkOptimizationQuality(subPlan, issues);
                 }
@@ -414,30 +412,17 @@ public final class LogicalPlanValidator {
     }
 
     /**
-     * Helper method to check if operand is a boolean.
+     * Returns true when the operand is a boolean.
      */
     private boolean isBooleanOperand(Object operand) {
         return operand instanceof Boolean || operand instanceof BooleanVal;
     }
 
     /**
-     * Helper method to check if operand is an integer.
+     * Returns true when the operand is an integer.
      */
     private boolean isIntegerOperand(Object operand) {
         return operand instanceof Integer || operand instanceof Int32Val || operand instanceof Int64Val;
-    }
-
-    private boolean isNumericOperand(Object operand) {
-        return operand instanceof Number || operand instanceof Int32Val || operand instanceof Int64Val || operand instanceof Decimal128Val || operand instanceof DateTimeVal || operand instanceof TimestampVal;
-        // Note: NullVal and BinaryVal are explicitly not numeric
-    }
-
-    private boolean isNullOperand(Object operand) {
-        return operand instanceof NullVal || operand == null;
-    }
-
-    private boolean isBinaryOperand(Object operand) {
-        return operand instanceof BinaryVal || operand instanceof byte[];
     }
 
     /**
@@ -455,31 +440,6 @@ public final class LogicalPlanValidator {
         }
         throw new IllegalArgumentException("Operand is not an integer: " + operand);
     }
-
-    private Number extractNumericValue(Object operand) {
-        if (operand instanceof Int32Val(int value)) {
-            return value;
-        } else if (operand instanceof Int64Val(long value)) {
-            return value;
-        } else if (operand instanceof Decimal128Val(java.math.BigDecimal value)) {
-            return value;
-        } else if (operand instanceof DateTimeVal(long value)) {
-            return value;
-        } else if (operand instanceof TimestampVal(long value)) {
-            return value;
-        } else if (operand instanceof Number number) {
-            return number;
-        } else if (operand instanceof NullVal) {
-            throw new IllegalArgumentException("Null values are not numeric");
-        } else if (operand instanceof BinaryVal) {
-            throw new IllegalArgumentException("Binary values are not numeric");
-        }
-        throw new IllegalArgumentException("Operand is not numeric: " + operand);
-    }
-
-    // ────────────────────────────────────────────────────────────────────────────────
-    // Helper methods
-    // ────────────────────────────────────────────────────────────────────────────────
 
     /**
      * Severity levels for validation issues.
