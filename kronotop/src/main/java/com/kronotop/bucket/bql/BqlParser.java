@@ -33,30 +33,21 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * BqlParser is a utility class designed for parsing Bucket Query Language (BQL) expressions.
- * It provides methods to parse and interpret BSON documents and strings into a structured
- * representation expressed as {@code BqlExpr} objects. The class handles various BQL features,
- * including selector-level expressions, logical operators, and special operators like `$elemMatch`.
+ * Parses Bucket Query Language (BQL) into a {@code BqlExpr} tree.
  * <p>
- * This class includes high-level static methods for parsing BQL strings, as well as private
- * methods for detailed BSON reading and expression construction.
- * <p>
- * Notable functionality includes:
- * - Parsing BQL strings into {@code BqlExpr} objects.
- * - Processing BSON documents to build query expressions.
- * - Supporting a wide range of operators, such as `$and`, `$or`, `$not`, and `$elemMatch`.
- * - Handling selector-specific operators like `$gt`, `$lt`, `$eq`, `$in`, and `$exists`.
+ * Input can be a BQL string, a BSON byte array, or a BSON document. The parser covers
+ * field selectors, comparison operators ({@code $gt}, {@code $lt}, {@code $eq}, {@code $in},
+ * and so on), logical operators ({@code $and}, {@code $or}, {@code $not}, {@code $nor}), and
+ * {@code $elemMatch}.
  *
  * <h2>Scalar Array $elemMatch</h2>
- * For scalar arrays (e.g., {@code tags: ["urgent", "bug"]}), operators inside {@code $elemMatch}
- * use an empty string {@code ""} as the selector. This is because {@code ResidualElemMatchNode}
- * wraps scalar elements in {@code {"": value}} during evaluation.
+ * For scalar arrays such as {@code tags: ["urgent", "bug"]}, operators inside {@code $elemMatch}
+ * use an empty string {@code ""} as the selector, because scalar elements are wrapped in
+ * {@code {"": value}} during evaluation. The empty selector stands for "the element itself"
+ * and is never a user-visible field name.
  * <p>
- * This is a semantic invariant for scalar array elemMatch.The empty selector represents
- * "the element itself" and is not a user-visible field name.
- * <p>
- * When serialized back to JSON via {@code BqlElemMatch.toJson()}, empty selectors are stripped
- * to produce clean output like {@code {"$eq": "urgent"}} instead of {@code {"": "urgent"}}.
+ * When serialized back to JSON via {@code BqlElemMatch.toJson()}, empty selectors are stripped,
+ * so the output reads {@code {"$eq": "urgent"}} instead of {@code {"": "urgent"}}.
  * <p>
  * Example: {@code { tags: { $elemMatch: { $eq: "urgent" } } }} parses with selector {@code ""}.
  */
@@ -282,13 +273,10 @@ public class BqlParser {
     }
 
     /**
-     * Parses a selector operator along with its arguments from a BSON document and creates
-     * a corresponding {@code BqlExpr} object based on the provided operator and selector name.
-     * <p>
-     * Supported operators include:
-     * - Comparison operators such as "$gt", "$lt", "$gte", "$lte", "$eq", "$ne"
-     * - Array operators such as "$in", "$nin", "$all"
-     * - Special operators like "$size" and "$exists"
+     * Parses a selector operator and its value into a {@code BqlExpr}. Supported operators are
+     * the comparisons ({@code $gt}, {@code $lt}, {@code $gte}, {@code $lte}, {@code $eq},
+     * {@code $ne}), the array operators ({@code $in}, {@code $nin}, {@code $all}), and
+     * {@code $size} and {@code $exists}.
      * <p>
      * If the operator is not recognized or the value type is invalid for the operator,
      * a {@code BqlParseException} is thrown.
