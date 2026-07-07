@@ -109,7 +109,7 @@ public final class PipelineContext {
             return new Operand.LiteralList(literalValues);
         }
 
-        // Create ParamRef for each binding, sorted by occurrence
+        // Create a ParamRef for each binding
         List<ParamRef> refs = new ArrayList<>(nodeBindings.size());
         for (ParamBinding binding : nodeBindings) {
             refs.add(new ParamRef(binding.paramIndex()));

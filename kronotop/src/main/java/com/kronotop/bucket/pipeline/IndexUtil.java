@@ -24,14 +24,13 @@ import com.kronotop.bucket.index.IndexSubspaceMagic;
 public class IndexUtil {
 
     /**
-     * Constructs a {@link KeySelector} based on the specified bound and its value.
-     * The method computes a key for index navigation and determines the appropriate selector
-     * for the provided bound operator (GT, GTE, LT, LTE).
+     * Builds a {@link KeySelector} for the given bound value. Packs the value into an index
+     * key and picks the selector matching the bound operator (GT, GTE, LT, LTE).
      *
-     * @param indexSubspace the {@link DirectorySubspace} representing the index subspace
-     * @param bound         a {@link Bound} object representing the cursor's boundary operator and value
-     * @param boundValue    the value used to construct the boundary key for the index
-     * @return a {@link KeySelector} configured for the specified boundary and operator
+     * @param indexSubspace the index subspace
+     * @param bound         the boundary operator and value
+     * @param boundValue    the value used to build the boundary key
+     * @return a {@link KeySelector} for the boundary and operator
      * @throws IllegalStateException if the {@link Bound#operator()} is unsupported
      */
     static KeySelector getKeySelector(DirectorySubspace indexSubspace, Bound bound, Object boundValue) {

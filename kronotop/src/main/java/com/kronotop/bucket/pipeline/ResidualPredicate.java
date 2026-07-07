@@ -25,8 +25,8 @@ import com.kronotop.bucket.planner.Operator;
 import java.util.List;
 
 /**
- * Predicate for residual (post-retrieval) filtering.
- * Uses Operand for type-safe operand representation supporting both literal values and parameter references.
+ * A single predicate applied after documents are retrieved.
+ * The operand may be a literal value or a parameter reference.
  */
 public record ResidualPredicate(int id, String selector, Operator op,
                                 Operand operand, Collation collation) implements ResidualPredicateNode {

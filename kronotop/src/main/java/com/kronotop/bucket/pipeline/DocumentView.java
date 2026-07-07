@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
 /**
  * View over a document that includes the _id field and content.
  * <p>
- * This class is mutable to allow reuse within a single transform operation, minimizing GC pressure.
+ * This class is mutable to allow reuse across documents, minimizing GC pressure.
  */
 public class DocumentView {
     private ObjectId id;

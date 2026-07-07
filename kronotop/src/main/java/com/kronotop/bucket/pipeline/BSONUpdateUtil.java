@@ -253,8 +253,7 @@ public final class BSONUpdateUtil {
     }
 
     /**
-     * Updates a BSON document by applying the set operations from UpdateOptions.
-     * This method traverses the setOps map and updates or adds the corresponding fields in the document.
+     * Applies the given set and unset operations to a BSON document.
      *
      * @param document     The original BSON document as ByteBuffer
      * @param setOps       Map of field names to new values
@@ -267,8 +266,8 @@ public final class BSONUpdateUtil {
     }
 
     /**
-     * Updates a BSON document by applying the set operations from UpdateOptions.
-     * This overload is for backward compatibility without array_filters.
+     * Applies the given set and unset operations to a BSON document.
+     * This overload does not support array_filters.
      *
      * @param document The original BSON document as ByteBuffer
      * @param setOps   Map of field names to new values
@@ -280,8 +279,8 @@ public final class BSONUpdateUtil {
     }
 
     /**
-     * Updates a BSON document by applying the set operations from UpdateOptions.
-     * This overload supports both array_filters and positional $ operator.
+     * Applies the given set and unset operations to a BSON document.
+     * This overload supports both array_filters and the positional $ operator.
      *
      * @param document         The original BSON document as ByteBuffer
      * @param setOps           Map of field names to new values
@@ -665,9 +664,10 @@ public final class BSONUpdateUtil {
     /**
      * Record to hold the result of a BSON document update operation.
      *
-     * @param document  The updated BSON document as ByteBuffer
-     * @param newValues Map of field names to their new BSON values that were set (both new and updated fields)
-     * @param changed   Whether the update operations actually modified the document
+     * @param document         The updated BSON document as ByteBuffer
+     * @param newValues        Map of field names to their new BSON values that were set (both new and updated fields)
+     * @param droppedSelectors Set of normalized field selectors whose values were removed from the document
+     * @param changed          Whether the update operations actually modified the document
      */
     public record DocumentUpdateResult(ByteBuffer document, Map<String, BsonValue> newValues,
                                        Set<String> droppedSelectors, boolean changed) {

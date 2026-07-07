@@ -31,12 +31,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Executor responsible for performing document read operations in the Kronotop Cluster.
+ * Reads documents in the Kronotop Cluster.
  *
- * <p>The ReadExecutor processes a query pipeline to identify documents to be retrieved,
- * then executes the actual read operations to fetch document content. It handles both
- * persisted entries (where documents are already in memory) and document locations
- * (where documents need to be retrieved from storage).
+ * <p>Runs a query pipeline to identify the documents to retrieve, then fetches their
+ * content. Handles both persisted entries (already in memory) and document locations
+ * (retrieved from storage).
  *
  * <p>This executor supports reading from two types of data sinks:
  * <ul>

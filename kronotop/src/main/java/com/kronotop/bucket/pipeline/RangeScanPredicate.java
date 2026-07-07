@@ -21,9 +21,8 @@ import com.kronotop.bucket.bql.ast.BqlValue;
 import java.util.List;
 
 /**
- * Predicate for range scan operations.
- * Uses Operand for type-safe bound representation supporting both literal values and parameter references.
- * Bounds can be null for unbounded ranges.
+ * Predicate for range scan operations. Each bound may be a literal value or a parameter reference,
+ * or null for an unbounded range.
  */
 public record RangeScanPredicate(String selector, Operand lowerBound, Operand upperBound, boolean includeLower,
                                  boolean includeUpper) {

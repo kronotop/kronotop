@@ -23,7 +23,7 @@ import com.kronotop.bucket.handlers.protocol.SortDirection;
 /**
  * Immutable configuration options for query execution in the pipeline system.
  * This class provides a builder pattern for configuring query behavior such as
- * result limits, sort ordering, field selection, and deletion operations.
+ * result limits, sort ordering, and update operations.
  *
  * <p>QueryOptions are used in conjunction with {@link QueryContext} to control
  * how queries are executed against the document database.
@@ -42,11 +42,6 @@ import com.kronotop.bucket.handlers.protocol.SortDirection;
  * QueryOptions descending = QueryOptions.builder()
  *     .sortDirection(SortDirection.DESC)
  *     .limit(20)
- *     .build();
- *
- * // Query with update options
- * QueryOptions withUpdate = QueryOptions.builder()
- *     .limit(50)
  *     .build();
  * }</pre>
  *
@@ -211,9 +206,8 @@ public class QueryOptions {
         /**
          * Sets the field name to use for sorting results.
          *
-         * @param sortByField the field name to sort by (must not be null)
+         * @param sortByField the field name to sort by
          * @return this Builder instance for method chaining
-         * @throws IllegalArgumentException if sortByField is null
          */
         public Builder sortByField(String sortByField) {
             this.sortByField = sortByField;

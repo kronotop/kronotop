@@ -26,27 +26,21 @@ import java.nio.ByteBuffer;
 import java.util.*;
 
 /**
- * Represents a logical OR operation in the query execution pipeline.
+ * Logical OR operation in the query execution pipeline.
  * <p>
- * UnionNode combines results from multiple child scan nodes using set union semantics.
  * When a query contains an OR condition (e.g., {@code {$or: [{age: 25}, {city: "NYC"}]}}),
- * each branch executes independently and UnionNode merges their results, ensuring each
- * matching document appears exactly once in the final output.
+ * each branch executes independently and UnionNode merges their results so each matching
+ * document appears exactly once. Merging uses {@link Roaring64Bitmap}: each child produces
+ * a set of entry handles and the sets are combined with bitwise OR.
  * <p>
- * The implementation uses RoaringBitmap for efficient set operations. Each child node
- * produces a set of entry handles (unique document identifiers), and these sets are
- * combined via bitwise OR. This approach is significantly faster than naive list merging
- * for large result sets.
+ * Children may report results in different forms. Some produce {@link PersistedEntrySink}
+ * (full document data), others produce {@link DocumentLocationSink} (location pointers that
+ * still need document retrieval). UnionNode fetches documents for the location-only entries
+ * it keeps.
  * <p>
- * UnionNode handles heterogeneous child outputs: some children may produce
- * {@link PersistedEntrySink} (full document data) while others produce
- * {@link DocumentLocationSink} (location pointers requiring document retrieval).
- * The node normalizes these into a unified output by fetching documents as needed.
- * <p>
- * When results exceed the requested limit, excess entries are not buffered. Instead,
- * affected children's cursor checkpoints are restored to their pre-execution state,
- * and the children re-scan on the next ADVANCE call. Cross-advance deduplication via
- * {@code returnedHandles} ensures no duplicates.
+ * Excess entries beyond the requested limit are not buffered. The children that produced
+ * them have their cursor checkpoints restored and re-scan on the next ADVANCE call.
+ * Cross-advance deduplication (by handle, or by ObjectId for updates) prevents duplicates.
  *
  * @see LogicalNode for the logical node contract
  */
@@ -56,12 +50,7 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
     }
 
     /**
-     * Determines if all child nodes have completed execution and marks this node
-     * as exhausted accordingly.
-     * <p>
-     * Union semantics require processing all children before producing final results.
-     * This method enables incremental execution by tracking which children still
-     * have data to contribute.
+     * Marks this node exhausted once every child is exhausted.
      *
      * @param ctx the query context managing execution state
      * @return {@code true} if all children are exhausted and this node is now marked exhausted,
@@ -79,11 +68,7 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
     }
 
     /**
-     * Combines multiple bitmaps into a single bitmap using bitwise OR.
-     * <p>
-     * This aggregates entry handles from all child nodes into one set representing
-     * all documents that match any of the OR conditions. Null bitmaps are safely
-     * skipped, allowing partial results from children that produced no matches.
+     * ORs the child bitmaps into one set of handles. Null entries are skipped.
      *
      * @param bitmaps array of bitmaps from child nodes, may contain nulls
      * @return a new bitmap containing the union of all input bitmaps
@@ -348,16 +333,9 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
     }
 
     /**
-     * Executes the union operation by merging results from all child nodes.
-     * <p>
-     * Execution proceeds in four phases:
-     * <ol>
-     *   <li><b>Exhaustion Check</b>: Exits early if all children have completed.</li>
-     *   <li><b>Collection</b>: Gathers entry handles and document metadata from child sinks into bitmaps.</li>
-     *   <li><b>Deduplication</b>: Filters already-returned handles to prevent cross-advance duplicates.</li>
-     *   <li><b>Materialization and Rewind</b>: Retrieves documents for kept entries, writes results,
-     *       and restores cursor checkpoints for children that produced excess entries.</li>
-     * </ol>
+     * Merges the child results into this node's sink: collects the child handles, drops
+     * already-returned ones, then writes the kept entries and rewinds children that produced
+     * excess. Returns early once all children are exhausted.
      *
      * @param ctx the query context providing access to sinks, document retriever, and execution state
      * @throws IllegalStateException if a child node has no associated data sink
@@ -398,12 +376,10 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
     }
 
     /**
-     * Temporary container for aggregating document metadata from multiple sources.
-     * <p>
-     * During union execution, the same document may appear in multiple child results
-     * with different representations (some as persisted entries, others as locations).
-     * DocumentPointer accumulates all available metadata for a document, enabling
-     * the union logic to choose the most efficient retrieval path.
+     * Holds whatever metadata is known for one document during union execution. The same
+     * document may arrive from several children as a persisted entry, a location, or both;
+     * this accumulates both so the union can prefer the persisted entry when present and fall
+     * back to retrieval by location otherwise.
      */
     private static class DocumentPointer {
         private DocumentLocation location;

@@ -129,7 +129,7 @@ public final class PositionalMatchFinder {
      * @param parsedQuery      pre-parsed BqlExpr
      * @param positionalFields array paths using $ operator (e.g., ["items", "orders.items"])
      * @return map of an array field path to matched index
-     * @throws IllegalStateException if an array is empty or no element matches
+     * @throws IllegalStateException if an array is empty or does not exist
      */
     public static Map<String, Integer> findMatchedPositions(
             ByteBuffer document,
@@ -150,7 +150,7 @@ public final class PositionalMatchFinder {
      * @param defaultOnMissing index to use when the array is not referenced in the query;
      *                         negative values cause an {@link IllegalArgumentException} instead
      * @return map of an array field path to matched index
-     * @throws IllegalStateException if an array is empty or no element matches
+     * @throws IllegalStateException if an array is empty or does not exist
      */
     public static Map<String, Integer> findMatchedPositions(
             ByteBuffer document,

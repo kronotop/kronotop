@@ -81,7 +81,7 @@ public class CollationResolver {
             if (found == null) {
                 found = indexCollation;
             } else if (!found.equals(indexCollation)) {
-                return null;  // conflicting collations — fall through to bucket
+                return null;  // conflicting collations, fall through to bucket
             }
         }
         return found;

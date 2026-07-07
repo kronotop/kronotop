@@ -33,11 +33,11 @@ public abstract class AbstractLogicalNode extends AbstractPipelineNode implement
     }
 
     /**
-     * Finds the head node in a linked list of {@code PipelineNode}s starting from the given node.
-     * The head node is identified as the last node in the chain where {@code next()} returns {@code null}.
+     * Walks the {@code next()} chain from the given node and returns the last node,
+     * the one whose {@code next()} is {@code null}.
      *
-     * @param node the starting {@code PipelineNode} from which to trace towards the head node
-     * @return the head {@code PipelineNode}, or {@code null} if the provided node is {@code null}
+     * @param node the node to start from
+     * @return the last node in the chain, or {@code null} if {@code node} is {@code null}
      */
     PipelineNode findHeadNode(PipelineNode node) {
         if (Objects.isNull(node)) {

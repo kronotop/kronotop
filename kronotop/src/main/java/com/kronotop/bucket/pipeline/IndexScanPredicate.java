@@ -28,8 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Predicate for index scan operations.
- * Uses Operand for type-safe operand representation supporting both literal values and parameter references.
+ * Predicate for index scan operations. The operand may be a literal value or a parameter reference.
  */
 public record IndexScanPredicate(int id, String selector, Operator op, Operand operand) {
 

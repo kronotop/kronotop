@@ -40,8 +40,8 @@ import java.util.Map;
 /**
  * Pipeline scan node that performs a single FoundationDB range scan on a compound index subspace.
  *
- * <p>Partitions filters into an equality prefix and an optional range tail on the last-matched field,
- * then constructs begin/end KeySelectors for a single {@code getRange} call.</p>
+ * <p>Partitions filters into an equality prefix and an optional range on the field following that
+ * prefix, then constructs begin/end KeySelectors for a single {@code getRange} call.</p>
  */
 public class CompoundIndexScanNode extends AbstractScanNode implements ScanNode {
     private final CompoundIndexDefinition index;
@@ -240,7 +240,7 @@ public class CompoundIndexScanNode extends AbstractScanNode implements ScanNode 
             return true;
         }
 
-        // If sortByField is an EQ filter field, all values are identical — reversing is pointless
+        // If sortByField is an EQ filter field, all values are identical, so reversing is pointless
         if (isEqFilterField(sortByField)) {
             return false;
         }
@@ -268,12 +268,12 @@ public class CompoundIndexScanNode extends AbstractScanNode implements ScanNode 
         for (CompoundIndexField field : index.fields()) {
             Operator op = filterOps.get(field.selector());
             if (op == Operator.EQ) {
-                // Part of EQ prefix — trivially sorted
+                // Part of EQ prefix, trivially sorted
                 if (field.selector().equals(sortByField)) {
                     return sortByField;
                 }
             } else {
-                // First non-EQ field — naturally sorted by tuple ordering
+                // First non-EQ field, naturally sorted by tuple ordering
                 if (field.selector().equals(sortByField)) {
                     return sortByField;
                 }

@@ -116,27 +116,17 @@ public class CursorManager {
     }
 
     /**
-     * Retrieves the last processed cursor position for continuation of scan operations.
+     * Returns the last processed cursor position so a scan can resume.
      *
-     * <p>This method extracts the cursor position from the execution state based on the scan
-     * direction. It looks for the appropriate bound (lower for forward scans, upper for reverse
-     * scans) and returns the position information needed to resume scanning.</p>
-     *
-     * <p><strong>Direction Logic:</strong></p>
-     * <ul>
-     *   <li><strong>Forward Scans (ASC)</strong> - Retrieves lower bound (GT) set by previous checkpoint</li>
-     *   <li><strong>Reverse Scans (DESC)</strong> - Retrieves upper bound (LT) set by previous checkpoint</li>
-     * </ul>
-     *
-     * <p><strong>Position Validation:</strong><br>
-     * The method requires both a valid bound and a non-null ObjectId for precise positioning.
-     * If these conditions are not met, it indicates cursor corruption.</p>
+     * <p>Forward scans (ASC) read the lower bound (GT); reverse scans (DESC) read the upper
+     * bound (LT). A valid position needs both the bound and its ObjectId; otherwise the cursor
+     * is treated as corrupted.</p>
      *
      * @param state         the execution state containing cursor bounds
      * @param nodeId        the identifier of the pipeline node
-     * @param sortDirection the sort direction (ASC for forward scans, DESC for reverse scans)
+     * @param sortDirection ASC for forward scans, DESC for reverse scans
      * @return the last processed cursor position containing node ID, index value, and ObjectId
-     * @throws IllegalStateException if the cursor has been corrupted (missing bounds or ObjectId)
+     * @throws IllegalStateException if the bound or its ObjectId is missing
      */
     CursorPosition getLastProcessedPosition(ExecutionState state, int nodeId, SortDirection sortDirection) {
         // Check both lower and upper bounds for cursor position info
@@ -148,23 +138,14 @@ public class CursorManager {
     }
 
     /**
-     * Creates a KeySelector from a cursor bound for primary index pagination.
+     * Builds a FoundationDB KeySelector from a cursor bound for primary index (_id) pagination.
      *
-     * <p>This method converts a stored cursor bound into a FoundationDB KeySelector that
-     * can be used to resume scanning from the exact position. It's specifically designed
-     * for the primary index (_id) which uses ObjectId values directly.</p>
-     *
-     * <p><strong>Value Extraction:</strong><br>
-     * The method extracts the actual ObjectId from the ObjectIdVal wrapper stored
-     * in the bound, then delegates to IndexUtils for KeySelector construction.</p>
-     *
-     * <p><strong>Error Handling:</strong><br>
-     * Validates that the bound is not null and contains an ObjectIdVal, which is required
-     * for primary index operations.</p>
+     * <p>The _id index stores ObjectId values directly. The bound's ObjectId is unwrapped from
+     * its ObjectIdVal, packed to a byte array, and passed to IndexUtil for KeySelector construction.</p>
      *
      * @param idIndexSubspace the primary index (_id) subspace in FoundationDB
      * @param bound           the cursor bound containing position and operator information
-     * @return a KeySelector configured for resuming from the bound position
+     * @return a KeySelector for resuming from the bound position
      * @throws IllegalArgumentException if bound is null
      * @throws IllegalStateException    if the bound value is not an ObjectIdVal (required for _id index)
      */

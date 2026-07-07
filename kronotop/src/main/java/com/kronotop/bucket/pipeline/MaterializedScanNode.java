@@ -29,8 +29,8 @@ import java.util.List;
  * <p>
  * Used when candidates are produced externally (e.g., vector similarity search)
  * and need to be filtered through the standard pipeline. The supplier delivers
- * candidates in batches; each {@link #execute} call processes one batch before
- * requesting the next.
+ * candidates in batches; each {@link #execute} call consumes candidates from the
+ * current batch and fetches the next batch once the current one is exhausted.
  */
 public class MaterializedScanNode extends AbstractPipelineNode implements ScanNode {
     private final CandidateSupplier supplier;

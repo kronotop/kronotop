@@ -24,9 +24,7 @@ import java.util.List;
 /**
  * A predicate that always returns true for any document.
  * <p>
- * This implementation is used as a default or no-op predicate in query processing
- * when no filtering conditions need to be applied. It accepts all documents
- * without performing any evaluation.
+ * Used as a no-op predicate when a query has no residual filtering conditions.
  */
 public record AlwaysTruePredicate() implements ResidualPredicateNode {
     @Override

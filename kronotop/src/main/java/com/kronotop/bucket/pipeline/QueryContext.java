@@ -29,12 +29,11 @@ import java.util.Map;
 import java.util.function.IntSupplier;
 
 /**
- * Central coordination point for a single query execution in the pipeline system.
- * Holds bucket metadata, query options, the execution plan, per-node execution state,
- * data sinks, and post-commit hooks.
+ * Holds the shared state for a single query execution: bucket metadata, query options,
+ * the execution plan, per-node execution state, data sinks, and parameter values.
  *
- * <p>Designed to be used by a single query execution thread; all internal collections
- * are non-concurrent.
+ * <p>Used by a single query execution thread; the internal collections are not
+ * thread-safe.
  *
  * @see QueryOptions
  * @see PipelineNode
@@ -43,13 +42,11 @@ import java.util.function.IntSupplier;
 public class QueryContext {
     /**
      * Maximum allowed result limit for a single query batch.
-     * This prevents excessive memory usage and ensures reasonable query performance.
      */
     public static final int MAXIMUM_LIMIT = 10000;
 
     /**
      * Default result limit when no explicit limit is specified.
-     * Provides a reasonable balance between performance and memory usage.
      */
     public static final int DEFAULT_LIMIT = 100;
     /**
@@ -66,17 +63,8 @@ public class QueryContext {
      */
     private final QueryOptions options;
     /**
-     * A registry that holds and manages data sinks utilized during query execution.
-     * The registry provides access to existing sinks related to specific pipeline nodes
-     * or creates new sinks for handling byte buffers or document locations as needed.
-     * <p>
-     * This field is immutable after creation, ensuring the consistent state throughout
-     * the lifecycle of the query context.
-     * <p>
-     * The {@link DataSinkRegistry} supports operations such as:
-     * - Retrieving existing sinks for a specified node ID.
-     * - Creating new sinks dynamically for document locations or byte buffers.
-     * - Writing entries or locations to the appropriate sink type.
+     * Holds the data sinks used during query execution. Provides or creates a sink
+     * per pipeline node for document locations or byte buffers.
      */
     private final DataSinkRegistry sinks = new DataSinkRegistry();
     /**
@@ -145,21 +133,17 @@ public class QueryContext {
     }
 
     /**
-     * Retrieves or creates an execution state for the specified pipeline node.
-     * Each pipeline node maintains its own execution state to track progress,
-     * cursors, and other execution-specific information.
+     * Returns the execution state for the given pipeline node, creating it on first access.
      *
-     * @param nodeId the unique identifier of the pipeline node
-     * @return the ExecutionState for the specified node (never null)
+     * @param nodeId the pipeline node ID
+     * @return the ExecutionState for the node (never null)
      */
     public ExecutionState getOrCreateExecutionState(int nodeId) {
         return executionStates.computeIfAbsent(nodeId, (ignored) -> new ExecutionState());
     }
 
     /**
-     * Returns the bucket metadata containing schema information and configuration.
-     * The metadata provides access to index definitions, field types, and other
-     * structural information about the target bucket.
+     * Returns the bucket metadata (index definitions, schema, and configuration).
      *
      * @return the bucket metadata (never null)
      */
@@ -172,12 +156,8 @@ public class QueryContext {
     }
 
     /**
-     * Returns the pipeline environment providing access to services and utilities.
-     * The environment is set lazily during query execution and provides access
-     * to document retrieval services, cursor management, and other execution resources.
-     *
-     * <p>This method may return null if called before the environment has been
-     * initialized by the pipeline executor.
+     * Returns the pipeline environment, or null if it has not been set yet.
+     * The environment is set lazily by the pipeline executor during execution.
      *
      * @return the pipeline environment, or null if not yet initialized
      */
@@ -203,8 +183,6 @@ public class QueryContext {
 
     /**
      * Returns the immutable query configuration options.
-     * These options control query behavior such as result limits,
-     * sort ordering, deletion flags, and field selection.
      *
      * @return the query options (never null)
      */
@@ -214,8 +192,6 @@ public class QueryContext {
 
     /**
      * Returns the execution plan as a tree of pipeline nodes.
-     * The plan represents the optimized query execution strategy
-     * including scan operations, filters, joins, and aggregations.
      *
      * @return the pipeline execution plan (never null)
      */

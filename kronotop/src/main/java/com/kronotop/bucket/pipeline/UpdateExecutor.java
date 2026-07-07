@@ -246,10 +246,10 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
     }
 
     /**
-     * Migrates and updates documents residing on a remote shard. Fetches documents via
-     * {@code DocumentRetriever}, applies update operations, inserts the updated documents into a
-     * local shard, and deletes the originals from the remote volume using {@link VolumeFacade}.
-     * All index entries are updated to reflect the new local shard assignment.
+     * Updates documents that live on a remote shard. The updated documents are inserted into a
+     * local shard and the originals are deleted from the remote volume, so the update also migrates
+     * them to this node. Each result container carries the new local shard metadata so index entries
+     * can be rewritten afterward.
      */
     private void handleRemoteUpdate(
             Transaction tr,

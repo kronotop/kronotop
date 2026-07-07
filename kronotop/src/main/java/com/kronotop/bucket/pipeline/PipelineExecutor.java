@@ -37,9 +37,9 @@ Cooper: No. It's necessary.
  * execution through {@link #executePipelineNode} which recursively walks the
  * node chain (scan, logical, transformation, and any chained {@code next} nodes).
  * <p>
- * Scan and union nodes share an adaptive budgeting loop that decouples the
- * user-facing LIMIT from the FDB getRange limit. The budget starts at the user
- * limit and grows when residual filtering yields few results, bounded by a
+ * Scan, union, and ordered-concat visitors share an adaptive budgeting loop that
+ * decouples the user-facing LIMIT from the FDB getRange limit. The budget starts at
+ * the user limit and grows when residual filtering yields few results, bounded by a
  * per-transaction time budget. This reduces FDB round-trips for low-selectivity
  * queries while preventing runaway scans.
  *

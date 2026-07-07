@@ -19,7 +19,7 @@ package com.kronotop.bucket.pipeline;
 /**
  * Manages adaptive scan budget for FDB getRange calls within a single ADVANCE call.
  *
- * <p>Decouples the internal FDB scan limit with the user-facing result limit. When residual
+ * <p>Decouples the internal FDB scan limit from the user-facing result limit. When residual
  * filtering discards most scanned entries, the budget grows to reduce FDB round-trips.
  * Growth is capped per-iteration and in total to respect FDB transaction time limits.</p>
  */

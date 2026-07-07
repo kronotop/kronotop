@@ -19,29 +19,16 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 
 /**
- * Sealed interface defining the contract for pipeline execution operations in the Kronotop Cluster.
+ * Runs one database operation on the documents a query pipeline selects.
  *
- * <p>Executors are responsible for performing specific database operations (read, delete, update)
- * on documents identified through query pipeline processing. Each executor implementation handles
- * a different type of operation while following a common execution pattern:
- * <ol>
- *   <li>Execute the underlying pipeline to populate data sinks</li>
- *   <li>Process the populated sinks to extract relevant document information</li>
- *   <li>Perform the specific operation (read, delete, or update)</li>
- *   <li>Return the operation results</li>
- *   <li>Clean up resources</li>
- * </ol>
- *
- * <p>This sealed interface ensures type safety and exhaustive pattern matching by restricting
- * implementations to the three permitted subtypes:
+ * <p>Permitted implementations:
  * <ul>
- *   <li>{@link ReadExecutor} - Retrieves document content</li>
- *   <li>{@link DeleteExecutor} - Removes documents from storage</li>
- *   <li>{@link UpdateExecutor} - Modifies existing documents</li>
+ *   <li>{@link ReadExecutor} - reads document content</li>
+ *   <li>{@link DeleteExecutor} - removes documents</li>
+ *   <li>{@link UpdateExecutor} - modifies documents</li>
  * </ul>
  *
- * <p>All executors operate within FoundationDB transactions to ensure ACID properties
- * and maintain data consistency across the distributed storage system.
+ * <p>Executors run within a FoundationDB transaction.
  *
  * @param <T> the type of result returned by the executor operation
  * @see ReadExecutor
@@ -53,21 +40,14 @@ import com.apple.foundationdb.Transaction;
 public sealed interface Executor<T> permits ReadExecutor, DeleteExecutor, UpdateExecutor {
 
     /**
-     * Executes the specific operation defined by the implementing executor.
+     * Runs the pipeline to select documents and applies this executor's operation to them.
      *
-     * <p>This method processes the query pipeline to identify target documents and performs
-     * the executor's specific operation (read, delete, or update) on those documents.
-     * The execution is performed within the provided FoundationDB transaction context
-     * to ensure transactional consistency.
+     * <p>Implementations must clear their data sinks after processing, including on exceptions.
      *
-     * <p>Implementations must ensure proper resource cleanup, particularly clearing
-     * data sinks after processing, even in the case of exceptions.
-     *
-     * @param tr  the FoundationDB transaction context for the operation
-     * @param ctx the query context containing the pipeline plan, metadata, and execution environment
-     * @return the result of the executor operation, with type determined by the specific executor
-     * @throws RuntimeException if the operation fails due to storage errors, invalid state,
-     *                          or other execution issues
+     * @param tr  the FoundationDB transaction
+     * @param ctx the query context holding the pipeline plan, metadata, and execution environment
+     * @return the operation result
+     * @throws RuntimeException if the operation fails
      */
     T execute(Transaction tr, QueryContext ctx);
 }

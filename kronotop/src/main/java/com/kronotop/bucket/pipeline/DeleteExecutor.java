@@ -33,10 +33,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Executor responsible for performing document deletion operations in the Kronotop Cluster.
+ * Deletes documents in the Kronotop Cluster.
  *
- * <p>The DeleteExecutor processes a query pipeline to identify documents to be deleted,
- * then executes the actual deletion operations across multiple shards.
+ * <p>Runs a query pipeline to identify the documents to delete, then removes them
+ * across one or more shards.
  */
 public final class DeleteExecutor extends BaseExecutor implements Executor<List<ObjectId>> {
     private final Context context;
