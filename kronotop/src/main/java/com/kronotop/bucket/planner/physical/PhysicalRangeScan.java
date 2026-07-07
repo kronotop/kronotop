@@ -21,10 +21,9 @@ import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import java.util.Objects;
 
 /**
- * Physical node representing a range scan operation on an index.
+ * Physical node representing a range scan on an index.
  * <p>
- * This is an optimized scan that consolidates multiple range conditions on the same field
- * into a single efficient range scan operation.
+ * Consolidates multiple range conditions on the same field into a single scan.
  * <p>
  * Example: AND(age >= 18, age < 65) → PhysicalRangeScan("age", 18, 65, true, false, age_index)
  */

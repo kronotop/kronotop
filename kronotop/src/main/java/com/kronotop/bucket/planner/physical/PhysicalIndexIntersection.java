@@ -22,11 +22,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Physical node representing an index intersection operation.
+ * Physical node representing an index intersection.
  * <p>
- * This optimized node combines multiple indexed conditions into a single
- * intersection scan that can efficiently find documents matching all conditions
- * by intersecting the results from multiple indexes.
+ * Finds documents matching several indexed conditions by intersecting the results
+ * of multiple single-field indexes.
  * <p>
  * Example: AND(name="john", age=25) → PhysicalIndexIntersection([name_index, age_index], [filters])
  */

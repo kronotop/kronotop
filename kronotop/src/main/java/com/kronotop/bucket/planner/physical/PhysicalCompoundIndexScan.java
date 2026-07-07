@@ -23,7 +23,7 @@ import java.util.Objects;
 
 /**
  * Physical node representing a compound index scan that uses a multi-field index
- * to efficiently satisfy multiple filter conditions in a single scan operation.
+ * to satisfy multiple filter conditions in a single scan.
  *
  * @param id      unique node identifier (excluded from equals/hashCode)
  * @param index   the compound index definition to scan

@@ -28,6 +28,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Turns a logical plan into a physical plan.
+ * <p>
+ * Each logical node becomes a physical node that says how it will run: an index scan,
+ * a compound index scan, or a full scan with a filter. The choice depends on which
+ * indexes exist for the queried fields and whether the operator and value type fit the
+ * index. When no index applies, the planner falls back to a full scan, so an index only
+ * changes speed, never the result.
+ */
 public class PhysicalPlanner {
 
     public PhysicalPlanner() {
@@ -50,13 +59,7 @@ public class PhysicalPlanner {
     }
 
     /**
-     * Efficiently transposes a LogicalNode to PhysicalNode with minimal CPU and memory overhead.
-     * <p>
-     * Key optimizations:
-     * - Direct field reuse between logical and physical nodes
-     * - Singleton instance reuse for constants (True/False)
-     * - In-place list transformation to avoid intermediate collections
-     * - Pattern matching for efficient dispatch
+     * Transposes a logical plan into a physical plan.
      */
     public PhysicalNode plan(PlannerContext context, LogicalNode logicalPlan) {
         return plan(context, logicalPlan, null);
@@ -69,24 +72,20 @@ public class PhysicalPlanner {
      */
     private PhysicalNode plan(PlannerContext context, LogicalNode logicalPlan, String elemMatchSelector) {
         return switch (logicalPlan) {
-            // Direct field transposition - zero-copy for primitive fields
             case LogicalFilter filter -> transposeFilter(context, filter, elemMatchSelector);
 
-            // Efficient list transformation - reuse child structure
             case LogicalAnd and -> transposeAnd(context, and, elemMatchSelector);
             case LogicalOr or ->
                     new PhysicalOr(context.nextId(), transposeChildren(context, or.children(), elemMatchSelector));
 
-            // Single child transposition
             case LogicalNot not -> new PhysicalNot(context.nextId(), plan(context, not.child(), elemMatchSelector));
             case LogicalElemMatch elemMatch -> new PhysicalElemMatch(
                     context.nextId(),
                     elemMatch.selector(),
-                    // Pass the $elemMatch selector as context for scalar array index lookup
+                    // Pass the $elemMatch selector down so a scalar array can look up its index
                     plan(context, elemMatch.subPlan(), elemMatch.selector())
             );
 
-            // Singleton instance reuse - no object allocation
             case LogicalTrue ignored -> new PhysicalTrue(context.nextId());
             case LogicalFalse ignored -> new PhysicalFalse(context.nextId());
         };
@@ -267,9 +266,9 @@ public class PhysicalPlanner {
      * Converts a LogicalFilter to PhysicalIndexScan when an index exists and the operator/type
      * are compatible, otherwise falls back to PhysicalFullScan.
      * <p>
-     * For $in operator with an index, transforms to PhysicalOr with multiple PhysicalIndexScan(EQ) nodes.
-     * This enables the indexed $in queries by leveraging the existing UnionNode infrastructure.
-     * Without an index, $in remains as-is and PredicateEvaluator handles it with proper array semantics.
+     * For $in operator with an index, transforms to PhysicalOr with multiple PhysicalIndexScan(EQ) nodes,
+     * which the executor runs as a union of index scans.
+     * Without an index, $in remains as-is and PredicateEvaluator handles it with array semantics.
      * <p>
      * For scalar array $elemMatch, when the filter's selector is empty but we're inside an $elemMatch
      * context, we use the $elemMatch selector for index lookup.
@@ -349,7 +348,7 @@ public class PhysicalPlanner {
 
         // Compound index for SORTBY: when filter is EQ and sortByField is set,
         // a compound index on (filterField, sortByField) provides both filtering
-        // and natural sort order — better than single-field index + in-memory sort.
+        // and natural sort order, better than a single-field index plus in-memory sort.
         if (context.getSortByField() != null && filter.op() == Operator.EQ) {
             CompoundIndexMatchResult compoundMatch = tryCompoundIndexMatch(
                     context, List.of(filter), elemMatchSelector);
@@ -544,16 +543,13 @@ public class PhysicalPlanner {
     }
 
     /**
-     * Efficiently transposes a list of LogicalNodes to PhysicalNodes.
-     * Pre-sizes the result list to avoid array reallocation.
+     * Transposes a list of logical nodes into physical nodes.
      *
      * @param elemMatchSelector the selector from parent $elemMatch (null if not inside $elemMatch)
      */
     private List<PhysicalNode> transposeChildren(PlannerContext context, List<LogicalNode> children, String elemMatchSelector) {
-        // Pre-size to avoid array growth and copying
         List<PhysicalNode> physicalChildren = new ArrayList<>(children.size());
 
-        // Transform each child - compiler can optimize this loop
         for (LogicalNode child : children) {
             physicalChildren.add(plan(context, child, elemMatchSelector));
         }
