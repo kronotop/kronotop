@@ -29,6 +29,14 @@ class ProjectorTest {
 
     // --- $ Positional Operator ---
 
+    private static BsonArray intArray(int... values) {
+        BsonArray array = new BsonArray();
+        for (int value : values) {
+            array.add(new BsonInt32(value));
+        }
+        return array;
+    }
+
     @Test
     void shouldProjectFirstMatchingElementOfScalarArray() {
         // Behavior: $ returns the first array element matching the query condition, not the first element
@@ -170,6 +178,8 @@ class ProjectorTest {
         assertTrue(grades.isEmpty());
     }
 
+    // --- Validation ---
+
     @Test
     void shouldProjectMultipleDocumentsWithPositional() {
         // Behavior: each document gets its own matched element based on the query condition
@@ -203,8 +213,6 @@ class ProjectorTest {
         assertEquals(90, results.get(1).getArray("grades").get(0).asInt32().getValue());
         assertEquals(85, results.get(2).getArray("grades").get(0).asInt32().getValue());
     }
-
-    // --- Validation ---
 
     @Test
     void shouldProjectNestedPositionalPath() {
@@ -346,6 +354,8 @@ class ProjectorTest {
         assertEquals(87, grades.get(0).asInt32().getValue());
     }
 
+    // --- Validation ---
+
     @Test
     void shouldOmitPositionalFieldWhenFieldDoesNotExist() {
         // Behavior: $ on a field absent from the document omits the field, does not error
@@ -364,8 +374,6 @@ class ProjectorTest {
         assertEquals("Alice", result.getString("name").getValue());
         assertFalse(result.containsKey("scores"));
     }
-
-    // --- Validation ---
 
     @Test
     void shouldRejectPositionalWithoutParsedQuery() {
@@ -394,6 +402,8 @@ class ProjectorTest {
                 Projector.project(List.of(), spec));
     }
 
+    // --- _id handling ---
+
     @Test
     void shouldRejectMixedInclusionExclusion() {
         // Behavior: cannot mix inclusion and exclusion
@@ -402,8 +412,6 @@ class ProjectorTest {
         assertThrows(IllegalArgumentException.class, () ->
                 Projector.project(List.of(), spec));
     }
-
-    // --- _id handling ---
 
     @Test
     void shouldIncludeIdByDefault() {
@@ -462,6 +470,8 @@ class ProjectorTest {
         assertEquals(30, result.getInt32("age").getValue());
     }
 
+    // --- Empty spec ---
+
     @Test
     void shouldExcludeIdWhenExplicit() {
         // Behavior: _id: 0 excludes _id from the result
@@ -478,7 +488,7 @@ class ProjectorTest {
         assertEquals("Alice", result.getString("name").getValue());
     }
 
-    // --- Empty spec ---
+    // --- Basic inclusion/exclusion ---
 
     @Test
     void shouldReturnAllFieldsWhenSpecIsEmpty() {
@@ -498,8 +508,6 @@ class ProjectorTest {
         assertEquals("Alice", result.getString("name").getValue());
         assertEquals(30, result.getInt32("age").getValue());
     }
-
-    // --- Basic inclusion/exclusion ---
 
     @Test
     void shouldIncludeMultipleSpecifiedFields() {
@@ -580,6 +588,8 @@ class ProjectorTest {
         assertFalse(result.getDocument("a").getDocument("b").containsKey("d"));
     }
 
+    // --- Dot-notation exclusion ---
+
     @Test
     void shouldIncludeNestedField() {
         // Behavior: dot-notation paths work in inclusion mode
@@ -598,8 +608,6 @@ class ProjectorTest {
         assertEquals("Alice", result.getDocument("user").getString("name").getValue());
         assertFalse(result.getDocument("user").containsKey("age"));
     }
-
-    // --- Dot-notation exclusion ---
 
     @Test
     void shouldExcludeNestedField() {
@@ -676,6 +684,8 @@ class ProjectorTest {
         assertEquals("Alice", result.getString("name").getValue());
     }
 
+    // --- Multiple documents ---
+
     @Test
     void shouldNotMutateOriginalDocumentOnNestedExclusion() {
         // Behavior: nested exclusion clones intermediate documents, leaving the original untouched
@@ -691,8 +701,6 @@ class ProjectorTest {
 
         assertTrue(original.getDocument("user").containsKey("name"));
     }
-
-    // --- Multiple documents ---
 
     @Test
     void shouldProjectMultipleDocuments() {
@@ -718,6 +726,8 @@ class ProjectorTest {
         assertFalse(results.get(1).containsKey("age"));
     }
 
+    // --- Exclusion through array intermediates ---
+
     @Test
     void shouldSkipMissingFieldGracefully() {
         // Behavior: if a document doesn't have the projected field, it's simply absent in the result
@@ -733,8 +743,6 @@ class ProjectorTest {
         assertEquals("Alice", result.getString("name").getValue());
         assertFalse(result.containsKey("age"));
     }
-
-    // --- Exclusion through array intermediates ---
 
     @Test
     void shouldExcludeNestedFieldFromDocumentsInArray() {
@@ -826,6 +834,8 @@ class ProjectorTest {
         assertTrue(original.getArray("items").get(0).asDocument().containsKey("name"));
     }
 
+    // --- Inclusion through array intermediates ---
+
     @Test
     void shouldExcludeNestedFieldGracefullyWhenArrayElementLacksField() {
         // Behavior: if some array elements don't have the excluded field, they are passed through unchanged
@@ -846,8 +856,6 @@ class ProjectorTest {
         assertEquals(1, items.get(0).asDocument().getInt32("qty").getValue());
         assertEquals(2, items.get(1).asDocument().getInt32("qty").getValue());
     }
-
-    // --- Inclusion through array intermediates ---
 
     @Test
     void shouldIncludeNestedFieldFromDocumentsInArray() {
@@ -949,6 +957,8 @@ class ProjectorTest {
         assertEquals("b", items.get(1).asDocument().getString("name").getValue());
     }
 
+    // --- $slice Operator ---
+
     @Test
     void shouldIncludeNestedFieldGracefullyWhenArrayFieldIsMissing() {
         // Behavior: if the array field doesn't exist, result omits it
@@ -963,16 +973,6 @@ class ProjectorTest {
         BsonDocument result = results.get(0);
         assertTrue(result.containsKey("_id"));
         assertFalse(result.containsKey("items"));
-    }
-
-    // --- $slice Operator ---
-
-    private static BsonArray intArray(int... values) {
-        BsonArray array = new BsonArray();
-        for (int value : values) {
-            array.add(new BsonInt32(value));
-        }
-        return array;
     }
 
     @Test

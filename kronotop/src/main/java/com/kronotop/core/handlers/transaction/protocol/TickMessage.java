@@ -50,11 +50,6 @@ public class TickMessage implements ProtocolMessage<Void> {
         return mode;
     }
 
-    public enum Mode {
-        CACHED,
-        FRESH
-    }
-
     @Override
     public Void getKey() {
         return null;
@@ -63,5 +58,10 @@ public class TickMessage implements ProtocolMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return null;
+    }
+
+    public enum Mode {
+        CACHED,
+        FRESH
     }
 }

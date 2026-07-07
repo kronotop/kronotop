@@ -448,7 +448,8 @@ public class BSONUtil {
             case VersionstampVal v -> new BsonBinary(v.value().getBytes());
             case ObjectIdVal v -> new BsonObjectId(v.value());
             // A $regex operand is a matcher, never a storable document value.
-            case RegexVal ignored -> throw new UnsupportedOperationException("$regex cannot be converted to a BSON value");
+            case RegexVal ignored ->
+                    throw new UnsupportedOperationException("$regex cannot be converted to a BSON value");
         };
     }
 

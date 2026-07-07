@@ -137,6 +137,14 @@ public class BqlParser {
         }
     }
 
+    /**
+     * Builds a {@code BqlRegex} for the given selector from a native BSON regular expression value,
+     * carrying its pattern and options.
+     */
+    private static BqlRegex nativeRegex(String selector, BsonRegularExpression regex) {
+        return new BqlRegex(selector, new RegexVal(regex.getPattern(), regex.getOptions()));
+    }
+
     private BqlExpr parse(BsonReader reader) {
         return readExpr(reader);
     }
@@ -204,14 +212,6 @@ public class BqlParser {
             }
             return new BqlEq(key, readValue(reader));
         }
-    }
-
-    /**
-     * Builds a {@code BqlRegex} for the given selector from a native BSON regular expression value,
-     * carrying its pattern and options.
-     */
-    private static BqlRegex nativeRegex(String selector, BsonRegularExpression regex) {
-        return new BqlRegex(selector, new RegexVal(regex.getPattern(), regex.getOptions()));
     }
 
     /**

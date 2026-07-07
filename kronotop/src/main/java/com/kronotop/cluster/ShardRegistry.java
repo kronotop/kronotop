@@ -41,6 +41,7 @@ public class ShardRegistry {
     private final Set<ShardKind> enabledKinds;
     private final List<Integer> stashShardIds;
     private volatile BucketShards bucketShards = new BucketShards(List.of(), Set.of());
+
     public ShardRegistry(Config config, String clusterName) {
         this.config = config;
         this.clusterName = clusterName;

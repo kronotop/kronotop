@@ -56,9 +56,6 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
     private VectorIndexDefinition vectorDefinition;
     private VectorSimilarityFunction similarityFunction;
 
-    private record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes, float[] vector) {
-    }
-
     public VectorIndexBuildingRoutine(
             Context context,
             DirectorySubspace subspace,
@@ -209,5 +206,8 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
         if (!stopped) {
             flushRemaining();
         }
+    }
+
+    private record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes, float[] vector) {
     }
 }

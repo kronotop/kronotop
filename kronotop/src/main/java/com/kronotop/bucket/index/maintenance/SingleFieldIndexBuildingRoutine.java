@@ -58,9 +58,6 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
         super(context, subspace, shardId, taskId, task);
     }
 
-    private record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes) {
-    }
-
     @Override
     protected IndexHolder<?> lookupIndex(BucketMetadata metadata) {
         return metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
@@ -172,5 +169,8 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
 
         setCursor(tr, versionstamp);
         return total;
+    }
+
+    private record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes) {
     }
 }

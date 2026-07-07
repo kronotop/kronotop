@@ -86,6 +86,29 @@ class VectorIndexBuildingRaceMultiNodeTest extends BaseBucketMultiNodeTest {
         return new float[]{seq + 100000f, seq + 100000.5f, seq + 100000.25f};
     }
 
+    private static String documentJson(int id, float[] vector) {
+        return String.format("{\"id\": %d, \"%s\": [%s, %s, %s]}",
+                id, VECTOR_FIELD,
+                Float.toString(vector[0]), Float.toString(vector[1]), Float.toString(vector[2]));
+    }
+
+    private static String vectorKey(float[] vector) {
+        StringBuilder sb = new StringBuilder();
+        for (float v : vector) {
+            sb.append(v).append(',');
+        }
+        return sb.toString();
+    }
+
+    private static float[] readEmbedding(BsonDocument doc) {
+        org.bson.BsonArray arr = doc.getArray(VECTOR_FIELD);
+        float[] vector = new float[arr.size()];
+        for (int i = 0; i < arr.size(); i++) {
+            vector[i] = (float) arr.get(i).asNumber().doubleValue();
+        }
+        return vector;
+    }
+
     private boolean insertDocument(io.netty.channel.embedded.EmbeddedChannel channel, int seq) {
         BucketCommandBuilder<byte[], byte[]> insertCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
@@ -93,12 +116,6 @@ class VectorIndexBuildingRaceMultiNodeTest extends BaseBucketMultiNodeTest {
         Object response = runCommand(channel, buf);
         // A successful single-document insert returns exactly one ObjectId; conflicts or rejects do not.
         return response instanceof ArrayRedisMessage array && array.children().size() == 1;
-    }
-
-    private static String documentJson(int id, float[] vector) {
-        return String.format("{\"id\": %d, \"%s\": [%s, %s, %s]}",
-                id, VECTOR_FIELD,
-                Float.toString(vector[0]), Float.toString(vector[1]), Float.toString(vector[2]));
     }
 
     private DirectorySubspace indexSubspaceIfReady(Context ctx, String namespace) {
@@ -153,14 +170,6 @@ class VectorIndexBuildingRaceMultiNodeTest extends BaseBucketMultiNodeTest {
         ByteBuf queryBuf = Unpooled.buffer();
         queryCmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(SEED_COUNT + MAX_RACE_INSERTS)).encode(queryBuf);
         return extractEntries(runCommand(node2.getChannel(), queryBuf));
-    }
-
-    private static String vectorKey(float[] vector) {
-        StringBuilder sb = new StringBuilder();
-        for (float v : vector) {
-            sb.append(v).append(',');
-        }
-        return sb.toString();
     }
 
     @Test
@@ -335,15 +344,6 @@ class VectorIndexBuildingRaceMultiNodeTest extends BaseBucketMultiNodeTest {
         assertEquals(currentVectors, indexedVectors,
                 "The vector index ENTRIES vectors must exactly match the current document vectors; the "
                         + "build must not resurrect a superseded vector for a document updated during the window");
-    }
-
-    private static float[] readEmbedding(BsonDocument doc) {
-        org.bson.BsonArray arr = doc.getArray(VECTOR_FIELD);
-        float[] vector = new float[arr.size()];
-        for (int i = 0; i < arr.size(); i++) {
-            vector[i] = (float) arr.get(i).asNumber().doubleValue();
-        }
-        return vector;
     }
 
     private void deleteDocument(io.netty.channel.embedded.EmbeddedChannel channel, int seq) {

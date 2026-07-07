@@ -73,6 +73,20 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
     }
 
     /**
+     * Returns whether the exception wraps a retriable FoundationDB transaction error, in which case
+     * the failing batch can be retried in place rather than unwinding the whole build. The retriable
+     * set matches {@link com.kronotop.bucket.RetryMethods}: 1007 (transaction_too_old),
+     * 1020 (not_committed), 1021 (commit_unknown_result), 1031 (transaction_timed_out).
+     */
+    static boolean isRetriableConflict(KronotopException exp) {
+        if (!(exp.getCause() instanceof FDBException fdb)) {
+            return false;
+        }
+        int code = fdb.getCode();
+        return code == 1007 || code == 1020 || code == 1021 || code == 1031;
+    }
+
+    /**
      * Looks up the index from bucket metadata. Returns null if not found.
      */
     protected abstract IndexHolder<?> lookupIndex(BucketMetadata metadata);
@@ -268,20 +282,6 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                 metrics.setLatestExecution(System.currentTimeMillis());
             }
         }
-    }
-
-    /**
-     * Returns whether the exception wraps a retriable FoundationDB transaction error, in which case
-     * the failing batch can be retried in place rather than unwinding the whole build. The retriable
-     * set matches {@link com.kronotop.bucket.RetryMethods}: 1007 (transaction_too_old),
-     * 1020 (not_committed), 1021 (commit_unknown_result), 1031 (transaction_timed_out).
-     */
-    static boolean isRetriableConflict(KronotopException exp) {
-        if (!(exp.getCause() instanceof FDBException fdb)) {
-            return false;
-        }
-        int code = fdb.getCode();
-        return code == 1007 || code == 1020 || code == 1021 || code == 1031;
     }
 
     @Override
