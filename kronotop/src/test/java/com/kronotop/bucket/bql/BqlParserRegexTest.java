@@ -17,21 +17,8 @@
 package com.kronotop.bucket.bql;
 
 import com.kronotop.bucket.BSONUtil;
-import com.kronotop.bucket.bql.ast.BqlAll;
-import com.kronotop.bucket.bql.ast.BqlAnd;
-import com.kronotop.bucket.bql.ast.BqlElemMatch;
-import com.kronotop.bucket.bql.ast.BqlExists;
-import com.kronotop.bucket.bql.ast.BqlExpr;
-import com.kronotop.bucket.bql.ast.BqlIn;
-import com.kronotop.bucket.bql.ast.BqlNin;
-import com.kronotop.bucket.bql.ast.BqlNot;
-import com.kronotop.bucket.bql.ast.BqlRegex;
-import com.kronotop.bucket.bql.ast.RegexVal;
-import org.bson.BsonArray;
-import org.bson.BsonDocument;
-import org.bson.BsonInt32;
-import org.bson.BsonRegularExpression;
-import org.bson.BsonString;
+import com.kronotop.bucket.bql.ast.*;
+import org.bson.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

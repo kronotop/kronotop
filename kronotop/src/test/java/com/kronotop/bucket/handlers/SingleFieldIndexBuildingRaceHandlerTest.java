@@ -23,11 +23,7 @@ import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.index.Index;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.bucket.index.IndexStatus;
-import com.kronotop.bucket.index.SingleFieldIndexDefinition;
-import com.kronotop.bucket.index.SingleFieldIndexUtil;
+import com.kronotop.bucket.index.*;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
@@ -42,7 +38,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 /**
  * Reproduces a correctness bug in inline index creation via {@code BUCKET.CREATE}: documents

@@ -16,7 +16,10 @@
 
 package com.kronotop.bucket.planner.logical;
 
-import com.kronotop.bucket.bql.ast.*;
+import com.kronotop.bucket.bql.ast.BooleanVal;
+import com.kronotop.bucket.bql.ast.Int32Val;
+import com.kronotop.bucket.bql.ast.Int64Val;
+import com.kronotop.bucket.bql.ast.RegexVal;
 import com.kronotop.bucket.planner.Operator;
 
 import javax.annotation.Nonnull;

@@ -17,11 +17,7 @@
 package com.kronotop.bucket.planner.logical;
 
 import com.kronotop.bucket.bql.BqlParser;
-import com.kronotop.bucket.bql.ast.BooleanVal;
-import com.kronotop.bucket.bql.ast.BqlExpr;
-import com.kronotop.bucket.bql.ast.Int32Val;
-import com.kronotop.bucket.bql.ast.RegexVal;
-import com.kronotop.bucket.bql.ast.StringVal;
+import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.logical.LogicalPlanValidator.Severity;
 import com.kronotop.bucket.planner.logical.LogicalPlanValidator.ValidationIssue;
