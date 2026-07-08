@@ -18,7 +18,6 @@ package com.kronotop.bucket.pipeline;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.Context;
@@ -592,12 +591,9 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
     private void checkDuplicateId(Transaction tr, BucketMetadata metadata, ObjectId objectId) {
         Index index = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
-        DirectorySubspace indexSubspace = index.subspace();
-        Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), objectId.toByteArray());
-        byte[] key = indexSubspace.pack(tuple);
-        if (tr.get(key).join() != null) {
-            throw new DuplicateKeyException(objectId);
-        }
+        UniquenessChecker checker = new UniquenessChecker(tr);
+        checker.checkPrimaryKey(index.subspace(), objectId);
+        checker.await();
     }
 
     private void executeUpsert(Transaction tr, QueryContext ctx) throws IOException {

@@ -18,7 +18,6 @@ package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
@@ -133,7 +132,6 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                                      byte[][] encodedIndexEntries
     ) {
         for (int i = 0; i < appendResult.getAppendedEntries().length; i++) {
-            AppendedEntry appendedEntry = appendResult.getAppendedEntries()[i];
             SerializedDocument serializedDocument = documents[i];
             BsonDocument document = serializedDocument.document();
             byte[] objectIdBytes = objectIdBytesArray[i];
@@ -299,7 +297,6 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                                     byte[][] encodedIndexEntries
     ) {
         for (int i = 0; i < appendResult.getAppendedEntries().length; i++) {
-            AppendedEntry appendedEntry = appendResult.getAppendedEntries()[i];
             SerializedDocument serializedDocument = documents[i];
             BsonDocument document = serializedDocument.document();
             byte[] objectIdBytes = objectIdBytesArray[i];
@@ -329,15 +326,11 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
     private void checkDuplicateIds(Transaction tr, BucketMetadata metadata, Set<ObjectId> objectIds) {
         Index index = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
         DirectorySubspace indexSubspace = index.subspace();
+        UniquenessChecker checker = new UniquenessChecker(tr);
         for (ObjectId objectId : objectIds) {
-            byte[] objectIdBytes = objectId.toByteArray();
-            Tuple tuple = Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), objectIdBytes);
-            byte[] key = indexSubspace.pack(tuple);
-            byte[] existing = tr.get(key).join();
-            if (existing != null) {
-                throw new DuplicateKeyException(objectId);
-            }
+            checker.checkPrimaryKey(indexSubspace, objectId);
         }
+        checker.await();
     }
 
     @Override
