@@ -152,11 +152,11 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
             Map<ObjectId, UpdateResultContainer> updateResultContainers = new LinkedHashMap<>();
 
-            // Shared across all shard groups so two documents updated to the same unique value in one
+            // Shared across all shard groups, so two documents updated to the same unique value in one
             // command conflict even when they live on different shards (their index entries are not
             // written yet, so only the in-memory batch set can see the collision).
-            SingleFieldUniquenessEnforcer uniquenessEnforcer =
-                    new SingleFieldUniquenessEnforcer(ctx.metadata(), ctx.env().collatorCache(), strictTypes);
+            UniquenessEnforcer uniquenessEnforcer =
+                    new UniquenessEnforcer(ctx.metadata(), ctx.env().collatorCache(), strictTypes);
 
             for (Map.Entry<Integer, List<DocumentRef>> documentRefGroupByShard : byShardId.entrySet()) {
                 int shardId = documentRefGroupByShard.getKey();
@@ -231,7 +231,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             BqlExpr parsedQuery,
             Set<String> positionalFields,
             Map<ObjectId, UpdateResultContainer> updateResultContainers,
-            SingleFieldUniquenessEnforcer uniquenessEnforcer
+            UniquenessEnforcer uniquenessEnforcer
     ) throws IOException, KeyNotFoundException {
         Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
         VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
@@ -288,7 +288,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             BqlExpr parsedQuery,
             Set<String> positionalFields,
             Map<ObjectId, UpdateResultContainer> updateResultContainers,
-            SingleFieldUniquenessEnforcer uniquenessEnforcer
+            UniquenessEnforcer uniquenessEnforcer
     ) throws IOException, VersionstampAlreadyExistsException {
         Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
 
@@ -641,8 +641,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         }
 
         // Enforce unique single field indexes before the append so a violation leaves no bytes behind.
-        SingleFieldUniquenessEnforcer uniquenessEnforcer =
-                new SingleFieldUniquenessEnforcer(ctx.metadata(), ctx.env().collatorCache(), strictTypes);
+        UniquenessEnforcer uniquenessEnforcer =
+                new UniquenessEnforcer(ctx.metadata(), ctx.env().collatorCache(), strictTypes);
         uniquenessEnforcer.enqueue(uniquenessChecker, objectId.toByteArray(), upsertDoc);
         uniquenessChecker.await();
 

@@ -20,12 +20,30 @@ import com.kronotop.KronotopException;
 import com.kronotop.server.RESPError;
 import org.bson.types.ObjectId;
 
+import java.util.HexFormat;
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class DuplicateKeyException extends KronotopException {
     public DuplicateKeyException(ObjectId objectId) {
         super(RESPError.DUPLICATEKEY, String.format("Duplicate key: _id '%s'", objectId.toHexString()));
     }
 
     public DuplicateKeyException(String selector, Object value) {
-        super(RESPError.DUPLICATEKEY, String.format("Duplicate key: '%s' %s", selector, value));
+        super(RESPError.DUPLICATEKEY, String.format("Duplicate key: '%s' %s", selector, render(value)));
+    }
+
+    /**
+     * Renders an index value for the error message. Binary values become a hex string instead of the
+     * default {@code [B@hash}, and a compound key's value list is rendered element by element.
+     */
+    private static String render(Object value) {
+        if (value instanceof byte[] bytes) {
+            return "0x" + HexFormat.of().formatHex(bytes);
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(DuplicateKeyException::render).collect(Collectors.joining(", ", "[", "]"));
+        }
+        return String.valueOf(value);
     }
 }

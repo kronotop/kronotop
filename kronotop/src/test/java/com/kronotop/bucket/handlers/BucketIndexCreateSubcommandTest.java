@@ -329,6 +329,36 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
     }
 
     @Test
+    void shouldCreateUniqueCompoundIndex() {
+        // Behavior: a $compound entry with unique:true creates a unique compound index.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        String schema = "{\"$compound\": [{\"name\": \"u_idx\", \"unique\": true, \"fields\": [{\"selector\": \"a\", \"bson_type\": \"string\"}, {\"selector\": \"b\", \"bson_type\": \"int32\"}]}]}";
+        cmd.indexCreate(TEST_BUCKET, schema).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+
+        BucketMetadata metadata = TransactionUtil.execute(context,
+                tr -> BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET)
+        );
+        CompoundIndex idx = metadata.compoundIndexes().getIndexByName("u_idx", IndexSelectionPolicy.ALL);
+        assertNotNull(idx);
+        assertTrue(idx.definition().unique());
+    }
+
+    @Test
+    void shouldRejectUniqueMultiKeyCompoundIndex() {
+        // Behavior: a unique compound index cannot combine with a multi-key field.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        String schema = "{\"$compound\": [{\"unique\": true, \"fields\": [{\"selector\": \"a\", \"bson_type\": \"string\"}, {\"selector\": \"tags\", \"bson_type\": \"string\", \"multi_key\": true}]}]}";
+        cmd.indexCreate(TEST_BUCKET, schema).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR A unique index cannot be multi-key", ((ErrorRedisMessage) msg).content());
+    }
+
+    @Test
     void shouldRejectCompoundIndexWithLessThanTwoFields() {
         // Behavior: A $compound entry with fewer than 2 fields returns an error.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);

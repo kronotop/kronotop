@@ -44,10 +44,13 @@ import java.util.*;
 public final class CompoundIndexMaintainer extends IndexMaintainer {
 
     /**
-     * Builds the entry key tuple: (ENTRIES, val1, ..., valN, objectId).
+     * Builds the value tuple shared by every entry with these field values, regardless of ObjectId:
+     * (ENTRIES, val1, ..., valN). ObjectId values become their byte representation and each value is
+     * collation-encoded, so the tuple matches exactly what {@link #buildEntryTuple} stores minus the
+     * trailing ObjectId. This is the prefix a uniqueness check reads over.
      */
-    private static Tuple buildEntryTuple(List<Object> fieldValues, byte[] objectId, Collation collation, CollatorCache collatorCache) {
-        Object[] items = new Object[fieldValues.size() + 2];
+    private static Tuple buildValueTuple(List<Object> fieldValues, Collation collation, CollatorCache collatorCache) {
+        Object[] items = new Object[fieldValues.size() + 1];
         items[0] = IndexSubspaceMagic.ENTRIES.getValue();
         for (int i = 0; i < fieldValues.size(); i++) {
             Object val = fieldValues.get(i);
@@ -57,8 +60,35 @@ public final class CompoundIndexMaintainer extends IndexMaintainer {
             val = applyCollation(val, collation, collatorCache);
             items[i + 1] = val;
         }
-        items[items.length - 1] = objectId;
         return Tuple.from(items);
+    }
+
+    /**
+     * Builds the entry key tuple: (ENTRIES, val1, ..., valN, objectId).
+     */
+    private static Tuple buildEntryTuple(List<Object> fieldValues, byte[] objectId, Collation collation, CollatorCache collatorCache) {
+        return buildValueTuple(fieldValues, collation, collatorCache).add(objectId);
+    }
+
+    /**
+     * Builds the key prefix that covers every entry with the given field value combination, regardless
+     * of ObjectId: {@code (ENTRIES, val1, ..., valN)}. A range read over this prefix finds all documents
+     * that share the combination, which is how compound uniqueness is checked.
+     *
+     * @param compoundIndex the resolved compound index
+     * @param metadata      the bucket metadata
+     * @param fieldValues   ordered list of field values for the compound key
+     * @param collatorCache cache for collation-aware key encoding
+     * @return the packed prefix bytes
+     */
+    public static byte[] entryValuePrefix(
+            CompoundIndex compoundIndex,
+            BucketMetadata metadata,
+            List<Object> fieldValues,
+            CollatorCache collatorCache
+    ) {
+        Collation collation = resolveCollation(compoundIndex.definition(), metadata);
+        return compoundIndex.subspace().pack(buildValueTuple(fieldValues, collation, collatorCache));
     }
 
     /**

@@ -137,6 +137,44 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
     }
 
     /**
+     * Inserts raw JSON documents into {@link #TEST_BUCKET} and returns the raw reply, without asserting
+     * on it. Callers assert the reply shape (ArrayRedisMessage on success, DUPLICATEKEY on conflict).
+     *
+     * @param jsonDocuments the documents as JSON strings
+     * @return the raw command reply
+     */
+    protected Object insertRaw(String... jsonDocuments) {
+        return insertRawInto(TEST_BUCKET, jsonDocuments);
+    }
+
+    /**
+     * Inserts raw JSON documents into the given bucket and returns the raw reply, without asserting on it.
+     *
+     * @param bucket        the target bucket
+     * @param jsonDocuments the documents as JSON strings
+     * @return the raw command reply
+     */
+    protected Object insertRawInto(String bucket, String... jsonDocuments) {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[][] docs = new byte[jsonDocuments.length][];
+        for (int i = 0; i < jsonDocuments.length; i++) {
+            docs[i] = BSONUtil.jsonToDocumentThenBytes(jsonDocuments[i]);
+        }
+        cmd.insert(bucket, docs).encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    /**
+     * Asserts that a command reply is a DUPLICATEKEY error.
+     */
+    protected static void assertDuplicateKey(Object msg) {
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertTrue(((ErrorRedisMessage) msg).content().startsWith("DUPLICATEKEY"),
+                "Should return a DUPLICATEKEY error, got: " + msg);
+    }
+
+    /**
      * Finds a value in a MapRedisMessage by key.
      *
      * @param mapRedisMessage the map message to search

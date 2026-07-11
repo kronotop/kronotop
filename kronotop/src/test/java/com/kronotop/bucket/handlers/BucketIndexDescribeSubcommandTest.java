@@ -162,6 +162,35 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
     }
 
     @Test
+    void shouldDescribeUniqueCompoundIndex() {
+        // Behavior: INDEX DESCRIBE reports unique=true when a compound index is created with "unique": true.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"$compound\": [{\"name\": \"u_idx\", \"unique\": true, \"fields\": [{\"selector\": \"a\", \"bson_type\": \"string\"}, {\"selector\": \"b\", \"bson_type\": \"int32\"}]}]}").encode(buf);
+            runCommand(channel, buf);
+        }
+
+        refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexDescribe(TEST_BUCKET, "u_idx").encode(buf);
+        Object msg = runCommand(channel, buf);
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        assertNotNull(actualMessage);
+
+        boolean sawUnique = false;
+        for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
+            FullBulkStringRedisMessage key = (FullBulkStringRedisMessage) entry.getKey();
+            if (key.content().toString(StandardCharsets.UTF_8).equals("unique")) {
+                sawUnique = true;
+                assertTrue(((BooleanRedisMessage) entry.getValue()).value());
+            }
+        }
+        assertTrue(sawUnique, "DESCRIBE output must contain the 'unique' field");
+    }
+
+    @Test
     void shouldDescribeVectorIndex() {
         // Behavior: INDEX DESCRIBE returns vector-specific fields (selector, dimensions, distance) for a vector index.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
@@ -289,6 +318,10 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
                     // the background builder (BUILDING); the exact value is a timing race.
                     assertTrue(Objects.equals(status, IndexStatus.WAITING.name())
                             || Objects.equals(status, IndexStatus.BUILDING.name()));
+                }
+                case "unique" -> {
+                    BooleanRedisMessage value = (BooleanRedisMessage) entry.getValue();
+                    assertFalse(value.value());
                 }
                 case "collation" -> {
                     MapRedisMessage collationMap = (MapRedisMessage) entry.getValue();

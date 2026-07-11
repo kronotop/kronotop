@@ -41,7 +41,7 @@ class PipelineExplainerTest {
         CompoundIndexDefinition indexDef = new CompoundIndexDefinition(1, "age_score_idx",
                 List.of(new CompoundIndexField("age", BsonType.INT32, false),
                         new CompoundIndexField("score", BsonType.INT32, false)),
-                IndexStatus.READY, null);
+                IndexStatus.READY, null, false);
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
                 new CompoundIndexScanNode.CompoundIndexScanFilter("age", Operator.EQ, new Operand.Literal(new Int32Val(30)), BsonType.INT32),
                 new CompoundIndexScanNode.CompoundIndexScanFilter("score", Operator.GT, new Operand.Literal(new Int32Val(80)), BsonType.INT32)
@@ -262,7 +262,7 @@ class PipelineExplainerTest {
         CompoundIndexDefinition indexDef = new CompoundIndexDefinition(1, "age_city_idx",
                 List.of(new CompoundIndexField("age", BsonType.INT32, false),
                         new CompoundIndexField("city", BsonType.STRING, false)),
-                IndexStatus.READY, null);
+                IndexStatus.READY, null, false);
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
                 new CompoundIndexScanNode.CompoundIndexScanFilter("age", Operator.EQ, new Operand.Literal(new Int32Val(25)), BsonType.INT32),
                 new CompoundIndexScanNode.CompoundIndexScanFilter("city", Operator.EQ, new Operand.Literal(new StringVal("NYC")), BsonType.STRING)

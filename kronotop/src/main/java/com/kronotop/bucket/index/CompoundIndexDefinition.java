@@ -30,12 +30,20 @@ import java.util.UUID;
  * @param fields    ordered list of fields that make up the compound index (2 to 32)
  * @param status    current operational status of the index
  * @param collation optional collation for locale-aware string ordering, null means inherit bucket-level or binary default
+ * @param unique    if true, the combination of all field values must be unique across documents
  */
 public record CompoundIndexDefinition(long id, String name, List<CompoundIndexField> fields,
-                                      IndexStatus status, Collation collation) implements IndexDefinition {
+                                      IndexStatus status, Collation collation, boolean unique) implements IndexDefinition {
 
     public CompoundIndexDefinition {
         fields = List.copyOf(fields);
+        // Uniqueness reads assume a document contributes at most one entry per key combination. A
+        // multi-key field would produce several entries per document, so it must never combine with
+        // unique. Enforced in the canonical constructor, so no path (factory, direct construction,
+        // deserialization) bypasses it.
+        if (unique && fields.stream().anyMatch(CompoundIndexField::multiKey)) {
+            throw new IllegalArgumentException("A unique index cannot be multi-key");
+        }
     }
 
     /**
@@ -52,6 +60,10 @@ public record CompoundIndexDefinition(long id, String name, List<CompoundIndexFi
     }
 
     public static CompoundIndexDefinition create(String name, List<CompoundIndexField> fields, IndexStatus status, Collation collation) {
+        return create(name, fields, status, collation, false);
+    }
+
+    public static CompoundIndexDefinition create(String name, List<CompoundIndexField> fields, IndexStatus status, Collation collation, boolean unique) {
         if (fields.size() < 2) {
             throw new IllegalArgumentException("Compound index requires at least 2 fields, got " + fields.size());
         }
@@ -60,7 +72,7 @@ public record CompoundIndexDefinition(long id, String name, List<CompoundIndexFi
         }
         UUID uuid = UUID.randomUUID();
         long id = UUIDUtil.hash(uuid).asLong();
-        return new CompoundIndexDefinition(id, name, fields, status, collation);
+        return new CompoundIndexDefinition(id, name, fields, status, collation, unique);
     }
 
     @Override
@@ -68,6 +80,6 @@ public record CompoundIndexDefinition(long id, String name, List<CompoundIndexFi
         if (status != IndexStatus.DROPPED && status() == IndexStatus.DROPPED) {
             throw new IllegalStateException("Index '" + name + "' is already dropped and its status cannot be modified.");
         }
-        return new CompoundIndexDefinition(id, name, fields, status, collation);
+        return new CompoundIndexDefinition(id, name, fields, status, collation, unique);
     }
 }

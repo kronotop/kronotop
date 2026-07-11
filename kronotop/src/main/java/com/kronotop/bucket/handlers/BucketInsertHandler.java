@@ -335,7 +335,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             }
         }
 
-        SingleFieldUniquenessEnforcer enforcer = new SingleFieldUniquenessEnforcer(metadata, service.getCollatorCache(), strictTypes);
+        UniquenessEnforcer enforcer = new UniquenessEnforcer(metadata, service.getCollatorCache(), strictTypes);
         for (SerializedDocument document : documents) {
             enforcer.enqueue(checker, document.objectId().toByteArray(), document.document());
         }

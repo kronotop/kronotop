@@ -24,7 +24,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CompoundIndexDefinitionTest {
 
@@ -47,6 +49,7 @@ class CompoundIndexDefinitionTest {
         assertEquals(index.name(), decoded.name());
         assertEquals(index.fields().size(), decoded.fields().size());
         assertEquals(index.status(), decoded.status());
+        assertEquals(index.unique(), decoded.unique());
 
         for (int i = 0; i < index.fields().size(); i++) {
             assertEquals(index.fields().get(i).selector(), decoded.fields().get(i).selector());
@@ -98,6 +101,47 @@ class CompoundIndexDefinitionTest {
                 CompoundIndexDefinition.create("compound_idx", singleField, IndexStatus.WAITING)
         );
         assertEquals("Compound index requires at least 2 fields, got 1", exception.getMessage());
+    }
+
+    @Test
+    void shouldDefaultUniqueToFalse() {
+        // Behavior: a definition created without the unique flag is not unique.
+        CompoundIndexDefinition definition = CompoundIndexDefinition.create("compound_idx", createTestFields(), IndexStatus.WAITING);
+        assertFalse(definition.unique());
+    }
+
+    @Test
+    void shouldPreserveUniqueOnUpdateStatus() {
+        // Behavior: updateStatus carries the unique flag through to the new instance.
+        CompoundIndexDefinition definition = CompoundIndexDefinition.create("compound_idx", createTestFields(), IndexStatus.WAITING, null, true);
+        assertTrue(definition.unique());
+        assertTrue(definition.updateStatus(IndexStatus.READY).unique());
+    }
+
+    @Test
+    void shouldRejectUniqueMultiKeyCompoundIndexViaFactory() {
+        // Behavior: a unique index cannot combine with a multi-key field (factory path).
+        List<CompoundIndexField> fields = List.of(
+                new CompoundIndexField("user.name", BsonType.STRING, false),
+                new CompoundIndexField("user.tags", BsonType.STRING, true)
+        );
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                CompoundIndexDefinition.create("compound_idx", fields, IndexStatus.WAITING, null, true)
+        );
+        assertEquals("A unique index cannot be multi-key", exception.getMessage());
+    }
+
+    @Test
+    void shouldRejectUniqueMultiKeyCompoundIndexViaConstructor() {
+        // Behavior: the canonical constructor also rejects unique + multi-key, so no path bypasses it.
+        List<CompoundIndexField> fields = List.of(
+                new CompoundIndexField("user.name", BsonType.STRING, false),
+                new CompoundIndexField("user.tags", BsonType.STRING, true)
+        );
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                new CompoundIndexDefinition(1L, "compound_idx", fields, IndexStatus.WAITING, null, true)
+        );
+        assertEquals("A unique index cannot be multi-key", exception.getMessage());
     }
 
     @Test

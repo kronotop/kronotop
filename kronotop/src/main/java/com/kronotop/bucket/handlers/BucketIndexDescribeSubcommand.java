@@ -127,6 +127,7 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         description.put(bulkString("fields"), new ArrayRedisMessage(fieldsList));
 
         description.put(bulkString("status"), bulkString(definition.status().name()));
+        description.put(bulkString("unique"), definition.unique() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
         description.put(bulkString("collation"), getCollationMap(definition.collation()));
 
         Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();

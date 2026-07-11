@@ -32,6 +32,7 @@ class CompoundIndexSchema {
     private String name;
     private List<CompoundFieldSchema> fields;
     private Collation collation;
+    private boolean unique;
 
     CompoundIndexSchema() {
     }
@@ -60,6 +61,14 @@ class CompoundIndexSchema {
         this.collation = collation;
     }
 
+    public boolean getUnique() {
+        return unique;
+    }
+
+    public void setUnique(boolean unique) {
+        this.unique = unique;
+    }
+
     public void validate() {
         if (fields == null || fields.size() < 2) {
             throw new KronotopException("Compound index requires at least 2 fields");
@@ -86,6 +95,9 @@ class CompoundIndexSchema {
         }
         if (multiKeyCount > 1) {
             throw new KronotopException("Compound index allows at most one multi-key field");
+        }
+        if (unique && multiKeyCount > 0) {
+            throw new KronotopException("A unique index cannot be multi-key");
         }
 
         if (collation != null) {

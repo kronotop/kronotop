@@ -22,9 +22,7 @@ import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
-import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -33,7 +31,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BucketUniqueIndexTest extends BaseBucketHandlerTest {
 
@@ -43,27 +40,6 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
         SingleFieldIndexDefinition emailIndex = SingleFieldIndexDefinition.create(
                 "email-index", "email", BsonType.STRING, false, IndexStatus.WAITING, null, true);
         createIndexThenWaitForReadiness(emailIndex);
-    }
-
-    private Object insertRaw(String... jsonDocuments) {
-        return insertRawInto(TEST_BUCKET, jsonDocuments);
-    }
-
-    private Object insertRawInto(String bucket, String... jsonDocuments) {
-        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
-        ByteBuf buf = Unpooled.buffer();
-        byte[][] docs = new byte[jsonDocuments.length][];
-        for (int i = 0; i < jsonDocuments.length; i++) {
-            docs[i] = BSONUtil.jsonToDocumentThenBytes(jsonDocuments[i]);
-        }
-        cmd.insert(bucket, docs).encode(buf);
-        return runCommand(channel, buf);
-    }
-
-    private static void assertDuplicateKey(Object msg) {
-        assertInstanceOf(ErrorRedisMessage.class, msg);
-        assertTrue(((ErrorRedisMessage) msg).content().startsWith("DUPLICATEKEY"),
-                "Should return a DUPLICATEKEY error, got: " + msg);
     }
 
     @Test

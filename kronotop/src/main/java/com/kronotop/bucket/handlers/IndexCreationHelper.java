@@ -117,7 +117,7 @@ class IndexCreationHelper {
                     }
                 }
 
-                CompoundIndexDefinition definition = CompoundIndexDefinition.create(name, fields, initialStatus, collation);
+                CompoundIndexDefinition definition = CompoundIndexDefinition.create(name, fields, initialStatus, collation, compoundSchema.getUnique());
                 CompoundIndexUtil.create(tx, metadata, definition);
             }
         }
