@@ -97,6 +97,10 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
                     FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) entry.getValue();
                     assertEquals("STRING", value.content().toString(StandardCharsets.UTF_8));
                 }
+                case "unique" -> {
+                    BooleanRedisMessage value = (BooleanRedisMessage) entry.getValue();
+                    assertFalse(value.value());
+                }
                 case "status" -> {
                     FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) entry.getValue();
                     String status = value.content().toString(StandardCharsets.UTF_8);
@@ -125,6 +129,36 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
                 default -> fail("Unexpected key: " + key.content().toString(StandardCharsets.UTF_8));
             }
         }
+    }
+
+    @Test
+    void shouldDescribeUniqueSingleFieldIndex() {
+        // Behavior: INDEX DESCRIBE reports unique=true when a single-field index is created with "unique": true.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"email\": {\"bson_type\": \"string\", \"unique\": true}}").encode(buf);
+            runCommand(channel, buf);
+        }
+
+        refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+        String indexName = "selector:email.bsonType:STRING";
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexDescribe(TEST_BUCKET, indexName).encode(buf);
+        Object msg = runCommand(channel, buf);
+        MapRedisMessage actualMessage = (MapRedisMessage) msg;
+        assertNotNull(actualMessage);
+
+        boolean sawUnique = false;
+        for (Map.Entry<RedisMessage, RedisMessage> entry : actualMessage.children().entrySet()) {
+            FullBulkStringRedisMessage key = (FullBulkStringRedisMessage) entry.getKey();
+            if (key.content().toString(StandardCharsets.UTF_8).equals("unique")) {
+                sawUnique = true;
+                assertTrue(((BooleanRedisMessage) entry.getValue()).value());
+            }
+        }
+        assertTrue(sawUnique, "DESCRIBE output must contain the 'unique' field");
     }
 
     @Test

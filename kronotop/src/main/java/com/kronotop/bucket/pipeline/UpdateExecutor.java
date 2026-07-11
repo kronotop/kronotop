@@ -152,14 +152,27 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
             Map<ObjectId, UpdateResultContainer> updateResultContainers = new LinkedHashMap<>();
 
+            // Shared across all shard groups so two documents updated to the same unique value in one
+            // command conflict even when they live on different shards (their index entries are not
+            // written yet, so only the in-memory batch set can see the collision).
+            SingleFieldUniquenessEnforcer uniquenessEnforcer =
+                    new SingleFieldUniquenessEnforcer(ctx.metadata(), ctx.env().collatorCache(), strictTypes);
+
             for (Map.Entry<Integer, List<DocumentRef>> documentRefGroupByShard : byShardId.entrySet()) {
                 int shardId = documentRefGroupByShard.getKey();
                 BucketShard shard = ctx.env().bucketService().getShard(shardId);
 
                 if (shard != null) {
-                    handleLocalUpdate(tr, ctx, shard, shardId, documentRefGroupByShard.getValue(), parsedQuery, positionalFields, updateResultContainers);
+                    handleLocalUpdate(
+                            tr, ctx, shard, shardId,
+                            documentRefGroupByShard.getValue(), parsedQuery, positionalFields,
+                            updateResultContainers, uniquenessEnforcer
+                    );
                 } else {
-                    handleRemoteUpdate(tr, ctx, shardId, documentRefGroupByShard.getValue(), parsedQuery, positionalFields, updateResultContainers);
+                    handleRemoteUpdate(tr, ctx, shardId,
+                            documentRefGroupByShard.getValue(), parsedQuery, positionalFields,
+                            updateResultContainers, uniquenessEnforcer
+                    );
                 }
             }
 
@@ -178,6 +191,34 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
     }
 
     /**
+     * Resolves positional operators against the query and applies the update's set/unset operations
+     * to a single document. Shared by the local and remote update paths.
+     *
+     * @throws IllegalStateException if a positional field has no array element matching the query
+     */
+    private BSONUpdateUtil.DocumentUpdateResult applyUpdateOperations(QueryContext ctx, ByteBuffer document,
+                                                                      BqlExpr parsedQuery, Set<String> positionalFields) {
+        Map<String, Integer> matchedPositions = Map.of();
+        if (parsedQuery != null) {
+            matchedPositions = PositionalMatchFinder.findMatchedPositions(document, parsedQuery, positionalFields);
+            for (String field : positionalFields) {
+                if (!matchedPositions.containsKey(field)) {
+                    throw new IllegalStateException(
+                            "No array element in '" + field + "' matches the query condition");
+                }
+            }
+        }
+
+        return BSONUpdateUtil.applyUpdateOperations(
+                document,
+                ctx.options().update().setOps(),
+                ctx.options().update().unsetOps(),
+                ctx.options().update().arrayFilters(),
+                matchedPositions
+        );
+    }
+
+    /**
      * Updates documents residing on a shard owned by this node. Applies update operations in-place
      * via {@code Volume.updateByVersionstampedEntryUpdate} without changing the document's shard assignment.
      */
@@ -189,10 +230,12 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             List<DocumentRef> docRefs,
             BqlExpr parsedQuery,
             Set<String> positionalFields,
-            Map<ObjectId, UpdateResultContainer> updateResultContainers
+            Map<ObjectId, UpdateResultContainer> updateResultContainers,
+            SingleFieldUniquenessEnforcer uniquenessEnforcer
     ) throws IOException, KeyNotFoundException {
         Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
         VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
+        UniquenessChecker uniquenessChecker = new UniquenessChecker(tr);
         List<VersionstampedEntryUpdate> updatedEntries = new ArrayList<>();
         List<ObjectId> objectIds = new ArrayList<>();
 
@@ -202,27 +245,11 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                 throw new KeyNotFoundException(docRef.entryMetadata());
             }
 
-            Map<String, Integer> matchedPositions = Map.of();
-            if (parsedQuery != null) {
-                matchedPositions = PositionalMatchFinder.findMatchedPositions(document, parsedQuery, positionalFields);
-                for (String field : positionalFields) {
-                    if (!matchedPositions.containsKey(field)) {
-                        throw new IllegalStateException(
-                                "No array element in '" + field + "' matches the query condition");
-                    }
-                }
-            }
-
-            BSONUpdateUtil.DocumentUpdateResult setResult = BSONUpdateUtil.applyUpdateOperations(
-                    document,
-                    ctx.options().update().setOps(),
-                    ctx.options().update().unsetOps(),
-                    ctx.options().update().arrayFilters(),
-                    matchedPositions
-            );
+            BSONUpdateUtil.DocumentUpdateResult setResult = applyUpdateOperations(ctx, document, parsedQuery, positionalFields);
             if (!setResult.changed()) {
                 continue;
             }
+            uniquenessEnforcer.enqueue(uniquenessChecker, docRef.objectId().toByteArray(), setResult.document());
             Versionstamp versionstamp = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, docRef.objectId().toByteArray(), ctx.metadata());
             VersionstampedEntryUpdate updatedEntry = new VersionstampedEntryUpdate(versionstamp, docRef.entryMetadata(), setResult.document());
             updatedEntries.add(updatedEntry);
@@ -233,6 +260,9 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         if (updatedEntries.isEmpty()) {
             return;
         }
+
+        // Drain all uniqueness reads before touching the volume so a violation leaves no appended bytes.
+        uniquenessChecker.await();
 
         UpdateResult updateResult = shard.volume().updateByVersionstampedEntryUpdate(session, updatedEntries.toArray(new VersionstampedEntryUpdate[0]));
         TransactionUtil.addPostCommitHook(new PostCommitHook(updateResult), ctx.getSession());
@@ -257,7 +287,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             List<DocumentRef> docRefs,
             BqlExpr parsedQuery,
             Set<String> positionalFields,
-            Map<ObjectId, UpdateResultContainer> updateResultContainers
+            Map<ObjectId, UpdateResultContainer> updateResultContainers,
+            SingleFieldUniquenessEnforcer uniquenessEnforcer
     ) throws IOException, VersionstampAlreadyExistsException {
         Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
 
@@ -277,32 +308,33 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         BucketShard localShard = findLocalBucketShard(ctx);
 
         VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
+        UniquenessChecker uniquenessChecker = new UniquenessChecker(tr);
 
+        // First pass: apply the update operations and enqueue uniqueness checks. No volume writes
+        // happen yet, so the reads pipeline in parallel, and a violation aborts before any insert.
+        record ChangedDocument(DocumentRef docRef, BSONUpdateUtil.DocumentUpdateResult setResult) {
+        }
+        List<ChangedDocument> changed = new ArrayList<>();
         for (int i = 0; i < docRefs.size(); i++) {
             DocumentRef docRef = docRefs.get(i);
             ByteBuffer document = documents.get(i);
 
-            Map<String, Integer> matchedPositions = Map.of();
-            if (parsedQuery != null) {
-                matchedPositions = PositionalMatchFinder.findMatchedPositions(document, parsedQuery, positionalFields);
-                for (String field : positionalFields) {
-                    if (!matchedPositions.containsKey(field)) {
-                        throw new IllegalStateException(
-                                "No array element in '" + field + "' matches the query condition");
-                    }
-                }
-            }
-
-            BSONUpdateUtil.DocumentUpdateResult setResult = BSONUpdateUtil.applyUpdateOperations(
-                    document,
-                    ctx.options().update().setOps(),
-                    ctx.options().update().unsetOps(),
-                    ctx.options().update().arrayFilters(),
-                    matchedPositions
-            );
+            BSONUpdateUtil.DocumentUpdateResult setResult = applyUpdateOperations(ctx, document, parsedQuery, positionalFields);
             if (!setResult.changed()) {
                 continue;
             }
+
+            uniquenessEnforcer.enqueue(uniquenessChecker, docRef.objectId().toByteArray(), setResult.document());
+            changed.add(new ChangedDocument(docRef, setResult));
+        }
+
+        // Drain all uniqueness reads once before touching any volume.
+        uniquenessChecker.await();
+
+        // Second pass: insert into the local shard and delete the remote original.
+        for (ChangedDocument entry : changed) {
+            DocumentRef docRef = entry.docRef();
+            BSONUpdateUtil.DocumentUpdateResult setResult = entry.setResult();
 
             Versionstamp versionstamp = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, docRef.objectId().toByteArray(), ctx.metadata());
             KeyEntry keyEntry = new KeyEntry(versionstamp, setResult.document());
@@ -589,15 +621,10 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         SingleFieldIndexMaintainer.setEntryByObjectId(tr, objectIdBytes, indexEntryContainer, ctx.env().collatorCache());
     }
 
-    private void checkDuplicateId(Transaction tr, BucketMetadata metadata, ObjectId objectId) {
-        Index index = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
-        UniquenessChecker checker = new UniquenessChecker(tr);
-        checker.checkPrimaryKey(index.subspace(), objectId);
-        checker.await();
-    }
-
     private void executeUpsert(Transaction tr, QueryContext ctx) throws IOException {
         BsonDocument upsertDoc = buildUpsertDocument(ctx);
+
+        UniquenessChecker uniquenessChecker = new UniquenessChecker(tr);
 
         ObjectId objectId;
         BsonValue existingId = upsertDoc.get(ReservedFieldName.ID.getValue());
@@ -606,11 +633,18 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                 throw new InvalidBsonTypeException(ReservedFieldName.ID.getValue(), BsonType.OBJECT_ID);
             }
             objectId = existingId.asObjectId().getValue();
-            checkDuplicateId(tr, ctx.metadata(), objectId);
+            Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+            uniquenessChecker.checkPrimaryKey(primaryIndex.subspace(), objectId);
         } else {
             objectId = new ObjectId();
             upsertDoc.put(ReservedFieldName.ID.getValue(), new BsonObjectId(objectId));
         }
+
+        // Enforce unique single field indexes before the append so a violation leaves no bytes behind.
+        SingleFieldUniquenessEnforcer uniquenessEnforcer =
+                new SingleFieldUniquenessEnforcer(ctx.metadata(), ctx.env().collatorCache(), strictTypes);
+        uniquenessEnforcer.enqueue(uniquenessChecker, objectId.toByteArray(), upsertDoc);
+        uniquenessChecker.await();
 
         ByteBuffer docBuffer = BSONUtil.toByteBuffer(upsertDoc);
 

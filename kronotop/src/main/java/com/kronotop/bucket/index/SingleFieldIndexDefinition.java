@@ -54,7 +54,16 @@ import java.util.UUID;
  * @see IndexStatus
  */
 public record SingleFieldIndexDefinition(long id, String name, String selector, BsonType bsonType, boolean multiKey,
-                                         IndexStatus status, Collation collation) implements IndexDefinition {
+                                         IndexStatus status, Collation collation, boolean unique) implements IndexDefinition {
+
+    public SingleFieldIndexDefinition {
+        // Uniqueness reads assume a document contributes at most one entry per value. A multi-key
+        // index would break that invariant, so it must never combine with unique. Enforced here in
+        // the canonical constructor so no path (factory, direct construction, deserialization) bypasses it.
+        if (unique && multiKey) {
+            throw new IllegalArgumentException("A unique index cannot be multi-key");
+        }
+    }
 
     /**
      * Creates a new index definition with a unique ID and the given attributes.
@@ -73,12 +82,16 @@ public record SingleFieldIndexDefinition(long id, String name, String selector, 
     }
 
     public static SingleFieldIndexDefinition create(String name, String selector, BsonType bsonType, boolean multiKey, IndexStatus status, Collation collation) {
+        return create(name, selector, bsonType, multiKey, status, collation, false);
+    }
+
+    public static SingleFieldIndexDefinition create(String name, String selector, BsonType bsonType, boolean multiKey, IndexStatus status, Collation collation, boolean unique) {
         if (bsonType.equals(BsonType.DECIMAL128)) {
             throw new NotImplementedException("Creating indexes on DECIMAL128 fields not implemented yet");
         }
         UUID uuid = UUID.randomUUID();
         long id = UUIDUtil.hash(uuid).asLong();
-        return new SingleFieldIndexDefinition(id, name, selector, bsonType, multiKey, status, collation);
+        return new SingleFieldIndexDefinition(id, name, selector, bsonType, multiKey, status, collation, unique);
     }
 
     /**
@@ -98,7 +111,7 @@ public record SingleFieldIndexDefinition(long id, String name, String selector, 
         if (status != IndexStatus.DROPPED && status() == IndexStatus.DROPPED) {
             throw new IllegalStateException("Index '" + name + "' is already dropped and its status cannot be modified.");
         }
-        return new SingleFieldIndexDefinition(id, name, selector, bsonType, multiKey, status, collation);
+        return new SingleFieldIndexDefinition(id, name, selector, bsonType, multiKey, status, collation, unique);
     }
 
     @Override
@@ -107,7 +120,7 @@ public record SingleFieldIndexDefinition(long id, String name, String selector, 
         return "IndexDefinition { id=" + id + ", name=" + name +
                 ", selector=" + selector + ", bsonType=" + bsonType +
                 ", multiKey=" + multiKey + ", status=" + status +
-                ", collation=" + collation + " }";
+                ", collation=" + collation + ", unique=" + unique + " }";
     }
 
     @Override

@@ -245,7 +245,7 @@ class IndexPredicateResolverTest {
     @Test
     void shouldConvertDecimal128ValForDecimal128Index() {
         BigDecimal value = new BigDecimal("12345.6789");
-        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null);
+        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null, false);
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Decimal128Val(value)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
@@ -261,7 +261,7 @@ class IndexPredicateResolverTest {
     @Test
     void shouldWidenInt32ValToDecimal128ForDecimal128Index() {
         // Behavior: INT32 predicate value is losslessly widened to DECIMAL128 for a DECIMAL128 index.
-        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null);
+        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null, false);
         IndexScanPredicate predicate = new IndexScanPredicate(1, "field", Operator.LT, lit(new Int32Val(42)));
         IndexScanNode node = new IndexScanNode(1, def, predicate);
 
@@ -530,7 +530,7 @@ class IndexPredicateResolverTest {
     void shouldResolveDecimal128RangeForDecimal128Index() {
         BigDecimal lower = new BigDecimal("100.50");
         BigDecimal upper = new BigDecimal("999.99");
-        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null);
+        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null, false);
         RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Decimal128Val(lower)), lit(new Decimal128Val(upper)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 
@@ -548,7 +548,7 @@ class IndexPredicateResolverTest {
     @Test
     void shouldWidenInt32BoundsToDecimal128ForDecimal128RangeIndex() {
         // Behavior: INT32 range bounds are losslessly widened to DECIMAL128 for a DECIMAL128 range index.
-        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null);
+        SingleFieldIndexDefinition def = new SingleFieldIndexDefinition(1L, "test-index", "field", BsonType.DECIMAL128, false, null, null, false);
         RangeScanPredicate predicate = new RangeScanPredicate("field", lit(new Int32Val(10)), lit(new Int32Val(50)), true, false);
         RangeScanNode node = new RangeScanNode(1, def, predicate);
 

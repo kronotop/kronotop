@@ -24,4 +24,8 @@ public class DuplicateKeyException extends KronotopException {
     public DuplicateKeyException(ObjectId objectId) {
         super(RESPError.DUPLICATEKEY, String.format("Duplicate key: _id '%s'", objectId.toHexString()));
     }
+
+    public DuplicateKeyException(String selector, Object value) {
+        super(RESPError.DUPLICATEKEY, String.format("Duplicate key: '%s' %s", selector, value));
+    }
 }

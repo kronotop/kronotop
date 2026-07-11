@@ -56,8 +56,8 @@ class IndexCreationHelper {
 
     static void createIndexes(TransactionalContext tx, BucketMetadata metadata, IndexSchemaPayload payload, IndexStatus initialStatus) {
         // Create single-field indexes
-        for (Map.Entry<String, IndexSchema> entry : payload.getSingleFieldSchemas().entrySet()) {
-            IndexSchema schema = entry.getValue();
+        for (Map.Entry<String, SingleFieldIndexSchema> entry : payload.getSingleFieldSchemas().entrySet()) {
+            SingleFieldIndexSchema schema = entry.getValue();
             schema.validate();
 
             String name = schema.getName();
@@ -75,7 +75,8 @@ class IndexCreationHelper {
                     schema.getBsonType(),
                     schema.getMultiKey(),
                     initialStatus,
-                    collation
+                    collation,
+                    schema.getUnique()
             );
 
             if (metadata.indexes().getIndex(entry.getKey(), IndexSelectionPolicy.ALL) != null) {

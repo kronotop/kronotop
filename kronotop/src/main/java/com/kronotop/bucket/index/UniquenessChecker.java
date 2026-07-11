@@ -16,15 +16,19 @@
 
 package com.kronotop.bucket.index;
 
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.bucket.DuplicateKeyException;
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /**
  * Collects uniqueness checks for a single write operation and runs them together.
@@ -60,6 +64,40 @@ public final class UniquenessChecker {
                 throw new DuplicateKeyException(objectId);
             }
         });
+        pending.add(check);
+    }
+
+    /**
+     * Checks that no other document already holds the given value in a unique single field index.
+     * The read is issued immediately over the {@code (ENTRIES, value)} prefix; the violation is
+     * raised at {@link #await()}.
+     * <p>
+     * Entries whose trailing ObjectId equals {@code selfObjectId} are ignored, so a document does not
+     * conflict with its own existing entry (relevant on update). At most two entries are read: with
+     * multi-key unique indexes disallowed, a single document contributes at most one entry per value,
+     * so two entries are enough to tell "only self" from "someone else".
+     *
+     * @param indexSubspace the single field index subspace
+     * @param valuePrefix   the packed {@code (ENTRIES, encodedValue)} prefix
+     * @param selfObjectId  the writing document's ObjectId as bytes, excluded from the match
+     * @param violation     supplies the exception, built only on the rare violation branch
+     */
+    public void checkFieldValue(
+            DirectorySubspace indexSubspace,
+            byte[] valuePrefix,
+            byte[] selfObjectId,
+            Supplier<DuplicateKeyException> violation
+    ) {
+        CompletableFuture<Void> check = tr.getRange(valuePrefix, ByteArrayUtil.strinc(valuePrefix), 2)
+                .asList().thenAccept(entries -> {
+                    for (KeyValue kv : entries) {
+                        Tuple unpacked = indexSubspace.unpack(kv.getKey());
+                        byte[] objectId = unpacked.getBytes(unpacked.size() - 1);
+                        if (!Arrays.equals(objectId, selfObjectId)) {
+                            throw violation.get();
+                        }
+                    }
+                });
         pending.add(check);
     }
 

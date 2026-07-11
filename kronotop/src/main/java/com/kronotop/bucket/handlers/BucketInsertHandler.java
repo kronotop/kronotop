@@ -17,7 +17,6 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
@@ -124,12 +123,12 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
      * @param objectIdBytesArray  pre-computed ObjectId bytes per document
      * @param encodedIndexEntries pre-computed encoded IndexEntry bytes per document
      */
-    private void setSecondaryIndexes(Transaction tr,
-                                     BucketMetadata metadata,
-                                     AppendResult appendResult,
-                                     SerializedDocument[] documents,
-                                     byte[][] objectIdBytesArray,
-                                     byte[][] encodedIndexEntries
+    private void setSingleFieldIndexes(Transaction tr,
+                                       BucketMetadata metadata,
+                                       AppendResult appendResult,
+                                       SerializedDocument[] documents,
+                                       byte[][] objectIdBytesArray,
+                                       byte[][] encodedIndexEntries
     ) {
         for (int i = 0; i < appendResult.getAppendedEntries().length; i++) {
             SerializedDocument serializedDocument = documents[i];
@@ -321,15 +320,26 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
     }
 
     /**
-     * Checks the primary index for existing _id entries and throws if any duplicate is found.
+     * Runs all uniqueness checks for the batch in one pass before the volume append: primary key
+     * duplicates for user-provided _id values and value duplicates for unique single field indexes.
+     * The reads run in parallel and are drained here, so a violation aborts before any bytes are
+     * appended and no garbage is left behind.
      */
-    private void checkDuplicateIds(Transaction tr, BucketMetadata metadata, Set<ObjectId> objectIds) {
-        Index index = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
-        DirectorySubspace indexSubspace = index.subspace();
+    private void checkUniqueness(Transaction tr, BucketMetadata metadata, SerializedDocument[] documents, Set<ObjectId> userProvidedIds) {
         UniquenessChecker checker = new UniquenessChecker(tr);
-        for (ObjectId objectId : objectIds) {
-            checker.checkPrimaryKey(indexSubspace, objectId);
+
+        if (userProvidedIds != null && !userProvidedIds.isEmpty()) {
+            Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+            for (ObjectId objectId : userProvidedIds) {
+                checker.checkPrimaryKey(primaryIndex.subspace(), objectId);
+            }
         }
+
+        SingleFieldUniquenessEnforcer enforcer = new SingleFieldUniquenessEnforcer(metadata, service.getCollatorCache(), strictTypes);
+        for (SerializedDocument document : documents) {
+            enforcer.enqueue(checker, document.objectId().toByteArray(), document.document());
+        }
+
         checker.await();
     }
 
@@ -367,9 +377,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                     }
                 }
             }
-            if (userProvidedIds != null && !userProvidedIds.isEmpty()) {
-                checkDuplicateIds(tr, metadata, userProvidedIds);
-            }
+            checkUniqueness(tr, metadata, documents, userProvidedIds);
 
             if (!metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
                 checkVectorIndexRecoveryState(metadata);
@@ -427,7 +435,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             // Index creation for all user-defined indexes
             // Minimum number of indexes is 1. The primary index is the default one.
             if (metadata.indexes().getIndexes(IndexSelectionPolicy.WRITABLE).size() > 1) {
-                setSecondaryIndexes(tr, metadata, appendResult, documents, objectIdBytesArray, encodedIndexEntries);
+                setSingleFieldIndexes(tr, metadata, appendResult, documents, objectIdBytesArray, encodedIndexEntries);
             }
 
             if (!metadata.compoundIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {

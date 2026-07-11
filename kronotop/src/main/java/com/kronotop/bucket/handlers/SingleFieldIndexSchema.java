@@ -26,7 +26,7 @@ import org.bson.BsonType;
 import tools.jackson.databind.annotation.JsonDeserialize;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class IndexSchema {
+public class SingleFieldIndexSchema {
     private String name;
 
     @JsonProperty("bson_type")
@@ -41,9 +41,15 @@ public class IndexSchema {
     @JsonProperty("multi_key")
     private boolean multiKey;
 
+    /**
+     * When true, the index rejects documents whose value on this field already exists.
+     */
+    @JsonProperty("unique")
+    private boolean unique;
+
     private Collation collation;
 
-    IndexSchema() {
+    SingleFieldIndexSchema() {
     }
 
     public BsonType getBsonType() {
@@ -60,6 +66,14 @@ public class IndexSchema {
 
     public void setMultiKey(boolean multiKey) {
         this.multiKey = multiKey;
+    }
+
+    public boolean getUnique() {
+        return unique;
+    }
+
+    public void setUnique(boolean unique) {
+        this.unique = unique;
     }
 
     public String getName() {
@@ -82,6 +96,9 @@ public class IndexSchema {
     public void validate() {
         if (getBsonType() == null) {
             throw new KronotopException("'bson_type' cannot be null");
+        }
+        if (unique && multiKey) {
+            throw new KronotopException("A unique index cannot be multi-key");
         }
         if (collation != null) {
             if (bsonType != BsonType.STRING) {

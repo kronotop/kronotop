@@ -41,8 +41,10 @@ import static com.kronotop.AsyncCommandExecutor.runAsync;
  *
  * <p>Index schema format:
  * <pre>
- * {"field_name": {"bson_type": "type", "multi_key": true/false, "name": "optional_name"}}
+ * {"field_name": {"bson_type": "type", "multi_key": true/false, "unique": true/false, "name": "optional_name"}}
  * </pre>
+ *
+ * <p>{@code unique} is optional and defaults to {@code false}.</p>
  *
  * <h3>Multi-key Index Behavior and Limitations</h3>
  *

@@ -33,17 +33,17 @@ import java.util.Map;
  */
 @JsonDeserialize(using = IndexSchemaPayload.Deserializer.class)
 class IndexSchemaPayload {
-    private final Map<String, IndexSchema> singleFieldSchemas;
+    private final Map<String, SingleFieldIndexSchema> singleFieldSchemas;
     private final List<CompoundIndexSchema> compoundSchemas;
     private final VectorIndexSchema vectorSchema;
 
-    IndexSchemaPayload(Map<String, IndexSchema> singleFieldSchemas, List<CompoundIndexSchema> compoundSchemas, VectorIndexSchema vectorSchema) {
+    IndexSchemaPayload(Map<String, SingleFieldIndexSchema> singleFieldSchemas, List<CompoundIndexSchema> compoundSchemas, VectorIndexSchema vectorSchema) {
         this.singleFieldSchemas = singleFieldSchemas;
         this.compoundSchemas = compoundSchemas;
         this.vectorSchema = vectorSchema;
     }
 
-    public Map<String, IndexSchema> getSingleFieldSchemas() {
+    public Map<String, SingleFieldIndexSchema> getSingleFieldSchemas() {
         return singleFieldSchemas;
     }
 
@@ -58,7 +58,7 @@ class IndexSchemaPayload {
     static class Deserializer extends ValueDeserializer<IndexSchemaPayload> {
         @Override
         public IndexSchemaPayload deserialize(JsonParser p, DeserializationContext ctxt) {
-            Map<String, IndexSchema> singleFieldSchemas = new LinkedHashMap<>();
+            Map<String, SingleFieldIndexSchema> singleFieldSchemas = new LinkedHashMap<>();
             List<CompoundIndexSchema> compoundSchemas = null;
             VectorIndexSchema vectorSchema = null;
 
@@ -79,7 +79,7 @@ class IndexSchemaPayload {
                         throw new IllegalArgumentException("Unknown directive: " + fieldName);
                     }
                 } else {
-                    IndexSchema schema = ctxt.readValue(p, IndexSchema.class);
+                    SingleFieldIndexSchema schema = ctxt.readValue(p, SingleFieldIndexSchema.class);
                     singleFieldSchemas.put(fieldName, schema);
                 }
             }

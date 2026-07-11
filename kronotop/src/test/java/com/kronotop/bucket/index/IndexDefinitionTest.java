@@ -22,12 +22,15 @@ import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IndexDefinitionTest {
     @Test
     void shouldEncodeDecode() {
-        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.BINARY, false, IndexStatus.WAITING);
+        // Behavior: a single-field definition survives a JSON round-trip, including the unique flag.
+        SingleFieldIndexDefinition index = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.BINARY, false, IndexStatus.WAITING, null, true);
         byte[] data = JSONUtil.writeValueAsBytes(index);
 
         SingleFieldIndexDefinition decoded = JSONUtil.readValue(data, SingleFieldIndexDefinition.class);
@@ -36,6 +39,37 @@ class IndexDefinitionTest {
         assertEquals(index.name(), decoded.name());
         assertEquals(index.selector(), decoded.selector());
         assertEquals(index.bsonType(), decoded.bsonType());
+        assertTrue(decoded.unique());
+    }
+
+    @Test
+    void shouldDefaultUniqueToFalse() {
+        // Behavior: factory overloads without a unique argument default the flag to false.
+        assertFalse(SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING).unique());
+        assertFalse(SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING, null).unique());
+    }
+
+    @Test
+    void shouldPreserveUniqueOnStatusUpdate() {
+        // Behavior: updateStatus keeps the unique flag unchanged.
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("index-name", "_id", BsonType.INT32, false, IndexStatus.WAITING, null, true);
+        assertTrue(definition.updateStatus(IndexStatus.BUILDING).unique());
+    }
+
+    @Test
+    void shouldRejectUniqueMultiKeyViaConstructor() {
+        // Behavior: the canonical constructor rejects a unique multi-key index, so no path
+        // (direct construction, deserialization) can produce this invariant-breaking definition.
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                new SingleFieldIndexDefinition(1L, "i", "f", BsonType.STRING, true, IndexStatus.WAITING, null, true));
+        assertEquals("A unique index cannot be multi-key", exception.getMessage());
+    }
+
+    @Test
+    void shouldRejectUniqueMultiKeyViaFactory() {
+        // Behavior: the factory also rejects a unique multi-key index.
+        assertThrows(IllegalArgumentException.class, () ->
+                SingleFieldIndexDefinition.create("i", "f", BsonType.STRING, true, IndexStatus.WAITING, null, true));
     }
 
     @Test

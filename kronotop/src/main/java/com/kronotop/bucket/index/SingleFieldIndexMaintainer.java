@@ -62,6 +62,43 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
     }
 
     /**
+     * Encodes a raw field value into the form stored in index keys: ObjectId values become their
+     * byte representation, and String values are replaced by their collation key. This is the single
+     * source of truth for index value encoding, so uniqueness checks and entry writes agree exactly.
+     *
+     * @param definition    the index definition
+     * @param metadata      the bucket metadata
+     * @param rawValue      the raw field value (may be null)
+     * @param collatorCache the collator cache for collation-aware encoding
+     * @return the encoded index value
+     */
+    public static Object encodeIndexValue(
+            SingleFieldIndexDefinition definition,
+            BucketMetadata metadata,
+            Object rawValue,
+            CollatorCache collatorCache
+    ) {
+        if (rawValue instanceof ObjectId objectIdValue) {
+            rawValue = objectIdValue.toByteArray();
+        }
+        Collation collation = resolveCollation(definition, metadata);
+        return applyCollation(rawValue, collation, collatorCache);
+    }
+
+    /**
+     * Builds the key prefix that covers every entry with the given encoded value, regardless of
+     * ObjectId: {@code (ENTRIES, encodedValue)}. A range read over this prefix finds all documents
+     * that share the value, which is how uniqueness is checked.
+     *
+     * @param indexSubspace the index's directory subspace
+     * @param encodedValue  the encoded index value (see {@link #encodeIndexValue})
+     * @return the packed prefix bytes
+     */
+    public static byte[] entryValuePrefix(DirectorySubspace indexSubspace, Object encodedValue) {
+        return indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), encodedValue));
+    }
+
+    /**
      * Creates a single field index entry with an associated back pointer.
      *
      * @param tr            the FoundationDB transaction
@@ -81,11 +118,7 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
             byte[] indexEntry,
             CollatorCache collatorCache
     ) {
-        if (indexValue instanceof ObjectId objectIdValue) {
-            indexValue = objectIdValue.toByteArray();
-        }
-        Collation collation = resolveCollation(index.definition(), metadata);
-        indexValue = applyCollation(indexValue, collation, collatorCache);
+        indexValue = encodeIndexValue(index.definition(), metadata, indexValue, collatorCache);
 
         byte[] key = getSingleFieldIndexEntryKey(index, indexValue, objectId);
         tr.set(key, indexEntry);
@@ -127,11 +160,7 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
             byte[] entry,
             CollatorCache collatorCache
     ) {
-        if (indexValue instanceof ObjectId objectIdValue) {
-            indexValue = objectIdValue.toByteArray();
-        }
-        Collation collation = resolveCollation(index.definition(), metadata);
-        indexValue = applyCollation(indexValue, collation, collatorCache);
+        indexValue = encodeIndexValue(index.definition(), metadata, indexValue, collatorCache);
         byte[] key = getSingleFieldIndexEntryKey(index, indexValue, objectId);
 
         IndexEntry indexEntry = new IndexEntry(shardId, entry);
@@ -227,12 +256,7 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
      * @param collatorCache the collator cache for collation-aware indexing
      */
     public static void setEntryByObjectId(Transaction tr, byte[] objectId, IndexEntryContainer container, CollatorCache collatorCache) {
-        Object indexValue = container.indexValue();
-        if (indexValue instanceof ObjectId objectIdValue) {
-            indexValue = objectIdValue.toByteArray();
-        }
-        Collation collation = resolveCollation(container.indexDefinition(), container.metadata());
-        indexValue = applyCollation(indexValue, collation, collatorCache);
+        Object indexValue = encodeIndexValue(container.indexDefinition(), container.metadata(), container.indexValue(), collatorCache);
 
         Tuple indexKeyTuple = Tuple.from(
                 IndexSubspaceMagic.ENTRIES.getValue(),

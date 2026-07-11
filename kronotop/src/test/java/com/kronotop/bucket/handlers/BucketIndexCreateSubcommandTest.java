@@ -67,6 +67,18 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
     }
 
     @Test
+    void shouldRejectUniqueMultiKeyIndex() {
+        // Behavior: a unique index cannot be multi-key; creating one returns an error.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexCreate(TEST_BUCKET, "{\"tags\": {\"bson_type\": \"string\", \"multi_key\": true, \"unique\": true}}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertNotNull(actualMessage);
+        assertEquals("ERR A unique index cannot be multi-key", actualMessage.content());
+    }
+
+    @Test
     void shouldReturnErrorForInvalidType() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
