@@ -45,8 +45,8 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldRejectSecondInsertWithDuplicateUniqueValue() {
         // Behavior: inserting a second document with a value already present in a unique index fails.
-        assertInstanceOf(ArrayRedisMessage.class, insertRaw("{\"email\": \"a@x.com\", \"name\": \"A\"}"));
-        assertDuplicateKey(insertRaw("{\"email\": \"a@x.com\", \"name\": \"B\"}"));
+        assertInstanceOf(ArrayRedisMessage.class, insertRaw("{\"email\": \"a@kronotop.com\", \"name\": \"A\"}"));
+        assertDuplicateKey(insertRaw("{\"email\": \"a@kronotop.com\", \"name\": \"B\"}"));
     }
 
     @Test
@@ -54,8 +54,8 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
         // Behavior: two documents in one insert batch sharing a unique value fail, since the FDB read
         // cannot see the not-yet-written sibling and the in-memory batch set catches the collision.
         assertDuplicateKey(insertRaw(
-                "{\"email\": \"dup@x.com\", \"name\": \"A\"}",
-                "{\"email\": \"dup@x.com\", \"name\": \"B\"}"));
+                "{\"email\": \"dup@kronotop.com\", \"name\": \"A\"}",
+                "{\"email\": \"dup@kronotop.com\", \"name\": \"B\"}"));
     }
 
     @Test
@@ -69,8 +69,8 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldAllowDistinctUniqueValues() {
         // Behavior: distinct values in a unique index insert without conflict.
-        assertInstanceOf(ArrayRedisMessage.class, insertRaw("{\"email\": \"a@x.com\", \"name\": \"A\"}"));
-        assertInstanceOf(ArrayRedisMessage.class, insertRaw("{\"email\": \"b@x.com\", \"name\": \"B\"}"));
+        assertInstanceOf(ArrayRedisMessage.class, insertRaw("{\"email\": \"a@kronotop.com\", \"name\": \"A\"}"));
+        assertInstanceOf(ArrayRedisMessage.class, insertRaw("{\"email\": \"b@kronotop.com\", \"name\": \"B\"}"));
     }
 
     @Test
@@ -98,13 +98,13 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldRejectUpdateToExistingUniqueValue() {
         // Behavior: updating a document's unique field to a value held by another document fails.
-        insertRaw("{\"email\": \"a@x.com\", \"name\": \"A\"}");
-        insertRaw("{\"email\": \"b@x.com\", \"name\": \"B\"}");
+        insertRaw("{\"email\": \"a@kronotop.com\", \"name\": \"A\"}");
+        insertRaw("{\"email\": \"b@kronotop.com\", \"name\": \"B\"}");
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
         ByteBuf buf = Unpooled.buffer();
-        cmd.update(TEST_BUCKET, "{\"name\": \"B\"}", "{\"$set\": {\"email\": \"a@x.com\"}}").encode(buf);
+        cmd.update(TEST_BUCKET, "{\"name\": \"B\"}", "{\"$set\": {\"email\": \"a@kronotop.com\"}}").encode(buf);
         assertDuplicateKey(runCommand(channel, buf));
     }
 
@@ -112,7 +112,7 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
     void shouldAllowUpdatingNonUniqueFieldOnUniqueIndexedDocument() {
         // Behavior: changing a non-unique field must not trip the document's own unique index entry
         // (self-exclusion): the document does not conflict with itself.
-        insertRaw("{\"email\": \"a@x.com\", \"name\": \"A\"}");
+        insertRaw("{\"email\": \"a@kronotop.com\", \"name\": \"A\"}");
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
@@ -124,12 +124,12 @@ class BucketUniqueIndexTest extends BaseBucketHandlerTest {
     @Test
     void shouldRejectUpsertWithConflictingUniqueValue() {
         // Behavior: an upsert that creates a new document with a unique value already in use fails.
-        insertRaw("{\"email\": \"a@x.com\", \"name\": \"A\"}");
+        insertRaw("{\"email\": \"a@kronotop.com\", \"name\": \"A\"}");
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
         ByteBuf buf = Unpooled.buffer();
-        cmd.update(TEST_BUCKET, "{\"name\": \"Z\"}", "{\"$set\": {\"email\": \"a@x.com\"}, \"upsert\": true}").encode(buf);
+        cmd.update(TEST_BUCKET, "{\"name\": \"Z\"}", "{\"$set\": {\"email\": \"a@kronotop.com\"}, \"upsert\": true}").encode(buf);
         assertDuplicateKey(runCommand(channel, buf));
     }
 }

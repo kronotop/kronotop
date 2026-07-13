@@ -93,6 +93,9 @@ public class CompoundIndexBuildingRoutine extends AbstractBuildingRoutine {
             buffer.add(new BufferedEntry(pair, objectId, objectId.toByteArray()));
         }
 
+        // Enforce uniqueness if it's defined.
+        checkUniqueness(tr, metadata, compoundIndex.definition(), buffer);
+
         // Find which ObjectIds in this batch are already indexed (e.g., by online writers),
         // so they are not processed again and cardinality is not double-counted.
         Set<ObjectId> alreadyIndexed = IndexMaintainer.findIndexedObjectIds(
@@ -120,8 +123,5 @@ public class CompoundIndexBuildingRoutine extends AbstractBuildingRoutine {
 
         setCursor(tr, versionstamp);
         return total;
-    }
-
-    private record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes) {
     }
 }

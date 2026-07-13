@@ -31,6 +31,10 @@ public sealed interface IndexDefinition permits SingleFieldIndexDefinition, Comp
 
     IndexDefinition updateStatus(IndexStatus status);
 
+    default boolean unique() {
+        return false;
+    }
+
     default Collation collation() {
         return null;
     }

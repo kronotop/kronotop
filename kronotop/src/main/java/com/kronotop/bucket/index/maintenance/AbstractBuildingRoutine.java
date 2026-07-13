@@ -23,16 +23,18 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.index.IndexHolder;
-import com.kronotop.bucket.index.IndexStatus;
+import com.kronotop.bucket.index.*;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
 import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.VolumeEntry;
 import io.github.resilience4j.retry.Retry;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -70,6 +72,18 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
         this.shardId = shardId;
         this.task = task;
         this.service = context.getService(BucketService.NAME);
+    }
+
+    void checkUniqueness(Transaction tr, BucketMetadata metadata, IndexDefinition indexDef, List<BufferedEntry> buffer) {
+        if (indexDef.unique()) {
+            UniquenessChecker checker = new UniquenessChecker(tr);
+            UniquenessEnforcer enforcer = new UniquenessEnforcer(metadata, service.getCollatorCache(), strictTypes);
+            for (BufferedEntry bufferedEntry : buffer) {
+                VolumeEntry volumeEntry = bufferedEntry.entry();
+                enforcer.enqueue(checker, bufferedEntry.objectIdBytes, volumeEntry.entry());
+            }
+            checker.await();
+        }
     }
 
     /**
@@ -230,6 +244,24 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                 } else {
                     metrics.incrementProcessedEntries(processedEntries);
                 }
+            } catch (DuplicateKeyException exp) {
+                LOGGER.debug("TaskId: {} on Bucket shard: {} has failed due to duplicate key violation: '{}'",
+                        VersionstampUtil.base32HexEncode(taskId),
+                        shardId,
+                        exp.getMessage()
+                );
+                try {
+                    markTaskFailed(exp);
+                } catch (Exception suppressed) {
+                    LOGGER.debug("Could not mark task {} as FAILED: {}",
+                            VersionstampUtil.base32HexEncode(taskId),
+                            suppressed.getMessage()
+                    );
+                    throw new IndexMaintenanceRoutineShutdownException();
+                }
+                // Watchdog will detect the bucket is gone and drop the orphaned task.
+                stopped = true;
+                break;
             } catch (NoSuchBucketException | BucketBeingRemovedException |
                      NamespaceBeingRemovedException exp) {
                 LOGGER.debug("TaskId: {} on Bucket shard: {} has failed due to bucket/namespace removal: '{}'",
@@ -303,5 +335,8 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
         LOGGER.debug("{} for {}/{}/{} on Bucket shard={} has been completed",
                 routineName, task.getNamespace(), task.getBucket(), task.getIndexId(), shardId
         );
+    }
+
+    record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes) {
     }
 }

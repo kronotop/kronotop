@@ -1057,4 +1057,105 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             }
         });
     }
+
+    @Test
+    void shouldFailBackgroundBuildWhenUniqueIndexHasDuplicateValues() {
+        // Behavior: When existing documents already violate a unique single-field index, the background
+        // builder detects the duplicate value, fails the build task with a duplicate key error, and leaves
+        // no index entries behind because the failing batch transaction is never committed.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[][] docs = makeDocumentsArray(
+                List.of(
+                        BSONUtil.jsonToDocumentThenBytes("{\"email\": \"a@example.com\"}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"email\": \"a@example.com\"}")
+                ));
+        cmd.insert(TEST_BUCKET, docs).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        assertEquals(2, ((ArrayRedisMessage) msg).children().size());
+
+        // Create a unique index on "email" after the duplicate documents already exist.
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+                "email-unique-index", "email", BsonType.STRING, false, IndexStatus.WAITING, null, true);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
+            tr.commit().join();
+        }
+
+        Versionstamp taskId = TestUtil.findIndexMaintenanceTaskId(context, taskSubspace, IndexMaintenanceTaskKind.BUILD);
+
+        // Wait for the task to fail due to the uniqueness violation.
+        await().atMost(30, TimeUnit.SECONDS).until(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
+                return state.status() == IndexTaskStatus.FAILED;
+            }
+        });
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
+            assertEquals(IndexTaskStatus.FAILED, state.status());
+            assertNotNull(state.error(), "Error message should be set");
+            assertTrue(state.error().contains("Duplicate key"),
+                    "Error message should indicate a duplicate key violation");
+            assertTrue(state.error().contains("email"),
+                    "Error message should mention the offending selector");
+
+            // The failing batch is rolled back, so no index entries were written.
+            BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+            Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+            byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+            byte[] end = ByteArrayUtil.strinc(begin);
+            List<KeyValue> entries = tr.getRange(begin, end).asList().join();
+            assertTrue(entries.isEmpty(), "No index entries should be written when the build fails");
+        }
+    }
+
+    @Test
+    void shouldBuildUniqueIndexAtBackgroundWhenNoDuplicates() {
+        // Behavior: A unique single-field index builds normally over existing documents when every value
+        // is distinct, reaching READY with exactly one index entry per document.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[][] docs = makeDocumentsArray(
+                List.of(
+                        BSONUtil.jsonToDocumentThenBytes("{\"email\": \"a@example.com\"}"),
+                        BSONUtil.jsonToDocumentThenBytes("{\"email\": \"b@example.com\"}")
+                ));
+        cmd.insert(TEST_BUCKET, docs).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        assertEquals(2, ((ArrayRedisMessage) msg).children().size());
+
+        SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
+                "email-unique-index", "email", BsonType.STRING, false, IndexStatus.WAITING, null, true);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
+            tr.commit().join();
+        }
+
+        await().atMost(30, TimeUnit.SECONDS).until(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                if (index == null) return false;
+
+                SingleFieldIndexDefinition loadedDef = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
+                if (loadedDef.status() != IndexStatus.READY) return false;
+
+                byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+                byte[] end = ByteArrayUtil.strinc(begin);
+                List<KeyValue> entries = tr.getRange(begin, end).asList().join();
+                return entries.size() == 2;
+            }
+        });
+    }
 }
