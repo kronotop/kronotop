@@ -97,6 +97,26 @@ BUCKET.INDEX CREATE products '{
 Collation requires at least one `string` field in the compound index. If omitted, the bucket-level collation is
 inherited for string fields. See [Collation](collation.md) for full details.
 
+Set `unique: true` at the compound index level to enforce that the combination of all field values is
+unique across documents:
+
+```kronotop
+BUCKET.INDEX CREATE users '{
+  "$compound": [{
+    "unique": true,
+    "fields": [
+      {"selector": "name", "bson_type": "string"},
+      {"selector": "age", "bson_type": "int32"}
+    ]
+  }]
+}'
+```
+
+Uniqueness applies to the whole key. The same `name` with a different `age` is allowed, because the
+`(name, age)` combination differs. A duplicate combination is rejected with a `DUPLICATEKEY` error at
+insert, update, or upsert time. The index is not sparse: a missing field is indexed as `null`, so a
+second document that omits both fields collides on the `(null, null)` key.
+
 Single-field and compound indexes can be defined in the same schema:
 
 ```kronotop
@@ -257,6 +277,9 @@ sorting. Both ASC and DESC sort directions are supported.
 - **Maximum 32 fields.** A compound index supports at most 32 fields.
 - **At most one multi-key field.** A compound index allows at most one field with `multi_key` enabled. Multiple
   multi-key fields in the same compound index are rejected at creation time.
+- **Unique combination.** With `unique: true`, the combination of all field values may appear in at most
+  one document. The index is not sparse: missing fields are indexed as `null`, so only one document may
+  omit all key fields. A unique compound index cannot contain a multi-key field.
 - **No duplicate selectors.** Each field selector must appear exactly once within a compound index. Duplicate selectors
   are rejected.
 - **Strict type matching.** Each field in a compound index has a declared BSON type. The same strict type matching rules

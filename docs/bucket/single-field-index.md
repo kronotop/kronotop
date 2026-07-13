@@ -65,6 +65,34 @@ BUCKET.INDEX CREATE users '{"username": {"bson_type": "string", "collation": {"l
 When a query uses a collation, the query engine only selects an index if its collation is compatible.
 See [Collation](collation.md) for details.
 
+### Unique
+
+Set `unique: true` to reject any document whose value on the field already exists in the bucket:
+
+```json
+{
+  "email": {
+    "bson_type": "string",
+    "unique": true
+  }
+}
+```
+
+With the command:
+
+```kronotop
+BUCKET.INDEX CREATE users '{"email": {"bson_type": "string", "unique": true}}'
+```
+
+A duplicate value is rejected with a `DUPLICATEKEY` error at insert, update, or upsert time. The
+message names the field and the offending value, for example `Duplicate key: 'email' a@kronotop.com`.
+
+A unique index is not sparse. A missing field and an explicit `null` are both indexed as `null`, and
+`null` counts as a value. Only one document may leave the field out; a second document without the
+field collides on the `null` key.
+
+A unique index cannot be multi-key. See [Constraints](#constraints).
+
 See [BUCKET.INDEX CREATE](commands/bucket-index.md#bucketindex-create) for the full command reference.
 
 ## Supported operators
@@ -177,6 +205,9 @@ independently. Each index produces a set of candidate documents, and the engine 
 - **Supported BSON types.** `string`, `int32`, `int64`, `double`, `boolean`, `datetime`, `timestamp`, `binary`,
   `objectid`. The `decimal128` type is not yet fully supported for indexing.
 - **Unique names.** Index names must be unique across all indexes (single-field, compound, and vector) in the bucket.
+- **Unique values.** With `unique: true`, each indexed value may appear in at most one document. The
+  index is not sparse: a missing field and an explicit `null` both count as the value `null`, so only
+  one document may omit the field. A unique index cannot be multi-key.
 - **Strict type matching.** Each index has a declared BSON type. Values that don't match the type are rejected (with
   `strict_types = true`) or silently skipped (with `strict_types = false`). See [Strict Types](strict-types.md).
 - **One type per index.** A single-field index indexes values of exactly one BSON type. There is no mixed-type index.

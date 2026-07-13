@@ -45,8 +45,8 @@ The `INDEXES` parameter accepts a JSON object that can contain single-field inde
 
 ```
 {
-  "<field>": { "bson_type": "<type>" [, "multi_key": true] [, "name": "<name>"] },
-  "$compound": [ { "fields": [ { "selector": "<field>", "bson_type": "<type>" }, ... ] [, "name": "<name>"] } ]
+  "<field>": { "bson_type": "<type>" [, "multi_key": true] [, "unique": true] [, "name": "<name>"] },
+  "$compound": [ { "fields": [ { "selector": "<field>", "bson_type": "<type>" }, ... ] [, "unique": true] [, "name": "<name>"] } ]
 }
 ```
 
@@ -83,6 +83,7 @@ properties:
 |-------------|---------|----------|---------------------------------------------------------------------------------------------------------------------------------|
 | `bson_type` | string  | Yes      | The BSON type of the field values. See [Supported BSON Types](bucket-index.md#supported-bson-types).                            |
 | `multi_key` | boolean | No       | When `true`, creates a multi-key index for array fields. Each array element generates a separate index entry. Default: `false`. |
+| `unique`    | boolean | No       | When `true`, rejects any document whose value on this field already exists. Cannot be combined with `multi_key`. Default: `false`. |
 | `name`      | string  | No       | Custom name for the index. If omitted, a name is auto-generated from the selector and type.                                     |
 | `collation` | object  | No       | Collation spec for locale-aware string ordering. Only valid for `string` type. See [Collation](../collation.md).                |
 
@@ -106,14 +107,16 @@ The `$compound` key holds an array of compound index definitions. Each definitio
 
 | Property    | Type   | Required | Description                                                                                                              |
 |-------------|--------|----------|--------------------------------------------------------------------------------------------------------------------------|
-| `name`      | string | No       | Custom name for the compound index. If omitted, a name is auto-generated.                                                |
-| `collation` | object | No       | Collation spec for locale-aware string ordering. Requires at least one `string` field. See [Collation](../collation.md). |
+| `name`      | string  | No       | Custom name for the compound index. If omitted, a name is auto-generated.                                                |
+| `unique`    | boolean | No       | When `true`, the combination of all field values must be unique across documents. Cannot be combined with a multi-key field. Default: `false`. |
+| `collation` | object  | No       | Collation spec for locale-aware string ordering. Requires at least one `string` field. See [Collation](../collation.md). |
 
 Each field in the `fields` array supports `selector` (required), `bson_type` (required), and `multi_key` (optional,
 default `false`).
 
-**Constraints:** A compound index must have at least two fields, at most one field can have `multi_key` enabled, and
-each selector must appear exactly once. See [Compound Indexes](../compound-index.md) for detailed rules.
+**Constraints:** A compound index must have at least two fields, at most one field can have `multi_key` enabled, a
+unique compound index cannot contain a multi-key field, and each selector must appear exactly once.
+See [Compound Indexes](../compound-index.md) for detailed rules.
 
 Every bucket automatically includes a primary index. The indexes defined here are secondary indexes created in the same
 transaction as the bucket itself.
@@ -164,6 +167,15 @@ OK
 ```kronotop
 > BUCKET.CREATE products INDEXES '{
   "tags": {"bson_type": "string", "multi_key": true, "name": "idx_tags"}
+}'
+OK
+```
+
+**Create a bucket with a unique index:**
+
+```kronotop
+> BUCKET.CREATE users INDEXES '{
+  "email": {"bson_type": "string", "unique": true}
 }'
 OK
 ```
