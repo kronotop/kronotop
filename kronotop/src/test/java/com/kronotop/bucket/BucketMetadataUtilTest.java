@@ -270,11 +270,11 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
             BucketMetadata metadata = assertDoesNotThrow(() -> BucketMetadataUtil.open(context, tr, session, TEST_BUCKET));
             assertThat(metadata)
                     .usingRecursiveComparison()
-                    .ignoringFields("indexes.lock",
-                            "indexes.statistics",
+                    .ignoringFields("singleFieldIndexes.lock",
+                            "singleFieldIndexes.statistics",
                             "compoundIndexes.statistics",
                             "compoundIndexes.statsLastRefreshedAt",
-                            "indexes.statsLastRefreshedAt",
+                            "singleFieldIndexes.statsLastRefreshedAt",
                             "compoundIndexes.lock",
                             "vectorIndexes.lock")
                     .isEqualTo(expectedBucketMetadata);
