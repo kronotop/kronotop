@@ -24,18 +24,21 @@ import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataHeader;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.server.RESPError;
 import com.kronotop.transaction.TransactionUtil;
 import org.bson.BsonType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexUtilTest extends BaseStandaloneInstanceTest {
@@ -295,6 +298,20 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         }
     }
 
+    /**
+     * Waits until the build task back-pointers for the index are swept. An index reaches READY
+     * before {@code IndexMaintenanceTaskSweeper} clears the completed build task, so a drop issued
+     * right after readiness can transiently see the lingering task.
+     */
+    private void waitUntilIndexTasksCleared(BucketMetadata metadata, String indexName) {
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TransactionalContext tx = new TransactionalContext(context, tr);
+                return IndexTaskUtil.getTaskIds(tx, metadata.namespace(), metadata.name(), indexName).isEmpty();
+            }
+        });
+    }
+
     @Test
     void shouldDropIndexAndUpdateStatusToDropped() {
         createIndexThenWaitForReadiness(definition);
@@ -306,6 +323,8 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
             SingleFieldIndexDefinition currentDef = SingleFieldIndexUtil.loadIndexDefinition(tr, indexSubspace);
             assertEquals(IndexStatus.READY, currentDef.status());
         }
+
+        waitUntilIndexTasksCleared(metadata, definition.name());
 
         // Drop the index
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -339,6 +358,8 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
     void shouldRejectDropOfAlreadyDroppedIndex() {
         createIndexThenWaitForReadiness(definition);
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        waitUntilIndexTasksCleared(metadata, definition.name());
 
         // Drop the index first time
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
