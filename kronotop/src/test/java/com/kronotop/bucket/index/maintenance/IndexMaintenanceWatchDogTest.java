@@ -113,7 +113,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
             await().atMost(Duration.ofSeconds(30)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                    Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                    SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                     byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
                     byte[] end = ByteArrayUtil.strinc(begin);
 

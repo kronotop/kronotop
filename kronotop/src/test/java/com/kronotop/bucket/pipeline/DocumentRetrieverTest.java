@@ -301,7 +301,7 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
         List<DocumentLocation> locations = new ArrayList<>();
 
         // Get the primary index subspace
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertNotNull(primaryIndex, "Primary index should exist");
 
         try (Transaction tr = primaryContext.getFoundationDB().createTransaction()) {

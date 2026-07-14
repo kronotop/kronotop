@@ -225,7 +225,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     private boolean indexExists(Transaction tr, IndexMaintenanceTask task) {
         BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, task.getNamespace(), task.getBucket());
         long indexId = task.getIndexId();
-        if (metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.ALL) != null) {
+        if (metadata.singleFieldIndexes().getIndexById(indexId, IndexSelectionPolicy.ALL) != null) {
             return true;
         }
         if (metadata.compoundIndexes().getIndexById(indexId, IndexSelectionPolicy.ALL) != null) {

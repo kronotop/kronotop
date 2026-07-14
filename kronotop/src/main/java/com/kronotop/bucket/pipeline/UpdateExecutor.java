@@ -233,7 +233,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             Map<ObjectId, UpdateResultContainer> updateResultContainers,
             UniquenessEnforcer uniquenessEnforcer
     ) throws IOException, KeyNotFoundException {
-        Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex primaryIndex = ctx.metadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
         VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
         UniquenessChecker uniquenessChecker = new UniquenessChecker(tr);
         List<VersionstampedEntryUpdate> updatedEntries = new ArrayList<>();
@@ -290,7 +290,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             Map<ObjectId, UpdateResultContainer> updateResultContainers,
             UniquenessEnforcer uniquenessEnforcer
     ) throws IOException, VersionstampAlreadyExistsException {
-        Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex primaryIndex = ctx.metadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
 
         // Fetch remote document bodies via DocumentRetriever
         List<DocumentLocation> locations = new ArrayList<>(docRefs.size());
@@ -377,7 +377,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
     }
 
     private void updateUnaffectedIndexes(QueryContext ctx, Transaction tr, Map<ObjectId, UpdateResultContainer> updateResultContainers, Set<String> affectedPaths) {
-        for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
+        for (SingleFieldIndex index : ctx.metadata().singleFieldIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (PrimaryIndex.isPrimary(index.definition())) {
                 continue;
             }
@@ -450,7 +450,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             }
         }
 
-        Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex primaryIndex = ctx.metadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
         for (Map.Entry<ObjectId, UpdateResultContainer> updatedEntry : updateResultContainers.entrySet()) {
             ObjectId objectId = updatedEntry.getKey();
             byte[] objectIdBytes = objectId.toByteArray();
@@ -462,7 +462,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     container.getShardId(),
                     container.getEntryMetadata()
             );
-            for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
+            for (SingleFieldIndex index : ctx.metadata().singleFieldIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 if (PrimaryIndex.isPrimary(index.definition())) {
                     continue;
                 }
@@ -580,7 +580,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
      * entries for the document and re-creates them from the document's current content, matching
      * the state a fresh insert of the same document would produce.
      */
-    private void refreshSingleFieldIndexEntry(QueryContext ctx, Transaction tr, byte[] objectIdBytes, UpdateResultContainer container, Index index) {
+    private void refreshSingleFieldIndexEntry(QueryContext ctx, Transaction tr, byte[] objectIdBytes, UpdateResultContainer container, SingleFieldIndex index) {
         DirectorySubspace indexSubspace = index.subspace();
         SingleFieldIndexDefinition indexDefinition = index.definition();
 
@@ -633,7 +633,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                 throw new InvalidBsonTypeException(ReservedFieldName.ID.getValue(), BsonType.OBJECT_ID);
             }
             objectId = existingId.asObjectId().getValue();
-            Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+            SingleFieldIndex primaryIndex = ctx.metadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
             uniquenessChecker.checkPrimaryKey(primaryIndex.subspace(), objectId);
         } else {
             objectId = new ObjectId();
@@ -656,7 +656,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         AppendedEntry[] appendedEntries = appendResult.getAppendedEntries();
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(shard.id(), appendedEntries[0].metadataBytes()).encode();
-        Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex primaryIndex = ctx.metadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
         PrimaryIndexMaintainer.setEntry(tr, primaryIndex, ctx.metadata(), objectIdBytes, encodedIndexEntry, appendedEntries[0].userVersion());
 
         // Set single field indexes
@@ -699,7 +699,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             int userVersion,
             BsonDocument document
     ) {
-        for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
+        for (SingleFieldIndex index : ctx.metadata().singleFieldIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (PrimaryIndex.isPrimary(index.definition())) {
                 continue;
             }

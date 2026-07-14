@@ -38,7 +38,7 @@ class MaterializedScanNodeTest extends BasePipelineTest {
 
     private List<DocumentLocation> buildDocumentLocations(BucketMetadata metadata, List<ObjectId> objectIds) {
         List<DocumentLocation> locations = new ArrayList<>();
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertNotNull(primaryIndex, "Primary index should exist");
 
         try (Transaction tr = createTransaction()) {

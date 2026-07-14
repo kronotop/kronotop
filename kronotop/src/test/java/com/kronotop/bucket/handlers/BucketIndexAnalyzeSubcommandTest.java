@@ -92,7 +92,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
             BucketMetadata metadata = TransactionUtil.execute(context,
                     tr -> BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET)
             );
-            Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(index.subspace());
         }
 
@@ -118,7 +118,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
                 SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
                 byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
                 byte[] value = tr.get(key).join();
@@ -150,7 +150,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
             BucketMetadata metadata = TransactionUtil.execute(context,
                     tr -> BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET)
             );
-            Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(index.subspace());
         }
 

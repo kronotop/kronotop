@@ -136,7 +136,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         int concurrentIncrease = 10;
         CountDownLatch latch = new CountDownLatch(concurrentIncrease);
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
 
         class IndexStatisticsRunnable implements Runnable {
             @Override
@@ -188,8 +188,8 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, getSession(), TEST_BUCKET);
-            Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
-            IndexStatistics statistics = metadata.indexes().getStatistics(primaryIndex.definition().id());
+            SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+            IndexStatistics statistics = metadata.singleFieldIndexes().getStatistics(primaryIndex.definition().id());
             assertEquals(numberOfEntries, statistics.cardinality());
         }
     }
@@ -199,7 +199,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         // Behavior: BucketMetadataHeader.read returns the version and per-index statistics from the header.
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexUtil.mutateCardinality(tr, metadata.subspace(), primaryIndex.definition().id(), 1);
@@ -239,8 +239,8 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, getSession(), TEST_BUCKET);
-            Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
-            IndexStatistics statistics = metadata.indexes().getStatistics(primaryIndex.definition().id());
+            SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+            IndexStatistics statistics = metadata.singleFieldIndexes().getStatistics(primaryIndex.definition().id());
             assertEquals(numberOfEntries, statistics.cardinality());
         }
     }
@@ -286,7 +286,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         // Behavior: readIndexStatistics for a specific index ID returns the cardinality after a mutation.
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             IndexUtil.mutateCardinality(tr, metadata.subspace(), primaryIndex.definition().id(), 1);
@@ -393,7 +393,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
             assertNotNull(metadata.subspace());
             assertFalse(metadata.removed());
 
-            Index index = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL);
             assertNotNull(index);
             assertNotNull(index.subspace());
         }

@@ -107,7 +107,7 @@ public class SelectivityEstimator {
             List<BqlValue> parameters
     ) {
         SingleFieldIndexDefinition def = node.getIndexDefinition();
-        IndexStatistics stats = ctx.getMetadata().indexes().getStatistics(def.id());
+        IndexStatistics stats = ctx.getMetadata().singleFieldIndexes().getStatistics(def.id());
 
         if (stats == null || stats.histogram() == null) {
             return new IndexSelectivity(UNKNOWN, index);
@@ -140,7 +140,7 @@ public class SelectivityEstimator {
             List<BqlValue> parameters
     ) {
         SingleFieldIndexDefinition def = node.getIndexDefinition();
-        IndexStatistics stats = ctx.getMetadata().indexes().getStatistics(def.id());
+        IndexStatistics stats = ctx.getMetadata().singleFieldIndexes().getStatistics(def.id());
 
         if (stats == null || stats.histogram() == null) {
             return new IndexSelectivity(UNKNOWN, index);

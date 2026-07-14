@@ -68,7 +68,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
         try {
             Map<Integer, List<DocumentRef>> byShardId = accumulateDocumentRefsByShardId(ctx, sink);
 
-            Index primaryIndex = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+            SingleFieldIndex primaryIndex = ctx.metadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
 
             List<ObjectId> deletedIds = new ArrayList<>();
             List<Versionstamp> versionstamps = new ArrayList<>();
@@ -102,7 +102,7 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
             }
 
             // Drop index entries for all deleted documents
-            for (Index index : ctx.metadata().indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
+            for (SingleFieldIndex index : ctx.metadata().singleFieldIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 // Skip the default ID index as it'll be handled separately
                 if (PrimaryIndex.isPrimary(index.definition())) {
                     continue;

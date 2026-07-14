@@ -82,7 +82,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
         indexRegistry.register(definitionWithStatus, testSubspace);
 
         // Test getIndex with the policy
-        Index result = indexRegistry.getIndex("test.field", policy);
+        SingleFieldIndex result = indexRegistry.getIndex("test.field", policy);
 
         if (shouldReturnIndex) {
             assertNotNull(result, String.format("Index should be returned for status=%s, policy=%s", status, policy));
@@ -97,7 +97,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     void shouldReturnNullForNonExistentSelector() {
         // Test with all policies on non-existent selector
         for (IndexSelectionPolicy policy : IndexSelectionPolicy.values()) {
-            Index result = indexRegistry.getIndex("non.existent.field", policy);
+            SingleFieldIndex result = indexRegistry.getIndex("non.existent.field", policy);
             assertNull(result, String.format("Should return null for non-existent selector with policy %s", policy));
         }
     }
@@ -171,7 +171,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
             indexRegistry.register(definition, testSubspace);
 
             // ALL policy should return all indexes regardless of status
-            Index result = indexRegistry.getIndex(fieldName, IndexSelectionPolicy.ALL);
+            SingleFieldIndex result = indexRegistry.getIndex(fieldName, IndexSelectionPolicy.ALL);
             assertNotNull(result, String.format("ALL policy should return index with status %s", status));
             assertEquals(status, result.definition().status());
         }
@@ -197,7 +197,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
     @ParameterizedTest
     @EnumSource(IndexSelectionPolicy.class)
     void shouldReturnNullForEmptyRegistry(IndexSelectionPolicy policy) {
-        Index result = indexRegistry.getIndex("any.field", policy);
+        SingleFieldIndex result = indexRegistry.getIndex("any.field", policy);
         assertNull(result, String.format("Empty registry should return null for policy %s", policy));
     }
 
@@ -208,7 +208,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
         indexRegistry.register(originalDef, testSubspace);
 
         // Get the index
-        Index retrievedIndex = indexRegistry.getIndex("immutable.field", IndexSelectionPolicy.ALL);
+        SingleFieldIndex retrievedIndex = indexRegistry.getIndex("immutable.field", IndexSelectionPolicy.ALL);
         assertNotNull(retrievedIndex);
 
         // The retrieved definition should be the same object (referential equality)
@@ -231,7 +231,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
         assertEquals("Index entry with 'shared.field' has already registered", exception.getMessage());
 
         // Should still return the first (original) index
-        Index result = indexRegistry.getIndex("shared.field", IndexSelectionPolicy.ALL);
+        SingleFieldIndex result = indexRegistry.getIndex("shared.field", IndexSelectionPolicy.ALL);
         assertNotNull(result);
         assertEquals(firstDef, result.definition());
         assertEquals(testSubspace, result.subspace());
@@ -284,7 +284,7 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
         indexRegistry.register(originalDef, testSubspace);
 
         // Verify initial state
-        Index originalIndex = indexRegistry.getIndex("test.field", IndexSelectionPolicy.ALL);
+        SingleFieldIndex originalIndex = indexRegistry.getIndex("test.field", IndexSelectionPolicy.ALL);
         assertEquals(IndexStatus.READY, originalIndex.definition().status());
         assertNotNull(indexRegistry.getIndex("test.field", IndexSelectionPolicy.READ));
     }
@@ -332,9 +332,9 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
         indexRegistry.register(failedDef, testSubspace);
 
         // Verify policy-based segregation
-        Collection<Index> allIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.ALL);
-        Collection<Index> readonlyIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READ);
-        Collection<Index> readwriteIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE);
+        Collection<SingleFieldIndex> allIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.ALL);
+        Collection<SingleFieldIndex> readonlyIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READ);
+        Collection<SingleFieldIndex> readwriteIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE);
 
         // ALL policy should include all 5 indexes
         assertEquals(5, allIndexes.size());
@@ -356,9 +356,9 @@ class SingleFieldIndexRegistryTest extends BaseStandaloneInstanceTest {
         indexRegistry.register(def, testSubspace);
 
         // Get collections for each policy
-        Collection<Index> allIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.ALL);
-        Collection<Index> readonlyIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READ);
-        Collection<Index> readwriteIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE);
+        Collection<SingleFieldIndex> allIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.ALL);
+        Collection<SingleFieldIndex> readonlyIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READ);
+        Collection<SingleFieldIndex> readwriteIndexes = indexRegistry.getIndexes(IndexSelectionPolicy.READWRITE);
 
         // Should throw UnsupportedOperationException when trying to modify
         assertThrows(UnsupportedOperationException.class, allIndexes::clear);

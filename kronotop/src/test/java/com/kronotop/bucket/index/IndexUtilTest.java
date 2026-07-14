@@ -391,7 +391,7 @@ class IndexUtilTest extends BaseStandaloneInstanceTest {
         createIndexThenWaitForReadiness(definition);
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-        Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
         SingleFieldIndexDefinition latest = index.definition().updateStatus(IndexStatus.DROPPED);
         TransactionUtil.executeThenCommit(context, tr -> {
             SingleFieldIndexUtil.saveIndexDefinition(tr, metadata, latest);

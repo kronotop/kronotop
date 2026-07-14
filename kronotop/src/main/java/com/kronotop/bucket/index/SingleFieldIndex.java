@@ -18,6 +18,6 @@ package com.kronotop.bucket.index;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 
-public record Index(SingleFieldIndexDefinition definition,
-                    DirectorySubspace subspace) implements IndexHolder<SingleFieldIndexDefinition> {
+public record SingleFieldIndex(SingleFieldIndexDefinition definition,
+                               DirectorySubspace subspace) implements IndexHolder<SingleFieldIndexDefinition> {
 }

@@ -43,7 +43,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // subspace when the value passes the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-matching-value");
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
-        Index index = new Index(definition, subspace);
+        SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         // BsonNull always matches the probabilistic selector (hash = 0, 0 & 0x3FFF = 0)
         BsonValue matchingValue = BsonNull.VALUE;
@@ -71,7 +71,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // the value fails the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-non-matching-value");
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
-        Index index = new Index(definition, subspace);
+        SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         BsonValue nonMatchingValue = new BsonInt32(1);
         assertFalse(ProbabilisticSelector.match(nonMatchingValue), "BsonInt32(1) should not match");
@@ -99,7 +99,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // subspace unconditionally, bypassing the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-unconditional");
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
-        Index index = new Index(definition, subspace);
+        SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = new ObjectId();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -122,7 +122,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // Behavior: setHintForStats creates a key with structure (STAT_HINTS, ObjectId bytes).
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-key-structure");
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.STRING, false, IndexStatus.WAITING);
-        Index index = new Index(definition, subspace);
+        SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = new ObjectId();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -176,7 +176,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // bytes pass the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-if-selected-match");
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
-        Index index = new Index(definition, subspace);
+        SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = findMatchingObjectId();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -200,7 +200,7 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         // fail the probabilistic selector.
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-hint-if-selected-no-match");
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test_index", "field", BsonType.INT32, false, IndexStatus.WAITING);
-        Index index = new Index(definition, subspace);
+        SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = findNonMatchingObjectId();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {

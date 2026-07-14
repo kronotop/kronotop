@@ -57,7 +57,7 @@ public class UnsupportedSortRule implements PhysicalPlanValidationRule {
                             + "' or create an index on '" + sortByField + "'"));
         }
 
-        Index index = context.getMetadata().indexes().getIndex(sortByField, IndexSelectionPolicy.READ);
+        SingleFieldIndex index = context.getMetadata().singleFieldIndexes().getIndex(sortByField, IndexSelectionPolicy.READ);
         if (index != null) {
             if (!isCollationCompatible(context.getCollation(), index.definition())) {
                 return List.of(new Violation(
@@ -82,7 +82,7 @@ public class UnsupportedSortRule implements PhysicalPlanValidationRule {
             case PhysicalCompoundIndexScan scan -> compoundIndexProvidesSortOrder(scan, sortByField);
             case PhysicalAnd and -> hasChildWithSortOrder(context, and, sortByField);
             case PhysicalTrue ignored -> {
-                Index index = context.getMetadata().indexes().getIndex(sortByField, IndexSelectionPolicy.READ);
+                SingleFieldIndex index = context.getMetadata().singleFieldIndexes().getIndex(sortByField, IndexSelectionPolicy.READ);
                 yield index != null && isCollationCompatible(context.getCollation(), index.definition());
             }
             case PhysicalOr or -> allChildrenAreEqScansOnField(or.children(), sortByField);

@@ -82,7 +82,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
         assertEquals(2, actualMessage.children().size(), "Both documents should be inserted");
 
         // Fetch all index entries
-        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         assertNotNull(ageIndex, "Age index should exist");
         List<KeyValue> indexEntries = TestUtil.fetchAllIndexedEntries(context, ageIndex.subspace());
 
@@ -123,7 +123,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
         assertEquals(5, actualMessage.children().size(), "All 5 documents should be inserted");
 
         // Fetch all index entries
-        Index scoreIndex = metadata.indexes().getIndex("score", IndexSelectionPolicy.READ);
+        SingleFieldIndex scoreIndex = metadata.singleFieldIndexes().getIndex("score", IndexSelectionPolicy.READ);
         assertNotNull(scoreIndex, "Score index should exist");
         List<KeyValue> indexEntries = TestUtil.fetchAllIndexedEntries(context, scoreIndex.subspace());
 
@@ -164,7 +164,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, insertMsg);
 
         // Verify both entries are indexed initially
-        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         assertNotNull(ageIndex, "Age index should exist");
         assertEquals(2, TestUtil.fetchAllIndexedEntries(context, ageIndex.subspace()).size(), "Should have 2 index entries initially");
 
@@ -226,7 +226,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
 
         // Verify no index entries were created (all skipped due to type mismatch)
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
         List<KeyValue> indexEntries = TestUtil.fetchAllIndexedEntries(context, index.subspace());
         assertEquals(0, indexEntries.size(), "No index entries should exist (all type mismatches skipped)");
     }

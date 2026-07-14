@@ -98,7 +98,7 @@ public final class UniquenessEnforcer {
     private void enqueue(UniquenessChecker checker, byte[] objectIdBytes,
                          Function<String, BsonValue> matcher,
                          Function<CompoundIndex, List<List<Object>>> extractor) {
-        for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
+        for (SingleFieldIndex index : metadata.singleFieldIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             SingleFieldIndexDefinition definition = index.definition();
             if (!definition.unique() || PrimaryIndex.isPrimary(definition)) {
                 continue;
@@ -113,7 +113,7 @@ public final class UniquenessEnforcer {
         }
     }
 
-    private void processSingleField(UniquenessChecker checker, byte[] objectIdBytes, Index index, BsonValue bsonValue) {
+    private void processSingleField(UniquenessChecker checker, byte[] objectIdBytes, SingleFieldIndex index, BsonValue bsonValue) {
         SingleFieldIndexDefinition definition = index.definition();
         for (Object rawValue : indexedValues(definition, bsonValue)) {
             Object encoded = SingleFieldIndexMaintainer.encodeIndexValue(definition, metadata, rawValue, collatorCache);

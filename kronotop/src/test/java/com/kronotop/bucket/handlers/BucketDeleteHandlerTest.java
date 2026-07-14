@@ -657,7 +657,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         );
         insertDocumentsAndGetObjectIds(testDocuments);
 
-        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index);
 
         // Precondition: 3 widened index entries, cardinality 3
@@ -726,7 +726,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         );
         insertDocumentsAndGetObjectIds(testDocuments);
 
-        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index);
 
         // Precondition: 2 widened index entries, cardinality 2
@@ -788,7 +788,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         );
         insertDocumentsAndGetObjectIds(testDocuments);
 
-        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index);
 
         // Precondition: 4 widened index entries, cardinality 4
@@ -869,7 +869,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         );
         insertDocumentsAndGetObjectIds(testDocuments);
 
-        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index);
 
         // Precondition: 3 widened index entries, cardinality 3

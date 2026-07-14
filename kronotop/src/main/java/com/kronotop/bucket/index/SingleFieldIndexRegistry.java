@@ -26,7 +26,7 @@ import java.util.Map;
  * Thread-safe registry for single-field indexes, keyed by selector.
  * Extends shared registry logic and adds statistics tracking.
  */
-public class SingleFieldIndexRegistry extends AbstractIndexRegistry<Index, SingleFieldIndexDefinition> {
+public class SingleFieldIndexRegistry extends AbstractIndexRegistry<SingleFieldIndex, SingleFieldIndexDefinition> {
     private final Context context;
     private volatile Map<Long, IndexStatistics> statistics;
     private volatile long statsLastRefreshedAt;
@@ -41,8 +41,8 @@ public class SingleFieldIndexRegistry extends AbstractIndexRegistry<Index, Singl
     }
 
     @Override
-    protected Index createHolder(SingleFieldIndexDefinition definition, DirectorySubspace subspace) {
-        return new Index(definition, subspace);
+    protected SingleFieldIndex createHolder(SingleFieldIndexDefinition definition, DirectorySubspace subspace) {
+        return new SingleFieldIndex(definition, subspace);
     }
 
     @Override
@@ -56,7 +56,7 @@ public class SingleFieldIndexRegistry extends AbstractIndexRegistry<Index, Singl
     /**
      * Retrieves an index by its selector with policy filtering.
      */
-    public Index getIndex(String selector, IndexSelectionPolicy policy) {
+    public SingleFieldIndex getIndex(String selector, IndexSelectionPolicy policy) {
         lock.readLock().lock();
         try {
             return filterByPolicy(entries.get(selector), policy);

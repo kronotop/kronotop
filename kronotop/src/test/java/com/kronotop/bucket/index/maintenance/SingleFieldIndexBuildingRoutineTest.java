@@ -98,7 +98,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<ObjectId> objectIds = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 for (KeyValue entry : tr.getRange(begin, end)) {
@@ -177,7 +177,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-            Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
 
             // Exactly one index entry per document — the builder did not re-create online-written entries.
             byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -286,7 +286,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<String> indexValues = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 for (KeyValue entry : tr.getRange(begin, end)) {
@@ -331,7 +331,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 List<String> indexValues = new ArrayList<>();
@@ -425,7 +425,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
 
                 // Check index entries
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -498,7 +498,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<ObjectId> objectIds = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 for (KeyValue entry : tr.getRange(begin, end)) {
@@ -564,7 +564,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 List<byte[]> indexValues = new ArrayList<>();
@@ -627,7 +627,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 List<Object> indexValues = new ArrayList<>();
@@ -685,7 +685,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<ObjectId> objectIds = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 for (KeyValue entry : tr.getRange(begin, end)) {
@@ -733,7 +733,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<Double> indexValues = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 for (KeyValue entry : tr.getRange(begin, end)) {
@@ -833,7 +833,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<Long> indexValues = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 for (KeyValue entry : tr.getRange(begin, end)) {
@@ -924,7 +924,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<ObjectId> objectIds = new ArrayList<>();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
                 byte[] end = ByteArrayUtil.strinc(begin);
                 for (KeyValue entry : tr.getRange(begin, end)) {
@@ -1033,7 +1033,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, BUCKET_NAME);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 if (index == null) return false;
 
                 SingleFieldIndexDefinition loadedDef = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
@@ -1108,7 +1108,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
             // The failing batch is rolled back, so no index entries were written.
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-            Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
             byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             byte[] end = ByteArrayUtil.strinc(begin);
             List<KeyValue> entries = tr.getRange(begin, end).asList().join();
@@ -1145,7 +1145,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-                Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 if (index == null) return false;
 
                 SingleFieldIndexDefinition loadedDef = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());

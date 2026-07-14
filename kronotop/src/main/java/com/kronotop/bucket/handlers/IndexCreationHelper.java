@@ -79,7 +79,7 @@ class IndexCreationHelper {
                     schema.getUnique()
             );
 
-            if (metadata.indexes().getIndex(entry.getKey(), IndexSelectionPolicy.ALL) != null) {
+            if (metadata.singleFieldIndexes().getIndex(entry.getKey(), IndexSelectionPolicy.ALL) != null) {
                 throw new KronotopException("An index on field '" + entry.getKey() + "' already exists");
             }
 

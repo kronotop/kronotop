@@ -20,7 +20,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.index.CompoundIndex;
 import com.kronotop.bucket.index.CompoundIndexField;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import org.bson.BsonType;
 
@@ -47,7 +47,7 @@ public class CollationResolver {
             return queryCollation;
         }
 
-        Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(selector, IndexSelectionPolicy.READ);
         if (index != null && index.definition().collation() != null) {
             return index.definition().collation();
         }

@@ -136,7 +136,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             byte[] objectIdBytes = objectIdBytesArray[i];
             byte[] encodedIndexEntry = encodedIndexEntries[i];
 
-            for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
+            for (SingleFieldIndex index : metadata.singleFieldIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
                 // Skip the default ID index as it's already handled above
                 if (PrimaryIndex.isPrimary(index.definition())) {
                     continue;
@@ -329,7 +329,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
         UniquenessChecker checker = new UniquenessChecker(tr);
 
         if (userProvidedIds != null && !userProvidedIds.isEmpty()) {
-            Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+            SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
             for (ObjectId objectId : userProvidedIds) {
                 checker.checkPrimaryKey(primaryIndex.subspace(), objectId);
             }
@@ -355,7 +355,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, message.getBucket());
 
-            Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+            SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
             if (primaryIndex == null) {
                 throw new KronotopException("Primary index is missing from metadata.");
             }
@@ -434,7 +434,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
 
             // Index creation for all user-defined indexes
             // Minimum number of indexes is 1. The primary index is the default one.
-            if (metadata.indexes().getIndexes(IndexSelectionPolicy.WRITABLE).size() > 1) {
+            if (metadata.singleFieldIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).size() > 1) {
                 setSingleFieldIndexes(tr, metadata, appendResult, documents, objectIdBytesArray, encodedIndexEntries);
             }
 

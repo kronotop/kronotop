@@ -56,9 +56,9 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get index subspaces
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
-        Index nameIdx = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex nameIdx = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
 
         DirectorySubspace primarySubspace = primaryIndex.subspace();
         DirectorySubspace ageSubspace = ageIdx.subspace();
@@ -133,8 +133,8 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get index subspaces
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
-        Index nameIdx = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex nameIdx = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
 
         DirectorySubspace ageSubspace = ageIdx.subspace();
         DirectorySubspace nameSubspace = nameIdx.subspace();
@@ -192,7 +192,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get age index subspace
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         DirectorySubspace ageSubspace = ageIdx.subspace();
 
         // Verify age index has 2 null entries (missing fields are indexed as null)
@@ -279,7 +279,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get nested index subspace
-        Index nestedIdx = metadata.indexes().getIndex("a.b.c", IndexSelectionPolicy.READ);
+        SingleFieldIndex nestedIdx = metadata.singleFieldIndexes().getIndex("a.b.c", IndexSelectionPolicy.READ);
         DirectorySubspace nestedSubspace = nestedIdx.subspace();
 
         // Verify nested index has 2 null entries (missing nested fields are indexed as null)
@@ -407,7 +407,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get tags index subspace
-        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags.name", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
 
         // Verify initial state: 1 null entry
@@ -456,7 +456,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get tags index subspace
-        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags.name", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
 
         // Update Alice with tags array containing duplicates
@@ -567,7 +567,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         );
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
-        Index skillsIdx = metadata.indexes().getIndex("skills.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex skillsIdx = metadata.singleFieldIndexes().getIndex("skills.name", IndexSelectionPolicy.READ);
         DirectorySubspace skillsSubspace = skillsIdx.subspace();
 
         // Update Alice with 4 elements, 2 unique (java x3, kotlin x1)
@@ -699,11 +699,11 @@ class UpdateExecutorTest extends BasePipelineTest {
         assertTrue(results.getFirst().contains("\"age\": 25"));
 
         // Verify primary index entry created
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertEquals(1, fetchAllIndexedEntries(primaryIndex.subspace()).size(), "Primary index should have 1 entry");
 
         // Verify secondary index entry created
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         Set<Integer> ageValues = extractAgeValuesFromIndex(ageIdx.subspace());
         assertTrue(ageValues.contains(25), "Age index should contain 25");
 
@@ -745,7 +745,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         assertEquals(1, results.size());
 
         // Verify 3 index entries created (java, kotlin, scala)
-        Index tagsIdx = metadata.indexes().getIndex("tags", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags", IndexSelectionPolicy.READ);
         List<KeyValue> entries = fetchAllIndexedEntries(tagsIdx.subspace());
         assertEquals(3, entries.size(), "Tags index should have 3 entries for multikey upsert");
 
@@ -816,7 +816,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         }
 
         // Verify index entry and back pointer created
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         DirectorySubspace ageSubspace = ageIdx.subspace();
         assertEquals(1, fetchAllIndexedEntries(ageSubspace).size(), "Age index should have 1 entry");
         assertEquals(1, fetchAllIndexBackPointers(ageSubspace).size(), "Age index should have 1 back pointer");
@@ -929,9 +929,9 @@ class UpdateExecutorTest extends BasePipelineTest {
         }
 
         // Verify all indexes have entries
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
-        Index nameIdx = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
-        Index cityIdx = metadata.indexes().getIndex("city", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex nameIdx = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
+        SingleFieldIndex cityIdx = metadata.singleFieldIndexes().getIndex("city", IndexSelectionPolicy.READ);
 
         assertEquals(1, fetchAllIndexedEntries(ageIdx.subspace()).size(), "Age index should have 1 entry");
         assertEquals(1, fetchAllIndexedEntries(nameIdx.subspace()).size(), "Name index should have 1 entry");
@@ -978,7 +978,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         }
 
         // Verify single null index entry
-        Index tagsIdx = metadata.indexes().getIndex("tags", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
         List<KeyValue> entries = fetchAllIndexedEntries(tagsSubspace);
         assertEquals(1, entries.size(), "Tags index should have 1 entry for null");
@@ -1019,7 +1019,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         }
 
         // Verify null index entry exists
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         DirectorySubspace ageSubspace = ageIdx.subspace();
         assertEquals(1, fetchAllIndexedEntries(ageSubspace).size(), "Age index should have 1 null entry");
 
@@ -1082,7 +1082,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         }
 
         // Verify null index entry for missing a deep path
-        Index deepIdx = metadata.indexes().getIndex("a.b.c.d", IndexSelectionPolicy.READ);
+        SingleFieldIndex deepIdx = metadata.singleFieldIndexes().getIndex("a.b.c.d", IndexSelectionPolicy.READ);
         DirectorySubspace deepSubspace = deepIdx.subspace();
         List<KeyValue> entries = fetchAllIndexedEntries(deepSubspace);
         assertEquals(1, entries.size(), "Deep index should have 1 entry");
@@ -1165,7 +1165,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get tags index subspace
-        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags.name", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
 
         // Verify initial state: 3 entries (java, kotlin, scala)
@@ -1226,7 +1226,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Verify the initial state: index has entry for age=30
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         DirectorySubspace ageSubspace = ageIdx.subspace();
         assertEquals(1, fetchAllIndexedEntries(ageSubspace).size(), "Age index should have 1 entry initially");
 
@@ -1297,7 +1297,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get tags index subspace
-        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags.name", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
 
         // Verify initial state: 3 entries (java, kotlin, scala)
@@ -1362,7 +1362,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get scores index subspace
-        Index scoresIdx = metadata.indexes().getIndex("scores", IndexSelectionPolicy.READ);
+        SingleFieldIndex scoresIdx = metadata.singleFieldIndexes().getIndex("scores", IndexSelectionPolicy.READ);
         DirectorySubspace scoresSubspace = scoresIdx.subspace();
 
         // Verify initial state: 5 entries (55, 60, 65, 70, 75)
@@ -1438,7 +1438,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get scores index subspace
-        Index scoresIdx = metadata.indexes().getIndex("scores", IndexSelectionPolicy.READ);
+        SingleFieldIndex scoresIdx = metadata.singleFieldIndexes().getIndex("scores", IndexSelectionPolicy.READ);
         DirectorySubspace scoresSubspace = scoresIdx.subspace();
 
         // Verify initial state: 5 entries (55, 60, 65, 70, 75)
@@ -1494,7 +1494,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get scores index subspace
-        Index scoresIdx = metadata.indexes().getIndex("scores", IndexSelectionPolicy.READ);
+        SingleFieldIndex scoresIdx = metadata.singleFieldIndexes().getIndex("scores", IndexSelectionPolicy.READ);
         DirectorySubspace scoresSubspace = scoresIdx.subspace();
 
         // Verify initial state: 5 entries (55, 60, 65, 70, 75)
@@ -1553,7 +1553,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get prices index subspace
-        Index pricesIdx = metadata.indexes().getIndex("items.price", IndexSelectionPolicy.READ);
+        SingleFieldIndex pricesIdx = metadata.singleFieldIndexes().getIndex("items.price", IndexSelectionPolicy.READ);
         DirectorySubspace pricesSubspace = pricesIdx.subspace();
 
         // Verify initial state: 3 entries (10, 20, 30)
@@ -1629,7 +1629,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get status index subspace
-        Index statusIdx = metadata.indexes().getIndex("items.status", IndexSelectionPolicy.READ);
+        SingleFieldIndex statusIdx = metadata.singleFieldIndexes().getIndex("items.status", IndexSelectionPolicy.READ);
         DirectorySubspace statusSubspace = statusIdx.subspace();
 
         // Verify initial state: 2 entries (pending, done) across 2 documents
@@ -1723,7 +1723,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get tags index subspace
-        Index tagsIdx = metadata.indexes().getIndex("tags", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
 
         // Verify initial state: 3 index entries (java, python, rust)
@@ -1793,7 +1793,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get tags index subspace
-        Index tagsIdx = metadata.indexes().getIndex("tags", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
 
         // Verify initial state: 3 index entries (java, python, rust)
@@ -2009,7 +2009,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get tags index subspace
-        Index tagsIdx = metadata.indexes().getIndex("tags", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
 
         // Verify initial state: 1 entry (java)
@@ -2098,7 +2098,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         assertEquals(1, results.size(), "Should find the upserted document");
 
         // Verify 4 index entries created (python, rust, go, null)
-        Index tagsIdx = metadata.indexes().getIndex("tags", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
         List<KeyValue> entries = fetchAllIndexedEntries(tagsSubspace);
         assertEquals(4, entries.size(), "Tags index should have 4 entries (python, rust, go, null)");
@@ -2395,9 +2395,9 @@ class UpdateExecutorTest extends BasePipelineTest {
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         DirectorySubspace ageSubspace = ageIdx.subspace();
-        Index nameIdx = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
+        SingleFieldIndex nameIdx = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
         DirectorySubspace nameSubspace = nameIdx.subspace();
         CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName("name_age_idx", IndexSelectionPolicy.READ);
         DirectorySubspace compoundSubspace = compoundIndex.subspace();
@@ -2594,7 +2594,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         );
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
-        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags.name", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
         assertEquals(2, fetchAllIndexedEntries(tagsSubspace).size(), "Tags index should have 2 entries initially");
 
@@ -2639,7 +2639,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         );
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
-        Index tagsIdx = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags.name", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
         assertEquals(2, fetchAllIndexedEntries(tagsSubspace).size(), "Tags index should have 2 entries initially");
 
@@ -2681,7 +2681,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         );
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
-        Index colorIdx = metadata.indexes().getIndex("meta.color", IndexSelectionPolicy.READ);
+        SingleFieldIndex colorIdx = metadata.singleFieldIndexes().getIndex("meta.color", IndexSelectionPolicy.READ);
         DirectorySubspace colorSubspace = colorIdx.subspace();
         assertEquals(1, fetchAllIndexedEntries(colorSubspace).size(), "Color index should have 1 entry initially");
 
@@ -2727,7 +2727,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         );
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
-        Index tagsIdx = metadata.indexes().getIndex("tags", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIdx = metadata.singleFieldIndexes().getIndex("tags", IndexSelectionPolicy.READ);
         DirectorySubspace tagsSubspace = tagsIdx.subspace();
         assertEquals(2, fetchAllIndexedEntries(tagsSubspace).size(), "Tags index should have 2 entries initially");
 
@@ -2764,7 +2764,7 @@ class UpdateExecutorTest extends BasePipelineTest {
         );
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
-        Index scoreIdx = metadata.indexes().getIndex("grades.score", IndexSelectionPolicy.READ);
+        SingleFieldIndex scoreIdx = metadata.singleFieldIndexes().getIndex("grades.score", IndexSelectionPolicy.READ);
         DirectorySubspace scoreSubspace = scoreIdx.subspace();
         assertEquals(2, fetchAllIndexedEntries(scoreSubspace).size(), "Score index should have 2 entries initially");
 

@@ -38,11 +38,11 @@ class SingleFieldAnalyzeStrategy implements IndexAnalyzeStrategy {
 
     @Override
     public IndexHolder<?> loadIndex(BucketMetadata metadata, long indexId) {
-        Index index = metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.ALL);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(indexId, IndexSelectionPolicy.ALL);
         if (index == null) {
             return null;
         }
-        Index ready = metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.READ);
+        SingleFieldIndex ready = metadata.singleFieldIndexes().getIndexById(indexId, IndexSelectionPolicy.READ);
         if (ready == null) {
             throw new IndexMaintenanceRoutineException("Index is not ready to analyze");
         }

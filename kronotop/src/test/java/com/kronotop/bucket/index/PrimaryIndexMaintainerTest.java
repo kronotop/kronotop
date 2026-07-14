@@ -54,7 +54,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
                 for (AppendedEntry entry : entries) {
                     ObjectId objectId = new ObjectId();
                     PrimaryIndexMaintainer.setEntry(
-                            tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
+                            tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
                     );
                 }
                 tr.commit().join();
@@ -62,7 +62,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
 
             // Verify cardinality was set correctly
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+                SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
                 IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), primaryIndex.definition().id());
                 assertEquals(entries.length, statistics.cardinality(), "Primary index cardinality should equal number of entries set");
             }
@@ -78,13 +78,13 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 PrimaryIndexMaintainer.setEntry(
-                        tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion()
+                        tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion()
                 );
             }
             tr.commit().join();
         }
 
-        Index idIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex idIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertNotNull(idIndex, "Index should exist");
         DirectorySubspace idIndexSubspace = idIndex.subspace();
         byte[] prefix = idIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -128,14 +128,14 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
-                PrimaryIndexMaintainer.setEntry(tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion());
+                PrimaryIndexMaintainer.setEntry(tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion());
             }
             future = tr.getVersionstamp();
             tr.commit().join();
         }
         byte[] trVersion = future.join();
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
@@ -156,7 +156,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
                     tr,
                     objectIdToRemove.toByteArray(),
                     versionstamp,
-                    metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE),
+                    metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE),
                     metadata
             );
             tr.commit().join();
@@ -201,12 +201,12 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
-                PrimaryIndexMaintainer.setEntry(tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion());
+                PrimaryIndexMaintainer.setEntry(tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion());
             }
             tr.commit().join();
         }
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace primaryIndexSubspace = primaryIndex.subspace();
 
@@ -232,7 +232,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             PrimaryIndexMaintainer.updateIndexEntry(
                     tr,
                     objectIdToUpdate.toByteArray(),
-                    metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE),
+                    metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE),
                     SHARD_ID,
                     newMetadata
             );
@@ -274,14 +274,14 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         CompletableFuture<byte[]> future;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             PrimaryIndexMaintainer.setEntry(
-                    tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
+                    tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
             );
             future = tr.getVersionstamp();
             tr.commit().join();
         }
         byte[] trVersion = future.join();
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Versionstamp result = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, objectId.toByteArray(), metadata);
             assertNotNull(result, "Should return a Versionstamp for an inserted document");
@@ -302,7 +302,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 PrimaryIndexMaintainer.setEntry(
-                        tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion()
+                        tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion()
                 );
             }
             future = tr.getVersionstamp();
@@ -310,7 +310,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
         byte[] trVersion = future.join();
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 0; i < entries.length; i++) {
                 Versionstamp result = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, objectIds[i].toByteArray(), metadata);
@@ -325,7 +325,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
     void shouldReturnNullVolumePointerForNonExistentObjectId() {
         // Behavior: Verifies that getVolumePointer returns null when queried with an ObjectId that was never inserted.
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Versionstamp result = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, new ObjectId().toByteArray(), metadata);
@@ -343,11 +343,11 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId objectId = new ObjectId();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            PrimaryIndexMaintainer.setEntry(tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion());
+            PrimaryIndexMaintainer.setEntry(tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion());
             tr.commit().join();
         }
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace indexSubspace = primaryIndex.subspace();
 
@@ -370,13 +370,13 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 PrimaryIndexMaintainer.setEntry(
-                        tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion()
+                        tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion()
                 );
             }
             tr.commit().join();
         }
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace indexSubspace = primaryIndex.subspace();
 
@@ -402,14 +402,14 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         CompletableFuture<byte[]> future;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             PrimaryIndexMaintainer.setEntry(
-                    tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
+                    tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
             );
             future = tr.getVersionstamp();
             tr.commit().join();
         }
         byte[] trVersion = future.join();
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertNotNull(primaryIndex, "Primary index should exist");
         DirectorySubspace indexSubspace = primaryIndex.subspace();
 
@@ -420,7 +420,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         // Drop the primary index entry
         Versionstamp versionstamp = Versionstamp.complete(trVersion, entry.userVersion());
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            Index index = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
             PrimaryIndexMaintainer.dropEntry(tr, objectId.toByteArray(), versionstamp, index, metadata);
             tr.commit().join();
         }
@@ -441,14 +441,14 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         CompletableFuture<byte[]> future;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             PrimaryIndexMaintainer.setEntry(
-                    tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
+                    tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
             );
             future = tr.getVersionstamp();
             tr.commit().join();
         }
         byte[] trVersion = future.join();
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertEquals(0, metadata.volumePointerCache().size(), "Cache should be empty before first lookup");
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -476,14 +476,14 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         CompletableFuture<byte[]> future;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             PrimaryIndexMaintainer.setEntry(
-                    tr, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
+                    tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
             );
             future = tr.getVersionstamp();
             tr.commit().join();
         }
         byte[] trVersion = future.join();
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, objectId.toByteArray(), metadata);
         }
@@ -491,7 +491,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         Versionstamp versionstamp = Versionstamp.complete(trVersion, entry.userVersion());
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            PrimaryIndexMaintainer.dropEntry(tr, objectId.toByteArray(), versionstamp, metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata);
+            PrimaryIndexMaintainer.dropEntry(tr, objectId.toByteArray(), versionstamp, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata);
             tr.commit().join();
         }
         assertEquals(0, metadata.volumePointerCache().size(), "Cache should be empty after dropEntry");
@@ -501,7 +501,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
     void shouldNotCacheNullVolumePointer() {
         // Behavior: Verifies that a cache miss returning null does not pollute the cache.
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             Versionstamp result = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, new ObjectId().toByteArray(), metadata);

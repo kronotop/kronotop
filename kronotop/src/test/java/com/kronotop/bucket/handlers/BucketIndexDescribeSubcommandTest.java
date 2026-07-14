@@ -86,7 +86,7 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
                 }
                 case "id" -> {
                     IntegerRedisMessage value = (IntegerRedisMessage) entry.getValue();
-                    Index index = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+                    SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
                     assertEquals(index.definition().id(), value.value());
                 }
                 case "selector" -> {

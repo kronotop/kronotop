@@ -58,7 +58,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNotNull(metadata);
             assertFalse(metadata.removed());
-            assertNotNull(metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL));
+            assertNotNull(metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL));
         }
     }
 
@@ -175,10 +175,10 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             assertNotNull(metadata);
 
             // Primary index should be present
-            assertNotNull(metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL));
+            assertNotNull(metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL));
 
             // Secondary index for "username" should be present
-            Index usernameIndex = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            SingleFieldIndex usernameIndex = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
             assertNotNull(usernameIndex);
             assertEquals(BsonType.STRING, usernameIndex.definition().bsonType());
         }
@@ -201,11 +201,11 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNotNull(metadata);
 
-            Index usernameIndex = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            SingleFieldIndex usernameIndex = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
             assertNotNull(usernameIndex);
             assertEquals(BsonType.STRING, usernameIndex.definition().bsonType());
 
-            Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.ALL);
+            SingleFieldIndex ageIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.ALL);
             assertNotNull(ageIndex);
             assertEquals(BsonType.INT32, ageIndex.definition().bsonType());
         }
@@ -368,7 +368,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             assertNotNull(metadata.collation());
             assertEquals("en", metadata.collation().locale());
 
-            Index usernameIndex = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            SingleFieldIndex usernameIndex = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
             assertNotNull(usernameIndex);
             assertEquals(BsonType.STRING, usernameIndex.definition().bsonType());
         }
@@ -456,7 +456,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNull(metadata.collation());
 
-            Index usernameIndex = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            SingleFieldIndex usernameIndex = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
             assertNotNull(usernameIndex);
             SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, usernameIndex.subspace());
             assertNotNull(definition.collation());
@@ -485,7 +485,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             assertNotNull(metadata.collation());
             assertEquals("tr", metadata.collation().locale());
 
-            Index usernameIndex = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            SingleFieldIndex usernameIndex = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
             SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, usernameIndex.subspace());
             assertNotNull(definition.collation());
             assertEquals("tr", definition.collation().locale());
@@ -512,7 +512,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             assertNotNull(metadata.collation());
             assertEquals("en", metadata.collation().locale());
 
-            Index usernameIndex = metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL);
+            SingleFieldIndex usernameIndex = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
             SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, usernameIndex.subspace());
             assertNotNull(definition.collation());
             assertEquals("tr", definition.collation().locale());

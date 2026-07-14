@@ -276,13 +276,13 @@ public class BucketMetadataUtil {
      */
     public static void refreshIndexStatistics(Context context, BucketMetadata metadata, long ttl) {
         long now = context.now();
-        boolean singleFieldStale = metadata.indexes().getStatsLastRefreshedAt() <= now - ttl;
+        boolean singleFieldStale = metadata.singleFieldIndexes().getStatsLastRefreshedAt() <= now - ttl;
         boolean compoundStale = metadata.compoundIndexes().getStatsLastRefreshedAt() <= now - ttl;
         if (singleFieldStale || compoundStale) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 Map<Long, IndexStatistics> indexStatistics = readIndexStatistics(tr, metadata);
                 if (singleFieldStale) {
-                    metadata.indexes().updateStatistics(indexStatistics);
+                    metadata.singleFieldIndexes().updateStatistics(indexStatistics);
                 }
                 if (compoundStale) {
                     metadata.compoundIndexes().updateStatistics(indexStatistics);
@@ -688,7 +688,7 @@ public class BucketMetadataUtil {
                 cardinality = ByteBuffer.wrap(entry.getValue()).order(ByteOrder.LITTLE_ENDIAN).getLong();
             } else if (magic == BucketMetadataMagic.HISTOGRAM.getLong()) {
                 long version = HistogramCodec.readVersion(entry.getValue());
-                IndexStatistics indexStats = metadata.indexes().getStatistics(currentIndexId);
+                IndexStatistics indexStats = metadata.singleFieldIndexes().getStatistics(currentIndexId);
                 if (indexStats == null || indexStats.histogram().version() != version) {
                     histogram = HistogramCodec.decode(entry.getValue());
                 }

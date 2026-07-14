@@ -96,10 +96,10 @@ class SingleFieldIndexBuildingRaceHandlerTest extends BaseBucketHandlerTest {
 
         // Read the final index state: the inline index is already READY, so this confirms the
         // index subspace and drops any stale cache entry before the verification queries.
-        Index skIndex;
+        SingleFieldIndex skIndex;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            skIndex = metadata.indexes().getIndex("sk", IndexSelectionPolicy.ALL);
+            skIndex = metadata.singleFieldIndexes().getIndex("sk", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(skIndex.subspace());
         }
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);

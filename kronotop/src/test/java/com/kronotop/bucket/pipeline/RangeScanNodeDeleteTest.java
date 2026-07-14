@@ -21,7 +21,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
@@ -70,7 +70,7 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        Index index = metadata.indexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -135,7 +135,7 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
             assertEquals(0, results.size());
         }
 
-        Index index = metadata.indexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(ageIndex.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 

@@ -86,7 +86,7 @@ class NonStrictTypesArrayFilterTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size(), "Document should be inserted");
 
         // Verify initial state: 3 index entries (55, 60, 65)
-        Index scoresIndex = metadata.indexes().getIndex("scores", IndexSelectionPolicy.READ);
+        SingleFieldIndex scoresIndex = metadata.singleFieldIndexes().getIndex("scores", IndexSelectionPolicy.READ);
         assertNotNull(scoresIndex, "Scores index should exist");
         List<KeyValue> initialEntries = TestUtil.fetchAllIndexedEntries(context, scoresIndex.subspace());
         assertEquals(3, initialEntries.size(), "Should have 3 index entries initially");
@@ -146,7 +146,7 @@ class NonStrictTypesArrayFilterTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         // Verify initial state: 2 index entries (10, 30) - STRING "twenty" skipped
-        Index valuesIndex = metadata.indexes().getIndex("values", IndexSelectionPolicy.READ);
+        SingleFieldIndex valuesIndex = metadata.singleFieldIndexes().getIndex("values", IndexSelectionPolicy.READ);
         assertNotNull(valuesIndex, "Values index should exist");
         List<KeyValue> initialEntries = TestUtil.fetchAllIndexedEntries(context, valuesIndex.subspace());
         assertEquals(2, initialEntries.size(), "Should have 2 index entries (STRING skipped)");
@@ -207,7 +207,7 @@ class NonStrictTypesArrayFilterTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         // Verify initial state: 2 index entries (10, 20)
-        Index priceIndex = metadata.indexes().getIndex("items.price", IndexSelectionPolicy.READ);
+        SingleFieldIndex priceIndex = metadata.singleFieldIndexes().getIndex("items.price", IndexSelectionPolicy.READ);
         assertNotNull(priceIndex, "Price index should exist");
         List<KeyValue> initialEntries = TestUtil.fetchAllIndexedEntries(context, priceIndex.subspace());
         assertEquals(2, initialEntries.size(), "Should have 2 index entries initially");
@@ -269,7 +269,7 @@ class NonStrictTypesArrayFilterTest extends BaseBucketHandlerTest {
         }
 
         // Verify no index entry was created (type mismatch skipped)
-        Index index = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         assertNotNull(index, "Age index should exist");
         List<KeyValue> indexEntries = TestUtil.fetchAllIndexedEntries(context, index.subspace());
         assertEquals(0, indexEntries.size(), "Should have 0 index entries (STRING value skipped for INT32 index)");

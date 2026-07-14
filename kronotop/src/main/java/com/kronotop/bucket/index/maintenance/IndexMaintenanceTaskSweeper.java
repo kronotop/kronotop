@@ -101,7 +101,7 @@ public class IndexMaintenanceTaskSweeper {
                 yield vectorIndex != null ? vectorIndex.subspace() : null;
             }
             default -> {
-                Index index = metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(indexId, IndexSelectionPolicy.ALL);
                 yield index != null ? index.subspace() : null;
             }
         };
@@ -165,7 +165,7 @@ public class IndexMaintenanceTaskSweeper {
 
         // Search all three index registries for the target index.
         IndexDefinition definition = null;
-        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
         if (index != null) {
             definition = index.definition();
         } else {
@@ -241,7 +241,7 @@ public class IndexMaintenanceTaskSweeper {
     private void sweepAnalyzeTask(Transaction tr, Versionstamp taskId, byte[] taskDef) {
         IndexAnalyzeTask task = JSONUtil.readValue(taskDef, IndexAnalyzeTask.class);
         BucketMetadata metadata = BucketMetadataUtil.open(context, tr, task.getNamespace(), task.getBucket());
-        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
         if (index == null) {
             dropIndexMaintenanceTask(tr, taskId, IndexMaintenanceTaskKind.ANALYZE);
         } else {

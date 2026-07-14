@@ -74,7 +74,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
      * Helper method to set an index entry and commit the transaction
      */
     void setIndexEntryAndCommit(SingleFieldIndexDefinition definition, BucketMetadata metadata, Object indexValue, ObjectId objectId, AppendedEntry entry) {
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -122,7 +122,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
     void insertIndexEntryAndCommit(SingleFieldIndexDefinition definition, BucketMetadata metadata,
                                    Object indexValue, ObjectId objectId, int shardId, byte[] entry) {
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
         byte[] objectIdBytes = objectId.toByteArray();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             SingleFieldIndexMaintainer.insertEntry(tr, index, metadata,
@@ -142,7 +142,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         setIndexEntryAndCommit(definition, metadata, inputValue, objectId, entries[0]);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist for " + bsonType);
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -178,7 +178,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         // First set the index entry
         setIndexEntryAndCommit(definition, metadata, indexValue, objectId, entries[0]);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -239,7 +239,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         // Set the index entry
         setIndexEntryAndCommit(definition, metadata, inputValue, objectId, entries[0]);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -301,10 +301,10 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         setIndexEntryAndCommit(stringIndex, metadata, stringValue, objectId, entries[0]);
         setIndexEntryAndCommit(intIndex, metadata, intValue, objectId, entries[0]);
 
-        Index stringIndexObj = metadata.indexes().getIndex(stringIndex.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex stringIndexObj = metadata.singleFieldIndexes().getIndex(stringIndex.selector(), IndexSelectionPolicy.READ);
         assertNotNull(stringIndexObj, "String index should exist");
         DirectorySubspace stringIndexSubspace = stringIndexObj.subspace();
-        Index intIndexObj = metadata.indexes().getIndex(intIndex.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex intIndexObj = metadata.singleFieldIndexes().getIndex(intIndex.selector(), IndexSelectionPolicy.READ);
         assertNotNull(intIndexObj, "Int index should exist");
         DirectorySubspace intIndexSubspace = intIndexObj.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -369,7 +369,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("test-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -405,7 +405,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         setIndexEntryAndCommit(definition, metadata, "value2", objectId1, entries[1]);
         setIndexEntryAndCommit(definition, metadata, "value3", objectId2, entries[2]);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
@@ -468,7 +468,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         setIndexEntryAndCommit(definition, metadata, indexValue, objectId, entry);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -523,7 +523,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
             setIndexEntryAndCommit(definition, metadata, value, objectId, entry);
         }
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -571,7 +571,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("empty-index", "value", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
         ObjectId nonExistentObjectId = new ObjectId();
@@ -609,7 +609,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         setIndexEntryAndCommit(definition, metadata, inputValue, objectId, entry);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -660,7 +660,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] entryMetadata = getEncodedEntryMetadata();
         Versionstamp versionstamp = TestUtil.generateVersionstamp(1);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -745,7 +745,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] entryMetadata = getEncodedEntryMetadata();
         Versionstamp versionstamp = TestUtil.generateVersionstamp(1);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -831,7 +831,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         insertIndexEntryAndCommit(definition, metadata, indexValue, objectId, SHARD_ID, entryMetadata);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -900,7 +900,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         insertIndexEntryAndCommit(definition, metadata, inputValue, objectId, SHARD_ID, entryMetadata);
 
-        Index index = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist for " + bsonType);
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -945,7 +945,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         insertIndexEntryAndCommit(definition, metadata, "value1", id1, SHARD_ID, entryMetadata);
         insertIndexEntryAndCommit(definition, metadata, "value2", id2, SHARD_ID, entryMetadata);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
+        DirectorySubspace indexSubspace = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
 
         Set<ObjectId> found = findIndexedObjectIds(indexSubspace, id0, id1, id2);
         assertEquals(3, found.size(), "Should find all three listed ObjectIds");
@@ -966,7 +966,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         insertIndexEntryAndCommit(definition, metadata, "value0", indexed0, SHARD_ID, entryMetadata);
         insertIndexEntryAndCommit(definition, metadata, "value1", indexed1, SHARD_ID, entryMetadata);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
+        DirectorySubspace indexSubspace = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
 
         Set<ObjectId> found = findIndexedObjectIds(indexSubspace, indexed0, notIndexed, indexed1);
         assertEquals(2, found.size(), "Should only find the two indexed ObjectIds");
@@ -988,7 +988,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         insertIndexEntryAndCommit(definition, metadata, "tag2", objectId, SHARD_ID, entryMetadata);
         insertIndexEntryAndCommit(definition, metadata, "tag3", objectId, SHARD_ID, entryMetadata);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
+        DirectorySubspace indexSubspace = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
 
         Set<ObjectId> found = findIndexedObjectIds(indexSubspace, objectId);
         assertEquals(1, found.size(), "ObjectId with multiple back pointers should appear once");
@@ -1002,7 +1002,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create("empty-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexAndLoadBucketMetadata(definition, TEST_BUCKET);
 
-        DirectorySubspace indexSubspace = metadata.indexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
+        DirectorySubspace indexSubspace = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READ).subspace();
 
         Set<ObjectId> found = findIndexedObjectIds(indexSubspace, new ObjectId(), new ObjectId());
         assertTrue(found.isEmpty(), "Empty index should return no ObjectIds");

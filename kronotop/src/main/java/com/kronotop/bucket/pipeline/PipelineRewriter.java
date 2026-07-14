@@ -693,7 +693,7 @@ public class PipelineRewriter {
                 FullScanNode fullScanNode = new FullScanNode(id, getPrimaryIndexDefinition(ctx), predicate);
                 Collation queryCollation = ctx.getCollation();
                 if (queryCollation != null) {
-                    Index selectorIndex = ctx.getMetadata().indexes().getIndex(selector, IndexSelectionPolicy.READ);
+                    SingleFieldIndex selectorIndex = ctx.getMetadata().singleFieldIndexes().getIndex(selector, IndexSelectionPolicy.READ);
                     if (selectorIndex != null
                             && selectorIndex.definition().bsonType() == BsonType.STRING
                             && !Objects.equals(queryCollation, selectorIndex.definition().collation())) {
@@ -804,7 +804,7 @@ public class PipelineRewriter {
     private static PipelineNode rewritePhysicalTrue(PlannerContext ctx, PhysicalTrue node) {
         String sortByField = ctx.getSortByField();
         if (sortByField != null && ctx.getMetadata() != null) {
-            Index index = ctx.getMetadata().indexes().getIndex(sortByField, IndexSelectionPolicy.READ);
+            SingleFieldIndex index = ctx.getMetadata().singleFieldIndexes().getIndex(sortByField, IndexSelectionPolicy.READ);
             if (index != null) {
                 // Create a full range scan on the sortBy index to preserve ordering
                 RangeScanPredicate predicate = new RangeScanPredicate(
@@ -895,7 +895,7 @@ public class PipelineRewriter {
      * Retrieves the primary index definition from the bucket metadata.
      */
     private static SingleFieldIndexDefinition getPrimaryIndexDefinition(PlannerContext ctx) {
-        Index index = ctx.getMetadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex index = ctx.getMetadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         return index.definition();
     }
 

@@ -224,7 +224,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify the index entry was created
-        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist for " + fieldName);
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -283,8 +283,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify only the 'name' index entry was created
-        Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
-        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         assertNotNull(nameIndex, "Name index should exist");
         assertNotNull(ageIndex, "Age index should exist");
         DirectorySubspace nameIndexSubspace = nameIndex.subspace();
@@ -448,7 +448,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Verify all three index entries were created
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             // Check name index
-            Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
+            SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
             assertNotNull(nameIndex, "Name index should exist");
             DirectorySubspace nameIndexSubspace = nameIndex.subspace();
             byte[] namePrefix = nameIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -459,7 +459,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, nameEntries.size(), "Should have one entry for name index");
 
             // Check age index
-            Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+            SingleFieldIndex ageIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
             assertNotNull(ageIndex, "Age index should exist");
             DirectorySubspace ageIndexSubspace = ageIndex.subspace();
             byte[] agePrefix = ageIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -470,7 +470,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, ageEntries.size(), "Should have one entry for age index");
 
             // Check active index
-            Index activeIndex = metadata.indexes().getIndex("active", IndexSelectionPolicy.READ);
+            SingleFieldIndex activeIndex = metadata.singleFieldIndexes().getIndex("active", IndexSelectionPolicy.READ);
             assertNotNull(activeIndex, "Active index should exist");
             DirectorySubspace activeIndexSubspace = activeIndex.subspace();
             byte[] activePrefix = activeIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -709,7 +709,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, actualMessage.children().size());
 
         // Fetch all index entries
-        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         assertNotNull(ageIndex, "Age index should exist");
         List<KeyValue> indexEntries = fetchAllIndexedEntries(ageIndex.subspace());
 
@@ -753,7 +753,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, actualMessage.children().size());
 
         // Fetch all index entries
-        Index ageIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         assertNotNull(ageIndex, "Age index should exist");
         List<KeyValue> indexEntries = fetchAllIndexedEntries(ageIndex.subspace());
 
@@ -917,7 +917,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Fetch all index entries
-        Index typeIndex = metadata.indexes().getIndex("scores.type", IndexSelectionPolicy.READ);
+        SingleFieldIndex typeIndex = metadata.singleFieldIndexes().getIndex("scores.type", IndexSelectionPolicy.READ);
         assertNotNull(typeIndex, "scores.type index should exist");
         List<KeyValue> indexEntries = fetchAllIndexedEntries(typeIndex.subspace());
 
@@ -957,7 +957,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Fetch all index entries
-        Index typeIndex = metadata.indexes().getIndex("scores.type", IndexSelectionPolicy.READ);
+        SingleFieldIndex typeIndex = metadata.singleFieldIndexes().getIndex("scores.type", IndexSelectionPolicy.READ);
         assertNotNull(typeIndex, "scores.type index should exist");
         List<KeyValue> indexEntries = fetchAllIndexedEntries(typeIndex.subspace());
 
@@ -1024,7 +1024,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         runCommand(channel, buf1);
 
         // Verify after first document: 2 unique index entries
-        Index tagsIndex = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIndex = metadata.singleFieldIndexes().getIndex("tags.name", IndexSelectionPolicy.READ);
         assertNotNull(tagsIndex, "tags.name index should exist");
 
         List<KeyValue> entriesAfterDoc1 = fetchAllIndexedEntries(tagsIndex.subspace());
@@ -1108,7 +1108,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         // Fetch all index entries
-        Index tagsIndex = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIndex = metadata.singleFieldIndexes().getIndex("tags.name", IndexSelectionPolicy.READ);
         assertNotNull(tagsIndex, "tags.name index should exist");
         List<KeyValue> indexEntries = fetchAllIndexedEntries(tagsIndex.subspace());
 
@@ -1146,7 +1146,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         // Fetch all index entries
-        Index tagsIndex = metadata.indexes().getIndex("tags.name", IndexSelectionPolicy.READ);
+        SingleFieldIndex tagsIndex = metadata.singleFieldIndexes().getIndex("tags.name", IndexSelectionPolicy.READ);
         assertNotNull(tagsIndex, "tags.name index should exist");
         List<KeyValue> indexEntries = fetchAllIndexedEntries(tagsIndex.subspace());
 
@@ -1697,7 +1697,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertEquals(1, actualMessage.children().size());
 
-        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist for age");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -1733,7 +1733,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
         assertEquals(1, actualMessage.children().size());
 
-        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
         assertNotNull(index, "Index should exist for score");
         DirectorySubspace indexSubspace = index.subspace();
 
@@ -1779,7 +1779,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, actualMessage.children().size());
         }
 
-        Index index = metadata.indexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(indexDefinition.selector(), IndexSelectionPolicy.READ);
         DirectorySubspace indexSubspace = index.subspace();
 
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));

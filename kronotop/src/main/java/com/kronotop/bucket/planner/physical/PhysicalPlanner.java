@@ -290,7 +290,7 @@ public class PhysicalPlanner {
             // If filter.selector() already contains a dot (nested path like "items.price"),
             // it's already fully qualified and shouldn't be combined
         }
-        Index index = context.getMetadata().indexes().getIndex(indexLookupSelector, IndexSelectionPolicy.READ);
+        SingleFieldIndex index = context.getMetadata().singleFieldIndexes().getIndex(indexLookupSelector, IndexSelectionPolicy.READ);
 
         if (index != null && !isCollationCompatible(context.getCollation(), index.definition())) {
             index = null;
@@ -394,7 +394,7 @@ public class PhysicalPlanner {
      * </ul>
      */
     @SuppressWarnings("unchecked")
-    private PhysicalNode transposeInToOr(LogicalFilter filter, Index index, PlannerContext context) {
+    private PhysicalNode transposeInToOr(LogicalFilter filter, SingleFieldIndex index, PlannerContext context) {
         List<BqlValue> values = (List<BqlValue>) filter.operand();
 
         // Empty $in matches nothing
@@ -441,7 +441,7 @@ public class PhysicalPlanner {
      * </ul>
      */
     @SuppressWarnings("unchecked")
-    private PhysicalNode transposeNinToAnd(LogicalFilter filter, Index index, PlannerContext context) {
+    private PhysicalNode transposeNinToAnd(LogicalFilter filter, SingleFieldIndex index, PlannerContext context) {
         List<BqlValue> values = (List<BqlValue>) filter.operand();
 
         // Empty $nin matches everything

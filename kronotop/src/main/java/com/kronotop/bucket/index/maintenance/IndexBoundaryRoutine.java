@@ -42,7 +42,7 @@ public class IndexBoundaryRoutine extends AbstractBoundaryRoutine {
 
     @Override
     protected IndexHolder<?> lookupIndex(BucketMetadata metadata) {
-        return metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        return metadata.singleFieldIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
     }
 
     @Override

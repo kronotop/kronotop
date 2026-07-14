@@ -81,7 +81,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with LT predicates:
         // age < 10 -> ~10% percentile -> estimation = 0.10 * 1000 = ~100 rows
@@ -115,7 +115,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with GT predicates:
         // age > 90 -> ~90% percentile -> estimation = (1 - 0.90) * 1000 = ~100 rows
@@ -149,7 +149,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Compare LT vs GT at same value (20):
         // age < 20 -> ~20% percentile -> estimation = 0.20 * 1000 = ~200 rows
@@ -183,7 +183,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Compare LT vs GT at same value (80):
         // age < 80 -> ~80% percentile -> estimation = 0.80 * 1000 = ~800 rows
@@ -217,7 +217,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with LT predicates:
         // age < 10 -> below histogram range -> percentile clamped to EPSILON (0.01)
@@ -252,7 +252,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with GT predicates:
         // age > 100 -> above histogram range -> percentile clamped to 0.99
@@ -289,7 +289,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create two IndexScanNodes with identical predicates (same operator, same value):
         // age < 50 -> ~50% percentile -> estimation = 0.50 * 1000 = 500 rows
@@ -327,7 +327,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create two RangeScanNodes:
         // age: 40-60 -> ~40% to ~60% -> (0.60 - 0.40) * 1000 = ~200 rows
@@ -363,7 +363,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create two RangeScanNodes with identical ranges on different indexes:
         // age: 40-60 -> same percentiles -> same estimation
@@ -403,7 +403,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create inverted range (upper < lower) -> returns UNKNOWN
         // age: 60-40 (inverted) -> high percentile < low percentile -> UNKNOWN
@@ -440,7 +440,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create range with lower bound below histogram range:
         // age: 10-75 -> lower clamped to EPSILON (0.01), upper ~50%
@@ -479,7 +479,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create range with upper bound above histogram range:
         // age: 25-150 -> lower ~50%, upper clamped to 0.99
@@ -518,7 +518,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create RangeScan with narrow range:
         // age: 45-55 -> ~45% to ~55% -> (0.55 - 0.45) * 1000 = ~100 rows
@@ -556,7 +556,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create IndexScan with narrow coverage:
         // age < 10 -> ~10% percentile -> 0.10 * 1000 = ~100 rows
@@ -606,7 +606,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         // ageIndex has NO statistics (will return UNKNOWN)
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create predicates
         IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(50)));
@@ -638,7 +638,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, null)); // null histogram
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Create predicates
         IndexScanPredicate agePredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(50)));
@@ -667,7 +667,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // age <= 10 -> ~10% -> ~100 rows
         // score <= 90 -> ~90% -> ~900 rows
@@ -695,7 +695,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // age >= 90 -> (1 - 0.90) * 1000 = ~100 rows
         // score >= 10 -> (1 - 0.10) * 1000 = ~900 rows
@@ -723,7 +723,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // EQ operator returns UNKNOWN
         IndexScanPredicate eqPredicate = new IndexScanPredicate(1, "age", Operator.EQ, lit(new Int32Val(50)));
@@ -754,7 +754,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // NE operator returns UNKNOWN
         IndexScanPredicate nePredicate = new IndexScanPredicate(1, "age", Operator.NE, lit(new Int32Val(50)));
@@ -785,7 +785,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Int64Val with INT32 index -> type mismatch -> UNKNOWN
         IndexScanPredicate mismatchPredicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int64Val(50L)));
@@ -812,7 +812,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Histogram histogram = buildHistogramWithRange(1, 100);
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         IndexScanPredicate predicate = new IndexScanPredicate(1, "age", Operator.LT, lit(new Int32Val(50)));
         IndexScanNode node = new IndexScanNode(1, ageIndex, predicate);
@@ -877,7 +877,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // Use BUCKET.EXPLAIN to verify index selection
         // Query: age < 10 AND score < 90
@@ -914,7 +914,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // age < ?0 with ?0 = 10 -> ~10% percentile -> ~100 rows
         IndexScanPredicate lowValuePredicate = new IndexScanPredicate(1, "age", Operator.LT, param(0));
@@ -945,7 +945,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // age > ?0 with ?0 = 90 -> ~90% percentile -> (1 - 0.90) * 1000 = ~100 rows
         IndexScanPredicate highValuePredicate = new IndexScanPredicate(1, "age", Operator.GT, param(0));
@@ -976,7 +976,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Map<Long, IndexStatistics> stats = new HashMap<>();
         stats.put(ageIndex.id(), new IndexStatistics(1000, histogram));
         stats.put(scoreIndex.id(), new IndexStatistics(1000, histogram));
-        metadata.indexes().updateStatistics(stats);
+        metadata.singleFieldIndexes().updateStatistics(stats);
 
         // age: ?0 <= age <= ?1 with ?0 = 40, ?1 = 60 -> 20% range -> ~200 rows
         RangeScanPredicate narrowRange = new RangeScanPredicate("age", param(0), param(1), true, true);
@@ -1061,7 +1061,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Histogram singleHistogram = buildHistogramWithRange(1, 100);
         Map<Long, IndexStatistics> singleStats = new HashMap<>();
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
-        metadata.indexes().updateStatistics(singleStats);
+        metadata.singleFieldIndexes().updateStatistics(singleStats);
 
         // Compound: category = 5 AND price < 50 -> narrow estimate
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
@@ -1103,7 +1103,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Histogram singleHistogram = buildHistogramWithRange(1, 100);
         Map<Long, IndexStatistics> singleStats = new HashMap<>();
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
-        metadata.indexes().updateStatistics(singleStats);
+        metadata.singleFieldIndexes().updateStatistics(singleStats);
 
         // Compound: category = 5 AND price > 80 -> narrow estimate (high percentile, small 1-p)
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
@@ -1145,7 +1145,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Histogram singleHistogram = buildHistogramWithRange(1, 100);
         Map<Long, IndexStatistics> singleStats = new HashMap<>();
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
-        metadata.indexes().updateStatistics(singleStats);
+        metadata.singleFieldIndexes().updateStatistics(singleStats);
 
         // Compound: category = 5 AND status = 3 -> all-EQ -> est = 1000/bucketCount
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
@@ -1190,7 +1190,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Histogram singleHistogram = buildHistogramWithRange(1, 100);
         Map<Long, IndexStatistics> singleStats = new HashMap<>();
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
-        metadata.indexes().updateStatistics(singleStats);
+        metadata.singleFieldIndexes().updateStatistics(singleStats);
 
         // Compound: category = 1 AND price > 20 AND price < 80 -> bounds in different buckets
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
@@ -1229,7 +1229,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Histogram singleHistogram = buildHistogramWithRange(1, 100);
         Map<Long, IndexStatistics> singleStats = new HashMap<>();
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
-        metadata.indexes().updateStatistics(singleStats);
+        metadata.singleFieldIndexes().updateStatistics(singleStats);
 
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
                 new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),
@@ -1269,7 +1269,7 @@ class SelectivityEstimatorTest extends BaseHandlerTest {
         Histogram singleHistogram = buildHistogramWithRange(1, 100);
         Map<Long, IndexStatistics> singleStats = new HashMap<>();
         singleStats.put(scoreIndex.id(), new IndexStatistics(1000, singleHistogram));
-        metadata.indexes().updateStatistics(singleStats);
+        metadata.singleFieldIndexes().updateStatistics(singleStats);
 
         List<CompoundIndexScanNode.CompoundIndexScanFilter> filters = List.of(
                 new CompoundIndexScanNode.CompoundIndexScanFilter("category", Operator.EQ, lit(new Int32Val(5)), BsonType.INT32),

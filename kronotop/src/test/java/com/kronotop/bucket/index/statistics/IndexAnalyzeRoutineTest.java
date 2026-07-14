@@ -160,7 +160,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         SingleFieldIndexDefinition definition;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+            SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             assertNotNull(primaryIndex);
             definition = primaryIndex.definition();
         }
@@ -195,7 +195,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         SingleFieldIndexDefinition definition;
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+            SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             assertNotNull(primaryIndex);
             definition = primaryIndex.definition();
         }
@@ -204,7 +204,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         List<ObjectId> randomKeys = selectRandomKeysFromMap(items, 200);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
             assertNotNull(index);
             for (ObjectId objectId : randomKeys) {
                 IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray());
@@ -252,7 +252,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         List<ObjectId> randomKeys = selectRandomKeysFromMap(items, 200);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
             assertNotNull(index);
             for (ObjectId objectId : randomKeys) {
                 IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray());

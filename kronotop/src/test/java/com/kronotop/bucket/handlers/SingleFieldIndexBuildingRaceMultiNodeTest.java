@@ -24,7 +24,7 @@ import com.kronotop.TestUtil;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexUtil;
@@ -106,7 +106,7 @@ class SingleFieldIndexBuildingRaceMultiNodeTest extends BaseBucketMultiNodeTest 
     private DirectorySubspace indexSubspaceIfReady(Context ctx, String namespace) {
         try (Transaction tr = ctx.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(ctx, tr, namespace, TEST_BUCKET);
-            Index index = metadata.indexes().getIndex("sk", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("sk", IndexSelectionPolicy.ALL);
             if (index == null) {
                 return null;
             }

@@ -24,7 +24,7 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.PrimaryIndex;
@@ -99,7 +99,7 @@ public class BoundaryLocator {
      * @throws IndexMaintenanceRoutineException if the primary index is unexpectedly empty
      */
     public static Boundaries locate(ReadTransaction tr, BucketMetadata metadata) {
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL);
         DirectorySubspace primarySubspace = primaryIndex.subspace();
         byte[] primaryIndexPrefix = primarySubspace.pack(Tuple.from(IndexSubspaceMagic.VOLUME_POINTER.getValue()));
         Versionstamp lower = locateBoundary(tr, primarySubspace, primaryIndexPrefix);

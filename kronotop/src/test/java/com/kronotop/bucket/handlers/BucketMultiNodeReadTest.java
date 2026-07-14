@@ -176,7 +176,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             await().atMost(15, TimeUnit.SECONDS).until(() -> {
                 try (Transaction tr = node1.getContext().getFoundationDB().createTransaction()) {
                     BucketMetadata metadata = BucketMetadataUtil.reload(node1.getContext(), tr, namespace, bucketName);
-                    Index index = metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL);
+                    SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
                     return index != null && index.definition().status() == IndexStatus.READY;
                 }
             });
@@ -277,7 +277,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             String namespace = node1.getContext().getConfig().getString("default_namespace");
             BucketMetadata metadata = BucketMetadataUtil.open(node1.getContext(), tr, namespace, bucketName);
 
-            Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+            SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             assertNotNull(primaryIndex, "Primary index should exist");
 
             byte[] indexKey = primaryIndex.subspace().pack(
@@ -307,7 +307,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             }
 
             // Verify the secondary index ("name") also points to a local shard after migration
-            Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
+            SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
             assertNotNull(nameIndex, "Secondary index on 'name' should exist");
 
             byte[] secondaryKey = nameIndex.subspace().pack(
@@ -411,7 +411,7 @@ class BucketMultiNodeReadTest extends BaseBucketMultiNodeTest {
             String namespace = node1.getContext().getConfig().getString("default_namespace");
             BucketMetadata metadata = BucketMetadataUtil.open(node1.getContext(), tr, namespace, bucketName);
 
-            Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+            SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             assertNotNull(primaryIndex, "Primary index should exist");
 
             byte[] indexKey = primaryIndex.subspace().pack(

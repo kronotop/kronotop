@@ -109,11 +109,11 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
             Map<Long, IndexStatistics> statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             assertEquals(2, statistics.size());
 
-            Index primary = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL);
+            SingleFieldIndex primary = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.ALL);
             assertEquals(expected, statistics.get(primary.definition().id()).cardinality(),
                     "primary index cardinality must be exact");
 
-            Index secondary = metadata.indexes().getIndex(secondarySelector, IndexSelectionPolicy.ALL);
+            SingleFieldIndex secondary = metadata.singleFieldIndexes().getIndex(secondarySelector, IndexSelectionPolicy.ALL);
             byte[] prefix = secondary.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
@@ -130,9 +130,9 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             for (String selector : selectors) {
-                Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READ);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(selector, IndexSelectionPolicy.READ);
                 assertNotNull(index);
-                IndexStatistics statistics = metadata.indexes().getStatistics(index.definition().id());
+                IndexStatistics statistics = metadata.singleFieldIndexes().getStatistics(index.definition().id());
                 assertEquals(expected, statistics.cardinality());
                 assertTrue(statistics.histogram().isEmpty());
             }
@@ -205,7 +205,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
     private DirectorySubspace ageIndexSubspace() {
         return refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET)
-                .indexes().getIndex("age", IndexSelectionPolicy.ALL).subspace();
+                .singleFieldIndexes().getIndex("age", IndexSelectionPolicy.ALL).subspace();
     }
 
     private void awaitAllTasksSwept() {
@@ -394,7 +394,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
                 assertEquals("Index has active tasks", exception.getMessage());
             }
 
-            Index index = metadata.indexes().getIndex("age", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.ALL);
             assertNotNull(index);
 
             // Stop the BUILD tasks
@@ -444,7 +444,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
             // Refresh and check
             metadata = getBucketMetadata(TEST_BUCKET);
-            assertNull(metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL));
+            assertNull(metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL));
         }
     }
 
@@ -496,7 +496,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
 
         // Refresh and check
         metadata = reloadBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-        assertNull(metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL));
+        assertNull(metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL));
     }
 
     @Test
@@ -521,7 +521,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         assertNotNull(definition);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index index = metadata.indexes().getIndex("numeric", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("numeric", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(index.subspace());
             waitUntilUpdated(metadata);
         }
@@ -530,7 +530,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         List<ObjectId> randomKeys = selectRandomKeysFromMap(items, 200);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
             assertNotNull(index);
             for (ObjectId objectId : randomKeys) {
                 IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray());
@@ -581,7 +581,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         assertNotNull(definition);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index index = metadata.indexes().getIndex("numeric", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("numeric", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(index.subspace());
             waitUntilUpdated(metadata);
         }
@@ -614,7 +614,7 @@ class IndexMaintenanceE2ETest extends BaseBucketHandlerTest {
         assertNotNull(definition);
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index index = metadata.indexes().getIndex("numeric", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("numeric", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(index.subspace());
             waitUntilUpdated(metadata);
         }

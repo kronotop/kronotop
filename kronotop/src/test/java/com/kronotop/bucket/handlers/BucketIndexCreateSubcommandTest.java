@@ -238,7 +238,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
             BucketMetadata metadata = TransactionUtil.execute(context,
                     tr -> BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET)
             );
-            Index index = metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(index.subspace());
         }
 
@@ -394,7 +394,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
                 tr -> BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET)
         );
         // Single field: _id (primary) + username
-        assertNotNull(metadata.indexes().getIndex("username", IndexSelectionPolicy.ALL));
+        assertNotNull(metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL));
         // Compound
         assertEquals(1, metadata.compoundIndexes().getIndexes(IndexSelectionPolicy.ALL).size());
     }
@@ -583,7 +583,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, collatedBucket);
-            Index index = metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
             assertNotNull(definition.collation());
             assertEquals("tr", definition.collation().locale());
@@ -614,7 +614,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, collatedBucket);
-            Index index = metadata.indexes().getIndex("age", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.ALL);
             SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
             assertNull(definition.collation());
         }
@@ -642,7 +642,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, collatedBucket);
-            Index index = metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
             assertNotNull(definition.collation());
             assertEquals("tr", definition.collation().locale());

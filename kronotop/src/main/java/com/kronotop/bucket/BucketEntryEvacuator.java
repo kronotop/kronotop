@@ -51,13 +51,13 @@ public class BucketEntryEvacuator implements EntryEvacuator {
         byte[] encodedIndexEntry = indexEntry.encode();
 
         // Primary Index
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
         PrimaryIndexMaintainer.updateIndexEntry(tr, objectId, primaryIndex, shardId, encodedMetadata);
 
         // Single field indexes. WRITABLE so WAITING indexes (which the write path now maintains)
         // get their relocated entry pointers refreshed; skipping them would leave stale physical
         // positions that resolve incorrectly once the index becomes READY.
-        for (Index index : metadata.indexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
+        for (SingleFieldIndex index : metadata.singleFieldIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             if (PrimaryIndex.isPrimary(index.definition())) {
                 continue;
             }

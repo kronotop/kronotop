@@ -40,7 +40,7 @@ import java.util.Set;
  * Builds secondary (single-field) indexes on existing bucket data in the background.
  *
  * <p>Extends {@link AbstractBuildingRoutine} with index lookup via
- * {@link BucketMetadata#indexes()} and per-document entry insertion using
+ * {@link BucketMetadata#singleFieldIndexes()} and per-document entry insertion using
  * {@link SingleFieldIndexMaintainer}, including multikey array handling.
  *
  * @see AbstractBuildingRoutine
@@ -60,7 +60,7 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
 
     @Override
     protected IndexHolder<?> lookupIndex(BucketMetadata metadata) {
-        return metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        return metadata.singleFieldIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
     }
 
     @Override
@@ -74,7 +74,7 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
         VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(task.getUpper());
         VolumeSession session = new VolumeSession(tr, metadata.prefix());
 
-        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
         Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
 
         // Drain the batch and extract ObjectIds.

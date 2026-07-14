@@ -22,7 +22,7 @@ import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.bucket.bql.ast.BqlValue;
 import com.kronotop.bucket.handlers.protocol.SortDirection;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.PrimaryIndex;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
@@ -74,7 +74,7 @@ public class FullScanNode extends AbstractScanNode implements ScanNode {
         // Track which field this scan uses for SORTBY optimization (primary index = _id)
         ctx.setScannedIndexField(PrimaryIndex.SELECTOR);
 
-        Index indexRecord = ctx.metadata().indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex indexRecord = ctx.metadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         if (indexRecord == null) {
             throw new IllegalStateException("Index not found for selector: " + PrimaryIndex.SELECTOR);
         }

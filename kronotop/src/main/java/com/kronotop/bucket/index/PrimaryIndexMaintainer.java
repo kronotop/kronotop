@@ -48,7 +48,7 @@ public final class PrimaryIndexMaintainer extends IndexMaintainer {
      */
     public static void setEntry(
             Transaction tr,
-            Index index,
+            SingleFieldIndex index,
             BucketMetadata metadata,
             byte[] objectId,
             byte[] indexEntry,
@@ -92,7 +92,7 @@ public final class PrimaryIndexMaintainer extends IndexMaintainer {
      * @param metadata bucket metadata carrying the volume pointer cache
      * @return the Versionstamp for the given ObjectId, or null if not found
      */
-    public static Versionstamp getVolumePointer(Transaction tr, Index index, byte[] objectId, BucketMetadata metadata) {
+    public static Versionstamp getVolumePointer(Transaction tr, SingleFieldIndex index, byte[] objectId, BucketMetadata metadata) {
         ObjectId key = new ObjectId(objectId);
         Versionstamp cached = metadata.volumePointerCache().getIfPresent(key);
         if (cached != null) {
@@ -130,7 +130,7 @@ public final class PrimaryIndexMaintainer extends IndexMaintainer {
             Transaction tr,
             byte[] objectId,
             Versionstamp versionstamp,
-            Index index,
+            SingleFieldIndex index,
             BucketMetadata metadata
     ) {
         DirectorySubspace indexSubspace = index.subspace();
@@ -178,7 +178,7 @@ public final class PrimaryIndexMaintainer extends IndexMaintainer {
     public static void updateIndexEntry(
             Transaction tr,
             byte[] objectId,
-            Index index,
+            SingleFieldIndex index,
             int shardId,
             byte[] entryMetadata
     ) {

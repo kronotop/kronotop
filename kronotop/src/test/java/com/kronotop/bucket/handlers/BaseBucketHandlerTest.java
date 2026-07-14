@@ -21,7 +21,7 @@ import com.kronotop.BaseHandlerTest;
 import com.kronotop.KronotopException;
 import com.kronotop.TestUtil;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.index.SingleFieldIndexUtil;
@@ -311,7 +311,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
     protected SingleFieldIndexDefinition loadIndexDefinition(String selector) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(selector, IndexSelectionPolicy.ALL);
             return SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
         }
     }

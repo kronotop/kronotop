@@ -153,7 +153,7 @@ public class SingleFieldIndexUtil {
      * @param definition updated index definition
      */
     public static void saveIndexDefinition(Transaction tr, BucketMetadata metadata, SingleFieldIndexDefinition definition) {
-        Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
         saveIndexDefinition(tr, definition, index.subspace());
         BucketMetadataUtil.increaseVersion(tr, metadata.subspace(), POSITIVE_DELTA_ONE);
     }
@@ -238,7 +238,7 @@ public class SingleFieldIndexUtil {
     }
 
     public static void createIndexBuildingTask(TransactionalContext tx, BucketMetadata metadata, long indexId, int shardId, Boundaries boundaries) {
-        Index index = metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.ALL);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(indexId, IndexSelectionPolicy.ALL);
         if (index == null) {
             throw new KronotopException(String.format("Index with id: '%d' could not be found", indexId));
         }
@@ -272,7 +272,7 @@ public class SingleFieldIndexUtil {
      */
     public static boolean markIndexAsReadyIfBuildDone(TransactionalContext tx, String namespace, String bucket, long indexId) {
         BucketMetadata metadata = BucketMetadataUtil.reload(tx.context(), tx.tr(), namespace, bucket);
-        Index index = metadata.indexes().getIndexById(indexId, IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(indexId, IndexSelectionPolicy.READWRITE);
         if (index == null) {
             return false;
         }

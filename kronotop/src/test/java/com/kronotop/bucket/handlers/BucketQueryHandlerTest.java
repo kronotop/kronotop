@@ -24,7 +24,7 @@ import com.kronotop.bucket.bql.ParameterExtractor;
 import com.kronotop.bucket.bql.QueryShape;
 import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.bql.ast.BqlValue;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.commands.*;
@@ -1500,7 +1500,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL);
+            SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
         }
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
@@ -1594,7 +1594,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, COLLATION_BUCKET);
-            Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL);
+            SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
         }
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, COLLATION_BUCKET);
@@ -1682,7 +1682,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, COLLATION_BUCKET);
-            Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL);
+            SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
         }
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, COLLATION_BUCKET);
@@ -2016,7 +2016,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
-            Index nameIndex = metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL);
+            SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
         }
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);

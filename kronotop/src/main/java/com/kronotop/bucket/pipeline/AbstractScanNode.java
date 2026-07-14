@@ -25,7 +25,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.handlers.protocol.SortDirection;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import org.bson.BsonType;
@@ -116,7 +116,7 @@ public abstract class AbstractScanNode extends AbstractPipelineNode implements S
         ctx.setScannedIndexField(index.selector());
         ctx.setScannedIndexIsMultiKey(index.multiKey());
 
-        Index indexRecord = ctx.metadata().indexes().getIndex(index.selector(), IndexSelectionPolicy.READ);
+        SingleFieldIndex indexRecord = ctx.metadata().singleFieldIndexes().getIndex(index.selector(), IndexSelectionPolicy.READ);
         if (indexRecord == null) {
             throw new IllegalStateException("Index not found for selector: " + index.selector());
         }

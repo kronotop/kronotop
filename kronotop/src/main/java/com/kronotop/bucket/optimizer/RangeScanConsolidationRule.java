@@ -17,7 +17,7 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
@@ -195,7 +195,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     }
 
     private SingleFieldIndexDefinition getIndexFromMetadata(BucketMetadata metadata, String selector) {
-        Index index = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READ);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(selector, IndexSelectionPolicy.READ);
         if (index == null) {
             return null;
         }

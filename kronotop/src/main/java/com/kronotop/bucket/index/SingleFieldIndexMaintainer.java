@@ -51,7 +51,7 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
      * @param objectId   the document's ObjectId as bytes
      * @return the packed key bytes
      */
-    private static byte[] getSingleFieldIndexEntryKey(Index index, Object indexValue, byte[] objectId) {
+    private static byte[] getSingleFieldIndexEntryKey(SingleFieldIndex index, Object indexValue, byte[] objectId) {
         // Single Field Index Key Structure: (ENTRIES, indexValue, ObjectId)
         Tuple indexEntryTuple = Tuple.from(
                 IndexSubspaceMagic.ENTRIES.getValue(),
@@ -111,7 +111,7 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
      */
     public static void setEntry(
             Transaction tr,
-            Index index,
+            SingleFieldIndex index,
             BucketMetadata metadata,
             Object indexValue,
             byte[] objectId,
@@ -152,7 +152,7 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
      */
     public static void insertEntry(
             Transaction tr,
-            Index index,
+            SingleFieldIndex index,
             BucketMetadata metadata,
             byte[] objectId,
             Object indexValue,

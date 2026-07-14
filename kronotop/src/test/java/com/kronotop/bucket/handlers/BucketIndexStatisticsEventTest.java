@@ -19,7 +19,7 @@ package com.kronotop.bucket.handlers;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
-import com.kronotop.bucket.index.Index;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.server.RESPVersion;
@@ -62,7 +62,7 @@ class BucketIndexStatisticsEventTest extends BaseIndexHandlerTest {
             BucketMetadata metadata = TransactionUtil.execute(context,
                     tr -> BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET)
             );
-            Index index = metadata.indexes().getIndex("age", IndexSelectionPolicy.ALL);
+            SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(index.subspace());
         }
 

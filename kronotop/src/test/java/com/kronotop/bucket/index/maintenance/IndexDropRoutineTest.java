@@ -70,7 +70,7 @@ class IndexDropRoutineTest extends BaseBucketHandlerTest {
         createIndexThenWaitForReadiness(definition);
 
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-        Index index = metadata.indexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
         assertNotNull(index);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {

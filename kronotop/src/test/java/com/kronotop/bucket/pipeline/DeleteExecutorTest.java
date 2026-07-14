@@ -51,9 +51,9 @@ class DeleteExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get index subspaces
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
-        Index nameIdx = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex nameIdx = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
 
         DirectorySubspace primarySubspace = primaryIndex.subspace();
         DirectorySubspace ageSubspace = ageIdx.subspace();
@@ -125,9 +125,9 @@ class DeleteExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get index subspaces
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
-        Index nameIdx = metadata.indexes().getIndex("name", IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex nameIdx = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
 
         DirectorySubspace primarySubspace = primaryIndex.subspace();
         DirectorySubspace ageSubspace = ageIdx.subspace();
@@ -198,9 +198,9 @@ class DeleteExecutorTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET, documents);
 
         // Get index subspaces
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
-        Index categoryIdx = metadata.indexes().getIndex("category", IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex categoryIdx = metadata.singleFieldIndexes().getIndex("category", IndexSelectionPolicy.READ);
 
         DirectorySubspace primarySubspace = primaryIndex.subspace();
         DirectorySubspace ageSubspace = ageIdx.subspace();
@@ -380,13 +380,13 @@ class DeleteExecutorTest extends BasePipelineTest {
 
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-        Index ageIdx = metadata.indexes().getIndex("age", IndexSelectionPolicy.READ);
+        SingleFieldIndex ageIdx = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.READ);
         DirectorySubspace ageSubspace = ageIdx.subspace();
 
         CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName("name_age_idx", IndexSelectionPolicy.READ);
         DirectorySubspace compoundSubspace = compoundIndex.subspace();
 
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         DirectorySubspace primarySubspace = primaryIndex.subspace();
 
         // Delete Bob (age = 30)

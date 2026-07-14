@@ -2707,7 +2707,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, COLLATION_BUCKET);
-            waitForIndexReadiness(metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL).subspace());
+            waitForIndexReadiness(metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL).subspace());
         }
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, COLLATION_BUCKET);
 
@@ -2758,7 +2758,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, COLLATION_BUCKET);
-            waitForIndexReadiness(metadata.indexes().getIndex("name", IndexSelectionPolicy.ALL).subspace());
+            waitForIndexReadiness(metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL).subspace());
         }
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, COLLATION_BUCKET);
 

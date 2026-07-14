@@ -91,7 +91,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     private void clearIndex(Transaction tr, BucketMetadata metadata) {
         TransactionalContext tx = new TransactionalContext(context, tr);
 
-        Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
         if (index != null) {
             SingleFieldIndexUtil.clear(tr, metadata.subspace(), index.definition().name());
             BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
@@ -130,7 +130,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
             BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket());
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, task.getNamespace(), task.getBucket());
-                Index index = metadata.indexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
+                SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
                 VectorIndex vectorIndex = metadata.vectorIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
                 if (index == null && compoundIndex == null && vectorIndex == null) {

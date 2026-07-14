@@ -75,7 +75,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
     }
 
     private void verifyPrimaryIndex(Transaction tr, BucketMetadata metadata, ObjectId objectId, int shardId, byte[] expectedEncodedMetadata) {
-        Index primaryIndex = metadata.indexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
         byte[] key = primaryIndex.subspace().pack(
                 Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), objectId.toByteArray())
         );
@@ -87,7 +87,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
     }
 
     private void verifySingleFieldIndex(Transaction tr, BucketMetadata metadata, String selector, ObjectId objectId, int shardId, byte[] expectedEncodedMetadata) {
-        Index sfIndex = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex sfIndex = metadata.singleFieldIndexes().getIndex(selector, IndexSelectionPolicy.READWRITE);
         byte[] prefix = sfIndex.subspace().pack(
                 Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), objectId.toByteArray())
         );
@@ -108,7 +108,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
     }
 
     private int verifySingleFieldIndexAndCountBackPointers(Transaction tr, BucketMetadata metadata, String selector, ObjectId objectId, int shardId, byte[] expectedEncodedMetadata) {
-        Index sfIndex = metadata.indexes().getIndex(selector, IndexSelectionPolicy.READWRITE);
+        SingleFieldIndex sfIndex = metadata.singleFieldIndexes().getIndex(selector, IndexSelectionPolicy.READWRITE);
         byte[] prefix = sfIndex.subspace().pack(
                 Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), objectId.toByteArray())
         );
@@ -912,7 +912,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
             verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
 
             // The index is still WAITING, and its entry must point to the new (relocated) position.
-            Index sfIndex = metadata.indexes().getIndex("age", IndexSelectionPolicy.ALL);
+            SingleFieldIndex sfIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.ALL);
             assertNotNull(sfIndex);
             assertEquals(IndexStatus.WAITING, SingleFieldIndexUtil.loadIndexDefinition(tr, sfIndex.subspace()).status());
 
