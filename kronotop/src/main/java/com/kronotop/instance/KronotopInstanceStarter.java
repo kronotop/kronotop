@@ -17,11 +17,15 @@
 package com.kronotop.instance;
 
 
+import com.kronotop.Context;
 import com.kronotop.cluster.Member;
+import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Locale;
 import java.util.Properties;
 
 import static com.google.common.base.Throwables.getRootCause;
@@ -39,21 +43,72 @@ plates into philosophical consideration. If I have seen further it is by standin
 public class KronotopInstanceStarter {
     private static final Logger LOGGER = LoggerFactory.getLogger(KronotopInstanceStarter.class);
 
-    private static void greeting(Member member) {
+    private static void greeting(KronotopInstance instance) {
+        Member member = instance.getMember();
+        Context context = instance.getContext();
+        Config config = context.getConfig();
+
         Properties props = new Properties();
-        try {
-            props.load(KronotopInstance.class.getClassLoader().getResourceAsStream("application.properties"));
-            LOGGER.info("pid: {} has been started", ProcessHandle.current().pid());
-            LOGGER.info("Kronotop {} on {}/{} Java {}",
-                    props.getProperty("kronotop.version"),
-                    System.getProperty("os.name"),
-                    System.getProperty("os.arch"),
-                    System.getProperty("java.version"));
-            LOGGER.info("Listening client connections on {}", member.getExternalAddress());
+        try (InputStream in = KronotopInstance.class.getClassLoader().getResourceAsStream("application.properties")) {
+            props.load(in);
         } catch (IOException exp) {
             LOGGER.error("Failed to load application properties", exp);
             throw new RuntimeException(exp);
         }
+
+        String fdbClusterFile = config.hasPath("foundationdb.clusterfile")
+                ? config.getString("foundationdb.clusterfile")
+                : "default cluster file";
+
+        LOGGER.info("{}, distributed transactional document database", KronotopInstance.PRODUCT_NAME);
+        LOGGER.info("https://kronotop.com");
+        LOGGER.info("Starting {} {} ({}, built {}) pid {}",
+                KronotopInstance.PRODUCT_NAME,
+                props.getProperty("kronotop.version"),
+                resolveProperty(props.getProperty("kronotop.git.commit")),
+                resolveProperty(props.getProperty("kronotop.build.time")),
+                ProcessHandle.current().pid());
+        LOGGER.info("Runtime:  Java {} ({}), {}/{}, {} cores, {} heap",
+                System.getProperty("java.version"),
+                System.getProperty("java.vendor"),
+                System.getProperty("os.name"),
+                System.getProperty("os.arch"),
+                Runtime.getRuntime().availableProcessors(),
+                formatBytes(Runtime.getRuntime().maxMemory()));
+        LOGGER.info("Cluster:  {}", context.getClusterName());
+        LOGGER.info("Member:   {} [{}]", member.getId(), instance.getStatus());
+        LOGGER.info("FDB:      {} (API {})", fdbClusterFile, config.getInt("foundationdb.apiversion"));
+        LOGGER.info("Client:   {}", member.getExternalAddress());
+        LOGGER.info("Internal: {}", member.getInternalAddress());
+        LOGGER.info("Ready to accept connections");
+    }
+
+    /**
+     * Returns the value, or "unknown" when it is missing or an unresolved build placeholder.
+     */
+    static String resolveProperty(String value) {
+        if (value == null || value.isBlank() || value.startsWith("${")) {
+            return "unknown";
+        }
+        return value;
+    }
+
+    /**
+     * Renders a byte count as a short human-readable string (B, KB, MB, GB).
+     */
+    static String formatBytes(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        double kb = bytes / 1024.0;
+        if (kb < 1024) {
+            return String.format(Locale.ROOT, "%.0f KB", kb);
+        }
+        double mb = kb / 1024.0;
+        if (mb < 1024) {
+            return String.format(Locale.ROOT, "%.0f MB", mb);
+        }
+        return String.format(Locale.ROOT, "%.1f GB", mb / 1024.0);
     }
 
     public static void main(String[] args) {
@@ -62,7 +117,7 @@ public class KronotopInstanceStarter {
         Runtime.getRuntime().addShutdownHook(shutdownHook);
         try {
             kronotopInstance.start();
-            greeting(kronotopInstance.getMember());
+            greeting(kronotopInstance);
         } catch (Exception e) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.error("Failed to start Kronotop instance", e);

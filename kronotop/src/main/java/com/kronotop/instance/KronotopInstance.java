@@ -326,8 +326,6 @@ public class KronotopInstance {
             shutdown();
             throw e;
         }
-
-        LOGGER.info("Ready to accept connections");
     }
 
     /**
