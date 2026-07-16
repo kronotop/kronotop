@@ -1,13 +1,13 @@
-<configuration scan="true" scanPeriod="30 seconds">
+<configuration>
     <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <charset>UTF-8</charset>
-            <Pattern>%d{"MMM dd yyyy, HH:mm:ss.SSS"} %-4relative [%thread] %-5level %logger - %msg%n</Pattern>
+            <Pattern>%d{"yyyy-MM-dd HH:mm:ss,SSS"} [%5level] [%thread] [%logger{1}]: %msg%n</Pattern>
         </encoder>
     </appender>
 
-    <property name="LOG_LEVEL" value="${log.level:-DEBUG}"/>
+    <property name="LOG_LEVEL" value="${log.level:-INFO}"/>
 
     <root level="${LOG_LEVEL}">
         <appender-ref ref="STDOUT"/>
