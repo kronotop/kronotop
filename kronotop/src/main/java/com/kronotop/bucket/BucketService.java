@@ -57,7 +57,7 @@ To ignore these great resources would be a corruption of a God-given ability.
 
 public class BucketService extends ShardOwnerService<BucketShard> implements KronotopService {
     public static final String NAME = "Bucket";
-    protected static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BucketService.class);
     private final RoutingService routing;
     private final ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(
             1,

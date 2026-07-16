@@ -83,7 +83,7 @@ import java.util.concurrent.locks.LockSupport;
  * drains any remaining events and waits up to 10 seconds to stop.
  */
 public class BucketEventsWatcher implements Runnable {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(BucketEventsWatcher.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BucketEventsWatcher.class);
     private final String journalName = JournalName.BUCKET_EVENTS.getValue();
     private final Context context;
     private final Consumer consumer;

@@ -24,7 +24,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class WorkerUtil {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(WorkerUtil.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(WorkerUtil.class);
 
     public static void shutdownThenAwait(WorkerRegistry registry, String prefix, List<Worker> workers) {
         for (Worker worker : workers) {

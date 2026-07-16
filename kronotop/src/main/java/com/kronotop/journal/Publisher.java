@@ -83,7 +83,7 @@ public class Publisher {
 
             return new VersionstampContainer(tr.getVersionstamp(), userVersion);
         } catch (Exception e) {
-            LOGGER.error("Failed to publish event: {}", e.getMessage());
+            LOGGER.error("Failed to publish event", e);
             throw new KronotopException(e);
         }
     }

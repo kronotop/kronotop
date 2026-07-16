@@ -49,7 +49,7 @@ import java.util.*;
  * FDB tuple layer, so the histogram correctly reflects the key-space distribution.
  */
 public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(IndexAnalyzeRoutine.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexAnalyzeRoutine.class);
     private static final int HISTOGRAM_SAMPLE_SIZE = 1000;
     private static final int MAX_SAMPLE_POINTS = 100;
     private final IndexAnalyzeTask task;
