@@ -147,6 +147,49 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldNotReplayStaleBacklogWhenOffsetIsLatestAndConsumerRestarts() {
+        // Behavior: LATEST consumer that restarts anchors to the journal tail and ignores a stale
+        // persisted checkpoint, so events published while it was down are not replayed. Only events
+        // published after the restart are delivered.
+        Journal journal = new Journal(config, context.getFoundationDB());
+        Publisher publisher = journal.getPublisher();
+
+        ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.LATEST);
+
+        // First run: consume and commit a live event so a checkpoint is persisted.
+        Consumer firstConsumer = new Consumer(context, config);
+        firstConsumer.start();
+        publisher.publish(JOURNAL_NAME, "live-1").complete();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Event event = firstConsumer.consume(tr);
+            assertNotNull(event);
+            assertEquals("live-1", JSONUtil.readValue(event.value(), String.class));
+            firstConsumer.markConsumed(tr, event);
+            tr.commit().join();
+        }
+        firstConsumer.stop();
+
+        // While down: stale events are appended after the checkpoint (for example, dead-member join/left).
+        publisher.publish(JOURNAL_NAME, "stale-1").complete();
+        publisher.publish(JOURNAL_NAME, "stale-2").complete();
+
+        // Restart with the same consumer id and LATEST: the stale backlog must be skipped.
+        Consumer restartedConsumer = new Consumer(context, config);
+        restartedConsumer.start();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertNull(restartedConsumer.consume(tr));
+        }
+
+        // A genuinely new event after the restart is still delivered.
+        publisher.publish(JOURNAL_NAME, "live-2").complete();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Event event = restartedConsumer.consume(tr);
+            assertNotNull(event);
+            assertEquals("live-2", JSONUtil.readValue(event.value(), String.class));
+        }
+    }
+
+    @Test
     void shouldConsumeSameEventWhenNotMarkedAsConsumed() {
         Journal journal = new Journal(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();

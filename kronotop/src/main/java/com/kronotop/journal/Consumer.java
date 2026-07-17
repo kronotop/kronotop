@@ -142,12 +142,14 @@ public class Consumer {
         checkOperationStatus();
 
         try {
-            // Reload offset from FDB to rewind to last committed checkpoint if previous transaction failed
+            // Reload offset from FDB to rewind to the last committed checkpoint if the previous transaction failed.
+            // Honor the checkpoint only when it is at or ahead of the configured start anchor; a stale
+            // checkpoint behind the anchor (LATEST after a restart) must not rewind into superseded history.
             byte[] checkpoint = tr.snapshot().get(offsetKey).join();
-            if (checkpoint != null) {
+            if (checkpoint != null && ByteArrayUtil.compareUnsigned(checkpoint, initialOffset) >= 0) {
                 offset = checkpoint;
             } else {
-                // No checkpoint in FDB yet, use initial offset
+                // No usable checkpoint, start from the configured initial offset
                 offset = initialOffset;
             }
 
