@@ -3,7 +3,7 @@
 set -eu;
 
 # Default JVM options (can be overridden via KRONOTOP_JAVA_OPTS)
-DEFAULT_JAVA_OPTS="--sun-misc-unsafe-memory-access=allow --add-opens java.base/sun.misc=ALL-UNNAMED --enable-native-access=ALL-UNNAMED --add-modules jdk.incubator.vector"
+DEFAULT_JAVA_OPTS="--sun-misc-unsafe-memory-access=allow --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED --enable-native-access=ALL-UNNAMED --add-modules jdk.incubator.vector"
 JAVA_OPTS="${KRONOTOP_JAVA_OPTS:-$DEFAULT_JAVA_OPTS}"
 FDB_CLUSTER_FILE="${KR_HOME}/fdb.cluster"
 

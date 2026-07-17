@@ -183,7 +183,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.3</version>
                 <configuration>
-                    <argLine>--sun-misc-unsafe-memory-access=allow --add-opens java.base/sun.misc=ALL-UNNAMED
+                    <argLine>--sun-misc-unsafe-memory-access=allow --add-opens jdk.unsupported/sun.misc=ALL-UNNAMED
                         --enable-native-access=ALL-UNNAMED --add-modules jdk.incubator.vector
                     </argLine>
                     <!--
