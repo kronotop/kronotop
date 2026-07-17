@@ -111,10 +111,7 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
                 }
                 case "collation" -> {
                     MapRedisMessage collationMap = (MapRedisMessage) entry.getValue();
-                    assertEquals(9, collationMap.children().size());
-                    for (Map.Entry<RedisMessage, RedisMessage> ce : collationMap.children().entrySet()) {
-                        assertInstanceOf(NullRedisMessage.class, ce.getValue());
-                    }
+                    assertEquals(0, collationMap.children().size());
                 }
                 case "statistics" -> {
                     MapRedisMessage value = (MapRedisMessage) entry.getValue();
@@ -325,10 +322,7 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
                 }
                 case "collation" -> {
                     MapRedisMessage collationMap = (MapRedisMessage) entry.getValue();
-                    assertEquals(9, collationMap.children().size());
-                    for (Map.Entry<RedisMessage, RedisMessage> ce : collationMap.children().entrySet()) {
-                        assertInstanceOf(NullRedisMessage.class, ce.getValue());
-                    }
+                    assertEquals(0, collationMap.children().size());
                 }
                 case "statistics" -> {
                     MapRedisMessage value = (MapRedisMessage) entry.getValue();

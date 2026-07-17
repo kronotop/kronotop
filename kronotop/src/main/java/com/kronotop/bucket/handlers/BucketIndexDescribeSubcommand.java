@@ -54,28 +54,20 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
     }
 
     private static MapRedisMessage getCollationMap(Collation collation) {
-        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
         if (collation == null) {
-            map.put(bulkString("locale"), NullRedisMessage.INSTANCE);
-            map.put(bulkString("strength"), NullRedisMessage.INSTANCE);
-            map.put(bulkString("case_level"), NullRedisMessage.INSTANCE);
-            map.put(bulkString("case_first"), NullRedisMessage.INSTANCE);
-            map.put(bulkString("numeric_ordering"), NullRedisMessage.INSTANCE);
-            map.put(bulkString("alternate"), NullRedisMessage.INSTANCE);
-            map.put(bulkString("backwards"), NullRedisMessage.INSTANCE);
-            map.put(bulkString("normalization"), NullRedisMessage.INSTANCE);
-            map.put(bulkString("max_variable"), NullRedisMessage.INSTANCE);
-        } else {
-            map.put(bulkString("locale"), bulkString(collation.locale()));
-            map.put(bulkString("strength"), new IntegerRedisMessage(collation.strength()));
-            map.put(bulkString("case_level"), collation.caseLevel() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-            map.put(bulkString("case_first"), bulkString(collation.caseFirst()));
-            map.put(bulkString("numeric_ordering"), collation.numericOrdering() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-            map.put(bulkString("alternate"), bulkString(collation.alternate()));
-            map.put(bulkString("backwards"), collation.backwards() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-            map.put(bulkString("normalization"), collation.normalization() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-            map.put(bulkString("max_variable"), bulkString(collation.maxVariable()));
+            return MapRedisMessage.EMPTY_INSTANCE;
         }
+
+        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
+        map.put(bulkString("locale"), bulkString(collation.locale()));
+        map.put(bulkString("strength"), new IntegerRedisMessage(collation.strength()));
+        map.put(bulkString("case_level"), collation.caseLevel() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("case_first"), bulkString(collation.caseFirst()));
+        map.put(bulkString("numeric_ordering"), collation.numericOrdering() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("alternate"), bulkString(collation.alternate()));
+        map.put(bulkString("backwards"), collation.backwards() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("normalization"), collation.normalization() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("max_variable"), bulkString(collation.maxVariable()));
         return new MapRedisMessage(map);
     }
 
