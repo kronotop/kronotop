@@ -23,6 +23,8 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.client.protocol.ChangeLogCoordinateResponse;
 import com.kronotop.cluster.client.protocol.ChangeLogEntryResponse;
 import com.kronotop.cluster.client.protocol.SegmentRange;
+import com.kronotop.volume.OperationKind;
+import com.kronotop.volume.ParentOperationKind;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisFuture;
@@ -131,6 +133,10 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
             for (int i = index; i < changes.size(); i++) {
                 if (shutdown) break;
                 ChangeLogEntryResponse response = changes.get(i);
+                if (response.kind().equals(OperationKind.DELETE.toString())) {
+                    // TODO: In future, this will be used by Replication Plugins system.
+                    continue;
+                }
                 ChangeLogCoordinateResponse coordinate = response.after();
                 if (checkpoint.segmentId() != coordinate.segmentId()) {
                     nextSegmentId = coordinate.segmentId();
@@ -201,7 +207,7 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
                 String end = String.format("%d]", latestSequenceNumber);
 
                 RedisFuture<List<ChangeLogEntryResponse>> iterator = client.conn().
-                        async().changelogRange(session.volume(), LIFECYCLE.toString(), start, end, null);
+                        async().changelogRange(session.volume(), "*", start, end, null);
                 List<ChangeLogEntryResponse> changes = iterator.get();
                 if (changes.isEmpty()) {
                     checkpoint.setSequenceNumber(latestSequenceNumber);
