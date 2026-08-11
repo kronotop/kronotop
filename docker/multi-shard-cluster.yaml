@@ -1,0 +1,61 @@
+services:
+  foundationdb:
+    image: foundationdb/foundationdb:7.3.68
+    volumes:
+      - foundationdb-data-volume:/var/fdb
+    restart: on-failure
+    networks:
+      - kronotop
+    environment:
+      FDB_NETWORKING_MODE: container
+      FDB_COORDINATOR_PORT: 4500
+      FDB_PORT: 4500
+
+  kronotop-node1:
+    image: ghcr.io/kronotop/kronotop:latest
+    volumes:
+      - kronotop-node1-data-volume:/var/kronotop
+    restart: on-failure
+    stop_grace_period: 30s
+    depends_on:
+      - foundationdb
+    networks:
+      - kronotop
+    ports:
+      - "5484:5484/tcp"
+      - "3320:3320/tcp"
+    environment:
+      FDB_COORDINATOR: foundationdb
+      FDB_API_VERSION: 630
+      JAVA_TOOL_OPTIONS: "-Dbucket.shards=2"
+      KRONOTOP_BOOTSTRAP: "--primary BUCKET kronotop-node1:3320=0 --primary BUCKET kronotop-node2:3320=1 --standby BUCKET kronotop-node2:3320=0 --standby BUCKET kronotop-node1:3320=1"
+      KRONOTOP_STANDBY_HOST: "kronotop-node2"
+    platform: "linux/amd64"
+
+  kronotop-node2:
+    image: ghcr.io/kronotop/kronotop:latest
+    volumes:
+      - kronotop-node2-data-volume:/var/kronotop
+    restart: on-failure
+    stop_grace_period: 30s
+    depends_on:
+      - foundationdb
+    networks:
+      - kronotop
+    ports:
+      - "5485:5484/tcp"
+      - "3321:3320/tcp"
+    environment:
+      FDB_COORDINATOR: foundationdb
+      FDB_API_VERSION: 630
+      JAVA_TOOL_OPTIONS: "-Dbucket.shards=2"
+    platform: "linux/amd64"
+
+networks:
+  kronotop:
+    name: kronotop
+
+volumes:
+  kronotop-node1-data-volume:
+  kronotop-node2-data-volume:
+  foundationdb-data-volume:
