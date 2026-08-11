@@ -310,7 +310,7 @@ public class KronotopInstance {
      * @throws KronotopException    if an error occurs during the startup process
      */
     public void start() throws UnknownHostException, InterruptedException {
-        LOGGER.info("Initializing a new Kronotop instance");
+        LOGGER.debug("Initializing a new Kronotop instance");
 
         Path dataDir = prepareOnDiskDataDirectoryLayout();
         String memberId = dataDir.getFileName().toString();
@@ -429,7 +429,7 @@ public class KronotopInstance {
 
     private void setStatus(final KronotopInstanceStatus status) {
         context.getMemberAttributes().attr(MemberAttributes.INSTANCE_STATUS).set(status);
-        LOGGER.info("Setting instance status to {}", status);
+        LOGGER.debug("Setting instance status to {}", status);
     }
 
     /**

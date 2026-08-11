@@ -60,7 +60,7 @@ public class KronotopInstanceStarter {
                 ? config.getString("foundationdb.clusterfile")
                 : "default cluster file";
 
-        LOGGER.info("{}, distributed transactional document database", KronotopInstance.PRODUCT_NAME);
+        LOGGER.info("{}, a distributed transactional document database", KronotopInstance.PRODUCT_NAME);
         LOGGER.info("https://kronotop.com");
         LOGGER.info("Starting {} {} ({}, built {}) pid {}",
                 KronotopInstance.PRODUCT_NAME,
