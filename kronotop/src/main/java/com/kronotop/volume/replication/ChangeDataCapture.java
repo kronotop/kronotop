@@ -24,7 +24,6 @@ import com.kronotop.cluster.client.protocol.ChangeLogCoordinateResponse;
 import com.kronotop.cluster.client.protocol.ChangeLogEntryResponse;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.volume.OperationKind;
-import com.kronotop.volume.ParentOperationKind;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisFuture;
@@ -41,7 +40,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Throwables.getRootCause;
-import static com.kronotop.volume.ParentOperationKind.LIFECYCLE;
 
 /**
  * Streams incremental changes from the primary's changelog to the standby.
