@@ -25,6 +25,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
 import org.bson.BsonArray;
 import org.bson.BsonDocument;
+import org.bson.BsonType;
 import org.bson.BsonValue;
 import org.bson.types.ObjectId;
 
@@ -232,5 +233,21 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     public static float[] extractVector(VectorIndexDefinition definition, BsonDocument document) {
         BsonValue value = SelectorMatcher.match(definition.selector(), document);
         return parseVector(value);
+    }
+
+    /**
+     * Checks whether the index's configured field selector matches an array in a document. This is only a
+     * shape check. It does not verify the number of dimensions or the element types, so a {@code true} result
+     * does not mean {@link #extractVector} will succeed. Use {@link VectorIndexUtil#validateVectorField} for
+     * full validation.
+     *
+     * @return {@code true} if the selector matches an array, {@code false} if the value is missing, null, or another type
+     */
+    public static boolean hasVector(VectorIndexDefinition definition, BsonDocument document) {
+        BsonValue value = SelectorMatcher.match(definition.selector(), document);
+        if (value == null || value.isNull()) {
+            return false;
+        }
+        return value.getBsonType() == BsonType.ARRAY;
     }
 }
