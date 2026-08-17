@@ -28,10 +28,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeTestUtil;
-import org.bson.BsonArray;
-import org.bson.BsonDocument;
-import org.bson.BsonDouble;
-import org.bson.BsonNull;
+import org.bson.*;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
@@ -340,6 +337,54 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertTrue(ex.getMessage().contains("overflows float range"));
     }
 
+    @Test
+    void shouldNotDetectVectorWhenSelectorIsNotArray() {
+        // Behavior: hasVector returns false when the selector matches a value that is not an array.
+        String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);
+        VectorIndexDefinition definition = VectorIndexDefinition.create(
+                name,
+                SELECTOR,
+                DIMENSIONS,
+                DistanceFunction.COSINE,
+                IndexStatus.WAITING
+        );
+        BsonDocument document = new BsonDocument();
+        document.put(SELECTOR, new BsonString("some-string"));
+
+        assertFalse(VectorIndexMaintainer.hasVector(definition, document));
+    }
+
+    @Test
+    void shouldNotDetectVectorWhenSelectorIsMissing() {
+        // Behavior: hasVector returns false when the document has no value under the selector.
+        String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);
+        VectorIndexDefinition definition = VectorIndexDefinition.create(
+                name,
+                SELECTOR,
+                DIMENSIONS,
+                DistanceFunction.COSINE,
+                IndexStatus.WAITING
+        );
+        assertFalse(VectorIndexMaintainer.hasVector(definition, new BsonDocument()));
+    }
+
+    @Test
+    void shouldDetectVectorWhenSelectorIsArray() {
+        // Behavior: hasVector returns true when the selector matches an array, even an empty one.
+        String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);
+        VectorIndexDefinition definition = VectorIndexDefinition.create(
+                name,
+                SELECTOR,
+                DIMENSIONS,
+                DistanceFunction.COSINE,
+                IndexStatus.WAITING
+        );
+        BsonDocument document = new BsonDocument();
+        document.put(SELECTOR, new BsonArray());
+
+        assertTrue(VectorIndexMaintainer.hasVector(definition, document));
+    }
+
     private List<KeyValue> getMutationLogEntries(DirectorySubspace indexSubspace) {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
@@ -474,9 +519,9 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     private void indexObjectIds(VectorIndex vectorIndex, BucketMetadata metadata, ObjectId... objectIds) {
         AppendedEntry[] entries = getAppendedEntries();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            for (int i = 0; i < objectIds.length; i++) {
+            for (ObjectId objectId : objectIds) {
                 byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entries[0].metadataBytes()).encode();
-                VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIds[i].toByteArray(), encodedIndexEntry, TEST_VECTOR);
+                VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectId.toByteArray(), encodedIndexEntry, TEST_VECTOR);
             }
             tr.commit().join();
         }
