@@ -78,6 +78,7 @@ class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
                     DirectorySubspace subspace = openLastSeenVersionsSubspace(tr, shardId, subspaces);
                     byte[] key = subspace.pack(Tuple.from(metadata.uuid()));
                     byte[] value = tr.get(key).join();
+                    if (value == null) continue;
                     long version = ByteBuffer.wrap(value).order(ByteOrder.LITTLE_ENDIAN).getLong();
                     if (version == metadata.version()) {
                         total++;
