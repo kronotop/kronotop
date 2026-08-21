@@ -26,8 +26,12 @@ The command performs a full session reset without closing the underlying network
 3. **MULTI State**: `MULTI` transaction state (queued commands, the MULTI flag) is reset
 4. **Watched Keys**: All keys being watched via `WATCH` are unwatched
 5. **Cursor ID Counter**: Reset to 1
-6. **Session Attributes**: All attributes (`reply_type`, `input_type`, `limit`, `object_id_format`) are reset to their
-   defaults
+6. **Session Defaults**: the configuration attributes (`reply_type`, `input_type`, `limit`, `object_id_format`) are
+   reset to their defaults, snapshot read goes back to off, the current namespace goes back to the default one, and
+   the client name, the library info and the authentication state are dropped
+
+The negotiated RESP version is kept, because the connection stays open. When the server runs with
+`auth.requirepass`, the client has to send `AUTH` again after this command.
 
 ## Examples
 
@@ -70,3 +74,28 @@ OK
 ```
 
 The `limit` attribute is reset to its default value (100).
+
+**Resetting snapshot read:**
+
+```kronotop
+> SNAPSHOTREAD ON
+OK
+
+> SESSION.CLOSE
+OK
+```
+
+Reads are serializable again. The next transaction on this connection does not inherit snapshot isolation.
+
+**Resetting the current namespace:**
+
+```kronotop
+> NAMESPACE USE global.staging
+OK
+
+> SESSION.CLOSE
+OK
+
+> NAMESPACE CURRENT
+global
+```

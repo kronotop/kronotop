@@ -23,6 +23,10 @@ A session tracks the following categories of state:
 - **Active FoundationDB transaction**, at most one at a time, with its post-commit hooks and version counter
 - **Query cursors**, three independent pools for read, delete, and update operations
 - **Cursor ID counter**, a monotonically increasing integer scoped to the session
+- **Current namespace**, set with `NAMESPACE USE`
+- **Snapshot read setting**, set with `SNAPSHOTREAD`
+- **Client name and library info**, set with `CLIENT SETNAME` and `CLIENT SETINFO`
+- **Authentication state**, when `auth.requirepass` is set
 
 All of this state is connection-scoped and invisible to other sessions.
 
@@ -108,9 +112,14 @@ Watched keys (`WATCH`) are also session-scoped. `SESSION.CLOSE` unwatches all ke
 3. **Reset MULTI state**: queued commands are discarded and the MULTI flag is cleared
 4. **Unwatch all keys**: every key in the session's watch list is released
 5. **Reset the cursor ID counter**: the next cursor will start at 1 again
-6. **Restore default attributes**: all four session attributes revert to their configured defaults
+6. **Restore session defaults**: the four configuration attributes revert to their configured defaults, the
+   snapshot read setting goes back to off, the current namespace goes back to the default one, and the client
+   name, the library info and the authentication state are dropped
 
-After `SESSION.CLOSE` returns `OK`, the session is indistinguishable from a freshly opened connection.
+After `SESSION.CLOSE` returns `OK`, the session is back to the state of a freshly opened connection, with two
+things to keep in mind. The negotiated RESP version stays as it is, because the connection itself is not
+closed. And if the server runs with `auth.requirepass`, the client has to send `AUTH` again before the next
+command.
 
 ```kronotop
 > SESSION.ATTRIBUTE SET limit 50
