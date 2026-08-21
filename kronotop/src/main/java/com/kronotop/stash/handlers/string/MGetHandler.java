@@ -19,6 +19,7 @@ package com.kronotop.stash.handlers.string;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
+import com.kronotop.server.RESPUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
@@ -57,6 +58,7 @@ public class MGetHandler extends BaseStringHandler implements Handler {
 
         Iterable<ReadWriteLock> locks = shard.striped().bulkGet(mgetMessage.getKeys());
         List<RedisMessage> result = new ArrayList<>();
+        RedisMessage nullMessage = RESPUtil.nullMessage(request.getSession().protocolVersion());
         try {
             for (ReadWriteLock lock : locks) {
                 lock.readLock().lock();
@@ -65,12 +67,12 @@ public class MGetHandler extends BaseStringHandler implements Handler {
             for (String key : mgetMessage.getKeys()) {
                 StashValueContainer container = shard.storage().get(key);
                 if (container == null) {
-                    result.add(FullBulkStringRedisMessage.NULL_INSTANCE);
+                    result.add(nullMessage);
                     continue;
                 }
 
                 if (!(container.kind().equals(StashValueKind.STRING))) {
-                    result.add(FullBulkStringRedisMessage.NULL_INSTANCE);
+                    result.add(nullMessage);
                     continue;
                 }
 

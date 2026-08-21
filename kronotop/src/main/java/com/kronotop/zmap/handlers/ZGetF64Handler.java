@@ -22,7 +22,6 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapNumericValueCodec;
@@ -64,7 +63,7 @@ public class ZGetF64Handler extends BaseZMapHandler implements Handler {
             return get(tr, key, TransactionUtil.isSnapshotRead(session)).join();
         }, (value) -> {
             if (value == null) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                response.writeNULL();
                 return;
             }
             double result = ZMapNumericValueCodec.decodeF64(value);

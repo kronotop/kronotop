@@ -109,7 +109,7 @@ public class HRandFieldHandler extends BaseHandler implements Handler {
         try {
             StashValueContainer container = shard.storage().get(hrandfieldMessage.getKey());
             if (container == null) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                response.writeNULL();
                 return;
             }
             checkStashValueKind(container, StashValueKind.HASH);

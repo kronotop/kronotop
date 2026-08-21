@@ -52,7 +52,7 @@ class RespResponseTest {
     @Test
     void shouldWriteRedisMessage() {
         // Create a RespResponse object and associate it with the channel
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
 
         // Call the writeOK() method to add a simple 'OK' string to the response
         response.writeRedisMessage(new SimpleStringRedisMessage("Hello!"));
@@ -66,7 +66,7 @@ class RespResponseTest {
     @Test
     void shouldWriteOK() {
         // Create a RespResponse object and associate it with the channel
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
 
         // Call the writeOK() method to add a simple 'OK' string to the response
         response.writeOK();
@@ -80,7 +80,7 @@ class RespResponseTest {
     @Disabled("This test is skipped because EmbeddedChannel.flush doesn't work as expected.")
     @Test
     void shouldWriteQUEUED() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         response.writeQUEUED();
         response.flush();
 
@@ -92,7 +92,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteInteger() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         response.writeInteger(100);
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
         assertInstanceOf(IntegerRedisMessage.class, redisMessage);
@@ -102,7 +102,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteDouble() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         response.writeDouble(100);
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
         assertInstanceOf(DoubleRedisMessage.class, redisMessage);
@@ -112,7 +112,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteArray() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         SimpleStringRedisMessage first = new SimpleStringRedisMessage("first message");
         DoubleRedisMessage second = new DoubleRedisMessage(100);
         List<RedisMessage> array = new ArrayList<>();
@@ -139,7 +139,7 @@ class RespResponseTest {
         Map<RedisMessage, RedisMessage> map = new HashMap<>();
         map.put(key, value);
 
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         response.writeMap(map);
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -154,7 +154,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteBoolean() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         {
             response.writeBoolean(true);
             RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -173,18 +173,28 @@ class RespResponseTest {
     }
 
     @Test
-    void shouldWriteNULL() {
-        RESP3Response response = new RESP3Response(ctx);
+    void shouldWriteNullAsNullTypeWhenRESP3() {
+        // Behavior: writeNULL emits the RESP3 null type on a RESP3 session.
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         response.writeNULL();
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
         assertInstanceOf(NullRedisMessage.class, redisMessage);
-        NullRedisMessage nullRedisMessage = (NullRedisMessage) redisMessage;
-        assertEquals(NullRedisMessage.INSTANCE, nullRedisMessage);
+        assertEquals(NullRedisMessage.INSTANCE, redisMessage);
+    }
+
+    @Test
+    void shouldWriteNullAsBulkStringWhenRESP2() {
+        // Behavior: writeNULL emits the RESP2 null bulk string on a RESP2 session.
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP2);
+        response.writeNULL();
+        RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
+        assertInstanceOf(FullBulkStringRedisMessage.class, redisMessage);
+        assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, redisMessage);
     }
 
     @Test
     void shouldWriteBigNumber() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         {
             response.writeBigNumber(BigInteger.valueOf(100));
             RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -212,7 +222,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteVerbatimString() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
 
         ByteBuf content = Unpooled.buffer();
         content.writeBytes("message".getBytes(StandardCharsets.UTF_8));
@@ -238,7 +248,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteError() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         response.writeError("error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -249,7 +259,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteErrorWithPrefix() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         response.writeError(RESPError.CROSSSLOT, "error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -260,7 +270,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteBulkError() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         response.writeBulkError("error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -277,7 +287,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteBulkErrorWithPrefix() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
         response.writeBulkError(RESPError.CROSSSLOT, "error message");
 
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
@@ -295,7 +305,7 @@ class RespResponseTest {
     @Test
     void shouldWriteSimpleString() {
         // Create a RespResponse object and associate it with the channel
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
 
         response.writeSimpleString("message");
 
@@ -308,7 +318,7 @@ class RespResponseTest {
     @Test
     void shouldWriteFullBulkString() {
         // Create a RespResponse object and associate it with the channel
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
 
         ByteBuf content = Unpooled.copiedBuffer("message", CharsetUtil.UTF_8);
         response.writeFullBulkString(new FullBulkStringRedisMessage(content));
@@ -329,7 +339,7 @@ class RespResponseTest {
     @Test
     void shouldWrite() {
         // Create a RespResponse object and associate it with the channel
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
 
         ByteBuf content = Unpooled.copiedBuffer("message", CharsetUtil.UTF_8);
         response.write(content);
@@ -349,7 +359,7 @@ class RespResponseTest {
 
     @Test
     void shouldWriteSet() {
-        RESP3Response response = new RESP3Response(ctx);
+        RESP3Response response = new RESP3Response(ctx, RESPVersion.RESP3);
 
         Set<RedisMessage> set = new HashSet<>();
         set.add(new SimpleStringRedisMessage("foobar"));

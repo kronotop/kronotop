@@ -145,7 +145,9 @@ public interface Response {
     /**
      * Writes a NULL Redis response message to the client.
      * <p>
-     * The method does not return a value.
+     * The wire form depends on the protocol version negotiated by the session. Handlers must use this
+     * method instead of writing a null message directly, so that both RESP2 and RESP3 clients get a
+     * reply they can parse.
      */
     void writeNULL();
 
@@ -198,7 +200,7 @@ public interface Response {
      * Flushes the response messages to the client.
      * <p>
      * This method is used to flush the response messages to the client. It sends the buffered messages to the client
-     * for processing. If there are no response messages to flush, it sends a NULL_INSTANCE message.
+     * for processing. If there are no response messages to flush, it sends a null reply.
      * <p>
      * If the response messages are an array of Redis messages, it sends an ArrayRedisMessage. If the response messages
      * are an "OK" Redis message, it sends a FullBulkStringRedisMessage with the value "OK". If the response messages are

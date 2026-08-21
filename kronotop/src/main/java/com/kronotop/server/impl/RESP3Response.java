@@ -19,6 +19,8 @@ package com.kronotop.server.impl;
 import com.apple.foundationdb.FDBException;
 import com.kronotop.KronotopException;
 import com.kronotop.server.RESPError;
+import com.kronotop.server.RESPUtil;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
@@ -38,9 +40,11 @@ import java.util.concurrent.CompletionException;
  */
 public class RESP3Response implements Response {
     private final ChannelHandlerContext ctx;
+    private final RESPVersion protocolVersion;
 
-    public RESP3Response(ChannelHandlerContext ctx) {
+    public RESP3Response(ChannelHandlerContext ctx, RESPVersion protocolVersion) {
         this.ctx = ctx;
+        this.protocolVersion = protocolVersion;
     }
 
     /**
@@ -164,12 +168,11 @@ public class RESP3Response implements Response {
     /**
      * Writes a NULL Redis message to the client.
      * <p>
-     * This method is used to write a NULL message to the client as a response.
-     * It calls the {@link ChannelHandlerContext#writeAndFlush(Object)} method with the {@link NullRedisMessage#INSTANCE}.
+     * The wire form depends on the protocol version negotiated by the session.
      */
     @Override
     public void writeNULL() {
-        ctx.writeAndFlush(NullRedisMessage.INSTANCE);
+        ctx.writeAndFlush(RESPUtil.nullMessage(protocolVersion));
     }
 
     /**
@@ -330,8 +333,6 @@ public class RESP3Response implements Response {
      * @param prefix  the prefix of the error message
      * @param content the content of the error message
      * @param <T>     the type of the prefix
-     * @param prefix  the content to be written before the error message
-     * @param content the content of the error message
      * @throws NullPointerException if the prefix or content is null
      */
     @Override
@@ -343,14 +344,7 @@ public class RESP3Response implements Response {
     }
 
     /**
-     * Flushes the response messages to the client.
-     * <p>
-     * This method is used to flush the response messages to the client. It sends the buffered messages to the client
-     * for processing. If there are no response messages to flush, it sends a NULL_INSTANCE message.
-     * <p>
-     * If the response messages are an array of Redis messages, it sends an ArrayRedisMessage. If the response messages
-     * are an "OK" Redis message, it sends a FullBulkStringRedisMessage with the value "OK". If the response messages are
-     * a "QUEUED" Redis message, it sends a FullBulkStringRedisMessage with the value "QUEUED".
+     * Flushes any pending messages to the client.
      */
     @Override
     public void flush() {

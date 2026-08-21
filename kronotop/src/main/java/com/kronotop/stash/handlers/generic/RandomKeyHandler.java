@@ -24,7 +24,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.BaseHandler;
 import com.kronotop.stash.handlers.generic.protocol.RandomKeyMessage;
@@ -56,7 +55,7 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
     public void execute(Request request, Response response) {
         Collection<StashShard> shards = service.getServiceContext().shards().values();
         if (shards.isEmpty()) {
-            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+            response.writeNULL();
             return;
         }
         List<Integer> shardIds = new ArrayList<>();
@@ -67,7 +66,7 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
         }
 
         if (shardIds.isEmpty()) {
-            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+            response.writeNULL();
             return;
         }
 
@@ -79,7 +78,7 @@ public class RandomKeyHandler extends BaseHandler implements Handler {
             ByteBuf buf = Unpooled.wrappedBuffer(randomKey.getBytes(StandardCharsets.UTF_8));
             response.write(buf);
         } catch (NoSuchElementException e) {
-            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+            response.writeNULL();
         }
     }
 }

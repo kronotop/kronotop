@@ -18,9 +18,11 @@ package com.kronotop.stash.handlers.string;
 
 
 import com.kronotop.commands.redis.RedisCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.NullRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.stash.handlers.BaseStashHandlerTest;
@@ -70,6 +72,25 @@ public class MGetHandlerTest extends BaseStashHandlerTest {
             assertInstanceOf(FullBulkStringRedisMessage.class, redisMessage);
             FullBulkStringRedisMessage item = (FullBulkStringRedisMessage) redisMessage;
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, item);
+        }
+    }
+
+    @Test
+    void shouldReturnNullTypeInsideArrayWhenProtocolIsRESP3() {
+        // Behavior: missing keys inside the MGET array use the RESP3 null type after HELLO 3.
+        switchProtocol(RESPVersion.RESP3);
+
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.mget(getKeys()).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        ArrayRedisMessage actualMessage = (ArrayRedisMessage) msg;
+        assertEquals(3, actualMessage.children().size());
+
+        for (RedisMessage redisMessage : actualMessage.children()) {
+            assertInstanceOf(NullRedisMessage.class, redisMessage);
         }
     }
 

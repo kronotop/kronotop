@@ -24,7 +24,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.BaseHandler;
 import com.kronotop.stash.handlers.hash.protocol.HGetMessage;
@@ -61,14 +60,14 @@ public class HGetHandler extends BaseHandler implements Handler {
         try {
             StashValueContainer container = shard.storage().get(hgetMessage.getKey());
             if (container == null) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                response.writeNULL();
                 return;
             }
             checkStashValueKind(container, StashValueKind.HASH);
 
             HashFieldValue hashField = container.hash().get(hgetMessage.getField());
             if (hashField == null) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                response.writeNULL();
                 return;
             }
 

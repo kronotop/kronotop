@@ -25,7 +25,6 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.impl.RESP3Request;
 import com.kronotop.server.impl.RESP3Response;
 import com.kronotop.server.impl.TransactionResponse;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.transactions.protocol.DiscardMessage;
 import com.kronotop.stash.handlers.transactions.protocol.ExecMessage;
@@ -260,8 +259,8 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     private void executeRedisTransaction(Session session) {
-        Response response = new RESP3Response(session.getCtx());
-        TransactionResponse transactionResponse = new TransactionResponse(session.getCtx());
+        Response response = new RESP3Response(session.getCtx(), session.protocolVersion());
+        TransactionResponse transactionResponse = new TransactionResponse(session.getCtx(), session.protocolVersion());
         transactionLock.writeLock().lock();
         try {
             Attribute<Boolean> redisMultiDiscarded = session.attr(SessionAttributes.MULTI_DISCARDED);
@@ -277,7 +276,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
                         // If keys were modified between when they were WATCHed
                         // and when the EXEC was received, the entire transaction
                         // will be aborted instead.
-                        response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                        response.writeNULL();
                         return;
                     }
                 }
@@ -417,7 +416,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         Session session = Session.extractSessionFromChannel(ctx.channel());
 
         Request request = new RESP3Request(session, message);
-        Response response = new RESP3Response(ctx);
+        Response response = new RESP3Response(ctx, session.protocolVersion());
 
         if (logCommandForDebugging) {
             String command = readCommandAsString(request);

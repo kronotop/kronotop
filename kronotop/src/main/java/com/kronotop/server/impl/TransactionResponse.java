@@ -19,6 +19,8 @@ package com.kronotop.server.impl;
 import com.apple.foundationdb.FDBException;
 import com.kronotop.KronotopException;
 import com.kronotop.server.RESPError;
+import com.kronotop.server.RESPUtil;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
@@ -40,9 +42,11 @@ import java.util.concurrent.CompletionException;
 public class TransactionResponse implements Response {
     private final ChannelHandlerContext ctx;
     private final List<RedisMessage> messages = new ArrayList<>();
+    private final RESPVersion protocolVersion;
 
-    public TransactionResponse(ChannelHandlerContext ctx) {
+    public TransactionResponse(ChannelHandlerContext ctx, RESPVersion protocolVersion) {
         this.ctx = ctx;
+        this.protocolVersion = protocolVersion;
     }
 
     /**
@@ -148,11 +152,11 @@ public class TransactionResponse implements Response {
     /**
      * Adds a NULL Redis response message to the list of response messages.
      * <p>
-     * The method does not return a value.
+     * The wire form depends on the protocol version negotiated by the session.
      */
     @Override
     public void writeNULL() {
-        messages.add(NullRedisMessage.INSTANCE);
+        messages.add(RESPUtil.nullMessage(protocolVersion));
     }
 
     /**
@@ -315,14 +319,13 @@ public class TransactionResponse implements Response {
     }
 
     /**
-     * Flushes the messages in the TransactionResponse object.
-     * If the messages list is empty, it writes a NULL_INSTANCE message to the channel and flushes it.
-     * If the messages list is not empty, it writes an ArrayRedisMessage containing the messages list to the channel and flushes it.
+     * Flushes the buffered messages to the client.
+     * An empty list is written as a null reply, otherwise the messages are wrapped in an array.
      */
     @Override
     public void flush() {
         if (messages.isEmpty()) {
-            ctx.writeAndFlush(FullBulkStringRedisMessage.NULL_INSTANCE);
+            ctx.writeAndFlush(RESPUtil.nullMessage(protocolVersion));
             return;
         }
         ctx.writeAndFlush(new ArrayRedisMessage(messages));

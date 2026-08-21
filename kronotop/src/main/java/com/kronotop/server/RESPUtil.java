@@ -17,6 +17,8 @@
 package com.kronotop.server;
 
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.NullRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
@@ -39,5 +41,15 @@ public class RESPUtil {
     public static FullBulkStringRedisMessage bulkString(String input) {
         String value = input != null ? input : "";
         return wrapBytes(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Returns the null message for the given protocol version. RESP3 has its own null type,
+     * RESP2 encodes null as a bulk string with a length of -1.
+     */
+    public static RedisMessage nullMessage(RESPVersion version) {
+        return version == RESPVersion.RESP3
+                ? NullRedisMessage.INSTANCE
+                : FullBulkStringRedisMessage.NULL_INSTANCE;
     }
 }
