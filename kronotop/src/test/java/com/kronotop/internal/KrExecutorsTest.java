@@ -19,11 +19,13 @@ package com.kronotop.internal;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class KrExecutorsTest {
@@ -38,8 +40,8 @@ class KrExecutorsTest {
             Future<?> future = executor.submit(latch::countDown);
 
             assertTrue(latch.await(5, TimeUnit.SECONDS));
-            assertFalse(future.isCancelled());
-            assertTrue(future.isDone());
+            await().atMost(Duration.ofSeconds(5)).until(future::isDone);
+            await().atMost(Duration.ofSeconds(5)).until(()-> !future.isCancelled());
         } finally {
             executor.shutdownNow();
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
@@ -65,7 +67,7 @@ class KrExecutorsTest {
             Future<?> future = executor.submit(latch::countDown);
 
             assertTrue(latch.await(5, TimeUnit.SECONDS));
-            assertTrue(future.isDone());
+            await().atMost(Duration.ofSeconds(5)).until(future::isDone);
         } finally {
             executor.shutdownNow();
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
@@ -207,7 +209,7 @@ class KrExecutorsTest {
             Future<?> future = executor.submit(finalLatch::countDown);
 
             assertTrue(finalLatch.await(5, TimeUnit.SECONDS));
-            assertTrue(future.isDone());
+            await().atMost(Duration.ofSeconds(5)).until(future::isDone);
         } finally {
             executor.shutdownNow();
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
@@ -341,8 +343,8 @@ class KrExecutorsTest {
                     () -> future.get(5, TimeUnit.SECONDS));
 
             assertEquals("Test exception", exception.getCause().getMessage());
-            assertTrue(future.isDone());
-            assertFalse(future.isCancelled());
+            await().atMost(Duration.ofSeconds(5)).until(future::isDone);
+            await().atMost(Duration.ofSeconds(5)).until(() -> !future.isCancelled());
         } finally {
             executor.shutdownNow();
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
