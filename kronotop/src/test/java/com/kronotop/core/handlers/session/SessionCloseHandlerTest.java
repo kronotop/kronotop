@@ -18,12 +18,12 @@ package com.kronotop.core.handlers.session;
 
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.bucket.BSONUtil;
-import com.kronotop.commands.BucketCommandBuilder;
-import com.kronotop.commands.BucketQueryArgs;
-import com.kronotop.commands.KronotopCommandBuilder;
-import com.kronotop.commands.SessionAttributeKeywords;
+import com.kronotop.commands.*;
+import com.kronotop.commands.redis.RedisCommandBuilder;
+import com.kronotop.namespace.handlers.Namespace;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
+import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
@@ -222,6 +222,121 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
             ArrayRedisMessage list = (ArrayRedisMessage) response;
             assertTrue(containsAttributeValue(list, "limit", 100L));
         }
+    }
+
+    @Test
+    void shouldResetSnapshotReadAfterClose() {
+        // Behavior: SESSION.CLOSE turns snapshot read off, so a pooled connection cannot leak it.
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.snapshotRead(SnapshotReadArgs.Builder.on()).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+        assertTrue(channel.attr(SessionAttributes.SNAPSHOT_READ).get());
+
+        closeSession();
+
+        assertNull(channel.attr(SessionAttributes.SNAPSHOT_READ).get());
+    }
+
+    @Test
+    void shouldResetReadonlyFlagAfterClose() {
+        // Behavior: SESSION.CLOSE clears the readonly flag set by the READONLY command.
+        {
+            // READONLY has no command builder method, so send the raw RESP frame.
+            ByteBuf buf = Unpooled.buffer();
+            buf.writeBytes("*1\r\n$8\r\nREADONLY\r\n".getBytes(StandardCharsets.US_ASCII));
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+        assertTrue(channel.attr(SessionAttributes.READONLY).get());
+
+        closeSession();
+
+        assertFalse(channel.attr(SessionAttributes.READONLY).get());
+    }
+
+    @Test
+    void shouldResetCurrentNamespaceAfterClose() {
+        // Behavior: SESSION.CLOSE switches the session back to the default namespace.
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        String target = TEST_NAMESPACE + "." + namespace;
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(target).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceUse(target).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+        assertEquals(target, currentNamespace());
+
+        closeSession();
+
+        assertEquals(TEST_NAMESPACE, currentNamespace());
+    }
+
+    @Test
+    void shouldClearOpenNamespacesAfterClose() {
+        // Behavior: SESSION.CLOSE empties the open namespace cache of the session.
+        ZMapCommandBuilder<String, String> zmap = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        zmap.zset("session-close-key", "value").encode(buf);
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+
+        Map<String, Namespace> openNamespaces = channel.attr(SessionAttributes.OPEN_NAMESPACES).get();
+        assertFalse(openNamespaces.isEmpty());
+
+        closeSession();
+
+        assertTrue(channel.attr(SessionAttributes.OPEN_NAMESPACES).get().isEmpty());
+    }
+
+    @Test
+    void shouldClearClientAttributesAfterClose() {
+        // Behavior: SESSION.CLOSE drops the client name set with CLIENT SETNAME.
+        RedisCommandBuilder<String, String> redis = new RedisCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        redis.clientSetname("app-1").encode(buf);
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        assertEquals("app-1", channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().get("name"));
+
+        closeSession();
+
+        assertTrue(channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().isEmpty());
+    }
+
+    private void closeSession() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.sessionClose().encode(buf);
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+    }
+
+    private String currentNamespace() {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.namespaceCurrent().encode(buf);
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(FullBulkStringRedisMessage.class, response);
+        return ((FullBulkStringRedisMessage) response).content().toString(StandardCharsets.UTF_8);
     }
 
     private boolean containsAttributeValue(ArrayRedisMessage list, String attributeName, long expectedValue) {

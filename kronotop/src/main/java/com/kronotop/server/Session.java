@@ -104,12 +104,10 @@ public class Session {
         Long clientId = ClientIDGenerator.getAndIncrement();
         channel.attr(SessionAttributes.CLIENT_ID).set(clientId);
         channel.attr(SessionAttributes.OPEN_NAMESPACES).set(new ConcurrentHashMap<>());
-        channel.attr(SessionAttributes.CURRENT_NAMESPACE).set(context.getDefaultNamespace());
         channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
         channel.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).set(new HashMap<>());
         channel.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).set(new HashMap<>());
         channel.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).set(new HashMap<>());
-        channel.attr(SessionAttributes.READONLY).set(false);
         channel.attr(SessionAttributes.QUEUED_COMMANDS).set(new ArrayList<>());
         channel.attr(SessionAttributes.MULTI).set(false);
         channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
@@ -256,7 +254,10 @@ public class Session {
     }
 
     /**
-     * Resets all configurable session attributes to their default values from the configuration.
+     * Restores every session default: the configurable attributes, the snapshot read, readonly and
+     * authentication flags, the current namespace, the open namespace cache and the client attributes.
+     * <p>
+     * The containers themselves are created once by the session and only emptied here.
      */
     public void resetSessionAttributes() {
         String replyType = context.getConfig().getString("session_attributes.reply_type");
@@ -270,6 +271,17 @@ public class Session {
 
         String objectIdFormat = context.getConfig().getString("bucket.object_id_format");
         channel.attr(SessionAttributes.OBJECT_ID_FORMAT).set(ObjectIdFormat.valueOf(objectIdFormat.toUpperCase()));
+
+        // SNAPSHOTREAD OFF stores null, so the reset uses the same value.
+        channel.attr(SessionAttributes.SNAPSHOT_READ).set(null);
+        channel.attr(SessionAttributes.READONLY).set(false);
+        channel.attr(SessionAttributes.AUTH).set(false);
+        channel.attr(SessionAttributes.CURRENT_NAMESPACE).set(context.getDefaultNamespace());
+
+        // Empty the maps in place. SessionStore.invalidateOpenNamespaces walks all sessions and
+        // touches this map, so replacing it here would leave that scan on a discarded instance.
+        channel.attr(SessionAttributes.OPEN_NAMESPACES).get().clear();
+        channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().clear();
     }
 
     /**

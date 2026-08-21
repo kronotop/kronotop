@@ -116,8 +116,8 @@ The setting applies to ZMap read commands (`ZGET`, `ZGETI64`, `ZGETF64`, `ZGETD1
 `ZGETRANGESIZE`) and `BUCKET.QUERY`. Mutation commands (`BUCKET.INSERT`, `BUCKET.DELETE`, `BUCKET.UPDATE`)
 always use serializable reads regardless of the setting.
 
-The setting is session-scoped and persists until explicitly changed with `SNAPSHOTREAD OFF` or the session ends. It can
-be toggled at any time, regardless of whether a transaction is currently active.
+The setting is session-scoped and persists until explicitly changed with `SNAPSHOTREAD OFF`, until `SESSION.CLOSE`, or
+until the session ends. It can be toggled at any time, regardless of whether a transaction is currently active.
 
 ## Cross-Namespace Transactions
 
