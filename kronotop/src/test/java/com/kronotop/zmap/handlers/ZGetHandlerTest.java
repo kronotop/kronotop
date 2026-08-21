@@ -19,8 +19,10 @@ package com.kronotop.zmap.handlers;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.ZMapCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.NullRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -89,6 +91,21 @@ class ZGetHandlerTest extends BaseHandlerTest {
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
             assertEquals("value", actualMessage.content().toString(CharsetUtil.US_ASCII));
         }
+    }
+
+    @Test
+    void shouldReturnNullTypeWhenProtocolIsRESP3() {
+        // Behavior: ZGET on a missing key replies with the RESP3 null type after HELLO 3.
+        switchProtocol(RESPVersion.RESP3);
+
+        EmbeddedChannel channel = getChannel();
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zget("key").encode(buf);
+
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(NullRedisMessage.class, response);
     }
 
     @Test

@@ -24,7 +24,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.GetDelMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -90,7 +89,7 @@ public class GetDelHandler extends BaseStringHandler implements Handler {
         }
 
         if (previous == null) {
-            response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+            response.writeNULL();
             return;
         }
 

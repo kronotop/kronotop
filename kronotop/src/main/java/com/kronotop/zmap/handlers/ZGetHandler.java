@@ -66,7 +66,7 @@ public class ZGetHandler extends BaseZMapHandler implements Handler {
             return future.join();
         }, (value) -> {
             if (value == null) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                response.writeNULL();
                 return;
             }
             ByteBuf buf = Unpooled.wrappedBuffer(value);

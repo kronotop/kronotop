@@ -24,7 +24,6 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapService;
@@ -74,7 +73,7 @@ public class ZGetKeyHandler extends BaseZMapHandler implements Handler {
             return new Result(subspace, future.join());
         }, (result) -> {
             if (result.value() == null) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                response.writeNULL();
                 return;
             }
 

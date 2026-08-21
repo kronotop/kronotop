@@ -21,9 +21,11 @@ import com.kronotop.bucket.bql.ast.Int32Val;
 import com.kronotop.bucket.bql.ast.StringVal;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.planner.Operator;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.NullRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import org.bson.BsonType;
 import org.jspecify.annotations.NonNull;
@@ -51,7 +53,7 @@ class PipelineExplainerTest {
 
     @Test
     void shouldReturnPlannerVersionForNullNode() {
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(null);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(null, RESPVersion.RESP3);
         assertEquals(1, result.size());
         assertTrue(containsKey(result, "planner_version"));
     }
@@ -62,7 +64,7 @@ class PipelineExplainerTest {
         IndexScanPredicate predicate = new IndexScanPredicate(1, "age", Operator.EQ, new Operand.Literal(new Int32Val(25)));
         IndexScanNode node = new IndexScanNode(1, indexDef, predicate);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertFalse(result.isEmpty());
@@ -76,7 +78,7 @@ class PipelineExplainerTest {
         AlwaysTruePredicate predicate = new AlwaysTruePredicate();
         FullScanNode node = new TestFullScanNode(1, predicate);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertFalse(result.isEmpty());
@@ -93,7 +95,7 @@ class PipelineExplainerTest {
                 true, false);
         RangeScanNode node = new TestRangeScanNode(1, indexDef, predicate);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertFalse(result.isEmpty());
@@ -112,7 +114,7 @@ class PipelineExplainerTest {
         IndexScanNode child2 = new IndexScanNode(2, indexDef, predicate2);
         UnionNode unionNode = new UnionNode(3, List.of(child1, child2));
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(unionNode);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(unionNode, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "operation"));
@@ -124,7 +126,7 @@ class PipelineExplainerTest {
         ResidualPredicate residualPredicate = new ResidualPredicate(1, "status", Operator.EQ, new Operand.Literal(new StringVal("active")));
         TransformWithResidualPredicateNode transformNode = new TransformWithResidualPredicateNode(1, residualPredicate);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(transformNode);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(transformNode, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "operation"));
@@ -142,7 +144,7 @@ class PipelineExplainerTest {
 
         scanNode.connectNext(transformNode);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(scanNode);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(scanNode, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "next"));
@@ -179,7 +181,7 @@ class PipelineExplainerTest {
         ResidualAndNode andNode = new ResidualAndNode(List.of(pred1, pred2));
         TransformWithResidualPredicateNode transformNode = new TransformWithResidualPredicateNode(3, andNode);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(transformNode);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(transformNode, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "predicate"));
@@ -192,7 +194,7 @@ class PipelineExplainerTest {
         ResidualOrNode orNode = new ResidualOrNode(List.of(pred1, pred2));
         TransformWithResidualPredicateNode transformNode = new TransformWithResidualPredicateNode(3, orNode);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(transformNode);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(transformNode, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "predicate"));
@@ -203,7 +205,7 @@ class PipelineExplainerTest {
         AlwaysTruePredicate alwaysTrue = new AlwaysTruePredicate();
         TransformWithResidualPredicateNode transformNode = new TransformWithResidualPredicateNode(1, alwaysTrue);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(transformNode);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(transformNode, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "predicate"));
@@ -220,7 +222,7 @@ class PipelineExplainerTest {
         IndexScanNode child2 = new IndexScanNode(2, indexDef, predicate2);
         OrderedConcatNode orderedConcatNode = new OrderedConcatNode(3, List.of(child1, child2));
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(orderedConcatNode);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(orderedConcatNode, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "nodeType"));
@@ -248,7 +250,7 @@ class PipelineExplainerTest {
         TransformWithResidualPredicateNode transformNode = new TransformWithResidualPredicateNode(3, residualPredicate);
         orderedConcatNode.connectNext(transformNode);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(orderedConcatNode);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(orderedConcatNode, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "operation"));
@@ -269,7 +271,7 @@ class PipelineExplainerTest {
         );
         CompoundIndexScanNode node = new CompoundIndexScanNode(1, indexDef, filters);
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "scanType"));
@@ -282,7 +284,7 @@ class PipelineExplainerTest {
         // Behavior: A compound index scan with EQ + GT filters should list both filters in the filters array.
         CompoundIndexScanNode node = getCompoundIndexScanNode();
 
-        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node);
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(node, RESPVersion.RESP3);
 
         assertNotNull(result);
         assertTrue(containsKey(result, "scanType"));
@@ -305,6 +307,28 @@ class PipelineExplainerTest {
         Map<RedisMessage, RedisMessage> secondFilter = ((MapRedisMessage) filtersArray.children().get(1)).children();
         assertEquals("score", getStringValue(secondFilter, "selector"));
         assertEquals("GT", getStringValue(secondFilter, "operator"));
+    }
+
+    @Test
+    void shouldFormatNullOperandAsBulkStringNullWhenRESP2() {
+        // Behavior: an unbounded range has a null operand, which a RESP2 client must receive as $-1.
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(unboundedRangeScanNode(), RESPVersion.RESP2);
+
+        assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, getValueForKey(result, "lowerBound"));
+    }
+
+    @Test
+    void shouldFormatNullOperandAsNullTypeWhenRESP3() {
+        // Behavior: the same null operand is rendered as the RESP3 null type on a RESP3 session.
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(unboundedRangeScanNode(), RESPVersion.RESP3);
+
+        assertEquals(NullRedisMessage.INSTANCE, getValueForKey(result, "lowerBound"));
+    }
+
+    private RangeScanNode unboundedRangeScanNode() {
+        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("age", null, new Operand.Literal(new Int32Val(65)), false, false);
+        return new TestRangeScanNode(1, indexDef, predicate);
     }
 
     private boolean containsKey(Map<RedisMessage, RedisMessage> map, String keyName) {

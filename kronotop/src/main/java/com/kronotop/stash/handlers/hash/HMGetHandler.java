@@ -19,6 +19,7 @@ package com.kronotop.stash.handlers.hash;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
+import com.kronotop.server.RESPUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
@@ -57,6 +58,7 @@ public class HMGetHandler extends BaseHandler implements Handler {
         HMGetMessage hmgetMessage = request.attr(MessageTypes.HMGET).get();
 
         List<RedisMessage> upperList = new ArrayList<>();
+        RedisMessage nullMessage = RESPUtil.nullMessage(request.getSession().protocolVersion());
         StashShard shard = service.findShard(hmgetMessage.getKey(), ShardStatus.READONLY);
         ReadWriteLock lock = shard.striped().get(hmgetMessage.getKey());
         lock.readLock().lock();
@@ -64,14 +66,14 @@ public class HMGetHandler extends BaseHandler implements Handler {
             StashValueContainer container = shard.storage().get(hmgetMessage.getKey());
             if (container == null) {
                 for (int i = 0; i < hmgetMessage.getFields().size(); i++) {
-                    upperList.add(FullBulkStringRedisMessage.NULL_INSTANCE);
+                    upperList.add(nullMessage);
                 }
             } else {
                 checkStashValueKind(container, StashValueKind.HASH);
                 for (String field : hmgetMessage.getFields()) {
                     HashFieldValue hashField = container.hash().get(field);
                     if (hashField.value() == null) {
-                        upperList.add(FullBulkStringRedisMessage.NULL_INSTANCE);
+                        upperList.add(nullMessage);
                         continue;
                     }
 

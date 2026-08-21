@@ -21,7 +21,6 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.GetMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -55,14 +54,14 @@ public class GetHandler extends BaseStringHandler implements Handler {
         try {
             StashValueContainer container = shard.storage().get(message.getKey());
             if (container == null) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                response.writeNULL();
                 return;
             }
             if (!container.kind().equals(StashValueKind.STRING)) {
                 throw new WrongTypeException();
             }
             if (evictStringIfNeeded(container, shard, message.getKey())) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                response.writeNULL();
                 return;
             }
             ByteBuf buf = Unpooled.wrappedBuffer(container.string().value());

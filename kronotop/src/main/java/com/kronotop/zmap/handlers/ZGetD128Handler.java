@@ -69,7 +69,7 @@ public class ZGetD128Handler extends BaseZMapHandler implements Handler {
             return get(tr, key, TransactionUtil.isSnapshotRead(session)).join();
         }, (value) -> {
             if (value == null) {
-                response.writeFullBulkString(FullBulkStringRedisMessage.NULL_INSTANCE);
+                response.writeNULL();
                 return;
             }
             Decimal128 current = ZMapNumericValueCodec.decodeD128(value);

@@ -17,7 +17,9 @@
 package com.kronotop.stash.handlers.hash;
 
 import com.kronotop.commands.redis.RedisCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.NullRedisMessage;
 import com.kronotop.stash.handlers.BaseStashHandlerTest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -48,6 +50,19 @@ public class HGetHandlerTest extends BaseStashHandlerTest {
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) msg;
             assertEquals("value", actualMessage.content().toString(CharsetUtil.US_ASCII));
         }
+    }
+
+    @Test
+    void shouldReturnNullTypeWhenProtocolIsRESP3() {
+        // Behavior: HGET on a missing key replies with the RESP3 null type after HELLO 3.
+        switchProtocol(RESPVersion.RESP3);
+
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.hget("mykey", "field").encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(NullRedisMessage.class, msg);
     }
 
     @Test
