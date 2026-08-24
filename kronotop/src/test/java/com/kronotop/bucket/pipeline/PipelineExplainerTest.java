@@ -37,6 +37,7 @@ import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -433,6 +434,63 @@ class PipelineExplainerTest {
         assertEquals(2, items.size());
         assertEquals(1, intValueOf(items.get(0)));
         assertEquals(2, intValueOf(items.get(1)));
+    }
+
+    @Test
+    void shouldFlattenNestedMapsUnderFiltersWhenRESP2() {
+        // Behavior: RESP2 has no map type, so the maps nested under filters are flattened too.
+        List<RedisMessage> flattened = PipelineExplainer.explainAsArray(getCompoundIndexScanNode());
+
+        RedisMessage filters = valueAfterKey(flattened, "filters");
+        assertInstanceOf(ArrayRedisMessage.class, filters);
+        List<RedisMessage> filterMessages = ((ArrayRedisMessage) filters).children();
+        assertEquals(2, filterMessages.size());
+
+        assertInstanceOf(ArrayRedisMessage.class, filterMessages.get(0));
+        assertInstanceOf(ArrayRedisMessage.class, filterMessages.get(1));
+        assertEquals("age", getStringValue(pairsToMap((ArrayRedisMessage) filterMessages.get(0)), "selector"));
+        assertEquals("score", getStringValue(pairsToMap((ArrayRedisMessage) filterMessages.get(1)), "selector"));
+    }
+
+    @Test
+    void shouldFlattenNestedMapsUnderChildrenWhenRESP2() {
+        // Behavior: union children are maps inside an array, they must be flattened for RESP2 as well.
+        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("name_idx", "name", BsonType.STRING, false, IndexStatus.WAITING);
+        IndexScanNode child1 = new IndexScanNode(1, indexDef, new IndexScanPredicate(1, "name", Operator.EQ, new Operand.Literal(new StringVal("Alice"))));
+        IndexScanNode child2 = new IndexScanNode(2, indexDef, new IndexScanPredicate(2, "name", Operator.EQ, new Operand.Literal(new StringVal("Bob"))));
+
+        List<RedisMessage> flattened = PipelineExplainer.explainAsArray(new UnionNode(3, List.of(child1, child2)));
+
+        RedisMessage children = valueAfterKey(flattened, "children");
+        assertInstanceOf(ArrayRedisMessage.class, children);
+        List<RedisMessage> childMessages = ((ArrayRedisMessage) children).children();
+        assertEquals(2, childMessages.size());
+        for (RedisMessage child : childMessages) {
+            assertInstanceOf(ArrayRedisMessage.class, child);
+        }
+    }
+
+    @Test
+    void shouldKeepScalarArrayUnchangedWhenRESP2() {
+        // Behavior: an array of scalars holds no map, so RESP2 keeps its shape and contents.
+        Operand operand = new Operand.LiteralList(List.of(new Int32Val(1), new Int32Val(2)));
+        List<RedisMessage> flattened = PipelineExplainer.explainAsArray(indexScanNodeWith(operand));
+
+        RedisMessage rendered = valueAfterKey(flattened, "operand");
+        assertInstanceOf(ArrayRedisMessage.class, rendered);
+        List<RedisMessage> items = ((ArrayRedisMessage) rendered).children();
+        assertEquals(2, items.size());
+        assertEquals(1, intValueOf(items.get(0)));
+        assertEquals(2, intValueOf(items.get(1)));
+    }
+
+    private Map<RedisMessage, RedisMessage> pairsToMap(ArrayRedisMessage flattened) {
+        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
+        List<RedisMessage> items = flattened.children();
+        for (int i = 0; i + 1 < items.size(); i += 2) {
+            map.put(items.get(i), items.get(i + 1));
+        }
+        return map;
     }
 
     private IndexScanNode indexScanNodeWith(Operand operand) {

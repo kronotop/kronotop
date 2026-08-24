@@ -275,14 +275,35 @@ public class PipelineExplainer {
         List<RedisMessage> result = new ArrayList<>();
         for (Map.Entry<RedisMessage, RedisMessage> entry : map.entrySet()) {
             result.add(entry.getKey());
-            RedisMessage value = entry.getValue();
-            if (value instanceof MapRedisMessage mapMessage) {
-                result.add(new ArrayRedisMessage(flattenMap(mapMessage.children())));
-            } else {
-                result.add(value);
-            }
+            result.add(toRESP2Value(entry.getValue()));
         }
         return result;
+    }
+
+    /**
+     * Converts a rendered value to its RESP2 form. A map becomes a flat array of key-value
+     * pairs. An array keeps its shape and is only rebuilt when it holds a value that changes.
+     */
+    private static RedisMessage toRESP2Value(RedisMessage message) {
+        if (message instanceof MapRedisMessage mapMessage) {
+            return new ArrayRedisMessage(flattenMap(mapMessage.children()));
+        }
+        if (message instanceof ArrayRedisMessage arrayMessage) {
+            List<RedisMessage> children = arrayMessage.children();
+            List<RedisMessage> converted = null;
+            for (int i = 0; i < children.size(); i++) {
+                RedisMessage item = children.get(i);
+                RedisMessage value = toRESP2Value(item);
+                if (value != item && converted == null) {
+                    converted = new ArrayList<>(children.subList(0, i));
+                }
+                if (converted != null) {
+                    converted.add(value);
+                }
+            }
+            return converted == null ? arrayMessage : new ArrayRedisMessage(converted);
+        }
+        return message;
     }
 
     private static FullBulkStringRedisMessage key(String key) {
