@@ -38,11 +38,11 @@ import java.util.concurrent.CompletionException;
  * The RespResponse class is an implementation of the Response interface.
  * It provides methods to write different types of Redis messages using the RESP (REdis Serialization Protocol).
  */
-public class RESP3Response implements Response {
+public class RESPResponse implements Response {
     private final ChannelHandlerContext ctx;
     private final RESPVersion protocolVersion;
 
-    public RESP3Response(ChannelHandlerContext ctx, RESPVersion protocolVersion) {
+    public RESPResponse(ChannelHandlerContext ctx, RESPVersion protocolVersion) {
         this.ctx = ctx;
         this.protocolVersion = protocolVersion;
     }
