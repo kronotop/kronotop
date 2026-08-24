@@ -41,8 +41,6 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 @Command(BucketExplainMessage.COMMAND)
 @MinimumParameterCount(BucketExplainMessage.MINIMUM_PARAMETER_COUNT)
 public class BucketExplainHandler extends AbstractBucketHandler implements Handler {
-    private final RedisMessage RESP2_TRUE_MESSAGE = new IntegerRedisMessage(1);
-    private final RedisMessage RESP2_FALSE_MESSAGE = new IntegerRedisMessage(0);
 
     public BucketExplainHandler(BucketService service) {
         super(service);
@@ -79,16 +77,16 @@ public class BucketExplainHandler extends AbstractBucketHandler implements Handl
             RESPVersion protoVer = request.getSession().protocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
                 Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-                result.put(bulkString("is_cached"), input.isCached() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+                result.put(bulkString("is_cached"), RESPUtil.booleanMessage(input.isCached(), protoVer));
                 if (input.queryCollation() != null) {
-                    result.put(bulkString("query_collation"), PipelineExplainer.explainCollation(input.queryCollation()));
+                    result.put(bulkString("query_collation"), PipelineExplainer.explainCollation(input.queryCollation(), protoVer));
                 }
                 result.put(bulkString("plan"), PipelineExplainer.explainAsMapMessage(input.plan()));
                 response.writeRedisMessage(new MapRedisMessage(result));
             } else if (protoVer.equals(RESPVersion.RESP2)) {
                 List<RedisMessage> result = new ArrayList<>();
                 result.add(bulkString("is_cached"));
-                result.add(input.isCached() ? RESP2_TRUE_MESSAGE : RESP2_FALSE_MESSAGE);
+                result.add(RESPUtil.booleanMessage(input.isCached(), protoVer));
                 if (input.queryCollation() != null) {
                     result.add(bulkString("query_collation"));
                     result.add(PipelineExplainer.explainCollationAsArrayMessage(input.queryCollation()));

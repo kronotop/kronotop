@@ -16,14 +16,19 @@
 
 package com.kronotop.bucket.pipeline;
 
+import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.PipelineExplainer;
+import com.kronotop.bucket.bql.ast.DoubleVal;
 import com.kronotop.bucket.bql.ast.Int32Val;
 import com.kronotop.bucket.bql.ast.StringVal;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.BooleanRedisMessage;
+import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.NullRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -323,6 +328,144 @@ class PipelineExplainerTest {
         Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(unboundedRangeScanNode(), RESPVersion.RESP3);
 
         assertEquals(NullRedisMessage.INSTANCE, getValueForKey(result, "lowerBound"));
+    }
+
+    @Test
+    void shouldRenderRangeBoundFlagsAsIntegersWhenRESP2() {
+        // Behavior: RESP2 has no boolean type, so includeLower and includeUpper are rendered as 1 and 0.
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(boundedRangeScanNode(), RESPVersion.RESP2);
+
+        assertEquals(1, intValueOf(getValueForKey(result, "includeLower")));
+        assertEquals(0, intValueOf(getValueForKey(result, "includeUpper")));
+    }
+
+    @Test
+    void shouldRenderRangeBoundFlagsAsBooleanTypeWhenRESP3() {
+        // Behavior: the same bound flags are rendered as the RESP3 boolean type on a RESP3 session.
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(boundedRangeScanNode(), RESPVersion.RESP3);
+
+        assertEquals(BooleanRedisMessage.TRUE, getValueForKey(result, "includeLower"));
+        assertEquals(BooleanRedisMessage.FALSE, getValueForKey(result, "includeUpper"));
+    }
+
+    @Test
+    void shouldRenderCollationFlagsAsIntegersWhenRESP2() {
+        // Behavior: collation flags follow the same rule, a RESP2 client receives integers.
+        ArrayRedisMessage result = PipelineExplainer.explainCollationAsArrayMessage(collationWithAllFlags());
+
+        List<RedisMessage> flattened = result.children();
+        assertEquals(1, intValueOf(valueAfterKey(flattened, "case_level")));
+        assertEquals(1, intValueOf(valueAfterKey(flattened, "numeric_ordering")));
+        assertEquals(1, intValueOf(valueAfterKey(flattened, "backwards")));
+        assertEquals(1, intValueOf(valueAfterKey(flattened, "normalization")));
+    }
+
+    @Test
+    void shouldRenderCollationFlagsAsBooleanTypeWhenRESP3() {
+        // Behavior: the same collation flags are rendered as the RESP3 boolean type on a RESP3 session.
+        MapRedisMessage result = PipelineExplainer.explainCollation(collationWithAllFlags(), RESPVersion.RESP3);
+
+        Map<RedisMessage, RedisMessage> map = result.children();
+        assertEquals(BooleanRedisMessage.TRUE, getValueForKey(map, "case_level"));
+        assertEquals(BooleanRedisMessage.TRUE, getValueForKey(map, "numeric_ordering"));
+        assertEquals(BooleanRedisMessage.TRUE, getValueForKey(map, "backwards"));
+        assertEquals(BooleanRedisMessage.TRUE, getValueForKey(map, "normalization"));
+    }
+
+    @Test
+    void shouldRenderLiteralOperandAsItsUnwrappedValue() {
+        // Behavior: an operand is unwrapped down to its value, not rendered as the wrapper's toString.
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(
+                indexScanNodeWith(new Operand.Literal(new Int32Val(25))), RESPVersion.RESP3);
+
+        assertEquals(25, intValueOf(getValueForKey(result, "operand")));
+    }
+
+    @Test
+    void shouldRenderStringLiteralOperandAsBulkString() {
+        // Behavior: a string literal is rendered as a bulk string holding the raw value.
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(
+                indexScanNodeWith(new Operand.Literal(new StringVal("Alice"))), RESPVersion.RESP3);
+
+        assertEquals("Alice", getStringValue(result, "operand"));
+    }
+
+    @Test
+    void shouldRenderDoubleLiteralOperandAsBulkStringWhenRESP2() {
+        // Behavior: RESP2 has no double type, so a double literal is rendered as a bulk string.
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(
+                indexScanNodeWith(new Operand.Literal(new DoubleVal(10.5))), RESPVersion.RESP2);
+
+        RedisMessage operand = getValueForKey(result, "operand");
+        assertInstanceOf(FullBulkStringRedisMessage.class, operand);
+    }
+
+    @Test
+    void shouldRenderDoubleLiteralOperandAsDoubleTypeWhenRESP3() {
+        // Behavior: the same double literal is rendered as the RESP3 double type on a RESP3 session.
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(
+                indexScanNodeWith(new Operand.Literal(new DoubleVal(10.5))), RESPVersion.RESP3);
+
+        RedisMessage operand = getValueForKey(result, "operand");
+        assertInstanceOf(DoubleRedisMessage.class, operand);
+        assertEquals(10.5, ((DoubleRedisMessage) operand).value());
+    }
+
+    @Test
+    void shouldRenderParamOperandAsPlaceholder() {
+        // Behavior: a cached plan holds no value for a parameter slot, so it renders as a placeholder.
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(
+                indexScanNodeWith(new Operand.Param(new ParamRef(3))), RESPVersion.RESP3);
+
+        assertEquals("?3", getStringValue(result, "operand"));
+    }
+
+    @Test
+    void shouldRenderLiteralListOperandAsArray() {
+        // Behavior: an $in style operand renders as an array of its unwrapped values.
+        Operand operand = new Operand.LiteralList(List.of(new Int32Val(1), new Int32Val(2)));
+        Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(
+                indexScanNodeWith(operand), RESPVersion.RESP3);
+
+        RedisMessage rendered = getValueForKey(result, "operand");
+        assertInstanceOf(ArrayRedisMessage.class, rendered);
+        List<RedisMessage> items = ((ArrayRedisMessage) rendered).children();
+        assertEquals(2, items.size());
+        assertEquals(1, intValueOf(items.get(0)));
+        assertEquals(2, intValueOf(items.get(1)));
+    }
+
+    private IndexScanNode indexScanNodeWith(Operand operand) {
+        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        return new IndexScanNode(1, indexDef, new IndexScanPredicate(1, "age", Operator.EQ, operand));
+    }
+
+    private Collation collationWithAllFlags() {
+        return Collation.create("en", 3, true, "off", true, "non-ignorable", true, true, "punct");
+    }
+
+    private RangeScanNode boundedRangeScanNode() {
+        SingleFieldIndexDefinition indexDef = SingleFieldIndexDefinition.create("age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        RangeScanPredicate predicate = new RangeScanPredicate("age",
+                new Operand.Literal(new Int32Val(18)),
+                new Operand.Literal(new Int32Val(65)),
+                true, false);
+        return new TestRangeScanNode(1, indexDef, predicate);
+    }
+
+    private long intValueOf(RedisMessage message) {
+        assertInstanceOf(IntegerRedisMessage.class, message);
+        return ((IntegerRedisMessage) message).value();
+    }
+
+    private RedisMessage valueAfterKey(List<RedisMessage> flattened, String keyName) {
+        for (int i = 0; i < flattened.size() - 1; i++) {
+            if (flattened.get(i) instanceof FullBulkStringRedisMessage msg
+                    && msg.content().toString(StandardCharsets.UTF_8).equals(keyName)) {
+                return flattened.get(i + 1);
+            }
+        }
+        return null;
     }
 
     private RangeScanNode unboundedRangeScanNode() {

@@ -16,8 +16,10 @@
 
 package com.kronotop.server;
 
+import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.NullRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
@@ -30,6 +32,8 @@ import java.nio.charset.StandardCharsets;
  * Utility methods for creating binary-safe RESP bulk string messages.
  */
 public class RESPUtil {
+    private static final IntegerRedisMessage RESP2_TRUE = new IntegerRedisMessage(1);
+    private static final IntegerRedisMessage RESP2_FALSE = new IntegerRedisMessage(0);
 
     /**
      * Wraps a raw byte array into a {@link FullBulkStringRedisMessage} without copying.
@@ -67,5 +71,16 @@ public class RESPUtil {
         }
         ByteBuf data = Unpooled.wrappedBuffer(ByteBuffer.allocate(8).putDouble(value).array());
         return new FullBulkStringRedisMessage(data);
+    }
+
+    /**
+     * Returns the boolean message for the given protocol version. RESP3 has its own boolean type,
+     * RESP2 has no boolean type, so the value is sent as the integer 1 or 0.
+     */
+    public static RedisMessage booleanMessage(boolean value, RESPVersion version) {
+        if (version == RESPVersion.RESP3) {
+            return value ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE;
+        }
+        return value ? RESP2_TRUE : RESP2_FALSE;
     }
 }

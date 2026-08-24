@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket;
 
+import com.kronotop.bucket.bql.ast.*;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.pipeline.*;
 import com.kronotop.server.RESPUtil;
@@ -108,7 +109,7 @@ public class PipelineExplainer {
         result.put(key("selector"), value(scan.predicate().selector()));
         result.put(key("operator"), value(scan.predicate().op().name()));
         result.put(key("operand"), formatOperand(scan.predicate().operand(), version));
-        addIndexCollation(result, scan.getIndexDefinition());
+        addIndexCollation(result, scan.getIndexDefinition(), version);
     }
 
     private static void explainFullScan(Map<RedisMessage, RedisMessage> result, FullScanNode scan, RESPVersion version) {
@@ -116,7 +117,7 @@ public class PipelineExplainer {
         result.put(key("index"), value(scan.getIndexDefinition().name()));
         result.put(key("predicate"), explainPredicateAsMessage(scan.predicate(), version));
         if (scan.isCollationMismatch()) {
-            result.put(key("collation_mismatch"), boolValue(true));
+            result.put(key("collation_mismatch"), boolValue(true, version));
             if (scan.getRejectedIndex() != null) {
                 result.put(key("rejected_index"), value(scan.getRejectedIndex()));
             }
@@ -129,9 +130,9 @@ public class PipelineExplainer {
         result.put(key("selector"), value(scan.predicate().selector()));
         result.put(key("lowerBound"), formatOperand(scan.predicate().lowerBound(), version));
         result.put(key("upperBound"), formatOperand(scan.predicate().upperBound(), version));
-        result.put(key("includeLower"), boolValue(scan.predicate().includeLower()));
-        result.put(key("includeUpper"), boolValue(scan.predicate().includeUpper()));
-        addIndexCollation(result, scan.getIndexDefinition());
+        result.put(key("includeLower"), boolValue(scan.predicate().includeLower(), version));
+        result.put(key("includeUpper"), boolValue(scan.predicate().includeUpper(), version));
+        addIndexCollation(result, scan.getIndexDefinition(), version);
     }
 
     private static void explainCompoundIndexScan(Map<RedisMessage, RedisMessage> result, CompoundIndexScanNode scan, RESPVersion version) {
@@ -148,7 +149,7 @@ public class PipelineExplainer {
         }
         result.put(key("filters"), new ArrayRedisMessage(filterMessages));
         if (scan.indexDefinition().collation() != null) {
-            result.put(key("index_collation"), explainCollation(scan.indexDefinition().collation()));
+            result.put(key("index_collation"), explainCollation(scan.indexDefinition().collation(), version));
         }
     }
 
@@ -212,41 +213,52 @@ public class PipelineExplainer {
         return new ArrayRedisMessage(childMessages);
     }
 
-    private static void addIndexCollation(Map<RedisMessage, RedisMessage> result, SingleFieldIndexDefinition definition) {
+    private static void addIndexCollation(Map<RedisMessage, RedisMessage> result, SingleFieldIndexDefinition definition, RESPVersion version) {
         if (definition.collation() != null) {
-            result.put(key("index_collation"), explainCollation(definition.collation()));
+            result.put(key("index_collation"), explainCollation(definition.collation(), version));
         }
     }
 
-    public static MapRedisMessage explainCollation(Collation collation) {
-        return new MapRedisMessage(buildCollationMap(collation));
+    /**
+     * Renders a collation as a RESP3 map.
+     *
+     * @param collation the collation to render
+     * @param version   the protocol version the collation is rendered for
+     */
+    public static MapRedisMessage explainCollation(Collation collation, RESPVersion version) {
+        return new MapRedisMessage(buildCollationMap(collation, version));
     }
 
+    /**
+     * Renders a collation as a RESP2 array of flattened key-value pairs.
+     *
+     * @param collation the collation to render
+     */
     public static ArrayRedisMessage explainCollationAsArrayMessage(Collation collation) {
-        return new ArrayRedisMessage(flattenMap(buildCollationMap(collation)));
+        return new ArrayRedisMessage(flattenMap(buildCollationMap(collation, RESPVersion.RESP2)));
     }
 
-    private static Map<RedisMessage, RedisMessage> buildCollationMap(Collation collation) {
+    private static Map<RedisMessage, RedisMessage> buildCollationMap(Collation collation, RESPVersion version) {
         Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
         map.put(key("locale"), value(collation.locale()));
         map.put(key("strength"), intValue(collation.strength()));
         if (collation.caseLevel()) {
-            map.put(key("case_level"), boolValue(true));
+            map.put(key("case_level"), boolValue(true, version));
         }
         if (!"off".equals(collation.caseFirst())) {
             map.put(key("case_first"), value(collation.caseFirst()));
         }
         if (collation.numericOrdering()) {
-            map.put(key("numeric_ordering"), boolValue(true));
+            map.put(key("numeric_ordering"), boolValue(true, version));
         }
         if (!"non-ignorable".equals(collation.alternate())) {
             map.put(key("alternate"), value(collation.alternate()));
         }
         if (collation.backwards()) {
-            map.put(key("backwards"), boolValue(true));
+            map.put(key("backwards"), boolValue(true, version));
         }
         if (collation.normalization()) {
-            map.put(key("normalization"), boolValue(true));
+            map.put(key("normalization"), boolValue(true, version));
         }
         return map;
     }
@@ -285,22 +297,65 @@ public class PipelineExplainer {
         return new IntegerRedisMessage(value);
     }
 
-    private static BooleanRedisMessage boolValue(boolean value) {
-        return value ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE;
+    private static RedisMessage boolValue(boolean value, RESPVersion version) {
+        return RESPUtil.booleanMessage(value, version);
     }
 
-    private static RedisMessage formatOperand(Object operand, RESPVersion version) {
+    /**
+     * Renders an operand. A literal is unwrapped down to its value, a parameter slot is
+     * rendered as its placeholder because the plan holds no value for it.
+     */
+    private static RedisMessage formatOperand(Operand operand, RESPVersion version) {
         if (operand == null) {
             return RESPUtil.nullMessage(version);
         }
         return switch (operand) {
-            case String s -> value(s);
-            case Integer i -> new IntegerRedisMessage(i);
-            case Long l -> new IntegerRedisMessage(l);
-            case Double d -> new DoubleRedisMessage(d);
-            case Boolean b -> b ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE;
-            case byte[] bytes -> value("<binary:" + bytes.length + " bytes>");
-            default -> value(operand.toString());
+            case Operand.Literal(BqlValue literal) -> formatValue(literal, version);
+            case Operand.Param(ParamRef ref) -> value(placeholder(ref));
+            case Operand.LiteralList(List<BqlValue> values) -> {
+                List<RedisMessage> items = new ArrayList<>();
+                for (BqlValue item : values) {
+                    items.add(formatValue(item, version));
+                }
+                yield new ArrayRedisMessage(items);
+            }
+            case Operand.ParamList(List<ParamRef> refs) -> {
+                List<RedisMessage> items = new ArrayList<>();
+                for (ParamRef ref : refs) {
+                    items.add(value(placeholder(ref)));
+                }
+                yield new ArrayRedisMessage(items);
+            }
         };
+    }
+
+    /**
+     * Renders a BQL value with the closest RESP type the negotiated protocol version offers.
+     * Values with no matching RESP type fall back to their JSON form.
+     */
+    private static RedisMessage formatValue(BqlValue bqlValue, RESPVersion version) {
+        return switch (bqlValue) {
+            case StringVal(String s) -> value(s);
+            case Int32Val(int i) -> new IntegerRedisMessage(i);
+            case Int64Val(long l) -> new IntegerRedisMessage(l);
+            case DateTimeVal(long l) -> new IntegerRedisMessage(l);
+            case TimestampVal(long l) -> new IntegerRedisMessage(l);
+            case DoubleVal(double d) -> RESPUtil.doubleMessage(d, version);
+            case BooleanVal(boolean b) -> RESPUtil.booleanMessage(b, version);
+            case NullVal ignored -> RESPUtil.nullMessage(version);
+            case BinaryVal(byte[] bytes) -> value("<binary:" + bytes.length + " bytes>");
+            case ArrayVal(List<BqlValue> values) -> {
+                List<RedisMessage> items = new ArrayList<>();
+                for (BqlValue item : values) {
+                    items.add(formatValue(item, version));
+                }
+                yield new ArrayRedisMessage(items);
+            }
+            default -> value(bqlValue.toJson());
+        };
+    }
+
+    private static String placeholder(ParamRef ref) {
+        return "?" + ref.index();
     }
 }
