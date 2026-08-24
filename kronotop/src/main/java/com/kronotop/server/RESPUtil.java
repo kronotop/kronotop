@@ -16,11 +16,14 @@
 
 package com.kronotop.server;
 
+import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.NullRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -51,5 +54,18 @@ public class RESPUtil {
         return version == RESPVersion.RESP3
                 ? NullRedisMessage.INSTANCE
                 : FullBulkStringRedisMessage.NULL_INSTANCE;
+    }
+
+    /**
+     * Returns the double message for the given protocol version. RESP3 has its own double type,
+     * RESP2 has no double type, so the value is sent as a bulk string that holds the 8 byte
+     * IEEE 754 big-endian form of the value.
+     */
+    public static RedisMessage doubleMessage(double value, RESPVersion version) {
+        if (version == RESPVersion.RESP3) {
+            return new DoubleRedisMessage(value);
+        }
+        ByteBuf data = Unpooled.wrappedBuffer(ByteBuffer.allocate(8).putDouble(value).array());
+        return new FullBulkStringRedisMessage(data);
     }
 }

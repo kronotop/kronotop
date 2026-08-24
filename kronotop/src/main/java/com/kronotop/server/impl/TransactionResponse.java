@@ -95,7 +95,7 @@ public class TransactionResponse implements Response {
      */
     @Override
     public void writeDouble(double value) {
-        messages.add(new DoubleRedisMessage(value));
+        messages.add(RESPUtil.doubleMessage(value, protocolVersion));
     }
 
     /**
@@ -105,7 +105,6 @@ public class TransactionResponse implements Response {
      * Each Redis message is represented by an instance of the RedisMessage interface.
      * The array of Redis messages is represented by a List<RedisMessage>.
      *
-     * @param children the array of Redis messages to be written
      * @param children the array of Redis messages to be written
      * @see RedisMessage
      */

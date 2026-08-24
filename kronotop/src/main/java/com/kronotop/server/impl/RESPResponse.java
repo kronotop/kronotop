@@ -92,14 +92,14 @@ public class RESPResponse implements Response {
     }
 
     /**
-     * Writes a double value as a Redis response message to the client.
+     * Writes a double value to the client, encoded for the negotiated protocol version.
+     * RESP3 uses its own double type, RESP2 receives a bulk string.
      *
      * @param value the double value to be written
-     * @throws NullPointerException if the value is null
      */
     @Override
     public void writeDouble(double value) {
-        ctx.writeAndFlush(new DoubleRedisMessage(value));
+        ctx.writeAndFlush(RESPUtil.doubleMessage(value, protocolVersion));
     }
 
     /**

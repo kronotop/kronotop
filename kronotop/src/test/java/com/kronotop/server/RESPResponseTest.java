@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -101,13 +102,33 @@ class RESPResponseTest {
     }
 
     @Test
-    void shouldWriteDouble() {
+    void shouldWriteDoubleAsDoubleTypeWhenRESP3() {
+        // Behavior: writeDouble emits the RESP3 double type on a RESP3 session.
         RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP3);
         response.writeDouble(100);
         RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
         assertInstanceOf(DoubleRedisMessage.class, redisMessage);
         DoubleRedisMessage doubleRedisMessage = (DoubleRedisMessage) redisMessage;
         assertEquals(100, doubleRedisMessage.value());
+    }
+
+    @Test
+    void shouldWriteDoubleAsBulkStringWhenRESP2() {
+        // Behavior: RESP2 has no double type, so writeDouble emits a bulk string on a RESP2 session.
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeDouble(100);
+
+        RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
+        try {
+            assertInstanceOf(FullBulkStringRedisMessage.class, redisMessage);
+            FullBulkStringRedisMessage bulkString = (FullBulkStringRedisMessage) redisMessage;
+
+            byte[] data = new byte[bulkString.content().readableBytes()];
+            bulkString.content().readBytes(data);
+            assertEquals(100, ByteBuffer.wrap(data).getDouble());
+        } finally {
+            ReferenceCountUtil.release(redisMessage);
+        }
     }
 
     @Test
