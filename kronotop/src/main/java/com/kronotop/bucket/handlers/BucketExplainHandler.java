@@ -28,10 +28,7 @@ import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.BooleanRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
 
 import java.util.ArrayList;
@@ -44,6 +41,9 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 @Command(BucketExplainMessage.COMMAND)
 @MinimumParameterCount(BucketExplainMessage.MINIMUM_PARAMETER_COUNT)
 public class BucketExplainHandler extends AbstractBucketHandler implements Handler {
+    private final RedisMessage RESP2_TRUE_MESSAGE = new IntegerRedisMessage(1);
+    private final RedisMessage RESP2_FALSE_MESSAGE = new IntegerRedisMessage(0);
+
     public BucketExplainHandler(BucketService service) {
         super(service);
     }
@@ -88,7 +88,7 @@ public class BucketExplainHandler extends AbstractBucketHandler implements Handl
             } else if (protoVer.equals(RESPVersion.RESP2)) {
                 List<RedisMessage> result = new ArrayList<>();
                 result.add(bulkString("is_cached"));
-                result.add(input.isCached() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+                result.add(input.isCached() ? RESP2_TRUE_MESSAGE : RESP2_FALSE_MESSAGE);
                 if (input.queryCollation() != null) {
                     result.add(bulkString("query_collation"));
                     result.add(PipelineExplainer.explainCollationAsArrayMessage(input.queryCollation()));
