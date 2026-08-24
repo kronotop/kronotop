@@ -19,7 +19,7 @@ package com.kronotop.core.handlers.connection.protocol;
 import com.kronotop.BaseProtocolTest;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.server.Request;
-import com.kronotop.server.impl.RESP3Request;
+import com.kronotop.server.impl.RESPRequest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -42,7 +42,7 @@ public class AuthMessageTest extends BaseProtocolTest {
 
         Object msg = channel.readInbound();
         try {
-            Request request = new RESP3Request(null, msg);
+            Request request = new RESPRequest(null, msg);
             AuthMessage authMessage = new AuthMessage(request);
 
             assertEquals(expectedUsername, authMessage.getUsername());
