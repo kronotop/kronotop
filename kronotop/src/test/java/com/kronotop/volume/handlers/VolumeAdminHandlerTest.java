@@ -29,6 +29,7 @@ import com.kronotop.commands.VolumeAdminCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
@@ -37,6 +38,7 @@ import com.kronotop.volume.segment.SegmentUtil;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -53,7 +55,14 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
+
     private final String volumeName = VolumeNames.format(SHARD_KIND, SHARD_ID);
+
+    @BeforeEach
+    void useRESP3() {
+        // These tests assert RESP3 types, so the session must speak RESP3.
+        switchProtocol(channel, RESPVersion.RESP3);
+    }
 
     private void createStalePrefixes(int count) {
         String clusterName = context.getConfig().getString("cluster.name");

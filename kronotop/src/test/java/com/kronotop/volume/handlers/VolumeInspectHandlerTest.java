@@ -23,6 +23,7 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.commands.VolumeInspectCommandBuilder;
 import com.kronotop.instance.KronotopInstance;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.AppendResult;
@@ -33,6 +34,7 @@ import com.kronotop.volume.replication.ReplicationService;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -46,6 +48,12 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeInspectHandlerTest extends BaseNetworkedVolumeIntegrationTest {
+
+    @BeforeEach
+    void useRESP3() {
+        // These tests assert RESP3 types, so the session must speak RESP3.
+        switchProtocol(channel, RESPVersion.RESP3);
+    }
 
     private void appendEntries(int number, int length) throws IOException {
         ByteBuffer[] entries = getEntries(number, length);
