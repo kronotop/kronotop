@@ -25,6 +25,7 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.index.*;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
@@ -32,15 +33,16 @@ import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static com.kronotop.server.RESPUtil.booleanMessage;
+import static com.kronotop.server.RESPUtil.bulkString;
+import static com.kronotop.server.RESPUtil.formatMapMessage;
 
 class BucketIndexDescribeSubcommand implements SubcommandHandler {
     private final Context context;
@@ -49,46 +51,44 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         this.context = context;
     }
 
-    private static FullBulkStringRedisMessage bulkString(String input) {
-        return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(input.getBytes(StandardCharsets.UTF_8)));
-    }
-
-    private static MapRedisMessage getCollationMap(Collation collation) {
+    private static RedisMessage getCollation(Collation collation, RESPVersion version) {
+        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
         if (collation == null) {
-            return MapRedisMessage.EMPTY_INSTANCE;
+            return formatMapMessage(map, version);
         }
 
-        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
         map.put(bulkString("locale"), bulkString(collation.locale()));
         map.put(bulkString("strength"), new IntegerRedisMessage(collation.strength()));
-        map.put(bulkString("case_level"), collation.caseLevel() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("case_level"), booleanMessage(collation.caseLevel(), version));
         map.put(bulkString("case_first"), bulkString(collation.caseFirst()));
-        map.put(bulkString("numeric_ordering"), collation.numericOrdering() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("numeric_ordering"), booleanMessage(collation.numericOrdering(), version));
         map.put(bulkString("alternate"), bulkString(collation.alternate()));
-        map.put(bulkString("backwards"), collation.backwards() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-        map.put(bulkString("normalization"), collation.normalization() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("backwards"), booleanMessage(collation.backwards(), version));
+        map.put(bulkString("normalization"), booleanMessage(collation.normalization(), version));
         map.put(bulkString("max_variable"), bulkString(collation.maxVariable()));
-        return new MapRedisMessage(map);
+        return formatMapMessage(map, version);
     }
 
-    private static Map<RedisMessage, RedisMessage> getSingleFieldDescription(SingleFieldIndexDefinition definition, IndexStatistics statistics) {
+    private static RedisMessage getStatistics(IndexStatistics statistics, RESPVersion version) {
+        Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
+        stats.put(bulkString("cardinality"), new IntegerRedisMessage(statistics.cardinality()));
+        return formatMapMessage(stats, version);
+    }
+
+    private static RedisMessage getSingleFieldDescription(SingleFieldIndexDefinition definition, IndexStatistics statistics, RESPVersion version) {
         Map<RedisMessage, RedisMessage> description = new LinkedHashMap<>();
         description.put(bulkString("index_type"), bulkString("single_field"));
         description.put(bulkString("id"), new IntegerRedisMessage(definition.id()));
         description.put(bulkString("selector"), bulkString(definition.selector()));
         description.put(bulkString("bson_type"), bulkString(definition.bsonType().name()));
         description.put(bulkString("status"), bulkString(definition.status().name()));
-        description.put(bulkString("unique"), definition.unique() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-        description.put(bulkString("collation"), getCollationMap(definition.collation()));
-
-        Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
-        stats.put(bulkString("cardinality"), new IntegerRedisMessage(statistics.cardinality()));
-        description.put(bulkString("statistics"), new MapRedisMessage(stats));
-
-        return description;
+        description.put(bulkString("unique"), booleanMessage(definition.unique(), version));
+        description.put(bulkString("collation"), getCollation(definition.collation(), version));
+        description.put(bulkString("statistics"), getStatistics(statistics, version));
+        return formatMapMessage(description, version);
     }
 
-    private static Map<RedisMessage, RedisMessage> getVectorDescription(VectorIndexDefinition definition, IndexStatistics statistics) {
+    private static RedisMessage getVectorDescription(VectorIndexDefinition definition, IndexStatistics statistics, RESPVersion version) {
         Map<RedisMessage, RedisMessage> description = new LinkedHashMap<>();
         description.put(bulkString("index_type"), bulkString("vector"));
         description.put(bulkString("id"), new IntegerRedisMessage(definition.id()));
@@ -96,15 +96,11 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         description.put(bulkString("dimensions"), new IntegerRedisMessage(definition.dimensions()));
         description.put(bulkString("distance"), bulkString(definition.distance().name()));
         description.put(bulkString("status"), bulkString(definition.status().name()));
-
-        Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
-        stats.put(bulkString("cardinality"), new IntegerRedisMessage(statistics.cardinality()));
-        description.put(bulkString("statistics"), new MapRedisMessage(stats));
-
-        return description;
+        description.put(bulkString("statistics"), getStatistics(statistics, version));
+        return formatMapMessage(description, version);
     }
 
-    private static Map<RedisMessage, RedisMessage> getCompoundDescription(CompoundIndexDefinition definition, IndexStatistics statistics) {
+    private static RedisMessage getCompoundDescription(CompoundIndexDefinition definition, IndexStatistics statistics, RESPVersion version) {
         Map<RedisMessage, RedisMessage> description = new LinkedHashMap<>();
         description.put(bulkString("index_type"), bulkString("compound"));
         description.put(bulkString("id"), new IntegerRedisMessage(definition.id()));
@@ -114,19 +110,15 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
             Map<RedisMessage, RedisMessage> fieldMap = new LinkedHashMap<>();
             fieldMap.put(bulkString("selector"), bulkString(field.selector()));
             fieldMap.put(bulkString("bson_type"), bulkString(field.bsonType().name()));
-            fieldsList.add(new MapRedisMessage(fieldMap));
+            fieldsList.add(formatMapMessage(fieldMap, version));
         }
         description.put(bulkString("fields"), new ArrayRedisMessage(fieldsList));
 
         description.put(bulkString("status"), bulkString(definition.status().name()));
-        description.put(bulkString("unique"), definition.unique() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-        description.put(bulkString("collation"), getCollationMap(definition.collation()));
-
-        Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
-        stats.put(bulkString("cardinality"), new IntegerRedisMessage(statistics.cardinality()));
-        description.put(bulkString("statistics"), new MapRedisMessage(stats));
-
-        return description;
+        description.put(bulkString("unique"), booleanMessage(definition.unique(), version));
+        description.put(bulkString("collation"), getCollation(definition.collation(), version));
+        description.put(bulkString("statistics"), getStatistics(statistics, version));
+        return formatMapMessage(description, version);
     }
 
     @Override
@@ -134,6 +126,7 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         DescribeParameters parameters = new DescribeParameters(request.getParams());
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
+            RESPVersion protoVer = session.protocolVersion();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, parameters.bucket);
 
@@ -141,22 +134,22 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
                 if (vectorIndex != null) {
                     VectorIndexDefinition definition = VectorIndexUtil.loadIndexDefinition(tr, vectorIndex.subspace());
                     IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
-                    return getVectorDescription(definition, statistics);
+                    return getVectorDescription(definition, statistics, protoVer);
                 }
 
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
                 if (compoundIndex != null) {
                     CompoundIndexDefinition definition = CompoundIndexUtil.loadIndexDefinition(tr, compoundIndex.subspace());
                     IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
-                    return getCompoundDescription(definition, statistics);
+                    return getCompoundDescription(definition, statistics, protoVer);
                 }
 
                 DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), parameters.index);
                 SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, indexSubspace);
                 IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
-                return getSingleFieldDescription(definition, statistics);
+                return getSingleFieldDescription(definition, statistics, protoVer);
             }
-        }, response::writeMap);
+        }, response::writeRedisMessage);
     }
 
     private static class DescribeParameters {

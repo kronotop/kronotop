@@ -16,10 +16,12 @@
 
 package com.kronotop.server;
 
+import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.NullRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.buffer.ByteBuf;
@@ -27,6 +29,9 @@ import io.netty.buffer.Unpooled;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Utility methods for creating binary-safe RESP bulk string messages.
@@ -82,5 +87,24 @@ public class RESPUtil {
             return value ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE;
         }
         return value ? RESP2_TRUE : RESP2_FALSE;
+    }
+
+    /**
+     * Returns the map message for the given protocol version. RESP3 has its own map type,
+     * RESP2 has no map type, so the fields are sent as a flat array of alternating keys and
+     * values. The field order is preserved in both cases.
+     */
+    public static RedisMessage formatMapMessage(Map<RedisMessage, RedisMessage> fields, RESPVersion version) {
+        if (version == RESPVersion.RESP3) {
+            return new MapRedisMessage(fields);
+        }
+
+        // RESP2 compatibility mode
+        List<RedisMessage> flattened = new ArrayList<>(fields.size() * 2);
+        fields.forEach((key, value) -> {
+            flattened.add(key);
+            flattened.add(value);
+        });
+        return new ArrayRedisMessage(flattened);
     }
 }
