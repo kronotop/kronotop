@@ -83,12 +83,14 @@ Each result is a map with `score` (float) and `entry` (document bytes):
 
 **RESP2 (array of pairs):**
 
-Each result is a two-element array containing the score as a string and the document bytes:
+Each result is a two-element array containing the score and the document bytes. RESP2 has no
+double type, so the score arrives as 8 raw bytes that hold the IEEE 754 big-endian form of the
+value. See [Protocol Versions](../../connection/protocol-versions.md).
 
 ```kronotop
-1) 1) "0.99"
+1) 1) <score-bytes>
    2) <document-bytes>
-2) 1) "0.87"
+2) 1) <score-bytes>
    2) <document-bytes>
 ...
 ```
