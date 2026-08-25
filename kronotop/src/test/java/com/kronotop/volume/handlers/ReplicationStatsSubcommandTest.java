@@ -22,6 +22,7 @@ import com.kronotop.BaseTest;
 import com.kronotop.commands.VolumeStatsCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
@@ -34,6 +35,7 @@ import com.kronotop.volume.replication.Stage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -44,6 +46,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class ReplicationStatsSubcommandTest extends BaseNetworkedVolumeIntegrationTest {
+
+    @BeforeEach
+    void useRESP3() {
+        // These tests assert RESP3 types, so the session must speak RESP3.
+        switchProtocol(channel, RESPVersion.RESP3);
+    }
 
     private DirectorySubspace createStandbySubspace() {
         String volumeName = VolumeNames.format(SHARD_KIND, SHARD_ID);
