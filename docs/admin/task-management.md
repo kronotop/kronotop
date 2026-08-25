@@ -41,7 +41,7 @@ TASK.ADMIN LIST
 127.0.0.1:3320> TASK.ADMIN LIST
 1# journal:cleanup-task =>
    1# running => (false)
-   2# completed => (false)
+   2# finished => (false)
    3# started_at => (integer) 1752582119
    4# last_run => (integer) 0
 ```
@@ -52,9 +52,27 @@ Each entry represents a background task, identified by its name (e.g., journal:c
 available for each task:
 
 * `running`: Indicates whether the task is currently executing (`true` or `false`).
-* `completed`: Whether the task has successfully completed at least once.
+* `finished`: Whether the task has stopped running.
 * `started_at`: The UNIX timestamp (in seconds) of when the task was registered.
 * `last_run`: The UNIX timestamp of the last successful execution. 0 means it has not run yet.
+
+**RESP2 clients**
+
+RESP2 has no map and no boolean type. On a RESP2 connection the reply is a flat array where each task name is followed
+by its field list, and `running` and `finished` are sent as `1` or `0`:
+
+```kronotop
+127.0.0.1:3320> TASK.ADMIN LIST
+1) "journal:cleanup-task"
+2) 1) "running"
+   2) (integer) 0
+   3) "finished"
+   4) (integer) 0
+   5) "started_at"
+   6) (integer) 1752582119
+   7) "last_run"
+   8) (integer) 0
+```
 
 **Notes**
 
