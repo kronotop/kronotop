@@ -392,4 +392,248 @@ class RESPResponseTest {
         SimpleStringRedisMessage message = (SimpleStringRedisMessage) setRedisMessage.children().iterator().next();
         assertEquals("foobar", message.content());
     }
+
+    @Test
+    void shouldWriteMapAsFlatArrayWhenRESP2() {
+        // Behavior: RESP2 has no map type, so writeMap emits a flat array of keys and values in the same order.
+        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
+        map.put(new SimpleStringRedisMessage("first"), new IntegerRedisMessage(1));
+        map.put(new SimpleStringRedisMessage("second"), new IntegerRedisMessage(2));
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeMap(map);
+
+        List<RedisMessage> children = flatArrayOf(ctx.embeddedChannel().readOutbound());
+        assertEquals(4, children.size());
+        assertEquals("first", ((SimpleStringRedisMessage) children.get(0)).content());
+        assertEquals(1, ((IntegerRedisMessage) children.get(1)).value());
+        assertEquals("second", ((SimpleStringRedisMessage) children.get(2)).content());
+        assertEquals(2, ((IntegerRedisMessage) children.get(3)).value());
+    }
+
+    @Test
+    void shouldFlattenNestedMapWhenRESP2() {
+        // Behavior: a map nested under a field is flattened too, it is not left as a RESP3 map.
+        Map<RedisMessage, RedisMessage> inner = new LinkedHashMap<>();
+        inner.put(new SimpleStringRedisMessage("locale"), new SimpleStringRedisMessage("en"));
+
+        Map<RedisMessage, RedisMessage> outer = new LinkedHashMap<>();
+        outer.put(new SimpleStringRedisMessage("collation"), new MapRedisMessage(inner));
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeMap(outer);
+
+        List<RedisMessage> children = flatArrayOf(ctx.embeddedChannel().readOutbound());
+        assertEquals(2, children.size());
+
+        List<RedisMessage> collation = flatArrayOf(children.get(1));
+        assertEquals(2, collation.size());
+        assertEquals("locale", ((SimpleStringRedisMessage) collation.get(0)).content());
+        assertEquals("en", ((SimpleStringRedisMessage) collation.get(1)).content());
+    }
+
+    @Test
+    void shouldFlattenMapInsideArrayWhenRESP2() {
+        // Behavior: the outer array keeps its shape, the map it holds becomes a flat array.
+        Map<RedisMessage, RedisMessage> segment = new LinkedHashMap<>();
+        segment.put(new SimpleStringRedisMessage("id"), new IntegerRedisMessage(7));
+
+        List<RedisMessage> array = new ArrayList<>();
+        array.add(new MapRedisMessage(segment));
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeArray(array);
+
+        List<RedisMessage> children = flatArrayOf(ctx.embeddedChannel().readOutbound());
+        assertEquals(1, children.size());
+
+        List<RedisMessage> first = flatArrayOf(children.get(0));
+        assertEquals(2, first.size());
+        assertEquals("id", ((SimpleStringRedisMessage) first.get(0)).content());
+        assertEquals(7, ((IntegerRedisMessage) first.get(1)).value());
+    }
+
+    @Test
+    void shouldFlattenThreeLevelTreeWhenRESP2() {
+        // Behavior: the rewrite walks the whole tree, so a map under an array under a map is flattened.
+        Map<RedisMessage, RedisMessage> leaf = new LinkedHashMap<>();
+        leaf.put(new SimpleStringRedisMessage("segment_id"), new IntegerRedisMessage(3));
+
+        List<RedisMessage> segments = new ArrayList<>();
+        segments.add(new MapRedisMessage(leaf));
+
+        Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
+        root.put(new SimpleStringRedisMessage("segments"), new ArrayRedisMessage(segments));
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeMap(root);
+
+        List<RedisMessage> children = flatArrayOf(ctx.embeddedChannel().readOutbound());
+        assertEquals(2, children.size());
+
+        List<RedisMessage> segmentList = flatArrayOf(children.get(1));
+        assertEquals(1, segmentList.size());
+
+        List<RedisMessage> leafFields = flatArrayOf(segmentList.get(0));
+        assertEquals(2, leafFields.size());
+        assertEquals("segment_id", ((SimpleStringRedisMessage) leafFields.get(0)).content());
+        assertEquals(3, ((IntegerRedisMessage) leafFields.get(1)).value());
+    }
+
+    @Test
+    void shouldWriteBooleanAsIntegerWhenRESP2() {
+        // Behavior: RESP2 has no boolean type, so writeBoolean emits 1 or 0.
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+
+        response.writeBoolean(true);
+        RedisMessage trueMessage = ctx.embeddedChannel().readOutbound();
+        assertInstanceOf(IntegerRedisMessage.class, trueMessage);
+        assertEquals(1, ((IntegerRedisMessage) trueMessage).value());
+
+        response.writeBoolean(false);
+        RedisMessage falseMessage = ctx.embeddedChannel().readOutbound();
+        assertInstanceOf(IntegerRedisMessage.class, falseMessage);
+        assertEquals(0, ((IntegerRedisMessage) falseMessage).value());
+    }
+
+    @Test
+    void shouldWriteNestedBooleanAsIntegerWhenRESP2() {
+        // Behavior: a boolean nested in a map is rewritten too, not only the one writeBoolean sends.
+        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
+        map.put(new SimpleStringRedisMessage("unique"), BooleanRedisMessage.TRUE);
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeMap(map);
+
+        List<RedisMessage> children = flatArrayOf(ctx.embeddedChannel().readOutbound());
+        assertInstanceOf(IntegerRedisMessage.class, children.get(1));
+        assertEquals(1, ((IntegerRedisMessage) children.get(1)).value());
+    }
+
+    @Test
+    void shouldWriteNestedDoubleAsBulkStringWhenRESP2() {
+        // Behavior: a double nested in a map becomes the same 8 byte bulk string writeDouble sends.
+        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
+        map.put(new SimpleStringRedisMessage("fill_ratio"), new DoubleRedisMessage(0.75));
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeMap(map);
+
+        RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
+        try {
+            List<RedisMessage> children = flatArrayOf(redisMessage);
+            assertEquals(0.75, doubleOf(children.get(1)));
+        } finally {
+            ReferenceCountUtil.release(redisMessage);
+        }
+    }
+
+    @Test
+    void shouldWriteNestedNullAsBulkStringWhenRESP2() {
+        // Behavior: a null inside an array becomes the RESP2 null bulk string.
+        List<RedisMessage> array = new ArrayList<>();
+        array.add(NullRedisMessage.INSTANCE);
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeArray(array);
+
+        List<RedisMessage> children = flatArrayOf(ctx.embeddedChannel().readOutbound());
+        assertEquals(1, children.size());
+        assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, children.get(0));
+    }
+
+    @Test
+    void shouldWriteSetAsArrayWhenRESP2() {
+        // Behavior: RESP2 has no set type, so writeSet emits an array.
+        Set<RedisMessage> set = new LinkedHashSet<>();
+        set.add(new SimpleStringRedisMessage("foobar"));
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeSet(set);
+
+        List<RedisMessage> children = flatArrayOf(ctx.embeddedChannel().readOutbound());
+        assertEquals(1, children.size());
+        assertEquals("foobar", ((SimpleStringRedisMessage) children.get(0)).content());
+    }
+
+    @Test
+    void shouldWriteBigNumberAsBulkStringWhenRESP2() {
+        // Behavior: RESP2 has no big number type, so the value is sent as a bulk string.
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeBigNumber("100");
+
+        RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
+        try {
+            assertEquals("100", stringOf(redisMessage));
+        } finally {
+            ReferenceCountUtil.release(redisMessage);
+        }
+    }
+
+    @Test
+    void shouldWriteVerbatimStringAsBulkStringWhenRESP2() {
+        // Behavior: RESP2 has no verbatim string, so the format prefix is dropped and the rest is sent as a bulk string.
+        ByteBuf content = Unpooled.buffer();
+        content.writeBytes("txt:message".getBytes(StandardCharsets.UTF_8));
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeVerbatimString(content);
+
+        RedisMessage redisMessage = ctx.embeddedChannel().readOutbound();
+        try {
+            assertFalse(redisMessage instanceof FullBulkVerbatimStringRedisMessage);
+            assertEquals("message", stringOf(redisMessage));
+        } finally {
+            ReferenceCountUtil.release(redisMessage);
+        }
+    }
+
+    @Test
+    void shouldKeepArrayInstanceWhenRESP2() {
+        // Behavior: an array with no RESP3 only type is passed through, no new array is allocated.
+        List<RedisMessage> children = new ArrayList<>();
+        children.add(new SimpleStringRedisMessage("first"));
+        children.add(new IntegerRedisMessage(2));
+        ArrayRedisMessage array = new ArrayRedisMessage(children);
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP2);
+        response.writeRedisMessage(array);
+
+        assertSame(array, ctx.embeddedChannel().readOutbound());
+    }
+
+    @Test
+    void shouldKeepMessageUnchangedWhenRESP3() {
+        // Behavior: a RESP3 session receives the message tree as it is, nothing is rewritten.
+        Map<RedisMessage, RedisMessage> inner = new LinkedHashMap<>();
+        inner.put(new SimpleStringRedisMessage("unique"), BooleanRedisMessage.TRUE);
+
+        Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
+        root.put(new SimpleStringRedisMessage("index"), new MapRedisMessage(inner));
+        MapRedisMessage message = new MapRedisMessage(root);
+
+        RESPResponse response = new RESPResponse(ctx, RESPVersion.RESP3);
+        response.writeRedisMessage(message);
+
+        assertSame(message, ctx.embeddedChannel().readOutbound());
+    }
+
+    private List<RedisMessage> flatArrayOf(RedisMessage message) {
+        assertInstanceOf(ArrayRedisMessage.class, message);
+        return ((ArrayRedisMessage) message).children();
+    }
+
+    private double doubleOf(RedisMessage message) {
+        assertInstanceOf(FullBulkStringRedisMessage.class, message);
+        ByteBuf content = ((FullBulkStringRedisMessage) message).content();
+        byte[] data = new byte[content.readableBytes()];
+        content.readBytes(data);
+        assertEquals(8, data.length);
+        return ByteBuffer.wrap(data).getDouble();
+    }
+
+    private String stringOf(RedisMessage message) {
+        assertInstanceOf(FullBulkStringRedisMessage.class, message);
+        return ((FullBulkStringRedisMessage) message).content().toString(StandardCharsets.UTF_8);
+    }
 }
