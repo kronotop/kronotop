@@ -27,6 +27,7 @@ import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.TimeoutOptions;
+import io.lettuce.core.protocol.ProtocolVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,10 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
         super(context, subspace, client, session);
         try {
             this.clientWithoutTimeout = new ReplicationClient(context, session.shardKind(), session.shardId());
-            ClientOptions options = ClientOptions.builder().timeoutOptions(TimeoutOptions.create()).build();
+            ClientOptions options = ClientOptions.builder().
+                    timeoutOptions(TimeoutOptions.create()).
+                    protocolVersion(ProtocolVersion.RESP3).
+                    build();
             this.clientWithoutTimeout.connect(options);
         } catch (Exception e) {
             try {

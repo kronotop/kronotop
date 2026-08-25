@@ -93,23 +93,19 @@ public class RESPUtil {
     }
 
     /**
-     * Rewrites a message so that it only holds types the given protocol version understands.
-     * RESP3 returns the message as it is. RESP2 walks the whole message tree, including nested
-     * containers, and replaces every RESP3 only type with its RESP2 form:
+     * Replaces every RESP3 only type in the message with a type RESP2 clients understand.
+     * Nested containers are rewritten too. RESP3 gets the message back unchanged.
      *
      * <ul>
-     *   <li>map becomes a flat array of alternating keys and values, the field order is kept</li>
+     *   <li>map becomes a flat array of keys and values, in the same order</li>
      *   <li>set becomes an array</li>
-     *   <li>boolean becomes the integer 1 or 0</li>
+     *   <li>boolean becomes 1 or 0</li>
      *   <li>double becomes a bulk string, see {@link #doubleMessage(double, RESPVersion)}</li>
      *   <li>null becomes a bulk string with a length of -1</li>
-     *   <li>big number becomes a bulk string</li>
-     *   <li>verbatim string becomes a bulk string without the format prefix</li>
+     *   <li>big number and verbatim string become bulk strings</li>
      * </ul>
      * <p>
-     * Children are moved into the new container without an extra retain, so the caller must not
-     * use the original message after the call. A container whose children need no change is
-     * returned as it is, without allocating a new one.
+     * The new container takes over the children, so do not use the given message afterwards.
      */
     public static RedisMessage downgrade(RedisMessage message, RESPVersion version) {
         if (version == RESPVersion.RESP3) {
