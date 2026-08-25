@@ -43,8 +43,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonDocument;
 import org.bson.types.ObjectId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
@@ -60,7 +58,6 @@ import java.util.*;
  * and document parsing.</p>
  */
 public abstract class AbstractBucketHandler implements Handler {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractBucketHandler.class);
     private static final byte[] CURSOR_ID_BYTES = "cursor_id".getBytes(StandardCharsets.UTF_8);
     private static final byte[] ENTRIES_BYTES = "entries".getBytes(StandardCharsets.UTF_8);
     private static final byte[] OBJECT_IDS_BYTES = "object_ids".getBytes(StandardCharsets.UTF_8);
@@ -288,7 +285,7 @@ public abstract class AbstractBucketHandler implements Handler {
         List<RedisMessage> array = new ArrayList<>(results.size());
         for (VectorSearchResult result : results) {
             List<RedisMessage> pair = new ArrayList<>(2);
-            pair.add(bulkString(String.valueOf(result.score())));
+            pair.add(RESPUtil.doubleMessage(result.score(), request.getSession().protocolVersion()));
             pair.add(new FullBulkStringRedisMessage(prepareValue(request, result.document())));
             array.add(new ArrayRedisMessage(pair));
         }
