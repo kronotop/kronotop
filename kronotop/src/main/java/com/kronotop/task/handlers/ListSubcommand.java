@@ -16,12 +16,10 @@
 
 package com.kronotop.task.handlers;
 
-import com.kronotop.KronotopException;
-import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -29,12 +27,9 @@ import com.kronotop.task.ObservedTask;
 import com.kronotop.task.TaskService;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
-import static com.kronotop.server.RESPUtil.booleanMessage;
 import static com.kronotop.server.RESPUtil.bulkString;
 import static com.kronotop.server.RESPUtil.wrapBytes;
 
@@ -49,40 +44,27 @@ public class ListSubcommand extends BaseHandler implements SubcommandHandler {
     }
 
     /**
-     * Builds the fields of a single task. The field order is the same for both protocol versions.
+     * Builds the fields of a single task.
      */
-    private Map<RedisMessage, RedisMessage> fields(ObservedTask task, RESPVersion version) {
+    private Map<RedisMessage, RedisMessage> fields(ObservedTask task) {
         Map<RedisMessage, RedisMessage> item = new LinkedHashMap<>();
-        item.put(wrapBytes(RUNNING_BYTES), booleanMessage(task.running(), version));
-        item.put(wrapBytes(FINISHED_BYTES), booleanMessage(task.finished(), version));
+        item.put(wrapBytes(RUNNING_BYTES), booleanMessage(task.running()));
+        item.put(wrapBytes(FINISHED_BYTES), booleanMessage(task.finished()));
         item.put(wrapBytes(STARTED_AT_BYTES), new IntegerRedisMessage(task.startedAt()));
         item.put(wrapBytes(LAST_RUN_BYTES), new IntegerRedisMessage(task.lastRun()));
         return item;
     }
 
+    private BooleanRedisMessage booleanMessage(boolean value) {
+        return value ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE;
+    }
+
     @Override
     public void execute(Request request, Response response) {
-        RESPVersion protoVer = request.getSession().protocolVersion();
-        if (protoVer.equals(RESPVersion.RESP3)) {
-            Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-            service.tasks().forEach(task ->
-                    result.put(bulkString(task.name()), new MapRedisMessage(fields(task, protoVer)))
-            );
-            response.writeMap(result);
-        } else if (protoVer.equals(RESPVersion.RESP2)) {
-            List<RedisMessage> result = new ArrayList<>();
-            service.tasks().forEach(task -> {
-                List<RedisMessage> item = new ArrayList<>();
-                fields(task, protoVer).forEach((key, value) -> {
-                    item.add(key);
-                    item.add(value);
-                });
-                result.add(bulkString(task.name()));
-                result.add(new ArrayRedisMessage(item));
-            });
-            response.writeArray(result);
-        } else {
-            throw new KronotopException("Unknown protocol version " + protoVer.getValue());
-        }
+        Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+        service.tasks().forEach(task ->
+                result.put(bulkString(task.name()), new MapRedisMessage(fields(task)))
+        );
+        response.writeMap(result);
     }
 }

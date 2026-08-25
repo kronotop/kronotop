@@ -48,14 +48,15 @@ public class RESPResponse implements Response {
     }
 
     /**
-     * Writes a Redis message to the client.
+     * Writes a Redis message to the client. The message is rewritten first if the session speaks
+     * a protocol version that does not know all of its types.
      *
      * @param message the Redis message to be written
      * @throws NullPointerException if the message is null
      */
     @Override
     public void writeRedisMessage(RedisMessage message) {
-        ctx.writeAndFlush(message);
+        ctx.writeAndFlush(RESPUtil.downgrade(message, protocolVersion));
     }
 
     /**
@@ -114,7 +115,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeArray(List<RedisMessage> children) {
-        ctx.writeAndFlush(new ArrayRedisMessage(children));
+        writeRedisMessage(new ArrayRedisMessage(children));
     }
 
     /**
@@ -129,7 +130,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeMap(Map<RedisMessage, RedisMessage> children) {
-        ctx.writeAndFlush(new MapRedisMessage(children));
+        writeRedisMessage(new MapRedisMessage(children));
     }
 
     /**
@@ -176,21 +177,14 @@ public class RESPResponse implements Response {
     }
 
     /**
-     * Writes a boolean value as a Redis response message to the client.
-     * <p>
-     * This method is used to write a boolean value as a Redis response message to the client.
-     * If the value is true, it writes the BooleanRedisMessage.TRUE message to the client.
-     * If the value is false, it writes the BooleanRedisMessage.FALSE message to the client.
+     * Writes a boolean value to the client, encoded for the negotiated protocol version.
+     * RESP3 uses its own boolean type, RESP2 receives the integer 1 or 0.
      *
      * @param value the boolean value to be written
      */
     @Override
     public void writeBoolean(boolean value) {
-        if (value) {
-            ctx.writeAndFlush(BooleanRedisMessage.TRUE);
-        } else {
-            ctx.writeAndFlush(BooleanRedisMessage.FALSE);
-        }
+        ctx.writeAndFlush(RESPUtil.booleanMessage(value, protocolVersion));
     }
 
     /**
@@ -201,7 +195,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeBigNumber(BigInteger value) {
-        ctx.writeAndFlush(new BigNumberRedisMessage(value));
+        writeRedisMessage(new BigNumberRedisMessage(value));
     }
 
     /**
@@ -212,7 +206,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeBigNumber(String value) {
-        ctx.writeAndFlush(new BigNumberRedisMessage(value));
+        writeRedisMessage(new BigNumberRedisMessage(value));
     }
 
     /**
@@ -223,7 +217,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeBigNumber(byte[] value) {
-        ctx.writeAndFlush(new BigNumberRedisMessage(value));
+        writeRedisMessage(new BigNumberRedisMessage(value));
     }
 
     /**
@@ -239,7 +233,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeVerbatimString(ByteBuf content) {
-        ctx.writeAndFlush(new FullBulkVerbatimStringRedisMessage(content));
+        writeRedisMessage(new FullBulkVerbatimStringRedisMessage(content));
     }
 
     /**
@@ -250,7 +244,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeSet(Set<RedisMessage> children) {
-        ctx.writeAndFlush(new SetRedisMessage(children));
+        writeRedisMessage(new SetRedisMessage(children));
     }
 
     /**

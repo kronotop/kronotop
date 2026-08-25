@@ -17,13 +17,17 @@
 package com.kronotop.server;
 
 import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.BigNumberRedisMessage;
 import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.FullBulkVerbatimStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.NullRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.server.resp3.SetRedisMessage;
+import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -31,7 +35,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Utility methods for creating binary-safe RESP bulk string messages.
@@ -90,21 +93,94 @@ public class RESPUtil {
     }
 
     /**
-     * Returns the map message for the given protocol version. RESP3 has its own map type,
-     * RESP2 has no map type, so the fields are sent as a flat array of alternating keys and
-     * values. The field order is preserved in both cases.
+     * Rewrites a message so that it only holds types the given protocol version understands.
+     * RESP3 returns the message as it is. RESP2 walks the whole message tree, including nested
+     * containers, and replaces every RESP3 only type with its RESP2 form:
+     *
+     * <ul>
+     *   <li>map becomes a flat array of alternating keys and values, the field order is kept</li>
+     *   <li>set becomes an array</li>
+     *   <li>boolean becomes the integer 1 or 0</li>
+     *   <li>double becomes a bulk string, see {@link #doubleMessage(double, RESPVersion)}</li>
+     *   <li>null becomes a bulk string with a length of -1</li>
+     *   <li>big number becomes a bulk string</li>
+     *   <li>verbatim string becomes a bulk string without the format prefix</li>
+     * </ul>
+     * <p>
+     * Children are moved into the new container without an extra retain, so the caller must not
+     * use the original message after the call. A container whose children need no change is
+     * returned as it is, without allocating a new one.
      */
-    public static RedisMessage formatMapMessage(Map<RedisMessage, RedisMessage> fields, RESPVersion version) {
+    public static RedisMessage downgrade(RedisMessage message, RESPVersion version) {
         if (version == RESPVersion.RESP3) {
-            return new MapRedisMessage(fields);
+            return message;
+        }
+        return toRESP2(message);
+    }
+
+    private static RedisMessage toRESP2(RedisMessage message) {
+        // Fast path for the leaf types that dominate large replies. The exact class is compared,
+        // so subclasses that do need a rewrite, such as the verbatim string, walk the chain below.
+        Class<?> type = message.getClass();
+        if (type == FullBulkStringRedisMessage.class
+                || type == IntegerRedisMessage.class
+                || type == SimpleStringRedisMessage.class) {
+            return message;
         }
 
-        // RESP2 compatibility mode
-        List<RedisMessage> flattened = new ArrayList<>(fields.size() * 2);
-        fields.forEach((key, value) -> {
-            flattened.add(key);
-            flattened.add(value);
-        });
-        return new ArrayRedisMessage(flattened);
+        switch (message) {
+            case MapRedisMessage map -> {
+                List<RedisMessage> flattened = new ArrayList<>(map.children().size() * 2);
+                map.children().forEach((key, value) -> {
+                    flattened.add(toRESP2(key));
+                    flattened.add(toRESP2(value));
+                });
+                return new ArrayRedisMessage(flattened);
+            }
+            case SetRedisMessage set -> {
+                List<RedisMessage> children = new ArrayList<>(set.children().size());
+                for (RedisMessage child : set.children()) {
+                    children.add(toRESP2(child));
+                }
+                return new ArrayRedisMessage(children);
+            }
+            case ArrayRedisMessage array -> {
+                return downgradeArray(array);
+            }
+            case FullBulkVerbatimStringRedisMessage verbatim -> {
+                return bulkString(verbatim.realContent());
+            }
+            case BooleanRedisMessage value -> {
+                return value.value() ? RESP2_TRUE : RESP2_FALSE;
+            }
+            case DoubleRedisMessage value -> {
+                return doubleMessage(value.value(), RESPVersion.RESP2);
+            }
+            case BigNumberRedisMessage value -> {
+                return bulkString(value.value());
+            }
+            case NullRedisMessage _ -> {
+                return FullBulkStringRedisMessage.NULL_INSTANCE;
+            }
+            default -> {
+            }
+        }
+        return message;
+    }
+
+    private static RedisMessage downgradeArray(ArrayRedisMessage array) {
+        List<RedisMessage> children = array.children();
+        List<RedisMessage> converted = null;
+        for (int i = 0; i < children.size(); i++) {
+            RedisMessage child = children.get(i);
+            RedisMessage downgraded = toRESP2(child);
+            if (downgraded != child && converted == null) {
+                converted = new ArrayList<>(children);
+            }
+            if (converted != null) {
+                converted.set(i, downgraded);
+            }
+        }
+        return converted == null ? array : new ArrayRedisMessage(converted);
     }
 }

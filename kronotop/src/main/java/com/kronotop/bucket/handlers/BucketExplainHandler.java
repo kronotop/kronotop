@@ -17,7 +17,6 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.bql.BqlParser;
 import com.kronotop.bucket.bql.QueryShape;
@@ -31,9 +30,7 @@ import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
@@ -74,29 +71,13 @@ public class BucketExplainHandler extends AbstractBucketHandler implements Handl
             QueryContext ctx = buildQueryContext(request, metadata, message.getQuery(), message.getArguments(), true);
             return new ExplainInput(ctx.plan(), false, queryCollation);
         }, (input) -> {
-            RESPVersion protoVer = request.getSession().protocolVersion();
-            if (protoVer.equals(RESPVersion.RESP3)) {
-                Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-                result.put(bulkString("is_cached"), RESPUtil.booleanMessage(input.isCached(), protoVer));
-                if (input.queryCollation() != null) {
-                    result.put(bulkString("query_collation"), PipelineExplainer.explainCollation(input.queryCollation(), protoVer));
-                }
-                result.put(bulkString("plan"), PipelineExplainer.explainAsMapMessage(input.plan()));
-                response.writeRedisMessage(new MapRedisMessage(result));
-            } else if (protoVer.equals(RESPVersion.RESP2)) {
-                List<RedisMessage> result = new ArrayList<>();
-                result.add(bulkString("is_cached"));
-                result.add(RESPUtil.booleanMessage(input.isCached(), protoVer));
-                if (input.queryCollation() != null) {
-                    result.add(bulkString("query_collation"));
-                    result.add(PipelineExplainer.explainCollationAsArrayMessage(input.queryCollation()));
-                }
-                result.add(bulkString("plan"));
-                result.add(PipelineExplainer.explainAsArrayMessage(input.plan()));
-                response.writeRedisMessage(new ArrayRedisMessage(result));
-            } else {
-                throw new KronotopException("Unknown protocol version " + protoVer.getValue());
+            Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
+            result.put(bulkString("is_cached"), input.isCached() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+            if (input.queryCollation() != null) {
+                result.put(bulkString("query_collation"), PipelineExplainer.explainCollation(input.queryCollation()));
             }
+            result.put(bulkString("plan"), PipelineExplainer.explainAsMapMessage(input.plan()));
+            response.writeMap(result);
         });
     }
 

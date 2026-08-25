@@ -30,11 +30,11 @@ import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
-import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 
 import static com.kronotop.server.RESPUtil.bulkString;
-import static com.kronotop.server.RESPUtil.formatMapMessage;
 
 class BucketIndexTasksSubcommand implements SubcommandHandler {
     private final Context context;
@@ -148,7 +147,6 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
         TasksParameters parameters = new TasksParameters(request.getParams());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> parent = new LinkedHashMap<>();
-            RESPVersion protover = request.getSession().protocolVersion();
             String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
@@ -157,12 +155,12 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
                     Map<RedisMessage, RedisMessage> child = scanTaskId(tr, taskId);
                     parent.put(
                             bulkString(VersionstampUtil.base32HexEncode(taskId)),
-                            formatMapMessage(child, protover)
+                            new MapRedisMessage(child)
                     );
                 }
             }
-            return formatMapMessage(parent, protover);
-        }, response::writeRedisMessage);
+            return parent;
+        }, response::writeMap);
     }
 
     private static class TasksParameters {
