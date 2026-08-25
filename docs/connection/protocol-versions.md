@@ -56,19 +56,20 @@ The same reply on a RESP2 connection:
 
 ## Doubles Are Sent As Binary
 
-This is the one case where a RESP2 client can go wrong without seeing an error.
+This is the only place where a RESP2 client can read a value wrongly and get no error.
 
 RESP2 has no double type. The value is sent as a bulk string that holds the 8 byte IEEE 754
 big-endian form of the number. It is not the number written as text, so printing it gives you a
-few unreadable characters. Read the 8 bytes as a big-endian double instead. 
+few unreadable characters. Read the 8 bytes as a big-endian double instead.
 
-Doubles show up in the `BUCKET.VECTOR` score and in the `garbage_percentage` and `fill_ratio`
+Doubles appear in the `BUCKET.VECTOR` score and in the `garbage_percentage` and `fill_ratio`
 fields of `VOLUME.STATS`.
 
 ## Replies That Change Shape
 
 For most commands the RESP2 reply is the RESP3 reply with the types swapped. A few commands use
-a different shape instead: the field names are dropped and the position carries the meaning.
+a different shape instead. They drop the field names, so the order of the values tells you what
+they are.
 
 | Command                                                                                                    | RESP2 reply                 |
 |------------------------------------------------------------------------------------------------------------|-----------------------------|
@@ -80,6 +81,6 @@ Each of those command pages shows both versions side by side.
 
 ## Which Version To Use
 
-Use RESP3 unless your client library cannot. Maps arrive with their field names, so a new field
-in a future release does not shift the position of the fields you already read. On RESP2 the
-same reply is a flat array, and your parser depends on the order.
+Use RESP3 unless your client library does not support it. In a map every value comes with its
+field name. If a later release adds a field, the fields you already read stay where they are.
+On RESP2 the same reply is a flat array, so your parser depends on the order.
