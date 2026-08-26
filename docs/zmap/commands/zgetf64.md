@@ -22,6 +22,10 @@ ZGET.F64 <key>
 
 Double: the stored value decoded as an IEEE-754 double, or `nil` if the key does not exist.
 
+RESP2 has no double type. On a RESP2 connection you get a bulk string of 8 bytes. These bytes are the IEEE-754
+big-endian form of the number, not its text form. Decode them as a big-endian double. A missing key gives you a bulk
+string with a length of -1. See [Protocol Versions](../../connection/protocol-versions.md).
+
 ## Behavior
 
 `ZGET.F64` reads the value for a given key from the ZMap subspace of the session's current namespace and interprets it
