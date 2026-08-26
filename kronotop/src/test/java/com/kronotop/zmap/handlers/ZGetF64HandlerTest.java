@@ -20,21 +20,29 @@ import com.kronotop.BaseHandlerTest;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.SnapshotReadArgs;
 import com.kronotop.commands.ZMapCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.DoubleRedisMessage;
-import com.kronotop.server.resp3.ErrorRedisMessage;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class ZGetF64HandlerTest extends BaseHandlerTest {
+
+    @BeforeEach
+    public void setup() throws UnknownHostException, InterruptedException {
+        super.setup();
+        // For ZGET.F64, the tests assume the negotiated protocol is RESP3.
+        switchProtocol(channel, RESPVersion.RESP3);
+    }
 
     @Test
     void shouldGetExistingValue() {
@@ -61,6 +69,39 @@ class ZGetF64HandlerTest extends BaseHandlerTest {
             assertInstanceOf(DoubleRedisMessage.class, response);
             DoubleRedisMessage actualMessage = (DoubleRedisMessage) response;
             assertEquals(123.456, actualMessage.value(), 0.0001);
+        }
+    }
+
+    @Test
+    void shouldGetExistingValueRESP2() {
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        switchProtocol(RESPVersion.RESP2);
+
+        double number = 123.456;
+        // Set value via ZINC.F64
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zincf64("my-counter", number).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        // Get value via ZGET.F64
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgetf64("my-counter").encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(FullBulkStringRedisMessage.class, response);
+            FullBulkStringRedisMessage message = (FullBulkStringRedisMessage) response;
+            assertNotNull(message.content());
+
+            double decodedNumber = ByteBuffer.wrap(message.content().array()).getDouble();
+            assertEquals(number, decodedNumber, 0.001);
         }
     }
 
@@ -140,6 +181,19 @@ class ZGetF64HandlerTest extends BaseHandlerTest {
     void shouldReturnNilForNonExistentKey() {
         ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
         EmbeddedChannel channel = getChannel();
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zgetf64("non-existent-key").encode(buf);
+
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(NullRedisMessage.class, response);
+    }
+
+    @Test
+    void shouldReturnNilForNonExistentKeyRESP2() {
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        switchProtocol(RESPVersion.RESP2);
 
         ByteBuf buf = Unpooled.buffer();
         cmd.zgetf64("non-existent-key").encode(buf);
