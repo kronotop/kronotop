@@ -63,7 +63,7 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
             entries = applyProjection(entries, ctx);
             return new BucketEntriesMapResponse(cursorId, entries);
         }, (entryMapResponse) -> {
-            RESPVersion protoVer = request.getSession().protocolVersion();
+            RESPVersion protoVer = request.getSession().getProtocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
                 resp3Response(request, response, entryMapResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {

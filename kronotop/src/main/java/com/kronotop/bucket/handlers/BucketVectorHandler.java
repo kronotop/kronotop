@@ -176,7 +176,7 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
                 throw new UncheckedIOException(e);
             }
         }, (results) -> {
-            RESPVersion protoVer = request.getSession().protocolVersion();
+            RESPVersion protoVer = request.getSession().getProtocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
                 resp3VectorResponse(request, response, results);
             } else if (protoVer.equals(RESPVersion.RESP2)) {

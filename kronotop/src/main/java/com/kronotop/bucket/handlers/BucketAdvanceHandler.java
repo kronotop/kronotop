@@ -94,7 +94,7 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
                 entries = applyProjection(entries, ctx);
                 return new BucketEntriesMapResponse(message.getCursorId(), entries);
             }, (readResponse) -> {
-                RESPVersion protoVer = request.getSession().protocolVersion();
+                RESPVersion protoVer = request.getSession().getProtocolVersion();
                 if (protoVer.equals(RESPVersion.RESP3)) {
                     resp3Response(request, response, readResponse);
                 } else if (protoVer.equals(RESPVersion.RESP2)) {
@@ -132,7 +132,7 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
                 return new BucketObjectIdArrayResponse(message.getCursorId(), objectIds);
             }, (objectIdResponse) -> {
                 ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();
-                RESPVersion protoVer = request.getSession().protocolVersion();
+                RESPVersion protoVer = request.getSession().getProtocolVersion();
                 if (protoVer.equals(RESPVersion.RESP3)) {
                     resp3ObjectIdArrayResponse(response, format, objectIdResponse);
                 } else if (protoVer.equals(RESPVersion.RESP2)) {

@@ -58,7 +58,7 @@ public class HMGetHandler extends BaseHandler implements Handler {
         HMGetMessage hmgetMessage = request.attr(MessageTypes.HMGET).get();
 
         List<RedisMessage> upperList = new ArrayList<>();
-        RedisMessage nullMessage = RESPUtil.nullMessage(request.getSession().protocolVersion());
+        RedisMessage nullMessage = RESPUtil.nullMessage(request.getSession().getProtocolVersion());
         StashShard shard = service.findShard(hmgetMessage.getKey(), ShardStatus.READONLY);
         ReadWriteLock lock = shard.striped().get(hmgetMessage.getKey());
         lock.readLock().lock();

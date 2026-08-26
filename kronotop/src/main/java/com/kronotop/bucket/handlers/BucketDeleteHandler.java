@@ -71,7 +71,7 @@ public class BucketDeleteHandler extends AbstractBucketHandler implements Handle
             return new BucketObjectIdArrayResponse(cursorId, objectIds);
         }, (objectIdResponse) -> {
             ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();
-            RESPVersion protoVer = request.getSession().protocolVersion();
+            RESPVersion protoVer = request.getSession().getProtocolVersion();
             if (protoVer.equals(RESPVersion.RESP3)) {
                 resp3ObjectIdArrayResponse(response, format, objectIdResponse);
             } else if (protoVer.equals(RESPVersion.RESP2)) {

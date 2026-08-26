@@ -260,7 +260,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
 
     private void executeRedisTransaction(Session session) {
         Response response = new RESPResponse(session.getCtx(), session);
-        TransactionResponse transactionResponse = new TransactionResponse(session.getCtx(), session.protocolVersion());
+        TransactionResponse transactionResponse = new TransactionResponse(session.getCtx(), session.getProtocolVersion());
         transactionLock.writeLock().lock();
         try {
             Attribute<Boolean> redisMultiDiscarded = session.attr(SessionAttributes.MULTI_DISCARDED);

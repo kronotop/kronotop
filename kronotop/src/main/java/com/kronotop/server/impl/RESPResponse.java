@@ -53,7 +53,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeRedisMessage(RedisMessage message) {
-        ctx.writeAndFlush(RESPUtil.downgrade(message, session.protocolVersion()));
+        ctx.writeAndFlush(RESPUtil.downgrade(message, session.getProtocolVersion()));
     }
 
     /**
@@ -97,7 +97,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeDouble(double value) {
-        ctx.writeAndFlush(RESPUtil.doubleMessage(value, session.protocolVersion()));
+        ctx.writeAndFlush(RESPUtil.doubleMessage(value, session.getProtocolVersion()));
     }
 
     /**
@@ -170,7 +170,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeNULL() {
-        ctx.writeAndFlush(RESPUtil.nullMessage(session.protocolVersion()));
+        ctx.writeAndFlush(RESPUtil.nullMessage(session.getProtocolVersion()));
     }
 
     /**
@@ -181,7 +181,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeBoolean(boolean value) {
-        ctx.writeAndFlush(RESPUtil.booleanMessage(value, session.protocolVersion()));
+        ctx.writeAndFlush(RESPUtil.booleanMessage(value, session.getProtocolVersion()));
     }
 
     /**

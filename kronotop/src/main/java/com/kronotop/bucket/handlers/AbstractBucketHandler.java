@@ -285,7 +285,7 @@ public abstract class AbstractBucketHandler implements Handler {
         List<RedisMessage> array = new ArrayList<>(results.size());
         for (VectorSearchResult result : results) {
             List<RedisMessage> pair = new ArrayList<>(2);
-            pair.add(RESPUtil.doubleMessage(result.score(), request.getSession().protocolVersion()));
+            pair.add(RESPUtil.doubleMessage(result.score(), request.getSession().getProtocolVersion()));
             pair.add(new FullBulkStringRedisMessage(prepareValue(request, result.document())));
             array.add(new ArrayRedisMessage(pair));
         }
