@@ -93,7 +93,7 @@ public class SessionAttributeHandler implements Handler {
                 bulkString(versionstampFormatAttr.get().name().toLowerCase())
         );
 
-        RESPVersion protoVer = request.getSession().protocolVersion();
+        RESPVersion protoVer = request.getSession().getProtocolVersion();
         if (protoVer.equals(RESPVersion.RESP3)) {
             response.writeMap(children);
         } else if (protoVer.equals(RESPVersion.RESP2)) {

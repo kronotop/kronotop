@@ -31,12 +31,13 @@ connection metadata. The response itself is already encoded with the newly negot
 ```
 
 RESP3 is the better choice for new applications. Structured replies arrive as native maps instead of flat arrays,
-and all examples in this documentation use RESP3 output.
+and all examples in this documentation use RESP3 output. [Protocol Versions](protocol-versions.md) explains what a
+RESP2 client receives instead.
 
 ## Authentication
 
-Authentication is disabled by default. When an `auth` block is present in the configuration, the connection must
-authenticate before doing anything else. Until then, every command except `AUTH` and `HELLO` is rejected:
+Authentication is disabled by default. When an `auth` block is present in the configuration, the connection must be 
+ authenticated before doing anything else. Until then, every command except `AUTH` and `HELLO` is rejected:
 
 ```kronotop
 > BUCKET.LIST

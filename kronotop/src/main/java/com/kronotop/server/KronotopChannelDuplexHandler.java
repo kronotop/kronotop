@@ -22,8 +22,8 @@ import com.kronotop.KronotopException;
 import com.kronotop.MemberAttributes;
 import com.kronotop.instance.KronotopInstanceStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
-import com.kronotop.server.impl.RESP3Request;
-import com.kronotop.server.impl.RESP3Response;
+import com.kronotop.server.impl.RESPRequest;
+import com.kronotop.server.impl.RESPResponse;
 import com.kronotop.server.impl.TransactionResponse;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.transactions.protocol.DiscardMessage;
@@ -259,8 +259,8 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     private void executeRedisTransaction(Session session) {
-        Response response = new RESP3Response(session.getCtx(), session.protocolVersion());
-        TransactionResponse transactionResponse = new TransactionResponse(session.getCtx(), session.protocolVersion());
+        Response response = new RESPResponse(session.getCtx(), session);
+        TransactionResponse transactionResponse = new TransactionResponse(session.getCtx(), session.getProtocolVersion());
         transactionLock.writeLock().lock();
         try {
             Attribute<Boolean> redisMultiDiscarded = session.attr(SessionAttributes.MULTI_DISCARDED);
@@ -415,8 +415,8 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private void channelRead0(ChannelHandlerContext ctx, Object message) {
         Session session = Session.extractSessionFromChannel(ctx.channel());
 
-        Request request = new RESP3Request(session, message);
-        Response response = new RESP3Response(ctx, session.protocolVersion());
+        Request request = new RESPRequest(session, message);
+        Response response = new RESPResponse(ctx, session);
 
         if (logCommandForDebugging) {
             String command = readCommandAsString(request);

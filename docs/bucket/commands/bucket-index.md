@@ -364,7 +364,7 @@ Returns a map with the following fields:
 | `bson_type`  | string  | The BSON type of indexed values.                                                                                                       |
 | `status`     | string  | Current index status. See [Index Lifecycle](#index-lifecycle).                                                                         |
 | `unique`     | boolean | Whether the index enforces value uniqueness. Only present for single-field and compound indexes.                                       |
-| `collation`  | map     | Collation configuration (see below). All values are null when no collation is set. Only present for single-field and compound indexes. |
+| `collation`  | map     | Collation configuration (see below). Empty when no collation is set. Only present for single-field and compound indexes.               |
 | `statistics` | map     | Index statistics including `cardinality`.                                                                                              |
 
 #### Collation sub-fields
@@ -399,8 +399,35 @@ selector -> "username"
 bson_type -> "STRING"
 status -> "WAITING"
 unique -> (false)
-collation -> {locale -> (nil), strength -> (nil), case_level -> (nil), case_first -> (nil), numeric_ordering -> (nil), alternate -> (nil), backwards -> (nil), normalization -> (nil), max_variable -> (nil)}
+collation -> {}
 statistics -> {cardinality -> 0}
+```
+
+**RESP2 clients**
+
+RESP2 has no map and no boolean type. On a RESP2 connection the reply is a flat array where each field name is
+followed by its value, `unique` and the collation flags are sent as `1` or `0`, and the nested `collation`,
+`statistics` and compound `fields` entries become flat arrays too:
+
+```kronotop
+> BUCKET.INDEX DESCRIBE users "selector:username.bsonType:STRING"
+ 1) "index_type"
+ 2) "single_field"
+ 3) "id"
+ 4) (integer) 2
+ 5) "selector"
+ 6) "username"
+ 7) "bson_type"
+ 8) "STRING"
+ 9) "status"
+10) "WAITING"
+11) "unique"
+12) (integer) 0
+13) "collation"
+14) (empty array)
+15) "statistics"
+16) 1) "cardinality"
+    2) (integer) 0
 ```
 
 ---
@@ -528,6 +555,28 @@ Returns a map where each key is a task ID and the value contains task details:
   status -> "RUNNING"
   error -> ""
 }
+```
+
+**RESP2 clients**
+
+RESP2 has no map type. On a RESP2 connection the reply is a flat array where each task ID is followed by its
+field list:
+
+```kronotop
+> BUCKET.INDEX TASKS users "selector:username.bsonType:STRING"
+1) "5K8G4R000000000000000000"
+2)  1) "kind"
+    2) "BUILD"
+    3) "cursor"
+    4) "5K8G4R000000000000000500"
+    5) "lower"
+    6) "0000000000000000000000000"
+    7) "upper"
+    8) "5K8G4R000000000000001000"
+    9) "status"
+   10) "RUNNING"
+   11) "error"
+   12) ""
 ```
 
 ---

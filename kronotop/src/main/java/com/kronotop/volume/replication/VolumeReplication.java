@@ -29,6 +29,7 @@ import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeNames;
 import io.github.resilience4j.retry.Retry;
 import io.lettuce.core.ClientOptions;
+import io.lettuce.core.protocol.ProtocolVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -234,7 +235,7 @@ public class VolumeReplication implements ReplicationTask {
      * Main replication loop that connects to primary and processes segments until shutdown.
      */
     private void startInternal() {
-        client.connect(ClientOptions.create());
+        client.connect(ClientOptions.builder().protocolVersion(ProtocolVersion.RESP3).build());
 
         StatefulInternalConnection<byte[], byte[]> connection = client.conn();
         if (!connection.sync().ping().equals(Response.PONG)) {

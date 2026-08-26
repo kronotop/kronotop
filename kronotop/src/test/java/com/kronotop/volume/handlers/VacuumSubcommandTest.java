@@ -17,6 +17,7 @@
 package com.kronotop.volume.handlers;
 
 import com.kronotop.commands.VolumeAdminCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -25,12 +26,20 @@ import com.kronotop.volume.VolumeNames;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class VacuumSubcommandTest extends BaseNetworkedVolumeIntegrationTest {
+
     private final String volumeName = VolumeNames.format(SHARD_KIND, SHARD_ID);
+
+    @BeforeEach
+    void useRESP3() {
+        // These tests assert RESP3 types, so the session must speak RESP3.
+        switchProtocol(channel, RESPVersion.RESP3);
+    }
 
     @Test
     void shouldStartVacuum() {

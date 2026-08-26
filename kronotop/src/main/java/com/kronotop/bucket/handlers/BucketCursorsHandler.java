@@ -102,7 +102,7 @@ public class BucketCursorsHandler extends AbstractBucketHandler {
     public void execute(Request request, Response response) throws Exception {
         BucketCursorsMessage message = request.attr(MessageTypes.BUCKETCURSORS).get();
         Session session = request.getSession();
-        RESPVersion protoVer = session.protocolVersion();
+        RESPVersion protoVer = session.getProtocolVersion();
 
         if (protoVer.equals(RESPVersion.RESP3)) {
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();

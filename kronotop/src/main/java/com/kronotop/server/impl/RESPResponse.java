@@ -18,10 +18,7 @@ package com.kronotop.server.impl;
 
 import com.apple.foundationdb.FDBException;
 import com.kronotop.KronotopException;
-import com.kronotop.server.RESPError;
-import com.kronotop.server.RESPUtil;
-import com.kronotop.server.RESPVersion;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
@@ -38,24 +35,25 @@ import java.util.concurrent.CompletionException;
  * The RespResponse class is an implementation of the Response interface.
  * It provides methods to write different types of Redis messages using the RESP (REdis Serialization Protocol).
  */
-public class RESP3Response implements Response {
+public class RESPResponse implements Response {
     private final ChannelHandlerContext ctx;
-    private final RESPVersion protocolVersion;
+    private final Session session;
 
-    public RESP3Response(ChannelHandlerContext ctx, RESPVersion protocolVersion) {
+    public RESPResponse(ChannelHandlerContext ctx, Session session) {
         this.ctx = ctx;
-        this.protocolVersion = protocolVersion;
+        this.session = session;
     }
 
     /**
-     * Writes a Redis message to the client.
+     * Writes a Redis message to the client. The message is rewritten first if the session speaks
+     * a protocol version that does not know all of its types.
      *
      * @param message the Redis message to be written
      * @throws NullPointerException if the message is null
      */
     @Override
     public void writeRedisMessage(RedisMessage message) {
-        ctx.writeAndFlush(message);
+        ctx.writeAndFlush(RESPUtil.downgrade(message, session.getProtocolVersion()));
     }
 
     /**
@@ -92,14 +90,14 @@ public class RESP3Response implements Response {
     }
 
     /**
-     * Writes a double value as a Redis response message to the client.
+     * Writes a double value to the client, encoded for the negotiated protocol version.
+     * RESP3 uses its own double type, RESP2 receives a bulk string.
      *
      * @param value the double value to be written
-     * @throws NullPointerException if the value is null
      */
     @Override
     public void writeDouble(double value) {
-        ctx.writeAndFlush(new DoubleRedisMessage(value));
+        ctx.writeAndFlush(RESPUtil.doubleMessage(value, session.getProtocolVersion()));
     }
 
     /**
@@ -114,7 +112,7 @@ public class RESP3Response implements Response {
      */
     @Override
     public void writeArray(List<RedisMessage> children) {
-        ctx.writeAndFlush(new ArrayRedisMessage(children));
+        writeRedisMessage(new ArrayRedisMessage(children));
     }
 
     /**
@@ -129,7 +127,7 @@ public class RESP3Response implements Response {
      */
     @Override
     public void writeMap(Map<RedisMessage, RedisMessage> children) {
-        ctx.writeAndFlush(new MapRedisMessage(children));
+        writeRedisMessage(new MapRedisMessage(children));
     }
 
     /**
@@ -172,25 +170,18 @@ public class RESP3Response implements Response {
      */
     @Override
     public void writeNULL() {
-        ctx.writeAndFlush(RESPUtil.nullMessage(protocolVersion));
+        ctx.writeAndFlush(RESPUtil.nullMessage(session.getProtocolVersion()));
     }
 
     /**
-     * Writes a boolean value as a Redis response message to the client.
-     * <p>
-     * This method is used to write a boolean value as a Redis response message to the client.
-     * If the value is true, it writes the BooleanRedisMessage.TRUE message to the client.
-     * If the value is false, it writes the BooleanRedisMessage.FALSE message to the client.
+     * Writes a boolean value to the client, encoded for the negotiated protocol version.
+     * RESP3 uses its own boolean type, RESP2 receives the integer 1 or 0.
      *
      * @param value the boolean value to be written
      */
     @Override
     public void writeBoolean(boolean value) {
-        if (value) {
-            ctx.writeAndFlush(BooleanRedisMessage.TRUE);
-        } else {
-            ctx.writeAndFlush(BooleanRedisMessage.FALSE);
-        }
+        ctx.writeAndFlush(RESPUtil.booleanMessage(value, session.getProtocolVersion()));
     }
 
     /**
@@ -201,7 +192,7 @@ public class RESP3Response implements Response {
      */
     @Override
     public void writeBigNumber(BigInteger value) {
-        ctx.writeAndFlush(new BigNumberRedisMessage(value));
+        writeRedisMessage(new BigNumberRedisMessage(value));
     }
 
     /**
@@ -212,7 +203,7 @@ public class RESP3Response implements Response {
      */
     @Override
     public void writeBigNumber(String value) {
-        ctx.writeAndFlush(new BigNumberRedisMessage(value));
+        writeRedisMessage(new BigNumberRedisMessage(value));
     }
 
     /**
@@ -223,7 +214,7 @@ public class RESP3Response implements Response {
      */
     @Override
     public void writeBigNumber(byte[] value) {
-        ctx.writeAndFlush(new BigNumberRedisMessage(value));
+        writeRedisMessage(new BigNumberRedisMessage(value));
     }
 
     /**
@@ -239,7 +230,7 @@ public class RESP3Response implements Response {
      */
     @Override
     public void writeVerbatimString(ByteBuf content) {
-        ctx.writeAndFlush(new FullBulkVerbatimStringRedisMessage(content));
+        writeRedisMessage(new FullBulkVerbatimStringRedisMessage(content));
     }
 
     /**
@@ -250,7 +241,7 @@ public class RESP3Response implements Response {
      */
     @Override
     public void writeSet(Set<RedisMessage> children) {
-        ctx.writeAndFlush(new SetRedisMessage(children));
+        writeRedisMessage(new SetRedisMessage(children));
     }
 
     /**

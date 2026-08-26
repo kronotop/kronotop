@@ -29,18 +29,21 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.server.resp3.*;
+import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.BooleanRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
+import com.kronotop.server.resp3.MapRedisMessage;
+import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static com.kronotop.server.RESPUtil.bulkString;
 
 class BucketIndexDescribeSubcommand implements SubcommandHandler {
     private final Context context;
@@ -49,26 +52,32 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         this.context = context;
     }
 
-    private static FullBulkStringRedisMessage bulkString(String input) {
-        return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(input.getBytes(StandardCharsets.UTF_8)));
-    }
-
-    private static MapRedisMessage getCollationMap(Collation collation) {
+    private static MapRedisMessage getCollation(Collation collation) {
+        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
         if (collation == null) {
             return MapRedisMessage.EMPTY_INSTANCE;
         }
 
-        Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
         map.put(bulkString("locale"), bulkString(collation.locale()));
         map.put(bulkString("strength"), new IntegerRedisMessage(collation.strength()));
-        map.put(bulkString("case_level"), collation.caseLevel() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("case_level"), booleanMessage(collation.caseLevel()));
         map.put(bulkString("case_first"), bulkString(collation.caseFirst()));
-        map.put(bulkString("numeric_ordering"), collation.numericOrdering() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("numeric_ordering"), booleanMessage(collation.numericOrdering()));
         map.put(bulkString("alternate"), bulkString(collation.alternate()));
-        map.put(bulkString("backwards"), collation.backwards() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-        map.put(bulkString("normalization"), collation.normalization() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
+        map.put(bulkString("backwards"), booleanMessage(collation.backwards()));
+        map.put(bulkString("normalization"), booleanMessage(collation.normalization()));
         map.put(bulkString("max_variable"), bulkString(collation.maxVariable()));
         return new MapRedisMessage(map);
+    }
+
+    private static MapRedisMessage getStatistics(IndexStatistics statistics) {
+        Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
+        stats.put(bulkString("cardinality"), new IntegerRedisMessage(statistics.cardinality()));
+        return new MapRedisMessage(stats);
+    }
+
+    private static BooleanRedisMessage booleanMessage(boolean value) {
+        return value ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE;
     }
 
     private static Map<RedisMessage, RedisMessage> getSingleFieldDescription(SingleFieldIndexDefinition definition, IndexStatistics statistics) {
@@ -78,13 +87,9 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         description.put(bulkString("selector"), bulkString(definition.selector()));
         description.put(bulkString("bson_type"), bulkString(definition.bsonType().name()));
         description.put(bulkString("status"), bulkString(definition.status().name()));
-        description.put(bulkString("unique"), definition.unique() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-        description.put(bulkString("collation"), getCollationMap(definition.collation()));
-
-        Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
-        stats.put(bulkString("cardinality"), new IntegerRedisMessage(statistics.cardinality()));
-        description.put(bulkString("statistics"), new MapRedisMessage(stats));
-
+        description.put(bulkString("unique"), booleanMessage(definition.unique()));
+        description.put(bulkString("collation"), getCollation(definition.collation()));
+        description.put(bulkString("statistics"), getStatistics(statistics));
         return description;
     }
 
@@ -96,11 +101,7 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         description.put(bulkString("dimensions"), new IntegerRedisMessage(definition.dimensions()));
         description.put(bulkString("distance"), bulkString(definition.distance().name()));
         description.put(bulkString("status"), bulkString(definition.status().name()));
-
-        Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
-        stats.put(bulkString("cardinality"), new IntegerRedisMessage(statistics.cardinality()));
-        description.put(bulkString("statistics"), new MapRedisMessage(stats));
-
+        description.put(bulkString("statistics"), getStatistics(statistics));
         return description;
     }
 
@@ -119,13 +120,9 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         description.put(bulkString("fields"), new ArrayRedisMessage(fieldsList));
 
         description.put(bulkString("status"), bulkString(definition.status().name()));
-        description.put(bulkString("unique"), definition.unique() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
-        description.put(bulkString("collation"), getCollationMap(definition.collation()));
-
-        Map<RedisMessage, RedisMessage> stats = new LinkedHashMap<>();
-        stats.put(bulkString("cardinality"), new IntegerRedisMessage(statistics.cardinality()));
-        description.put(bulkString("statistics"), new MapRedisMessage(stats));
-
+        description.put(bulkString("unique"), booleanMessage(definition.unique()));
+        description.put(bulkString("collation"), getCollation(definition.collation()));
+        description.put(bulkString("statistics"), getStatistics(statistics));
         return description;
     }
 

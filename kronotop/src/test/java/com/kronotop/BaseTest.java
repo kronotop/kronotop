@@ -20,17 +20,23 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberIdGenerator;
 import com.kronotop.cluster.MockProcessIdGeneratorImpl;
+import com.kronotop.commands.redis.RedisCommandBuilder;
 import com.kronotop.network.Address;
+import com.kronotop.server.RESPVersion;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
+import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
@@ -80,6 +86,17 @@ public class BaseTest {
             }
             return response;
         }
+    }
+
+    public static void switchProtocol(EmbeddedChannel channel, RESPVersion version) {
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.hello(version.getValue(), null, null, null).encode(buf);
+        runCommand(channel, buf); // consume the response
+    }
+
+    public static String stringValueOf(FullBulkStringRedisMessage message) {
+        return message.content().toString(StandardCharsets.UTF_8);
     }
 
     protected String getEphemeralTCPPort() {

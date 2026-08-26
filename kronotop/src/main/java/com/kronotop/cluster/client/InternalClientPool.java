@@ -29,6 +29,7 @@ import io.lettuce.core.RedisURI;
 import io.lettuce.core.SslOptions;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.protocol.ProtocolVersion;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.ExecutionException;
@@ -141,6 +142,7 @@ public class InternalClientPool {
             }
             client.setOptions(ClientOptions.builder()
                     .sslOptions(sslBuilder.build())
+                    .protocolVersion(ProtocolVersion.RESP3)
                     .build());
         }
 

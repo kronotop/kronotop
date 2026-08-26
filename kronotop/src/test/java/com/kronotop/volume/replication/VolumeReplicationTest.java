@@ -31,6 +31,7 @@ import com.kronotop.volume.*;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import com.kronotop.volume.segment.SegmentUtil;
 import io.lettuce.core.ClientOptions;
+import io.lettuce.core.protocol.ProtocolVersion;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -52,6 +53,10 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
+
+    private ClientOptions getClientOptions() {
+        return ClientOptions.builder().protocolVersion(ProtocolVersion.RESP3).build();
+    }
 
     private void replicationStopTrigger(VolumeReplication replication, DirectorySubspace standbySubspace) {
         Thread.ofVirtual().start(() -> await().atMost(Duration.ofSeconds(15)).until(() -> {
@@ -730,7 +735,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     @Test
     void shouldHandleReplicationWithDeleteOperations(@TempDir Path destination) throws Exception {
         ReplicationClient replicationClient = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-        replicationClient.connect(ClientOptions.create());
+        replicationClient.connect(getClientOptions());
 
         int length = 1024;
         int number = 100;
@@ -882,7 +887,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     @Test
     void shouldVerifyStandbyCaughtUpWithPrimary(@TempDir Path destination) throws Exception {
         ReplicationClient replicationClient = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-        replicationClient.connect(ClientOptions.create());
+        replicationClient.connect(getClientOptions());
 
         int length = 1024;
         int number = 100;
@@ -1727,7 +1732,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             // 7. Wait for convergence via CDC sequence number and position
             ReplicationClient replicationClient = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-            replicationClient.connect(ClientOptions.create());
+            replicationClient.connect(getClientOptions());
             try {
                 await().atMost(Duration.ofSeconds(30)).until(() -> {
                     VolumeInspectCursorResponse primaryCursor =
@@ -1919,7 +1924,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
         ChangeDataCapture cdc = null;
         try {
-            client.connect(ClientOptions.create());
+            client.connect(getClientOptions());
 
             // Read the real changelog so the segment-1 coordinates are valid and SEGMENT.RANGE
             // returns the correct bytes for the next-iteration pull.
@@ -2078,7 +2083,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
         DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
         ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-        client.connect(ClientOptions.create());
+        client.connect(getClientOptions());
         ReplicationSession session = new ReplicationSession(
                 volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
                 0L, 0L, 1024L, volume.getConfig().segmentSize());
@@ -2106,7 +2111,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
         DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
         ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
-        client.connect(ClientOptions.create());
+        client.connect(getClientOptions());
         try {
             long segmentSize = volume.getConfig().segmentSize();
             for (int i = 0; i < 50; i++) {
@@ -2153,7 +2158,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
         ChangeDataCapture cdc = null;
         try {
-            client.connect(ClientOptions.create());
+            client.connect(getClientOptions());
             DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
             ReplicationSession session = new ReplicationSession(
                     volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,

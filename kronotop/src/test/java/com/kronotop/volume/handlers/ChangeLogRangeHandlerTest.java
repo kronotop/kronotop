@@ -21,11 +21,13 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.client.protocol.ChangeLogRangeArgs;
 import com.kronotop.cluster.client.protocol.InternalCommandBuilder;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -38,6 +40,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     HybridLogicalClock hlc = new HybridLogicalClock();
+
+    @BeforeEach
+    public void setup() {
+        super.setup();
+        // For replication, the tests and the business logic code assume
+        // the negotiated protocol is RESP3.
+        switchProtocol(channel, RESPVersion.RESP3);
+    }
 
     @Test
     void shouldReturnEntriesWithInclusiveRange() throws IOException {

@@ -33,10 +33,12 @@ import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import org.bson.*;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -823,5 +825,40 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
 
         List<String> labels = vectorResultLabels(response);
         assertEquals(0, labels.size(), "No label matches the pattern");
+    }
+
+    @Test
+    void shouldReturnScoreAsBulkStringWhenRESP2() {
+        // Behavior: RESP2 has no double type, so the score is sent as a bulk string that holds the
+        // 8 byte IEEE 754 big-endian form of the value.
+        createBucketWithVectorIndexOnly();
+
+        insertDocument("alpha", new float[]{0.1f, 0.2f, 0.3f});
+        insertDocument("beta", new float[]{0.4f, 0.5f, 0.6f});
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP2);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.vector(TEST_BUCKET, "embedding", new float[]{0.1f, 0.2f, 0.3f}).encode(buf);
+        Object response = runCommand(channel, buf);
+
+        assertInstanceOf(ArrayRedisMessage.class, response);
+        List<RedisMessage> children = ((ArrayRedisMessage) response).children();
+        assertEquals(2, children.size());
+
+        for (RedisMessage child : children) {
+            // Each result is a [score, document] pair, not a map.
+            assertInstanceOf(ArrayRedisMessage.class, child);
+            List<RedisMessage> pair = ((ArrayRedisMessage) child).children();
+            assertEquals(2, pair.size());
+
+            assertInstanceOf(FullBulkStringRedisMessage.class, pair.getFirst());
+            byte[] scoreBytes = ByteBufUtil.getBytes(((FullBulkStringRedisMessage) pair.getFirst()).content());
+            assertEquals(8, scoreBytes.length);
+
+            double score = ByteBuffer.wrap(scoreBytes).getDouble();
+            assertTrue(Double.isFinite(score), "Score must decode to a finite number");
+        }
     }
 }

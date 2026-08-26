@@ -19,6 +19,7 @@ package com.kronotop.bucket.handlers;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.*;
 import com.kronotop.commands.BucketCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
@@ -26,6 +27,8 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -59,7 +62,9 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldDescribeIndex() {
+        // Behavior: On a RESP3 session INDEX DESCRIBE returns a map with the single-field index details.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        switchProtocol(cmd, RESPVersion.RESP3);
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexCreate(TEST_BUCKET, "{\"username\": {\"bson_type\": \"string\"}}").encode(buf);
@@ -130,8 +135,9 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldDescribeUniqueSingleFieldIndex() {
-        // Behavior: INDEX DESCRIBE reports unique=true when a single-field index is created with "unique": true.
+        // Behavior: On a RESP3 session INDEX DESCRIBE reports unique=true when a single-field index is created with "unique": true.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        switchProtocol(cmd, RESPVersion.RESP3);
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexCreate(TEST_BUCKET, "{\"email\": {\"bson_type\": \"string\", \"unique\": true}}").encode(buf);
@@ -160,8 +166,9 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldDescribeUniqueCompoundIndex() {
-        // Behavior: INDEX DESCRIBE reports unique=true when a compound index is created with "unique": true.
+        // Behavior: On a RESP3 session INDEX DESCRIBE reports unique=true when a compound index is created with "unique": true.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        switchProtocol(cmd, RESPVersion.RESP3);
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexCreate(TEST_BUCKET, "{\"$compound\": [{\"name\": \"u_idx\", \"unique\": true, \"fields\": [{\"selector\": \"a\", \"bson_type\": \"string\"}, {\"selector\": \"b\", \"bson_type\": \"int32\"}]}]}").encode(buf);
@@ -189,8 +196,9 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldDescribeVectorIndex() {
-        // Behavior: INDEX DESCRIBE returns vector-specific fields (selector, dimensions, distance) for a vector index.
+        // Behavior: On a RESP3 session INDEX DESCRIBE returns vector-specific fields (selector, dimensions, distance) for a vector index.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        switchProtocol(cmd, RESPVersion.RESP3);
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexCreate(TEST_BUCKET, "{\"$vector\": {\"field\": \"embedding\", \"dimensions\": 3, \"distance\": \"cosine\"}}").encode(buf);
@@ -255,8 +263,9 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldDescribeCompoundIndex() {
-        // Behavior: INDEX DESCRIBE returns compound-specific fields (fields array, statistics) for a compound index.
+        // Behavior: On a RESP3 session INDEX DESCRIBE returns compound-specific fields (fields array, statistics) for a compound index.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        switchProtocol(cmd, RESPVersion.RESP3);
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexCreate(TEST_BUCKET, "{\"$compound\": [{\"name\": \"test-compound\", \"fields\": [{\"selector\": \"age\", \"bson_type\": \"int32\"}, {\"selector\": \"name\", \"bson_type\": \"string\"}]}]}").encode(buf);
@@ -341,8 +350,9 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldDescribeSingleFieldIndexWithCollation() {
-        // Behavior: INDEX DESCRIBE returns collation details when a single-field index has collation.
+        // Behavior: On a RESP3 session INDEX DESCRIBE returns collation details when a single-field index has collation.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        switchProtocol(cmd, RESPVersion.RESP3);
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexCreate(TEST_BUCKET, "{\"name\": {\"bson_type\": \"string\", \"collation\": {\"locale\": \"tr\", \"strength\": 2}}}").encode(buf);
@@ -389,8 +399,9 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
 
     @Test
     void shouldDescribeCompoundIndexWithCollation() {
-        // Behavior: INDEX DESCRIBE returns collation details when a compound index has collation.
+        // Behavior: On a RESP3 session INDEX DESCRIBE returns collation details when a compound index has collation.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        switchProtocol(cmd, RESPVersion.RESP3);
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.indexCreate(TEST_BUCKET, "{\"$compound\": [{\"name\": \"test-collated-compound\", \"fields\": [{\"selector\": \"city\", \"bson_type\": \"string\"}, {\"selector\": \"price\", \"bson_type\": \"double\"}], \"collation\": {\"locale\": \"en\"}}]}").encode(buf);
@@ -431,6 +442,160 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Reads a flattened key/value list into a map. Keys are bulk strings.
+     */
+    private Map<String, RedisMessage> pairsToMap(List<RedisMessage> children) {
+        assertEquals(0, children.size() % 2, "flattened list must hold key/value pairs");
+        Map<String, RedisMessage> result = new LinkedHashMap<>();
+        for (int index = 0; index < children.size(); index += 2) {
+            FullBulkStringRedisMessage key = (FullBulkStringRedisMessage) children.get(index);
+            result.put(key.content().toString(StandardCharsets.UTF_8), children.get(index + 1));
+        }
+        return result;
+    }
+
+    private String stringValueOf(RedisMessage message) {
+        return ((FullBulkStringRedisMessage) message).content().toString(StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void shouldDescribeSingleFieldIndexWhenRESP2() {
+        // Behavior: RESP2 has no map type, so INDEX DESCRIBE returns a flat array and unique is sent as 1.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"email\": {\"bson_type\": \"string\", \"unique\": true}}").encode(buf);
+            runCommand(channel, buf);
+        }
+
+        refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexDescribe(TEST_BUCKET, "selector:email.bsonType:STRING").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+
+        List<RedisMessage> children = ((ArrayRedisMessage) msg).children();
+        assertEquals(List.of("index_type", "id", "selector", "bson_type", "status", "unique", "collation", "statistics"),
+                new ArrayList<>(pairsToMap(children).keySet()));
+
+        Map<String, RedisMessage> fields = pairsToMap(children);
+        assertEquals("single_field", stringValueOf(fields.get("index_type")));
+        assertEquals("email", stringValueOf(fields.get("selector")));
+        assertEquals("STRING", stringValueOf(fields.get("bson_type")));
+        assertInstanceOf(IntegerRedisMessage.class, fields.get("id"));
+        assertEquals(1, ((IntegerRedisMessage) fields.get("unique")).value());
+
+        // No collation was given, so the collation array is empty.
+        assertInstanceOf(ArrayRedisMessage.class, fields.get("collation"));
+        assertTrue(((ArrayRedisMessage) fields.get("collation")).children().isEmpty());
+
+        assertInstanceOf(ArrayRedisMessage.class, fields.get("statistics"));
+        Map<String, RedisMessage> statistics = pairsToMap(((ArrayRedisMessage) fields.get("statistics")).children());
+        assertEquals(0, ((IntegerRedisMessage) statistics.get("cardinality")).value());
+    }
+
+    @Test
+    void shouldDescribeCompoundIndexWhenRESP2() {
+        // Behavior: On RESP2 the compound fields array holds flat arrays instead of maps.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"$compound\": [{\"name\": \"test-compound\", \"fields\": [{\"selector\": \"age\", \"bson_type\": \"int32\"}, {\"selector\": \"name\", \"bson_type\": \"string\"}]}]}").encode(buf);
+            runCommand(channel, buf);
+        }
+
+        refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexDescribe(TEST_BUCKET, "test-compound").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+
+        Map<String, RedisMessage> fields = pairsToMap(((ArrayRedisMessage) msg).children());
+        assertEquals("compound", stringValueOf(fields.get("index_type")));
+        assertEquals(0, ((IntegerRedisMessage) fields.get("unique")).value());
+
+        assertInstanceOf(ArrayRedisMessage.class, fields.get("fields"));
+        List<RedisMessage> indexFields = ((ArrayRedisMessage) fields.get("fields")).children();
+        assertEquals(2, indexFields.size());
+
+        assertInstanceOf(ArrayRedisMessage.class, indexFields.get(0));
+        Map<String, RedisMessage> first = pairsToMap(((ArrayRedisMessage) indexFields.get(0)).children());
+        assertEquals("age", stringValueOf(first.get("selector")));
+        assertEquals("INT32", stringValueOf(first.get("bson_type")));
+
+        assertInstanceOf(ArrayRedisMessage.class, indexFields.get(1));
+        Map<String, RedisMessage> second = pairsToMap(((ArrayRedisMessage) indexFields.get(1)).children());
+        assertEquals("name", stringValueOf(second.get("selector")));
+        assertEquals("STRING", stringValueOf(second.get("bson_type")));
+    }
+
+    @Test
+    void shouldDescribeVectorIndexWhenRESP2() {
+        // Behavior: On RESP2 a vector index is described as a flat array with no unique or collation field.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"$vector\": {\"field\": \"embedding\", \"dimensions\": 3, \"distance\": \"cosine\"}}").encode(buf);
+            runCommand(channel, buf);
+        }
+
+        refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexDescribe(TEST_BUCKET, "vector:embedding.dimensions:3.distance:COSINE").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+
+        Map<String, RedisMessage> fields = pairsToMap(((ArrayRedisMessage) msg).children());
+        assertEquals(List.of("index_type", "id", "selector", "dimensions", "distance", "status", "statistics"),
+                new ArrayList<>(fields.keySet()));
+        assertEquals("vector", stringValueOf(fields.get("index_type")));
+        assertEquals("embedding", stringValueOf(fields.get("selector")));
+        assertEquals(3, ((IntegerRedisMessage) fields.get("dimensions")).value());
+        assertEquals("COSINE", stringValueOf(fields.get("distance")));
+
+        assertInstanceOf(ArrayRedisMessage.class, fields.get("statistics"));
+        Map<String, RedisMessage> statistics = pairsToMap(((ArrayRedisMessage) fields.get("statistics")).children());
+        assertEquals(0, ((IntegerRedisMessage) statistics.get("cardinality")).value());
+    }
+
+    @Test
+    void shouldRenderCollationAsFlatArrayWhenRESP2() {
+        // Behavior: RESP2 has no boolean type, so the collation flags are sent as 1 or 0 in a flat array.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.indexCreate(TEST_BUCKET, "{\"name\": {\"bson_type\": \"string\", \"collation\": {\"locale\": \"tr\", \"strength\": 2}}}").encode(buf);
+            runCommand(channel, buf);
+        }
+
+        refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.indexDescribe(TEST_BUCKET, "selector:name.bsonType:STRING").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+
+        Map<String, RedisMessage> fields = pairsToMap(((ArrayRedisMessage) msg).children());
+        assertInstanceOf(ArrayRedisMessage.class, fields.get("collation"));
+        List<RedisMessage> collationChildren = ((ArrayRedisMessage) fields.get("collation")).children();
+        assertEquals(18, collationChildren.size());
+
+        Map<String, RedisMessage> collation = pairsToMap(collationChildren);
+        assertEquals("tr", stringValueOf(collation.get("locale")));
+        assertEquals(2, ((IntegerRedisMessage) collation.get("strength")).value());
+        assertEquals("off", stringValueOf(collation.get("case_first")));
+        assertEquals("non-ignorable", stringValueOf(collation.get("alternate")));
+        assertEquals("punct", stringValueOf(collation.get("max_variable")));
+        for (String flag : List.of("case_level", "numeric_ordering", "backwards", "normalization")) {
+            assertInstanceOf(IntegerRedisMessage.class, collation.get(flag), flag + " must be an integer on RESP2");
+            assertEquals(0, ((IntegerRedisMessage) collation.get(flag)).value());
         }
     }
 }

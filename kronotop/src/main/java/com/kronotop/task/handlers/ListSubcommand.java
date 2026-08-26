@@ -23,6 +23,7 @@ import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.task.ObservedTask;
 import com.kronotop.task.TaskService;
 
 import java.nio.charset.StandardCharsets;
@@ -42,23 +43,28 @@ public class ListSubcommand extends BaseHandler implements SubcommandHandler {
         super(service);
     }
 
+    /**
+     * Builds the fields of a single task.
+     */
+    private Map<RedisMessage, RedisMessage> fields(ObservedTask task) {
+        Map<RedisMessage, RedisMessage> item = new LinkedHashMap<>();
+        item.put(wrapBytes(RUNNING_BYTES), booleanMessage(task.running()));
+        item.put(wrapBytes(FINISHED_BYTES), booleanMessage(task.finished()));
+        item.put(wrapBytes(STARTED_AT_BYTES), new IntegerRedisMessage(task.startedAt()));
+        item.put(wrapBytes(LAST_RUN_BYTES), new IntegerRedisMessage(task.lastRun()));
+        return item;
+    }
+
+    private BooleanRedisMessage booleanMessage(boolean value) {
+        return value ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE;
+    }
+
     @Override
     public void execute(Request request, Response response) {
         Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-        service.tasks().forEach(task -> {
-            Map<RedisMessage, RedisMessage> item = new LinkedHashMap<>();
-            item.put(
-                    wrapBytes(RUNNING_BYTES),
-                    task.running() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
-            );
-            item.put(
-                    wrapBytes(FINISHED_BYTES),
-                    task.finished() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE
-            );
-            item.put(wrapBytes(STARTED_AT_BYTES), new IntegerRedisMessage(task.startedAt()));
-            item.put(wrapBytes(LAST_RUN_BYTES), new IntegerRedisMessage(task.lastRun()));
-            result.put(bulkString(task.name()), new MapRedisMessage(item));
-        });
+        service.tasks().forEach(task ->
+                result.put(bulkString(task.name()), new MapRedisMessage(fields(task)))
+        );
         response.writeMap(result);
     }
 }

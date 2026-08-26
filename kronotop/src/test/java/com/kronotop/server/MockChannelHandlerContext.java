@@ -393,7 +393,7 @@ public class MockChannelHandlerContext implements ChannelHandlerContext {
      */
     @Override
     public ChannelFuture write(Object msg) {
-        return null;
+        return embeddedChannel.write(msg);
     }
 
     /**
@@ -406,7 +406,7 @@ public class MockChannelHandlerContext implements ChannelHandlerContext {
      */
     @Override
     public ChannelFuture write(Object msg, ChannelPromise promise) {
-        return null;
+        return embeddedChannel.write(msg, promise);
     }
 
     /**

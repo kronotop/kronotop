@@ -58,7 +58,7 @@ public class MGetHandler extends BaseStringHandler implements Handler {
 
         Iterable<ReadWriteLock> locks = shard.striped().bulkGet(mgetMessage.getKeys());
         List<RedisMessage> result = new ArrayList<>();
-        RedisMessage nullMessage = RESPUtil.nullMessage(request.getSession().protocolVersion());
+        RedisMessage nullMessage = RESPUtil.nullMessage(request.getSession().getProtocolVersion());
         try {
             for (ReadWriteLock lock : locks) {
                 lock.readLock().lock();

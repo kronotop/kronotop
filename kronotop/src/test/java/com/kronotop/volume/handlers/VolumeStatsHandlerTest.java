@@ -20,11 +20,13 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseTest;
 import com.kronotop.commands.VolumeStatsCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -40,6 +42,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     private static final long SEGMENT_SIZE = 1_048_576L;
+
+    @BeforeEach
+    void useRESP3() {
+        // These tests assert RESP3 types, so the session must speak RESP3.
+        switchProtocol(channel, RESPVersion.RESP3);
+    }
 
     private Map<String, Long> executeOpcounters() {
         VolumeStatsCommandBuilder<String, String> cmd = new VolumeStatsCommandBuilder<>(StringCodec.ASCII);

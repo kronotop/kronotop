@@ -37,13 +37,13 @@ import java.util.ListIterator;
  * RespRequest represents a request in the Redis protocol.
  * It extends the DefaultAttributeMap class for attribute management and implements the Request interface.
  */
-public class RESP3Request extends DefaultAttributeMap implements Request {
+public class RESPRequest extends DefaultAttributeMap implements Request {
     private final RedisMessage message;
     private final Session session;
     private ArrayList<ByteBuf> params;
     private String command;
 
-    public RESP3Request(Session session, Object message) {
+    public RESPRequest(Session session, Object message) {
         this.message = (RedisMessage) message;
         this.session = session;
     }

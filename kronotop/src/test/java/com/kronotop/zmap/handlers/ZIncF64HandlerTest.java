@@ -19,6 +19,7 @@ package com.kronotop.zmap.handlers;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.ZMapCommandBuilder;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -27,8 +28,10 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -39,6 +42,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class ZIncF64HandlerTest extends BaseHandlerTest {
+
+    @BeforeEach
+    public void setup() throws UnknownHostException, InterruptedException {
+        super.setup();
+        // For ZGET.F64, the tests assume the negotiated protocol is RESP3.
+        switchProtocol(channel, RESPVersion.RESP3);
+    }
 
     @Test
     void shouldIncrementNewKey() {
