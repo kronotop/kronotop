@@ -35,7 +35,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class HelloHandlerTest extends BaseHandlerTest {
 
     @Test
-    void testHELLO_protover_2() {
+    void shouldReplyWithFlatArrayWhenProtocolVersionIs2() {
+        // Behavior: HELLO 2 keeps the connection on RESP2, so the reply is a flat array of fields and values.
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(2, null, null, "foobar").encode(buf);
@@ -84,7 +85,8 @@ class HelloHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void testHELLO_protover_3() {
+    void shouldReplyWithMapWhenProtocolVersionIs3() {
+        // Behavior: HELLO 3 switches the connection to RESP3 before the reply is written, so the reply is a map.
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(3, null, null, "foobar").encode(buf);
@@ -128,7 +130,8 @@ class HelloHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void testHELLO_NOPROTO() {
+    void shouldReturnNOPROTOForUnsupportedProtocolVersion() {
+        // Behavior: a protocol version the server does not speak is rejected with the NOPROTO error.
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(4, null, null, null).encode(buf);
@@ -140,7 +143,8 @@ class HelloHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void testHELLO_SETNAME() {
+    void shouldSetClientNameWithSETNAME() {
+        // Behavior: the SETNAME option stores the given name on the client of the current connection.
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(2, null, null, "test").encode(buf);
