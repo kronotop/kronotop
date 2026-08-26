@@ -108,13 +108,13 @@ public class HelloHandler implements Handler {
         }
 
         if (msg.getProtover().equals(RESPVersion.RESP2.getValue())) {
-            resp2Response(response);
             request.getSession().setProtocolVersion(RESPVersion.RESP2);
+            resp2Response(response);
         } else if (msg.getProtover().equals(RESPVersion.RESP3.getValue())) {
-            resp3Response(response);
             request.getSession().setProtocolVersion(RESPVersion.RESP3);
+            resp3Response(response);
         } else {
-            // Actually, this case was already handled by the message parser but safety is a good thing.
+            // Actually, this case was already handled by the message parser, but safety is a good thing.
             throw new NoProtoException();
         }
     }
