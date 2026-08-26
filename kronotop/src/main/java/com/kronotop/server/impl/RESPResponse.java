@@ -18,10 +18,7 @@ package com.kronotop.server.impl;
 
 import com.apple.foundationdb.FDBException;
 import com.kronotop.KronotopException;
-import com.kronotop.server.RESPError;
-import com.kronotop.server.RESPUtil;
-import com.kronotop.server.RESPVersion;
-import com.kronotop.server.Response;
+import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
@@ -40,11 +37,11 @@ import java.util.concurrent.CompletionException;
  */
 public class RESPResponse implements Response {
     private final ChannelHandlerContext ctx;
-    private final RESPVersion protocolVersion;
+    private final Session session;
 
-    public RESPResponse(ChannelHandlerContext ctx, RESPVersion protocolVersion) {
+    public RESPResponse(ChannelHandlerContext ctx, Session session) {
         this.ctx = ctx;
-        this.protocolVersion = protocolVersion;
+        this.session = session;
     }
 
     /**
@@ -56,7 +53,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeRedisMessage(RedisMessage message) {
-        ctx.writeAndFlush(RESPUtil.downgrade(message, protocolVersion));
+        ctx.writeAndFlush(RESPUtil.downgrade(message, session.protocolVersion()));
     }
 
     /**
@@ -100,7 +97,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeDouble(double value) {
-        ctx.writeAndFlush(RESPUtil.doubleMessage(value, protocolVersion));
+        ctx.writeAndFlush(RESPUtil.doubleMessage(value, session.protocolVersion()));
     }
 
     /**
@@ -173,7 +170,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeNULL() {
-        ctx.writeAndFlush(RESPUtil.nullMessage(protocolVersion));
+        ctx.writeAndFlush(RESPUtil.nullMessage(session.protocolVersion()));
     }
 
     /**
@@ -184,7 +181,7 @@ public class RESPResponse implements Response {
      */
     @Override
     public void writeBoolean(boolean value) {
-        ctx.writeAndFlush(RESPUtil.booleanMessage(value, protocolVersion));
+        ctx.writeAndFlush(RESPUtil.booleanMessage(value, session.protocolVersion()));
     }
 
     /**

@@ -259,7 +259,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     private void executeRedisTransaction(Session session) {
-        Response response = new RESPResponse(session.getCtx(), session.protocolVersion());
+        Response response = new RESPResponse(session.getCtx(), session);
         TransactionResponse transactionResponse = new TransactionResponse(session.getCtx(), session.protocolVersion());
         transactionLock.writeLock().lock();
         try {
@@ -416,7 +416,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         Session session = Session.extractSessionFromChannel(ctx.channel());
 
         Request request = new RESPRequest(session, message);
-        Response response = new RESPResponse(ctx, session.protocolVersion());
+        Response response = new RESPResponse(ctx, session);
 
         if (logCommandForDebugging) {
             String command = readCommandAsString(request);
