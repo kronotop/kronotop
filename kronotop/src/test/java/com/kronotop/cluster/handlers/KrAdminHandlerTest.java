@@ -24,14 +24,17 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
@@ -41,6 +44,13 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
+
+    @BeforeEach
+    public void setup() {
+        super.setup();
+        // The tests assume the negotiated protocol is RESP3.
+        switchProtocol(channel, RESPVersion.RESP3);
+    }
 
     @Test
     void shouldReturnErrorWhenClusterAlreadyInitialized() {
