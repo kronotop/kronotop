@@ -35,12 +35,6 @@ class ExistsSubcommand extends BaseSubcommand implements SubcommandExecutor {
             NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
             NamespaceMessage.ExistsMessage existsMessage = message.getExistsMessage();
             return NamespaceUtil.exists(context, existsMessage.getSubpath());
-        }, (exists) -> {
-            if (exists) {
-                response.writeInteger(1);
-                return;
-            }
-            response.writeInteger(0);
-        });
+        }, response::writeBoolean);
     }
 }

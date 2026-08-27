@@ -19,7 +19,10 @@ NAMESPACE EXISTS <namespace>
 
 ## Return Value
 
-Integer: `1` if the namespace exists, `0` if it does not.
+Boolean: `true` if the namespace exists, `false` if it does not.
+
+RESP2 has no boolean type. On a RESP2 connection you get the integer `1` for true and `0` for false. See
+[Protocol Versions](../../connection/protocol-versions.md).
 
 ## Behavior
 
@@ -27,7 +30,7 @@ The command checks the FoundationDB directory layer for the given namespace path
 transaction.
 
 If the directory entry exists but the namespace is marked for removal (`NAMESPACE REMOVE`), the command raises a
-`NAMESPACEBEINGREMOVED` error rather than returning `1`. A namespace pending removal is not considered to exist.
+`NAMESPACEBEINGREMOVED` error rather than returning `true`. A namespace pending removal is not considered to exist.
 
 The `__internal__` reserved name is rejected at parse time.
 
@@ -47,14 +50,14 @@ The `__internal__` reserved name is rejected at parse time.
 OK
 
 > NAMESPACE EXISTS production.users
-(integer) 1
+(true)
 ```
 
 **Namespace does not exist:**
 
 ```kronotop
 > NAMESPACE EXISTS production.orders
-(integer) 0
+(false)
 ```
 
 **Reserved name:**
