@@ -18,6 +18,7 @@ package com.kronotop.zmap.handlers;
 
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.commands.CommandType;
+import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.commands.ZMutateArgs;
 import com.kronotop.server.Response;
@@ -36,6 +37,8 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -65,10 +68,14 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
     }
 
-    private byte[] zget(EmbeddedChannel channel, ZMapCommandBuilder<byte[], byte[]> cmd, byte[] key) {
+    private Object zmutateRaw(EmbeddedChannel channel, ZMapCommandBuilder<byte[], byte[]> cmd, byte[] key, byte[] param, ZMutateArgs args) {
         ByteBuf buf = Unpooled.buffer();
-        cmd.zget(key).encode(buf);
-        Object response = runCommand(channel, buf);
+        cmd.zmutate(key, param, args).encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    private byte[] zget(EmbeddedChannel channel, ZMapCommandBuilder<byte[], byte[]> cmd, byte[] key) {
+        Object response = zgetRaw(channel, cmd, key);
         assertInstanceOf(FullBulkStringRedisMessage.class, response);
         FullBulkStringRedisMessage msg = (FullBulkStringRedisMessage) response;
         byte[] result = new byte[msg.content().readableBytes()];
@@ -76,7 +83,21 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         return result;
     }
 
-    // --- ADD ---
+    private Object zgetRaw(EmbeddedChannel channel, ZMapCommandBuilder<byte[], byte[]> cmd, byte[] key) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zget(key).encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    private void runTransactionCommand(EmbeddedChannel channel, Command<String, String, String> command) {
+        ByteBuf buf = Unpooled.buffer();
+        command.encode(buf);
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+    }
+
+    // ADD
 
     @Test
     void shouldMutateWithAddInteger() {
@@ -91,7 +112,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(2, leToLong(zget(channel, cmd, key)));
     }
 
-    // --- BIT_AND ---
+    // BIT_AND
 
     @Test
     void shouldMutateWithBitAnd() {
@@ -110,7 +131,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(expected, zget(channel, cmd, key));
     }
 
-    // --- BIT_OR ---
+    // BIT_OR
 
     @Test
     void shouldMutateWithBitOr() {
@@ -129,7 +150,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(expected, zget(channel, cmd, key));
     }
 
-    // --- BIT_XOR ---
+    // BIT_XOR
 
     @Test
     void shouldMutateWithBitXor() {
@@ -148,11 +169,11 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(expected, zget(channel, cmd, key));
     }
 
-    // --- MAX ---
+    // MAX
 
     @Test
     void shouldMutateWithMax_paramIsLarger() {
-        // Behavior: MAX stores the larger of the existing value and param (unsigned lexicographic comparison).
+        // Behavior: MAX stores the larger of the existing value and param, both read as unsigned little-endian integers.
         ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
         EmbeddedChannel channel = getChannel();
         byte[] key = "max-key-1".getBytes();
@@ -176,11 +197,11 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(20, leToLong(zget(channel, cmd, key)));
     }
 
-    // --- MIN ---
+    // MIN
 
     @Test
     void shouldMutateWithMin_paramIsSmaller() {
-        // Behavior: MIN stores the smaller of the existing value and param (unsigned lexicographic comparison).
+        // Behavior: MIN stores the smaller of the existing value and param, both read as unsigned little-endian integers.
         ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
         EmbeddedChannel channel = getChannel();
         byte[] key = "min-key-1".getBytes();
@@ -204,7 +225,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(10, leToLong(zget(channel, cmd, key)));
     }
 
-    // --- BYTE_MIN ---
+    // BYTE_MIN
 
     @Test
     void shouldMutateWithByteMin() {
@@ -222,7 +243,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(param, zget(channel, cmd, key));
     }
 
-    // --- BYTE_MAX ---
+    // BYTE_MAX
 
     @Test
     void shouldMutateWithByteMax() {
@@ -240,7 +261,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(param, zget(channel, cmd, key));
     }
 
-    // --- APPEND_IF_FITS ---
+    // APPEND_IF_FITS
 
     @Test
     void shouldMutateWithAppendIfFits() {
@@ -276,7 +297,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         }
     }
 
-    // --- SET_VERSIONSTAMPED_VALUE ---
+    // SET_VERSIONSTAMPED_VALUE
 
     @Test
     void shouldMutateWithSetVersionstampedValue() {
@@ -295,7 +316,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(10, result.length);
     }
 
-    // --- COMPARE_AND_CLEAR ---
+    // COMPARE_AND_CLEAR
 
     @Test
     void shouldMutateWithCompareAndClear() {
@@ -359,7 +380,146 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         }
     }
 
-    // --- Error case ---
+    // Value length rules
+
+    @Test
+    void shouldTruncateStoredValueWhenParamIsShorter() {
+        // Behavior: ADD cuts the stored value down to the length of param when param is shorter.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        EmbeddedChannel channel = getChannel();
+        byte[] key = "truncate-key".getBytes();
+
+        zset(channel, cmd, key, longToLE(1));
+        zmutate(channel, cmd, key, new byte[]{0x05}, ZMutateArgs.Builder.add());
+
+        assertArrayEquals(new byte[]{0x06}, zget(channel, cmd, key));
+    }
+
+    @Test
+    void shouldExtendStoredValueWhenParamIsLonger() {
+        // Behavior: ADD pads the stored value with zero bytes up to the length of param when param is longer.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        EmbeddedChannel channel = getChannel();
+        byte[] key = "extend-key".getBytes();
+
+        zset(channel, cmd, key, new byte[]{0x01});
+        zmutate(channel, cmd, key, longToLE(1), ZMutateArgs.Builder.add());
+
+        byte[] result = zget(channel, cmd, key);
+        assertEquals(8, result.length);
+        assertEquals(2, leToLong(result));
+    }
+
+    @Test
+    void shouldStoreParamWhenKeyIsMissing() {
+        // Behavior: BIT_AND stores param as the new value when the key does not exist, instead of anding it with zero bytes.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        EmbeddedChannel channel = getChannel();
+        byte[] key = "missing-key".getBytes();
+        byte[] param = new byte[]{(byte) 0xF0, 0x0F};
+
+        zmutate(channel, cmd, key, param, ZMutateArgs.Builder.bitAnd());
+
+        assertArrayEquals(param, zget(channel, cmd, key));
+    }
+
+    // MAX vs BYTE_MAX
+
+    @Test
+    void shouldReturnDifferentResultsForMaxAndByteMax() {
+        // Behavior: MAX compares values as unsigned little-endian integers, BYTE_MAX compares them byte by byte.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        EmbeddedChannel channel = getChannel();
+
+        byte[] stored = new byte[]{0x00, 0x01}; // 256 as a little-endian integer
+        byte[] param = new byte[]{0x01, 0x00};  // 1 as a little-endian integer
+
+        byte[] maxKey = "max-vs-bytemax-1".getBytes();
+        zset(channel, cmd, maxKey, stored);
+        zmutate(channel, cmd, maxKey, param, ZMutateArgs.Builder.max());
+        assertArrayEquals(stored, zget(channel, cmd, maxKey));
+
+        byte[] byteMaxKey = "max-vs-bytemax-2".getBytes();
+        zset(channel, cmd, byteMaxKey, stored);
+        zmutate(channel, cmd, byteMaxKey, param, ZMutateArgs.Builder.byteMax());
+        assertArrayEquals(param, zget(channel, cmd, byteMaxKey));
+    }
+
+    // APPEND_IF_FITS size limit
+
+    @Test
+    void shouldNotAppendWhenResultExceedsValueSizeLimit() {
+        // Behavior: APPEND_IF_FITS leaves the value unchanged and still returns OK when the result would pass the value size limit.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        EmbeddedChannel channel = getChannel();
+        byte[] key = "append-limit-key".getBytes();
+
+        byte[] initial = new byte[99_995];
+        Arrays.fill(initial, (byte) 'a');
+
+        zset(channel, cmd, key, initial);
+        zmutate(channel, cmd, key, new byte[10], ZMutateArgs.Builder.appendIfFits());
+
+        assertArrayEquals(initial, zget(channel, cmd, key));
+    }
+
+    // SET_VERSIONSTAMPED_VALUE layout
+
+    @Test
+    void shouldWriteVersionstampAtGivenOffset() {
+        // Behavior: SET_VERSIONSTAMPED_VALUE writes the versionstamp at the offset carried by the 4-byte little-endian trailer and drops the trailer.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        EmbeddedChannel channel = getChannel();
+        byte[] key = "vs-offset-key".getBytes();
+
+        // param = "pre" + 10 zero bytes (placeholder) + 4-byte LE offset (3 = right after the prefix)
+        byte[] prefix = "pre".getBytes(StandardCharsets.US_ASCII);
+        byte[] param = new byte[prefix.length + 10 + 4];
+        System.arraycopy(prefix, 0, param, 0, prefix.length);
+        ByteBuffer.wrap(param, prefix.length + 10, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(prefix.length);
+
+        zmutate(channel, cmd, key, param, ZMutateArgs.Builder.setVersionStampedValue());
+
+        byte[] result = zget(channel, cmd, key);
+        assertEquals(param.length - 4, result.length);
+        assertArrayEquals(prefix, Arrays.copyOf(result, prefix.length));
+        assertFalse(Arrays.equals(new byte[10], Arrays.copyOfRange(result, prefix.length, result.length)));
+    }
+
+    // Error cases
+
+    @Test
+    void shouldReturnErrorWhenVersionstampedValueParamIsTooShort() {
+        // Behavior: SET_VERSIONSTAMPED_VALUE fails when param is shorter than 14 bytes.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        EmbeddedChannel channel = getChannel();
+
+        Object response = zmutateRaw(channel, cmd, "vs-short-key".getBytes(), new byte[13], ZMutateArgs.Builder.setVersionStampedValue());
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals("CLIENT_INVALID_OPERATION Invalid API call", ((ErrorRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenReadingVersionstampedValueBeforeCommit() {
+        // Behavior: reading a key written by SET_VERSIONSTAMPED_VALUE within the same transaction fails before COMMIT.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        KronotopCommandBuilder<String, String> kronotopCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        byte[] key = "vs-unreadable-key".getBytes();
+
+        runTransactionCommand(channel, kronotopCmd.begin());
+
+        byte[] param = new byte[14];
+        ByteBuffer.wrap(param, 10, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(0);
+        zmutate(channel, cmd, key, param, ZMutateArgs.Builder.setVersionStampedValue());
+
+        Object response = zgetRaw(channel, cmd, key);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals("ACCESSED_UNREADABLE Read or wrote an unreadable key", ((ErrorRedisMessage) response).content());
+
+        runTransactionCommand(channel, kronotopCmd.rollback());
+    }
 
     @Test
     void shouldReturnErrorForInvalidMutationType() {
