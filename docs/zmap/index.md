@@ -64,11 +64,15 @@ Available mutation types:
 |----------------------------------|--------------------------------------------------------------------|
 | `ADD`                            | Little-endian integer addition                                     |
 | `BIT_AND` / `BIT_OR` / `BIT_XOR` | Bitwise operations                                                 |
-| `MIN` / `MAX`                    | Unsigned lexicographic minimum / maximum                           |
-| `BYTE_MIN` / `BYTE_MAX`          | Byte-level minimum / maximum                                       |
-| `COMPARE_AND_CLEAR`              | Clears the key if its current value equals the operand             |
+| `MIN` / `MAX`                    | Minimum / maximum, read as unsigned little-endian integers         |
+| `BYTE_MIN` / `BYTE_MAX`          | Minimum / maximum, compared byte by byte from left to right        |
+| `COMPARE_AND_CLEAR`              | Deletes the key if its current value equals the operand            |
 | `APPEND_IF_FITS`                 | Appends the operand if the result fits within the value size limit |
 | `SET_VERSIONSTAMPED_VALUE`       | Sets a value with a versionstamp embedded in the value             |
+
+`ADD`, `BIT_AND`, `BIT_OR`, `BIT_XOR`, `MIN` and `MAX` change the stored value to the length of the operand before they
+run. A short operand cuts the stored value and no error is returned. See
+[ZMUTATE](commands/zmutate.md) for the length rules and the `SET_VERSIONSTAMPED_VALUE` operand layout.
 
 The operand is the raw byte representation of the value. For `ADD`, it is a little-endian signed 64-bit integer. The
 example below atomically adds 5 to `counter`. `\x05\x00\x00\x00\x00\x00\x00\x00` is the 8-byte little-endian
