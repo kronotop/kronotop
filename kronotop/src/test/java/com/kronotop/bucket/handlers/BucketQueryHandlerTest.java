@@ -1133,8 +1133,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.namespaceExists(oldNamespace).encode(buf);
             Object response = runCommand(channel, buf);
-            assertInstanceOf(IntegerRedisMessage.class, response);
-            assertEquals(0, ((IntegerRedisMessage) response).value());
+            assertInstanceOf(BooleanRedisMessage.class, response);
+            assertFalse(((BooleanRedisMessage) response).value());
         }
 
         // Switch to the new namespace
