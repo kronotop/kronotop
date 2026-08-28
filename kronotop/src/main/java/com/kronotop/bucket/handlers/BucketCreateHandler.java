@@ -77,8 +77,15 @@ public class BucketCreateHandler extends AbstractBucketHandler implements Handle
                     metadata = BucketMetadataUtil.create(context, tr, request.getSession(), message.getBucket(), shards, collation);
                 } catch (BucketAlreadyExistsException e) {
                     if (message.isIfNotExists()) {
+                        metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
+                        if (metadata.removed()) {
+                            // Bucket is being removed, raise BUCKETBEINGREMOVED.
+                            throw new BucketBeingRemovedException(message.getBucket());
+                        }
+                        // Bucket exists and health, ready to use.
                         return;
                     }
+                    // Bucket exists, health, ready to use, and IF-NOT-EXISTS flat has not been set.
                     throw e;
                 }
 

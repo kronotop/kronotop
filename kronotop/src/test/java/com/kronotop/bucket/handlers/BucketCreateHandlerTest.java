@@ -17,6 +17,7 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.bucket.BucketBeingRemovedException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.Collation;
@@ -235,6 +236,44 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
             assertEquals(Response.OK, actualMessage.content());
+        }
+    }
+
+    @Test
+    void shouldFailWithIfNotExistsWhenBucketIsBeingRemoved() {
+        // Behavior: BUCKET.CREATE with IF_NOT_EXISTS on a bucket that is being removed returns
+        // BUCKETBEINGREMOVED instead of silently returning OK.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+
+        {
+            // Create the bucket
+            ByteBuf buf = Unpooled.buffer();
+            cmd.create(TEST_BUCKET).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+
+        {
+            // Remove the bucket
+            ByteBuf buf = Unpooled.buffer();
+            cmd.remove(TEST_BUCKET).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
+            assertEquals(Response.OK, actualMessage.content());
+        }
+
+        {
+            // Create the same bucket again with IF_NOT_EXISTS while it is being removed
+            ByteBuf buf = Unpooled.buffer();
+            cmd.create(TEST_BUCKET, BucketCreateArgs.Builder.ifNotExists()).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
+            assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", actualMessage.content());
         }
     }
 

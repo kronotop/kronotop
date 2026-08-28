@@ -15,13 +15,13 @@ BUCKET.CREATE <bucket> [SHARDS <shard-id> [shard-id ...]] [INDEXES <json-schema>
 
 ## Parameters
 
-| Parameter       | Type       | Required | Description                                                                                     |
-|-----------------|------------|----------|-------------------------------------------------------------------------------------------------|
-| `bucket`        | string     | Yes      | Name of the bucket to create.                                                                   |
-| `SHARDS`        | integer(s) | No       | One or more shard IDs to assign the bucket to. If omitted, a shard is selected automatically.   |
-| `INDEXES`       | JSON       | No       | Index schema defining secondary indexes to create alongside the bucket.                         |
-| `COLLATION`     | JSON       | No       | Bucket-level collation spec for locale-aware string ordering. See [Collation](../collation.md). |
-| `IF-NOT-EXISTS` | flag       | No       | When specified, the command returns `OK` instead of an error if the bucket already exists.      |
+| Parameter       | Type       | Required | Description                                                                                                                                                               |
+|-----------------|------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`        | string     | Yes      | Name of the bucket to create.                                                                                                                                             |
+| `SHARDS`        | integer(s) | No       | One or more shard IDs to assign the bucket to. If omitted, a shard is selected automatically.                                                                             |
+| `INDEXES`       | JSON       | No       | Index schema defining secondary indexes to create alongside the bucket.                                                                                                   |
+| `COLLATION`     | JSON       | No       | Bucket-level collation spec for locale-aware string ordering. See [Collation](../collation.md).                                                                           |
+| `IF-NOT-EXISTS` | flag       | No       | When specified, the command returns `OK` instead of an error if the bucket already exists. See [Removed buckets](#removed-buckets) for the one case where it still fails. |
 
 ## Return Value
 
@@ -38,6 +38,17 @@ Regardless of how shards are selected, every shard ID is validated before the bu
 known route. If a shard has no route, the command returns an error and the bucket is not created. A bucket can span
 shards
 across multiple nodes.
+
+## Removed buckets
+
+[BUCKET.REMOVE](bucket-remove.md) marks a bucket as removed but keeps its name reserved until
+[BUCKET.PURGE](bucket-purge.md) frees it. Creating a bucket with that name before the purge always fails:
+
+* Without `IF-NOT-EXISTS`, the command returns `BUCKETALREADYEXISTS`.
+* With `IF-NOT-EXISTS`, the command returns `BUCKETBEINGREMOVED`. The flag does not hide this case, because returning
+  `OK` would suggest a usable bucket when there is none.
+
+Run `BUCKET.PURGE` first, then create the bucket again.
 
 ## Index Schema Format
 
@@ -79,13 +90,13 @@ properties:
 }
 ```
 
-| Property    | Type    | Required | Description                                                                                                                     |
-|-------------|---------|----------|---------------------------------------------------------------------------------------------------------------------------------|
-| `bson_type` | string  | Yes      | The BSON type of the field values. See [Supported BSON Types](bucket-index.md#supported-bson-types).                            |
-| `multi_key` | boolean | No       | When `true`, creates a multi-key index for array fields. Each array element generates a separate index entry. Default: `false`. |
+| Property    | Type    | Required | Description                                                                                                                        |
+|-------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------|
+| `bson_type` | string  | Yes      | The BSON type of the field values. See [Supported BSON Types](bucket-index.md#supported-bson-types).                               |
+| `multi_key` | boolean | No       | When `true`, creates a multi-key index for array fields. Each array element generates a separate index entry. Default: `false`.    |
 | `unique`    | boolean | No       | When `true`, rejects any document whose value on this field already exists. Cannot be combined with `multi_key`. Default: `false`. |
-| `name`      | string  | No       | Custom name for the index. If omitted, a name is auto-generated from the selector and type.                                     |
-| `collation` | object  | No       | Collation spec for locale-aware string ordering. Only valid for `string` type. See [Collation](../collation.md).                |
+| `name`      | string  | No       | Custom name for the index. If omitted, a name is auto-generated from the selector and type.                                        |
+| `collation` | object  | No       | Collation spec for locale-aware string ordering. Only valid for `string` type. See [Collation](../collation.md).                   |
 
 ### Compound indexes
 
@@ -105,11 +116,11 @@ The `$compound` key holds an array of compound index definitions. Each definitio
 }
 ```
 
-| Property    | Type   | Required | Description                                                                                                              |
-|-------------|--------|----------|--------------------------------------------------------------------------------------------------------------------------|
-| `name`      | string  | No       | Custom name for the compound index. If omitted, a name is auto-generated.                                                |
+| Property    | Type    | Required | Description                                                                                                                                    |
+|-------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`      | string  | No       | Custom name for the compound index. If omitted, a name is auto-generated.                                                                      |
 | `unique`    | boolean | No       | When `true`, the combination of all field values must be unique across documents. Cannot be combined with a multi-key field. Default: `false`. |
-| `collation` | object  | No       | Collation spec for locale-aware string ordering. Requires at least one `string` field. See [Collation](../collation.md). |
+| `collation` | object  | No       | Collation spec for locale-aware string ordering. Requires at least one `string` field. See [Collation](../collation.md).                       |
 
 Each field in the `fields` array supports `selector` (required), `bson_type` (required), and `multi_key` (optional,
 default `false`).
@@ -123,11 +134,11 @@ transaction as the bucket itself.
 
 ## Errors
 
-| Error Code            | Description                                                                                |
-|-----------------------|--------------------------------------------------------------------------------------------|
-| `BUCKETALREADYEXISTS` | A bucket with the same name already exists (suppressed when `IF-NOT-EXISTS` is specified). |
-| `ERR`                 | Invalid index schema (e.g., missing or unknown `bson_type`).                               |
-| `BUCKETBEINGREMOVED`  | A bucket with the same name was previously removed and has not yet been purged.            |
+| Error Code            | Description                                                                                                                                                      |
+|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `BUCKETALREADYEXISTS` | A bucket with the same name already exists, or was removed and not yet purged. Suppressed when `IF-NOT-EXISTS` is specified, unless the bucket is being removed. |
+| `BUCKETBEINGREMOVED`  | `IF-NOT-EXISTS` was specified and the bucket was removed but not yet purged.                                                                                     |
+| `ERR`                 | Invalid index schema (e.g., missing or unknown `bson_type`), or a shard has no route.                                                                            |
 
 ## Examples
 
@@ -256,4 +267,23 @@ OK
 
 > BUCKET.CREATE users
 (error) BUCKETALREADYEXISTS Bucket already exists: users
+```
+
+**Creating a bucket that is still being removed:**
+
+```kronotop
+> BUCKET.REMOVE users
+OK
+
+> BUCKET.CREATE users
+(error) BUCKETALREADYEXISTS Bucket already exists: users
+
+> BUCKET.CREATE users IF-NOT-EXISTS
+(error) BUCKETBEINGREMOVED Bucket 'users' is being removed
+
+> BUCKET.PURGE users
+OK
+
+> BUCKET.CREATE users
+OK
 ```
