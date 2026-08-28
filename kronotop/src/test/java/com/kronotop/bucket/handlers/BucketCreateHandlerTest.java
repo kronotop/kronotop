@@ -120,7 +120,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldFailOnRemovedBucket() {
         // Behavior: A removed bucket's volume prefix persists in FDB, so calling BUCKET.CREATE
-        // on a removed bucket returns BUCKETALREADYEXISTS.
+        // on a removed bucket returns BUCKETBEINGREMOVED.
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
 
         {
@@ -154,7 +154,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             Object response = runCommand(channel, buf);
             assertInstanceOf(ErrorRedisMessage.class, response);
             ErrorRedisMessage errorMessage = (ErrorRedisMessage) response;
-            assertEquals("BUCKETALREADYEXISTS Bucket already exists: test-bucket", errorMessage.content());
+            assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
         }
     }
 

@@ -15,13 +15,13 @@ BUCKET.CREATE <bucket> [SHARDS <shard-id> [shard-id ...]] [INDEXES <json-schema>
 
 ## Parameters
 
-| Parameter       | Type       | Required | Description                                                                                                                                                               |
-|-----------------|------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bucket`        | string     | Yes      | Name of the bucket to create.                                                                                                                                             |
-| `SHARDS`        | integer(s) | No       | One or more shard IDs to assign the bucket to. If omitted, a shard is selected automatically.                                                                             |
-| `INDEXES`       | JSON       | No       | Index schema defining secondary indexes to create alongside the bucket.                                                                                                   |
-| `COLLATION`     | JSON       | No       | Bucket-level collation spec for locale-aware string ordering. See [Collation](../collation.md).                                                                           |
-| `IF-NOT-EXISTS` | flag       | No       | When specified, the command returns `OK` instead of an error if the bucket already exists. See [Removed buckets](#removed-buckets) for the one case where it still fails. |
+| Parameter       | Type       | Required | Description                                                                                                                                                           |
+|-----------------|------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`        | string     | Yes      | Name of the bucket to create.                                                                                                                                         |
+| `SHARDS`        | integer(s) | No       | One or more shard IDs to assign the bucket to. If omitted, a shard is selected automatically.                                                                         |
+| `INDEXES`       | JSON       | No       | Index schema defining secondary indexes to create alongside the bucket.                                                                                               |
+| `COLLATION`     | JSON       | No       | Bucket-level collation spec for locale-aware string ordering. See [Collation](../collation.md).                                                                       |
+| `IF-NOT-EXISTS` | flag       | No       | When specified, the command returns `OK` instead of an error if the bucket already exists. See [Removed buckets](#removed-buckets) for the case where it still fails. |
 
 ## Return Value
 
@@ -42,11 +42,9 @@ across multiple nodes.
 ## Removed buckets
 
 [BUCKET.REMOVE](bucket-remove.md) marks a bucket as removed but keeps its name reserved until
-[BUCKET.PURGE](bucket-purge.md) frees it. Creating a bucket with that name before the purge always fails:
-
-* Without `IF-NOT-EXISTS`, the command returns `BUCKETALREADYEXISTS`.
-* With `IF-NOT-EXISTS`, the command returns `BUCKETBEINGREMOVED`. The flag does not hide this case, because returning
-  `OK` would suggest a usable bucket when there is none.
+[BUCKET.PURGE](bucket-purge.md) frees it. Creating a bucket with that name before the purge always fails with
+`BUCKETBEINGREMOVED`, with or without `IF-NOT-EXISTS`. The flag does not hide this case, because returning `OK` would
+suggest a usable bucket when there is none.
 
 Run `BUCKET.PURGE` first, then create the bucket again.
 
@@ -136,8 +134,8 @@ transaction as the bucket itself.
 
 | Error Code            | Description                                                                                                                                                      |
 |-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `BUCKETALREADYEXISTS` | A bucket with the same name already exists, or was removed and not yet purged. Suppressed when `IF-NOT-EXISTS` is specified, unless the bucket is being removed. |
-| `BUCKETBEINGREMOVED`  | `IF-NOT-EXISTS` was specified and the bucket was removed but not yet purged.                                                                                     |
+| `BUCKETALREADYEXISTS` | A bucket with the same name already exists. Suppressed when `IF-NOT-EXISTS` is specified.                                                                        |
+| `BUCKETBEINGREMOVED`  | The bucket was removed but not yet purged. `IF-NOT-EXISTS` does not suppress this error.                                                                         |
 | `ERR`                 | Invalid index schema (e.g., missing or unknown `bson_type`), or a shard has no route.                                                                            |
 
 ## Examples
@@ -276,7 +274,7 @@ OK
 OK
 
 > BUCKET.CREATE users
-(error) BUCKETALREADYEXISTS Bucket already exists: users
+(error) BUCKETBEINGREMOVED Bucket 'users' is being removed
 
 > BUCKET.CREATE users IF-NOT-EXISTS
 (error) BUCKETBEINGREMOVED Bucket 'users' is being removed
