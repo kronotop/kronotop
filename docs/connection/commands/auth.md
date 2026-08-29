@@ -30,7 +30,8 @@ Supports two authentication modes:
 - **Named user mode (2 parameters):** Checks the provided username and password against the `auth.users.<username>`
   configuration.
 
-On successful authentication, the session is marked as authenticated.
+On successful authentication, the connection is marked as authenticated and stays that way until it is closed.
+`SESSION.CLOSE` does not clear it.
 
 This command does not require the cluster to be initialized.
 

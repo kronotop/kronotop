@@ -26,9 +26,10 @@ A session tracks the following categories of state:
 - **Current namespace**, set with `NAMESPACE USE`
 - **Snapshot read setting**, set with `SNAPSHOTREAD`
 - **Client name and library info**, set with `CLIENT SETNAME` and `CLIENT SETINFO`
-- **Authentication state**, when `auth.requirepass` is set
+- **Authentication state**, when authentication is enabled
 
-All of this state is connection-scoped and invisible to other sessions.
+All of this state is connection-scoped and invisible to other sessions. The last two items live as long as the
+connection does, so `SESSION.CLOSE` leaves them untouched.
 
 ## Session Attributes
 
@@ -113,13 +114,11 @@ Watched keys (`WATCH`) are also session-scoped. `SESSION.CLOSE` unwatches all ke
 4. **Unwatch all keys**: every key in the session's watch list is released
 5. **Reset the cursor ID counter**: the next cursor will start at 1 again
 6. **Restore session defaults**: the four configuration attributes revert to their configured defaults, the
-   snapshot read setting goes back to off, the current namespace goes back to the default one, and the client
-   name, the library info and the authentication state are dropped
+   snapshot read setting goes back to off, and the current namespace goes back to the default one
 
-After `SESSION.CLOSE` returns `OK`, the session is back to the state of a freshly opened connection, with two
-things to keep in mind. The negotiated RESP version stays as it is, because the connection itself is not
-closed. And if the server runs with `auth.requirepass`, the client has to send `AUTH` again before the next
-command.
+After `SESSION.CLOSE` returns `OK`, the session is back to the state of a freshly opened connection. What survives
+is the state that belongs to the connection itself: the negotiated RESP version, the authentication state, and the
+client name and library info. A pooled connection can therefore be reused without a new `AUTH` round trip.
 
 ```kronotop
 > SESSION.ATTRIBUTE SET limit 50

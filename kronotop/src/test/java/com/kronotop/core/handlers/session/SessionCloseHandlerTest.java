@@ -244,8 +244,9 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldResetReadonlyFlagAfterClose() {
-        // Behavior: SESSION.CLOSE clears the readonly flag set by the READONLY command.
+    void shouldKeepReadonlyFlagAfterClose() {
+        // Behavior: SESSION.CLOSE keeps the readonly flag set by the READONLY command. The flag belongs
+        // to the connection, so only READWRITE clears it.
         {
             // READONLY has no command builder method, so send the raw RESP frame.
             ByteBuf buf = Unpooled.buffer();
@@ -258,7 +259,7 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
 
         closeSession();
 
-        assertFalse(channel.attr(SessionAttributes.READONLY).get());
+        assertTrue(channel.attr(SessionAttributes.READONLY).get());
     }
 
     @Test
@@ -307,8 +308,9 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldClearClientAttributesAfterClose() {
-        // Behavior: SESSION.CLOSE drops the client name set with CLIENT SETNAME.
+    void shouldKeepClientAttributesAfterClose() {
+        // Behavior: SESSION.CLOSE keeps the client name set with CLIENT SETNAME. Client attributes
+        // belong to the connection, not to the session state that SESSION.CLOSE resets.
         RedisCommandBuilder<String, String> redis = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         redis.clientSetname("app-1").encode(buf);
@@ -318,7 +320,7 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
 
         closeSession();
 
-        assertTrue(channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().isEmpty());
+        assertEquals("app-1", channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().get("name"));
     }
 
     private void closeSession() {

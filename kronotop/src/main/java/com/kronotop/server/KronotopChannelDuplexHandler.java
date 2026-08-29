@@ -236,8 +236,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private void executeCommand(Handler handler, Request request, Response response) {
         try {
             if (authEnabled) {
-                Attribute<Boolean> authAttr = request.getSession().attr(SessionAttributes.AUTH);
-                if (Boolean.TRUE.equals(authAttr.get())) {
+                if (request.getSession().isAuthenticated()) {
                     // Already authenticated
                     execute(handler, request, response);
                 } else {

@@ -99,10 +99,25 @@ public class Session {
         return channel.attr(SessionAttributes.CLIENT_ID).get();
     }
 
+    /**
+     * Reports whether the client has authenticated on this connection.
+     * <p>
+     * A session starts unauthenticated and stays authenticated for the rest of the connection
+     * once AUTH or HELLO with credentials succeeds.
+     *
+     * @return {@code true} if the client has authenticated, {@code false} otherwise
+     */
+    public boolean isAuthenticated() {
+        Attribute<Boolean> auth = channel.attr(SessionAttributes.AUTH);
+        return auth.get();
+    }
+
     private void initialize() {
         setProtocolVersion(RESPVersion.RESP2);
         Long clientId = ClientIDGenerator.getAndIncrement();
         channel.attr(SessionAttributes.CLIENT_ID).set(clientId);
+        channel.attr(SessionAttributes.AUTH).set(false);
+        channel.attr(SessionAttributes.READONLY).set(false);
         channel.attr(SessionAttributes.OPEN_NAMESPACES).set(new ConcurrentHashMap<>());
         channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).set(new HashMap<>());
         channel.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).set(new HashMap<>());
@@ -113,7 +128,7 @@ public class Session {
         channel.attr(SessionAttributes.MULTI_DISCARDED).set(false);
         channel.attr(SessionAttributes.POST_COMMIT_HOOKS).set(new ArrayList<>());
 
-        resetSessionAttributes();
+        restoreDefaults();
     }
 
     /**
@@ -254,12 +269,12 @@ public class Session {
     }
 
     /**
-     * Restores every session default: the configurable attributes, the snapshot read, readonly and
-     * authentication flags, the current namespace, the open namespace cache and the client attributes.
+     * Restores every session default: the configurable attributes, the snapshot read flag,
+     * the current namespace and the open namespace cache.
      * <p>
      * The containers themselves are created once by the session and only emptied here.
      */
-    public void resetSessionAttributes() {
+    public void restoreDefaults() {
         String replyType = context.getConfig().getString("session_attributes.reply_type");
         channel.attr(SessionAttributes.REPLY_TYPE).set(ReplyType.valueOf(replyType.toUpperCase()));
 
@@ -274,14 +289,11 @@ public class Session {
 
         // SNAPSHOTREAD OFF stores null, so the reset uses the same value.
         channel.attr(SessionAttributes.SNAPSHOT_READ).set(null);
-        channel.attr(SessionAttributes.READONLY).set(false);
-        channel.attr(SessionAttributes.AUTH).set(false);
         channel.attr(SessionAttributes.CURRENT_NAMESPACE).set(context.getDefaultNamespace());
 
         // Empty the maps in place. SessionStore.invalidateOpenNamespaces walks all sessions and
         // touches this map, so replacing it here would leave that scan on a discarded instance.
         channel.attr(SessionAttributes.OPEN_NAMESPACES).get().clear();
-        channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().clear();
     }
 
     /**

@@ -44,8 +44,8 @@ All subcommands return simple string `OK` on success.
 
 ## Behavior
 
-`CLIENT SETINFO` stores library metadata (`lib-name` or `lib-ver`) on the session. `CLIENT SETNAME` sets the connection
-name on the session.
+`CLIENT SETINFO` stores library metadata (`lib-name` or `lib-ver`) on the connection. `CLIENT SETNAME` sets the
+connection name. Both values live as long as the connection does, so `SESSION.CLOSE` keeps them.
 
 This command does not require the cluster to be initialized.
 

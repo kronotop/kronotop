@@ -24,14 +24,13 @@ import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
-import io.netty.util.Attribute;
 
 import java.util.Objects;
 
 @Command(AuthMessage.COMMAND)
 @MinimumParameterCount(AuthMessage.MINIMUM_PARAMETER_COUNT)
 @MaximumParameterCount(AuthMessage.MAXIMUM_PARAMETER_COUNT)
-public class AuthHandler implements Handler {
+public class AuthHandler extends BaseConnectionHandler implements Handler {
     private final Context context;
 
     public AuthHandler(Context context) {
@@ -42,14 +41,6 @@ public class AuthHandler implements Handler {
         response.writeError(
                 RESPError.WRONGPASS,
                 "invalid username-password pair or user is disabled.");
-    }
-
-    private void authAttrSet(Response response) {
-        Attribute<Boolean> authAttr = response.
-                getCtx().
-                channel().
-                attr(SessionAttributes.AUTH);
-        authAttr.set(true);
     }
 
     @Override
@@ -74,7 +65,7 @@ public class AuthHandler implements Handler {
                 return;
             }
             // Authenticated
-            authAttrSet(response);
+            markAuthenticated(response);
             response.writeOK();
             return;
         }
@@ -107,7 +98,7 @@ public class AuthHandler implements Handler {
         }
 
         // Authenticated
-        authAttrSet(response);
+        markAuthenticated(response);
         response.writeOK();
     }
 }

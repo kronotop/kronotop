@@ -34,12 +34,12 @@ import com.kronotop.watcher.Watcher;
  *   <li>Cleans up Redis MULTI transaction state</li>
  *   <li>Unwatches all watched keys</li>
  *   <li>Resets cursor ID counter to 1</li>
- *   <li>Restores the session defaults: configuration attributes, snapshot read, readonly and
- *       authentication flags, current namespace, open namespace cache and client attributes</li>
+ *   <li>Restores the session defaults: configuration attributes, snapshot read, current namespace
+ *       and open namespace cache</li>
  * </ul>
  * <p>
- * The negotiated RESP version is kept, because the connection stays open. When
- * {@code auth.requirepass} is set, the client must authenticate again after this command.
+ * State that belongs to the connection rather than the session is kept: the negotiated RESP version,
+ * the authentication flag, the readonly flag and the client attributes.
  */
 @Command(SessionCloseMessage.COMMAND)
 @MaximumParameterCount(SessionCloseMessage.MAXIMUM_PARAMETER_COUNT)
@@ -86,7 +86,7 @@ public class SessionCloseHandler implements Handler {
         session.resetCursorId();
 
         // 6. Restore all session defaults
-        session.resetSessionAttributes();
+        session.restoreDefaults();
 
         response.writeOK();
     }

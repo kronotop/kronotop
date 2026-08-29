@@ -34,7 +34,7 @@ import java.util.*;
 
 
 @Command(HelloMessage.COMMAND)
-public class HelloHandler implements Handler {
+public class HelloHandler extends BaseConnectionHandler implements Handler {
     private final Context context;
 
     public HelloHandler(Context context) {
@@ -52,14 +52,6 @@ public class HelloHandler implements Handler {
                 "invalid username-password pair or user is disabled.");
     }
 
-    private void authAttrSet(Response response) {
-        Attribute<Boolean> authAttr = response.
-                getCtx().
-                channel().
-                attr(SessionAttributes.AUTH);
-        authAttr.set(true);
-    }
-
     @Override
     public boolean requiresClusterInitialization() {
         return false;
@@ -75,7 +67,7 @@ public class HelloHandler implements Handler {
                 String password = config.getString("auth.requirepass");
                 if (msg.getUsername().equals("default") && Objects.equals(password, msg.getPassword())) {
                     // Authenticated
-                    authAttrSet(response);
+                    markAuthenticated(response);
                 } else {
                     writeWrongPassErr(response);
                     return;
@@ -89,7 +81,7 @@ public class HelloHandler implements Handler {
                         return;
                     }
                     // Authenticated
-                    authAttrSet(response);
+                    markAuthenticated(response);
                 } catch (ConfigException.Missing e) {
                     writeWrongPassErr(response);
                     return;

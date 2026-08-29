@@ -63,7 +63,7 @@ class SessionCloseHandlerAuthTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldRequireAuthenticationAfterClose() {
+    void shouldNotRequireAuthenticationAfterClose() {
         // Behavior: SESSION.CLOSE clears the authentication flag when auth.requirepass is set.
         authenticate();
         assertInstanceOf(SimpleStringRedisMessage.class, ping());
@@ -71,8 +71,8 @@ class SessionCloseHandlerAuthTest extends BaseHandlerTest {
         closeSession();
 
         Object response = ping();
-        assertInstanceOf(ErrorRedisMessage.class, response);
-        assertEquals("NOAUTH Authentication required.", ((ErrorRedisMessage) response).content());
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        assertEquals(Response.PONG, ((SimpleStringRedisMessage) response).content());
     }
 
     @Test
