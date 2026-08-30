@@ -17,6 +17,7 @@
 package com.kronotop.server;
 
 import com.apple.foundationdb.FDBException;
+import com.kronotop.KronotopException;
 import com.kronotop.internal.FDBErrorInfo;
 import com.kronotop.internal.FDBErrorRegistry;
 
@@ -76,6 +77,42 @@ public enum RESPError {
             return new FDBErrorResult(ERR.name(), decapitalize(fdbEx.getMessage()));
         }
         return new FDBErrorResult(errInfo.prefix(), errInfo.message());
+    }
+
+    /**
+     * Returns the cause that best describes an error for the client.
+     * <p>
+     * Third party exceptions often carry long internal messages that mean nothing to a client.
+     * When such an exception is wrapped in a {@link KronotopException}, the wrapper holds the
+     * message worth reporting, so the wrapper is returned instead. The root cause is returned
+     * when the chain has no {@link KronotopException}.
+     *
+     * @param t the throwable to inspect
+     * @return the outermost {@link KronotopException} below {@code t}, or the root cause if there is none
+     */
+    public static Throwable preferKronotopCause(Throwable t) {
+        Throwable result = t;
+        while (result.getCause() != null && result.getCause() != result) {
+            result = result.getCause();
+            if (result instanceof KronotopException) {
+                break;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns a message that is always safe to report to a client.
+     * <p>
+     * An exception thrown with no message would leave the client with nothing to read, so the
+     * exception type name is used instead. It says less than a real message, but it still tells
+     * the client what went wrong.
+     *
+     * @param t the throwable to read the message from
+     * @return the message of {@code t}, or its simple class name when the message is null
+     */
+    public static String getMessage(Throwable t) {
+        return t.getMessage() != null ? t.getMessage() : t.getClass().getSimpleName();
     }
 
     public String toString() {

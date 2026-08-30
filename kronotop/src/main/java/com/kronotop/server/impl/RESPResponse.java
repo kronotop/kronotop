@@ -265,32 +265,41 @@ public class RESPResponse implements Response {
     }
 
     /**
-     * Writes an error message to the client based on the provided {@link Throwable}.
-     * If the Throwable is a {@link CompletionException} and contains a cause of type
-     * {@link KronotopException}, it writes the error with a prefix and message from
-     * the cause; otherwise, it writes the message of the cause or the Throwable itself.
+     * Writes the error that best describes a {@link Throwable} to the client.
+     * <p>
+     * Failures from async commands arrive wrapped in a {@link CompletionException}, so the cause
+     * chain is unwrapped first. An {@link FDBException} is reported with its own prefix and a
+     * registered message, which lets clients act on the FoundationDB error code. Otherwise the
+     * prefix and message come from a {@link KronotopException} in the chain when there is one,
+     * and from the root cause with a generic prefix when there is none.
      *
      * @param throwable the Throwable representing the error to be written to the client
      *                  (e.g., an exception or error that occurred during processing)
      * @throws NullPointerException if the throwable is null
+     * @see RESPError#preferKronotopCause(Throwable)
      */
     @Override
     public void writeError(Throwable throwable) {
         if (throwable instanceof CompletionException) {
             Throwable cause = TransactionUtil.getRootCause(throwable);
             if (cause instanceof KronotopException kr) {
-                writeError(kr.getPrefix(), cause.getMessage());
+                writeError(kr.getPrefix(), RESPError.getMessage(cause));
             } else if (cause instanceof FDBException fdbEx) {
                 RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
                 writeError(result.prefix(), result.message());
             } else {
-                writeError(cause.getMessage());
+                Throwable preferredCause = RESPError.preferKronotopCause(throwable);
+                if (preferredCause instanceof KronotopException kr) {
+                    writeError(kr.getPrefix(), RESPError.getMessage(kr));
+                } else {
+                    writeError(RESPError.getMessage(preferredCause));
+                }
             }
         } else if (throwable instanceof FDBException fdbEx) {
             RESPError.FDBErrorResult result = RESPError.extractFDBError(fdbEx);
             writeError(result.prefix(), result.message());
         } else {
-            writeError(throwable.getMessage());
+            writeError(RESPError.getMessage(throwable));
         }
     }
 
