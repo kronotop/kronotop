@@ -69,7 +69,9 @@ public class RedisEncoder extends MessageToMessageEncoder<RedisMessage> {
     }
 
     private static void writeErrorMessage(ByteBufAllocator allocator, ErrorRedisMessage msg, List<Object> out) {
-        writeString(allocator, RedisMessageType.ERROR, msg.content(), out);
+        // CR/LF breaks the error frame, replace them.
+        String content = msg.content().replace('\r', ' ').replace('\n', ' ').strip();
+        writeString(allocator, RedisMessageType.ERROR, content, out);
     }
 
     private static void writeString(ByteBufAllocator allocator, RedisMessageType type, String content,

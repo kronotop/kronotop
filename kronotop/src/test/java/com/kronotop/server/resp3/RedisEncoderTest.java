@@ -95,6 +95,32 @@ public class RedisEncoderTest {
     }
 
     @Test
+    public void shouldEncodeErrorWithEmbeddedNewlinesAsSingleFrame() {
+        // Behavior: CR and LF inside an error message break the frame, so they become spaces.
+        RedisMessage msg = new ErrorRedisMessage("ERR first line\nsecond line\r\nthird line");
+
+        boolean result = channel.writeOutbound(msg);
+        assertThat(result, is(true));
+
+        ByteBuf written = readAll(channel);
+        assertThat(bytesOf(written), is(equalTo(bytesOf("-ERR first line second line  third line\r\n"))));
+        written.release();
+    }
+
+    @Test
+    public void shouldEncodeErrorWithTrailingNewline() {
+        // Behavior: a trailing newline leaves no extra space, the encoder adds the only CRLF.
+        RedisMessage msg = new ErrorRedisMessage("ERR broken\r\n");
+
+        boolean result = channel.writeOutbound(msg);
+        assertThat(result, is(true));
+
+        ByteBuf written = readAll(channel);
+        assertThat(bytesOf(written), is(equalTo(bytesOf("-ERR broken\r\n"))));
+        written.release();
+    }
+
+    @Test
     public void shouldEncodeInteger() {
         RedisMessage msg = new IntegerRedisMessage(1234L);
 
