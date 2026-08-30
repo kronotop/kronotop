@@ -18,6 +18,8 @@ package com.kronotop;
 
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -29,6 +31,8 @@ import java.util.function.Supplier;
  * Responses are written back to the appropriate Netty thread that handled the request.
  */
 public class AsyncCommandExecutor {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AsyncCommandExecutor.class);
+
     /**
      * Executes a given supplier asynchronously using virtual threads and handles its result
      * with the provided action within the context of a Kronotop instance.
@@ -54,6 +58,9 @@ public class AsyncCommandExecutor {
                     Session session = Session.extractSessionFromChannel(response.getCtx().channel());
                     session.cleanupIfAutoCommitEnabled();
                     response.writeError(ex);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("Unhandled error while serving command asynchronously", ex);
+                    }
                     return null;
                 }, response.getCtx().executor());
     }
@@ -82,6 +89,9 @@ public class AsyncCommandExecutor {
                     Session session = Session.extractSessionFromChannel(response.getCtx().channel());
                     session.cleanupIfAutoCommitEnabled();
                     response.writeError(ex);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("Unhandled error while serving command asynchronously", ex);
+                    }
                     return null;
                 }, response.getCtx().executor());
     }
