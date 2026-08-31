@@ -200,14 +200,14 @@ public class KronotopInstance {
         Address externalAddress = getBindAddress("external");
         List<Address> externalAdvertise = getAdvertise(externalAddress, "external");
         if (externalAdvertise.isEmpty()) {
-            throw new KronotopException("network.external.advertise is empty, " +
+            throw new ConfigException("network.external.advertise is empty, " +
                     "it is only optional when network.external.host is a loopback address");
         }
 
         Address internalAddress = getBindAddress("internal");
         List<Address> internalAdvertise = getAdvertise(internalAddress, "internal");
         if (internalAdvertise.isEmpty()) {
-            throw new KronotopException("network.internal.advertise is empty, " +
+            throw new ConfigException("network.internal.advertise is empty, " +
                     "it is only optional when network.internal.host is a loopback address");
         }
 

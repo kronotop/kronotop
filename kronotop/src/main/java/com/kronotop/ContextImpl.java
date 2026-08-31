@@ -81,7 +81,7 @@ public class ContextImpl implements Context {
      * @param config   the application configuration (must contain "default_namespace" and "cluster.name")
      * @param member   the cluster member this context belongs to
      * @param database the FoundationDB database connection
-     * @throws MissingConfigException   if required configuration keys are missing
+     * @throws ConfigException   if required configuration keys are missing
      * @throws IllegalArgumentException if default namespace is empty or blank
      */
     public ContextImpl(Config config, Member member, Database database) {
@@ -91,13 +91,13 @@ public class ContextImpl implements Context {
                 throw new IllegalArgumentException("default namespace is empty or blank");
             }
         } else {
-            throw new MissingConfigException("cluster.name is missing in configuration");
+            throw new ConfigException("cluster.name is missing in configuration");
         }
 
         if (config.hasPath("cluster.name")) {
             clusterName = config.getString("cluster.name");
         } else {
-            throw new MissingConfigException("cluster.name is missing in configuration");
+            throw new ConfigException("cluster.name is missing in configuration");
         }
 
         this.config = config;

@@ -16,9 +16,8 @@
 
 package com.kronotop.network;
 
-import com.kronotop.MissingConfigException;
+import com.kronotop.ConfigException;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigException;
 
 import java.util.List;
 
@@ -31,10 +30,10 @@ public class NetworkConfigUtil {
         String configPath = String.format("network.%s.host", networkInterface);
         try {
             return config.getString(configPath);
-        } catch (ConfigException.Missing exp) {
-            throw new MissingConfigException(configPath + " is mandatory");
-        } catch (ConfigException.WrongType exp) {
-            throw new MissingConfigException(configPath + " must be a string");
+        } catch (com.typesafe.config.ConfigException.Missing exp) {
+            throw new ConfigException(configPath + " is mandatory");
+        } catch (com.typesafe.config.ConfigException.WrongType exp) {
+            throw new ConfigException(configPath + " must be a string");
         }
     }
 
@@ -45,10 +44,10 @@ public class NetworkConfigUtil {
         String configPath = String.format("network.%s.port", networkInterface);
         try {
             return config.getInt(configPath);
-        } catch (ConfigException.Missing exp) {
-            throw new MissingConfigException(configPath + " is mandatory");
-        } catch (ConfigException.WrongType exp) {
-            throw new MissingConfigException(configPath + " must be an integer");
+        } catch (com.typesafe.config.ConfigException.Missing exp) {
+            throw new ConfigException(configPath + " is mandatory");
+        } catch (com.typesafe.config.ConfigException.WrongType exp) {
+            throw new ConfigException(configPath + " must be an integer");
         }
     }
 
@@ -59,10 +58,10 @@ public class NetworkConfigUtil {
         String configPath = String.format("network.%s.advertise", networkInterface);
         try {
             return config.getStringList(configPath);
-        } catch (ConfigException.Missing exp) {
-            throw new MissingConfigException(configPath + " is mandatory");
-        } catch (ConfigException.WrongType exp) {
-            throw new MissingConfigException(configPath + " must be a list of strings");
+        } catch (com.typesafe.config.ConfigException.Missing exp) {
+            throw new ConfigException(configPath + " is mandatory");
+        } catch (com.typesafe.config.ConfigException.WrongType exp) {
+            throw new ConfigException(configPath + " must be a list of strings");
         }
     }
 }

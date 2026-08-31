@@ -22,7 +22,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.MissingConfigException;
+import com.kronotop.ConfigException;
 import com.kronotop.directory.KronotopDirectory;
 import com.typesafe.config.Config;
 
@@ -57,7 +57,7 @@ public class ProcessIdGeneratorImpl implements ProcessIdGenerator {
 
     private DirectorySubspace getDirectoryRoot(Transaction transaction) {
         if (!config.hasPath("cluster.name")) {
-            throw new MissingConfigException("cluster.name is missing in configuration");
+            throw new ConfigException("cluster.name is missing in configuration");
         }
 
         List<String> subpath = KronotopDirectory.kronotop().cluster(config.getString("cluster.name")).toList();

@@ -26,7 +26,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.KronotopException;
-import com.kronotop.MissingConfigException;
+import com.kronotop.ConfigException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.KronotopDirectoryLayer;
@@ -50,7 +50,7 @@ public class Journal {
 
     public Journal(Config config, Database database) {
         if (!config.hasPath("cluster.name")) {
-            throw new MissingConfigException("cluster.name is missing in configuration");
+            throw new ConfigException("cluster.name is missing in configuration");
         }
         this.cluster = config.getString("cluster.name");
         this.database = database;

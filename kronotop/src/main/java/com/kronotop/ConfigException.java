@@ -17,12 +17,12 @@
 package com.kronotop;
 
 /**
- * The MissingConfigException class represents an exception that is thrown when a required configuration is missing.
+ * Thrown when a configuration entry is invalid: missing, empty, or of the wrong type.
  * <p>
  * It extends the KronotopException class that is a custom runtime exception holding the error prefix and message.
  */
-public class MissingConfigException extends KronotopException {
-    public MissingConfigException(String content) {
+public class ConfigException extends KronotopException {
+    public ConfigException(String content) {
         super(content);
     }
 }
