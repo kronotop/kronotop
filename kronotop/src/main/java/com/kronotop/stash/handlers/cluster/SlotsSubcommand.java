@@ -43,11 +43,13 @@ class SlotsSubcommand implements SubcommandHandler {
     private List<RedisMessage> prepareMember(Member member) {
         List<RedisMessage> result = new ArrayList<>();
         // HOST
-        ByteBuf hostBuf = Unpooled.wrappedBuffer(member.getExternalAddress().getHost().getBytes(StandardCharsets.UTF_8));
+        ByteBuf hostBuf = Unpooled.wrappedBuffer(
+                member.primaryExternalAdvertise().getHost().getBytes(StandardCharsets.UTF_8)
+        );
         result.add(new FullBulkStringRedisMessage(hostBuf));
 
         // PORT
-        result.add(new IntegerRedisMessage(member.getExternalAddress().getPort()));
+        result.add(new IntegerRedisMessage(member.primaryExternalAdvertise().getPort()));
 
         // ID
         ByteBuf idBuf = Unpooled.wrappedBuffer(member.getId().getBytes(StandardCharsets.UTF_8));

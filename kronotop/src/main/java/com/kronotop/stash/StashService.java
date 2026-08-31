@@ -416,7 +416,11 @@ public class StashService extends ShardOwnerService<StashShard> implements Krono
         if (!route.primary().equals(getContext().getMember())) {
             throw new KronotopException(
                     RESPError.MOVED,
-                    String.format("%d %s:%d", slot, route.primary().getExternalAddress().getHost(), route.primary().getExternalAddress().getPort())
+                    String.format("%d %s:%d",
+                            slot,
+                            route.primary().primaryExternalAdvertise().getHost(),
+                            route.primary().primaryExternalAdvertise().getPort()
+                    )
             );
         }
         return findShardAndCheckStatus(route, shardId, desiredShardStatus);

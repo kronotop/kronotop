@@ -67,7 +67,7 @@ class NodesSubcommand implements SubcommandHandler {
 
         items.add(generateNodeId(range.getPrimary()));
 
-        Address address = range.getPrimary().getExternalAddress();
+        Address address = range.getPrimary().primaryExternalAdvertise();
         items.add(String.format("%s:%d@%d,%s",
                 address.getHost(),
                 address.getPort(),
@@ -97,7 +97,7 @@ class NodesSubcommand implements SubcommandHandler {
             List<String> items = new ArrayList<>();
             items.add(generateNodeId(standby));
 
-            Address address = standby.getExternalAddress();
+            Address address = standby.primaryExternalAdvertise();
             items.add(String.format("%s:%d@%d,%s",
                     address.getHost(),
                     address.getPort(),
