@@ -26,6 +26,7 @@ import tools.jackson.databind.annotation.JsonDeserialize;
 import tools.jackson.databind.annotation.JsonSerialize;
 
 import javax.annotation.Nonnull;
+import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Member {
@@ -33,6 +34,8 @@ public class Member {
     private MemberStatus status = MemberStatus.UNKNOWN;
     private Address externalAddress;
     private Address internalAddress;
+    private List<Address> externalAdvertise;
+    private List<Address> internalAdvertise;
     @JsonSerialize(using = VersionstampSerializer.class)
     @JsonDeserialize(using = VersionstampDeserializer.class)
     private Versionstamp processId;
@@ -55,12 +58,42 @@ public class Member {
         this.processId = processId;
     }
 
+    public Member(
+            @Nonnull String id,
+            @Nonnull List<Address> externalAdvertise,
+            @Nonnull List<Address> internalAdvertise,
+            @Nonnull Versionstamp processId
+    ) {
+        if (id.isBlank()) {
+            throw new IllegalArgumentException("id cannot be blank");
+        }
+        if (externalAdvertise.isEmpty()) {
+            throw new IllegalArgumentException("externalAdvertise cannot be empty");
+        }
+        if (internalAdvertise.isEmpty()) {
+            throw new IllegalArgumentException("internalAdvertise cannot be empty");
+        }
+
+        this.id = id;
+        this.externalAdvertise = externalAdvertise;
+        this.internalAdvertise = internalAdvertise;
+        this.processId = processId;
+    }
+
     public Address getExternalAddress() {
         return externalAddress;
     }
 
     public Address getInternalAddress() {
         return internalAddress;
+    }
+
+    public List<Address> getExternalAdvertise() {
+        return externalAdvertise;
+    }
+
+    public List<Address> getInternalAdvertise() {
+        return internalAdvertise;
     }
 
     public String getId() {
