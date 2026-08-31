@@ -98,14 +98,8 @@ public class KronotopInstance {
     }
 
     /**
-     * Registers various Kronotop services within the context.
-     * <p>
-     * This method registers a list of services which are essential
-     * for the proper functioning of a Kronotop instance. The order
-     * of registration is crucial due to dependencies between services.
-     * <p>
-     * After registering the services, the method starts the MembershipService
-     * and StashService to initialize their functionalities.
+     * Registers and starts the Kronotop services. Registration order matters
+     * because services depend on each other.
      */
     private void registerKronotopServices() {
         // Registration sort is important here.
@@ -274,26 +268,8 @@ public class KronotopInstance {
     }
 
     /**
-     * Initializes the directory structure for the Kronotop instance.
-     * <p>
-     * This method creates or opens essential directories in the FoundationDB
-     * directory layer for the Kronotop instance's operation. It organizes the
-     * directory layout as follows:
-     * <p>
-     * 1. Creates or opens the "cluster" directory using the current cluster name.
-     * 2. Creates or opens the "metadata/prefixes" directory inside the cluster directory.
-     * 3. Creates or opens a directory for the default namespace specified in the
-     * configuration under "namespaces" within the cluster directory.
-     * <p>
-     * After setting up the directories, the transaction is committed to persist
-     * the changes.
-     * <p>
-     * In cases where the transaction is not committed due to conflicts (error code 1020),
-     * the conflict is ignored and no exception is thrown. For other exceptions, a
-     * KronotopException is thrown to indicate an error.
-     * <p>
-     * This method ensures that the required directory structure is in place
-     * to support various functionalities of the Kronotop instance.
+     * Creates or opens the cluster directories and the default namespace in the
+     * FoundationDB directory layer. Retries on transaction conflicts.
      */
     private void initializeDirectoryLayout() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -325,17 +301,8 @@ public class KronotopInstance {
     }
 
     /**
-     * Starts the Kronotop instance.
-     *
-     * <p>
-     * This method performs the following steps:
-     * <p>
-     * 1. Initializes the member of the KronotopInstance.
-     * 2. Creates a new ContextImpl object with the provided config, member, and database.
-     * 3. Initializes the cluster layout.
-     * 4. Registers the Kronotop services in the context.
-     * 5. Sets the status of the Kronotop instance to RUNNING.
-     * </p>
+     * Starts the Kronotop instance and sets its status to RUNNING.
+     * Shuts the instance down again if any startup step fails.
      *
      * @throws UnknownHostException if the host address is unknown
      * @throws InterruptedException if the thread is interrupted
@@ -361,15 +328,8 @@ public class KronotopInstance {
     }
 
     /**
-     * Registers a scheduled cleanup task for the journal.
-     * <p>
-     * The method retrieves the necessary configuration parameters for the cleanup task
-     * (retention period and time unit) from the provided configuration. It uses these parameters
-     * to create a {@link CleanupJournalTask} and schedules it to run at a fixed rate of once per day using
-     * the {@link TaskService}.
-     * <p>
-     * If an invalid time unit is specified, an {@link IllegalArgumentException} is thrown,
-     * which is caught and re-thrown as a {@link KronotopException} with a descriptive error message.
+     * Schedules the journal cleanup task to run once per day with the configured
+     * retention period.
      *
      * @throws KronotopException if the time unit specified in the configuration is invalid
      */
@@ -388,16 +348,8 @@ public class KronotopInstance {
     }
 
     /**
-     * Shuts down the Kronotop instance.
-     * <p>
-     * This method shuts down the Kronotop instance by performing the following steps:
-     * 1. Checks the current status of the Kronotop instance. If it is already in the STOPPED status, returns immediately.
-     * 2. Logs the shutdown message.
-     * 3. Iterates over the list of services in the context and shuts down each service by calling its "shutdown" method.
-     * If any service throws an exception during shutdown, it logs an error message and continues with the next service.
-     * 4. Closes the FoundationDB connection.
-     * 5. Sets the status of the Kronotop instance to STOPPED.
-     * </p>
+     * Shuts down the running services in reverse registration order and sets the
+     * status to STOPPED. A service that fails to stop is logged and skipped.
      */
     public synchronized void shutdown() {
         if (context == null) {
