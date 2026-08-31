@@ -60,6 +60,8 @@ public class Member {
 
     public Member(
             @Nonnull String id,
+            @Nonnull Address externalAddress,
+            @Nonnull Address internalAddress,
             @Nonnull List<Address> externalAdvertise,
             @Nonnull List<Address> internalAdvertise,
             @Nonnull Versionstamp processId
@@ -75,6 +77,8 @@ public class Member {
         }
 
         this.id = id;
+        this.externalAddress = externalAddress;
+        this.internalAddress = internalAddress;
         this.externalAdvertise = externalAdvertise;
         this.internalAdvertise = internalAdvertise;
         this.processId = processId;

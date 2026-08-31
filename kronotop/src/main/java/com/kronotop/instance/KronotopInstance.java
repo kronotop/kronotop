@@ -20,6 +20,7 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.google.common.net.HostAndPort;
 import com.kronotop.*;
 import com.kronotop.bucket.BucketContext;
 import com.kronotop.bucket.BucketService;
@@ -38,7 +39,7 @@ import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.namespace.NamespaceService;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.network.Address;
-import com.kronotop.network.AddressUtil;
+import com.kronotop.network.NetworkConfigUtil;
 import com.kronotop.stash.StashContext;
 import com.kronotop.stash.StashService;
 import com.kronotop.task.TaskService;
@@ -59,6 +60,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -92,20 +95,6 @@ public class KronotopInstance {
     public KronotopInstance(Config config) {
         this.config = config;
         this.database = FoundationDBFactory.newDatabase(config);
-    }
-
-    /**
-     * Retrieves the InetAddress associated with the specified host.
-     *
-     * @param host the host to look up
-     * @return the InetAddress associated with the host
-     * @throws UnknownHostException if the host address is unknown
-     */
-    private InetAddress getInetAddress(String host) throws UnknownHostException {
-        if (host.equals("0.0.0.0")) {
-            return AddressUtil.getIPv4Address();
-        }
-        return InetAddress.getByName(host);
     }
 
     /**
@@ -169,11 +158,37 @@ public class KronotopInstance {
         bucketService.start();
     }
 
-    private Address getAddress(String kind) throws UnknownHostException {
-        int port = config.getInt(String.format("network.%s.port", kind));
-        String host = getInetAddress(
-                config.getString(String.format("network.%s.host", kind))
-        ).getHostAddress();
+    /**
+     * Returns the addresses this member advertises to the cluster for the given network interface,
+     * falling back to the canonical name of a loopback or wildcard bind address.
+     */
+    private List<Address> getAdvertise(Address bindAddress, String networkInterface) throws UnknownHostException {
+        List<String> advertise = NetworkConfigUtil.getAdvertise(config, networkInterface);
+        if (advertise.isEmpty()) {
+            if (bindAddress.getHost().equals("localhost") ||
+                    bindAddress.getHost().equals("127.0.0.1") ||
+                    bindAddress.getHost().equals("::") ||
+                    bindAddress.getHost().equals("[::]")
+            ) {
+                InetAddress address = InetAddress.getByName(bindAddress.getHost());
+                HostAndPort canonical = HostAndPort.fromParts(address.getCanonicalHostName(), bindAddress.getPort());
+                advertise.add(canonical.toString());
+            }
+        }
+        List<Address> result = new ArrayList<>();
+        for (String address : advertise) {
+            HostAndPort hostAndPort = HostAndPort.fromString(address);
+            result.add(new Address(hostAndPort.getHost(), hostAndPort.getPortOrDefault(bindAddress.getPort())));
+        }
+        return result;
+    }
+
+    /**
+     * Returns the address the given network interface binds to, read from the configuration.
+     */
+    private Address getBindAddress(String networkInterface) {
+        String host = NetworkConfigUtil.getHost(config, networkInterface);
+        int port = NetworkConfigUtil.getPort(config, networkInterface);
         return new Address(host, port);
     }
 
@@ -183,11 +198,21 @@ public class KronotopInstance {
      * @throws UnknownHostException if the host address is unknown
      */
     private void initializeMember(String id) throws UnknownHostException {
-        Address externalAddress = getAddress("external");
-        Address internalAddress = getAddress("internal");
+        Address externalAddress = getBindAddress("external");
+        List<Address> externalAdvertise = getAdvertise(externalAddress, "external");
+
+        Address internalAddress = getBindAddress("internal");
+        List<Address> internalAdvertise = getAdvertise(internalAddress, "internal");
+
         ProcessIdGenerator processIDGenerator = new ProcessIdGeneratorImpl(config, database);
         Versionstamp processID = processIDGenerator.getProcessID();
-        this.member = new Member(id, externalAddress, internalAddress, processID);
+        this.member = new Member(id,
+                externalAddress,
+                internalAddress,
+                externalAdvertise,
+                internalAdvertise,
+                processID
+        );
     }
 
     /**
