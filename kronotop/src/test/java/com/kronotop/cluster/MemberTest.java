@@ -63,6 +63,28 @@ public class MemberTest {
         assertEquals(memberThree, members.last());
     }
 
+    @Test
+    public void shouldReturnFirstAdvertiseAddressAsPrimary() {
+        // Behavior: primaryExternalAdvertise and primaryInternalAdvertise return the first entry of the advertise lists.
+        Address bind = Address.fromString("0.0.0.0:5484");
+        Address externalOne = Address.fromString("10.0.0.1:5484");
+        Address externalTwo = Address.fromString("192.168.1.1:5484");
+        Address internalOne = Address.fromString("10.0.0.1:3320");
+        Address internalTwo = Address.fromString("192.168.1.1:3320");
+
+        Member member = new Member(
+                MemberIdGenerator.generateId(),
+                bind,
+                bind,
+                List.of(externalOne, externalTwo),
+                List.of(internalOne, internalTwo),
+                processIdGenerator.getProcessID()
+        );
+
+        assertEquals(externalOne, member.primaryExternalAdvertise());
+        assertEquals(internalOne, member.primaryInternalAdvertise());
+    }
+
     private Member createMember(String addressString) {
         Versionstamp processId = processIdGenerator.getProcessID();
         Address address = Address.fromString(addressString);

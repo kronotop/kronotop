@@ -85,6 +85,22 @@ public class Member {
         return internalAdvertise;
     }
 
+    /**
+     * Returns the preferred address for client connections. The advertise list is ordered
+     * and its first entry is the preferred one.
+     */
+    public Address primaryExternalAdvertise() {
+        return externalAdvertise.getFirst();
+    }
+
+    /**
+     * Returns the preferred address for connections coming from other cluster members.
+     * The advertise list is ordered and its first entry is the preferred one.
+     */
+    public Address primaryInternalAdvertise() {
+        return internalAdvertise.getFirst();
+    }
+
     public String getId() {
         return id;
     }
