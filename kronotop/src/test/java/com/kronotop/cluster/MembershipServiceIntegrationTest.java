@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.CompletionException;
@@ -100,6 +101,8 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
                 member.getId(),
                 member.getExternalAddress(),
                 member.getInternalAddress(),
+                member.getExternalAdvertise(),
+                member.getInternalAdvertise(),
                 member.getProcessId()
         );
         updatedMember.setStatus(MemberStatus.UNAVAILABLE);
@@ -118,10 +121,14 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         KronotopTestInstance instance = getInstances().getFirst();
         MembershipService membership = instance.getContext().getService(MembershipService.NAME);
 
+        Address externalAddress = new Address("127.0.0.1", 5484);
+        Address internalAddress = new Address("127.0.0.1", 3320);
         Member unregisteredMember = new Member(
                 MemberIdGenerator.generateId(),
-                new Address("127.0.0.1", 5484),
-                new Address("127.0.0.1", 3320),
+                externalAddress,
+                internalAddress,
+                List.of(externalAddress),
+                List.of(internalAddress),
                 instance.getContext().getMember().getProcessId()
         );
 
@@ -386,10 +393,14 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         KronotopTestInstance instance = getInstances().getFirst();
         MembershipService membership = instance.getContext().getService(MembershipService.NAME);
 
+        Address externalAddress = new Address("127.0.0.1", 9999);
+        Address internalAddress = new Address("127.0.0.1", 9998);
         Member unknown = new Member(
                 MemberIdGenerator.generateId(),
-                new Address("127.0.0.1", 9999),
-                new Address("127.0.0.1", 9998),
+                externalAddress,
+                internalAddress,
+                List.of(externalAddress),
+                List.of(internalAddress),
                 instance.getContext().getMember().getProcessId()
         );
 

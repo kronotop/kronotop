@@ -21,8 +21,8 @@ import com.kronotop.network.Address;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
-import java.net.UnknownHostException;
 import java.util.Comparator;
+import java.util.List;
 import java.util.TreeSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +32,7 @@ public class MemberTest {
     private final MockProcessIdGeneratorImpl processIdGenerator = new MockProcessIdGeneratorImpl();
 
     @Test
-    public void shouldSerializeAndDeserializeMember() throws UnknownHostException {
+    public void shouldSerializeAndDeserializeMember() {
         Member member = createMember("localhost:5484");
         ObjectMapper objectMapper = new ObjectMapper();
         String serialized = objectMapper.writeValueAsString(member);
@@ -41,14 +41,14 @@ public class MemberTest {
     }
 
     @Test
-    public void shouldCompareMembersCorrectly() throws UnknownHostException {
+    public void shouldCompareMembersCorrectly() {
         Member memberOne = createMember("localhost:5484");
         Member memberTwo = createMember("localhost:5585");
         assertTrue(memberOne.getProcessId().compareTo(memberTwo.getProcessId()) < 0);
     }
 
     @Test
-    public void shouldSortMembersCorrectly() throws UnknownHostException {
+    public void shouldSortMembersCorrectly() {
         Member memberOne = createMember("localhost:5484");
         Member memberTwo = createMember("localhost:5585");
         Member memberThree = createMember("localhost:5686");
@@ -63,9 +63,16 @@ public class MemberTest {
         assertEquals(memberThree, members.last());
     }
 
-    private Member createMember(String addressString) throws UnknownHostException {
+    private Member createMember(String addressString) {
         Versionstamp processId = processIdGenerator.getProcessID();
         Address address = Address.fromString(addressString);
-        return new Member(MemberIdGenerator.generateId(), address, address, processId);
+        return new Member(
+                MemberIdGenerator.generateId(),
+                address,
+                address,
+                List.of(address),
+                List.of(address),
+                processId
+        );
     }
 }

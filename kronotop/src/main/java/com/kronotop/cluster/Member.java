@@ -47,21 +47,6 @@ public class Member {
             @Nonnull String id,
             @Nonnull Address externalAddress,
             @Nonnull Address internalAddress,
-            @Nonnull Versionstamp processId
-    ) {
-        if (id.isBlank()) {
-            throw new IllegalArgumentException("id cannot be blank");
-        }
-        this.id = id;
-        this.externalAddress = externalAddress;
-        this.internalAddress = internalAddress;
-        this.processId = processId;
-    }
-
-    public Member(
-            @Nonnull String id,
-            @Nonnull Address externalAddress,
-            @Nonnull Address internalAddress,
             @Nonnull List<Address> externalAdvertise,
             @Nonnull List<Address> internalAdvertise,
             @Nonnull Versionstamp processId

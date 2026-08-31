@@ -38,6 +38,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -112,7 +113,14 @@ public class BaseTest {
         Address internalAddress = Address.fromString(internalAddressString);
 
         Versionstamp processId = processIdGenerator.getProcessID();
-        return new Member(MemberIdGenerator.generateId(), externalAddress, internalAddress, processId);
+        return new Member(
+                MemberIdGenerator.generateId(),
+                externalAddress,
+                internalAddress,
+                List.of(externalAddress),
+                List.of(internalAddress),
+                processId
+        );
     }
 
     protected Config loadConfig(String resourceName) {
