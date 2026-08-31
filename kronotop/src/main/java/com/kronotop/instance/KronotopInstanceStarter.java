@@ -19,14 +19,17 @@ package com.kronotop.instance;
 
 import com.kronotop.Context;
 import com.kronotop.cluster.Member;
+import com.kronotop.network.Address;
 import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import static com.google.common.base.Throwables.getRootCause;
 
@@ -78,9 +81,18 @@ public class KronotopInstanceStarter {
         LOGGER.info("Cluster:  {}", context.getClusterName());
         LOGGER.info("Member:   {} [{}]", member.getId(), instance.getStatus());
         LOGGER.info("FDB:      {} (API {})", fdbClusterFile, config.getInt("foundationdb.apiversion"));
-        LOGGER.info("Client:   {}", member.getExternalAddress());
-        LOGGER.info("Internal: {}", member.getInternalAddress());
+        LOGGER.info("Client:   bound to {}, advertised as {}",
+                member.getExternalAddress(), joinAddresses(member.getExternalAdvertise()));
+        LOGGER.info("Internal: bound to {}, advertised as {}",
+                member.getInternalAddress(), joinAddresses(member.getInternalAdvertise()));
         LOGGER.info("Ready to accept connections");
+    }
+
+    /**
+     * Renders a list of addresses as a comma separated string.
+     */
+    static String joinAddresses(List<Address> addresses) {
+        return addresses.stream().map(Address::toString).collect(Collectors.joining(", "));
     }
 
     /**
