@@ -160,19 +160,18 @@ public class KronotopInstance {
 
     /**
      * Returns the addresses this member advertises to the cluster for the given network interface,
-     * falling back to the canonical name of a loopback or wildcard bind address.
+     * falling back to the canonical name of a loopback bind address.
      */
     private List<Address> getAdvertise(Address bindAddress, String networkInterface) throws UnknownHostException {
         List<String> advertise = NetworkConfigUtil.getAdvertise(config, networkInterface);
         if (advertise.isEmpty()) {
-            if (bindAddress.getHost().equals("localhost") ||
-                    bindAddress.getHost().equals("127.0.0.1") ||
-                    bindAddress.getHost().equals("::") ||
-                    bindAddress.getHost().equals("[::]")
-            ) {
-                InetAddress address = InetAddress.getByName(bindAddress.getHost());
+            InetAddress address = InetAddress.getByName(bindAddress.getHost());
+            if (address.isLoopbackAddress()) {
                 HostAndPort canonical = HostAndPort.fromParts(address.getCanonicalHostName(), bindAddress.getPort());
                 advertise.add(canonical.toString());
+                LOGGER.warn("No advertised address configured for the '{}' network interface and it binds to " +
+                                "the loopback address {}, falling back to {}.",
+                        networkInterface, bindAddress.getHost(), canonical);
             }
         }
         List<Address> result = new ArrayList<>();
