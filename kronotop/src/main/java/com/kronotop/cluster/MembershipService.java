@@ -303,7 +303,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             subspaces.put(member, subspace);
             knownMembers.put(member, new MemberView(heartbeat));
             if (!context.getMember().equals(member)) {
-                LOGGER.info("Member join: {}", member.getExternalAddress());
+                LOGGER.info("Member join: {}", member.getId());
             }
         }
     }
@@ -331,7 +331,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         context.getInternalClientPool().evict(member);
 
         if (!context.getMember().equals(member)) {
-            LOGGER.info("Member left: {}", member.getExternalAddress());
+            LOGGER.info("Member left: {}", member.getId());
         }
     }
 
