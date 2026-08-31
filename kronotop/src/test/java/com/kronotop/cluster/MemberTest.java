@@ -65,7 +65,7 @@ public class MemberTest {
 
     private Member createMember(String addressString) throws UnknownHostException {
         Versionstamp processId = processIdGenerator.getProcessID();
-        Address address = Address.parseString(addressString);
+        Address address = Address.fromString(addressString);
         return new Member(MemberIdGenerator.generateId(), address, address, processId);
     }
 }

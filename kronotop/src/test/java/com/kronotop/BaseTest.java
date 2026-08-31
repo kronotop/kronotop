@@ -35,7 +35,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -104,12 +103,13 @@ public class BaseTest {
         return Integer.toString(ThreadLocalRandom.current().nextInt(49152, 65535));
     }
 
-    protected Member createMemberWithEphemeralPort() throws UnknownHostException {
+    protected Member createMemberWithEphemeralPort() {
         String externalAddressString = String.format("localhost:%s", getEphemeralTCPPort());
-        Address externalAddress = Address.parseString(externalAddressString);
+
+        Address externalAddress = Address.fromString(externalAddressString);
 
         String internalAddressString = String.format("localhost:%s", getEphemeralTCPPort());
-        Address internalAddress = Address.parseString(internalAddressString);
+        Address internalAddress = Address.fromString(internalAddressString);
 
         Versionstamp processId = processIdGenerator.getProcessID();
         return new Member(MemberIdGenerator.generateId(), externalAddress, internalAddress, processId);

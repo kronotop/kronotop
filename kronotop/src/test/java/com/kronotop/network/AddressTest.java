@@ -18,7 +18,6 @@ package com.kronotop.network;
 
 import org.junit.jupiter.api.Test;
 
-import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,12 +48,5 @@ class AddressTest {
         Address one = new Address("localhost", 5484);
         Address two = new Address("localhost", 5484);
         assertEquals(one, two);
-    }
-
-    @Test
-    void shouldResolveFromInetSocketAddress() {
-        InetSocketAddress sockAddr = new InetSocketAddress(5484);
-        Address addr = new Address(sockAddr);
-        assertEquals(5484, addr.getPort());
     }
 }

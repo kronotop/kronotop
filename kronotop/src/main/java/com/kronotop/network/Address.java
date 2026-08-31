@@ -20,12 +20,7 @@ import com.google.common.net.HostAndPort;
 import com.kronotop.KronotopException;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.UnknownHostException;
-
-import static com.kronotop.internal.Preconditions.checkNotNull;
 
 /**
  * Represents an address of an instance in the cluster.
@@ -39,28 +34,7 @@ public final class Address {
     public Address() {
     }
 
-    public Address(String host, int port) throws UnknownHostException {
-        this(host, InetAddress.getByName(host), port);
-    }
-
-    public Address(InetAddress inetAddress, int port) {
-        this(null, inetAddress, port);
-    }
-
-    /**
-     * Creates a new Address
-     *
-     * @param inetSocketAddress the InetSocketAddress to use
-     * @throws java.lang.NullPointerException     if inetSocketAddress is null
-     * @throws java.lang.IllegalArgumentException if the address can't be resolved.
-     */
-    public Address(InetSocketAddress inetSocketAddress) {
-        this(resolve(inetSocketAddress), inetSocketAddress.getPort());
-    }
-
-    public Address(String hostname, InetAddress inetAddress, int port) {
-        checkNotNull(inetAddress, "inetAddress can't be null");
-
+    public Address(String host, int port) {
         if (port == 0) {
             try {
                 port = findAvailablePort();
@@ -68,35 +42,14 @@ public final class Address {
                 throw new KronotopException("failed to find an available port", e);
             }
         }
-
-        String[] addressArgs = inetAddress.getHostAddress().split("\\%");
-        host = hostname != null ? hostname : addressArgs[0];
+        this.host = host;
         this.port = port;
         this.hashCode = hashCodeInternal();
     }
 
-    public Address(Address address) {
-        this.host = address.host;
-        this.port = address.port;
-        this.hashCode = hashCodeInternal();
-    }
-
-    private static InetAddress resolve(InetSocketAddress inetSocketAddress) {
-        checkNotNull(inetSocketAddress, "inetSocketAddress can't be null");
-
-        InetAddress address = inetSocketAddress.getAddress();
-        if (address == null) {
-            throw new IllegalArgumentException("Can't resolve address: " + inetSocketAddress);
-        }
-        return address;
-    }
-
-    public static Address parseString(String hostPort) throws UnknownHostException {
-        String[] parsed = hostPort.split(":");
-        if (parsed.length != 2) {
-            throw new IllegalArgumentException(String.format("Illegal Address format: %s", hostPort));
-        }
-        return new Address(parsed[0], Integer.parseInt(parsed[1]));
+    public static Address fromString(String hostPortString) {
+        HostAndPort hostAndPort = HostAndPort.fromString(hostPortString);
+        return new Address(hostAndPort.getHost(), hostAndPort.getPort());
     }
 
     private int findAvailablePort() throws IOException {
