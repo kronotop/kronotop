@@ -415,8 +415,8 @@ public abstract class AbstractBucketHandler implements Handler {
         if (Objects.isNull(route)) {
             throw new KronotopException("No route found for Bucket shard: " + shardId);
         }
-        Address address = route.primary().getExternalAddress();
-        throw new RejectException(shardId, address.getHost(), address.getPort());
+        Address address = route.primary().primaryExternalAdvertise();
+        throw new RejectException(shardId, address);
     }
 
     /**

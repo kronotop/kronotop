@@ -17,9 +17,10 @@
 package com.kronotop.server;
 
 import com.kronotop.KronotopException;
+import com.kronotop.network.Address;
 
 public class RejectException extends KronotopException {
-    public RejectException(int shardId, String host, int port) {
-        super(RESPError.REJECT, String.format("%s %s:%d", shardId, host, port));
+    public RejectException(int shardId, Address address) {
+        super(RESPError.REJECT, String.format("%s %s", shardId, address.toString()));
     }
 }
