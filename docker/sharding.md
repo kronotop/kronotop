@@ -43,7 +43,28 @@ land on both nodes, not the documents of a single bucket. A write is served by a
 of the bucket's shards. If you send it to a node that owns none of them, the node redirects you to
 the right one.
 
-## 3. Give the layout at bootstrap
+## 3. Give each node its addresses
+
+The image binds both ports to `0.0.0.0`, so a node cannot know the address clients and the other
+nodes use to reach it. Each node publishes its own addresses with two environment variables, read by
+`start.sh`:
+
+```yaml
+KRONOTOP_EXTERNAL_ADVERTISE: "127.0.0.1:5485,kronotop-node2:5484"
+KRONOTOP_INTERNAL_ADVERTISE: "kronotop-node2:3320"
+```
+
+Both take a comma-separated list. The first entry is the preferred one.
+
+- `KRONOTOP_EXTERNAL_ADVERTISE` is the address clients get. The example is node2 from
+  `multi-shard-cluster.yaml`. The first entry is the port published on your machine, `5485`. The
+  second entry is for clients that run inside the Docker network.
+- `KRONOTOP_INTERNAL_ADVERTISE` is the address other nodes get. It must be reachable inside the
+  Docker network, so use the compose service name and the internal port.
+
+Both variables are needed on every node. A node without them fails at startup.
+
+## 4. Give the layout at bootstrap
 
 The layout is passed to the cluster once, at bootstrap time:
 
