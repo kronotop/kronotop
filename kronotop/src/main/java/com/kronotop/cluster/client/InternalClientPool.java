@@ -125,7 +125,7 @@ public class InternalClientPool {
     }
 
     private RedisClient createClient(Member member) {
-        Address address = member.getInternalAddress();
+        Address address = member.primaryInternalAdvertise();
         RedisURI uri = RedisURI.builder()
                 .withHost(address.getHost())
                 .withPort(address.getPort())
