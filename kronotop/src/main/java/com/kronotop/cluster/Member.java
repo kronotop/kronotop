@@ -28,6 +28,11 @@ import tools.jackson.databind.annotation.JsonSerialize;
 import javax.annotation.Nonnull;
 import java.util.List;
 
+/**
+ * A single node of a Kronotop cluster. Bind addresses say where the node listens,
+ * advertise lists say how clients and other members reach it. Members are equal
+ * when their ids are equal.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Member {
     private String id;
@@ -69,25 +74,38 @@ public class Member {
         this.processId = processId;
     }
 
+    /**
+     * Bind address of the client-facing server. Not reachable from outside.
+     * Use {@link #primaryExternalAdvertise()} to give a client an address.
+     */
     public Address getExternalAddress() {
         return externalAddress;
     }
 
+    /**
+     * Bind address of the member-facing server. Not reachable from outside.
+     * Use {@link #primaryInternalAdvertise()} to reach another member.
+     */
     public Address getInternalAddress() {
         return internalAddress;
     }
 
+    /**
+     * Addresses clients can use to reach this member, most preferred first.
+     */
     public List<Address> getExternalAdvertise() {
         return externalAdvertise;
     }
 
+    /**
+     * Addresses other members can use to reach this member, most preferred first.
+     */
     public List<Address> getInternalAdvertise() {
         return internalAdvertise;
     }
 
     /**
-     * Returns the preferred address for client connections. The advertise list is ordered
-     * and its first entry is the preferred one.
+     * Returns the preferred address for client connections.
      */
     public Address primaryExternalAdvertise() {
         return externalAdvertise.getFirst();
@@ -95,16 +113,21 @@ public class Member {
 
     /**
      * Returns the preferred address for connections coming from other cluster members.
-     * The advertise list is ordered and its first entry is the preferred one.
      */
     public Address primaryInternalAdvertise() {
         return internalAdvertise.getFirst();
     }
 
+    /**
+     * Returns the cluster-wide unique id of this member.
+     */
     public String getId() {
         return id;
     }
 
+    /**
+     * Returns the id of the running process. It changes on every restart.
+     */
     public Versionstamp getProcessId() {
         return processId;
     }
