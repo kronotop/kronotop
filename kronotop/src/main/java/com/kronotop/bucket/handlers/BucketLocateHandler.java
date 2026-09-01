@@ -32,18 +32,17 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.transaction.TransactionUtil;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
+import static com.kronotop.server.RESPUtil.bulkString;
 
 @Command(BucketLocateMessage.COMMAND)
 @MinimumParameterCount(BucketLocateMessage.MINIMUM_PARAMETER_COUNT)
@@ -59,15 +58,31 @@ public class BucketLocateHandler extends AbstractBucketHandler implements Handle
         request.attr(MessageTypes.BUCKETLOCATE).set(new BucketLocateMessage(request));
     }
 
-    private String stringifyAddress(Address address) {
-        return String.format("%s:%s", address.getHost(), address.getPort());
+    /**
+     * Renders the member table: the member id followed by its external advertise addresses.
+     * Each member is written once, no matter how many shards it owns.
+     */
+    private List<RedisMessage> renderMembers(Map<String, Member> members) {
+        List<RedisMessage> result = new ArrayList<>(members.size() * 2);
+        for (Map.Entry<String, Member> entry : members.entrySet()) {
+            result.add(bulkString(entry.getKey()));
+
+            List<Address> advertise = entry.getValue().getExternalAdvertise();
+            List<RedisMessage> addresses = new ArrayList<>(advertise.size());
+            for (Address address : advertise) {
+                addresses.add(bulkString(address.toString()));
+            }
+            result.add(new ArrayRedisMessage(addresses));
+        }
+        return result;
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketLocateMessage message = request.attr(MessageTypes.BUCKETLOCATE).get();
-            List<RedisMessage> result = new ArrayList<>();
+            List<RedisMessage> routes = new ArrayList<>();
+            Map<String, Member> members = new LinkedHashMap<>();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
                 for (int shardId : metadata.shards()) {
@@ -76,26 +91,24 @@ public class BucketLocateHandler extends AbstractBucketHandler implements Handle
                         // we can't locate the shard
                         continue;
                     }
-                    result.add(new IntegerRedisMessage(shardId));
+                    routes.add(new IntegerRedisMessage(shardId));
 
-                    ByteBuf primaryOwner = Unpooled.copiedBuffer(
-                            stringifyAddress(route.primary().getExternalAddress()),
-                            StandardCharsets.US_ASCII
-                    );
-                    result.add(new FullBulkStringRedisMessage(primaryOwner));
+                    Member primary = route.primary();
+                    members.putIfAbsent(primary.getId(), primary);
+                    routes.add(bulkString(primary.getId()));
 
-                    List<RedisMessage> standbyOwners = new ArrayList<>();
+                    List<RedisMessage> standbyIds = new ArrayList<>();
                     for (Member standby : route.standbys()) {
-                        ByteBuf standbyOwner = Unpooled.copiedBuffer(
-                                stringifyAddress(standby.getExternalAddress()),
-                                StandardCharsets.US_ASCII
-                        );
-                        standbyOwners.add(new FullBulkStringRedisMessage(standbyOwner));
+                        members.putIfAbsent(standby.getId(), standby);
+                        standbyIds.add(bulkString(standby.getId()));
                     }
-                    result.add(new ArrayRedisMessage(standbyOwners));
+                    routes.add(new ArrayRedisMessage(standbyIds));
                 }
             }
-            return result;
+            return List.of(
+                    (RedisMessage) new ArrayRedisMessage(routes),
+                    new ArrayRedisMessage(renderMembers(members))
+            );
         }, response::writeArray);
     }
 }

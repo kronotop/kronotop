@@ -221,13 +221,17 @@ OK
 ```
 
 When no `SHARDS` clause is given, Kronotop picks a shard using round-robin selection. Use `BUCKET.LOCATE` to see
-which shards a bucket spans and the addresses of their primary and standby members:
+which shards a bucket spans and how to reach their owners:
 
 ```kronotop
 > BUCKET.LOCATE users
-1) (integer) 0                  # shard id
-2) "10.0.0.1:5484"             # primary address
-3) 1) "10.0.0.2:5484"          # standby addresses
+1) 1) (integer) 0               # shard id
+   2) "6ce1a1f0"                # primary member id
+   3) 1) "b47d9c25"             # standby member ids
+2) 1) "6ce1a1f0"                # member id
+   2) 1) "10.0.0.1:5484"        # addresses of that member
+   3) "b47d9c25"
+   4) 1) "10.0.0.2:5484"
 ```
 
 ## Two-Phase Removal

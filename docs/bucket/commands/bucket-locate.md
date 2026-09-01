@@ -2,11 +2,11 @@
 title: "BUCKET.LOCATE"
 sidebar:
   order: 13
-description: "Returns the routing information for a bucket, showing which shards hold its data and the addresses of primary and standby replicas."
+description: "Returns the routing information for a bucket: the member that owns each shard and the addresses of those members."
 ---
 
-Returns the routing information for a bucket, showing which shards hold its data and the addresses of primary and
-standby replicas.
+Returns the routing information for a bucket. It lists which shards hold the bucket's data, the member that owns each
+shard, and the addresses of those members.
 
 ## Syntax
 
@@ -22,17 +22,29 @@ BUCKET.LOCATE <bucket>
 
 ## Return Value
 
-Returns a flat array with 3 elements per shard:
+Returns an array with two elements: the route table and the member table.
 
-| Position | Type    | Description                                                                              |
-|----------|---------|------------------------------------------------------------------------------------------|
-| 0        | integer | Shard ID.                                                                                |
-| 1        | string  | Primary owner address in `host:port` format.                                             |
-| 2        | array   | Standby replica addresses, each in `host:port` format. Empty array if no standbys exist. |
+The route table is a flat array with 3 elements per shard:
 
-This pattern repeats for each shard the bucket spans. For a bucket on 2 shards, the array contains 6 elements.
+| Position | Type    | Description                                                              |
+|----------|---------|--------------------------------------------------------------------------|
+| 0        | integer | Shard ID.                                                                |
+| 1        | string  | Member ID of the primary owner.                                          |
+| 2        | array   | Member IDs of the standby replicas. Empty array if no standbys exist.    |
+
+This pattern repeats for each shard the bucket spans. For a bucket on 2 shards, the route table contains 6 elements.
 
 Shards without a known route are silently omitted from the result.
+
+The member table is a flat array with 2 elements per member:
+
+| Position | Type   | Description                                                       |
+|----------|--------|-------------------------------------------------------------------|
+| 0        | string | Member ID.                                                        |
+| 1        | array  | Addresses clients connect to, `host:port`, preferred entry first. |
+
+The member table lists each member once, even when that member owns several shards. Members that do not appear in the
+route table are left out. Clients can use the member ID as a cache key for connections.
 
 ## Errors
 
@@ -46,22 +58,31 @@ Shards without a known route are silently omitted from the result.
 
 ```kronotop
 > BUCKET.LOCATE users
-1) (integer) 0
-2) "127.0.0.1:5484"
-3) (empty array)
+1) 1) (integer) 0
+   2) "6ce1a1f0"
+   3) (empty array)
+2) 1) "6ce1a1f0"
+   2) 1) "127.0.0.1:5484"
 ```
 
-**Locate a multi-shard bucket:**
+**Locate a multi-shard bucket with a standby:**
 
 ```kronotop
 > BUCKET.LOCATE events
-1) (integer) 0
-2) "10.0.0.1:5484"
-3) (empty array)
-4) (integer) 1
-5) "10.0.0.2:5484"
-6) (empty array)
+1) 1) (integer) 0
+   2) "6ce1a1f0"
+   3) 1) "b47d9c25"
+   4) (integer) 1
+   5) "6ce1a1f0"
+   6) (empty array)
+2) 1) "6ce1a1f0"
+   2) 1) "10.0.0.1:5484"
+      2) "[fd00::1]:5484"
+   3) "b47d9c25"
+   4) 1) "10.0.0.2:5484"
 ```
+
+Member `6ce1a1f0` owns both shards, so it appears once in the member table.
 
 **Non-existent bucket:**
 

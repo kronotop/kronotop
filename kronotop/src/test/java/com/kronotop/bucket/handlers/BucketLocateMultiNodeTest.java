@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RouteKind;
 import com.kronotop.cluster.RoutingService;
@@ -23,6 +24,7 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.KrAdminCommandBuilder;
+import com.kronotop.network.Address;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
@@ -31,6 +33,7 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -39,17 +42,41 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BucketLocateMultiNodeTest extends BaseBucketMultiNodeTest {
 
+    private String readString(RedisMessage message) {
+        assertInstanceOf(FullBulkStringRedisMessage.class, message);
+        return ((FullBulkStringRedisMessage) message).content().toString(StandardCharsets.UTF_8);
+    }
+
+    private List<String> readStrings(RedisMessage message) {
+        assertInstanceOf(ArrayRedisMessage.class, message);
+        List<String> result = new ArrayList<>();
+        for (RedisMessage child : ((ArrayRedisMessage) message).children()) {
+            result.add(readString(child));
+        }
+        return result;
+    }
+
+    private List<String> advertiseOf(Member member) {
+        List<String> result = new ArrayList<>();
+        for (Address address : member.getExternalAdvertise()) {
+            result.add(address.toString());
+        }
+        return result;
+    }
+
     @Test
     void shouldLocateBucketWithStandbys() {
-        // Behavior: LOCATE returns standby addresses when a standby is configured for a shard.
+        // Behavior: LOCATE reports the standby member id in the route table and its advertise addresses
+        // in the member table when a standby is configured for a shard.
 
-        String node2Id = node2.getContext().getMember().getId();
+        Member node1Member = node1.getContext().getMember();
+        Member node2Member = node2.getContext().getMember();
 
         // Set node2 as a STANDBY for BUCKET shard 0 (owned by node1 as primary)
         KrAdminCommandBuilder<String, String> adminCmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         {
             ByteBuf buf = Unpooled.buffer();
-            adminCmd.route("SET", RouteKind.STANDBY.name(), ShardKind.BUCKET.name(), 0, node2Id).encode(buf);
+            adminCmd.route("SET", RouteKind.STANDBY.name(), ShardKind.BUCKET.name(), 0, node2Member.getId()).encode(buf);
             Object raw = runCommand(node1.getChannel(), buf);
             if (raw instanceof ErrorRedisMessage err) {
                 fail(err.content());
@@ -89,31 +116,29 @@ class BucketLocateMultiNodeTest extends BaseBucketMultiNodeTest {
             }
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage array = (ArrayRedisMessage) response;
-            assertEquals(3, array.children().size());
+            assertEquals(2, array.children().size());
 
-            // shard id
-            assertInstanceOf(IntegerRedisMessage.class, array.children().get(0));
-            assertEquals(0, ((IntegerRedisMessage) array.children().get(0)).value());
+            // route table
+            assertInstanceOf(ArrayRedisMessage.class, array.children().get(0));
+            ArrayRedisMessage routes = (ArrayRedisMessage) array.children().get(0);
+            assertEquals(3, routes.children().size());
 
-            // primary address (host:port)
-            assertInstanceOf(FullBulkStringRedisMessage.class, array.children().get(1));
-            String primaryAddress = ((FullBulkStringRedisMessage) array.children().get(1)).content().toString(StandardCharsets.US_ASCII);
-            String expectedPrimary = String.format("%s:%s",
-                    node1.getContext().getMember().getExternalAddress().getHost(),
-                    node1.getContext().getMember().getExternalAddress().getPort());
-            assertEquals(expectedPrimary, primaryAddress);
+            assertInstanceOf(IntegerRedisMessage.class, routes.children().get(0));
+            assertEquals(0, ((IntegerRedisMessage) routes.children().get(0)).value());
 
-            // standbys array with 1 entry (node2)
-            assertInstanceOf(ArrayRedisMessage.class, array.children().get(2));
-            ArrayRedisMessage standbys = (ArrayRedisMessage) array.children().get(2);
-            assertEquals(1, standbys.children().size());
+            assertEquals(node1Member.getId(), readString(routes.children().get(1)));
+            assertEquals(List.of(node2Member.getId()), readStrings(routes.children().get(2)));
 
-            assertInstanceOf(FullBulkStringRedisMessage.class, standbys.children().get(0));
-            String standbyAddress = ((FullBulkStringRedisMessage) standbys.children().get(0)).content().toString(StandardCharsets.US_ASCII);
-            String expectedStandby = String.format("%s:%s",
-                    node2.getContext().getMember().getExternalAddress().getHost(),
-                    node2.getContext().getMember().getExternalAddress().getPort());
-            assertEquals(expectedStandby, standbyAddress);
+            // member table: primary first, then its standby
+            assertInstanceOf(ArrayRedisMessage.class, array.children().get(1));
+            ArrayRedisMessage members = (ArrayRedisMessage) array.children().get(1);
+            assertEquals(4, members.children().size());
+
+            assertEquals(node1Member.getId(), readString(members.children().get(0)));
+            assertEquals(advertiseOf(node1Member), readStrings(members.children().get(1)));
+
+            assertEquals(node2Member.getId(), readString(members.children().get(2)));
+            assertEquals(advertiseOf(node2Member), readStrings(members.children().get(3)));
         }
     }
 }
