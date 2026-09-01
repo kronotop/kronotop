@@ -33,14 +33,20 @@ without maintaining separate config files:
 ```bash
 # Node 1
 java -Dnetwork.external.host=10.0.0.1 -Dnetwork.external.port=5484 \
+     -Dnetwork.external.advertise.0=10.0.0.1:5484 \
      -Dnetwork.internal.host=10.0.0.1 -Dnetwork.internal.port=3320 \
+     -Dnetwork.internal.advertise.0=10.0.0.1:3320 \
      -Ddata_dir=/data/node1 -jar kronotop.jar
 
 # Node 2
 java -Dnetwork.external.host=10.0.0.2 -Dnetwork.external.port=5484 \
+     -Dnetwork.external.advertise.0=10.0.0.2:5484 \
      -Dnetwork.internal.host=10.0.0.2 -Dnetwork.internal.port=3320 \
+     -Dnetwork.internal.advertise.0=10.0.0.2:3320 \
      -Ddata_dir=/data/node2 -jar kronotop.jar
 ```
+
+List values such as `advertise` use an index suffix, one property per entry: `advertise.0`, `advertise.1`, and so on.
 
 `-D` overrides take precedence over both `reference.conf` defaults and any config file supplied via `-Dconfig.file`. You
 can combine both approaches: use a shared config file for cluster-wide settings and `-D` flags for member-specific
@@ -94,25 +100,59 @@ Both interfaces share the same configuration structure.
 
 ### External Interface
 
-| Parameter                               | Type    | Default       | Description                                                                                                                 |
-|-----------------------------------------|---------|---------------|-----------------------------------------------------------------------------------------------------------------------------|
-| `network.external.host`                 | string  | `"127.0.0.1"` | Bind address for the client-facing interface. Set to `0.0.0.0` to accept connections on all interfaces.                     |
-| `network.external.port`                 | int     | `5484`        | TCP port for client connections.                                                                                            |
-| `network.external.netty.transport`      | string  | `"nio"`       | Netty transport type. `"nio"` works on all platforms; `"epoll"` uses Linux kernel-level I/O for lower latency (Linux only). |
-| `network.external.netty.worker_threads` | int     | `0`           | Number of Netty worker threads. `0` uses the Netty default (2 x CPU cores).                                                 |
-| `network.external.netty.so_backlog`     | int     | `4096`        | TCP listen backlog size. Higher values allow more pending connections during connection bursts.                             |
-| `network.external.netty.so_reuseport`   | boolean | `true`        | Enable `SO_REUSEPORT` socket option. Only effective with `epoll` transport on Linux.                                        |
+| Parameter                               | Type            | Default       | Description                                                                                                                                                          |
+|-----------------------------------------|-----------------|---------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `network.external.host`                 | string          | `"127.0.0.1"` | Bind address for the client-facing interface. Set to `0.0.0.0` to accept connections on all interfaces. It is only a bind address, it is never published to clients. |
+| `network.external.port`                 | int             | `5484`        | TCP port for client connections.                                                                                                                                     |
+| `network.external.advertise`            | list of strings | `[]`          | Addresses clients use to reach this member. See [Advertised Addresses](#advertised-addresses).                                                                       |
+| `network.external.netty.transport`      | string          | `"nio"`       | Netty transport type. `"nio"` works on all platforms; `"epoll"` uses Linux kernel-level I/O for lower latency (Linux only).                                          |
+| `network.external.netty.worker_threads` | int             | `0`           | Number of Netty worker threads. `0` uses the Netty default (2 x CPU cores).                                                                                          |
+| `network.external.netty.so_backlog`     | int             | `4096`        | TCP listen backlog size. Higher values allow more pending connections during connection bursts.                                                                      |
+| `network.external.netty.so_reuseport`   | boolean         | `true`        | Enable `SO_REUSEPORT` socket option. Only effective with `epoll` transport on Linux.                                                                                 |
 
 ### Internal Interface
 
-| Parameter                               | Type    | Default       | Description                                                   |
-|-----------------------------------------|---------|---------------|---------------------------------------------------------------|
-| `network.internal.host`                 | string  | `"127.0.0.1"` | Bind address for the internal interface.                      |
-| `network.internal.port`                 | int     | `3320`        | TCP port for inter-node communication and admin commands.     |
-| `network.internal.netty.transport`      | string  | `"nio"`       | Netty transport type. Same options as the external interface. |
-| `network.internal.netty.worker_threads` | int     | `0`           | Number of Netty worker threads.                               |
-| `network.internal.netty.so_backlog`     | int     | `4096`        | TCP listen backlog.                                           |
-| `network.internal.netty.so_reuseport`   | boolean | `true`        | Enable `SO_REUSEPORT`.                                        |
+| Parameter                               | Type            | Default       | Description                                                                                                 |
+|-----------------------------------------|-----------------|---------------|-------------------------------------------------------------------------------------------------------------|
+| `network.internal.host`                 | string          | `"127.0.0.1"` | Bind address for the internal interface. It is only a bind address, it is never published to other members. |
+| `network.internal.port`                 | int             | `3320`        | TCP port for inter-node communication and admin commands.                                                   |
+| `network.internal.advertise`            | list of strings | `[]`          | Addresses other members use to reach this member. See [Advertised Addresses](#advertised-addresses).        |
+| `network.internal.netty.transport`      | string          | `"nio"`       | Netty transport type. Same options as the external interface.                                               |
+| `network.internal.netty.worker_threads` | int             | `0`           | Number of Netty worker threads.                                                                             |
+| `network.internal.netty.so_backlog`     | int             | `4096`        | TCP listen backlog.                                                                                         |
+| `network.internal.netty.so_reuseport`   | boolean         | `true`        | Enable `SO_REUSEPORT`.                                                                                      |
+
+### Advertised Addresses
+
+`host` and `port` only say where a member listens. A bind address is often not reachable from outside, for example
+`0.0.0.0` or a container-private IP. The `advertise` list says how others reach the member. Kronotop stores it in the
+cluster metadata, and clients and other members read it from there.
+
+Rules:
+
+- Each entry is `host` or `host:port`. If the port is missing, the bind port of the same interface is used.
+- The first entry is the preferred one. It is the address clients and other members connect to.
+- An empty list is allowed only when the interface binds to a loopback address. In that case Kronotop uses the canonical
+  name of that address with the bind port. This keeps single-node development setups working without extra config.
+- If the list is empty and the bind host is not a loopback address, startup fails.
+
+```hocon
+network {
+  external {
+    host = "0.0.0.0"
+    port = 5484
+    advertise = ["node1.example.com:5484"]
+  }
+  internal {
+    host = "0.0.0.0"
+    port = 3320
+    advertise = ["10.0.0.1:3320"]
+  }
+}
+```
+
+The external and internal lists are independent. A member can publish a public name to clients and a private network
+address to the rest of the cluster.
 
 ### TLS (Optional)
 
