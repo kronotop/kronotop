@@ -24,6 +24,7 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.client.InternalClient;
 import com.kronotop.cluster.client.StatefulInternalConnection;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.network.Address;
 import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
@@ -99,8 +100,8 @@ public class ReplicationClient {
             // Clean up existing client if any
             cleanupResources();
 
-            RedisURI.Builder builder = RedisURI.Builder.
-                    redis(member.getInternalAddress().getHost(), member.getInternalAddress().getPort());
+            Address address = member.primaryInternalAdvertise();
+            RedisURI.Builder builder = RedisURI.Builder.redis(address.getHost(), address.getPort());
             RedisClient redisClient = RedisClient.create(builder.build());
             redisClient.setOptions(options);
 
