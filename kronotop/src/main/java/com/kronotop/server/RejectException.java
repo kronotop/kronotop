@@ -19,8 +19,12 @@ package com.kronotop.server;
 import com.kronotop.KronotopException;
 import com.kronotop.network.Address;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class RejectException extends KronotopException {
-    public RejectException(int shardId, Address address) {
-        super(RESPError.REJECT, String.format("%s %s", shardId, address.toString()));
+    public RejectException(int shardId, List<Address> advertise) {
+        String addresses = advertise.stream().map(Address::toString).collect(Collectors.joining(", "));
+        super(RESPError.REJECT, String.format("%s %s", shardId, addresses));
     }
 }
