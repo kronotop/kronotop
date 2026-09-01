@@ -7,6 +7,27 @@ DEFAULT_JAVA_OPTS="--sun-misc-unsafe-memory-access=allow --add-opens jdk.unsuppo
 JAVA_OPTS="${KRONOTOP_JAVA_OPTS:-$DEFAULT_JAVA_OPTS}"
 FDB_CLUSTER_FILE="${KR_HOME}/fdb.cluster"
 
+# Kronotop binds to the wildcard address inside the container, so it cannot guess
+# the addresses other members and clients use to reach it. Turn the comma separated
+# KRONOTOP_EXTERNAL_ADVERTISE and KRONOTOP_INTERNAL_ADVERTISE lists into indexed
+# system properties.
+ADVERTISE_OPTS=""
+add_advertise() {
+    i=0
+    old_ifs="$IFS"
+    IFS=','
+    for address in $2; do
+        if [ -n "$address" ]; then
+            ADVERTISE_OPTS="${ADVERTISE_OPTS} -Dnetwork.$1.advertise.${i}=${address}"
+            i=$((i + 1))
+        fi
+    done
+    IFS="$old_ifs"
+}
+
+add_advertise external "${KRONOTOP_EXTERNAL_ADVERTISE:-}"
+add_advertise internal "${KRONOTOP_INTERNAL_ADVERTISE:-}"
+
 if ! /usr/bin/fdbcli -C $FDB_CLUSTER_FILE --exec status --timeout 10 ; then
     echo "Initializing a new FoundationDB cluster"
     if ! fdbcli -C $FDB_CLUSTER_FILE --exec "configure new single memory ; status" --timeout 10 ; then
@@ -36,4 +57,4 @@ if [ -n "${KRONOTOP_BOOTSTRAP:-}" ]; then
     ) &
 fi
 
-exec java $JAVA_OPTS -Dlog.level=INFO -Dnetwork.external.host=0.0.0.0 -Dnetwork.internal.host=0.0.0.0 -Ddata_dir=/var/kronotop -jar ${KR_HOME}/kronotop.jar
+exec java $JAVA_OPTS $ADVERTISE_OPTS -Dlog.level=INFO -Dnetwork.external.host=0.0.0.0 -Dnetwork.internal.host=0.0.0.0 -Ddata_dir=/var/kronotop -jar ${KR_HOME}/kronotop.jar

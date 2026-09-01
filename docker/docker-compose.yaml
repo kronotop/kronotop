@@ -27,6 +27,8 @@ services:
     environment:
       FDB_COORDINATOR: foundationdb
       FDB_API_VERSION: 630
+      KRONOTOP_EXTERNAL_ADVERTISE: "127.0.0.1:5484,kronotop-primary:5484"
+      KRONOTOP_INTERNAL_ADVERTISE: "kronotop-primary:3320"
       KRONOTOP_BOOTSTRAP: "--primary BUCKET kronotop-primary:3320=0 --standby BUCKET kronotop-standby:3320=0"
       KRONOTOP_STANDBY_HOST: "kronotop-standby"
     platform: "linux/amd64"
@@ -47,6 +49,8 @@ services:
     environment:
       FDB_COORDINATOR: foundationdb
       FDB_API_VERSION: 630
+      KRONOTOP_EXTERNAL_ADVERTISE: "127.0.0.1:5485,kronotop-standby:5484"
+      KRONOTOP_INTERNAL_ADVERTISE: "kronotop-standby:3320"
     platform: "linux/amd64"
 
 networks:
