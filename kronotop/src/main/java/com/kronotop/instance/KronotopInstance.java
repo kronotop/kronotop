@@ -163,7 +163,7 @@ public class KronotopInstance {
             if (address.isLoopbackAddress()) {
                 HostAndPort canonical = HostAndPort.fromParts(address.getCanonicalHostName(), bindAddress.getPort());
                 advertise.add(canonical.toString());
-                LOGGER.warn("No advertised address configured for the '{}' network interface and it binds to " +
+                LOGGER.debug("No advertised address configured for the '{}' network interface and it binds to " +
                                 "the loopback address {}, falling back to {}.",
                         networkInterface, bindAddress.getHost(), canonical);
             }

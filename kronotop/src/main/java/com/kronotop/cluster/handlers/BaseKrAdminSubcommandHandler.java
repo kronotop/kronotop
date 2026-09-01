@@ -24,6 +24,7 @@ import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.network.Address;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
@@ -154,13 +155,22 @@ public class BaseKrAdminSubcommandHandler {
         String processId = VersionstampUtil.base32HexEncode(member.getProcessId());
         current.put(bulkString("process_id"), bulkString(processId));
 
-        current.put(bulkString("external_host"), bulkString(member.getExternalAddress().getHost()));
-        current.put(bulkString("external_port"), new IntegerRedisMessage(member.getExternalAddress().getPort()));
-
-        current.put(bulkString("internal_host"), bulkString(member.getInternalAddress().getHost()));
-        current.put(bulkString("internal_port"), new IntegerRedisMessage(member.getInternalAddress().getPort()));
+        current.put(bulkString("external_advertise"), advertiseToRedisMessage(member.getExternalAdvertise()));
+        current.put(bulkString("internal_advertise"), advertiseToRedisMessage(member.getInternalAdvertise()));
 
         long latestHeartbeat = membership.getLatestHeartbeat(member);
         current.put(bulkString("latest_heartbeat"), new IntegerRedisMessage(latestHeartbeat));
+    }
+
+    /**
+     * Renders an advertise list as an array of host:port strings. The list is ordered and its first
+     * entry is the preferred one.
+     */
+    private ArrayRedisMessage advertiseToRedisMessage(List<Address> addresses) {
+        List<RedisMessage> children = new ArrayList<>(addresses.size());
+        for (Address address : addresses) {
+            children.add(bulkString(address.toString()));
+        }
+        return new ArrayRedisMessage(children);
     }
 }

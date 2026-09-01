@@ -18,7 +18,6 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.google.common.net.HostAndPort;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
@@ -477,7 +476,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldLocateMarkStalePrefixesTask() {
-        // Behavior: LOCATE returns a map with member_id and process_id of the task owner.
+        // Behavior: LOCATE returns a map with member_id, process_id and the advertise lists of the task owner.
         createStalePrefixes(500);
 
         VolumeAdminCommandBuilder<String, String> cmd = new VolumeAdminCommandBuilder<>(StringCodec.ASCII);
@@ -500,8 +499,8 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
             boolean foundMemberId = false;
             boolean foundProcessId = false;
-            boolean foundExternalAddress = false;
-            boolean foundInternalAddress = false;
+            boolean foundExternalAdvertise = false;
+            boolean foundInternalAdvertise = false;
             for (var entry : mapMsg.children().entrySet()) {
                 String key = ((FullBulkStringRedisMessage) entry.getKey()).content().toString(StandardCharsets.US_ASCII);
                 if ("member_id".equals(key)) {
@@ -514,22 +513,18 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                     assertFalse(value.isEmpty());
                     assertEquals(context.getMember().getProcessId(), VersionstampUtil.base32HexDecode(value));
                     foundProcessId = true;
-                } else if ("external_address".equals(key)) {
-                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
-                    Address expected = context.getMember().getExternalAddress();
-                    assertEquals(HostAndPort.fromParts(expected.getHost(), expected.getPort()).toString(), value);
-                    foundExternalAddress = true;
-                } else if ("internal_address".equals(key)) {
-                    String value = ((FullBulkStringRedisMessage) entry.getValue()).content().toString(StandardCharsets.US_ASCII);
-                    Address expected = context.getMember().getInternalAddress();
-                    assertEquals(HostAndPort.fromParts(expected.getHost(), expected.getPort()).toString(), value);
-                    foundInternalAddress = true;
+                } else if ("external_advertise".equals(key)) {
+                    assertAdvertise(entry.getValue(), context.getMember().getExternalAdvertise());
+                    foundExternalAdvertise = true;
+                } else if ("internal_advertise".equals(key)) {
+                    assertAdvertise(entry.getValue(), context.getMember().getInternalAdvertise());
+                    foundInternalAdvertise = true;
                 }
             }
             assertTrue(foundMemberId);
             assertTrue(foundProcessId);
-            assertTrue(foundInternalAddress);
-            assertTrue(foundExternalAddress);
+            assertTrue(foundInternalAdvertise);
+            assertTrue(foundExternalAdvertise);
         }
 
         // Stop the task
@@ -794,5 +789,14 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR invalid number of parameters", actualMessage.content());
+    }
+
+    private void assertAdvertise(RedisMessage message, List<Address> expected) {
+        ArrayRedisMessage array = (ArrayRedisMessage) message;
+        assertEquals(expected.size(), array.children().size());
+        for (int i = 0; i < expected.size(); i++) {
+            FullBulkStringRedisMessage item = (FullBulkStringRedisMessage) array.children().get(i);
+            assertEquals(expected.get(i).toString(), item.content().toString(StandardCharsets.US_ASCII));
+        }
     }
 }

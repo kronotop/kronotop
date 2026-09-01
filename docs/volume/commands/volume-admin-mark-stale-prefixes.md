@@ -31,8 +31,9 @@ VOLUME.ADMIN MARK-STALE-PREFIXES <operation>
 
 - **START, STOP, REMOVE:** Simple string `OK` on success. `OK` means the operation was accepted, not that scanning has
   finished.
-- **LOCATE:** A map with `member_id` (string), `process_id` (Base32Hex-encoded string), `external_address` (string,
-  host:port or null), and `internal_address` (string, host:port or null) identifying the task owner.
+- **LOCATE:** A map that identifies the task owner. It contains `member_id` (string), `process_id` (Base32Hex-encoded
+  string), `external_advertise` and `internal_advertise`. The two advertise fields are arrays of `host:port` strings,
+  and they are empty when the member is no longer registered.
 
 ## Behavior
 
@@ -106,8 +107,10 @@ OK
 127.0.0.1:3320> VOLUME.ADMIN MARK-STALE-PREFIXES LOCATE
 1# "member_id" => "cdef7490344552d50e60f42b04e1febcaeafd4b4"
 2# "process_id" => "000016M5BPGLO0000000xxxx"
-3# "external_address" => "192.168.1.10:5484"
-4# "internal_address" => "192.168.1.10:3320"
+3# "external_advertise" =>
+   1) "192.168.1.10:5484"
+4# "internal_advertise" =>
+   1) "192.168.1.10:3320"
 ```
 
 **Stop when no task is running:**

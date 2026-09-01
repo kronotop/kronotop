@@ -21,7 +21,6 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.google.common.net.HostAndPort;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberNotRegisteredException;
@@ -35,6 +34,7 @@ import com.kronotop.network.Address;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.task.TaskService;
 import com.kronotop.transaction.TransactionUtil;
@@ -44,6 +44,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 
@@ -89,22 +90,23 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
                     Versionstamp processId = Versionstamp.fromBytes(processIdBytes);
                     result.put(bulkString("process_id"), bulkString(VersionstampUtil.base32HexEncode(processId)));
 
-                    String externalAddress = null;
-                    String internalAddress = null;
+                    List<RedisMessage> externalAdvertise = new ArrayList<>();
+                    List<RedisMessage> internalAdvertise = new ArrayList<>();
                     try {
                         MembershipService membership = context.getService(MembershipService.NAME);
                         Member member = membership.findMember(memberId);
 
-                        Address internal = member.getInternalAddress();
-                        internalAddress = HostAndPort.fromParts(internal.getHost(), internal.getPort()).toString();
-
-                        Address external = member.getExternalAddress();
-                        externalAddress = HostAndPort.fromParts(external.getHost(), external.getPort()).toString();
+                        for (Address address : member.getExternalAdvertise()) {
+                            externalAdvertise.add(bulkString(address.toString()));
+                        }
+                        for (Address address : member.getInternalAdvertise()) {
+                            internalAdvertise.add(bulkString(address.toString()));
+                        }
                     } catch (MemberNotRegisteredException ignored) {
                     }
 
-                    result.put(bulkString("external_address"), bulkString(externalAddress));
-                    result.put(bulkString("internal_address"), bulkString(internalAddress));
+                    result.put(bulkString("external_advertise"), new ArrayRedisMessage(externalAdvertise));
+                    result.put(bulkString("internal_advertise"), new ArrayRedisMessage(internalAdvertise));
 
                     return result;
                 }

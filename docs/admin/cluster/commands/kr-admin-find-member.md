@@ -21,15 +21,13 @@ KR.ADMIN FIND-MEMBER <member-id>
 
 RESP3 map containing the member's properties:
 
-| Field              | Type    | Description                                                                                                                          |
-|--------------------|---------|--------------------------------------------------------------------------------------------------------------------------------------|
-| `status`           | string  | Member status: `RUNNING`, `UNAVAILABLE`, `STOPPED`, or `UNKNOWN`                                                                     |
-| `process_id`       | string  | Base32-hex encoded Versionstamp, unique per process lifetime                                                                         |
-| `external_host`    | string  | Client-facing hostname                                                                                                               |
-| `external_port`    | integer | Client-facing port                                                                                                                   |
-| `internal_host`    | string  | Cluster-internal hostname                                                                                                            |
-| `internal_port`    | integer | Cluster-internal port                                                                                                                |
-| `latest_heartbeat` | integer | Monotonically increasing heartbeat counter, incremented by one on each heartbeat interval. `0` if no heartbeat has been recorded yet |
+| Field                | Type             | Description                                                                                                                          |
+|----------------------|------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| `status`             | string           | Member status: `RUNNING`, `UNAVAILABLE`, `STOPPED`, or `UNKNOWN`                                                                     |
+| `process_id`         | string           | Base32-hex encoded Versionstamp, unique per process lifetime                                                                         |
+| `external_advertise` | array of strings | Addresses clients connect to, `host:port`, preferred entry first                                                                     |
+| `internal_advertise` | array of strings | Addresses other cluster members connect to, `host:port`, preferred entry first                                                       |
+| `latest_heartbeat`   | integer          | Monotonically increasing heartbeat counter, incremented by one on each heartbeat interval. `0` if no heartbeat has been recorded yet |
 
 Unlike `LIST-MEMBERS`, the response does not include the member ID as a key, since the caller already knows it.
 
@@ -59,11 +57,11 @@ Requires cluster initialization.
 127.0.0.1:3320> KR.ADMIN FIND-MEMBER 006cdc459c59e600c76494e8388857fc3cba2fa8
 1# "status" => "RUNNING"
 2# "process_id" => "A1B2C3D4E5F6G7H8I9J0"
-3# "external_host" => "10.0.0.1"
-4# "external_port" => (integer) 5484
-5# "internal_host" => "10.0.0.1"
-6# "internal_port" => (integer) 3320
-7# "latest_heartbeat" => (integer) 31404
+3# "external_advertise" =>
+   1) "10.0.0.1:5484"
+4# "internal_advertise" =>
+   1) "10.0.0.1:3320"
+5# "latest_heartbeat" => (integer) 31404
 ```
 
 **Look up a member by 4-character prefix:**
@@ -72,11 +70,11 @@ Requires cluster initialization.
 127.0.0.1:3320> KR.ADMIN FIND-MEMBER 006c
 1# "status" => "RUNNING"
 2# "process_id" => "A1B2C3D4E5F6G7H8I9J0"
-3# "external_host" => "10.0.0.1"
-4# "external_port" => (integer) 5484
-5# "internal_host" => "10.0.0.1"
-6# "internal_port" => (integer) 3320
-7# "latest_heartbeat" => (integer) 31404
+3# "external_advertise" =>
+   1) "10.0.0.1:5484"
+4# "internal_advertise" =>
+   1) "10.0.0.1:3320"
+5# "latest_heartbeat" => (integer) 31404
 ```
 
 **Member not found:**

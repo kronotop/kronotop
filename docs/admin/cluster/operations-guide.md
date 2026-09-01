@@ -50,11 +50,11 @@ writes.
    1# "006cdc459c59e600c76494e8388857fc3cba2fa8" =>
       1# "status" => "RUNNING"
       2# "process_id" => "A1B2C3D4E5F6G7H8I9J0"
-      3# "external_host" => "10.0.0.1"
-      4# "external_port" => (integer) 5484
-      5# "internal_host" => "10.0.0.1"
-      6# "internal_port" => (integer) 3320
-      7# "latest_heartbeat" => (integer) 31404
+      3# "external_advertise" =>
+         1) "10.0.0.1:5484"
+      4# "internal_advertise" =>
+         1) "10.0.0.1:3320"
+      5# "latest_heartbeat" => (integer) 31404
    ```
 
 3. **Assign a primary** to each shard. A four-character member ID prefix is accepted in place of the
@@ -155,11 +155,11 @@ intervals apart. If a member's counter has not advanced, that member has gone si
 127.0.0.1:3320> KR.ADMIN FIND-MEMBER ad14d838a2fa6bf2b87bf7872dbeb63bec03898b
 1# "status" => "RUNNING"
 2# "process_id" => "0000085BAE3Q20000000xxxx"
-3# "external_host" => "172.20.0.4"
-4# "external_port" => (integer) 5484
-5# "internal_host" => "172.20.0.4"
-6# "internal_port" => (integer) 3320
-7# "latest_heartbeat" => (integer) 31396
+3# "external_advertise" =>
+   1) "172.20.0.4:5484"
+4# "internal_advertise" =>
+   1) "172.20.0.4:3320"
+5# "latest_heartbeat" => (integer) 31396
 ```
 
 ---

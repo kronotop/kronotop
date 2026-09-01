@@ -24,6 +24,7 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
@@ -34,7 +35,6 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
@@ -66,6 +66,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldListMembers() {
+        // Behavior: LIST-MEMBERS returns every known member with its status, process id and advertise lists.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.listMembers().encode(buf);
@@ -96,24 +97,12 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                     assertEquals(VersionstampUtil.base32HexDecode(value.content().toString(StandardCharsets.UTF_8)), context.getMember().getProcessId());
                 }
 
-                if (keyStr.equals("external_host")) {
-                    FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) valueMessage;
-                    assertEquals(value.content().toString(StandardCharsets.UTF_8), context.getMember().getExternalAddress().getHost());
+                if (keyStr.equals("external_advertise")) {
+                    assertAdvertise(valueMessage, context.getMember().getExternalAdvertise());
                 }
 
-                if (keyStr.equals("external_port")) {
-                    IntegerRedisMessage value = (IntegerRedisMessage) valueMessage;
-                    assertEquals(value.value(), context.getMember().getExternalAddress().getPort());
-                }
-
-                if (keyStr.equals("internal_host")) {
-                    FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) valueMessage;
-                    assertEquals(value.content().toString(StandardCharsets.UTF_8), context.getMember().getInternalAddress().getHost());
-                }
-
-                if (keyStr.equals("internal_port")) {
-                    IntegerRedisMessage value = (IntegerRedisMessage) valueMessage;
-                    assertEquals(value.value(), context.getMember().getInternalAddress().getPort());
+                if (keyStr.equals("internal_advertise")) {
+                    assertAdvertise(valueMessage, context.getMember().getInternalAdvertise());
                 }
 
                 if (keyStr.equals("latest_heartbeat")) {
@@ -127,6 +116,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldDescribeMember() {
+        // Behavior: DESCRIBE-MEMBER returns the local member with its id, status, process id and advertise lists.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.describeMember().encode(buf);
@@ -153,24 +143,12 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 assertEquals(VersionstampUtil.base32HexDecode(value.content().toString(StandardCharsets.UTF_8)), context.getMember().getProcessId());
             }
 
-            if (keyStr.equals("external_host")) {
-                FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) valueMessage;
-                assertEquals(value.content().toString(StandardCharsets.UTF_8), context.getMember().getExternalAddress().getHost());
+            if (keyStr.equals("external_advertise")) {
+                assertAdvertise(valueMessage, context.getMember().getExternalAdvertise());
             }
 
-            if (keyStr.equals("external_port")) {
-                IntegerRedisMessage value = (IntegerRedisMessage) valueMessage;
-                assertEquals(value.value(), context.getMember().getExternalAddress().getPort());
-            }
-
-            if (keyStr.equals("internal_host")) {
-                FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) valueMessage;
-                assertEquals(value.content().toString(StandardCharsets.UTF_8), context.getMember().getInternalAddress().getHost());
-            }
-
-            if (keyStr.equals("internal_port")) {
-                IntegerRedisMessage value = (IntegerRedisMessage) valueMessage;
-                assertEquals(value.value(), context.getMember().getInternalAddress().getPort());
+            if (keyStr.equals("internal_advertise")) {
+                assertAdvertise(valueMessage, context.getMember().getInternalAdvertise());
             }
 
             if (keyStr.equals("latest_heartbeat")) {
@@ -183,6 +161,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldFindMember() {
+        // Behavior: FIND-MEMBER returns the requested member with its status, process id and advertise lists.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         cmd.findMember(kronotopInstance.getMember().getId()).encode(buf);
@@ -204,24 +183,12 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                 assertEquals(VersionstampUtil.base32HexDecode(value.content().toString(StandardCharsets.UTF_8)), context.getMember().getProcessId());
             }
 
-            if (keyStr.equals("external_host")) {
-                FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) valueMessage;
-                assertEquals(value.content().toString(StandardCharsets.UTF_8), context.getMember().getExternalAddress().getHost());
+            if (keyStr.equals("external_advertise")) {
+                assertAdvertise(valueMessage, context.getMember().getExternalAdvertise());
             }
 
-            if (keyStr.equals("external_port")) {
-                IntegerRedisMessage value = (IntegerRedisMessage) valueMessage;
-                assertEquals(value.value(), context.getMember().getExternalAddress().getPort());
-            }
-
-            if (keyStr.equals("internal_host")) {
-                FullBulkStringRedisMessage value = (FullBulkStringRedisMessage) valueMessage;
-                assertEquals(value.content().toString(StandardCharsets.UTF_8), context.getMember().getInternalAddress().getHost());
-            }
-
-            if (keyStr.equals("internal_port")) {
-                IntegerRedisMessage value = (IntegerRedisMessage) valueMessage;
-                assertEquals(value.value(), context.getMember().getInternalAddress().getPort());
+            if (keyStr.equals("internal_advertise")) {
+                assertAdvertise(valueMessage, context.getMember().getInternalAdvertise());
             }
 
             if (keyStr.equals("latest_heartbeat")) {
@@ -409,7 +376,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         MapRedisMessage result = (MapRedisMessage) msg;
 
         Set<String> topLevelKeys = new HashSet<>();
-        result.children().forEach((keyMessage, valueMessage) -> {
+        result.children().forEach((keyMessage, ignored) -> {
             FullBulkStringRedisMessage key = (FullBulkStringRedisMessage) keyMessage;
             topLevelKeys.add(key.content().toString(StandardCharsets.UTF_8));
         });
@@ -452,7 +419,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
                 MapRedisMessage shardDetails = (MapRedisMessage) shardDetailsMessage;
                 Set<String> shardKeys = new HashSet<>();
-                shardDetails.children().forEach((sk, sv) ->
+                shardDetails.children().forEach((sk, ignored) ->
                         shardKeys.add(((FullBulkStringRedisMessage) sk).content().toString(StandardCharsets.UTF_8))
                 );
 
@@ -602,5 +569,12 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals("ERR no pending drop-cluster token for this cluster", actualMessage.content());
     }
 
+    private void assertAdvertise(RedisMessage message, List<Address> expected) {
+        ArrayRedisMessage array = (ArrayRedisMessage) message;
+        assertEquals(expected.size(), array.children().size());
+        for (int i = 0; i < expected.size(); i++) {
+            FullBulkStringRedisMessage item = (FullBulkStringRedisMessage) array.children().get(i);
+            assertEquals(expected.get(i).toString(), item.content().toString(StandardCharsets.UTF_8));
+        }
+    }
 }
-
