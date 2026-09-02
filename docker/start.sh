@@ -28,12 +28,24 @@ add_advertise() {
 add_advertise external "${KRONOTOP_EXTERNAL_ADVERTISE:-}"
 add_advertise internal "${KRONOTOP_INTERNAL_ADVERTISE:-}"
 
-if ! /usr/bin/fdbcli -C $FDB_CLUSTER_FILE --exec status --timeout 10 ; then
-    echo "Initializing a new FoundationDB cluster"
-    if ! fdbcli -C $FDB_CLUSTER_FILE --exec "configure new single memory ; status" --timeout 10 ; then
-        echo "Unable to configure a new FoundationDB cluster."
-        exit 1
+# Only the node with KRONOTOP_INIT_FDB configures a new FoundationDB cluster.
+# The other nodes wait until the cluster is ready.
+if [ -n "${KRONOTOP_INIT_FDB:-}" ]; then
+    echo "Checking whether the FoundationDB cluster is already configured. This check may take up to 10 seconds on first start."
+    if ! /usr/bin/fdbcli -C $FDB_CLUSTER_FILE --exec status --timeout 10 ; then
+        echo "No configured FoundationDB cluster found. Initializing a new one..."
+        if ! fdbcli -C $FDB_CLUSTER_FILE --exec "configure new single memory ; status" --timeout 10 ; then
+            echo "Unable to configure a new FoundationDB cluster."
+            exit 1
+        fi
     fi
+    echo "FoundationDB cluster is ready."
+else
+    echo "Waiting for the FoundationDB cluster to be ready..."
+    until /usr/bin/fdbcli -C $FDB_CLUSTER_FILE --exec status --timeout 3 > /dev/null 2>&1 ; do
+        sleep 1
+    done
+    echo "FoundationDB cluster is ready."
 fi
 
 if [ -n "${KRONOTOP_BOOTSTRAP:-}" ]; then
