@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Locale;
@@ -85,7 +86,8 @@ public class KronotopInstanceStarter {
                 member.getExternalAddress(), joinAddresses(member.getExternalAdvertise()));
         LOGGER.info("Internal: bound to {}, advertised as {}",
                 member.getInternalAddress(), joinAddresses(member.getInternalAdvertise()));
-        LOGGER.info("Ready to accept connections");
+        LOGGER.info("Ready to accept connections in {} ms",
+                ManagementFactory.getRuntimeMXBean().getUptime());
     }
 
     /**
