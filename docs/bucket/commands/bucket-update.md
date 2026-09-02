@@ -144,7 +144,7 @@ hosted on other nodes, the server rejects the request with a redirect to the app
 | `INDEXTYPE_MISMATCH`    | The updated value type does not match the expected index type.                                                           |
 | `DUPLICATEKEY`          | Duplicate `_id` encountered during upsert.                                                                               |
 | `VECTORINDEXNOTREADY`   | A vector index on the bucket is still bootstrapping. Retry after a short delay.                                          |
-| `ERR`                   | Update parameter cannot be empty.                                                                                        |
+| `ERR`                   | The update parameter is missing, or the update document is empty.                                                        |
 
 ## Examples
 

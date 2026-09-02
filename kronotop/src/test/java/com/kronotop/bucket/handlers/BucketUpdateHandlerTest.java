@@ -620,6 +620,21 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldRejectEmptyUpdateDocument() {
+        // Behavior: BUCKET.UPDATE returns an error when the update document parses to an empty document.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.update(TEST_BUCKET, "{}", "{}").encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR update document cannot be an empty document", errorMessage.content());
+    }
+
+    @Test
     void shouldThrowIndexTypeMismatchExceptionWhenUpdatingWithWrongType() {
         // Create an index expecting INT32 for 'age' field
         SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
