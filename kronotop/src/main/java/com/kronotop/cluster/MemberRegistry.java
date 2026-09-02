@@ -131,6 +131,7 @@ class MemberRegistry {
         retry.executeRunnable(() -> {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 KronotopDirectoryNode directory = getDirectoryNode(member.getId());
+                boolean registered = false;
                 if (isAdded(tr, member.getId())) {
                     DirectorySubspace subspace = context.getDirectoryLayer().open(tr, directory.toList()).join();
                     byte[] key = subspace.pack(Tuple.from(MEMBER_KEY));
@@ -147,9 +148,13 @@ class MemberRegistry {
                 } else {
                     DirectorySubspace subspace = context.getDirectoryLayer().create(tr, directory.toList()).join();
                     tr.set(subspace.pack(Tuple.from(MEMBER_KEY)), JSONUtil.writeValueAsBytes(member));
-                    LOGGER.info("Member: {} has been registered", member.getId());
+                    // this is an inexpensive solution to prevent doubly logging "...registered" line in case of retry.
+                    registered = true;
                 }
                 tr.commit().join();
+                if (registered) {
+                    LOGGER.info("Member: {} has been registered", member.getId());
+                }
             }
         });
     }
