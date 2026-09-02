@@ -5,10 +5,6 @@ sidebar:
 description: "Volume is Kronotop's local storage engine."
 ---
 
----
-
-## Overview
-
 Volume is Kronotop's local storage engine. It stores document body content in the local filesystem while all metadata
 (entry locations, versioning, segment accounting, and replication state) lives in FoundationDB.
 
