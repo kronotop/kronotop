@@ -66,45 +66,45 @@ public class Volume {
     private static final Logger LOGGER = LoggerFactory.getLogger(Volume.class);
 
     /**
-     * Byte array representing value 1 in little-endian format for atomic increment operations.
+     * Little-endian encoding of value 1, used for atomic increments.
      */
     private static final byte[] INCREASE_BY_ONE_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
 
 
     /**
-     * Application context providing access to FoundationDB and core services.
+     * Application context that gives access to FoundationDB and core services.
      */
     private final Context context;
 
     /**
-     * Unique identifier for this volume, generated using SipHash24 during initialization.
+     * Unique volume identifier, generated with SipHash24 during initialization.
      */
     private final long volumeId;
 
     /**
-     * Configuration settings for this volume (name, data directory, segment size, subspace).
+     * Volume configuration: name, data directory, segment size and subspace.
      */
     private final VolumeConfig config;
 
     /**
-     * FoundationDB subspace containing all volume data (entries, metadata, segments).
+     * FoundationDB subspace that holds all volume data: entries, metadata and segments.
      */
     private final VolumeSubspace subspace;
 
     /**
-     * Cache for entry metadata, keyed by prefix to optimize reads and avoid FoundationDB lookups.
+     * Entry metadata cache, keyed by prefix. It avoids FoundationDB lookups on reads.
      */
     private final EntryMetadataCache entryMetadataCache;
 
     private final byte[] mutationTriggerKey;
 
     /**
-     * Lock protecting volume status changes.
+     * Lock that protects volume status changes.
      */
     private final ReadWriteLock statusLock = new ReentrantReadWriteLock();
 
     /**
-     * Runtime attributes for this volume (e.g., ShardId, ownership information).
+     * Runtime attributes of this volume, such as shard id and ownership information.
      */
     private final AttributeMap attributes = new DefaultAttributeMap();
 
@@ -125,11 +125,11 @@ public class Volume {
     private VacuumWatchDog vacuumWatchDog;
 
     /**
-     * Current status of the volume (READONLY, READWRITE).
+     * Current status of the volume: READONLY or READWRITE.
      */
     private VolumeStatus status;
     /**
-     * Flag indicating whether the volume has been closed.
+     * True when the volume has been closed.
      */
     private volatile boolean closed;
 
@@ -162,9 +162,9 @@ public class Volume {
     }
 
     /**
-     * Generates and returns a byte array key used as a mutation trigger.
+     * Computes the packed mutation trigger key of this volume.
      *
-     * @return A byte array representing the packed mutation trigger key.
+     * @return the packed mutation trigger key
      */
     byte[] computeMutationTriggerKey() {
         return VolumeUtil.computeMutationTriggerKey(config.subspace());
@@ -338,12 +338,11 @@ public class Volume {
     }
 
     /**
-     * Sets the specified attribute with the provided key and value.
-     * The operation is synchronized to ensure thread safety when accessing the attributes map.
+     * Sets an attribute. Access to the attribute map is synchronized.
      *
      * @param <T>   the type of the attribute value
-     * @param key   the key used to identify the attribute
-     * @param value the value to set for the specified attribute key
+     * @param key   the attribute key
+     * @param value the value to set
      */
     public <T> void setAttribute(AttributeKey<T> key, T value) {
         synchronized (attributes) {
@@ -352,11 +351,11 @@ public class Volume {
     }
 
     /**
-     * Retrieves the value associated with the specified attribute key.
+     * Returns the value of an attribute.
      *
-     * @param key the attribute key for which the value is to be retrieved
-     * @param <T> the type of the value associated with the attribute key
-     * @return the value associated with the specified attribute key, or null if no value is assigned
+     * @param key the attribute key
+     * @param <T> the type of the attribute value
+     * @return the attribute value, or null if no value is set
      */
     public <T> T getAttribute(AttributeKey<T> key) {
         synchronized (attributes) {
@@ -365,11 +364,10 @@ public class Volume {
     }
 
     /**
-     * Removes the value associated with the specified attribute key.
-     * This operation sets the value of the attribute to null, effectively unsetting it.
+     * Unsets an attribute by setting its value to null.
      *
-     * @param <T> the type of the value associated with the attribute key
-     * @param key the key of the attribute to unset, must not be null
+     * @param <T> the type of the attribute value
+     * @param key the attribute key, must not be null
      */
     public <T> void unsetAttribute(AttributeKey<T> key) {
         synchronized (attributes) {
@@ -378,9 +376,9 @@ public class Volume {
     }
 
     /**
-     * Retrieves the current status of the volume.
+     * Returns the current status of the volume.
      *
-     * @return the current volume status as a VolumeStatus object
+     * @return the current volume status
      */
     public VolumeStatus getStatus() {
         statusLock.readLock().lock();
@@ -392,12 +390,11 @@ public class Volume {
     }
 
     /**
-     * Updates the status of the volume with the specified {@code status}.
-     * This method ensures thread-safety during the update by acquiring a write lock.
-     * The status change is persisted in the database and updated locally
-     * only after a successful transaction commit.
+     * Sets the volume status. The write lock is held during the update.
+     * The new status is written to FoundationDB first and applied locally
+     * only after the commit succeeds.
      *
-     * @param status the new status to set for the volume
+     * @param status the new volume status
      */
     public void setStatus(VolumeStatus status) {
         transactionWithRetry.executeRunnable(() -> {
@@ -415,12 +412,9 @@ public class Volume {
     }
 
     /**
-     * Validates whether the volume is in a read-only state and raises an exception if it is.
-     * This method checks the current status of the volume. If the status corresponds to
-     * a read-only state, it throws a {@code VolumeReadOnlyException}.
-     * <p>
-     * Throws:
-     * {@code VolumeReadOnlyException} if the volume is in a read-only state.
+     * Raises an exception if the volume is in READONLY status.
+     *
+     * @throws VolumeReadOnlyException if the volume is read-only
      */
     private void raiseExceptionIfVolumeReadOnly() {
         // Raise an exception if the volume is in READONLY status.
@@ -436,18 +430,18 @@ public class Volume {
     }
 
     /**
-     * Retrieves the subspace associated with this volume.
+     * Returns the subspace of this volume.
      *
-     * @return a VolumeSubspace object that represents the subspace of the volume.
+     * @return the volume subspace
      */
     protected VolumeSubspace getSubspace() {
         return subspace;
     }
 
     /**
-     * Retrieves the current configuration of the volume.
+     * Returns the configuration of this volume.
      *
-     * @return a VolumeConfig object containing the configuration settings of the volume.
+     * @return the volume configuration
      */
     public VolumeConfig getConfig() {
         return config;
@@ -469,14 +463,13 @@ public class Volume {
     }
 
     /**
-     * Attempts to append an entry to the writable segment that has enough free space.
-     * If the current latest segment does not have enough free space, it will find
-     * or create a new segment and try again.
+     * Appends an entry to a writable segment with enough free space.
+     * If the current segment is full, a new segment is created and the append is retried.
      *
-     * @param prefix the prefix associated with the entry.
-     * @param entry  the byte buffer containing the entry to be appended.
-     * @return an EntryMetadata object containing metadata about the appended entry.
-     * @throws IOException if an I/O error occurs during the segment retrieval or creation.
+     * @param prefix the prefix of the entry
+     * @param entry  the entry to append
+     * @return metadata of the appended entry
+     * @throws IOException if opening or creating a segment fails
      */
     private EntryMetadata tryAppend(Prefix prefix, ByteBuffer entry) throws IOException {
         int size = entry.remaining();
@@ -497,24 +490,17 @@ public class Volume {
     }
 
     /**
-     * Writes entry metadata to FoundationDB and updates segment statistics.
+     * Writes entry metadata to FoundationDB within the session's transaction.
+     * For each entry it stores the metadata under a versionstamped key (prefix plus versionstamp),
+     * the reverse index (metadata bytes to versionstamp), and the segment position index.
+     * It also increments segment cardinality and used bytes, and appends the operation to the changelog.
+     * <p>
+     * The versionstamp is incomplete at write time. FoundationDB fills it in at commit,
+     * which gives unique and monotonically increasing keys.
      *
-     * <p>This method performs multiple operations atomically within the session's transaction:</p>
-     * <ul>
-     *   <li>Stores entry metadata with versionstamped keys (prefix + versionstamp)</li>
-     *   <li>Creates reverse index (metadata bytes -> versionstamp) for efficient lookups</li>
-     *   <li>Updates segment cardinality (increments entry count)</li>
-     *   <li>Updates segment used bytes (adds entry length)</li>
-     *   <li>Appends operation to segment log for replication</li>
-     *   <li>Triggers streaming subscribers</li>
-     * </ul>
-     *
-     * <p>The versionstamp is incomplete at the write time and will be filled in by FoundationDB
-     * when the transaction commits, ensuring unique, monotonically increasing keys.</p>
-     *
-     * @param session the volume session containing the transaction and prefix
-     * @param entries an array of entry metadata to be written
-     * @return a result object containing the appended entries and the transaction's versionstamp future
+     * @param session the volume session with the transaction and prefix
+     * @param entries the entry metadata to write
+     * @return the appended entries and the versionstamp future of the transaction
      */
     private WriteMetadataResult writeMetadata(VolumeSession session, EntryMetadata[] entries) {
         AppendedEntry[] appendedEntries = new AppendedEntry[entries.length];
@@ -553,12 +539,12 @@ public class Volume {
     }
 
     /**
-     * Appends multiple entries to the given prefix and returns their metadata.
+     * Appends multiple entries under the given prefix and returns their metadata.
      *
-     * @param prefix  the prefix associated with the entries.
-     * @param entries an array of ByteBuffers containing the entries to be appended.
-     * @return an array of EntryMetadata objects containing metadata about the appended entries.
-     * @throws IOException if an I/O error occurs during the append operation.
+     * @param prefix  the prefix of the entries
+     * @param entries the entries to append
+     * @return metadata of the appended entries, in input order
+     * @throws IOException if an I/O error occurs during the append
      */
     private EntryMetadata[] appendEntries(Prefix prefix, ByteBuffer[] entries) throws IOException {
         EntryMetadata[] appendedEntries = new EntryMetadata[entries.length];
@@ -610,12 +596,12 @@ public class Volume {
     }
 
     /**
-     * Loads entry metadata from the cache for a given prefix and versionstamp key.
+     * Loads entry metadata from the cache for a prefix and versionstamp key.
      *
-     * @param prefix The prefix associated with the entry metadata.
-     * @param key    The versionstamp key for which the metadata is to be retrieved.
-     * @return The EntryMetadata object if it exists in the cache, otherwise null.
-     * @throws KronotopException If there is an error loading the metadata from FoundationDB.
+     * @param prefix the prefix of the entry
+     * @param key    the versionstamp key of the entry
+     * @return the entry metadata, or null if the key does not exist in this volume
+     * @throws KronotopException if loading the metadata from FoundationDB fails
      */
     private EntryMetadata loadEntryMetadataFromCache(Prefix prefix, Versionstamp key) {
         try {
@@ -629,13 +615,15 @@ public class Volume {
     }
 
     /**
-     * Retrieves a ByteBuffer from a segment based on the provided entry metadata.
+     * Reads an entry from its segment using the given metadata.
+     * If the segment no longer exists, the cached metadata for the key is invalidated,
+     * fresh metadata is loaded from FoundationDB, and the read is retried.
      *
      * @param prefix   the prefix used for the entry metadata cache
-     * @param key      the versionstamp key to invalidate in cache if segment is not found
-     * @param metadata the metadata containing segment name, position, and length of entry
-     * @return a ByteBuffer containing the data specified by the entry metadata
-     * @throws IOException if an I/O error occurs while accessing the segment
+     * @param key      the versionstamp key of the entry
+     * @param metadata the metadata with segment id, position and length of the entry
+     * @return the entry data
+     * @throws IOException if reading the segment fails
      */
     protected ByteBuffer getByEntryMetadata(Prefix prefix, Versionstamp key, EntryMetadata metadata) throws IOException {
         try {
@@ -670,13 +658,13 @@ public class Volume {
     }
 
     /**
-     * Retrieves a ByteBuffer associated with the specified prefix, versionstamp, and metadata.
+     * Reads an entry using the given prefix, versionstamp key and metadata.
      *
-     * @param prefix   the non-null prefix identifying the entry.
-     * @param key      the non-null versionstamp key associated with the entry.
-     * @param metadata the non-null metadata descriptor for the entry.
-     * @return a ByteBuffer containing the data associated with the specified inputs.
-     * @throws IOException if an I/O error occurs during the retrieval operation.
+     * @param prefix   the prefix of the entry, must not be null
+     * @param key      the versionstamp key of the entry, must not be null
+     * @param metadata the metadata of the entry, must not be null
+     * @return the entry data
+     * @throws IOException if reading the segment fails
      */
     public ByteBuffer get(@Nonnull Prefix prefix, @Nonnull Versionstamp key, @Nonnull EntryMetadata metadata) throws IOException {
         // This method is tested by PlanExecutor indirectly.
@@ -684,12 +672,12 @@ public class Volume {
     }
 
     /**
-     * Retrieves an entry directly from a segment using the provided metadata.
-     * This method does not require a versionstamp key and bypasses the entry metadata cache.
+     * Reads an entry directly from its segment. No versionstamp key is needed
+     * and the entry metadata cache is bypassed.
      *
-     * @param metadata the entry metadata containing segment ID, position, and length
-     * @return a ByteBuffer containing the entry data
-     * @throws IOException if an I/O error occurs during the segment read
+     * @param metadata the metadata with segment id, position and length of the entry
+     * @return the entry data
+     * @throws IOException if reading the segment fails
      */
     public ByteBuffer getByEntryMetadata(EntryMetadata metadata) throws IOException {
         Objects.requireNonNull(metadata);
@@ -702,11 +690,12 @@ public class Volume {
     }
 
     /**
-     * Retrieves an array of ByteBuffers from the specified segment based on the given segment ranges.
+     * Reads several ranges from one segment.
      *
-     * @param segmentRanges an array of SegmentRange objects specifying the positions and lengths of the segments to retrieve
-     * @return an array of ByteBuffers corresponding to the specified segment ranges
-     * @throws IOException if an I/O error occurs while accessing the segment
+     * @param segmentId     the id of the segment to read from
+     * @param segmentRanges the positions and lengths to read
+     * @return the data of each range, in input order
+     * @throws IOException if reading the segment fails
      */
     public ByteBuffer[] getSegmentRange(long segmentId, SegmentRange[] segmentRanges) throws IOException {
         ReadableSegment segment = getReadableSegment(segmentId);
@@ -752,15 +741,15 @@ public class Volume {
     }
 
     /**
-     * Deletes entries within the session's transaction using pre-combined key and metadata.
-     * Unlike {@link #delete}, no additional FDB lookups are needed
-     * because each {@link VersionstampedEntry} already carries both the versionstamp key and the entry metadata.
+     * Deletes entries within the session's transaction. Unlike {@link #delete}, no extra
+     * FoundationDB lookups are needed because each {@link VersionstampedEntry} already
+     * carries the versionstamp key and the entry metadata.
      *
-     * @param session the session within which the delete operation is to be performed
-     * @param entries the entries to be deleted, must not be null or empty
-     * @return a DeleteResult containing the deleted versionstamp keys and a cache invalidator
+     * @param session the session that provides the transaction and prefix
+     * @param entries the entries to delete, must not be null or empty
+     * @return the deleted versionstamp keys and a cache invalidator
      * @throws IllegalArgumentException if the entries array is empty
-     * @throws VolumeReadOnlyException  if the volume is in read-only mode
+     * @throws VolumeReadOnlyException  if the volume is read-only
      */
     public DeleteResult deleteByVersionstampedEntry(@Nonnull VolumeSession session, @Nonnull VersionstampedEntry... entries) {
         if (entries.length == 0) {
@@ -788,8 +777,8 @@ public class Volume {
     }
 
     /**
-     * Applies a single delete operation: adjusts segment cardinality and used bytes,
-     * logs to the changelog, and records the deleted key in the result.
+     * Applies a single delete. It adjusts segment cardinality and used bytes,
+     * writes to the changelog, and records the deleted key in the result.
      */
     private void applyDelete(VolumeSession session, EntryMetadata metadata, Versionstamp key, DeleteResult result, int index) {
         try {
@@ -806,8 +795,8 @@ public class Volume {
     }
 
     /**
-     * Applies a single update operation: adjusts segment cardinality and used bytes,
-     * clears the old reverse-index entry, writes new metadata, and logs to the changelog.
+     * Applies a single update. It adjusts segment cardinality and used bytes,
+     * clears the old reverse index entry, writes the new metadata, and writes to the changelog.
      */
     private UpdatedEntry applyUpdate(
             VolumeSession session,
@@ -956,26 +945,23 @@ public class Volume {
     }
 
     /**
-     * Inserts entries with caller-supplied versionstamp keys into this volume, rejecting duplicates.
+     * Inserts entries with caller-supplied versionstamp keys and rejects duplicates.
+     * <p>
+     * This sits between {@link #append} and {@link #update}. With {@code append} the key does not
+     * exist yet and FoundationDB assigns a new versionstamp via {@code SET_VERSIONSTAMPED_KEY}.
+     * With {@code insert} the key does not exist yet but the caller supplies the versionstamp.
+     * This is used when an entry moves to another volume, for example during shard migration,
+     * and must keep its original identity. With {@code update} the key already exists. Its metadata
+     * is overwritten, the old reverse index is cleared, and segment stats are adjusted for the
+     * previous entry.
+     * <p>
+     * Each entry is appended to a segment on disk. Then its metadata, reverse index and segment
+     * position index are written to FoundationDB. Segment cardinality and used bytes are only
+     * incremented because there is no previous entry to compensate for.
      *
-     * <p>This sits between {@link #append} and {@link #update}:
-     * <ul>
-     *   <li>{@code append} — the key does not exist yet, and FoundationDB assigns a new versionstamp
-     *       automatically via {@code SET_VERSIONSTAMPED_KEY}. Used for brand-new entries.
-     *   <li>{@code insert} — the key does not exist yet but the caller supplies the versionstamp
-     *       explicitly. Used when relocating an entry to a different volume (e.g., shard migration)
-     *       while preserving its original identity.
-     *   <li>{@code update} — the key already exists; its metadata is overwritten, the old reverse
-     *       index is cleared, and segment stats are adjusted to compensate for the previous entry.
-     * </ul>
-     *
-     * <p>Each entry is appended to a segment on disk, then its metadata, reverse index, and segment
-     * position index are written to FoundationDB. Segment cardinality and used-bytes stats are only
-     * incremented (no prior entry to compensate for).
-     *
-     * @param session the volume session providing the transaction and prefix
-     * @param pairs   one or more key-entry pairs, where each key is the versionstamp to preserve
-     * @return the insert result containing metadata for all inserted entries
+     * @param session the volume session that provides the transaction and prefix
+     * @param pairs   one or more key-entry pairs, where each key is the versionstamp to keep
+     * @return the insert result with metadata of all inserted entries
      * @throws VersionstampAlreadyExistsException if any key already exists in this volume
      * @throws IOException                        if a segment write fails
      */
@@ -1165,102 +1151,102 @@ public class Volume {
     }
 
     /**
-     * Checks if the resource is closed.
+     * Returns whether the volume is closed.
      *
-     * @return true if the resource is closed, false otherwise.
+     * @return true if the volume is closed, false otherwise
      */
     public boolean isClosed() {
         return closed;
     }
 
     /**
-     * Retrieves an iterable range of KeyEntry objects for the specified session.
+     * Returns all entries of the session's prefix.
      *
-     * @param session the session for which to retrieve the KeyEntry objects
-     * @return an iterable collection of KeyEntry objects within the specified session
+     * @param session the session that provides the transaction and prefix, must not be null
+     * @return an iterable over the entries
      */
     public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session) {
         return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED);
     }
 
     /**
-     * Retrieves a range of KeyEntry objects based on the provided session and reverse flag.
+     * Returns all entries of the session's prefix in the given direction.
      *
-     * @param session the session used to access the data; must not be null
-     * @param reverse a boolean indicating the traversal direction; if true, traverses in reverse order
-     * @return an Iterable of KeyEntry objects representing the resulting range
+     * @param session the session that provides the transaction and prefix, must not be null
+     * @param reverse if true, entries are returned in reverse order
+     * @return an iterable over the entries
      */
     public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, boolean reverse) {
         return getRange(session, ReadTransaction.ROW_LIMIT_UNLIMITED, reverse);
     }
 
     /**
-     * Retrieves a range of KeyEntry objects based on the specified session and limit.
+     * Returns up to {@code limit} entries of the session's prefix.
      *
-     * @param session the active session used to retrieve the KeyEntry objects, must not be null
-     * @param limit   the maximum number of KeyEntry objects to retrieve
-     * @return an Iterable of KeyEntry objects within the specified range
+     * @param session the session that provides the transaction and prefix, must not be null
+     * @param limit   the maximum number of entries to return
+     * @return an iterable over the entries
      */
     public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, int limit) {
         return getRange(session, limit, false);
     }
 
     /**
-     * Retrieves a range of KeyEntry objects based on the specified session and limit.
+     * Returns up to {@code limit} entries of the session's prefix in the given direction.
      *
-     * @param session the session object used for retrieving the range, must not be null
-     * @param limit   the maximum number of entries to retrieve
-     * @param reverse if true, retrieves the entries in reverse order
-     * @return an iterable collection of KeyEntry objects matching the specified range and order
+     * @param session the session that provides the transaction and prefix, must not be null
+     * @param limit   the maximum number of entries to return
+     * @param reverse if true, entries are returned in reverse order
+     * @return an iterable over the entries
      */
     public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, int limit, boolean reverse) {
         return new VolumeIterable(this, session, null, null, limit, reverse);
     }
 
     /**
-     * Retrieves a range of KeyEntry objects between the specified begin and end VersionstampedKeySelectors.
+     * Returns the entries between the begin and end key selectors.
      *
-     * @param session the Session object used for the operation, must not be null
-     * @param begin   the starting VersionstampedKeySelector for the range
-     * @param end     the ending VersionstampedKeySelector for the range
-     * @return an Iterable of KeyEntry objects within the specified range
+     * @param session the session that provides the transaction and prefix, must not be null
+     * @param begin   the key selector where the range starts
+     * @param end     the key selector where the range ends
+     * @return an iterable over the entries
      */
     public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end) {
         return getRange(session, begin, end, ReadTransaction.ROW_LIMIT_UNLIMITED);
     }
 
     /**
-     * Retrieves a range of KeyEntry objects between the specified begin and end VersionstampedKeySelectors.
+     * Returns up to {@code limit} entries between the begin and end key selectors.
      *
-     * @param session the current session used for executing the operation, must not be null
-     * @param begin   the starting key selector defining the beginning of the range
-     * @param end     the ending key selector defining the end of the range
-     * @param limit   the maximum number of key entries to include in the range
-     * @return an iterable collection of KeyEntry objects that falls within the specified range
+     * @param session the session that provides the transaction and prefix, must not be null
+     * @param begin   the key selector where the range starts
+     * @param end     the key selector where the range ends
+     * @param limit   the maximum number of entries to return
+     * @return an iterable over the entries
      */
     public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit) {
         return new VolumeIterable(this, session, begin, end, limit, false);
     }
 
     /**
-     * Retrieves a range of KeyEntry objects between the specified begin and end VersionstampedKeySelectors.
+     * Returns up to {@code limit} entries between the begin and end key selectors in the given direction.
      *
-     * @param session the current database session, must not be null
-     * @param begin   the starting key selector for the range
-     * @param end     the ending key selector for the range
-     * @param limit   the maximum number of entries to retrieve
-     * @param reverse whether to retrieve the range in reverse order
-     * @return an Iterable collection of KeyEntry objects within the specified range
+     * @param session the session that provides the transaction and prefix, must not be null
+     * @param begin   the key selector where the range starts
+     * @param end     the key selector where the range ends
+     * @param limit   the maximum number of entries to return
+     * @param reverse if true, entries are returned in reverse order
+     * @return an iterable over the entries
      */
     public Iterable<VolumeEntry> getRange(@Nonnull VolumeSession session, VersionstampedKeySelector begin, VersionstampedKeySelector end, int limit, boolean reverse) {
         return new VolumeIterable(this, session, begin, end, limit, reverse);
     }
 
     /**
-     * Analyzes all segments using the provided transaction.
+     * Analyzes all segments using the given transaction.
      *
-     * @param tr The transaction context used for the analysis.
-     * @return A list of SegmentAnalysis objects containing the analysis results.
+     * @param tr the transaction used for the analysis
+     * @return the analysis result of each segment
      */
     public List<SegmentAnalysis> analyze(Transaction tr) {
         WritableSegmentContainer writable = writableSegment.get();
@@ -1335,9 +1321,9 @@ public class Volume {
     }
 
     /**
-     * Analyzes the segments within a transaction context obtained from the FoundationDB database.
+     * Analyzes all segments in a new FoundationDB transaction.
      *
-     * @return a list of SegmentAnalysis objects resulting from the analysis.
+     * @return the analysis result of each segment
      */
     public List<SegmentAnalysis> analyze() {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -1346,10 +1332,10 @@ public class Volume {
     }
 
     /**
-     * Clears all segment entries in the database that match the specified prefix within the given volume session.
-     * This method effectively removes segment data and resets metadata associated with the cleared segments.
+     * Clears the segment position entries of the session's prefix in every segment
+     * and resets the cardinality and used bytes of that prefix.
      *
-     * @param session the VolumeSession object containing the transaction context and prefix used to identify segments.
+     * @param session the session that provides the transaction and prefix
      */
     private void clearSegmentsByPrefix(VolumeSession session) {
         assert session.transaction() != null;
