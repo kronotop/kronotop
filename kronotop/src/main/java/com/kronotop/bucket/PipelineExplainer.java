@@ -306,6 +306,6 @@ public class PipelineExplainer {
     }
 
     private static String placeholder(ParamRef ref) {
-        return "?" + ref.index();
+        return Integer.toString(ref.index());
     }
 }

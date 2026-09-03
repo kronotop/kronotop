@@ -419,7 +419,7 @@ class PipelineExplainerTest {
         Map<RedisMessage, RedisMessage> result = PipelineExplainer.explain(
                 indexScanNodeWith(new Operand.Param(new ParamRef(3))));
 
-        assertEquals("?3", getStringValue(result, "operand"));
+        assertEquals("3", getStringValue(result, "operand"));
     }
 
     @Test
