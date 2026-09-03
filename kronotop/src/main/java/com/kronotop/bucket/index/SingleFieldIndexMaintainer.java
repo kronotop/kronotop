@@ -22,12 +22,20 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.CollatorCache;
+import com.kronotop.bucket.IndexTypeMismatchException;
+import org.bson.BsonArray;
+import org.bson.BsonNull;
+import org.bson.BsonValue;
 import org.bson.types.ObjectId;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Maintains single field indexes in FoundationDB.
@@ -42,6 +50,43 @@ import java.util.List;
  * index values associated with that document.
  */
 public final class SingleFieldIndexMaintainer extends IndexMaintainer {
+
+    /**
+     * Extracts the unique index values of an array field for a multikey index. Null elements collapse
+     * into a single null value. Elements that do not match the index type are skipped, or rejected
+     * with {@link IndexTypeMismatchException} when strict types are enabled.
+     *
+     * @param definition  the index definition
+     * @param array       the array value matched by the index selector
+     * @param strictTypes whether a type mismatch is an error
+     * @return the deduplicated index values and the BSON elements they were derived from
+     */
+    public static MultikeyValues extractMultikeyValues(SingleFieldIndexDefinition definition, BsonArray array, boolean strictTypes) {
+        Set<Object> indexValues = new HashSet<>();
+        List<BsonValue> bsonValues = new ArrayList<>();
+        boolean hasNull = false;
+        for (BsonValue element : array) {
+            if (element == null || element.equals(BsonNull.VALUE)) {
+                hasNull = true;
+                continue;
+            }
+            Object indexValue = BSONUtil.toObject(element, definition.bsonType());
+            if (indexValue == null) {
+                if (strictTypes) {
+                    throw new IndexTypeMismatchException(definition, element);
+                }
+                continue;
+            }
+            if (indexValues.add(indexValue)) {
+                bsonValues.add(element);
+            }
+        }
+        // Index null elements (deduplicated) for consistent semantics with single-value indexes
+        if (hasNull && indexValues.add(null)) {
+            bsonValues.add(BsonNull.VALUE);
+        }
+        return new MultikeyValues(indexValues, bsonValues);
+    }
 
     /**
      * Constructs the key for a single field index entry.
@@ -278,5 +323,13 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
         tr.set(backPointer, NULL_VALUE);
 
         IndexUtil.mutateCardinality(tr, container.metadata().subspace(), container.indexDefinition().id(), 1);
+    }
+
+    /**
+     * Deduplicated values of an array field for a multikey index. {@code indexValues} are the converted
+     * values to write as index entries. {@code bsonValues} are the source elements, one per index value,
+     * used for statistics hints.
+     */
+    public record MultikeyValues(Set<Object> indexValues, List<BsonValue> bsonValues) {
     }
 }

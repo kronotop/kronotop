@@ -149,30 +149,9 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
 
                 if (bsonValue instanceof BsonArray bsonArray) {
                     // Multikey index: create an index entry for each unique value in the array
-                    Set<Object> uniqueIndexValues = new HashSet<>();
-                    List<BsonValue> uniqueBsonValues = new ArrayList<>();
-                    boolean hasNull = false;
-                    for (BsonValue element : bsonArray) {
-                        if (element == null || element.equals(BsonNull.VALUE)) {
-                            hasNull = true;
-                            continue;
-                        }
-                        Object indexValue = BSONUtil.toObject(element, index.definition().bsonType());
-                        if (indexValue == null) {
-                            if (strictTypes) {
-                                throw new IndexTypeMismatchException(index.definition(), element);
-                            }
-                            continue;
-                        }
-                        if (uniqueIndexValues.add(indexValue)) {
-                            uniqueBsonValues.add(element);
-                        }
-                    }
-                    // Index null elements (deduplicated) for consistent semantics with single-value indexes
-                    if (hasNull && uniqueIndexValues.add(null)) {
-                        uniqueBsonValues.add(BsonNull.VALUE);
-                    }
-                    for (Object indexValue : uniqueIndexValues) {
+                    SingleFieldIndexMaintainer.MultikeyValues multikey =
+                            SingleFieldIndexMaintainer.extractMultikeyValues(index.definition(), bsonArray, strictTypes);
+                    for (Object indexValue : multikey.indexValues()) {
                         SingleFieldIndexMaintainer.setEntry(
                                 tr,
                                 index,
@@ -184,7 +163,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                         );
                     }
                     // Track stats for each unique element, not the array itself
-                    for (BsonValue element : uniqueBsonValues) {
+                    for (BsonValue element : multikey.bsonValues()) {
                         IndexStatsBuilder.setHintForStats(tr, index, objectIdBytes, element);
                     }
                 } else {
