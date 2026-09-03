@@ -23,16 +23,13 @@ import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.ReservedFieldName;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.vector.OnHeapVectorGraphIndex;
 import com.kronotop.bucket.vector.VectorGraphIndexGroup;
 import com.kronotop.bucket.vector.VectorGraphIndexRegistry;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.EntryMetadata;
-import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
-import com.kronotop.volume.VolumeSession;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.BsonValue;
 import org.bson.types.ObjectId;
@@ -91,40 +88,17 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
     @Override
     protected int indexBucketEntries(Transaction tr, BucketShard shard,
                                      BucketMetadata metadata, IndexBuildingTaskState state) {
-        int total = 0;
-
-        VersionstampedKeySelector begin = !state.bootstrapped() ?
-                VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp()) :
-                VersionstampedKeySelector.firstGreaterThan(state.cursorVersionstamp());
-
-        VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(task.getUpper());
-        VolumeSession session = new VolumeSession(tr, metadata.prefix());
-
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
         if (vectorIndex == null) {
             throw new IndexMaintenanceRoutineException(
                     "Vector index with id " + task.getIndexId() + " is not in BUILDING or READY status");
         }
-        Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
+        DrainedBatch drained = drainBatch(tr, shard, metadata, state);
 
-        // Drain the batch, extracting ObjectIds and vectors. Documents without a vector field or with
-        // mismatched dimensions are skipped here.
-        List<BufferedEntry> buffer = new ArrayList<>();
-        Versionstamp versionstamp = null;
-        for (VolumeEntry pair : entries) {
-            checkForShutdown();
-            total++;
-            versionstamp = pair.key();
-
-            // Extract ObjectId
-            BsonValue idValue = SelectorMatcher.match(ReservedFieldName.ID.getValue(), pair.entry());
-            if (idValue == null || !idValue.isObjectId()) {
-                throw new IndexMaintenanceRoutineException("Document missing _id field or _id is not an ObjectId");
-            }
-            ObjectId objectId = idValue.asObjectId().getValue();
-
-            // Extract vector
-            BsonValue vectorValue = SelectorMatcher.match(vectorDefinition.selector(), pair.entry());
+        // Extract vectors. Documents without a vector field or with mismatched dimensions are skipped here.
+        List<VectorEntry> buffer = new ArrayList<>();
+        for (BufferedEntry buffered : drained.buffer()) {
+            BsonValue vectorValue = SelectorMatcher.match(vectorDefinition.selector(), buffered.entry().entry());
             float[] vector = VectorIndexMaintainer.parseVector(vectorValue);
 
             if (vector == null) {
@@ -137,22 +111,22 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
                 continue;
             }
 
-            buffer.add(new BufferedEntry(pair, objectId, objectId.toByteArray(), vector));
+            buffer.add(new VectorEntry(buffered, vector));
         }
 
-        // Find which ObjectIds in this batch already have an FDB entry (e.g., written by online writers),
-        // so their entry is not re-created and cardinality is not double-counted. The on-heap graph is not
-        // part of this dedup and is maintained unconditionally below.
+        // Find which ObjectIds in this batch already have an FDB entry (e.g., written by online writers).
+        // Those are skipped entirely so the entry is not re-created, cardinality is not double-counted,
+        // and no second graph node is added.
         Set<ObjectId> alreadyIndexed = VectorIndexMaintainer.findIndexedObjectIds(
-                tr, vectorIndex.subspace(), buffer.stream().map(BufferedEntry::objectIdBytes).toList());
+                tr, vectorIndex.subspace(), buffer.stream().map(e -> e.entry().objectIdBytes()).toList());
 
-        for (BufferedEntry buffered : buffer) {
+        for (VectorEntry vectorEntry : buffer) {
+            BufferedEntry buffered = vectorEntry.entry();
             VolumeEntry pair = buffered.entry();
             byte[] objectIdBytes = buffered.objectIdBytes();
-            float[] vector = buffered.vector();
+            float[] vector = vectorEntry.vector();
             ObjectId objectId = buffered.objectId();
 
-            // Write FDB + JVector entry only if it is not already present.
             if (alreadyIndexed.contains(objectId)) {
                 continue;
             }
@@ -185,8 +159,8 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
             IndexBuildingTaskState.setBootstrapped(tr, subspace, taskId, true);
         }
 
-        setCursor(tr, versionstamp);
-        return total;
+        setCursor(tr, drained.lastVersionstamp());
+        return drained.total();
     }
 
     private void flushRemaining() {
@@ -210,6 +184,6 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
         }
     }
 
-    private record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes, float[] vector) {
+    private record VectorEntry(BufferedEntry entry, float[] vector) {
     }
 }

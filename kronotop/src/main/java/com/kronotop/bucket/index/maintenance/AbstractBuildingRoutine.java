@@ -80,12 +80,10 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
     }
 
     /**
-     * Scans the next batch of volume entries for this task, enforces uniqueness if the index requires it,
-     * and probes FDB to find which ObjectIds in the batch are already indexed by online writers.
-     * Entries already indexed must be skipped by the caller so cardinality is not double-counted.
+     * Reads the next batch of volume entries for this task, starting from the persisted cursor,
+     * and extracts the ObjectId of each document.
      */
-    ScannedBatch scanBatch(Transaction tr, BucketShard shard, BucketMetadata metadata,
-                           IndexBuildingTaskState state, IndexHolder<?> index) {
+    DrainedBatch drainBatch(Transaction tr, BucketShard shard, BucketMetadata metadata, IndexBuildingTaskState state) {
         VersionstampedKeySelector begin = !state.bootstrapped() ?
                 VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp()) :
                 VersionstampedKeySelector.firstGreaterThan(state.cursorVersionstamp());
@@ -94,7 +92,6 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
         VolumeSession session = new VolumeSession(tr, metadata.prefix());
         Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
 
-        // Drain the batch and extract ObjectIds.
         List<BufferedEntry> buffer = new ArrayList<>();
         Versionstamp versionstamp = null;
         int total = 0;
@@ -112,12 +109,25 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
             buffer.add(new BufferedEntry(pair, objectId, objectId.toByteArray()));
         }
 
+        return new DrainedBatch(buffer, versionstamp, total);
+    }
+
+    /**
+     * Drains the next batch, enforces uniqueness if the index requires it, and probes FDB to find
+     * which ObjectIds in the batch are already indexed by online writers. Entries already indexed
+     * must be skipped by the caller so cardinality is not double-counted.
+     */
+    ScannedBatch scanBatch(Transaction tr, BucketShard shard, BucketMetadata metadata,
+                           IndexBuildingTaskState state, IndexHolder<?> index) {
+        DrainedBatch drained = drainBatch(tr, shard, metadata, state);
+        List<BufferedEntry> buffer = drained.buffer();
+
         checkUniqueness(tr, metadata, index.definition(), buffer);
 
         Set<ObjectId> alreadyIndexed = IndexMaintainer.findIndexedObjectIds(
                 tr, index.subspace(), buffer.stream().map(BufferedEntry::objectIdBytes).toList());
 
-        return new ScannedBatch(buffer, alreadyIndexed, versionstamp, total);
+        return new ScannedBatch(buffer, alreadyIndexed, drained.lastVersionstamp(), drained.total());
     }
 
     void checkUniqueness(Transaction tr, BucketMetadata metadata, IndexDefinition indexDef, List<BufferedEntry> buffer) {
@@ -384,6 +394,13 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
     }
 
     record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes) {
+    }
+
+    /**
+     * Result of one batch drain: the buffered entries, the versionstamp of the last scanned entry,
+     * and the number of entries scanned.
+     */
+    record DrainedBatch(List<BufferedEntry> buffer, Versionstamp lastVersionstamp, int total) {
     }
 
     /**
