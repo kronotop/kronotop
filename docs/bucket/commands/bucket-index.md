@@ -5,7 +5,7 @@ sidebar:
 description: "Manages indexes on bucket fields."
 ---
 
-Manages indexes on bucket fields. Indexes accelerate queries by allowing efficient lookups on specific fields.
+Manages indexes on bucket fields. Indexes speed up queries by allowing efficient lookups on specific fields.
 
 ## Subcommands
 
@@ -92,13 +92,13 @@ Each top-level key (other than `$compound`) is a field selector. The value defin
 }
 ```
 
-| Property    | Type    | Required | Description                                                                                                                     |
-|-------------|---------|----------|---------------------------------------------------------------------------------------------------------------------------------|
-| `bson_type` | string  | Yes      | The BSON type of the field values. See [Supported BSON Types](#supported-bson-types).                                           |
-| `multi_key` | boolean | No       | When `true`, creates a multi-key index for array fields. Each array element generates a separate index entry. Default: `false`. |
+| Property    | Type    | Required | Description                                                                                                                        |
+|-------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------|
+| `bson_type` | string  | Yes      | The BSON type of the field values. See [Supported BSON Types](#supported-bson-types).                                              |
+| `multi_key` | boolean | No       | When `true`, creates a multi-key index for array fields. Each array element generates a separate index entry. Default: `false`.    |
 | `unique`    | boolean | No       | When `true`, rejects any document whose value on this field already exists. Cannot be combined with `multi_key`. Default: `false`. |
-| `name`      | string  | No       | Custom name for the index. If omitted, a name is auto-generated from the selector and type.                                     |
-| `collation` | object  | No       | Collation spec for locale-aware string ordering. Only valid for `string` type. See [Collation](../collation.md).                |
+| `name`      | string  | No       | Custom name for the index. If omitted, a name is auto-generated from the selector and type.                                        |
+| `collation` | object  | No       | Collation spec for locale-aware string ordering. Only valid for `string` type. See [Collation](../collation.md).                   |
 
 #### Compound indexes
 
@@ -128,11 +128,11 @@ Each field in the `fields` array supports:
 
 The compound index definition also supports:
 
-| Property    | Type   | Required | Description                                                                                                              |
-|-------------|--------|----------|--------------------------------------------------------------------------------------------------------------------------|
-| `name`      | string  | No       | Custom name for the compound index. If omitted, a name is auto-generated.                                                |
+| Property    | Type    | Required | Description                                                                                                                                    |
+|-------------|---------|----------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `name`      | string  | No       | Custom name for the compound index. If omitted, a name is auto-generated.                                                                      |
 | `unique`    | boolean | No       | When `true`, the combination of all field values must be unique across documents. Cannot be combined with a multi-key field. Default: `false`. |
-| `collation` | object  | No       | Collation spec for locale-aware string ordering. Requires at least one `string` field. See [Collation](../collation.md). |
+| `collation` | object  | No       | Collation spec for locale-aware string ordering. Requires at least one `string` field. See [Collation](../collation.md).                       |
 
 **Constraints:**
 
