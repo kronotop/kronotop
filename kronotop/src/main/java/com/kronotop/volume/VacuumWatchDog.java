@@ -18,11 +18,14 @@ package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.segment.SegmentAnalysis;
+import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -135,13 +138,14 @@ class VacuumWatchDog implements Runnable {
             }
         } finally {
             boolean externallyStopped = stopped;
-            stopped = true;
             try {
                 saveVacuumStats(startedAt, segmentsProcessed, externallyStopped);
             } catch (Exception e) {
                 LOGGER.error("Failed to save vacuum stats for volume {}", volume, e);
+            } finally {
+                runCompletionLatch.countDown();
+                stopped = true;
             }
-            runCompletionLatch.countDown();
         }
     }
 
@@ -155,10 +159,13 @@ class VacuumWatchDog implements Runnable {
             result = VacuumResult.COMPLETED;
         }
         long completedAt = System.currentTimeMillis();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VacuumMetadataUtil.save(tr, volume.getSubspace(), startedAt, completedAt, result, segmentsProcessed);
-            tr.commit().join();
-        }
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
+        retry.executeRunnable(() -> {
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                VacuumMetadataUtil.save(tr, volume.getSubspace(), startedAt, completedAt, result, segmentsProcessed);
+                tr.commit().join();
+            }
+        });
     }
 
     private void stopAll(List<VacuumWorker> workers) {
