@@ -28,13 +28,18 @@ import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
 import com.kronotop.transaction.TransactionUtil;
+import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
+import com.kronotop.volume.VolumeSession;
 import io.github.resilience4j.retry.Retry;
+import org.bson.BsonValue;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -72,6 +77,47 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
         this.shardId = shardId;
         this.task = task;
         this.service = context.getService(BucketService.NAME);
+    }
+
+    /**
+     * Scans the next batch of volume entries for this task, enforces uniqueness if the index requires it,
+     * and probes FDB to find which ObjectIds in the batch are already indexed by online writers.
+     * Entries already indexed must be skipped by the caller so cardinality is not double-counted.
+     */
+    ScannedBatch scanBatch(Transaction tr, BucketShard shard, BucketMetadata metadata,
+                           IndexBuildingTaskState state, IndexHolder<?> index) {
+        VersionstampedKeySelector begin = !state.bootstrapped() ?
+                VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp()) :
+                VersionstampedKeySelector.firstGreaterThan(state.cursorVersionstamp());
+
+        VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(task.getUpper());
+        VolumeSession session = new VolumeSession(tr, metadata.prefix());
+        Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
+
+        // Drain the batch and extract ObjectIds.
+        List<BufferedEntry> buffer = new ArrayList<>();
+        Versionstamp versionstamp = null;
+        int total = 0;
+        for (VolumeEntry pair : entries) {
+            checkForShutdown();
+
+            total++;
+            versionstamp = pair.key();
+
+            BsonValue idValue = SelectorMatcher.match(ReservedFieldName.ID.getValue(), pair.entry());
+            if (idValue == null || !idValue.isObjectId()) {
+                throw new IndexMaintenanceRoutineException("Document missing _id field or _id is not an ObjectId");
+            }
+            ObjectId objectId = idValue.asObjectId().getValue();
+            buffer.add(new BufferedEntry(pair, objectId, objectId.toByteArray()));
+        }
+
+        checkUniqueness(tr, metadata, index.definition(), buffer);
+
+        Set<ObjectId> alreadyIndexed = IndexMaintainer.findIndexedObjectIds(
+                tr, index.subspace(), buffer.stream().map(BufferedEntry::objectIdBytes).toList());
+
+        return new ScannedBatch(buffer, alreadyIndexed, versionstamp, total);
     }
 
     void checkUniqueness(Transaction tr, BucketMetadata metadata, IndexDefinition indexDef, List<BufferedEntry> buffer) {
@@ -338,5 +384,13 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
     }
 
     record BufferedEntry(VolumeEntry entry, ObjectId objectId, byte[] objectIdBytes) {
+    }
+
+    /**
+     * Result of one batch scan: the buffered entries, the ObjectIds already indexed by online writers,
+     * the versionstamp of the last scanned entry, and the number of entries scanned.
+     */
+    record ScannedBatch(List<BufferedEntry> buffer, Set<ObjectId> alreadyIndexed,
+                        Versionstamp lastVersionstamp, int total) {
     }
 }

@@ -23,13 +23,10 @@ import com.kronotop.Context;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
-import com.kronotop.volume.VersionstampedKeySelector;
 import com.kronotop.volume.VolumeEntry;
-import com.kronotop.volume.VolumeSession;
 import org.bson.BsonArray;
 import org.bson.BsonNull;
 import org.bson.BsonValue;
-import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -65,47 +62,12 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
 
     @Override
     protected int indexBucketEntries(Transaction tr, BucketShard shard, BucketMetadata metadata, IndexBuildingTaskState state) {
-        int total = 0;
-
-        VersionstampedKeySelector begin = !state.bootstrapped() ?
-                VersionstampedKeySelector.firstGreaterOrEqual(state.cursorVersionstamp()) :
-                VersionstampedKeySelector.firstGreaterThan(state.cursorVersionstamp());
-
-        VersionstampedKeySelector end = VersionstampedKeySelector.firstGreaterOrEqual(task.getUpper());
-        VolumeSession session = new VolumeSession(tr, metadata.prefix());
-
         SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.READWRITE);
-        Iterable<VolumeEntry> entries = shard.volume().getRange(session, begin, end, INDEX_SCAN_BATCH_SIZE);
-
-        // Drain the batch and extract ObjectIds.
-        List<BufferedEntry> buffer = new ArrayList<>();
-        Versionstamp versionstamp = null;
-        for (VolumeEntry pair : entries) {
-            checkForShutdown();
-
-            total++;
-            versionstamp = pair.key();
-
-            // Extract ObjectId from document's _id field
-            BsonValue idValue = SelectorMatcher.match(ReservedFieldName.ID.getValue(), pair.entry());
-            if (idValue == null || !idValue.isObjectId()) {
-                throw new IndexMaintenanceRoutineException("Document missing _id field or _id is not an ObjectId");
-            }
-            ObjectId objectId = idValue.asObjectId().getValue();
-            buffer.add(new BufferedEntry(pair, objectId, objectId.toByteArray()));
-        }
-
-        // Enforce uniqueness if it's defined.
-        checkUniqueness(tr, metadata, index.definition(), buffer);
-
-        // Find which ObjectIds in this batch are already indexed (e.g., by online writers),
-        // so they are not processed again and cardinality is not double-counted.
-        Set<ObjectId> alreadyIndexed = IndexMaintainer.findIndexedObjectIds(
-                tr, index.subspace(), buffer.stream().map(BufferedEntry::objectIdBytes).toList());
+        ScannedBatch batch = scanBatch(tr, shard, metadata, state, index);
 
         // Index only the entries that are not already present.
-        for (BufferedEntry buffered : buffer) {
-            if (alreadyIndexed.contains(buffered.objectId())) {
+        for (BufferedEntry buffered : batch.buffer()) {
+            if (batch.alreadyIndexed().contains(buffered.objectId())) {
                 continue;
             }
             VolumeEntry pair = buffered.entry();
@@ -170,7 +132,7 @@ public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
             IndexBuildingTaskState.setBootstrapped(tr, subspace, taskId, true);
         }
 
-        setCursor(tr, versionstamp);
-        return total;
+        setCursor(tr, batch.lastVersionstamp());
+        return batch.total();
     }
 }
