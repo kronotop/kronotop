@@ -152,11 +152,13 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
             float[] vector = buffered.vector();
             ObjectId objectId = buffered.objectId();
 
-            // Write FDB entry only if it is not already present.
-            if (!alreadyIndexed.contains(objectId)) {
-                VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata,
-                        objectIdBytes, shardId, pair.metadata(), vector);
+            // Write FDB + JVector entry only if it is not already present.
+            if (alreadyIndexed.contains(objectId)) {
+                continue;
             }
+
+            VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata,
+                    objectIdBytes, shardId, pair.metadata(), vector);
 
             // Add to the on-heap graph via VectorGraphIndexGroup.
             OnHeapVectorGraphIndex graph = group.getOrCreateOnHeap(

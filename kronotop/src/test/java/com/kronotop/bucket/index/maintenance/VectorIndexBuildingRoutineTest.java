@@ -28,6 +28,7 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.vector.MergedNodeScore;
 import com.kronotop.bucket.vector.VectorGraphIndexGroup;
 import com.kronotop.bucket.vector.VectorGraphIndexRegistry;
 import com.kronotop.commands.BucketCommandBuilder;
@@ -36,11 +37,14 @@ import com.kronotop.server.resp3.ArrayRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -449,6 +453,51 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             assertNotNull(indexStats, "Index statistics should be present");
             assertEquals(3L, indexStats.cardinality(), "Cardinality must equal document count, not double counted");
         }
+    }
+
+    @Test
+    void shouldNotDuplicateGraphNodesWhenEntriesAlreadyIndexedByOnlineWrites() {
+        // Behavior: When the vector index is created first, the online write path writes the FDB entry and
+        // adds a graph node for each inserted document. Those same documents also fall within the background
+        // builder's scan range. The builder must skip an ObjectId that already has an FDB entry, so no second
+        // graph node is added. A search with TOP larger than the document count must return each document once.
+
+        // Create the index first so the online insert path maintains it during the build.
+        VectorIndexDefinition definition = createVectorIndex(IndexStatus.WAITING);
+
+        DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
+
+        insertDocumentWithVector(0.1, 0.2, 0.3);
+        insertDocumentWithVector(0.4, 0.5, 0.6);
+        insertDocumentWithVector(0.7, 0.8, 0.9);
+
+        // Wait for the background build task to complete and be swept.
+        await().atMost(30, TimeUnit.SECONDS).until(() -> {
+            AtomicInteger counter = new AtomicInteger();
+            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                TaskStorage.tasks(tr, taskSubspace, (id) -> {
+                    counter.incrementAndGet();
+                    return true;
+                });
+                return counter.get() == 0;
+            }
+        });
+
+        BucketService bucketService = context.getService(BucketService.NAME);
+        VectorGraphIndexRegistry registry = bucketService.getVectorGraphRegistry();
+        BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
+        VectorGraphIndexGroup group = registry.get(metadata.namespace(), metadata.name(), definition.id());
+        assertNotNull(group, "VectorGraphIndexGroup should be registered");
+
+        float[] queryVector = {0.1f, 0.2f, 0.3f};
+        List<MergedNodeScore> results = group.searchAll(queryVector, 10, 0.0f, 1.0f);
+
+        Set<ObjectId> distinctIds = new HashSet<>();
+        for (MergedNodeScore result : results) {
+            distinctIds.add(result.location().objectId());
+        }
+        assertEquals(3, distinctIds.size(), "All 3 documents should be in the graph");
+        assertEquals(3, results.size(), "Each document must be returned exactly once");
     }
 
 }
