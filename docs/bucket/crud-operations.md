@@ -134,7 +134,7 @@ Find electronics cheaper than 100, no match in our data:
 2# "entries" => (empty array)
 ```
 
-### Sort and limit
+### Sort and batch size
 
 `SORTBY` requires an index on the sort field. Create one on `price` first:
 
@@ -148,7 +148,7 @@ OK
 Now find the cheapest product:
 
 ```kronotop
-127.0.0.1:5484> BUCKET.QUERY products '{}' SORTBY price ASC LIMIT 1
+127.0.0.1:5484> BUCKET.QUERY products '{}' SORTBY price ASC BATCH 1
 1# "cursor_id" => (integer) 7
 2# "entries" => 1) {"_id": "69dbdc95690a394e625a82c0", "category": "books", "price": 19.99, "name": "The Disconnected"}
 ```
@@ -223,10 +223,10 @@ First, insert a few more products:
 3) "69dbddc3690a394e625a82c5"
 ```
 
-Query with a limit of 2:
+Query with a batch size of 2:
 
 ```kronotop
-127.0.0.1:5484> BUCKET.QUERY products '{}' LIMIT 2
+127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2
 1# "cursor_id" => (integer) 12
 2# "entries" =>
    1) {"_id": "69dbdccc690a394e625a82c2", "price": 499.99, "name": "Wireless Headphones"}

@@ -10,19 +10,19 @@ Updates documents in a bucket that match a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [LIMIT <n>] [COLLATION <json-spec>]
+BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [COLLATION <json-spec>]
 ```
 
 ## Parameters
 
-| Parameter   | Type               | Required | Description                                                                                              |
-|-------------|--------------------|----------|----------------------------------------------------------------------------------------------------------|
-| `bucket`    | string             | Yes      | Name of the bucket to update.                                                                            |
-| `query`     | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                   |
-| `update`    | JSON or BSON       | Yes      | Update document with update operators. Cannot be empty.                                                  |
-| `SORTBY`    | string + direction | No       | Process documents in sorted order. Requires field name followed by `ASC` or `DESC`.                      |
-| `LIMIT`     | integer            | No       | Maximum number of documents to update per batch. Must be non-negative.                                   |
-| `COLLATION` | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query. |
+| Parameter   | Type               | Required | Description                                                                                                                                                     |
+|-------------|--------------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string             | Yes      | Name of the bucket to update.                                                                                                                                   |
+| `query`     | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                          |
+| `update`    | JSON or BSON       | Yes      | Update document with update operators. Cannot be empty.                                                                                                         |
+| `SORTBY`    | string + direction | No       | Process documents in sorted order. Requires field name followed by `ASC` or `DESC`.                                                                             |
+| `BATCH`     | integer            | No       | Maximum number of documents to update per batch. Must be non-negative. It does not cap the total number of results. Use `BUCKET.ADVANCE` to get the next batch. |
+| `COLLATION` | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                        |
 
 ## Return Value
 
@@ -119,13 +119,13 @@ content.
 
 ## Pagination
 
-When using `LIMIT`, use the cursor ID with `BUCKET.ADVANCE` to update more matching documents:
+When using `BATCH`, use the cursor ID with `BUCKET.ADVANCE` to update more matching documents:
 
 ```kronotop
 BUCKET.ADVANCE UPDATE <cursor-id>
 ```
 
-Each call updates the next batch of documents up to the limit.
+Each call updates the next batch of documents up to the batch size.
 
 ## Routing
 
@@ -184,10 +184,10 @@ BUCKET.UPDATE users '{"username": "alice"}' '{"$set": {"username": "alice", "sta
 BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' SORTBY created_at ASC
 ```
 
-**Update with limit:**
+**Update with a batch size:**
 
 ```kronotop
-BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' LIMIT 50
+BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BATCH 50
 ```
 
 **Update with collation:**
@@ -201,7 +201,7 @@ Updates documents matching `"alice"` using case-insensitive English collation.
 **Batch update with pagination:**
 
 ```kronotop
-> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' LIMIT 100
+> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BATCH 100
 1# "cursor_id" => (integer) 1
 2# "object_ids" =>... (first 100 updated)
 

@@ -10,17 +10,17 @@ Deletes documents from a bucket that match a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.DELETE <bucket> <query> [LIMIT <n>] [COLLATION <json-spec>]
+BUCKET.DELETE <bucket> <query> [BATCH <n>] [COLLATION <json-spec>]
 ```
 
 ## Parameters
 
-| Parameter   | Type         | Required | Description                                                                                              |
-|-------------|--------------|----------|----------------------------------------------------------------------------------------------------------|
-| `bucket`    | string       | Yes      | Name of the bucket to delete from.                                                                       |
-| `query`     | JSON or BSON | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                   |
-| `LIMIT`     | integer      | No       | Maximum number of documents to delete per batch. Must be non-negative.                                   |
-| `COLLATION` | JSON         | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query. |
+| Parameter   | Type         | Required | Description                                                                                                                                                     |
+|-------------|--------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string       | Yes      | Name of the bucket to delete from.                                                                                                                              |
+| `query`     | JSON or BSON | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                          |
+| `BATCH`     | integer      | No       | Maximum number of documents to delete per batch. Must be non-negative. It does not cap the total number of results. Use `BUCKET.ADVANCE` to get the next batch. |
+| `COLLATION` | JSON         | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                        |
 
 Note: `SORTBY` is not supported for delete operations.
 
@@ -74,13 +74,13 @@ The delete operation is not committed until `COMMIT` is called. Use `ROLLBACK` t
 
 ## Pagination
 
-When using `LIMIT`, use the cursor ID with `BUCKET.ADVANCE` to delete more matching documents:
+When using `BATCH`, use the cursor ID with `BUCKET.ADVANCE` to delete more matching documents:
 
 ```kronotop
 BUCKET.ADVANCE DELETE <cursor-id>
 ```
 
-Each call deletes the next batch of documents up to the limit.
+Each call deletes the next batch of documents up to the batch size.
 
 ## Routing
 
@@ -117,10 +117,10 @@ BUCKET.DELETE users '{}'
 BUCKET.DELETE users '{"status": "inactive"}'
 ```
 
-**Delete with limit:**
+**Delete with a batch size:**
 
 ```kronotop
-BUCKET.DELETE users '{"age": {"$gt": 30}}' LIMIT 50
+BUCKET.DELETE users '{"age": {"$gt": 30}}' BATCH 50
 ```
 
 **Delete with collation:**
@@ -134,7 +134,7 @@ Deletes documents where `name` matches `"alice"` using case-insensitive English 
 **Batch delete with pagination:**
 
 ```kronotop
-> BUCKET.DELETE users '{"status": "inactive"}' LIMIT 100
+> BUCKET.DELETE users '{"status": "inactive"}' BATCH 100
 1# "cursor_id" => (integer) 1
 2# "object_ids" =>... (first 100 deleted)
 

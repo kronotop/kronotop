@@ -26,7 +26,7 @@ The command performs a full session reset without closing the underlying network
 3. **MULTI State**: `MULTI` transaction state (queued commands, the MULTI flag) is reset
 4. **Watched Keys**: All keys being watched via `WATCH` are unwatched
 5. **Cursor ID Counter**: Reset to 1
-6. **Session Defaults**: the configuration attributes (`reply_type`, `input_type`, `limit`, `object_id_format`) are
+6. **Session Defaults**: the configuration attributes (`reply_type`, `input_type`, `batch`, `object_id_format`) are
    reset to their defaults, snapshot read goes back to off, and the current namespace goes back to the default one
 
 Everything that belongs to the connection rather than the session is kept: the negotiated RESP version, the
@@ -60,7 +60,7 @@ The transaction is rolled back; no explicit `ROLLBACK` is needed.
 **Resetting modified session attributes:**
 
 ```kronotop
-> SESSION.ATTRIBUTE SET limit 50
+> SESSION.ATTRIBUTE SET batch 50
 OK
 
 > SESSION.CLOSE
@@ -69,11 +69,11 @@ OK
 > SESSION.ATTRIBUTE LIST
 1# reply_type => bson
 2# input_type => bson
-3# limit => (integer) 100
+3# batch => (integer) 100
 4# object_id_format => bytes
 ```
 
-The `limit` attribute is reset to its default value (100).
+The `batch` attribute is reset to its default value (100).
 
 **Resetting snapshot read:**
 

@@ -10,7 +10,7 @@ Returns the query execution plan for a given query without executing it.
 ## Syntax
 
 ```kronotop
-BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [LIMIT <n>] [COLLATION <json-spec>]
+BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [COLLATION <json-spec>]
 ```
 
 ## Parameters
@@ -20,7 +20,7 @@ BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [LIMIT <n>] [COLLATI
 | `bucket`    | string             | Yes      | Name of the bucket to explain the query against.                                                    |
 | `query`     | JSON or BSON       | Yes      | Filter expression to analyze. Use `{}` to match all documents.                                      |
 | `SORTBY`    | string + direction | No       | Sort specification. Requires field name followed by `ASC` or `DESC`.                                |
-| `LIMIT`     | integer            | No       | Maximum number of documents per batch.                                                              |
+| `BATCH`     | integer            | No       | Maximum number of documents per batch.                                                              |
 | `COLLATION` | JSON               | No       | Query-level collation spec. When provided, the plan reflects how collation affects index selection. |
 
 The parameters are identical to `BUCKET.QUERY`. The query is parsed and planned but never executed.

@@ -30,7 +30,7 @@ Sets a single session attribute to the given value. Returns `OK` on success.
 |--------------------|---------|---------|--------------|---------------------------------------------------|
 | `reply_type`       | enum    | bson    | bson, json   | Data interchange format for responses             |
 | `input_type`       | enum    | bson    | bson, json   | Data interchange format for inputs                |
-| `limit`            | integer | 100     | > 0          | Maximum entries returned per query response       |
+| `batch`            | integer | 100     | > 0          | Number of documents returned per batch            |
 | `object_id_format` | enum    | bytes   | bytes, hex   | Encoding format for object ID values in responses |
 
 All attribute names and enum values are case-insensitive.
@@ -42,7 +42,7 @@ All attribute names and enum values are case-insensitive.
 | `ERR Invalid subcommand status: <value>`   | The subcommand is neither `LIST` nor `SET`    |
 | `ERR Invalid reply type: <value>`          | Invalid value for `reply_type`                |
 | `ERR Invalid input type: <value>`          | Invalid value for `input_type`                |
-| `ERR 'limit' must be greater than 0`       | `limit` was set to 0 or a negative number     |
+| `ERR 'batch' must be greater than 0`       | `batch` was set to 0 or a negative number     |
 | `ERR Invalid versionstamp format: <value>` | Invalid value for `object_id_format`          |
 | `ERR invalid number of parameters`         | `SET` called without both attribute and value |
 | `ERR Invalid session attribute: '<name>'`  | The attribute name does not exist             |
@@ -55,7 +55,7 @@ All attribute names and enum values are case-insensitive.
 > SESSION.ATTRIBUTE LIST
 1# reply_type => bson
 2# input_type => bson
-3# limit => (integer) 100
+3# batch => (integer) 100
 4# object_id_format => bytes
 ```
 
@@ -66,10 +66,10 @@ All attribute names and enum values are case-insensitive.
 OK
 ```
 
-**Set limit:**
+**Set batch:**
 
 ```kronotop
-> SESSION.ATTRIBUTE SET limit 50
+> SESSION.ATTRIBUTE SET batch 50
 OK
 ```
 

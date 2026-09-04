@@ -83,11 +83,11 @@ When no cursors exist for an operation type, the corresponding map or array is e
 **List all cursors:**
 
 ```kronotop
-> BUCKET.QUERY users '{"age": {"$gt": 20}}' LIMIT 10
+> BUCKET.QUERY users '{"age": {"$gt": 20}}' BATCH 10
 1# "cursor_id" => (integer) 1
 2# "entries" => ... (first 10 documents)
 
-> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' LIMIT 5
+> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BATCH 5
 1# "cursor_id" => (integer) 2
 2# "entries" => ... (first 5 object_ids)
 
@@ -119,7 +119,7 @@ When no cursors exist for an operation type, the corresponding map or array is e
 **Verify cursor removal after close:**
 
 ```kronotop
-> BUCKET.QUERY users '{}' LIMIT 10
+> BUCKET.QUERY users '{}' BATCH 10
 1# "cursor_id" => (integer) 1
 2# "entries" => ... (documents)
 

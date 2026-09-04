@@ -7,7 +7,7 @@ description: "SORTBY controls the ordering of documents returned by BUCKET.QUERY
 a direction (`ASC` or `DESC`). `BUCKET.DELETE` does not support `SORTBY`.
 
 ```kronotop
-BUCKET.QUERY users '{}' SORTBY age ASC LIMIT 10
+BUCKET.QUERY users '{}' SORTBY age ASC BATCH 10
 ```
 
 `SORTBY` requires an index on the sort field. The index provides natural ordering. FoundationDB stores index entries in
@@ -28,7 +28,7 @@ When the SORTBY field has a matching index and the optimizer selects it, the ind
 Example: `age` is indexed.
 
 ```kronotop
-127.0.0.1:5484> BUCKET.QUERY users '{}' SORTBY age ASC LIMIT 3
+127.0.0.1:5484> BUCKET.QUERY users '{}' SORTBY age ASC BATCH 3
 1# "cursor_id" => (integer) 2
 2# "entries" =>
    1) {"_id": "69ce80c76597b10d87d134ff", "age": 20}
@@ -92,13 +92,13 @@ Example: compound index on `(status, age)`.
 
 ```kronotop
 -- EQ on 'status', SORTBY on 'age' -> works
-BUCKET.QUERY users '{"status": "active"}' SORTBY age ASC LIMIT 10
+BUCKET.QUERY users '{"status": "active"}' SORTBY age ASC BATCH 10
 
 -- Range on 'age', SORTBY on 'age' -> works (sort field = range field)
-BUCKET.QUERY users '{"age": {"$gt": 5, "$lt": 100}}' SORTBY age ASC LIMIT 10
+BUCKET.QUERY users '{"age": {"$gt": 5, "$lt": 100}}' SORTBY age ASC BATCH 10
 
 -- Range on 'status', SORTBY on 'age' -> rejected
-BUCKET.QUERY users '{"status": {"$gt": "a"}}' SORTBY age ASC LIMIT 10
+BUCKET.QUERY users '{"status": {"$gt": "a"}}' SORTBY age ASC BATCH 10
 ```
 
 The last query is rejected because the range filter on `status` (a prefix field) breaks the ordering of `age` within the
@@ -110,7 +110,7 @@ When the filter field and the sort field have separate single-field indexes, the
 uses the filter-field index, which does not provide ordering on the sort field.
 
 ```kronotop
-BUCKET.QUERY users '{"status": "active"}' SORTBY age ASC LIMIT 10
+BUCKET.QUERY users '{"status": "active"}' SORTBY age ASC BATCH 10
 ```
 
 If `status` and `age` each have their own single-field index, this query fails. Create a compound index on
@@ -160,8 +160,8 @@ filters out excluded values. Ordering is preserved.
 
 ```kronotop
 -- 'age' is indexed
-BUCKET.QUERY users '{"age": {"$ne": 25}}' SORTBY age ASC LIMIT 10
-BUCKET.QUERY users '{"age": {"$nin": [20, 40]}}' SORTBY age ASC LIMIT 10
+BUCKET.QUERY users '{"age": {"$ne": 25}}' SORTBY age ASC BATCH 10
+BUCKET.QUERY users '{"age": {"$nin": [20, 40]}}' SORTBY age ASC BATCH 10
 ```
 
 Both queries scan the `age` index in ascending order and skip excluded values. Global sort ordering is guaranteed.
@@ -183,7 +183,7 @@ avoids scanning the entire index.
 
 ```kronotop
 -- 'age' is indexed
-BUCKET.QUERY users '{"age": {"$in": [30, 10, 50]}}' SORTBY age ASC LIMIT 10
+BUCKET.QUERY users '{"age": {"$in": [30, 10, 50]}}' SORTBY age ASC BATCH 10
 ```
 
 The engine executes EQ scans in order: first `age = 10`, then `age = 30`, then `age = 50`. Each scan is exhausted before
@@ -220,7 +220,7 @@ stopped. The combined result of all batches is identical to sorting the full res
 
 ```kronotop
 -- 'created_at' is indexed
-127.0.0.1:5484> BUCKET.QUERY events '{}' SORTBY created_at DESC LIMIT 5
+127.0.0.1:5484> BUCKET.QUERY events '{}' SORTBY created_at DESC BATCH 5
 1# "cursor_id" => (integer) 3
 2# "entries" =>
    1) {"_id": "69ce82626597b10d87d1350f", "created_at": {"$date": "2025-12-05T00:00:00Z"}}
@@ -247,7 +247,7 @@ stopped. The combined result of all batches is identical to sorting the full res
 `SORTBY`, it does not require an index and does not guarantee global ordering across batches.
 
 ```kronotop
-BUCKET.QUERY users '{}' RESULTSORT score ASC LIMIT 10
+BUCKET.QUERY users '{}' RESULTSORT score ASC BATCH 10
 ```
 
 - Works on any field, no index required.
@@ -281,7 +281,7 @@ Since ObjectId values encode a timestamp in their leading bytes, sorting by `_id
 results.
 
 ```kronotop
-BUCKET.QUERY users '{}' SORTBY _id ASC LIMIT 10
+BUCKET.QUERY users '{}' SORTBY _id ASC BATCH 10
 ```
 
 This is useful for scanning documents in the order they were inserted, or for fetching the most recently inserted

@@ -19,7 +19,7 @@ connection-pooling scenarios or for returning a session to a known-good state be
 
 A session tracks the following categories of state:
 
-- **Configuration attributes**: reply format, input format, result limit, object ID format
+- **Configuration attributes**: reply format, input format, batch size, object ID format
 - **Active FoundationDB transaction**, at most one at a time, with its post-commit hooks and version counter
 - **Query cursors**, three independent pools for read, delete, and update operations
 - **Cursor ID counter**, a monotonically increasing integer scoped to the session
@@ -39,7 +39,7 @@ Four configurable attributes control how the session processes commands and form
 |--------------------|---------|---------|--------------|---------------------------------------------------|
 | `reply_type`       | enum    | bson    | bson, json   | Data interchange format for responses             |
 | `input_type`       | enum    | bson    | bson, json   | Data interchange format for inputs                |
-| `limit`            | integer | 100     | > 0          | Maximum entries returned per query response       |
+| `batch`            | integer | 100     | > 0          | Number of documents returned per batch            |
 | `object_id_format` | enum    | bytes   | bytes, hex   | Encoding format for object ID values in responses |
 
 Use `SESSION.ATTRIBUTE LIST` to view current values and `SESSION.ATTRIBUTE SET` to change them:
@@ -48,14 +48,14 @@ Use `SESSION.ATTRIBUTE LIST` to view current values and `SESSION.ATTRIBUTE SET` 
 > SESSION.ATTRIBUTE LIST
 1# reply_type => bson
 2# input_type => bson
-3# limit => (integer) 100
+3# batch => (integer) 100
 4# object_id_format => bytes
 
-> SESSION.ATTRIBUTE SET limit 50
+> SESSION.ATTRIBUTE SET batch 50
 OK
 ```
 
-Attributes are reset to defaults by `SESSION.CLOSE` or when the connection closes.
+Attributes are reset to default values by `SESSION.CLOSE` or when the connection closes.
 
 ## Cursors
 
@@ -121,7 +121,7 @@ is the state that belongs to the connection itself: the negotiated RESP version,
 client name and library info. A pooled connection can therefore be reused without a new `AUTH` round trip.
 
 ```kronotop
-> SESSION.ATTRIBUTE SET limit 50
+> SESSION.ATTRIBUTE SET batch 50
 OK
 
 > SESSION.CLOSE
@@ -130,7 +130,7 @@ OK
 > SESSION.ATTRIBUTE LIST
 1# reply_type => bson
 2# input_type => bson
-3# limit => (integer) 100
+3# batch => (integer) 100
 4# object_id_format => bytes
 ```
 

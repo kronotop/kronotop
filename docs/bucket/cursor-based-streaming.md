@@ -41,7 +41,7 @@ first batch now, wait an hour, and call `BUCKET.ADVANCE` to pick up where you le
 **Closing** releases the cursor. Always call `BUCKET.CLOSE` when you are done paginating.
 
 ```kronotop
-127.0.0.1:5484> BUCKET.QUERY products '{}' LIMIT 2
+127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2
 1# "cursor_id" => (integer) 0
 2# "entries" =>
    1) {"_id": "69ce80c76597b10d87d134ff", "category": "books", "price": 19.99, "name": "The Disconnected"}
@@ -77,21 +77,21 @@ and [BUCKET.CLOSE](commands/bucket-close.md) for command details.
 
 ## Batch Size
 
-`LIMIT` controls how many documents (or object IDs) are returned per batch. When omitted, the session's default limit
+`BATCH` controls how many documents (or object IDs) are returned per batch. When omitted, the session's default batch size
 applies.
 
-The default limit is 100. You can change it per session:
+The default batch size is 100. You can change it per session:
 
 ```kronotop
-127.0.0.1:5484> SESSION.ATTRIBUTE SET limit 50
+127.0.0.1:5484> SESSION.ATTRIBUTE SET batch 50
 OK
 ```
 
-All subsequent queries in this session use 50 as the default batch size unless overridden by an explicit `LIMIT`
+All subsequent queries in this session use 50 as the default batch size unless overridden by an explicit `BATCH`
 parameter.
 
 ```kronotop
-127.0.0.1:5484> BUCKET.QUERY products '{}' LIMIT 10
+127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 10
 ```
 
 This query returns at most 10 documents per batch, regardless of the session default.
@@ -106,7 +106,7 @@ No documents are skipped or duplicated between batches.
 
 ## Partial and Empty Batches
 
-A batch may contain fewer results than `LIMIT` requested, or even zero results. This does **not** mean the result set is
+A batch may contain fewer results than `BATCH` requested, or even zero results. This does **not** mean the result set is
 exhausted.
 The cursor's position is still valid, and the next `BUCKET.ADVANCE` call resumes from where the previous batch stopped.
 
@@ -125,7 +125,7 @@ is in the response shape: they return `object_ids` (the IDs of affected document
 documents).
 
 ```kronotop
-127.0.0.1:5484> BUCKET.DELETE users '{"status": "inactive"}' LIMIT 2
+127.0.0.1:5484> BUCKET.DELETE users '{"status": "inactive"}' BATCH 2
 1# "cursor_id" => (integer) 3
 2# "object_ids" =>
    1) "69ce80c76597b10d87d13510"
@@ -153,7 +153,7 @@ position in that index, so **global ordering is guaranteed across all batches**.
 calls forms a single, consistently sorted sequence.
 
 ```kronotop
-BUCKET.QUERY events '{}' SORTBY created_at DESC LIMIT 5
+BUCKET.QUERY events '{}' SORTBY created_at DESC BATCH 5
 ```
 
 Each batch returns the next 5 events in descending `created_at` order. No event appears out of order, even across batch
@@ -170,11 +170,11 @@ position.
 Cursors are independent – advancing or closing one does not affect others.
 
 ```kronotop
-127.0.0.1:5484> BUCKET.QUERY products '{"category": "books"}' LIMIT 5
+127.0.0.1:5484> BUCKET.QUERY products '{"category": "books"}' BATCH 5
 1# "cursor_id" => (integer) 0
 2# "entries" => ...
 
-127.0.0.1:5484> BUCKET.DELETE products '{"category": "discontinued"}' LIMIT 10
+127.0.0.1:5484> BUCKET.DELETE products '{"category": "discontinued"}' BATCH 10
 1# "cursor_id" => (integer) 1
 2# "object_ids" => ...
 ```
@@ -212,7 +212,7 @@ disconnects, all its cursors are released automatically.
 - **Handle empty batches.** An empty batch does not always mean the result set is exhausted. Keep calling
   `BUCKET.ADVANCE` until empty batches come back consistently.
   See [Partial and Empty Batches](#partial-and-empty-batches).
-- **Choose an appropriate LIMIT.** Smaller batches use less memory per transaction. Larger batches reduce round trips.
+- **Choose an appropriate batch size.** Smaller batches use less memory per transaction. Larger batches reduce round trips.
   The default (100) is a reasonable starting point for most workloads.
 - **Use `BUCKET.CURSORS` for debugging.** List active cursors to verify none are leaked.
 - **Use `SORTBY` when ordering matters.** Without `SORTBY`, document order across batches depends on the index the

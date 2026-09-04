@@ -10,20 +10,20 @@ Queries documents from a bucket using a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.QUERY <bucket> <query> [SORTBY <field> <ASC|DESC>] [RESULTSORT <field> <ASC|DESC>] [PROJECTION <spec>] [LIMIT <n>] [COLLATION <json-spec>]
+BUCKET.QUERY <bucket> <query> [SORTBY <field> <ASC|DESC>] [RESULTSORT <field> <ASC|DESC>] [PROJECTION <spec>] [BATCH <n>] [COLLATION <json-spec>]
 ```
 
 ## Parameters
 
-| Parameter    | Type               | Required | Description                                                                                                                                                                                                                   |
-|--------------|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bucket`     | string             | Yes      | Name of the bucket to query.                                                                                                                                                                                                  |
-| `query`      | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                                                                                        |
-| `SORTBY`     | string + direction | No       | Sort results by a field. Requires field name followed by `ASC` or `DESC`.                                                                                                                                                     |
-| `RESULTSORT` | string + direction | No       | Sort each result batch in memory by any field (indexed or not). Requires field name followed by `ASC` or `DESC`. Does not guarantee global ordering across `BUCKET.ADVANCE` calls. See [RESULTSORT](../sortby.md#resultsort). |
-| `PROJECTION` | JSON or BSON       | No       | Projection specification that controls which fields appear in returned documents. Use `{"field": 1}` for inclusion or `{"field": 0}` for exclusion. See [Projection](../projection.md).                                       |
-| `LIMIT`      | integer            | No       | Maximum number of documents to return per batch. Must be non-negative. When not specified, the session's default limit is used (default: 100, configurable via `SESSION.ATTRIBUTE SET limit <n>`).                            |
-| `COLLATION`  | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                      |
+| Parameter    | Type               | Required | Description                                                                                                                                                                                                                                                                                      |
+|--------------|--------------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`     | string             | Yes      | Name of the bucket to query.                                                                                                                                                                                                                                                                     |
+| `query`      | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                                                                                                                                                           |
+| `SORTBY`     | string + direction | No       | Sort results by a field. Requires field name followed by `ASC` or `DESC`.                                                                                                                                                                                                                        |
+| `RESULTSORT` | string + direction | No       | Sort each result batch in memory by any field (indexed or not). Requires field name followed by `ASC` or `DESC`. Does not guarantee global ordering across `BUCKET.ADVANCE` calls. See [RESULTSORT](../sortby.md#resultsort).                                                                    |
+| `PROJECTION` | JSON or BSON       | No       | Projection specification that controls which fields appear in returned documents. Use `{"field": 1}` for inclusion or `{"field": 0}` for exclusion. See [Projection](../projection.md).                                                                                                          |
+| `BATCH`      | integer            | No       | Maximum number of documents to return per batch. Must be non-negative. It does not cap the total number of results. Use `BUCKET.ADVANCE` to get the next batch. When not specified, the session's default batch size is used (default: 100, configurable via `SESSION.ATTRIBUTE SET BATCH <n>`). |
+| `COLLATION`  | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                                                                                         |
 
 ## Return Value
 
@@ -83,7 +83,7 @@ When there are no more results, the command returns an empty result set.
 
 The cursor maintains its state across calls:
 
-- Query context (filter, sort, limit)
+- Query context (filter, sort, batch size)
 - Current position in the result set
 - Transaction context (if within an explicit transaction)
 
@@ -141,16 +141,16 @@ BUCKET.QUERY users '{"name": "Alice"}'
 BUCKET.QUERY users '{}' SORTBY age DESC
 ```
 
-**Query with limit:**
+**Query with a batch size:**
 
 ```kronotop
-BUCKET.QUERY users '{"status": "active"}' LIMIT 10
+BUCKET.QUERY users '{"status": "active"}' BATCH 10
 ```
 
-**Query with sorting and limit:**
+**Query with sorting and a batch size:**
 
 ```kronotop
-BUCKET.QUERY users '{"status": "active"}' SORTBY age ASC LIMIT 5
+BUCKET.QUERY users '{"status": "active"}' SORTBY age ASC BATCH 5
 ```
 
 **Query with projection:**
@@ -162,7 +162,7 @@ BUCKET.QUERY users '{"status": "active"}' PROJECTION '{"name": 1, "email": 1}'
 **Query with in-memory result sort (no index required):**
 
 ```kronotop
-BUCKET.QUERY users '{"status": "active"}' RESULTSORT score ASC LIMIT 10
+BUCKET.QUERY users '{"status": "active"}' RESULTSORT score ASC BATCH 10
 ```
 
 **Query with collation override:**
@@ -176,7 +176,7 @@ This performs a case-insensitive match using English locale rules, regardless of
 **Pagination:**
 
 ```kronotop
-> BUCKET.QUERY users '{}' LIMIT 100
+> BUCKET.QUERY users '{}' BATCH 100
 1# "cursor_id" => (integer) 1
 2# "entries" => [...] (first 100 documents)
 

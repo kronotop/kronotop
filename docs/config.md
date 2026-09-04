@@ -78,13 +78,13 @@ Controls cluster membership, failure detection, and inter-node communication.
 
 ## Session Defaults
 
-Default values applied to every new client session. Clients can override these per-session.
+Default values are applied to every new client session. Clients can override these per-session.
 
-| Parameter                       | Type   | Default  | Description                                                                                      |
-|---------------------------------|--------|----------|--------------------------------------------------------------------------------------------------|
-| `session_attributes.input_type` | string | `"bson"` | Default encoding for incoming documents. Accepted values: `"bson"`, `"json"`.                    |
-| `session_attributes.reply_type` | string | `"bson"` | Default encoding for query results returned to clients. Accepted values: `"bson"`, `"json"`.     |
-| `session_attributes.limit`      | int    | `100`    | Default maximum number of documents returned per query when the client does not specify a LIMIT. |
+| Parameter                       | Type   | Default  | Description                                                                                  |
+|---------------------------------|--------|----------|----------------------------------------------------------------------------------------------|
+| `session_attributes.input_type` | string | `"bson"` | Default encoding for incoming documents. Accepted values: `"bson"`, `"json"`.                |
+| `session_attributes.reply_type` | string | `"bson"` | Default encoding for query results returned to clients. Accepted values: `"bson"`, `"json"`. |
+| `session_attributes.batch`      | int    | `100`    | Default number of documents returned per batch when the command does not specify BATCH.      |
 
 ---
 

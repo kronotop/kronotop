@@ -36,7 +36,7 @@ Returns `OK` on success.
 **Close a query cursor:**
 
 ```kronotop
-> BUCKET.QUERY users '{}' LIMIT 100
+> BUCKET.QUERY users '{}' BATCH 100
 cursor_id -> (integer) 1
 entries -> [...] (first 100 documents)
 
@@ -47,7 +47,7 @@ OK
 **Double-close returns an error:**
 
 ```kronotop
-> BUCKET.QUERY users '{}' LIMIT 100
+> BUCKET.QUERY users '{}' BATCH 100
 cursor_id -> (integer) 1
 entries -> [...]
 
@@ -61,7 +61,7 @@ OK
 **Close after pagination:**
 
 ```kronotop
-> BUCKET.DELETE users '{"status": "inactive"}' LIMIT 50
+> BUCKET.DELETE users '{"status": "inactive"}' BATCH 50
 cursor_id -> (integer) 1
 object_ids -> [...] (first 50 deleted)
 
@@ -76,11 +76,11 @@ OK
 **Closing one cursor does not affect others:**
 
 ```kronotop
-> BUCKET.QUERY users '{}' LIMIT 10
+> BUCKET.QUERY users '{}' BATCH 10
 cursor_id -> (integer) 1
 entries -> [...]
 
-> BUCKET.DELETE users '{"status": "inactive"}' LIMIT 10
+> BUCKET.DELETE users '{"status": "inactive"}' BATCH 10
 cursor_id -> (integer) 2
 object_ids -> [...]
 

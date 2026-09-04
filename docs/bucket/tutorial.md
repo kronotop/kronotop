@@ -401,7 +401,7 @@ tracks position in the result set so you can page through results with `BUCKET.A
 ### Basic Pagination
 
 ```kronotop
-> BUCKET.QUERY users '{}' LIMIT 2
+> BUCKET.QUERY users '{}' BATCH 2
 1# "cursor_id" => (integer) 21
 2# "entries" =>
    1) {"_id": "507f1f77bcf86cd799439011", "name": "Dave", "age": 28}
@@ -420,11 +420,11 @@ An empty `entries` array signals that all matching documents have been returned.
 
 ### Default Batch Size
 
-When `LIMIT` is omitted, the session's `limit` attribute controls the batch size (default: 100). You can
+When `BATCH` is omitted, the session's `batch` attribute controls the batch size (default: 100). You can
 change it with:
 
 ```kronotop
-> SESSION.ATTRIBUTE SET limit 50
+> SESSION.ATTRIBUTE SET batch 50
 OK
 ```
 
@@ -457,7 +457,7 @@ Filter by operation type:
 ### Sorting with SORTBY
 
 ```kronotop
-BUCKET.QUERY users '{"age": {"$gt": 25}}' SORTBY age ASC LIMIT 10
+BUCKET.QUERY users '{"age": {"$gt": 25}}' SORTBY age ASC BATCH 10
 ```
 
 `SORTBY` requires an index on the sort field, and the query plan must produce results already ordered by that
@@ -536,7 +536,7 @@ Henry's `scores` array is now `[75, 100, 100]`.
 
 ### Ordered Batch Updates
 
-Combine `SORTBY` and `LIMIT` to update documents in a specific order. `SORTBY` requires the query to produce
+Combine `SORTBY` and `BATCH` to update documents in a specific order. `SORTBY` requires the query to produce
 results already ordered by the sort field. When the filter field and the sort field are different, create a
 compound index that covers both, with the filter field first:
 
@@ -589,7 +589,7 @@ Insert a few pending documents with `created_at` timestamps:
 With an equality filter on `status`, the compound index provides natural ordering on `created_at`:
 
 ```kronotop
-> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' SORTBY created_at ASC LIMIT 2
+> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' SORTBY created_at ASC BATCH 2
 1# "cursor_id" => (integer) 29
 2# "object_ids" =>
    1) "6a23e10187f4f93001bd8dfd"
@@ -622,10 +622,10 @@ See [BUCKET.UPDATE](commands/bucket-update.md) for the full reference.
 
 ### Batched Deletes
 
-Use `LIMIT` and `BUCKET.ADVANCE` to delete in batches:
+Use `BATCH` and `BUCKET.ADVANCE` to delete in batches:
 
 ```kronotop
-> BUCKET.DELETE users '{"status": "inactive"}' LIMIT 100
+> BUCKET.DELETE users '{"status": "inactive"}' BATCH 100
 1# "cursor_id" => (integer) 28
 2# "object_ids" =>
    1) "6a23da8a87f4f93001bd8df6"

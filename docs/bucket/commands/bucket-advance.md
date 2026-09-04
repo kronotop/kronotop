@@ -99,9 +99,9 @@ The format is the same as the DELETE operation.
 Cursors are created by `BUCKET.QUERY`, `BUCKET.DELETE`, or `BUCKET.UPDATE` commands. Each cursor:
 
 - Is bound to the session that created it
-- Stores the query context (filter, sort, limit)
+- Stores the query context (filter, sort, batch size)
 - Tracks the current position in the result set
-- Respects the original batch size (LIMIT) from the initial command
+- Respects the original batch size from the initial command
 
 The cursor ID must match the operation type. For example, a cursor created by `BUCKET.QUERY` can only be used with
 `BUCKET.ADVANCE QUERY`.
@@ -118,7 +118,7 @@ The cursor ID must match the operation type. For example, a cursor created by `B
 **Paginate through query results:**
 
 ```kronotop
-> BUCKET.QUERY users '{}' LIMIT 100
+> BUCKET.QUERY users '{}' BATCH 100
 1# "cursor_id" => (integer) 34
 2# "entries" => [...] (first 100 documents)
 
@@ -134,7 +134,7 @@ The cursor ID must match the operation type. For example, a cursor created by `B
 **Batch delete with pagination:**
 
 ```kronotop
-> BUCKET.DELETE users '{"status": "inactive"}' LIMIT 50
+> BUCKET.DELETE users '{"status": "inactive"}' BATCH 50
 1# "cursor_id" => (integer) 1
 2# "object_ids" => [...] (first 50 deleted ObjectIds)
 
@@ -146,7 +146,7 @@ The cursor ID must match the operation type. For example, a cursor created by `B
 **Batch update with pagination:**
 
 ```kronotop
-> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' LIMIT 50
+> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BATCH 50
 1# "cursor_id" => (integer) 1
 2# "object_ids" => [...] (first 50 updated ObjectIds)
 

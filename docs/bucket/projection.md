@@ -295,7 +295,7 @@ When the spec also lists inclusion fields, `$slice` behaves within that inclusio
 ### BUCKET.QUERY
 
 ```kronotop
-BUCKET.QUERY users '{"status": "active"}' PROJECTION '{"name": 1, "email": 1}' LIMIT 10
+BUCKET.QUERY users '{"status": "active"}' PROJECTION '{"name": 1, "email": 1}' BATCH 10
 ```
 
 ### BUCKET.VECTOR

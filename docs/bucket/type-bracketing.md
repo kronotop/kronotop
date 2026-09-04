@@ -50,7 +50,7 @@ When two values share the same type bracket, they are compared by their actual v
 ## Where Type Bracketing Applies
 
 Type bracketing is used in in-memory `RESULTSORT` operations. When a query includes `RESULTSORT`, the matched documents
-are sorted using type bracketing before applying `LIMIT`. It is also used at plan time to order `$in` scan predicates
+are sorted using type bracketing before applying `BATCH`. It is also used at plan time to order `$in` scan predicates
 for `SORTBY` optimization.
 
 Type bracketing is **not** used in:
