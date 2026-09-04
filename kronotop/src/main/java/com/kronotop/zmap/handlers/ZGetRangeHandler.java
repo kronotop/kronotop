@@ -18,10 +18,10 @@ package com.kronotop.zmap.handlers;
 
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.async.AsyncIterable;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -39,7 +39,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Command(ZGetRangeMessage.COMMAND)
@@ -72,22 +71,10 @@ public class ZGetRangeHandler extends BaseZMapHandler implements Handler {
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
             DirectorySubspace subspace = openZMapSubspace(tr, session);
 
-            byte[] begin;
-            byte[] end;
-            if (Arrays.equals(message.getBegin(), ASTERISK)) {
-                begin = subspace.pack();
-            } else {
-                begin = subspace.pack(message.getBegin());
-            }
+            Range range = resolveRange(subspace, message.getBegin(), message.getEnd());
 
-            if (Arrays.equals(message.getEnd(), ASTERISK)) {
-                end = ByteArrayUtil.strinc(subspace.pack());
-            } else {
-                end = subspace.pack(message.getEnd());
-            }
-
-            KeySelector beginKeySelector = RangeKeySelector.getKeySelector(message.getBeginKeySelector(), begin);
-            KeySelector endKeySelector = RangeKeySelector.getKeySelector(message.getEndKeySelector(), end);
+            KeySelector beginKeySelector = RangeKeySelector.getKeySelector(message.getBeginKeySelector(), range.begin);
+            KeySelector endKeySelector = RangeKeySelector.getKeySelector(message.getEndKeySelector(), range.end);
 
             AsyncIterable<KeyValue> asyncIterable = getRange(
                     tr, beginKeySelector, endKeySelector, message.getLimit(),

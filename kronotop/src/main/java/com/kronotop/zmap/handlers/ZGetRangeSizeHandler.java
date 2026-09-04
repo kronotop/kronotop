@@ -19,7 +19,6 @@ package com.kronotop.zmap.handlers;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -29,8 +28,6 @@ import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapService;
 import com.kronotop.zmap.handlers.protocol.ZGetRangeSizeMessage;
-
-import java.util.Arrays;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -63,21 +60,7 @@ public class ZGetRangeSizeHandler extends BaseZMapHandler implements Handler {
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
             DirectorySubspace subspace = openZMapSubspace(tr, session);
 
-            byte[] begin;
-            byte[] end;
-            if (Arrays.equals(message.getBegin(), ASTERISK)) {
-                begin = subspace.pack();
-            } else {
-                begin = subspace.pack(message.getBegin());
-            }
-
-            if (Arrays.equals(message.getEnd(), ASTERISK)) {
-                end = ByteArrayUtil.strinc(subspace.pack());
-            } else {
-                end = subspace.pack(message.getEnd());
-            }
-
-            Range range = new Range(begin, end);
+            Range range = resolveRange(subspace, message.getBegin(), message.getEnd());
             return getEstimatedRangeSizeBytes(tr, range, TransactionUtil.isSnapshotRead(session)).join();
         }, response::writeInteger);
     }

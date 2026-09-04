@@ -16,13 +16,17 @@
 
 package com.kronotop.zmap;
 
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.kronotop.Context;
 import com.kronotop.DataStructureKind;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Handler;
 import com.kronotop.server.Session;
+
+import java.util.Arrays;
 
 public abstract class BaseZMapHandler implements Handler {
     protected static final byte[] ASTERISK = new byte[]{0x2A};
@@ -48,5 +52,21 @@ public abstract class BaseZMapHandler implements Handler {
      */
     protected DirectorySubspace openZMapSubspace(Transaction tr, Session session) {
         return NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.ZMAP);
+    }
+
+    /**
+     * Resolves a user-supplied key range into a packed range inside the ZMap subspace.
+     * An asterisk stands for the subspace boundary: the first key for the begin side,
+     * and the end of the subspace for the end side.
+     *
+     * @param subspace the ZMap subspace the range belongs to
+     * @param begin    the begin key or an asterisk
+     * @param end      the end key or an asterisk
+     * @return the packed range
+     */
+    protected Range resolveRange(DirectorySubspace subspace, byte[] begin, byte[] end) {
+        byte[] beginKey = Arrays.equals(begin, ASTERISK) ? subspace.pack() : subspace.pack(begin);
+        byte[] endKey = Arrays.equals(end, ASTERISK) ? ByteArrayUtil.strinc(subspace.pack()) : subspace.pack(end);
+        return new Range(beginKey, endKey);
     }
 }
