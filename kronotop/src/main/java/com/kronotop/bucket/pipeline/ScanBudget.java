@@ -19,7 +19,7 @@ package com.kronotop.bucket.pipeline;
 /**
  * Manages adaptive scan budget for FDB getRange calls within a single ADVANCE call.
  *
- * <p>Decouples the internal FDB scan limit from the user-facing result limit. When residual
+ * <p>Decouples the internal FDB scan limit from the user-facing batch size. When residual
  * filtering discards most scanned entries, the budget grows to reduce FDB round-trips.
  * Growth is capped per-iteration and in total to respect FDB transaction time limits.</p>
  */
@@ -33,12 +33,12 @@ public class ScanBudget {
     private int currentBudget;
     private int totalScanned;
 
-    public ScanBudget(int userLimit, long deadlineNanos) {
-        this(userLimit, deadlineNanos, false);
+    public ScanBudget(int batchSize, long deadlineNanos) {
+        this(batchSize, deadlineNanos, false);
     }
 
-    private ScanBudget(int userLimit, long deadlineNanos, boolean unbounded) {
-        this.currentBudget = userLimit;
+    private ScanBudget(int batchSize, long deadlineNanos, boolean unbounded) {
+        this.currentBudget = batchSize;
         this.totalScanned = 0;
         this.deadlineNanos = deadlineNanos;
         this.unbounded = unbounded;
@@ -48,8 +48,8 @@ public class ScanBudget {
      * Creates a budget with no scan or time limits. Used for vector search where
      * the candidate supplier manages its own bounds.
      */
-    public static ScanBudget unbounded(int userLimit) {
-        return new ScanBudget(userLimit, 0, true);
+    public static ScanBudget unbounded(int batchSize) {
+        return new ScanBudget(batchSize, 0, true);
     }
 
     /**

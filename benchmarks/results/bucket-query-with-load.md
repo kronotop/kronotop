@@ -33,7 +33,7 @@ Load complete: 50,000 docs in 6.5 sec (7683 docs/sec)
 
 === Query Phase ===
 
-Running FULL_SCAN: {active: true|false}  (active not indexed — full scan with default LIMIT)
+Running FULL_SCAN: {active: true|false}  (active not indexed — full scan with default BATCH)
 
 FULL_SCAN results (50000 queries, 50 threads):
   Throughput:  1957.7 queries/sec
@@ -46,7 +46,7 @@ FULL_SCAN results (50000 queries, 50 threads):
   Duration:    25.54 sec
   Latencies written -> /home/ubuntu/Code/kronotop/latencies/full_scan_20260514_130738.csv
 
-Running EQ_CATEGORY: {category: <electronics|clothing|books|sports|food>}  LIMIT 100
+Running EQ_CATEGORY: {category: <electronics|clothing|books|sports|food>}  BATCH 100
 
 EQ_CATEGORY results (50000 queries, 50 threads):
   Throughput:  11751.2 queries/sec
@@ -59,7 +59,7 @@ EQ_CATEGORY results (50000 queries, 50 threads):
   Duration:    4.25 sec
   Latencies written -> /home/ubuntu/Code/kronotop/latencies/eq_category_20260514_130743.csv
 
-Running RANGE_AGE: {age: {$gt: 20|30|40|50|60}}  LIMIT 100
+Running RANGE_AGE: {age: {$gt: 20|30|40|50|60}}  BATCH 100
 
 RANGE_AGE results (50000 queries, 50 threads):
   Throughput:  11208.7 queries/sec
@@ -72,7 +72,7 @@ RANGE_AGE results (50000 queries, 50 threads):
   Duration:    4.46 sec
   Latencies written -> /home/ubuntu/Code/kronotop/latencies/range_age_20260514_130748.csv
 
-Running COMPOUND: {category: <electronics|clothing|books|sports|food>, age: {$gt: <30|40|30|50|25>}}  LIMIT 100
+Running COMPOUND: {category: <electronics|clothing|books|sports|food>, age: {$gt: <30|40|30|50|25>}}  BATCH 100
 
 COMPOUND results (50000 queries, 50 threads):
   Throughput:  11081.7 queries/sec
@@ -85,9 +85,9 @@ COMPOUND results (50000 queries, 50 threads):
   Duration:    4.51 sec
   Latencies written -> /home/ubuntu/Code/kronotop/latencies/compound_20260514_130753.csv
 
-Running SORT_LIMIT: {category: <electronics|clothing|books|sports|food>}  SORTBY score ASC  LIMIT 10
+Running SORT_BATCH: {category: <electronics|clothing|books|sports|food>}  SORTBY score ASC  BATCH 10
 
-SORT_LIMIT results (50000 queries, 50 threads):
+SORT_BATCH results (50000 queries, 50 threads):
   Throughput:  23007.5 queries/sec
   Avg:         2.11 ms
   P50:         2.10 ms

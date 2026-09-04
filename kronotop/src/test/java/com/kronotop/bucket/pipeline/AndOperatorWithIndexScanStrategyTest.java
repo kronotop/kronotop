@@ -74,7 +74,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
 
     @Test
     void shouldAndQueryWithBatchedIterationAndLimit() {
-        // Behavior: AND query with limit returns correct batches across multiple cursor advances.
+        // Behavior: AND query with batch size returns correct batches across multiple cursor advances.
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration";
 
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
@@ -107,7 +107,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $and: [ { 'age': { '$gt': 22 } }, { 'name': { '$eq': 'John' } } ] }");
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         // Expected ages for matching documents
@@ -142,7 +142,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
 
     @Test
     void shouldAndQueryWithBatchedIterationAndLimitReverse() {
-        // Behavior: AND query with limit and DESC sort returns correct batches in reverse order.
+        // Behavior: AND query with batch size and DESC sort returns correct batches in reverse order.
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration-reverse";
 
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
@@ -175,7 +175,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $and: [ { 'age': { '$gt': 22 } }, { 'name': { '$eq': 'John' } } ] }");
-        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryOptions config = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         try (Transaction tr = createTransaction()) {

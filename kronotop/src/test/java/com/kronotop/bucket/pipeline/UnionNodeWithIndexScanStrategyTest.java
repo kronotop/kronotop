@@ -121,7 +121,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
     @Test
     void shouldHandleOrQueryWithLimitAndPagination() {
-        final String TEST_BUCKET_NAME = "test-bucket-or-query-limit-pagination";
+        final String TEST_BUCKET_NAME = "test-bucket-or-query-batch-pagination";
 
         SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
         SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
@@ -138,7 +138,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'price': { '$gt': 35 } }, { 'quantity': { '$lte': 35 } } ] }");
-        QueryOptions options = QueryOptions.builder().limit(2).build();
+        QueryOptions options = QueryOptions.builder().batch(2).build();
         QueryContext readCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
 
@@ -362,10 +362,10 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
     void shouldNotRewindWhenUnionResultsExactlyMatchLimit() {
         // Behavior: When the union of child results produces exactly the number of entries equal
-        // to the limit, no excess entries exist and rewind should not occur. Children advance
+        // to the batch size, no excess entries exist and rewind should not occur. Children advance
         // their cursors normally and the next ADVANCE resumes from the correct position.
 
-        final String TEST_BUCKET_NAME = "test-union-exact-limit-boundary";
+        final String TEST_BUCKET_NAME = "test-union-exact-batch-boundary";
 
         SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
         SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
@@ -386,7 +386,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'price': { '$gt': 30 } }, { 'quantity': { '$lte': 25 } } ] }");
         assertInstanceOf(UnionNode.class, planWithParams.plan());
 
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         Set<String> allNames = new HashSet<>();
@@ -405,7 +405,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                 iterations++;
 
                 if (iterations > 10) {
-                    fail("Too many iterations for 6 documents with limit 2");
+                    fail("Too many iterations for 6 documents with batch size 2");
                 }
             }
         }
@@ -417,7 +417,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     @Test
     void shouldRewindMixedIndexScanAndFullScanChildrenWithLimit() {
         // Behavior: $or with one indexed field and one non-indexed field creates a UnionNode with
-        // an IndexScanNode child and a FullScanNode child. With limit=2, rewind must correctly
+        // an IndexScanNode child and a FullScanNode child. With batch=2, rewind must correctly
         // restore checkpoints for both scan node types.
 
         final String TEST_BUCKET_NAME = "test-union-mixed-rewind";
@@ -444,7 +444,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'price': { '$gt': 100 } }, { 'category': { '$eq': 'rare' } } ] }");
         assertInstanceOf(UnionNode.class, planWithParams.plan());
 
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> allNames = new ArrayList<>();
@@ -463,7 +463,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                 iterations++;
 
                 if (iterations > 15) {
-                    fail("Too many iterations for 8 matching documents with limit 2");
+                    fail("Too many iterations for 8 matching documents with batch size 2");
                 }
             }
         }
@@ -478,7 +478,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
     @Test
     void shouldUpdateWithOrQueryAndPaginatedRewind() {
-        // Behavior: UPDATE with $or on two indexed fields and limit=1 triggers child rewind in
+        // Behavior: UPDATE with $or on two indexed fields and batch=1 triggers child rewind in
         // UnionNode. ObjectId-based deduplication prevents duplicate updates across paginated
         // iterations, even though entry handles change after each document is rewritten.
 
@@ -506,7 +506,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
         assertInstanceOf(UnionNode.class, planWithParams.plan());
 
         UpdateOptions update = UpdateOptions.builder().set("reviewed", new BsonBoolean(true)).build();
-        QueryOptions options = QueryOptions.builder().limit(1).update(update).build();
+        QueryOptions options = QueryOptions.builder().batch(1).update(update).build();
         QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<ObjectId> allUpdatedIds = new ArrayList<>();
@@ -524,7 +524,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
             }
             iterations++;
             if (iterations > 15) {
-                fail("Too many iterations for 6 matching documents with limit 1");
+                fail("Too many iterations for 6 matching documents with batch size 1");
             }
         }
 
@@ -546,12 +546,12 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
     @Test
     void shouldUpdateWithOrQueryLimitTwoAndRewind() {
-        // Behavior: UPDATE with $or on two indexed fields and limit=2 exercises the
+        // Behavior: UPDATE with $or on two indexed fields and batch=2 exercises the
         // keptHandles/excessHandles split in UnionNode where a single child contributes
         // both kept and excess entries in the same batch. All matching documents are
         // updated exactly once across multiple paginated iterations.
 
-        final String TEST_BUCKET_NAME = "test-union-update-or-limit-two-rewind";
+        final String TEST_BUCKET_NAME = "test-union-update-or-batch-two-rewind";
 
         SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
         SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-index", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
@@ -577,7 +577,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
         assertInstanceOf(UnionNode.class, planWithParams.plan());
 
         UpdateOptions update = UpdateOptions.builder().set("reviewed", new BsonBoolean(true)).build();
-        QueryOptions options = QueryOptions.builder().limit(2).update(update).build();
+        QueryOptions options = QueryOptions.builder().batch(2).update(update).build();
         QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<ObjectId> allUpdatedIds = new ArrayList<>();
@@ -595,7 +595,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
             }
             iterations++;
             if (iterations > 15) {
-                fail("Too many iterations for 8 matching documents with limit 2");
+                fail("Too many iterations for 8 matching documents with batch size 2");
             }
         }
 
@@ -693,7 +693,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
 
     @Test
     void shouldHandleOrQueryWithLargeDatasetBatchAnalysis() {
-        // Behavior: Large dataset (200 docs) with $or on two indexed fields and limit=2.
+        // Behavior: Large dataset (200 docs) with $or on two indexed fields and batch=2.
         // Paginated iteration must return all matching documents without duplicates.
 
         final String TEST_BUCKET_NAME = "test-union-index-large-dataset-batch";
@@ -736,11 +736,11 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
         assertEquals(200, documents.size(), "Should have exactly 200 documents");
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Execute query with limit=2 and analyze each batch
+        // Execute query with batch=2 and analyze each batch
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'price': { '$gt': 250 } }, { 'quantity': { '$lte': 250 } } ] }");
 
         try (Transaction tr = createTransaction()) {
-            QueryOptions config = QueryOptions.builder().limit(2).build();
+            QueryOptions config = QueryOptions.builder().batch(2).build();
             QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
             int iterationCount = 0;
@@ -781,7 +781,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
             }
 
             // Verify total against full query
-            QueryOptions fullConfig = QueryOptions.builder().limit(200).build();
+            QueryOptions fullConfig = QueryOptions.builder().batch(200).build();
             QueryContext fullCtx = new QueryContext(getSession(), metadata, fullConfig, planWithParams.plan(), planWithParams.parameters());
             List<ByteBuffer> fullResults = readExecutor.execute(tr, fullCtx);
 
@@ -789,13 +789,13 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                     String.format("Batch iteration (%d) should match full query (%d)", totalRetrieved, fullResults.size()));
 
             assertEquals(expectedIterations, actualIterations,
-                    String.format("Should need exactly %d iterations for %d docs with limit=2", expectedIterations, totalRetrieved));
+                    String.format("Should need exactly %d iterations for %d docs with batch=2", expectedIterations, totalRetrieved));
         }
     }
 
     @Test
     void shouldHandleOrQueryWithLargeDatasetBatchAnalysisReverse() {
-        // Behavior: Large dataset (200 docs) with $or on two indexed fields, limit=2,
+        // Behavior: Large dataset (200 docs) with $or on two indexed fields, batch=2,
         // and SortDirection.DESC. Paginated iteration must return all matching documents
         // in reverse order without duplicates.
 
@@ -839,11 +839,11 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
         assertEquals(200, documents.size(), "Should have exactly 200 documents");
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Execute query with limit=2, SortDirection=DESC and analyze each batch
+        // Execute query with batch=2, SortDirection=DESC and analyze each batch
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'price': { '$gt': 250 } }, { 'quantity': { '$lte': 250 } } ] }");
 
         try (Transaction tr = createTransaction()) {
-            QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+            QueryOptions config = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
             QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
             int iterationCount = 0;
@@ -884,7 +884,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
             }
 
             // Verify total against full query
-            QueryOptions fullConfig = QueryOptions.builder().limit(200).build();
+            QueryOptions fullConfig = QueryOptions.builder().batch(200).build();
             QueryContext fullCtx = new QueryContext(getSession(), metadata, fullConfig, planWithParams.plan(), planWithParams.parameters());
             List<ByteBuffer> fullResults = readExecutor.execute(tr, fullCtx);
 
@@ -895,7 +895,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
                     String.format("Should have at least 150 matches, got %d", totalRetrieved));
 
             assertEquals(expectedIterations, actualIterations,
-                    String.format("Should need exactly %d iterations for %d docs with limit=2", expectedIterations, totalRetrieved));
+                    String.format("Should need exactly %d iterations for %d docs with batch=2", expectedIterations, totalRetrieved));
         }
     }
 }

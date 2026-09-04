@@ -88,11 +88,11 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
 
         insertDocumentsAndGetObjectIds(testDocuments);
 
-        // Create a QUERY cursor with limit
+        // Create a QUERY cursor with batch size
         int cursorId;
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -155,7 +155,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         // Create QUERY cursor
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;
@@ -166,7 +166,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.update(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", "{\"$set\": {\"status\": \"active\"}}",
-                    BucketQueryArgs.Builder.limit(1)).encode(buf);
+                    BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;
@@ -176,7 +176,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         // Create DELETE cursor
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.delete(TEST_BUCKET, "{\"age\": {\"$gt\": 40}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.delete(TEST_BUCKET, "{\"age\": {\"$gt\": 40}}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;
@@ -249,7 +249,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         // Create the cursor with a query filter
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, queryFilter, BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, queryFilter, BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;
@@ -320,7 +320,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         // Create first QUERY cursor
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"age\": {\"$lt\": 40}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$lt\": 40}}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;
@@ -330,7 +330,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         // Create second QUERY cursor with different filter
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"age\": {\"$gte\": 40}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$gte\": 40}}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;
@@ -384,7 +384,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         // Create a QUERY cursor
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;
@@ -477,11 +477,11 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
 
         insertDocumentsAndGetObjectIds(testDocuments);
 
-        // Create a QUERY cursor with limit
+        // Create a QUERY cursor with batch size
         int cursorId;
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -539,7 +539,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         // Create QUERY cursor
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;
@@ -550,7 +550,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.update(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", "{\"$set\": {\"status\": \"active\"}}",
-                    BucketQueryArgs.Builder.limit(1)).encode(buf);
+                    BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;
@@ -560,7 +560,7 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
         // Create DELETE cursor
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.delete(TEST_BUCKET, "{\"age\": {\"$gt\": 40}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.delete(TEST_BUCKET, "{\"age\": {\"$gt\": 40}}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             MapRedisMessage response = (MapRedisMessage) msg;

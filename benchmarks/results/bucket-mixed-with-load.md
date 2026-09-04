@@ -24,7 +24,7 @@ Total ops: 10,000
 Preload docs: 50,000
 Warmup per thread: 200
 Op mix: QUERY=70%  INSERT=15%  UPDATE=10%  DELETE=5%
-Delete limit: 5  Update limit: 5
+Delete batch size: 5  Update batch size: 5
 Skip load: false
 Output dir: latencies
 

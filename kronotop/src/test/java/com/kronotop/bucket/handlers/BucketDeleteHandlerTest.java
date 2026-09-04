@@ -398,7 +398,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldDeleteWithLimitAndAdvance() {
-        // Behavior: Delete with LIMIT restricts per-batch count; BUCKET.ADVANCE DELETE continues deleting remaining matches.
+        // Behavior: Delete with BATCH restricts per-batch count; BUCKET.ADVANCE DELETE continues deleting remaining matches.
 
         // Step 1: Insert test documents with different ages
         List<byte[]> testDocuments = Arrays.asList(
@@ -418,13 +418,13 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(5, allInsertedObjectIds.size(), "Should have inserted 5 documents");
 
-        // Step 2: Delete documents with age > 30 using limit=1
+        // Step 2: Delete documents with age > 30 using batch=1
         List<ObjectId> allDeletedObjectIds = new ArrayList<>();
         int cursorId;
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.delete(TEST_BUCKET, "{\"age\": {\"$gt\": 30}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.delete(TEST_BUCKET, "{\"age\": {\"$gt\": 30}}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -438,7 +438,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Should have deleted exactly 1 document in the first batch
-        assertEquals(1, allDeletedObjectIds.size(), "Should have deleted exactly 1 document with limit=1");
+        assertEquals(1, allDeletedObjectIds.size(), "Should have deleted exactly 1 document with batch=1");
 
         // Step 3: Use BUCKET.ADVANCE DELETE to continue deleting remaining documents
         int maxAdvanceCalls = 10; // Safety limit
@@ -549,7 +549,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldDeleteWithOrQueryLimitAndAdvance() {
-        // Behavior: DELETE with $or on two indexed fields and limit=2 triggers child rewind in
+        // Behavior: DELETE with $or on two indexed fields and batch=2 triggers child rewind in
         // UnionNode. Each ADVANCE DELETE batch deletes at most 2 documents. All matching documents
         // are deleted across multiple ADVANCE calls without missing or double-deleting.
 
@@ -578,14 +578,14 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         Map<ObjectId, byte[]> insertedDocs = insertDocumentsAndGetObjectIds(testDocuments);
         assertEquals(10, insertedDocs.size());
 
-        // DELETE with $or filter, limit=2
+        // DELETE with $or filter, batch=2
         List<ObjectId> allDeletedObjectIds = new ArrayList<>();
         int cursorId;
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.delete(TEST_BUCKET, "{\"$or\": [{\"type\": {\"$eq\": \"active\"}}, {\"level\": {\"$gt\": 50}}]}",
-                    BucketQueryArgs.Builder.limit(2)).encode(buf);
+                    BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 

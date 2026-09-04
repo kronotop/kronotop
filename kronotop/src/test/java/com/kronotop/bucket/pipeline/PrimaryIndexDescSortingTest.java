@@ -107,7 +107,7 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
 
     @Test
     void shouldSortByIdDescWithGtOperatorAndSmallLimit() {
-        // Behavior: Query with _id > X, SORTBY _id DESC, and small LIMIT triggers cursor continuation.
+        // Behavior: Query with _id > X, SORTBY _id DESC, and small BATCH triggers cursor continuation.
         // This is the critical test for SelectorCalculator.buildCursorTuple() - it must correctly
         // construct cursor tuples for the primary index (ENTRIES, versionstamp) vs secondary index
         // (ENTRIES, value, versionstamp) to avoid infinite loops during pagination.
@@ -122,18 +122,18 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
         }
         List<ObjectId> objectIds = insertDocumentsAndGetObjectIds(BUCKET, documents);
 
-        // Query: _id > first document, with small limit to force multiple batches
+        // Query: _id > first document, with small batch size to force multiple batches
         String firstId = objectIds.get(0).toHexString();
         String query = String.format("{'_id': {'$gt': '%s'}}", firstId);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, query, "_id");
         assertInstanceOf(IndexScanNode.class, planWithParams.plan(), "Should use IndexScanNode for _id query");
 
-        // Use limit=3 to force pagination (9 matching docs / 3 = 3 batches)
+        // Use batch=3 to force pagination (9 matching docs / 3 = 3 batches)
         QueryOptions options = QueryOptions.builder()
                 .sortByField("_id")
                 .sortDirection(SortDirection.DESC)
-                .limit(3)
+                .batch(3)
                 .build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
@@ -147,7 +147,7 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
             }
         }
 
-        // With limit=3 and DESC, should return top 3: 10, 9, 8
+        // With batch=3 and DESC, should return top 3: 10, 9, 8
         List<Integer> expectedSeqs = List.of(10, 9, 8);
         assertEquals(expectedSeqs, actualSeqs, "Results should be top 3 by _id DESC");
     }
@@ -240,7 +240,7 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
 
     @Test
     void shouldSortByIdAscWithGtOperatorAndSmallLimit() {
-        // Behavior: Query with _id > X, SORTBY _id ASC with small limit works correctly.
+        // Behavior: Query with _id > X, SORTBY _id ASC with small batch size works correctly.
         // This is a control test to verify ASC still works after the DESC fix.
         final String BUCKET = "test-id-gt-asc-pagination";
 
@@ -257,11 +257,11 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, query, "_id");
 
-        // Use limit=3 with ASC
+        // Use batch=3 with ASC
         QueryOptions options = QueryOptions.builder()
                 .sortByField("_id")
                 .sortDirection(SortDirection.ASC)
-                .limit(3)
+                .batch(3)
                 .build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
@@ -275,7 +275,7 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
             }
         }
 
-        // With limit=3 and ASC, should return first 3 after doc1: 2, 3, 4
+        // With batch=3 and ASC, should return first 3 after doc1: 2, 3, 4
         List<Integer> expectedSeqs = List.of(2, 3, 4);
         assertEquals(expectedSeqs, actualSeqs, "Results should be first 3 by _id ASC");
     }

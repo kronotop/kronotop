@@ -90,7 +90,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
 
     @Test
     void shouldUpdateWithGreaterThanFilterWithLimit() {
-        final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-limit";
+        final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-batch";
 
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
@@ -107,7 +107,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
         {
             PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
             UpdateOptions update = UpdateOptions.builder().set("name", new BsonString("Donald")).build();
-            QueryOptions options = QueryOptions.builder().limit(1).update(update).build();
+            QueryOptions options = QueryOptions.builder().batch(1).update(update).build();
             QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
             while (true) {
@@ -133,7 +133,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
 
     @Test
     void shouldUpdateWithGreaterThanFilterWithLimitReverse() {
-        final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-limit-reverse";
+        final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-batch-reverse";
 
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME, ageIndex);
@@ -151,7 +151,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
         {
             PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
             UpdateOptions update = UpdateOptions.builder().set("name", new BsonString("Donald")).build();
-            QueryOptions options = QueryOptions.builder().limit(1).sortDirection(SortDirection.DESC).update(update).build();
+            QueryOptions options = QueryOptions.builder().batch(1).sortDirection(SortDirection.DESC).update(update).build();
             QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
             while (true) {

@@ -912,7 +912,7 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithArrayFiltersAndAdvance() {
-        // Behavior: UPDATE with array_filters and LIMIT should update documents in batches,
+        // Behavior: UPDATE with array_filters and BATCH should update documents in batches,
         // and BUCKET.ADVANCE UPDATE should continue processing remaining documents while
         // maintaining the same array_filters logic across all batches. Documents whose arrays
         // have no matching elements are left unchanged and excluded from object_ids.
@@ -957,7 +957,7 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
         Map<ObjectId, byte[]> insertedDocs = insertDocumentsAndGetObjectIds(testDocuments);
         assertEquals(5, insertedDocs.size(), "Should have inserted 5 documents");
 
-        // Initial update with LIMIT=2 and array_filters
+        // Initial update with BATCH=2 and array_filters
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
@@ -965,14 +965,14 @@ class BucketUpdateArrayOperatorsTest extends BaseBucketHandlerTest {
             ByteBuf buf = Unpooled.buffer();
             cmd.update(TEST_BUCKET, "{}",
                     "{\"$set\": {\"scores.$[high]\": 100}, \"array_filters\": [{\"high\": {\"$gte\": 80}}]}",
-                    BucketQueryArgs.Builder.limit(2)).encode(buf);
+                    BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
 
             allUpdatedObjectIds.addAll(extractObjectIds(msg));
             cursorId = extractCursorId(msg);
         }
 
-        // Initial batch should update 2 documents (LIMIT=2)
+        // Initial batch should update 2 documents (BATCH=2)
         assertEquals(2, allUpdatedObjectIds.size(), "Should have updated 2 documents in first batch");
 
         // Use BUCKET.ADVANCE UPDATE to continue updating remaining documents

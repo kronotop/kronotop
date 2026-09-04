@@ -54,18 +54,18 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
             String raw = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getParams().get(i)));
             QueryArgumentKey argument = valueOfArgument(raw);
             switch (argument) {
-                case LIMIT -> {
-                    if (!supportedArguments.contains(QueryArgumentKey.LIMIT)) {
-                        throw new UnsupportedArgumentException(QueryArgumentKey.LIMIT);
+                case BATCH -> {
+                    if (!supportedArguments.contains(QueryArgumentKey.BATCH)) {
+                        throw new UnsupportedArgumentException(QueryArgumentKey.BATCH);
                     }
                     if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandArgumentException("LIMIT argument must be followed by a positive integer");
+                        throw new IllegalCommandArgumentException("BATCH argument must be followed by a positive integer");
                     }
-                    int limit = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
-                    if (limit < 0) {
-                        throw new IllegalCommandArgumentException("LIMIT argument must be a non-negative integer");
+                    int batch = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
+                    if (batch < 0) {
+                        throw new IllegalCommandArgumentException("BATCH argument must be a non-negative integer");
                     }
-                    arguments.setLimit(limit);
+                    arguments.setBatch(batch);
                     i++;
                 }
                 case SORTBY -> {

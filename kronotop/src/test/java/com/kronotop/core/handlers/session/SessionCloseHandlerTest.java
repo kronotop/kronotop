@@ -48,7 +48,7 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(1)).encode(buf);
         Object msg = runCommand(channel, buf);
 
         assertInstanceOf(MapRedisMessage.class, msg);
@@ -188,7 +188,7 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
         // Change some session attributes
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.sessionAttributeSet(SessionAttributeKeywords.LIMIT, "50").encode(buf);
+            cmd.sessionAttributeSet(SessionAttributeKeywords.BATCH, "50").encode(buf);
             Object response = runCommand(channel, buf);
             assertInstanceOf(SimpleStringRedisMessage.class, response);
             assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
@@ -201,7 +201,7 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
             Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage list = (ArrayRedisMessage) response;
-            assertTrue(containsAttributeValue(list, "limit", 50L));
+            assertTrue(containsAttributeValue(list, "batch", 50L));
         }
 
         // Close session
@@ -213,14 +213,14 @@ class SessionCloseHandlerTest extends BaseHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
         }
 
-        // Verify default limit (100) is restored
+        // Verify default batch size (100) is restored
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.sessionAttributeList().encode(buf);
             Object response = runCommand(channel, buf);
             assertInstanceOf(ArrayRedisMessage.class, response);
             ArrayRedisMessage list = (ArrayRedisMessage) response;
-            assertTrue(containsAttributeValue(list, "limit", 100L));
+            assertTrue(containsAttributeValue(list, "batch", 100L));
         }
     }
 

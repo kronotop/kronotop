@@ -42,7 +42,7 @@ import static com.kronotop.server.RESPUtil.wrapBytes;
 public class SessionAttributeHandler implements Handler {
     private static final byte[] REPLY_TYPE_BYTES = "reply_type".getBytes(StandardCharsets.UTF_8);
     private static final byte[] INPUT_TYPE_BYTES = "input_type".getBytes(StandardCharsets.UTF_8);
-    private static final byte[] LIMIT_BYTES = "limit".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] BATCH_BYTES = "batch".getBytes(StandardCharsets.UTF_8);
     private static final byte[] OBJECT_ID_FORMAT_BYTES = "object_id_format".getBytes(StandardCharsets.UTF_8);
 
     @Override
@@ -79,10 +79,10 @@ public class SessionAttributeHandler implements Handler {
                 bulkString(inputTypeAttr.get().name().toLowerCase())
         );
 
-        // LIMIT
-        Attribute<Integer> bucketBatchSizeAttr = request.getSession().attr(SessionAttributes.LIMIT);
+        // BATCH
+        Attribute<Integer> bucketBatchSizeAttr = request.getSession().attr(SessionAttributes.BATCH);
         children.put(
-                wrapBytes(LIMIT_BYTES),
+                wrapBytes(BATCH_BYTES),
                 new IntegerRedisMessage(bucketBatchSizeAttr.get())
         );
 
@@ -112,12 +112,12 @@ public class SessionAttributeHandler implements Handler {
         switch (parameters.getAttribute()) {
             case REPLY_TYPE -> request.getSession().attr(SessionAttributes.REPLY_TYPE).set(parameters.replyType());
             case INPUT_TYPE -> request.getSession().attr(SessionAttributes.INPUT_TYPE).set(parameters.inputType());
-            case LIMIT -> {
+            case BATCH -> {
                 int bucketBatchSize = parameters.bucketBatchSize();
                 if (bucketBatchSize < 1) {
-                    throw new KronotopException("'limit' must be greater than 0");
+                    throw new KronotopException("'batch' must be greater than 0");
                 }
-                request.getSession().attr(SessionAttributes.LIMIT).set(bucketBatchSize);
+                request.getSession().attr(SessionAttributes.BATCH).set(bucketBatchSize);
             }
             case OBJECT_ID_FORMAT ->
                     request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).set(parameters.objectIdFormat());

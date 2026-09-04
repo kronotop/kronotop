@@ -74,7 +74,7 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
                 "{'$and': [{'role': {'$in': ['admin', 'user']}}, {'category': 'rare'}]}");
         assertInstanceOf(UnionNode.class, planWithParams.plan());
 
-        QueryOptions config = QueryOptions.builder().limit(5).build();
+        QueryOptions config = QueryOptions.builder().batch(5).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<Integer> allAges = new ArrayList<>();
@@ -95,7 +95,7 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
                 allAges.addAll(batchAges);
 
                 if (iterations > 20) {
-                    fail("Too many iterations for 10 matching documents with limit 5");
+                    fail("Too many iterations for 10 matching documents with batch size 5");
                 }
             }
         }
@@ -127,7 +127,7 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
                 "{'$and': [{'role': {'$in': ['admin', 'user']}}, {'category': 'rare'}]}");
         assertInstanceOf(UnionNode.class, planWithParams.plan());
 
-        QueryOptions config = QueryOptions.builder().limit(5).sortDirection(SortDirection.DESC).build();
+        QueryOptions config = QueryOptions.builder().batch(5).sortDirection(SortDirection.DESC).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<Integer> allAges = new ArrayList<>();
@@ -165,9 +165,9 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
 
     @Test
     void shouldHandleLimitLargerThanMatchingDocuments() {
-        // Behavior: When limit is larger than total matching documents, should return all
+        // Behavior: When batch size is larger than total matching documents, should return all
         // matches even if budget must grow multiple times to exhaust the scan.
-        final String TEST_BUCKET_NAME = "test-adaptive-union-limit-larger";
+        final String TEST_BUCKET_NAME = "test-adaptive-union-batch-larger";
 
         SingleFieldIndexDefinition roleIndex = SingleFieldIndexDefinition.create(
                 "role-index", "role", BsonType.STRING, false, IndexStatus.WAITING);
@@ -180,7 +180,7 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
                 "{'$and': [{'role': {'$in': ['admin', 'user']}}, {'category': 'rare'}]}");
         assertInstanceOf(UnionNode.class, planWithParams.plan());
 
-        QueryOptions config = QueryOptions.builder().limit(100).build();
+        QueryOptions config = QueryOptions.builder().batch(100).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         try (Transaction tr = createTransaction()) {

@@ -41,14 +41,14 @@ import java.util.function.IntSupplier;
  */
 public class QueryContext {
     /**
-     * Maximum allowed result limit for a single query batch.
+     * Maximum allowed batch size.
      */
-    public static final int MAXIMUM_LIMIT = 10000;
+    public static final int MAXIMUM_BATCH = 10000;
 
     /**
-     * Default result limit when no explicit limit is specified.
+     * Default batch size when none is specified.
      */
-    public static final int DEFAULT_LIMIT = 100;
+    public static final int DEFAULT_BATCH = 100;
     /**
      * Execution state keyed by pipeline node ID.
      */

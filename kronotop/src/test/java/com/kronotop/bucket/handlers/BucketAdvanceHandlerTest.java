@@ -67,7 +67,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldAdvanceCursorForFullScan() {
         // Behavior: BUCKET.ADVANCE continues pagination from a cursor, returning batches of documents
-        // until all matching documents are retrieved. Each batch respects the original query limit.
+        // until all matching documents are retrieved. Each batch respects the original batch size.
 
         // Create 10 identical documents for a simple full scan test
         List<byte[]> documents = new ArrayList<>();
@@ -80,11 +80,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         int cursorId;
-        // BUCKET.QUERY - Full scan (empty filter) with limit of 2
+        // BUCKET.QUERY - Full scan (empty filter) with a batch size of 2
         List<ObjectId> result = new ArrayList<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -95,7 +95,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         }
 
 
-        // BUCKET.ADVANCE - Continue pagination until we get all documents or hit the limit
+        // BUCKET.ADVANCE - Continue pagination until we get all documents or hit the call cap
         int maxAdvanceCalls = 10; // Allow a reasonable number of calls
         int advanceCalls = 0;
         while (advanceCalls < maxAdvanceCalls) {
@@ -151,11 +151,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         int cursorId;
-        // BUCKET.QUERY - Filter for type A with limit of 1
+        // BUCKET.QUERY - Filter for type A with a batch size of 1
         Map<ObjectId, BsonDocument> allResults = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"type\": \"A\"}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"type\": \"A\"}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -165,7 +165,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
             appendDocumentData(entries, allResults);
         }
 
-        // BUCKET.ADVANCE - Continue until we get all type A docs or reasonable limit
+        // BUCKET.ADVANCE - Continue until we get all type A docs or hit the call cap
         int maxAdvanceCalls = 10;
         int advanceCalls = 0;
         while (advanceCalls < maxAdvanceCalls) {
@@ -216,7 +216,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.QUERY - Filter for non-existent category
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"category\": \"NONEXISTENT\"}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"category\": \"NONEXISTENT\"}", BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -253,11 +253,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Start a query with a limit to get a cursor
+        // Start a query with a small batch size to get a cursor
         int cursorId;
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -318,11 +318,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         insertDocumentsAndGetObjectIds(documents);
 
         int cursorId;
-        // BUCKET.QUERY - $elemMatch for scores >= 80 with limit of 2
+        // BUCKET.QUERY - $elemMatch for scores >= 80 with a batch size of 2
         Map<ObjectId, BsonDocument> allResults = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"scores\": {\"$elemMatch\": {\"$gte\": 80}}}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"scores\": {\"$elemMatch\": {\"$gte\": 80}}}", BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -389,11 +389,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         insertDocumentsAndGetObjectIds(documents);
 
         int cursorId;
-        // BUCKET.QUERY - $elemMatch for ratings >= 4.0 with limit of 2
+        // BUCKET.QUERY - $elemMatch for ratings >= 4.0 with a batch size of 2
         Map<ObjectId, BsonDocument> allResults = new LinkedHashMap<>();
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"ratings\": {\"$elemMatch\": {\"$gte\": 4.0}}}", BucketQueryArgs.Builder.limit(2)).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"ratings\": {\"$elemMatch\": {\"$gte\": 4.0}}}", BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -461,10 +461,10 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         List<Integer> collectedAges = new ArrayList<>();
 
-        // BUCKET.QUERY - Filter on age (uses age index), SORTBY age ASC with limit of 2
+        // BUCKET.QUERY - Filter on age (uses age index), SORTBY age ASC with a batch size of 2
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"age\": {\"$gte\": 0}}", BucketQueryArgs.Builder.limit(2).sortBy("age", "ASC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$gte\": 0}}", BucketQueryArgs.Builder.batch(2).sortBy("age", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -527,10 +527,10 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         List<Integer> collectedAges = new ArrayList<>();
 
-        // BUCKET.QUERY - Filter on age (uses age index), SORTBY age DESC with limit of 2
+        // BUCKET.QUERY - Filter on age (uses age index), SORTBY age DESC with a batch size of 2
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"age\": {\"$gte\": 0}}", BucketQueryArgs.Builder.limit(2).sortBy("age", "DESC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$gte\": 0}}", BucketQueryArgs.Builder.batch(2).sortBy("age", "DESC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -592,10 +592,10 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         List<List<Integer>> batchPriorities = new ArrayList<>();
 
-        // BUCKET.QUERY - RESULTSORT priority ASC on non-indexed field with limit of 2
+        // BUCKET.QUERY - RESULTSORT priority ASC on non-indexed field with a batch size of 2
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(2).resultSort("priority", "ASC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(2).resultSort("priority", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -672,10 +672,10 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         List<String> collectedNames = new ArrayList<>();
 
-        // BUCKET.QUERY - Filter on name (uses name index), SORTBY name ASC with limit of 2
+        // BUCKET.QUERY - Filter on name (uses name index), SORTBY name ASC with a batch size of 2
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"name\": {\"$gte\": \"\"}}", BucketQueryArgs.Builder.limit(2).sortBy("name", "ASC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"name\": {\"$gte\": \"\"}}", BucketQueryArgs.Builder.batch(2).sortBy("name", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -743,12 +743,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         List<Integer> collectedAges = new ArrayList<>();
         List<String> collectedNames = new ArrayList<>();
 
-        // BUCKET.QUERY - Filter for age >= 10 AND age <= 30 (all type A docs), SORTBY age ASC with limit of 1
+        // BUCKET.QUERY - Filter for age >= 10 AND age <= 30 (all type A docs), SORTBY age ASC with a batch size of 1
         // Using age filter ensures optimizer uses age index for scanning (global sort preserved)
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"$and\": [{\"age\": {\"$gte\": 10}}, {\"age\": {\"$lte\": 30}}]}",
-                    BucketQueryArgs.Builder.limit(1).sortBy("age", "ASC")).encode(buf);
+                    BucketQueryArgs.Builder.batch(1).sortBy("age", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -817,10 +817,10 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         List<Integer> collectedAges = new ArrayList<>();
 
-        // BUCKET.QUERY - Filter on age (uses age index), SORTBY age ASC with limit of 2
+        // BUCKET.QUERY - Filter on age (uses age index), SORTBY age ASC with a batch size of 2
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(2).sortBy("age", "ASC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(2).sortBy("age", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -887,7 +887,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // BUCKET.QUERY - Filter on age > 20 (uses age index), SORTBY priority ASC (non-indexed)
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.limit(2).resultSort("priority", "ASC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.batch(2).resultSort("priority", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -965,7 +965,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(2).sortBy("age", "DESC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(2).sortBy("age", "DESC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1016,7 +1016,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(2).sortBy("priority", "DESC")).encode(buf);
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(2).sortBy("priority", "DESC")).encode(buf);
         Object msg = runCommand(channel, buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -1059,7 +1059,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}, \"score\": {\"$gte\": 0}}", BucketQueryArgs.Builder.limit(2).sortBy("score", "ASC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}, \"score\": {\"$gte\": 0}}", BucketQueryArgs.Builder.batch(2).sortBy("score", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1119,7 +1119,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.limit(2).sortBy("score", "ASC")).encode(buf);
+        cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.batch(2).sortBy("score", "ASC")).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
 
@@ -1152,7 +1152,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"name\": {\"$gte\": \"\"}}", BucketQueryArgs.Builder.limit(2).sortBy("name", "DESC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"name\": {\"$gte\": \"\"}}", BucketQueryArgs.Builder.batch(2).sortBy("name", "DESC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1216,7 +1216,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             // Filter on score (uses index), sortBy score - only indexed documents returned
-            cmd.query(TEST_BUCKET, "{\"score\": {\"$gte\": 0}}", BucketQueryArgs.Builder.limit(2).sortBy("score", "ASC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"score\": {\"$gte\": 0}}", BucketQueryArgs.Builder.batch(2).sortBy("score", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1291,11 +1291,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         List<String> collectedNames = new ArrayList<>();
 
-        // BUCKET.QUERY - $or with limit 1
+        // BUCKET.QUERY - $or with batch 1
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"$or\": [{\"price\": {\"$gt\": 100}}, {\"quantity\": {\"$lt\": 10}}]}",
-                    BucketQueryArgs.Builder.limit(1)).encode(buf);
+                    BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1375,11 +1375,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         List<String> collectedNames = new ArrayList<>();
         List<Integer> batchSizes = new ArrayList<>();
 
-        // BUCKET.QUERY with limit=2 - small limit to trigger multiple advances and batch completion
+        // BUCKET.QUERY with batch=2 - small batch to trigger multiple advances and batch completion
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"$or\": [{\"price\": {\"$gt\": 100}}, {\"quantity\": {\"$lt\": 10}}]}",
-                    BucketQueryArgs.Builder.limit(2)).encode(buf);
+                    BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1433,17 +1433,17 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         Set<String> expectedNames = Set.of("A", "B", "C", "D", "E", "F");
         assertEquals(expectedNames, uniqueNames, "Should return all 6 matching documents");
 
-        // Verify number of batches: 6 documents / limit 2 = 3 batches
+        // Verify number of batches: 6 documents / batch 2 = 3 batches
         // This confirms the system completes batches after filtering duplicates
         assertEquals(3, batchSizes.size(),
-                "Should complete in exactly 3 batches (6 docs / limit 2). " +
+                "Should complete in exactly 3 batches (6 docs / batch 2). " +
                         "More batches would indicate incomplete batch filling after duplicate filtering.");
 
-        // Verify batch sizes: each batch should have exactly 2 documents (the limit)
+        // Verify batch sizes: each batch should have exactly 2 documents (the batch size)
         // because the system continues fetching after filtering duplicates to complete each batch
         for (int i = 0; i < batchSizes.size(); i++) {
             assertEquals(2, batchSizes.get(i),
-                    "Batch " + i + " should have exactly 2 documents (the limit)");
+                    "Batch " + i + " should have exactly 2 documents (the batch size)");
         }
     }
 
@@ -1472,7 +1472,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.limit(2).resultSort("priority", "DESC")).encode(buf);
+            cmd.query(TEST_BUCKET, "{\"age\": {\"$gt\": 20}}", BucketQueryArgs.Builder.batch(2).resultSort("priority", "DESC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1568,11 +1568,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         List<String> collectedNames = new ArrayList<>();
         int advanceCount = 0;
 
-        // BUCKET.QUERY with limit=1 to stress test pending entries
+        // BUCKET.QUERY with batch=1 to stress test pending entries
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"$or\": [{\"category\": {\"$eq\": \"rare\"}}, {\"score\": {\"$gt\": 90}}]}",
-                    BucketQueryArgs.Builder.limit(1)).encode(buf);
+                    BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1623,13 +1623,13 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         assertTrue(uniqueNames.containsAll(expectedNames), "Should return all 11 matching documents");
 
         // Verify we needed multiple advances (confirming pagination worked across asymmetric exhaustion)
-        // With limit=1 and 11 docs: first query returns 1, then 10 advances needed
-        assertTrue(advanceCount >= 10, "Should need at least 10 advances for 11 docs with limit=1");
+        // With batch=1 and 11 docs: first query returns 1, then 10 advances needed
+        assertTrue(advanceCount >= 10, "Should need at least 10 advances for 11 docs with batch=1");
     }
 
     @Test
     void shouldStressChildRewindWithSmallLimit() {
-        // Behavior: With a small limit, OR queries produce excess entries that trigger child
+        // Behavior: With a small batch size, OR queries produce excess entries that trigger child
         // cursor rewind. This stress tests the rewind mechanism across many iterations,
         // ensuring no data loss or duplicates.
 
@@ -1669,11 +1669,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         List<String> collectedNames = new ArrayList<>();
         List<Integer> batchSizes = new ArrayList<>();
 
-        // BUCKET.QUERY with limit=3 (enough for both children to get quota)
+        // BUCKET.QUERY with batch=3 (enough for both children to get quota)
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"$or\": [{\"type\": {\"$eq\": \"active\"}}, {\"level\": {\"$gt\": 5}}]}",
-                    BucketQueryArgs.Builder.limit(3)).encode(buf);
+                    BucketQueryArgs.Builder.batch(3)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1733,19 +1733,19 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         assertEquals(collectedNames.size(), uniqueNames.size(),
                 "Should not have duplicates despite heavy pending entries usage");
 
-        // Verify all batches have at most 3 documents (the limit)
+        // Verify all batches have at most 3 documents (the batch size)
         for (int i = 0; i < batchSizes.size(); i++) {
             assertTrue(batchSizes.get(i) <= 3,
-                    "Batch " + i + " should have at most 3 documents (limit=3)");
+                    "Batch " + i + " should have at most 3 documents (batch=3)");
         }
 
-        // Verify we needed multiple batches for 20 docs with limit=3
-        assertTrue(batchSizes.size() >= 7, "Should need at least 7 batches for 20 docs with limit=3");
+        // Verify we needed multiple batches for 20 docs with batch=3
+        assertTrue(batchSizes.size() >= 7, "Should need at least 7 batches for 20 docs with batch=3");
     }
 
     @Test
     void shouldHandleOrQueryWithLimitOneLessThanChildCount() {
-        // Behavior: When limit=1 with 2 OR branches, each child gets at least limit=1 to avoid
+        // Behavior: When batch=1 with 2 OR branches, each child gets at least limit=1 to avoid
         // FDB's "limit=0 means unlimited" behavior. Deduplication and buffering handle excess.
 
         SingleFieldIndexDefinition typeIndex = SingleFieldIndexDefinition.create("type-idx", "type", BsonType.STRING, false, IndexStatus.WAITING);
@@ -1772,11 +1772,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         List<String> collectedNames = new ArrayList<>();
 
-        // BUCKET.QUERY with limit=1
+        // BUCKET.QUERY with batch=1
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"$or\": [{\"type\": {\"$eq\": \"active\"}}, {\"level\": {\"$gt\": 50}}]}",
-                    BucketQueryArgs.Builder.limit(1)).encode(buf);
+                    BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1824,7 +1824,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldAdvanceElemMatchWithOrAndTwoIndexesWithLimitOne() {
         // Behavior: $or inside $elemMatch on an indexed array creates a UnionNode with branches
-        // for each $or condition. With limit=1, child quota distribution and pending entries
+        // for each $or condition. With batch=1, child quota distribution and pending entries
         // buffering work correctly across ADVANCE calls.
 
         createBucket(TEST_BUCKET);
@@ -1862,12 +1862,12 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         List<String> collectedNames = new ArrayList<>();
 
-        // BUCKET.QUERY with limit=1: items has element where (category="electronics" OR brand="acme")
+        // BUCKET.QUERY with batch=1: items has element where (category="electronics" OR brand="acme")
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET,
                     "{\"items\": {\"$elemMatch\": {\"$or\": [{\"category\": {\"$eq\": \"electronics\"}}, {\"brand\": {\"$eq\": \"acme\"}}]}}}",
-                    BucketQueryArgs.Builder.limit(1)).encode(buf);
+                    BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1957,11 +1957,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         List<List<Integer>> batchScores = new ArrayList<>();
         List<String> collectedNames = new ArrayList<>();
 
-        // BUCKET.QUERY - $or with sortBy on non-driving field (score), limit 3
+        // BUCKET.QUERY - $or with sortBy on non-driving field (score), batch 3
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"$or\": [{\"price\": {\"$gt\": 50}}, {\"quantity\": {\"$lt\": 20}}]}",
-                    BucketQueryArgs.Builder.limit(3).resultSort("score", "ASC")).encode(buf);
+                    BucketQueryArgs.Builder.batch(3).resultSort("score", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -2059,7 +2059,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"name\": \"Alice\", \"age\": {\"$gte\": 0}}",
-                    BucketQueryArgs.Builder.limit(2).sortBy("age", "ASC")).encode(buf);
+                    BucketQueryArgs.Builder.batch(2).sortBy("age", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -2131,7 +2131,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"name\": \"Alice\", \"age\": {\"$gte\": 0}}",
-                    BucketQueryArgs.Builder.limit(2).sortBy("age", "DESC")).encode(buf);
+                    BucketQueryArgs.Builder.batch(2).sortBy("age", "DESC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -2204,7 +2204,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"name\": \"Alice\", \"age\": {\"$gte\": 0}}",
-                    BucketQueryArgs.Builder.limit(2)).encode(buf);
+                    BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -2244,7 +2244,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldRewindFullScanChildrenInOrQueryWithLimitAndAdvance() {
         // Behavior: $or on two non-indexed fields produces a UnionNode with FullScanNode children.
-        // With limit=2, the rewind mechanism must restore FullScanNode checkpoints (which use
+        // With batch=2, the rewind mechanism must restore FullScanNode checkpoints (which use
         // saveObjectIdCheckpoint on the primary index). All matching documents are retrieved
         // without duplicates across multiple ADVANCE calls.
 
@@ -2273,11 +2273,11 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         int cursorId;
         List<String> collectedNames = new ArrayList<>();
 
-        // BUCKET.QUERY with limit=2
+        // BUCKET.QUERY with batch=2
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"$or\": [{\"category\": {\"$eq\": \"electronics\"}}, {\"color\": {\"$eq\": \"red\"}}]}",
-                    BucketQueryArgs.Builder.limit(2)).encode(buf);
+                    BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -2304,7 +2304,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
                 break;
             }
 
-            assertTrue(entries.size() <= 2, "Batch size should respect limit=2");
+            assertTrue(entries.size() <= 2, "Batch size should respect batch=2");
 
             for (BsonDocument doc : entries) {
                 collectedNames.add(doc.getString("name").getValue());

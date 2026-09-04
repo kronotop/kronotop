@@ -72,7 +72,7 @@ public class SessionAttributeParameters {
                     throw new KronotopException("Invalid reply type: " + rawReplyType);
                 }
             }
-            case LIMIT -> {
+            case BATCH -> {
                 bucketBatchSize = ProtocolMessageUtil.readAsInteger(params.get(2));
             }
             case OBJECT_ID_FORMAT -> {
@@ -119,7 +119,7 @@ public class SessionAttributeParameters {
     public enum SessionAttribute {
         REPLY_TYPE("reply_type"),
         INPUT_TYPE("input_type"),
-        LIMIT("limit"),
+        BATCH("batch"),
         OBJECT_ID_FORMAT("object_id_format");
 
         final String value;
@@ -133,8 +133,8 @@ public class SessionAttributeParameters {
                 return REPLY_TYPE;
             } else if (v.toLowerCase().equals(INPUT_TYPE.getValue())) {
                 return INPUT_TYPE;
-            } else if (v.toLowerCase().equals(LIMIT.getValue())) {
-                return LIMIT;
+            } else if (v.toLowerCase().equals(BATCH.getValue())) {
+                return BATCH;
             } else if (v.toLowerCase().endsWith(OBJECT_ID_FORMAT.getValue())) {
                 return OBJECT_ID_FORMAT;
             } else {

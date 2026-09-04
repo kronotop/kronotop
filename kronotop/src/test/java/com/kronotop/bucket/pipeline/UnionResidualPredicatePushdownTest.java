@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * <p>
  * The bug: when the primary node in convertNestedAndToIndexedPlan was a UnionNode,
  * residual predicates were chained after the union. The union's internal capacity cap
- * (ctx.options().limit()) filled the sink before the post-union transform could filter,
+ * (ctx.options().batch()) filled the sink before the post-union transform could filter,
  * causing incomplete results when the residual had low selectivity.
  * <p>
  * The fix: push residual predicates into each union child so filtering happens before
@@ -80,8 +80,8 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
     @Test
     void shouldReturnCorrectResultsWithLimitAndLowSelectivityResidual() {
         // Behavior: With 50 docs matching the index but only 4 matching the residual predicate,
-        // and limit=10, all 4 matching docs should be returned in a single batch.
-        // Before the fix, the union cap at limit=10 would scan 10 index entries, filter most out,
+        // and batch=10, all 4 matching docs should be returned in a single batch.
+        // Before the fix, the union cap at batch=10 would scan 10 index entries, filter most out,
         // and return fewer than 4 results.
         final String TEST_BUCKET_NAME = "test-pushdown-low-selectivity";
 
@@ -107,7 +107,7 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
                 "{'$and': [{'role': {'$in': ['admin', 'editor']}}, {'status': 'active'}]}");
         assertInstanceOf(UnionNode.class, planWithParams.plan());
 
-        QueryOptions config = QueryOptions.builder().limit(10).build();
+        QueryOptions config = QueryOptions.builder().batch(10).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> actualResult = new ArrayList<>();
@@ -129,7 +129,7 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
 
     @Test
     void shouldPaginateCorrectlyWithResidualFilteredUnion() {
-        // Behavior: With 200 docs where only 12 match the residual, and limit=5, pagination
+        // Behavior: With 200 docs where only 12 match the residual, and batch=5, pagination
         // via ADVANCE calls should return all 12 docs without duplicates or missing entries.
         final String TEST_BUCKET_NAME = "test-pushdown-pagination";
 
@@ -151,7 +151,7 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
                 "{'$and': [{'role': {'$in': ['admin', 'editor']}}, {'category': 'special'}]}");
         assertInstanceOf(UnionNode.class, planWithParams.plan());
 
-        QueryOptions config = QueryOptions.builder().limit(5).build();
+        QueryOptions config = QueryOptions.builder().batch(5).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<Integer> allSeqs = new ArrayList<>();
@@ -171,7 +171,7 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
                 allSeqs.addAll(batchSeqs);
 
                 if (iterations > 20) {
-                    fail("Too many iterations for 12 matching documents with limit 5");
+                    fail("Too many iterations for 12 matching documents with batch size 5");
                 }
             }
         }

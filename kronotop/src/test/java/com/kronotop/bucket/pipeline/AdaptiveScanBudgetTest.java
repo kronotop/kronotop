@@ -65,7 +65,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'category': 'rare'}");
-        QueryOptions config = QueryOptions.builder().limit(5).build();
+        QueryOptions config = QueryOptions.builder().batch(5).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<Integer> allAges = new ArrayList<>();
@@ -86,7 +86,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
                 allAges.addAll(batchAges);
 
                 if (iterations > 20) {
-                    fail("Too many iterations for 10 matching documents with limit 5");
+                    fail("Too many iterations for 10 matching documents with batch size 5");
                 }
             }
         }
@@ -113,7 +113,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'category': 'rare'}");
-        QueryOptions config = QueryOptions.builder().limit(5).sortDirection(SortDirection.DESC).build();
+        QueryOptions config = QueryOptions.builder().batch(5).sortDirection(SortDirection.DESC).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<Integer> allAges = new ArrayList<>();
@@ -156,9 +156,9 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
 
     @Test
     void shouldHandleLimitLargerThanMatchingDocuments() {
-        // Behavior: When limit is larger than total matching documents, should return all
+        // Behavior: When batch size is larger than total matching documents, should return all
         // matches even if budget must grow multiple times to exhaust the scan.
-        final String TEST_BUCKET_NAME = "test-adaptive-scan-limit-larger";
+        final String TEST_BUCKET_NAME = "test-adaptive-scan-batch-larger";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
 
@@ -167,7 +167,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'category': 'rare'}");
-        QueryOptions config = QueryOptions.builder().limit(100).build();
+        QueryOptions config = QueryOptions.builder().batch(100).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         try (Transaction tr = createTransaction()) {
@@ -196,7 +196,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'category': 'rare'}");
-        QueryOptions config = QueryOptions.builder().limit(3).build();
+        QueryOptions config = QueryOptions.builder().batch(3).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<Integer> allAges = new ArrayList<>();
@@ -217,7 +217,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
                 allAges.addAll(batchAges);
 
                 if (iterations > 20) {
-                    fail("Too many iterations for 20 matching documents with limit 3");
+                    fail("Too many iterations for 20 matching documents with batch size 3");
                 }
             }
         }

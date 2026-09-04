@@ -114,7 +114,7 @@ public class QueryBenchmark extends AbstractBucketBenchmark {
     };
 
     // Scenario 5 — sorted top-K by score, filtered by category
-    private static final byte[][] Q_SORT_LIMIT = {
+    private static final byte[][] Q_SORT_BATCH = {
             serializeBson(new BsonDocument("category", new BsonString("electronics"))),
             serializeBson(new BsonDocument("category", new BsonString("clothing"))),
             serializeBson(new BsonDocument("category", new BsonString("books"))),
@@ -198,7 +198,7 @@ public class QueryBenchmark extends AbstractBucketBenchmark {
 
         System.out.println("\n=== Query Phase ===");
 
-        System.out.println("\nRunning FULL_SCAN: {active: true|false}  (active not indexed — full scan with default LIMIT)");
+        System.out.println("\nRunning FULL_SCAN: {active: true|false}  (active not indexed — full scan with default BATCH)");
         BenchmarkResult r1 = BenchmarkRunner.run(
                 host, port, ByteArrayCodec.INSTANCE, threads, rounds, warmup,
                 this::setupWorkerSession,
@@ -208,46 +208,46 @@ public class QueryBenchmark extends AbstractBucketBenchmark {
         BenchmarkRunner.reportLatencyStats("FULL_SCAN", r1, threads);
         if (outputDir != null) BenchmarkRunner.writeLatencies("FULL_SCAN", r1, threads, outputDir);
 
-        System.out.println("\nRunning EQ_CATEGORY: {category: <electronics|clothing|books|sports|food>}  LIMIT 100");
+        System.out.println("\nRunning EQ_CATEGORY: {category: <electronics|clothing|books|sports|food>}  BATCH 100");
         BenchmarkResult r2 = BenchmarkRunner.run(
                 host, port, ByteArrayCodec.INSTANCE, threads, rounds, warmup,
                 this::setupWorkerSession,
                 (conn, cmd, i) -> BenchmarkRunner.dispatch(conn,
-                        cmd.query(bucketName, Q_EQ_CATEGORY[i % Q_EQ_CATEGORY.length], new BucketQueryArgs().limit(100)))
+                        cmd.query(bucketName, Q_EQ_CATEGORY[i % Q_EQ_CATEGORY.length], new BucketQueryArgs().batch(100)))
         );
         BenchmarkRunner.reportLatencyStats("EQ_CATEGORY", r2, threads);
         if (outputDir != null) BenchmarkRunner.writeLatencies("EQ_CATEGORY", r2, threads, outputDir);
 
-        System.out.println("\nRunning RANGE_AGE: {age: {$gt: 20|30|40|50|60}}  LIMIT 100");
+        System.out.println("\nRunning RANGE_AGE: {age: {$gt: 20|30|40|50|60}}  BATCH 100");
         BenchmarkResult r3 = BenchmarkRunner.run(
                 host, port, ByteArrayCodec.INSTANCE, threads, rounds, warmup,
                 this::setupWorkerSession,
                 (conn, cmd, i) -> BenchmarkRunner.dispatch(conn,
-                        cmd.query(bucketName, Q_RANGE_AGE[i % Q_RANGE_AGE.length], new BucketQueryArgs().limit(100)))
+                        cmd.query(bucketName, Q_RANGE_AGE[i % Q_RANGE_AGE.length], new BucketQueryArgs().batch(100)))
         );
         BenchmarkRunner.reportLatencyStats("RANGE_AGE", r3, threads);
         if (outputDir != null) BenchmarkRunner.writeLatencies("RANGE_AGE", r3, threads, outputDir);
 
-        System.out.println("\nRunning COMPOUND: {category: <electronics|clothing|books|sports|food>, age: {$gt: <30|40|30|50|25>}}  LIMIT 100");
+        System.out.println("\nRunning COMPOUND: {category: <electronics|clothing|books|sports|food>, age: {$gt: <30|40|30|50|25>}}  BATCH 100");
         BenchmarkResult r4 = BenchmarkRunner.run(
                 host, port, ByteArrayCodec.INSTANCE, threads, rounds, warmup,
                 this::setupWorkerSession,
                 (conn, cmd, i) -> BenchmarkRunner.dispatch(conn,
-                        cmd.query(bucketName, Q_COMPOUND[i % Q_COMPOUND.length], new BucketQueryArgs().limit(100)))
+                        cmd.query(bucketName, Q_COMPOUND[i % Q_COMPOUND.length], new BucketQueryArgs().batch(100)))
         );
         BenchmarkRunner.reportLatencyStats("COMPOUND", r4, threads);
         if (outputDir != null) BenchmarkRunner.writeLatencies("COMPOUND", r4, threads, outputDir);
 
-        System.out.println("\nRunning SORT_LIMIT: {category: <electronics|clothing|books|sports|food>}  SORTBY score ASC  LIMIT 10");
+        System.out.println("\nRunning SORT_BATCH: {category: <electronics|clothing|books|sports|food>}  SORTBY score ASC  BATCH 10");
         BenchmarkResult r5 = BenchmarkRunner.run(
                 host, port, ByteArrayCodec.INSTANCE, threads, rounds, warmup,
                 this::setupWorkerSession,
                 (conn, cmd, i) -> BenchmarkRunner.dispatch(conn,
-                        cmd.query(bucketName, Q_SORT_LIMIT[i % Q_SORT_LIMIT.length],
-                                new BucketQueryArgs().sortBy("score", "ASC").limit(10)))
+                        cmd.query(bucketName, Q_SORT_BATCH[i % Q_SORT_BATCH.length],
+                                new BucketQueryArgs().sortBy("score", "ASC").batch(10)))
         );
-        BenchmarkRunner.reportLatencyStats("SORT_LIMIT", r5, threads);
-        if (outputDir != null) BenchmarkRunner.writeLatencies("SORT_LIMIT", r5, threads, outputDir);
+        BenchmarkRunner.reportLatencyStats("SORT_BATCH", r5, threads);
+        if (outputDir != null) BenchmarkRunner.writeLatencies("SORT_BATCH", r5, threads, outputDir);
 
         System.out.println("\nBenchmark complete.");
     }

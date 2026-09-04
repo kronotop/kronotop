@@ -14,7 +14,7 @@ where each request is an independent transaction rather than a batched or amorti
 ## Results
 
 - [Bucket Query with Load](results/bucket-query-with-load.md) — Query latency across five scenarios: full scan,
-  equality, range, compound index, and sorted limit.
+  equality, range, compound index, and sorted query.
 - [Bucket Mixed with Load](results/bucket-mixed-with-load.md) — Mixed workload with concurrent queries, inserts,
   updates, and deletes.
 - [Bucket Vector — H&M](results/bucket-vector-hnm.md) — Vector similarity search on H&M product embeddings.

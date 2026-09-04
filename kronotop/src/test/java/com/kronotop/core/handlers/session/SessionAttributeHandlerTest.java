@@ -37,10 +37,10 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
     void shouldInitializeDefaultValues() {
         // Verify default values from test.conf and reference.conf
         // test.conf overrides: input_type=bson, reply_type=bson, object_id_format=bytes
-        // reference.conf defaults: limit=100
+        // reference.conf defaults: batch=100
         verifyAttributeValue("input_type", "bson");
         verifyAttributeValue("reply_type", "bson");
-        verifyAttributeValueInteger("limit", 100);
+        verifyAttributeValueInteger("batch", 100);
         verifyAttributeValue("object_id_format", "bytes");
     }
 
@@ -63,7 +63,7 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
         // Verify attribute names are present
         assertTrue(containsAttribute(children, "reply_type"));
         assertTrue(containsAttribute(children, "input_type"));
-        assertTrue(containsAttribute(children, "limit"));
+        assertTrue(containsAttribute(children, "batch"));
         assertTrue(containsAttribute(children, "object_id_format"));
     }
 
@@ -125,29 +125,29 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldSetLimit() {
+    void shouldSetBatch() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sessionAttributeSet(SessionAttributeKeywords.LIMIT, "50").encode(buf);
+        cmd.sessionAttributeSet(SessionAttributeKeywords.BATCH, "50").encode(buf);
 
         Object response = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
 
-        verifyAttributeValueInteger("limit", 50);
+        verifyAttributeValueInteger("batch", 50);
     }
 
     @Test
-    void shouldRejectInvalidLimit() {
+    void shouldRejectInvalidBatch() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.sessionAttributeSet(SessionAttributeKeywords.LIMIT, "0").encode(buf);
+        cmd.sessionAttributeSet(SessionAttributeKeywords.BATCH, "0").encode(buf);
 
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertTrue(((ErrorRedisMessage) response).content().contains("'limit' must be greater than 0"));
+        assertTrue(((ErrorRedisMessage) response).content().contains("'batch' must be greater than 0"));
     }
 
     @Test

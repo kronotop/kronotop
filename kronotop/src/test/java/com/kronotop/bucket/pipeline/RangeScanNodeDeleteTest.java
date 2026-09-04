@@ -108,7 +108,7 @@ class RangeScanNodeDeleteTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gte': 25, '$lte': 50}}");
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext deleteCtx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         int expectedBatchCount = 6;

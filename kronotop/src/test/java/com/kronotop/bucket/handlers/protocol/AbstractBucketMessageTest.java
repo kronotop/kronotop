@@ -37,25 +37,25 @@ class AbstractBucketMessageTest {
     private final TestBucketMessage message = new TestBucketMessage();
 
     @Test
-    void shouldParseLimitArgument() {
-        // Behavior: LIMIT followed by a positive integer sets the limit value.
-        Request request = new TestRequest("bucket", "{}", "LIMIT", "10");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.LIMIT);
+    void shouldParseBatchArgument() {
+        // Behavior: BATCH followed by a positive integer sets the batch size.
+        Request request = new TestRequest("bucket", "{}", "BATCH", "10");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
 
         QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
 
-        assertEquals(10, args.getLimit());
+        assertEquals(10, args.getBatch());
     }
 
     @Test
-    void shouldParseLimitArgumentCaseInsensitive() {
-        // Behavior: LIMIT argument parsing is case-insensitive.
-        Request request = new TestRequest("bucket", "{}", "limit", "5");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.LIMIT);
+    void shouldParseBatchArgumentCaseInsensitive() {
+        // Behavior: BATCH argument parsing is case-insensitive.
+        Request request = new TestRequest("bucket", "{}", "batch", "5");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
 
         QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
 
-        assertEquals(5, args.getLimit());
+        assertEquals(5, args.getBatch());
     }
 
     @Test
@@ -95,27 +95,27 @@ class AbstractBucketMessageTest {
     }
 
     @Test
-    void shouldParseBothLimitAndSortBy() {
+    void shouldParseBothBatchAndSortBy() {
         // Behavior: Multiple arguments can be combined in any order.
-        Request request = new TestRequest("bucket", "{}", "LIMIT", "20", "SORTBY", "created", "DESC");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.LIMIT, QueryArgumentKey.SORTBY);
+        Request request = new TestRequest("bucket", "{}", "BATCH", "20", "SORTBY", "created", "DESC");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH, QueryArgumentKey.SORTBY);
 
         QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
 
-        assertEquals(20, args.getLimit());
+        assertEquals(20, args.getBatch());
         assertEquals("created", args.getSortBy());
         assertEquals(SortDirection.DESC, args.getSortDirection());
     }
 
     @Test
     void shouldReturnEmptyArgumentsWhenNoArgumentsProvided() {
-        // Behavior: When no optional arguments are provided, returns defaults (0 limit, null sort).
+        // Behavior: When no optional arguments are provided, returns defaults (batch size 0, null sort).
         Request request = new TestRequest("bucket", "{}");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.LIMIT, QueryArgumentKey.SORTBY);
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH, QueryArgumentKey.SORTBY);
 
         QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
 
-        assertEquals(0, args.getLimit());
+        assertEquals(0, args.getBatch());
         assertNull(args.getSortBy());
         assertNull(args.getSortDirection());
     }
@@ -124,7 +124,7 @@ class AbstractBucketMessageTest {
     void shouldThrowOnUnknownArgument() {
         // Behavior: Unknown argument names throw IllegalCommandArgumentException.
         Request request = new TestRequest("bucket", "{}", "UNKNOWN");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.LIMIT);
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
 
         IllegalCommandArgumentException ex = assertThrows(
                 IllegalCommandArgumentException.class,
@@ -135,24 +135,24 @@ class AbstractBucketMessageTest {
     }
 
     @Test
-    void shouldThrowWhenLimitMissingValue() {
-        // Behavior: LIMIT without a following value throws IllegalCommandArgumentException.
-        Request request = new TestRequest("bucket", "{}", "LIMIT");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.LIMIT);
+    void shouldThrowWhenBatchMissingValue() {
+        // Behavior: BATCH without a following value throws IllegalCommandArgumentException.
+        Request request = new TestRequest("bucket", "{}", "BATCH");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
 
         IllegalCommandArgumentException ex = assertThrows(
                 IllegalCommandArgumentException.class,
                 () -> message.parseCommonQueryArguments(request, 2, supported)
         );
 
-        assertTrue(ex.getMessage().contains("LIMIT"));
+        assertTrue(ex.getMessage().contains("BATCH"));
     }
 
     @Test
-    void shouldThrowWhenLimitIsNegative() {
-        // Behavior: LIMIT with a negative value throws IllegalCommandArgumentException.
-        Request request = new TestRequest("bucket", "{}", "LIMIT", "-5");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.LIMIT);
+    void shouldThrowWhenBatchIsNegative() {
+        // Behavior: BATCH with a negative value throws IllegalCommandArgumentException.
+        Request request = new TestRequest("bucket", "{}", "BATCH", "-5");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
 
         IllegalCommandArgumentException ex = assertThrows(
                 IllegalCommandArgumentException.class,
@@ -163,14 +163,14 @@ class AbstractBucketMessageTest {
     }
 
     @Test
-    void shouldAcceptZeroLimit() {
-        // Behavior: LIMIT with zero is valid (means no limit).
-        Request request = new TestRequest("bucket", "{}", "LIMIT", "0");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.LIMIT);
+    void shouldAcceptZeroBatch() {
+        // Behavior: BATCH with zero is valid (falls back to the session default).
+        Request request = new TestRequest("bucket", "{}", "BATCH", "0");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
 
         QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
 
-        assertEquals(0, args.getLimit());
+        assertEquals(0, args.getBatch());
     }
 
     @Test
@@ -216,9 +216,9 @@ class AbstractBucketMessageTest {
     }
 
     @Test
-    void shouldThrowWhenLimitNotSupported() {
-        // Behavior: Using LIMIT when not in the supported set throws UnsupportedArgumentException.
-        Request request = new TestRequest("bucket", "{}", "LIMIT", "10");
+    void shouldThrowWhenBatchNotSupported() {
+        // Behavior: Using BATCH when not in the supported set throws UnsupportedArgumentException.
+        Request request = new TestRequest("bucket", "{}", "BATCH", "10");
         Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.SORTBY);
 
         UnsupportedArgumentException ex = assertThrows(
@@ -226,14 +226,14 @@ class AbstractBucketMessageTest {
                 () -> message.parseCommonQueryArguments(request, 2, supported)
         );
 
-        assertTrue(ex.getMessage().contains("LIMIT"));
+        assertTrue(ex.getMessage().contains("BATCH"));
     }
 
     @Test
     void shouldThrowWhenSortByNotSupported() {
         // Behavior: Using SORTBY when not in the supported set throws UnsupportedArgumentException.
         Request request = new TestRequest("bucket", "{}", "SORTBY", "field", "ASC");
-        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.LIMIT);
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
 
         UnsupportedArgumentException ex = assertThrows(
                 UnsupportedArgumentException.class,

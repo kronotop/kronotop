@@ -116,9 +116,9 @@ public final class ReadExecutor extends BaseExecutor implements Executor<List<By
     }
 
     private List<ByteBuffer> applyLimit(QueryContext ctx, List<ByteBuffer> result) {
-        int limit = ctx.options().limit();
-        if (result.size() > limit) {
-            return result.subList(0, limit);
+        int batch = ctx.options().batch();
+        if (result.size() > batch) {
+            return result.subList(0, batch);
         }
         return result;
     }

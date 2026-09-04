@@ -35,7 +35,6 @@ import com.kronotop.bucket.pipeline.UpdateOptions;
 import com.kronotop.bucket.vector.VectorGraphIndexGroup;
 import com.kronotop.bucket.vector.VectorIndexNotReadyException;
 import com.kronotop.cluster.Route;
-import com.kronotop.network.Address;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
@@ -356,17 +355,17 @@ public abstract class AbstractBucketHandler implements Handler {
     /**
      * Builds query options from session defaults and command arguments.
      *
-     * @param session       the client session containing default limit
+     * @param session       the client session containing the default batch size
      * @param updateOptions optional update configuration for UPDATE operations
-     * @param arguments     parsed command arguments containing limit and sort options
+     * @param arguments     parsed command arguments containing batch size and sort options
      * @return configured query options
      */
     QueryOptions buildQueryOptions(Session session, UpdateOptions updateOptions, QueryArguments arguments) {
         QueryOptions.Builder builder = QueryOptions.builder();
-        if (arguments.getLimit() == 0) {
-            builder.limit(session.attr(SessionAttributes.LIMIT).get());
+        if (arguments.getBatch() == 0) {
+            builder.batch(session.attr(SessionAttributes.BATCH).get());
         } else {
-            builder.limit(arguments.getLimit());
+            builder.batch(arguments.getBatch());
         }
         if (arguments.getSortBy() != null) {
             builder.sortByField(arguments.getSortBy());

@@ -24,12 +24,12 @@ import com.kronotop.bucket.Collation;
  *
  * <p>Supported arguments:</p>
  * <ul>
- *   <li>LIMIT n - maximum documents to return per batch</li>
+ *   <li>BATCH n - maximum documents to return per batch</li>
  *   <li>SORTBY field ASC|DESC - sort field and direction</li>
  * </ul>
  */
 public class QueryArguments {
-    private int limit;
+    private int batch;
     private String sortBy;
     private SortDirection sortDirection;
     private String resultSortBy;
@@ -38,14 +38,14 @@ public class QueryArguments {
     private Collation collation;
 
     /**
-     * Returns the result limit, or 0 if not specified.
+     * Returns the batch size, or 0 if not specified.
      */
-    public int getLimit() {
-        return limit;
+    public int getBatch() {
+        return batch;
     }
 
-    public void setLimit(int limit) {
-        this.limit = limit;
+    public void setBatch(int batch) {
+        this.batch = batch;
     }
 
     /**

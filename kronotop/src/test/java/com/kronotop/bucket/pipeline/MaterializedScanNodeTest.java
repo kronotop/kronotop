@@ -248,8 +248,8 @@ class MaterializedScanNodeTest extends BasePipelineTest {
 
     @Test
     void shouldRespectLimit() {
-        // Behavior: QueryOptions.limit(2) with 5 candidates returns exactly 2 results.
-        final String BUCKET = "mat-scan-limit";
+        // Behavior: QueryOptions.batch(2) with 5 candidates returns exactly 2 results.
+        final String BUCKET = "mat-scan-batch";
         createIndexesAndLoadBucketMetadata(BUCKET);
 
         List<byte[]> documents = List.of(
@@ -273,7 +273,7 @@ class MaterializedScanNodeTest extends BasePipelineTest {
         assertNotNull(plan);
 
         List<ByteBuffer> results = executeMaterializedPlan(
-                plan, metadata, QueryOptions.builder().limit(2).build());
+                plan, metadata, QueryOptions.builder().batch(2).build());
         assertEquals(2, results.size());
     }
 

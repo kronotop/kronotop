@@ -281,8 +281,8 @@ public class Session {
         String inputType = context.getConfig().getString("session_attributes.input_type");
         channel.attr(SessionAttributes.INPUT_TYPE).set(InputType.valueOf(inputType.toUpperCase()));
 
-        Integer limit = context.getConfig().getInt("session_attributes.limit");
-        channel.attr(SessionAttributes.LIMIT).set(limit);
+        Integer batch = context.getConfig().getInt("session_attributes.batch");
+        channel.attr(SessionAttributes.BATCH).set(batch);
 
         String objectIdFormat = context.getConfig().getString("bucket.object_id_format");
         channel.attr(SessionAttributes.OBJECT_ID_FORMAT).set(ObjectIdFormat.valueOf(objectIdFormat.toUpperCase()));

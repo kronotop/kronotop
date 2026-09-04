@@ -23,7 +23,7 @@ import com.kronotop.bucket.handlers.protocol.SortDirection;
 /**
  * Immutable configuration options for query execution in the pipeline system.
  * This class provides a builder pattern for configuring query behavior such as
- * result limits, sort ordering, and update operations.
+ * batch size, sort ordering, and update operations.
  *
  * <p>QueryOptions are used in conjunction with {@link QueryContext} to control
  * how queries are executed against the document database.
@@ -33,15 +33,15 @@ import com.kronotop.bucket.handlers.protocol.SortDirection;
  * // Basic query with default options
  * QueryOptions options = QueryOptions.builder().build();
  *
- * // Query with limit
+ * // Query with batch size
  * QueryOptions limited = QueryOptions.builder()
- *     .limit(50)
+ *     .batch(50)
  *     .build();
  *
- * // Query with descending sort ordering and limit
+ * // Query with descending sort ordering and batch size
  * QueryOptions descending = QueryOptions.builder()
  *     .sortDirection(SortDirection.DESC)
- *     .limit(20)
+ *     .batch(20)
  *     .build();
  * }</pre>
  *
@@ -62,7 +62,7 @@ public class QueryOptions {
     /**
      * Maximum number of documents to return in a single batch.
      */
-    private final int limit;
+    private final int batch;
 
     /**
      * The field name to use for in-memory result sorting. Defaults to null (no result sort).
@@ -88,7 +88,7 @@ public class QueryOptions {
         this.sortDirection = builder.sortDirection;
         this.resultSortField = builder.resultSortField;
         this.resultSortDirection = builder.resultSortDirection;
-        this.limit = builder.limit;
+        this.batch = builder.batch;
         this.update = builder.update;
         this.collation = builder.collation;
     }
@@ -135,10 +135,10 @@ public class QueryOptions {
      * Returns the maximum number of documents to return in a single batch.
      * This controls pagination behavior and memory usage during query execution.
      *
-     * @return the result limit (0 to {@value QueryContext#MAXIMUM_LIMIT})
+     * @return the batch size (0 to {@value QueryContext#MAXIMUM_BATCH})
      */
-    public int limit() {
-        return limit;
+    public int batch() {
+        return batch;
     }
 
     /**
@@ -199,9 +199,9 @@ public class QueryOptions {
         private SortDirection sortDirection = SortDirection.ASC;
 
         /**
-         * Result limit. Defaults to {@value QueryContext#DEFAULT_LIMIT}.
+         * Batch size. Defaults to {@value QueryContext#DEFAULT_BATCH}.
          */
-        private int limit = QueryContext.DEFAULT_LIMIT;
+        private int batch = QueryContext.DEFAULT_BATCH;
 
         /**
          * Sets the field name to use for sorting results.
@@ -229,18 +229,18 @@ public class QueryOptions {
          * Sets the maximum number of documents to return in a single batch.
          * This controls pagination and memory usage during query execution.
          *
-         * @param limit the maximum result count (0 to {@value QueryContext#MAXIMUM_LIMIT})
+         * @param batch the batch size (0 to {@value QueryContext#MAXIMUM_BATCH})
          * @return this Builder instance for method chaining
-         * @throws IllegalArgumentException if the limit is negative or exceeds the maximum
+         * @throws IllegalArgumentException if the batch size is negative or exceeds the maximum
          */
-        public Builder limit(int limit) {
-            if (limit >= QueryContext.MAXIMUM_LIMIT) {
-                throw new IllegalArgumentException("Maximum limit value is " + QueryContext.MAXIMUM_LIMIT);
+        public Builder batch(int batch) {
+            if (batch >= QueryContext.MAXIMUM_BATCH) {
+                throw new IllegalArgumentException("Maximum batch size is " + QueryContext.MAXIMUM_BATCH);
             }
-            if (limit < 0) {
-                throw new IllegalArgumentException("limit must be a non-negative integer");
+            if (batch < 0) {
+                throw new IllegalArgumentException("batch size must be a non-negative integer");
             }
-            this.limit = limit;
+            this.batch = batch;
             return this;
         }
 

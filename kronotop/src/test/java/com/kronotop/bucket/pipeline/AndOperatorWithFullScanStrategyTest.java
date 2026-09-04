@@ -100,7 +100,7 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
 
     @Test
     void shouldProcessTwoHundredDocumentsInBatches() {
-        // Behavior: AND query with 200 documents, limit 2, returns all 150 matching documents via pagination.
+        // Behavior: AND query with 200 documents, batch size 2, returns all 150 matching documents via pagination.
         final String TEST_BUCKET_NAME = "test-intersection-200-docs";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -129,7 +129,7 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $and: [ { 'age': { '$gte': 10 } }, { 'category': { '$eq': 'electronics' } } ] }");
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<ByteBuffer> allResults = new ArrayList<>();
@@ -171,7 +171,7 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
 
     @Test
     void shouldProcessTwoHundredDocumentsInBatchesReverse() {
-        // Behavior: AND query with 200 documents, limit 2 and DESC sort, returns all 150 matching documents in reverse order.
+        // Behavior: AND query with 200 documents, batch size 2 and DESC sort, returns all 150 matching documents in reverse order.
         final String TEST_BUCKET_NAME = "test-intersection-200-docs-reverse";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
@@ -200,7 +200,7 @@ class AndOperatorWithFullScanStrategyTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $and: [ { 'age': { '$gte': 10 } }, { 'category': { '$eq': 'electronics' } } ] }");
-        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryOptions config = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<ByteBuffer> allResults = new ArrayList<>();

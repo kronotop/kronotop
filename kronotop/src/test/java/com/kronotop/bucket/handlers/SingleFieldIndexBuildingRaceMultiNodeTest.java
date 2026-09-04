@@ -153,7 +153,7 @@ class SingleFieldIndexBuildingRaceMultiNodeTest extends BaseBucketMultiNodeTest 
         runCommand(node2.getChannel(), helloBuf);
 
         ByteBuf queryBuf = Unpooled.buffer();
-        queryCmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(SEED_COUNT + MAX_RACE_INSERTS)).encode(queryBuf);
+        queryCmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(SEED_COUNT + MAX_RACE_INSERTS)).encode(queryBuf);
         return extractEntries(runCommand(node2.getChannel(), queryBuf));
     }
 

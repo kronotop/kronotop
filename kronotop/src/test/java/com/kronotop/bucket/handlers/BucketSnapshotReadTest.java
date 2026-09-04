@@ -154,7 +154,7 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldQueryWithSnapshotReadAndLimit() {
-        // Behavior: SNAPSHOTREAD ON respects LIMIT correctly.
+        // Behavior: SNAPSHOTREAD ON respects BATCH correctly.
 
         List<byte[]> documents = new java.util.ArrayList<>();
         for (int i = 0; i < 10; i++) {
@@ -170,7 +170,7 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
 
         {
             ByteBuf buf = Unpooled.buffer();
-            bucketCmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.limit(3)).encode(buf);
+            bucketCmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(3)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 

@@ -29,7 +29,7 @@ public class BucketQueryMessage extends AbstractBucketMessage implements Protoco
     private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(
             QueryArgumentKey.SORTBY,
             QueryArgumentKey.RESULTSORT,
-            QueryArgumentKey.LIMIT,
+            QueryArgumentKey.BATCH,
             QueryArgumentKey.PROJECTION,
             QueryArgumentKey.COLLATION
     );

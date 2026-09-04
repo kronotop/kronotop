@@ -467,7 +467,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithLimitAndAdvance() {
-        // Step 1: Insert test documents - more than limit to test pagination
+        // Step 1: Insert test documents - more than batch size to test pagination
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 35, \"city\": \"New York\"}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 40, \"city\": \"London\"}"),
@@ -485,14 +485,14 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(5, allInsertedObjectIds.size(), "Should have inserted 5 documents");
 
-        // Step 2: Update documents with age > 30 using BUCKET.UPDATE with limit=1 to add a "status" field
+        // Step 2: Update documents with age > 30 using BUCKET.UPDATE with batch=1 to add a "status" field
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId = -1;
 
-        // Initial update with limit=1
+        // Initial update with batch=1
         {
             ByteBuf buf = Unpooled.buffer();
-            cmd.update(TEST_BUCKET, "{\"age\": {\"$gt\": 30}}", "{\"$set\": {\"status\": \"senior\"}}", BucketQueryArgs.Builder.limit(1)).encode(buf);
+            cmd.update(TEST_BUCKET, "{\"age\": {\"$gt\": 30}}", "{\"$set\": {\"status\": \"senior\"}}", BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -503,7 +503,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Should have updated exactly 1 document in the first batch
-        assertEquals(1, allUpdatedObjectIds.size(), "Should have updated exactly 1 document with limit=1");
+        assertEquals(1, allUpdatedObjectIds.size(), "Should have updated exactly 1 document with batch=1");
 
         // Step 3: Use BUCKET.ADVANCE UPDATE to continue updating remaining documents
         int maxAdvanceCalls = 10; // Safety limit
@@ -737,7 +737,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithSortByLimitAndAdvance() {
-        // Behavior: UPDATE with SORTBY and LIMIT preserves sort order across BUCKET.ADVANCE calls.
+        // Behavior: UPDATE with SORTBY and BATCH preserves sort order across BUCKET.ADVANCE calls.
         // Documents are updated in the specified order, and cursor continuation maintains global ordering.
 
         // Step 1: Create index on age field for sorted updates
@@ -766,15 +766,15 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(5, insertedDocs.size(), "Should have inserted 5 documents");
 
-        // Step 3: Execute UPDATE with SORTBY age ASC, LIMIT 2
+        // Step 3: Execute UPDATE with SORTBY age ASC, BATCH 2
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
-        // Initial update with SORTBY age ASC, LIMIT 2
+        // Initial update with SORTBY age ASC, BATCH 2
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.update(TEST_BUCKET, "{\"age\": {\"$gte\": 0}}", "{\"$set\": {\"processed\": true}}",
-                    BucketQueryArgs.Builder.limit(2).sortBy("age", "ASC")).encode(buf);
+                    BucketQueryArgs.Builder.batch(2).sortBy("age", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -840,7 +840,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithSortByLimitAndAdvanceDescending() {
-        // Behavior: UPDATE with SORTBY DESC and LIMIT preserves descending sort order across
+        // Behavior: UPDATE with SORTBY DESC and BATCH preserves descending sort order across
         // BUCKET.ADVANCE calls. Documents are updated from highest to lowest value.
 
         // Step 1: Create index on age field
@@ -866,14 +866,14 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             idToAge.put(entry.getKey(), BsonHelper.getInteger(doc, "age"));
         }
 
-        // Step 3: Execute UPDATE with SORTBY age DESC, LIMIT 2
+        // Step 3: Execute UPDATE with SORTBY age DESC, BATCH 2
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.update(TEST_BUCKET, "{\"age\": {\"$gte\": 0}}", "{\"$set\": {\"processed\": true}}",
-                    BucketQueryArgs.Builder.limit(2).sortBy("age", "DESC")).encode(buf);
+                    BucketQueryArgs.Builder.batch(2).sortBy("age", "DESC")).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -944,7 +944,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             idToAge.put(entry.getKey(), BsonHelper.getInteger(doc, "age"));
         }
 
-        // Execute UPDATE with SORTBY age ASC (no LIMIT - all in one batch)
+        // Execute UPDATE with SORTBY age ASC (no BATCH, the session default applies)
         List<ObjectId> updatedObjectIds;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1021,7 +1021,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithSortByAndLimit() {
-        // Behavior: UPDATE with SORTBY and LIMIT only updates the specified number of documents,
+        // Behavior: UPDATE with SORTBY and BATCH only updates the specified number of documents,
         // selecting them in sorted order.
 
         SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
@@ -1046,12 +1046,12 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             idToAge.put(entry.getKey(), BsonHelper.getInteger(doc, "age"));
         }
 
-        // Execute UPDATE with SORTBY age ASC, LIMIT 2 - should update only the two youngest
+        // Execute UPDATE with SORTBY age ASC, BATCH 2 - should update only the two youngest
         List<ObjectId> updatedObjectIds;
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.update(TEST_BUCKET, "{\"age\": {\"$gte\": 0}}", "{\"$set\": {\"processed\": true}}",
-                    BucketQueryArgs.Builder.limit(2).sortBy("age", "ASC")).encode(buf);
+                    BucketQueryArgs.Builder.batch(2).sortBy("age", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -1383,7 +1383,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithSortByWithoutLimit() {
-        // Behavior: UPDATE with SORTBY but without LIMIT returns all matching documents
+        // Behavior: UPDATE with SORTBY but without BATCH returns all matching documents
         // in sorted order within a single response.
 
         SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
@@ -1408,7 +1408,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             idToAge.put(entry.getKey(), BsonHelper.getInteger(doc, "age"));
         }
 
-        // Execute UPDATE with SORTBY only (no LIMIT)
+        // Execute UPDATE with SORTBY only (no BATCH)
         List<ObjectId> updatedObjectIds;
         {
             ByteBuf buf = Unpooled.buffer();
@@ -1436,7 +1436,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithSortByOnlyMultipleAdvance() {
-        // Behavior: UPDATE with SORTBY only (no explicit LIMIT) can still use BUCKET.ADVANCE
+        // Behavior: UPDATE with SORTBY only (no explicit BATCH) can still use BUCKET.ADVANCE
         // to iterate through results while maintaining sort order across advances.
 
         SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
@@ -1462,7 +1462,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             idToAge.put(entry.getKey(), BsonHelper.getInteger(doc, "age"));
         }
 
-        // Execute UPDATE with SORTBY age ASC, LIMIT 2 (to force multiple advances)
+        // Execute UPDATE with SORTBY age ASC, BATCH 2 (to force multiple advances)
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
@@ -1470,7 +1470,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"processed\": true}}",
-                    BucketQueryArgs.Builder.limit(2).sortBy("age", "ASC")).encode(buf);
+                    BucketQueryArgs.Builder.batch(2).sortBy("age", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
 
             assertInstanceOf(MapRedisMessage.class, msg);
@@ -1530,7 +1530,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         cmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"processed\": true}}",
-                BucketQueryArgs.Builder.limit(2).sortBy("age", "ASC")).encode(buf);
+                BucketQueryArgs.Builder.batch(2).sortBy("age", "ASC")).encode(buf);
         Object msg = runCommand(channel, buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -1555,7 +1555,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         cmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"processed\": true}}",
-                BucketQueryArgs.Builder.limit(2).sortBy("age", "DESC")).encode(buf);
+                BucketQueryArgs.Builder.batch(2).sortBy("age", "DESC")).encode(buf);
         Object msg = runCommand(channel, buf);
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
@@ -1610,7 +1610,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithOrQueryLimitAndAdvance() {
-        // Behavior: UPDATE with $or on two indexed fields and limit=1 triggers child rewind in
+        // Behavior: UPDATE with $or on two indexed fields and batch=1 triggers child rewind in
         // UnionNode. Each ADVANCE UPDATE batch updates at most 1 document. All matching documents
         // are updated exactly once across multiple ADVANCE calls.
 
@@ -1637,7 +1637,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Map<ObjectId, byte[]> insertedDocs = insertDocumentsAndGetObjectIds(testDocuments);
         assertEquals(8, insertedDocs.size());
 
-        // UPDATE with $or filter, limit=1
+        // UPDATE with $or filter, batch=1
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
@@ -1646,7 +1646,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             cmd.update(TEST_BUCKET,
                     "{\"$or\": [{\"department\": {\"$eq\": \"engineering\"}}, {\"salary\": {\"$gt\": 80000}}]}",
                     "{\"$set\": {\"reviewed\": true}}",
-                    BucketQueryArgs.Builder.limit(1)).encode(buf);
+                    BucketQueryArgs.Builder.batch(1)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1711,7 +1711,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldUpdateWithOrQueryLimitTwoAndAdvance() {
-        // Behavior: UPDATE with $or on two indexed fields and limit=2 exercises the keptHandles/excessHandles
+        // Behavior: UPDATE with $or on two indexed fields and batch=2 exercises the keptHandles/excessHandles
         // split in UnionNode.writeResultsAndRewindChildren where a single child contributes both kept and
         // excess entries in the same batch. All matching documents are updated exactly once across multiple
         // ADVANCE calls.
@@ -1741,7 +1741,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Map<ObjectId, byte[]> insertedDocs = insertDocumentsAndGetObjectIds(testDocuments);
         assertEquals(10, insertedDocs.size());
 
-        // UPDATE with $or filter, limit=2
+        // UPDATE with $or filter, batch=2
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
@@ -1750,7 +1750,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             cmd.update(TEST_BUCKET,
                     "{\"$or\": [{\"department\": {\"$eq\": \"engineering\"}}, {\"salary\": {\"$gt\": 80000}}]}",
                     "{\"$set\": {\"reviewed\": true}}",
-                    BucketQueryArgs.Builder.limit(2)).encode(buf);
+                    BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1838,7 +1838,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         Map<ObjectId, byte[]> insertedDocs = insertDocumentsAndGetObjectIds(testDocuments);
         assertEquals(6, insertedDocs.size());
 
-        // UPDATE with $or filter, limit=2
+        // UPDATE with $or filter, batch=2
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
         int cursorId;
 
@@ -1847,7 +1847,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             cmd.update(TEST_BUCKET,
                     "{\"$or\": [{\"department\": {\"$eq\": \"engineering\"}}, {\"salary\": {\"$gt\": 80000}}]}",
                     "{\"$set\": {\"reviewed\": true}}",
-                    BucketQueryArgs.Builder.limit(2)).encode(buf);
+                    BucketQueryArgs.Builder.batch(2)).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -2299,7 +2299,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldUpdateWithSortByOnWidenedInt64Index() {
         // Behavior: SORTBY on an INT64 index works correctly when documents were inserted
-        // with INT32 values (widened at store time). LIMIT selects the lowest-aged documents.
+        // with INT32 values (widened at store time). BATCH selects the lowest-aged documents.
         SingleFieldIndexDefinition ageIndexDefinition = SingleFieldIndexDefinition.create(
                 "age-index", "age", BsonType.INT64, false, IndexStatus.WAITING);
         createIndexThenWaitForReadiness(ageIndexDefinition);
@@ -2315,7 +2315,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         insertDocumentsAndGetObjectIds(testDocuments);
 
-        // Update with INT64 predicate (matches index type) + SORTBY age ASC, LIMIT 2
+        // Update with INT64 predicate (matches index type) + SORTBY age ASC, BATCH 2
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
@@ -2325,7 +2325,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             cmd.update(TEST_BUCKET,
                     "{\"age\": {\"$gte\": {\"$numberLong\": \"0\"}}}",
                     "{\"$set\": {\"processed\": true}}",
-                    BucketQueryArgs.Builder.limit(2).sortBy("age", "ASC")).encode(buf);
+                    BucketQueryArgs.Builder.batch(2).sortBy("age", "ASC")).encode(buf);
             Object msg = runCommand(channel, buf);
             assertInstanceOf(MapRedisMessage.class, msg);
             updatedObjectIds = extractObjectIds(msg);

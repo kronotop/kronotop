@@ -54,7 +54,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         // Query: age >= 51 AND age <= 170 (should match 120 documents: ages 51, 52, ..., 170)
         String query = "{ 'age': { '$gte': 51, '$lte': 170 } }";
         PlanWithParams planWithParams = createPlanWithParams(metadata, query);
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         // Expected: 120 documents matching, 2 per batch = 60 batches
@@ -82,7 +82,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
                     }
 
                     // Verify batch size (should be 2 or less for the last batch)
-                    assertTrue(batch.size() <= batchSize, "Batch size should not exceed limit");
+                    assertTrue(batch.size() <= batchSize, "Batch size should not exceed the configured batch size");
                     if (totalDocuments < expectedMatches) {
                         assertEquals(batchSize, batch.size(), "All batches except the last should have exactly " + batchSize + " documents");
                     }
@@ -109,7 +109,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
 
     @Test
     void shouldFilterInt32RangeWithMixedInputReverseAndLimit() {
-        final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input-with-limit-and-reverse";
+        final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input-with-batch-and-reverse";
 
         // Create an age index for this test
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
@@ -130,7 +130,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gte': 20, '$lte': 48}}");
-        QueryOptions config = QueryOptions.builder().sortDirection(SortDirection.DESC).limit(2).build();
+        QueryOptions config = QueryOptions.builder().sortDirection(SortDirection.DESC).batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<List<String>> expectedResult = new ArrayList<>();

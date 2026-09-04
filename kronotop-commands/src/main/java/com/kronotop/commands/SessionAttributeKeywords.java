@@ -31,7 +31,7 @@ public enum SessionAttributeKeywords implements ProtocolKeyword {
     // Attribute names
     REPLY_TYPE,
     INPUT_TYPE,
-    LIMIT,
+    BATCH,
     OBJECT_ID_FORMAT;
 
     public final byte[] bytes;

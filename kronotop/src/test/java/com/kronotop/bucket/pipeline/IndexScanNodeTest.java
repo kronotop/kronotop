@@ -248,7 +248,7 @@ class IndexScanNodeTest extends BasePipelineTest {
 
     @Test
     void shouldFilterEqOperatorWithReverseLimitInt32() {
-        final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-limit-int32";
+        final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-batch-int32";
 
         // Create an age index for this test
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
@@ -268,7 +268,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$eq': 20 } }");
-        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryOptions config = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<List<String>> expectedResult = new ArrayList<>();
@@ -296,7 +296,7 @@ class IndexScanNodeTest extends BasePipelineTest {
 
     @Test
     void shouldFilterEqOperatorWithReverseLimitString() {
-        final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-limit-string";
+        final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-batch-string";
 
         // Create an age index for this test
         SingleFieldIndexDefinition nameIndex = SingleFieldIndexDefinition.create("name-index", "name", BsonType.STRING, false, IndexStatus.WAITING);
@@ -317,7 +317,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'name': {'$eq': 'John' } }");
-        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryOptions config = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<List<String>> expectedResult = new ArrayList<>();
@@ -346,7 +346,7 @@ class IndexScanNodeTest extends BasePipelineTest {
 
     @Test
     void shouldFilterNeOperatorReverseWithLimit() {
-        final String TEST_BUCKET_NAME = "test-ne-operator-reverse-filter-with-limit";
+        final String TEST_BUCKET_NAME = "test-ne-operator-reverse-filter-with-batch";
 
         // Create an age index for this test
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
@@ -366,7 +366,7 @@ class IndexScanNodeTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$ne': 21 } }");
-        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryOptions config = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<List<String>> expectedResult = new ArrayList<>();

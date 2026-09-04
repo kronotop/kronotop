@@ -52,15 +52,15 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
         List<byte[]> documents = createDocumentsWithAges(200);
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Create a plan for the query with limit=2
+        // Create a plan for the query with batch=2
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         // Expected calculations:
         // Total documents: 200 (ages 0-199)
         // Matching condition age > 22: ages 23-199 = 177 documents
-        // Batch size (limit): 2
+        // Batch size: 2
         // Expected iterations: ceil(177 / 2) = 89 iterations
         int expectedTotalMatches = 177;
         int batchSize = 2;
@@ -135,16 +135,16 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
         List<byte[]> documents = createDocumentsWithAges(200);
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Create pipeline executor with limit=2 and query age > 22
+        // Create pipeline executor with batch=2 and query age > 22
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'age': {'$gt': 22}}");
-        QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryOptions config = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         // Expected calculations for REVERSE order:
         // Total documents: 200 (ages 0-199)
         // Matching condition age > 22: ages 23-199 = 177 documents
         // In REVERSE order: ages 199, 198, 197, ..., down to 23
-        // Batch size (limit): 2
+        // Batch size: 2
         // Expected iterations: ceil(177 / 2) = 89 iterations
         int expectedTotalMatches = 177;
         int batchSize = 2;

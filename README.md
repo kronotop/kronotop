@@ -214,7 +214,7 @@ OLTP workloads where each request is an independent transaction.
 | Indexed equality (`$eq`) | 11,751 qps | 4.11 ms  | 6.12 ms  |
 | Indexed range (`$gt`)    | 11,209 qps | 4.29 ms  | 6.35 ms  |
 | Compound index           | 11,082 qps | 4.36 ms  | 6.49 ms  |
-| Sort + limit 10          | 23,008 qps | 2.10 ms  | 2.88 ms  |
+| Sort + batch 10          | 23,008 qps | 2.10 ms  | 2.88 ms  |
 | Full scan (unindexed)    | 1,958 qps  | 24.33 ms | 50.02 ms |
 
 See the [full benchmark results and deployment guide](benchmarks/README.md) for details.
@@ -304,7 +304,7 @@ Each call produces the next batch and advances the cursor's position. Outside an
 out of the way. Cursors are session-scoped and released automatically when the session disconnects.
 
 ```
-127.0.0.1:5484> BUCKET.QUERY products '{}' LIMIT 2
+127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2
 1# "cursor_id" => (integer) 0
 2# "entries" =>
    1) {"_id": "69ce80c76597b10d87d134ff", "category": "books", "price": 19.99, "name": "The Disconnected"}

@@ -176,11 +176,11 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
         assertEquals(200, documents.size(), "Should have exactly 200 documents");
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Execute query with limit=2 and analyze each batch
+        // Execute query with batch=2 and analyze each batch
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'age': { '$gt': 25 } }, { 'name': { '$eq': 'John' } } ] }");
 
         try (Transaction tr = createTransaction()) {
-            QueryOptions config = QueryOptions.builder().limit(2).build();
+            QueryOptions config = QueryOptions.builder().batch(2).build();
             QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
             int iterationCount = 0;
@@ -189,7 +189,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
             // EXPECTED CALCULATION:
             // - Total matching documents: 180 (20 John≤25 + 20 John>25 + 140 Non-John>25)
-            // - Limit per iteration: 2
+            // - Batch size per iteration: 2
             // - Expected iterations: 180/2 = 90 iterations
             // - Each batch should have 2 documents (except possibly last)
 
@@ -213,7 +213,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             // Verify batch analysis results - we'll check the actual count
             // assertEquals will be done after we compare with full query
             int actualIterations = iterationCount - 1; // -1 because final iteration is empty
-            int expectedIterations = totalRetrieved / 2; // Should be totalRetrieved/2 with limit=2
+            int expectedIterations = totalRetrieved / 2; // Should be totalRetrieved/2 with batch=2
 
             // Verify each retrieved document matches the OR condition
             for (String json : allBatchContents) {
@@ -229,7 +229,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             }
 
             // Now test full query to verify total count
-            QueryOptions fullConfig = QueryOptions.builder().limit(200).build();
+            QueryOptions fullConfig = QueryOptions.builder().batch(200).build();
             QueryContext fullCtx = new QueryContext(getSession(), metadata, fullConfig, planWithParams.plan(), planWithParams.parameters());
             List<ByteBuffer> fullResults = readExecutor.execute(tr, fullCtx);
 
@@ -241,7 +241,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
             // Final verification
             assertEquals(expectedIterations, actualIterations,
-                    String.format("Should need exactly %d iterations for %d docs with limit=2", expectedIterations, totalRetrieved));
+                    String.format("Should need exactly %d iterations for %d docs with batch=2", expectedIterations, totalRetrieved));
         }
     }
 
@@ -284,11 +284,11 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
         assertEquals(200, documents.size(), "Should have exactly 200 documents");
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Execute query with limit=2, SortDirection=DESC and analyze each batch
+        // Execute query with batch=2, SortDirection=DESC and analyze each batch
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'age': { '$gt': 25 } }, { 'name': { '$eq': 'John' } } ] }");
 
         try (Transaction tr = createTransaction()) {
-            QueryOptions config = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+            QueryOptions config = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
             QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
             int iterationCount = 0;
@@ -297,7 +297,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
             // EXPECTED CALCULATION:
             // - Total matching documents: 180 (20 John≤25 + 20 John>25 + 140 Non-John>25)
-            // - Limit per iteration: 2
+            // - Batch size per iteration: 2
             // - Expected iterations: 180/2 = 90 iterations
             // - SortDirection=DESC: Should get documents in reverse order (highest age/versionstamp first)
 
@@ -320,7 +320,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
             // Verify batch analysis results - we'll check the actual count
             int actualIterations = iterationCount - 1; // -1 because final iteration is empty
-            int expectedIterations = totalRetrieved / 2; // Should be totalRetrieved/2 with limit=2
+            int expectedIterations = totalRetrieved / 2; // Should be totalRetrieved/2 with batch=2
 
             // Verify each retrieved document matches the OR condition
             for (String json : allBatchContents) {
@@ -336,7 +336,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             }
 
             // Now test full query to verify total count
-            QueryOptions fullConfig = QueryOptions.builder().limit(200).build();
+            QueryOptions fullConfig = QueryOptions.builder().batch(200).build();
             QueryContext fullCtx = new QueryContext(getSession(), metadata, fullConfig, planWithParams.plan(), planWithParams.parameters());
             List<ByteBuffer> fullResults = readExecutor.execute(tr, fullCtx);
 
@@ -353,14 +353,14 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
             // Final verification
             assertEquals(expectedIterations, actualIterations,
-                    String.format("Should need exactly %d iterations for %d docs with limit=2", expectedIterations, totalRetrieved));
+                    String.format("Should need exactly %d iterations for %d docs with batch=2", expectedIterations, totalRetrieved));
         }
     }
 
     @Test
     void shouldUpdateWithOrQueryFullScanAndPaginatedRewind() {
         // Behavior: UPDATE with $or on two non-indexed fields uses FullScan for both branches.
-        // With limit=1, rewind must correctly restore FullScan cursor checkpoints.
+        // With batch=1, rewind must correctly restore FullScan cursor checkpoints.
         // ObjectId-based deduplication prevents duplicate updates across paginated iterations.
 
         final String TEST_BUCKET_NAME = "test-union-update-or-fullscan-rewind";
@@ -383,7 +383,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'age': { '$gt': 25 } }, { 'name': { '$eq': 'John' } } ] }");
 
         UpdateOptions update = UpdateOptions.builder().set("reviewed", new BsonBoolean(true)).build();
-        QueryOptions options = QueryOptions.builder().limit(1).update(update).build();
+        QueryOptions options = QueryOptions.builder().batch(1).update(update).build();
         QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<ObjectId> allUpdatedIds = new ArrayList<>();
@@ -401,7 +401,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             }
             iterations++;
             if (iterations > 15) {
-                fail("Too many iterations for 5 matching documents with limit 1");
+                fail("Too many iterations for 5 matching documents with batch size 1");
             }
         }
 
@@ -660,10 +660,10 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     @Test
     void shouldNotRewindWhenUnionResultsExactlyMatchLimit() {
         // Behavior: When the union of child results produces exactly the number of entries equal
-        // to the limit, no excess entries exist and rewind should not occur. Children advance
+        // to the batch size, no excess entries exist and rewind should not occur. Children advance
         // their cursors normally and the next ADVANCE resumes from the correct position.
 
-        final String TEST_BUCKET_NAME = "test-union-full-scan-exact-limit-boundary";
+        final String TEST_BUCKET_NAME = "test-union-full-scan-exact-batch-boundary";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
 
@@ -681,7 +681,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'price': { '$gt': 30 } }, { 'quantity': { '$lte': 25 } } ] }");
 
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         Set<String> allNames = new HashSet<>();
@@ -700,7 +700,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
                 iterations++;
 
                 if (iterations > 10) {
-                    fail("Too many iterations for 6 documents with limit 2");
+                    fail("Too many iterations for 6 documents with batch size 2");
                 }
             }
         }
@@ -712,7 +712,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     @Test
     void shouldRewindFullScanChildrenWithLimit() {
         // Behavior: $or with two non-indexed fields creates a UnionNode with two FullScanNode
-        // children. With limit=2, rewind must correctly restore checkpoints for both children.
+        // children. With batch=2, rewind must correctly restore checkpoints for both children.
         // Overlapping results between branches are deduplicated.
 
         final String TEST_BUCKET_NAME = "test-union-full-scan-rewind";
@@ -737,7 +737,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'price': { '$gt': 100 } }, { 'category': { '$eq': 'rare' } } ] }");
 
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         List<String> allNames = new ArrayList<>();
@@ -756,7 +756,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
                 iterations++;
 
                 if (iterations > 15) {
-                    fail("Too many iterations for 8 matching documents with limit 2");
+                    fail("Too many iterations for 8 matching documents with batch size 2");
                 }
             }
         }
@@ -771,12 +771,12 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
 
     @Test
     void shouldUpdateWithOrQueryLimitTwoAndRewind() {
-        // Behavior: UPDATE with $or on two non-indexed fields and limit=2 exercises the
+        // Behavior: UPDATE with $or on two non-indexed fields and batch=2 exercises the
         // keptHandles/excessHandles split in UnionNode where a single child contributes
         // both kept and excess entries in the same batch. All matching documents are
         // updated exactly once across multiple paginated iterations.
 
-        final String TEST_BUCKET_NAME = "test-union-full-scan-update-limit-two-rewind";
+        final String TEST_BUCKET_NAME = "test-union-full-scan-update-batch-two-rewind";
 
         BucketMetadata metadata = createIndexesAndLoadBucketMetadata(TEST_BUCKET_NAME);
 
@@ -799,7 +799,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{ $or: [ { 'price': { '$gt': 100 } }, { 'quantity': { '$lte': 25 } } ] }");
 
         UpdateOptions update = UpdateOptions.builder().set("reviewed", new BsonBoolean(true)).build();
-        QueryOptions options = QueryOptions.builder().limit(2).update(update).build();
+        QueryOptions options = QueryOptions.builder().batch(2).update(update).build();
         QueryContext updateCtx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<ObjectId> allUpdatedIds = new ArrayList<>();
@@ -817,7 +817,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
             }
             iterations++;
             if (iterations > 15) {
-                fail("Too many iterations for 8 matching documents with limit 2");
+                fail("Too many iterations for 8 matching documents with batch size 2");
             }
         }
 

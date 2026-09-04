@@ -38,8 +38,8 @@ Cooper: No. It's necessary.
  * node chain (scan, logical, transformation, and any chained {@code next} nodes).
  * <p>
  * Scan, union, and ordered-concat visitors share an adaptive budgeting loop that
- * decouples the user-facing LIMIT from the FDB getRange limit. The budget starts at
- * the user limit and grows when residual filtering yields few results, bounded by a
+ * decouples the user-facing BATCH from the FDB getRange limit. The budget starts at
+ * the batch size and grows when residual filtering yields few results, bounded by a
  * per-transaction time budget. This reduces FDB round-trips for low-selectivity
  * queries while preventing runaway scans.
  *
@@ -111,27 +111,27 @@ public class PipelineExecutor {
     /**
      * Shared adaptive budgeting loop used by scan and union visitors.
      * <p>
-     * Iteratively executes the node in growing batches until the user limit is
+     * Iteratively executes the node in growing batches until the batch size is
      * satisfied, the data source is exhausted, or the time budget runs out.
      * Two optional hooks customize per-node-type behavior:
      * {@code beforeExecute} runs each iteration before execution (e.g., distributing
      * limits to union children), and {@code onLimitReached} runs when results meet
-     * or exceed the user limit (e.g., trimming excess entries and rewinding cursors).
+     * or exceed the batch size (e.g., trimming excess entries and rewinding cursors).
      *
      * @param tr             the FoundationDB transaction
      * @param ctx            the query context
      * @param node           the pipeline node to execute
      * @param beforeExecute  optional hook invoked each iteration before execution
-     * @param onLimitReached optional hook invoked when results reach the user limit
+     * @param onLimitReached optional hook invoked when results reach the batch size
      */
     private void executeWithAdaptiveBudget(
             Transaction tr, QueryContext ctx, PipelineNode node,
             Runnable beforeExecute, OnLimitReached onLimitReached) {
         ExecutionState state = ctx.getOrCreateExecutionState(node.id());
-        int userLimit = ctx.options().limit();
+        int batchSize = ctx.options().batch();
         ScanBudget budget = tr == null
-                ? ScanBudget.unbounded(userLimit)
-                : new ScanBudget(userLimit, getTransactionDeadline(tr));
+                ? ScanBudget.unbounded(batchSize)
+                : new ScanBudget(batchSize, getTransactionDeadline(tr));
         int sinkNodeId = getLastNodeId(node);
 
         do {
@@ -159,9 +159,9 @@ public class PipelineExecutor {
                 continue;
             }
 
-            if (sinkSizeAfter >= userLimit) {
+            if (sinkSizeAfter >= batchSize) {
                 if (onLimitReached != null) {
-                    onLimitReached.apply(sink, userLimit);
+                    onLimitReached.apply(sink, batchSize);
                 }
                 break;
             }

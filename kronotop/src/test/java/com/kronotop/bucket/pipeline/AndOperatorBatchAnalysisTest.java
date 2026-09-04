@@ -39,7 +39,7 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
     @Test
     @Disabled
     void shouldProcessAndQueryWith50DocumentsAndLimit() {
-        // Behavior: AND query with 50 matching documents and limit=2 returns all documents without duplicates.
+        // Behavior: AND query with 50 matching documents and batch=2 returns all documents without duplicates.
         final String TEST_BUCKET_NAME = "test-bucket-intersection-50-docs";
 
         // Create indexes for price and quantity
@@ -51,10 +51,10 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
         List<byte[]> documents = generateTestDocuments();
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query: price > 25 AND quantity > 150 with limit=2
+        // Query: price > 25 AND quantity > 150 with batch=2
         String query = "{ 'price': { '$gt': 25 }, 'quantity': { '$gt': 150 } }";
         PlanWithParams planWithParams = createPlanWithParams(metadata, query);
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         Set<Integer> seenDocumentIds = new HashSet<>();
@@ -66,8 +66,8 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
             try (Transaction tr = createTransaction()) {
                 List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-                // Should return at most 2 results due to limit
-                assertTrue(results.size() <= 2, "Should return at most 2 results due to limit");
+                // Should return at most 2 results due to batch size
+                assertTrue(results.size() <= 2, "Should return at most 2 results due to batch size");
 
                 // Process each document in this batch
                 for (ByteBuffer buffer : results) {
@@ -106,7 +106,7 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
     @Test
     @Disabled
     void shouldProcessAndQueryWith350DocumentsAndLimit() {
-        // Behavior: AND query with 350 matching documents and limit=2 returns all documents without duplicates.
+        // Behavior: AND query with 350 matching documents and batch=2 returns all documents without duplicates.
         final String TEST_BUCKET_NAME = "test-bucket-intersection-350-docs";
 
         // Create indexes for price and quantity
@@ -118,10 +118,10 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
         List<byte[]> documents = generate350TestDocuments();
         insertDocumentsAndGetObjectIds(TEST_BUCKET_NAME, documents);
 
-        // Query: price > 25 AND quantity > 150 with limit=2
+        // Query: price > 25 AND quantity > 150 with batch=2
         String query = "{ 'price': { '$gt': 25 }, 'quantity': { '$gt': 150 } }";
         PlanWithParams planWithParams = createPlanWithParams(metadata, query);
-        QueryOptions config = QueryOptions.builder().limit(2).build();
+        QueryOptions config = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, config, planWithParams.plan(), planWithParams.parameters());
 
         Set<Integer> seenDocumentIds = new HashSet<>();
@@ -133,8 +133,8 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
             try (Transaction tr = createTransaction()) {
                 List<ByteBuffer> results = readExecutor.execute(tr, ctx);
 
-                // Should return at most 2 results due to limit
-                assertTrue(results.size() <= 2, "Should return at most 2 results due to limit");
+                // Should return at most 2 results due to batch size
+                assertTrue(results.size() <= 2, "Should return at most 2 results due to batch size");
 
                 // Process each document in this batch
                 for (ByteBuffer buffer : results) {

@@ -870,14 +870,14 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         assertEquals(expectedResult, actualResult, "Results should be sorted by non-indexed score field ASC");
     }
 
-    // ==================== RESULTSORT with $or and LIMIT ====================
+    // ==================== RESULTSORT with $or and BATCH ====================
 
     @Test
     @Disabled("RESULTSORT top-K across OR branches not yet implemented")
     void shouldReturnCorrectTopKWithOrAndResultSortAndLimit() {
-        // Behavior: $or query with RESULTSORT on a non-indexed field and LIMIT should return the
+        // Behavior: $or query with RESULTSORT on a non-indexed field and BATCH should return the
         // true top-K documents across all matching results, not a biased subset from each branch.
-        final String BUCKET = "test-or-resultsort-limit-topk";
+        final String BUCKET = "test-or-resultsort-batch-topk";
 
         SingleFieldIndexDefinition roleIdx = SingleFieldIndexDefinition.create(
                 "idx_role", "role", BsonType.STRING, false, IndexStatus.WAITING);
@@ -906,7 +906,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
         QueryOptions options = QueryOptions.builder()
                 .resultSortField("salary")
                 .resultSortDirection(SortDirection.DESC)
-                .limit(4)
+                .batch(4)
                 .build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 

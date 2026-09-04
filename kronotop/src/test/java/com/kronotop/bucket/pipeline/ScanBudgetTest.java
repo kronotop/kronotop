@@ -30,7 +30,7 @@ class ScanBudgetTest {
 
     @Test
     void shouldStartWithUserLimit() {
-        // Behavior: Initial budget equals the user-specified limit
+        // Behavior: Initial budget equals the user-specified batch size
         ScanBudget budget = new ScanBudget(10, farDeadline());
         assertEquals(10, budget.current());
     }
@@ -98,7 +98,7 @@ class ScanBudgetTest {
 
     @Test
     void shouldGrowFromSmallLimitToMaxInExpectedSteps() {
-        // Behavior: Growth sequence from limit=2 reaches MAX_ITER_BUDGET
+        // Behavior: Growth sequence from batch=2 reaches MAX_ITER_BUDGET
         ScanBudget budget = new ScanBudget(2, farDeadline());
         assertEquals(2, budget.getCurrentBudget());
 

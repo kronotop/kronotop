@@ -57,8 +57,8 @@ import java.util.concurrent.Future;
  * --insert-pct N      Percentage of INSERT operations (default: 15)
  * --update-pct N      Percentage of UPDATE operations (default: 10)
  * --delete-pct N      Percentage of DELETE operations (default: 5)
- * --delete-limit N    LIMIT per DELETE operation (default: 5)
- * --update-limit N    LIMIT per UPDATE operation (default: 5)
+ * --delete-batch N    Batch size per DELETE operation (default: 5)
+ * --update-batch N    Batch size per UPDATE operation (default: 5)
  * --skip-load         Skip the preload phase (assume bucket already populated)
  * --output-dir PATH   Write per-operation latency CSVs to PATH (omit to disable)
  */
@@ -81,7 +81,7 @@ public class MixedBenchmark extends AbstractBucketBenchmark {
             }
             """;
 
-    // QUERY — EQ_CATEGORY, 5 variants, LIMIT 100
+    // QUERY — EQ_CATEGORY, 5 variants, BATCH 100
     private static final byte[][] Q_EQ_CATEGORY = {
             serializeBson(new BsonDocument("category", new BsonString("electronics"))),
             serializeBson(new BsonDocument("category", new BsonString("clothing"))),
@@ -144,15 +144,15 @@ public class MixedBenchmark extends AbstractBucketBenchmark {
     private final int insertPct;
     private final int updatePct;
     private final int deletePct;
-    private final int deleteLimit;
-    private final int updateLimit;
+    private final int deleteBatch;
+    private final int updateBatch;
     private final boolean skipLoad;
     private final Path outputDir;
 
     public MixedBenchmark(String host, int port, String bucketName, int threads,
                           int totalOps, int preloadDocs, int warmupPerThread,
                           int queryPct, int insertPct, int updatePct, int deletePct,
-                          int deleteLimit, int updateLimit,
+                          int deleteBatch, int updateBatch,
                           boolean skipLoad, Path outputDir) {
         this.host = host;
         this.port = port;
@@ -165,8 +165,8 @@ public class MixedBenchmark extends AbstractBucketBenchmark {
         this.insertPct = insertPct;
         this.updatePct = updatePct;
         this.deletePct = deletePct;
-        this.deleteLimit = deleteLimit;
-        this.updateLimit = updateLimit;
+        this.deleteBatch = deleteBatch;
+        this.updateBatch = updateBatch;
         this.skipLoad = skipLoad;
         this.outputDir = outputDir;
     }
@@ -201,8 +201,8 @@ public class MixedBenchmark extends AbstractBucketBenchmark {
         int insertPct = 15;
         int updatePct = 10;
         int deletePct = 5;
-        int deleteLimit = 5;
-        int updateLimit = 5;
+        int deleteBatch = 5;
+        int updateBatch = 5;
         boolean skipLoad = false;
         Path outputDir = null;
 
@@ -219,8 +219,8 @@ public class MixedBenchmark extends AbstractBucketBenchmark {
                 case "--insert-pct" -> insertPct = Integer.parseInt(args[++i]);
                 case "--update-pct" -> updatePct = Integer.parseInt(args[++i]);
                 case "--delete-pct" -> deletePct = Integer.parseInt(args[++i]);
-                case "--delete-limit" -> deleteLimit = Integer.parseInt(args[++i]);
-                case "--update-limit" -> updateLimit = Integer.parseInt(args[++i]);
+                case "--delete-batch" -> deleteBatch = Integer.parseInt(args[++i]);
+                case "--update-batch" -> updateBatch = Integer.parseInt(args[++i]);
                 case "--skip-load" -> skipLoad = true;
                 case "--output-dir" -> outputDir = Path.of(args[++i]);
                 default -> {
@@ -239,7 +239,7 @@ public class MixedBenchmark extends AbstractBucketBenchmark {
 
         new MixedBenchmark(host, port, bucketName, threads, totalOps, preloadDocs,
                 warmupPerThread, queryPct, insertPct, updatePct, deletePct,
-                deleteLimit, updateLimit, skipLoad, outputDir).run();
+                deleteBatch, updateBatch, skipLoad, outputDir).run();
     }
 
     public void run() throws Exception {
@@ -252,7 +252,7 @@ public class MixedBenchmark extends AbstractBucketBenchmark {
         System.out.printf("Warmup per thread: %d%n", warmupPerThread);
         System.out.printf("Op mix: QUERY=%d%%  INSERT=%d%%  UPDATE=%d%%  DELETE=%d%%%n",
                 queryPct, insertPct, updatePct, deletePct);
-        System.out.printf("Delete limit: %d  Update limit: %d%n", deleteLimit, updateLimit);
+        System.out.printf("Delete batch size: %d  Update batch size: %d%n", deleteBatch, updateBatch);
         System.out.printf("Skip load: %s%n", skipLoad);
         System.out.printf("Output dir: %s%n%n", outputDir != null ? outputDir : "(disabled)");
 
@@ -302,9 +302,9 @@ public class MixedBenchmark extends AbstractBucketBenchmark {
         final int insertThreshold = queryPct + insertPct;
         final int updateThreshold = queryPct + insertPct + updatePct;
 
-        BucketQueryArgs queryArgs = new BucketQueryArgs().limit(100);
-        BucketQueryArgs deleteArgs = new BucketQueryArgs().limit(deleteLimit);
-        BucketQueryArgs updateArgs = new BucketQueryArgs().limit(updateLimit);
+        BucketQueryArgs queryArgs = new BucketQueryArgs().batch(100);
+        BucketQueryArgs deleteArgs = new BucketQueryArgs().batch(deleteBatch);
+        BucketQueryArgs updateArgs = new BucketQueryArgs().batch(updateBatch);
 
         CountDownLatch readyLatch = new CountDownLatch(effectiveThreads);
         CountDownLatch startLatch = new CountDownLatch(1);

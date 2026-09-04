@@ -234,7 +234,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
 
     @Test
     void shouldHandleCursorContinuation() {
-        // Behavior: Compound index scan with LIMIT should paginate correctly across multiple batches.
+        // Behavior: Compound index scan with BATCH should paginate correctly across multiple batches.
         final String bucket = "compound-cursor";
 
         CompoundIndexDefinition compoundIdx = CompoundIndexDefinition.create("idx_name_age", List.of(
@@ -257,7 +257,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(bucket, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'name': 'Alice', 'age': 25}");
-        QueryOptions options = QueryOptions.builder().limit(2).build();
+        QueryOptions options = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         int totalResults = 0;
@@ -556,7 +556,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
 
     @Test
     void shouldHandleCursorContinuationWithRange() {
-        // Behavior: Compound index scan with EQ prefix + range filter and LIMIT should paginate correctly.
+        // Behavior: Compound index scan with EQ prefix + range filter and BATCH should paginate correctly.
         final String bucket = "compound-cursor-range";
 
         CompoundIndexDefinition compoundIdx = CompoundIndexDefinition.create("idx_name_age", List.of(
@@ -578,7 +578,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(bucket, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'name': 'Alice', 'age': {'$gte': 20, '$lte': 24}}");
-        QueryOptions options = QueryOptions.builder().limit(2).build();
+        QueryOptions options = QueryOptions.builder().batch(2).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         int totalResults = 0;
@@ -676,7 +676,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
 
     @Test
     void shouldHandleCursorContinuationWithReverse() {
-        // Behavior: Compound index scan with all-EQ query, LIMIT, and sortDirection=DESC should
+        // Behavior: Compound index scan with all-EQ query, BATCH, and sortDirection=DESC should
         // paginate correctly in reverse order across multiple batches.
         final String bucket = "compound-cursor-reverse";
 
@@ -698,7 +698,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
 
         // Forward: collect all results
         PlanWithParams forwardPlan = createPlanWithParams(metadata, "{'name': 'Alice', 'age': 25}");
-        QueryOptions forwardOptions = QueryOptions.builder().limit(2).build();
+        QueryOptions forwardOptions = QueryOptions.builder().batch(2).build();
         QueryContext forwardCtx = new QueryContext(getSession(), metadata, forwardOptions, forwardPlan.plan(), forwardPlan.parameters());
 
         List<String> allForward = new ArrayList<>();
@@ -712,7 +712,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
 
         // Reverse: collect all results
         PlanWithParams reversePlan = createPlanWithParams(metadata, "{'name': 'Alice', 'age': 25}");
-        QueryOptions reverseOptions = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryOptions reverseOptions = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
         QueryContext reverseCtx = new QueryContext(getSession(), metadata, reverseOptions, reversePlan.plan(), reversePlan.parameters());
 
         List<String> allReverse = new ArrayList<>();
@@ -732,7 +732,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
 
     @Test
     void shouldHandleCursorContinuationWithRangeAndReverse() {
-        // Behavior: Compound index scan with EQ prefix + range filter, LIMIT, and sortDirection=DESC
+        // Behavior: Compound index scan with EQ prefix + range filter, BATCH, and sortDirection=DESC
         // should paginate correctly in descending order without duplicates or gaps.
         final String bucket = "compound-cursor-range-reverse";
 
@@ -754,7 +754,7 @@ class CompoundIndexScanNodeTest extends BasePipelineTest {
         insertDocumentsAndGetObjectIds(bucket, documents);
 
         PlanWithParams planWithParams = createPlanWithParams(metadata, "{'name': 'Alice', 'age': {'$gte': 20, '$lte': 24}}");
-        QueryOptions options = QueryOptions.builder().limit(2).sortDirection(SortDirection.DESC).build();
+        QueryOptions options = QueryOptions.builder().batch(2).sortDirection(SortDirection.DESC).build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<Integer> allAges = new ArrayList<>();

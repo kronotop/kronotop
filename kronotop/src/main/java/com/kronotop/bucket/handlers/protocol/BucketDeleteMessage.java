@@ -27,7 +27,7 @@ public class BucketDeleteMessage extends AbstractBucketMessage implements Protoc
     public static final String COMMAND = "BUCKET.DELETE";
     public static final int MAXIMUM_PARAMETER_COUNT = 7;
     public static final int MINIMUM_PARAMETER_COUNT = 2;
-    private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(QueryArgumentKey.LIMIT, QueryArgumentKey.COLLATION);
+    private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(QueryArgumentKey.BATCH, QueryArgumentKey.COLLATION);
     private final Request request;
     private byte[] query;
     private String bucket;

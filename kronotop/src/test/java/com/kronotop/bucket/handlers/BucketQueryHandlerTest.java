@@ -1265,7 +1265,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldProjectWithLimit() {
-        // Behavior: PROJECTION combined with LIMIT returns projected documents up to the limit.
+        // Behavior: PROJECTION combined with BATCH returns projected documents up to the batch size.
         List<byte[]> docs = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 30}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 25}"),
@@ -1277,7 +1277,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         switchProtocol(cmd, RESPVersion.RESP3);
 
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", new BucketQueryArgs().projection("{\"name\": 1}").limit(2)).encode(buf);
+        cmd.query(TEST_BUCKET, "{}", new BucketQueryArgs().projection("{\"name\": 1}").batch(2)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1360,9 +1360,9 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // First page: LIMIT 2 with projection
+        // First page: BATCH 2 with projection
         ByteBuf buf = Unpooled.buffer();
-        cmd.query(TEST_BUCKET, "{}", new BucketQueryArgs().projection("{\"name\": 1}").limit(2)).encode(buf);
+        cmd.query(TEST_BUCKET, "{}", new BucketQueryArgs().projection("{\"name\": 1}").batch(2)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, msg);
 
@@ -1561,7 +1561,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldQueryWithCollationAndLimit() {
-        // Behavior: QUERY with collation and LIMIT returns at most LIMIT entries.
+        // Behavior: QUERY with collation and BATCH returns at most BATCH entries.
         insertDocumentsAndGetObjectIds(List.of(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"istanbul\"}"),
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"\u0130stanbul\"}"),
@@ -1573,7 +1573,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         ByteBuf buf = Unpooled.buffer();
         cmd.query(TEST_BUCKET, "{\"name\": {\"$eq\": \"\u0130stanbul\"}}",
-                new BucketQueryArgs().collation("{\"locale\": \"tr\", \"strength\": 1}").limit(1)).encode(buf);
+                new BucketQueryArgs().collation("{\"locale\": \"tr\", \"strength\": 1}").batch(1)).encode(buf);
         Object msg = runCommand(channel, buf);
 
         List<BsonDocument> entries = extractEntries(msg);

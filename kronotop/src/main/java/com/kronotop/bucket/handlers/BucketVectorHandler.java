@@ -217,7 +217,7 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
                 return List.of();
             }
 
-            QueryOptions options = QueryOptions.builder().limit(topK).build();
+            QueryOptions options = QueryOptions.builder().batch(topK).build();
             QueryContext ctx = new QueryContext(session, metadata, options, materializedPlan.plan(), materializedPlan.parameters());
 
             List<PersistedEntry> entries = service.getQueryExecutor().materializedRead(ctx);

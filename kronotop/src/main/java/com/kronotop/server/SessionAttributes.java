@@ -74,7 +74,7 @@ public class SessionAttributes {
 
     public static final AttributeKey<ObjectIdFormat> OBJECT_ID_FORMAT = AttributeKey.valueOf("object_id_format");
 
-    public static final AttributeKey<Integer> LIMIT = AttributeKey.valueOf("limit");
+    public static final AttributeKey<Integer> BATCH = AttributeKey.valueOf("batch");
 
     public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_READ_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_read_query_contexts");
 

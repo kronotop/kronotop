@@ -256,7 +256,7 @@ class SortByIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldSortByCompoundIndexFieldDescendingWithPagination() {
-        // Behavior: SORTBY DESC on a compound index field with LIMIT correctly paginates across
+        // Behavior: SORTBY DESC on a compound index field with BATCH correctly paginates across
         // multiple batches in descending order.
         final String BUCKET = "test-sortby-compound-desc-pagination";
 
@@ -282,7 +282,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         QueryOptions options = QueryOptions.builder()
                 .sortByField("age")
                 .sortDirection(SortDirection.DESC)
-                .limit(2)
+                .batch(2)
                 .build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
@@ -448,9 +448,9 @@ class SortByIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldSortBySingleFilterWithCompoundIndexDescendingWithLimit() {
-        // Behavior: A single EQ filter with SORTBY DESC and LIMIT 1 returns only the document
+        // Behavior: A single EQ filter with SORTBY DESC and BATCH 1 returns only the document
         // with the highest value for the sort field.
-        final String BUCKET = "test-sortby-single-filter-compound-desc-limit";
+        final String BUCKET = "test-sortby-single-filter-compound-desc-batch";
 
         CompoundIndexDefinition compoundIdx = CompoundIndexDefinition.create("idx_cat_pri", List.of(
                 new CompoundIndexField("category", BsonType.STRING, false),
@@ -472,7 +472,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         QueryOptions options = QueryOptions.builder()
                 .sortByField("priority")
                 .sortDirection(SortDirection.DESC)
-                .limit(1)
+                .batch(1)
                 .build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
@@ -493,7 +493,7 @@ class SortByIntegrationTest extends BasePipelineTest {
 
     @Test
     void shouldSortBySingleFilterWithCompoundIndexDescendingWithPagination() {
-        // Behavior: A single EQ filter with SORTBY DESC and LIMIT correctly paginates across
+        // Behavior: A single EQ filter with SORTBY DESC and BATCH correctly paginates across
         // multiple batches in descending order.
         final String BUCKET = "test-sortby-single-filter-compound-desc-pagination";
 
@@ -517,7 +517,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         QueryOptions options = QueryOptions.builder()
                 .sortByField("priority")
                 .sortDirection(SortDirection.DESC)
-                .limit(2)
+                .batch(2)
                 .build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
@@ -890,7 +890,7 @@ class SortByIntegrationTest extends BasePipelineTest {
         QueryOptions options = QueryOptions.builder()
                 .sortByField("age")
                 .sortDirection(SortDirection.ASC)
-                .limit(2)
+                .batch(2)
                 .build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 

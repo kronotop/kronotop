@@ -19,7 +19,7 @@ package com.kronotop.commands;
 import io.lettuce.core.protocol.CommandArgs;
 
 public class BucketQueryArgs {
-    private int limit;
+    private int batch;
     private String sortBy;
     private String sortDirection;
     private String resultSortBy;
@@ -27,8 +27,8 @@ public class BucketQueryArgs {
     private String projection;
     private String collation;
 
-    public BucketQueryArgs limit(int limit) {
-        this.limit = limit;
+    public BucketQueryArgs batch(int batch) {
+        this.batch = batch;
         return this;
     }
 
@@ -55,9 +55,9 @@ public class BucketQueryArgs {
     }
 
     public <K, V> void build(CommandArgs<K, V> args) {
-        if (limit > 0) {
-            args.add("LIMIT");
-            args.add(limit);
+        if (batch > 0) {
+            args.add("BATCH");
+            args.add(batch);
         }
 
         if (sortBy != null) {
@@ -87,8 +87,8 @@ public class BucketQueryArgs {
         private Builder() {
         }
 
-        public static BucketQueryArgs limit(int limit) {
-            return new BucketQueryArgs().limit(limit);
+        public static BucketQueryArgs batch(int batch) {
+            return new BucketQueryArgs().batch(batch);
         }
 
         public static BucketQueryArgs sortBy(String field, String direction) {

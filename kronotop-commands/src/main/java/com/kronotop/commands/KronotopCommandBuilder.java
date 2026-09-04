@@ -264,7 +264,7 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
     /**
      * Sets a session attribute to the specified value.
      *
-     * @param attribute the attribute to set (e.g., REPLY_TYPE, INPUT_TYPE, LIMIT, OBJECT_ID_FORMAT)
+     * @param attribute the attribute to set (e.g., REPLY_TYPE, INPUT_TYPE, BATCH, OBJECT_ID_FORMAT)
      * @param value     the value to set for the attribute
      * @return a {@link Command} instance representing the SESSION.ATTRIBUTE SET operation
      */
