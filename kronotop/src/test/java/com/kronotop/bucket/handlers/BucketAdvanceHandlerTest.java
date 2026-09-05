@@ -2324,4 +2324,244 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
         // Verify correct document set
         assertEquals(expectedNames, uniqueNames);
     }
+
+    private Object queryWithLimit(BucketCommandBuilder<String, String> cmd, String query, BucketQueryArgs args) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, query, args).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+        return msg;
+    }
+
+    private Object advance(BucketCommandBuilder<String, String> cmd, int cursorId) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.advanceQuery(cursorId).encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    private List<byte[]> identicalDocuments(int count) {
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        return documents;
+    }
+
+    @Test
+    void shouldStopCursorWhenLimitReachedAcrossAdvances() {
+        // Behavior: LIMIT is a total budget shared by BUCKET.QUERY and every BUCKET.ADVANCE.
+        // The round that fills the budget returns cursor_id -1 and the cursor is removed from the session.
+        insertDocumentsAndGetObjectIds(identicalDocuments(20));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        List<ObjectId> collected = new ArrayList<>();
+
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(3).limit(7));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        List<BsonDocument> entries = extractEntries(first);
+        assertEquals(3, entries.size());
+        appendIds(entries, collected);
+
+        Object second = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(cursorId, extractCursorId(second));
+        entries = extractEntries(second);
+        assertEquals(3, entries.size());
+        appendIds(entries, collected);
+
+        Object third = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, third);
+        assertEquals(-1, extractCursorId(third));
+        entries = extractEntries(third);
+        assertEquals(1, entries.size());
+        appendIds(entries, collected);
+
+        Object afterClose = advance(cmd, cursorId);
+        assertInstanceOf(ErrorRedisMessage.class, afterClose);
+        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+
+        assertEquals(7, collected.size());
+        assertEquals(7, new HashSet<>(collected).size(), "No duplicate ObjectIds across rounds");
+    }
+
+    @Test
+    void shouldReturnMinusOneWhenLimitEqualsBatchMultipleAndMatchCount() {
+        // Behavior: When the last round is a full batch and it fills the LIMIT exactly,
+        // that round returns cursor_id -1 even though the data also ends at the same point.
+        insertDocumentsAndGetObjectIds(identicalDocuments(10));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(5).limit(10));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        assertEquals(5, extractEntries(first).size());
+
+        Object second = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(-1, extractCursorId(second));
+        assertEquals(5, extractEntries(second).size());
+    }
+
+    @Test
+    void shouldKeepCursorOpenWhenLimitExceedsMatches() {
+        // Behavior: When the data ends before LIMIT is reached, the cursor stays open.
+        // BUCKET.ADVANCE returns no entries and the original cursor_id, not -1.
+        insertDocumentsAndGetObjectIds(identicalDocuments(10));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Object first = queryWithLimit(cmd, "{}", BucketQueryArgs.Builder.batch(100).limit(100));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        assertEquals(10, extractEntries(first).size());
+
+        Object second = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(cursorId, extractCursorId(second));
+        assertEquals(0, extractEntries(second).size());
+    }
+
+    @Test
+    void shouldApplyLimitWithSelectiveFilterOnFullScan() {
+        // Behavior: With a selective residual filter on a full scan, LIMIT caps the total
+        // across rounds. Rescan and cursor rewind return every match exactly once, no more than LIMIT.
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 50; i++) {
+            String type = (i % 10 == 0) ? "A" : "B";
+            documents.add(BSONUtil.jsonToDocumentThenBytes("{\"type\": \"" + type + "\", \"value\": " + i + "}"));
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        List<ObjectId> collected = new ArrayList<>();
+
+        Object first = queryWithLimit(cmd, "{\"type\": \"A\"}", BucketQueryArgs.Builder.batch(2).limit(5));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        List<BsonDocument> entries = extractEntries(first);
+        assertEquals(2, entries.size());
+        assertAllTypeA(entries);
+        appendIds(entries, collected);
+
+        Object second = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(cursorId, extractCursorId(second));
+        entries = extractEntries(second);
+        assertEquals(2, entries.size());
+        assertAllTypeA(entries);
+        appendIds(entries, collected);
+
+        Object third = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, third);
+        assertEquals(-1, extractCursorId(third));
+        entries = extractEntries(third);
+        assertEquals(1, entries.size());
+        assertAllTypeA(entries);
+        appendIds(entries, collected);
+
+        assertEquals(5, collected.size());
+        assertEquals(5, new HashSet<>(collected).size(), "No duplicate ObjectIds across rounds");
+    }
+
+    private void assertAllTypeA(List<BsonDocument> entries) {
+        for (BsonDocument doc : entries) {
+            assertEquals("A", doc.getString("type").getValue());
+        }
+    }
+
+    @Test
+    void shouldApplyLimitToOrQuery() {
+        // Behavior: LIMIT caps the merged output of an $or query. The returned documents are
+        // unique, each matches the predicate, and the round that fills LIMIT returns cursor_id -1.
+        SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-idx", "price", BsonType.INT32, false, IndexStatus.WAITING);
+        SingleFieldIndexDefinition quantityIndex = SingleFieldIndexDefinition.create("quantity-idx", "quantity", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(priceIndex);
+        createIndexThenWaitForReadiness(quantityIndex);
+
+        // Every document matches price > 100 or quantity < 10; half match both.
+        List<byte[]> documents = Arrays.asList(
+                BSONUtil.jsonToDocumentThenBytes("{\"price\": 200, \"quantity\": 50}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"price\": 50, \"quantity\": 5}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"price\": 300, \"quantity\": 3}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"price\": 150, \"quantity\": 8}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"price\": 400, \"quantity\": 60}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"price\": 10, \"quantity\": 1}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"price\": 250, \"quantity\": 2}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"price\": 120, \"quantity\": 9}")
+        );
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Object first = queryWithLimit(cmd,
+                "{\"$or\": [{\"price\": {\"$gt\": 100}}, {\"quantity\": {\"$lt\": 10}}]}",
+                BucketQueryArgs.Builder.batch(4).limit(3));
+        assertEquals(-1, extractCursorId(first));
+
+        List<BsonDocument> entries = extractEntries(first);
+        assertEquals(3, entries.size());
+        for (BsonDocument doc : entries) {
+            int price = doc.getInt32("price").getValue();
+            int quantity = doc.getInt32("quantity").getValue();
+            assertTrue(price > 100 || quantity < 10, "Each document must match the $or predicate");
+        }
+
+        List<ObjectId> collected = new ArrayList<>();
+        appendIds(entries, collected);
+        assertEquals(3, new HashSet<>(collected).size(), "No duplicate ObjectIds in the merged result");
+    }
+
+    @Test
+    void shouldApplyLimitWithSortBy() {
+        // Behavior: SORTBY on an indexed field with LIMIT returns the first LIMIT documents in
+        // sorted order across rounds. The round that fills LIMIT returns cursor_id -1.
+        SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-idx", "age", BsonType.INT32, false, IndexStatus.WAITING);
+        createIndexThenWaitForReadiness(ageIndex);
+
+        List<Integer> ages = new ArrayList<>();
+        for (int age = 1; age <= 20; age++) {
+            ages.add(age);
+        }
+        Collections.shuffle(ages, new Random(42));
+        List<byte[]> documents = new ArrayList<>();
+        for (int age : ages) {
+            documents.add(BSONUtil.jsonToDocumentThenBytes("{\"age\": " + age + "}"));
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        List<Integer> collectedAges = new ArrayList<>();
+
+        Object first = queryWithLimit(cmd, "{\"age\": {\"$gte\": 0}}",
+                BucketQueryArgs.Builder.batch(4).limit(6).sortBy("age", "ASC"));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        List<BsonDocument> entries = extractEntries(first);
+        assertEquals(4, entries.size());
+        for (BsonDocument doc : entries) {
+            collectedAges.add(doc.getInt32("age").getValue());
+        }
+
+        Object second = advance(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(-1, extractCursorId(second));
+        entries = extractEntries(second);
+        assertEquals(2, entries.size());
+        for (BsonDocument doc : entries) {
+            collectedAges.add(doc.getInt32("age").getValue());
+        }
+
+        assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6), collectedAges);
+    }
 }

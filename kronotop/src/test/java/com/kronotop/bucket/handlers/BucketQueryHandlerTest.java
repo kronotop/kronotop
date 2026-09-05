@@ -2035,4 +2035,26 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, entries.size(), "Only 'Alice' matches the regex, regardless of the index");
         assertEquals("Alice", BsonHelper.getString(entries.getFirst(), "name"));
     }
+
+    @Test
+    void shouldReturnMinusOneWhenLimitFilledInFirstQuery() {
+        // Behavior: When LIMIT is smaller than BATCH, BUCKET.QUERY returns only LIMIT documents
+        // and cursor_id -1 in the same response.
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(10).limit(5)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(5, extractEntries(msg).size());
+    }
 }
