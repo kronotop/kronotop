@@ -2920,4 +2920,129 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             assertTrue(entries.isEmpty(), "Should NOT find the document by the removed tag value");
         }
     }
+
+    private Object updateWithArgs(BucketCommandBuilder<String, String> cmd, String query, String update, BucketQueryArgs args) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.update(TEST_BUCKET, query, update, args).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+        return msg;
+    }
+
+    private Object advanceUpdate(BucketCommandBuilder<String, String> cmd, int cursorId) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.advanceUpdate(cursorId).encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    private List<BsonDocument> queryAll(BucketCommandBuilder<String, String> cmd) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(100)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+        return extractEntries(msg);
+    }
+
+    private List<byte[]> identicalDocuments(int count) {
+        List<byte[]> documents = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        return documents;
+    }
+
+    private Set<ObjectId> idsWithStatus(List<BsonDocument> entries) {
+        Set<ObjectId> ids = new HashSet<>();
+        for (BsonDocument doc : entries) {
+            if (doc.containsKey("status")) {
+                ids.add(doc.getObjectId("_id").getValue());
+            }
+        }
+        return ids;
+    }
+
+    @Test
+    void shouldStopUpdateCursorWhenLimitReachedAcrossAdvances() {
+        // Behavior: LIMIT caps the total updates across UPDATE and ADVANCE UPDATE rounds. The round
+        // that fills the limit returns cursor_id -1, the cursor is removed, a later ADVANCE UPDATE with
+        // the old id fails, and only LIMIT documents carry the update.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Set<ObjectId> insertedIds = insertDocumentsAndGetObjectIds(identicalDocuments(20)).keySet();
+        assertEquals(20, insertedIds.size());
+
+        String update = "{\"$set\": {\"status\": \"updated\"}}";
+
+        Object first = updateWithArgs(cmd, "{}", update, BucketQueryArgs.Builder.batch(3).limit(7));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        List<ObjectId> firstIds = extractObjectIds(first);
+        assertEquals(3, firstIds.size());
+        List<ObjectId> updatedIds = new ArrayList<>(firstIds);
+
+        Object second = advanceUpdate(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(cursorId, extractCursorId(second));
+        List<ObjectId> secondIds = extractObjectIds(second);
+        assertEquals(3, secondIds.size());
+        updatedIds.addAll(secondIds);
+
+        Object third = advanceUpdate(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, third);
+        assertEquals(-1, extractCursorId(third));
+        List<ObjectId> thirdIds = extractObjectIds(third);
+        assertEquals(1, thirdIds.size());
+        updatedIds.addAll(thirdIds);
+
+        Object afterClose = advanceUpdate(cmd, cursorId);
+        assertInstanceOf(ErrorRedisMessage.class, afterClose);
+        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+
+        assertEquals(7, updatedIds.size());
+        Set<ObjectId> uniqueUpdatedIds = new HashSet<>(updatedIds);
+        assertEquals(7, uniqueUpdatedIds.size(), "No duplicate updates");
+        assertTrue(insertedIds.containsAll(updatedIds));
+
+        List<BsonDocument> all = queryAll(cmd);
+        assertEquals(20, all.size());
+        assertEquals(uniqueUpdatedIds, idsWithStatus(all));
+    }
+
+    @Test
+    void shouldReturnMinusOneWhenUpdateLimitFilledInFirstCall() {
+        // Behavior: When the first UPDATE call fills the LIMIT, it returns cursor_id -1 and updates
+        // exactly LIMIT documents even though BATCH is larger.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(20));
+
+        Object msg = updateWithArgs(cmd, "{}", "{\"$set\": {\"status\": \"updated\"}}",
+                BucketQueryArgs.Builder.batch(10).limit(5));
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(5, extractObjectIds(msg).size());
+
+        List<BsonDocument> all = queryAll(cmd);
+        assertEquals(20, all.size());
+        assertEquals(5, idsWithStatus(all).size());
+    }
+
+    @Test
+    void shouldReturnMinusOneWhenUpsertFillsLimit() {
+        // Behavior: An upsert counts as one returned entry. With LIMIT 1 the upsert fills the budget,
+        // so the response carries the new ObjectId and cursor_id -1.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Object msg = updateWithArgs(cmd, "{\"name\": \"x\"}", "{\"$set\": {\"age\": 30}, \"upsert\": true}",
+                BucketQueryArgs.Builder.limit(1));
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(1, extractObjectIds(msg).size());
+
+        List<BsonDocument> all = queryAll(cmd);
+        assertEquals(1, all.size());
+        assertEquals("x", BsonHelper.getString(all.getFirst(), "name"));
+        assertEquals(30, BsonHelper.getInteger(all.getFirst(), "age"));
+    }
 }
