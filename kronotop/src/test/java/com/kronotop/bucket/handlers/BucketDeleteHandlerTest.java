@@ -640,6 +640,100 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
+    private Object deleteWithArgs(BucketCommandBuilder<String, String> cmd, String query, BucketQueryArgs args) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.delete(TEST_BUCKET, query, args).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+        return msg;
+    }
+
+    private Object advanceDelete(BucketCommandBuilder<String, String> cmd, int cursorId) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.advanceDelete(cursorId).encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    private List<BsonDocument> queryAll(BucketCommandBuilder<String, String> cmd) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(100)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+        return extractEntries(msg);
+    }
+
+    private List<byte[]> identicalDocuments(int count) {
+        List<byte[]> documents = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        return documents;
+    }
+
+    @Test
+    void shouldStopDeleteCursorWhenLimitReachedAcrossAdvances() {
+        // Behavior: LIMIT caps the total deletes across DELETE and ADVANCE DELETE rounds. The round
+        // that fills the limit returns cursor_id -1, the cursor is removed, a later ADVANCE DELETE with
+        // the old id fails, and the remaining documents are untouched.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        Set<ObjectId> insertedIds = insertDocumentsAndGetObjectIds(identicalDocuments(20)).keySet();
+        assertEquals(20, insertedIds.size());
+
+        Object first = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(3).limit(7));
+        int cursorId = extractCursorId(first);
+        assertNotEquals(-1, cursorId);
+        List<ObjectId> firstIds = extractObjectIds(first);
+        assertEquals(3, firstIds.size());
+        List<ObjectId> deletedIds = new ArrayList<>(firstIds);
+
+        Object second = advanceDelete(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, second);
+        assertEquals(cursorId, extractCursorId(second));
+        List<ObjectId> secondIds = extractObjectIds(second);
+        assertEquals(3, secondIds.size());
+        deletedIds.addAll(secondIds);
+
+        Object third = advanceDelete(cmd, cursorId);
+        assertInstanceOf(MapRedisMessage.class, third);
+        assertEquals(-1, extractCursorId(third));
+        List<ObjectId> thirdIds = extractObjectIds(third);
+        assertEquals(1, thirdIds.size());
+        deletedIds.addAll(thirdIds);
+
+        Object afterClose = advanceDelete(cmd, cursorId);
+        assertInstanceOf(ErrorRedisMessage.class, afterClose);
+        assertTrue(((ErrorRedisMessage) afterClose).content().contains("No previous query context"));
+
+        assertEquals(7, deletedIds.size());
+        Set<ObjectId> uniqueDeletedIds = new HashSet<>(deletedIds);
+        assertEquals(7, uniqueDeletedIds.size(), "No duplicate deletes");
+        assertTrue(insertedIds.containsAll(deletedIds));
+
+        List<BsonDocument> remaining = queryAll(cmd);
+        assertEquals(13, remaining.size());
+        for (BsonDocument doc : remaining) {
+            assertFalse(uniqueDeletedIds.contains(doc.getObjectId("_id").getValue()));
+        }
+    }
+
+    @Test
+    void shouldReturnMinusOneWhenDeleteLimitFilledInFirstCall() {
+        // Behavior: When the first DELETE call fills the LIMIT, it returns cursor_id -1 and deletes
+        // exactly LIMIT documents even though BATCH is larger.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(20));
+
+        Object msg = deleteWithArgs(cmd, "{}", BucketQueryArgs.Builder.batch(10).limit(5));
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(5, extractObjectIds(msg).size());
+
+        assertEquals(15, queryAll(cmd).size());
+    }
+
     @Test
     void shouldDeleteWidenedInt32DocumentAndCleanUpInt64IndexEntry() {
         // Behavior: Deleting a document whose INT32 value was widened to INT64 at insert-time
