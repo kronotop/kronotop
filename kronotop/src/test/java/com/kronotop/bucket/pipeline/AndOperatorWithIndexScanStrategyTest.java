@@ -73,7 +73,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldAndQueryWithBatchedIterationAndLimit() {
+    void shouldAndQueryWithBatchedIteration() {
         // Behavior: AND query with batch size returns correct batches across multiple cursor advances.
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration";
 
@@ -141,7 +141,7 @@ class AndOperatorWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldAndQueryWithBatchedIterationAndLimitReverse() {
+    void shouldAndQueryWithBatchedIterationReverse() {
         // Behavior: AND query with batch size and DESC sort returns correct batches in reverse order.
         final String TEST_BUCKET_NAME = "test-intersection-batched-iteration-reverse";
 

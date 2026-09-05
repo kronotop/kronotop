@@ -108,7 +108,7 @@ class RangeScanNodeBatchingTest extends BasePipelineTest {
 
 
     @Test
-    void shouldFilterInt32RangeWithMixedInputReverseAndLimit() {
+    void shouldFilterInt32RangeWithMixedInputReverseAndBatch() {
         final String TEST_BUCKET_NAME = "test-int32-range-with-mixed-input-with-batch-and-reverse";
 
         // Create an age index for this test

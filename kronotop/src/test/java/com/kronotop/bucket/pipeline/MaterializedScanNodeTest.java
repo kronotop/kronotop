@@ -247,7 +247,7 @@ class MaterializedScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldRespectLimit() {
+    void shouldRespectBatch() {
         // Behavior: QueryOptions.batch(2) with 5 candidates returns exactly 2 results.
         final String BUCKET = "mat-scan-batch";
         createIndexesAndLoadBucketMetadata(BUCKET);

@@ -106,7 +106,7 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldSortByIdDescWithGtOperatorAndSmallLimit() {
+    void shouldSortByIdDescWithGtOperatorAndSmallBatch() {
         // Behavior: Query with _id > X, SORTBY _id DESC, and small BATCH triggers cursor continuation.
         // This is the critical test for SelectorCalculator.buildCursorTuple() - it must correctly
         // construct cursor tuples for the primary index (ENTRIES, versionstamp) vs secondary index
@@ -239,7 +239,7 @@ class PrimaryIndexDescSortingTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldSortByIdAscWithGtOperatorAndSmallLimit() {
+    void shouldSortByIdAscWithGtOperatorAndSmallBatch() {
         // Behavior: Query with _id > X, SORTBY _id ASC with small batch size works correctly.
         // This is a control test to verify ASC still works after the DESC fix.
         final String BUCKET = "test-id-gt-asc-pagination";

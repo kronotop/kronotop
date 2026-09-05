@@ -38,7 +38,7 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
 
     @Test
     @Disabled
-    void shouldProcessAndQueryWith50DocumentsAndLimit() {
+    void shouldProcessAndQueryWith50DocumentsAndBatch() {
         // Behavior: AND query with 50 matching documents and batch=2 returns all documents without duplicates.
         final String TEST_BUCKET_NAME = "test-bucket-intersection-50-docs";
 
@@ -105,7 +105,7 @@ public class AndOperatorBatchAnalysisTest extends BasePipelineTest {
 
     @Test
     @Disabled
-    void shouldProcessAndQueryWith350DocumentsAndLimit() {
+    void shouldProcessAndQueryWith350DocumentsAndBatch() {
         // Behavior: AND query with 350 matching documents and batch=2 returns all documents without duplicates.
         final String TEST_BUCKET_NAME = "test-bucket-intersection-350-docs";
 

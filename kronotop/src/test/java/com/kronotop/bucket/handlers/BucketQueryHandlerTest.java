@@ -1264,7 +1264,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldProjectWithLimit() {
+    void shouldProjectWithBatch() {
         // Behavior: PROJECTION combined with BATCH returns projected documents up to the batch size.
         List<byte[]> docs = List.of(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 30}"),
@@ -1560,7 +1560,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldQueryWithCollationAndLimit() {
+    void shouldQueryWithCollationAndBatch() {
         // Behavior: QUERY with collation and BATCH returns at most BATCH entries.
         insertDocumentsAndGetObjectIds(List.of(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"istanbul\"}"),

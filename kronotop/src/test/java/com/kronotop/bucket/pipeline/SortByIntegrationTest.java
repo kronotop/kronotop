@@ -447,7 +447,7 @@ class SortByIntegrationTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldSortBySingleFilterWithCompoundIndexDescendingWithLimit() {
+    void shouldSortBySingleFilterWithCompoundIndexDescendingWithBatch() {
         // Behavior: A single EQ filter with SORTBY DESC and BATCH 1 returns only the document
         // with the highest value for the sort field.
         final String BUCKET = "test-sortby-single-filter-compound-desc-batch";

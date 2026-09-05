@@ -658,7 +658,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldNotRewindWhenUnionResultsExactlyMatchLimit() {
+    void shouldNotRewindWhenUnionResultsExactlyMatchBatch() {
         // Behavior: When the union of child results produces exactly the number of entries equal
         // to the batch size, no excess entries exist and rewind should not occur. Children advance
         // their cursors normally and the next ADVANCE resumes from the correct position.
@@ -710,7 +710,7 @@ class UnionNodeWithFullScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldRewindFullScanChildrenWithLimit() {
+    void shouldRewindFullScanChildrenWithBatch() {
         // Behavior: $or with two non-indexed fields creates a UnionNode with two FullScanNode
         // children. With batch=2, rewind must correctly restore checkpoints for both children.
         // Overlapping results between branches are deduplicated.

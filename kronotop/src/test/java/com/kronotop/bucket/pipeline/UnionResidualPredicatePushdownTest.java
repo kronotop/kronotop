@@ -78,7 +78,7 @@ class UnionResidualPredicatePushdownTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldReturnCorrectResultsWithLimitAndLowSelectivityResidual() {
+    void shouldReturnCorrectResultsWithBatchAndLowSelectivityResidual() {
         // Behavior: With 50 docs matching the index but only 4 matching the residual predicate,
         // and batch=10, all 4 matching docs should be returned in a single batch.
         // Before the fix, the union cap at batch=10 would scan 10 index entries, filter most out,

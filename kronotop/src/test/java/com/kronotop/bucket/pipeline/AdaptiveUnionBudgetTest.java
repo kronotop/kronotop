@@ -58,7 +58,7 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldFindAllMatchesWithLowSelectivityUnionAndLimit() {
+    void shouldFindAllMatchesWithLowSelectivityUnionAndBatch() {
         // Behavior: With 5000 documents and only 10 matching the residual predicate (spread evenly),
         // the adaptive budget must grow to scan past gaps in a union query with $in + $and.
         final String TEST_BUCKET_NAME = "test-adaptive-union-low-selectivity";
@@ -164,7 +164,7 @@ class AdaptiveUnionBudgetTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldHandleLimitLargerThanMatchingDocuments() {
+    void shouldHandleBatchLargerThanMatchingDocuments() {
         // Behavior: When batch size is larger than total matching documents, should return all
         // matches even if budget must grow multiple times to exhaust the scan.
         final String TEST_BUCKET_NAME = "test-adaptive-union-batch-larger";

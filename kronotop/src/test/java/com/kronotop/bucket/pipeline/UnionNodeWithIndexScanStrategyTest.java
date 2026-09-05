@@ -120,7 +120,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldHandleOrQueryWithLimitAndPagination() {
+    void shouldHandleOrQueryWithBatchAndPagination() {
         final String TEST_BUCKET_NAME = "test-bucket-or-query-batch-pagination";
 
         SingleFieldIndexDefinition priceIndex = SingleFieldIndexDefinition.create("price-index", "price", BsonType.INT32, false, IndexStatus.WAITING);
@@ -360,7 +360,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldNotRewindWhenUnionResultsExactlyMatchLimit() {
+    void shouldNotRewindWhenUnionResultsExactlyMatchBatch() {
         // Behavior: When the union of child results produces exactly the number of entries equal
         // to the batch size, no excess entries exist and rewind should not occur. Children advance
         // their cursors normally and the next ADVANCE resumes from the correct position.
@@ -415,7 +415,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldRewindMixedIndexScanAndFullScanChildrenWithLimit() {
+    void shouldRewindMixedIndexScanAndFullScanChildrenWithBatch() {
         // Behavior: $or with one indexed field and one non-indexed field creates a UnionNode with
         // an IndexScanNode child and a FullScanNode child. With batch=2, rewind must correctly
         // restore checkpoints for both scan node types.

@@ -298,7 +298,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldFilterWithGtOperatorAndLimitOn200Documents() {
+    void shouldFilterWithGtOperatorAndBatchOn200Documents() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)
@@ -382,7 +382,7 @@ class IndexScanNodeBatchingTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldFilterWithGtOperatorAndLimitOn200DocumentsReverse() {
+    void shouldFilterWithGtOperatorAndBatchOn200DocumentsReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-index-scan-200-docs-reverse";
 
         // Create an age index for this test (this is the key difference from FullScanNodeTest)

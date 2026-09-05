@@ -247,7 +247,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldFilterEqOperatorWithReverseLimitInt32() {
+    void shouldFilterEqOperatorWithReverseBatchInt32() {
         final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-batch-int32";
 
         // Create an age index for this test
@@ -295,7 +295,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldFilterEqOperatorWithReverseLimitString() {
+    void shouldFilterEqOperatorWithReverseBatchString() {
         final String TEST_BUCKET_NAME = "test-eq-operator-with-reverse-batch-string";
 
         // Create an age index for this test
@@ -345,7 +345,7 @@ class IndexScanNodeTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldFilterNeOperatorReverseWithLimit() {
+    void shouldFilterNeOperatorReverseWithBatch() {
         final String TEST_BUCKET_NAME = "test-ne-operator-reverse-filter-with-batch";
 
         // Create an age index for this test

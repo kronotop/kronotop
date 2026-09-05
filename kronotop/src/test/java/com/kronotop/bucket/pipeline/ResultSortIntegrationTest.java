@@ -874,7 +874,7 @@ class ResultSortIntegrationTest extends BasePipelineTest {
 
     @Test
     @Disabled("RESULTSORT top-K across OR branches not yet implemented")
-    void shouldReturnCorrectTopKWithOrAndResultSortAndLimit() {
+    void shouldReturnCorrectTopKWithOrAndResultSortAndBatch() {
         // Behavior: $or query with RESULTSORT on a non-indexed field and BATCH should return the
         // true top-K documents across all matching results, not a biased subset from each branch.
         final String BUCKET = "test-or-resultsort-batch-topk";

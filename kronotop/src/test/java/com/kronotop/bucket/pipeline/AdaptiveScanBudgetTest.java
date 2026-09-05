@@ -52,7 +52,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldFindAllMatchesWithLowSelectivityAndLimit() {
+    void shouldFindAllMatchesWithLowSelectivityAndBatch() {
         // Behavior: With 5000 documents and only 10 matching (spread evenly), adaptive budget
         // must grow multiple times to find all matches across ADVANCE calls.
         final String TEST_BUCKET_NAME = "test-adaptive-scan-low-selectivity";
@@ -155,7 +155,7 @@ class AdaptiveScanBudgetTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldHandleLimitLargerThanMatchingDocuments() {
+    void shouldHandleBatchLargerThanMatchingDocuments() {
         // Behavior: When batch size is larger than total matching documents, should return all
         // matches even if budget must grow multiple times to exhaust the scan.
         final String TEST_BUCKET_NAME = "test-adaptive-scan-batch-larger";

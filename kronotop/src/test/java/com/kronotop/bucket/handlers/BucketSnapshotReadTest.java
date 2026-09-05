@@ -153,7 +153,7 @@ class BucketSnapshotReadTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldQueryWithSnapshotReadAndLimit() {
+    void shouldQueryWithSnapshotReadAndBatch() {
         // Behavior: SNAPSHOTREAD ON respects BATCH correctly.
 
         List<byte[]> documents = new java.util.ArrayList<>();

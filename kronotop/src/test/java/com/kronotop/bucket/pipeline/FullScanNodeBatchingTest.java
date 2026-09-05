@@ -42,7 +42,7 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldFilterWithGtOperatorAndLimitOn200Documents() {
+    void shouldFilterWithGtOperatorAndBatchOn200Documents() {
         final String TEST_BUCKET_NAME = "test-bucket-full-scan-200-docs";
 
         // Create bucket without indexes (full scan scenario)
@@ -125,7 +125,7 @@ class FullScanNodeBatchingTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldFilterWithGtOperatorAndLimitOn200DocumentsReverse() {
+    void shouldFilterWithGtOperatorAndBatchOn200DocumentsReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-full-scan-200-docs-reverse";
 
         // Create bucket without indexes (full scan scenario)

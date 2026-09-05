@@ -1628,7 +1628,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldStressChildRewindWithSmallLimit() {
+    void shouldStressChildRewindWithSmallBatch() {
         // Behavior: With a small batch size, OR queries produce excess entries that trigger child
         // cursor rewind. This stress tests the rewind mechanism across many iterations,
         // ensuring no data loss or duplicates.
@@ -1744,7 +1744,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldHandleOrQueryWithLimitOneLessThanChildCount() {
+    void shouldHandleOrQueryWithBatchOneLessThanChildCount() {
         // Behavior: When batch=1 with 2 OR branches, each child gets at least limit=1 to avoid
         // FDB's "limit=0 means unlimited" behavior. Deduplication and buffering handle excess.
 
@@ -1822,7 +1822,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldAdvanceElemMatchWithOrAndTwoIndexesWithLimitOne() {
+    void shouldAdvanceElemMatchWithOrAndTwoIndexesWithBatchOne() {
         // Behavior: $or inside $elemMatch on an indexed array creates a UnionNode with branches
         // for each $or condition. With batch=1, child quota distribution and pending entries
         // buffering work correctly across ADVANCE calls.
@@ -2242,7 +2242,7 @@ class BucketAdvanceHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldRewindFullScanChildrenInOrQueryWithLimitAndAdvance() {
+    void shouldRewindFullScanChildrenInOrQueryWithBatchAndAdvance() {
         // Behavior: $or on two non-indexed fields produces a UnionNode with FullScanNode children.
         // With batch=2, the rewind mechanism must restore FullScanNode checkpoints (which use
         // saveObjectIdCheckpoint on the primary index). All matching documents are retrieved
