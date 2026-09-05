@@ -41,6 +41,11 @@ import java.util.function.IntSupplier;
  */
 public class QueryContext {
     /**
+     * Default limit when none is specified. Zero means unlimited.
+     */
+    public static final int DEFAULT_LIMIT = 0;
+
+    /**
      * Maximum allowed batch size.
      */
     public static final int MAXIMUM_BATCH = 10000;

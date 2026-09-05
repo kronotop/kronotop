@@ -21,32 +21,11 @@ import com.kronotop.bucket.handlers.protocol.SortDirection;
 
 
 /**
- * Immutable configuration options for query execution in the pipeline system.
- * This class provides a builder pattern for configuring query behavior such as
- * batch size, sort ordering, and update operations.
- *
- * <p>QueryOptions are used in conjunction with {@link QueryContext} to control
- * how queries are executed against the document database.
- *
- * <h2>Usage Examples:</h2>
- * <pre>{@code
- * // Basic query with default options
- * QueryOptions options = QueryOptions.builder().build();
- *
- * // Query with batch size
- * QueryOptions limited = QueryOptions.builder()
- *     .batch(50)
- *     .build();
- *
- * // Query with descending sort ordering and batch size
- * QueryOptions descending = QueryOptions.builder()
- *     .sortDirection(SortDirection.DESC)
- *     .batch(20)
- *     .build();
- * }</pre>
+ * Immutable options for query execution, built with {@link #builder()}.
+ * Used with {@link QueryContext} to control batch size, sort ordering, and
+ * update behavior.
  *
  * @see QueryContext
- * @since 1.0
  */
 public class QueryOptions {
     /**
@@ -58,6 +37,11 @@ public class QueryOptions {
      * The sort direction (ASC or DESC). Defaults to ASC.
      */
     private final SortDirection sortDirection;
+
+    /**
+     * Maximum number of documents to return in total. Zero means unlimited.
+     */
+    private final int limit;
 
     /**
      * Maximum number of documents to return in a single batch.
@@ -88,6 +72,7 @@ public class QueryOptions {
         this.sortDirection = builder.sortDirection;
         this.resultSortField = builder.resultSortField;
         this.resultSortDirection = builder.resultSortDirection;
+        this.limit = builder.limit;
         this.batch = builder.batch;
         this.update = builder.update;
         this.collation = builder.collation;
@@ -129,6 +114,15 @@ public class QueryOptions {
      */
     public SortDirection getSortDirection() {
         return sortDirection;
+    }
+
+    /**
+     * Returns the maximum number of documents to return in total, across all batches.
+     *
+     * @return the limit, or 0 if unlimited
+     */
+    public int limit() {
+        return limit;
     }
 
     /**
@@ -199,6 +193,11 @@ public class QueryOptions {
         private SortDirection sortDirection = SortDirection.ASC;
 
         /**
+         * Total document limit. Defaults to {@value QueryContext#DEFAULT_LIMIT}, which means unlimited.
+         */
+        private int limit = QueryContext.DEFAULT_LIMIT;
+
+        /**
          * Batch size. Defaults to {@value QueryContext#DEFAULT_BATCH}.
          */
         private int batch = QueryContext.DEFAULT_BATCH;
@@ -222,6 +221,21 @@ public class QueryOptions {
          */
         public Builder sortDirection(SortDirection sortDirection) {
             this.sortDirection = sortDirection;
+            return this;
+        }
+
+        /**
+         * Sets the maximum number of documents to return in total, across all batches.
+         *
+         * @param limit the limit, or 0 for unlimited
+         * @return this Builder instance for method chaining
+         * @throws IllegalArgumentException if the limit is negative
+         */
+        public Builder limit(int limit) {
+            if (limit < 0) {
+                throw new IllegalArgumentException("limit must be a non-negative integer");
+            }
+            this.limit = limit;
             return this;
         }
 
