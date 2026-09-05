@@ -25,11 +25,13 @@ import com.kronotop.bucket.Collation;
  * <p>Supported arguments:</p>
  * <ul>
  *   <li>BATCH n - maximum documents to return per batch</li>
+ *   <li>LIMIT n - maximum documents to return in total</li>
  *   <li>SORTBY field ASC|DESC - sort field and direction</li>
  * </ul>
  */
 public class QueryArguments {
     private int batch;
+    private int limit;
     private String sortBy;
     private SortDirection sortDirection;
     private String resultSortBy;
@@ -46,6 +48,17 @@ public class QueryArguments {
 
     public void setBatch(int batch) {
         this.batch = batch;
+    }
+
+    /**
+     * Returns the total document limit, or 0 if not specified. Zero means unlimited.
+     */
+    public int getLimit() {
+        return limit;
+    }
+
+    public void setLimit(int limit) {
+        this.limit = limit;
     }
 
     /**

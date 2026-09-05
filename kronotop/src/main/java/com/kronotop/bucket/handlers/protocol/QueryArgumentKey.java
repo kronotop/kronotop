@@ -18,6 +18,7 @@ package com.kronotop.bucket.handlers.protocol;
 
 public enum QueryArgumentKey {
     BATCH,
+    LIMIT,
     SORTBY,
     RESULTSORT,
     PROJECTION,
