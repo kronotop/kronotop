@@ -142,6 +142,11 @@ public class QueryContext {
     private int returnedCount;
 
     /**
+     * Set when the LIMIT budget is used up. The handler closes the cursor when this is true.
+     */
+    private boolean limitReached;
+
+    /**
      * Constructs a new QueryContext with parameters for parameterized query execution.
      *
      * @param session    the client session for registering post-commit hooks
@@ -396,6 +401,32 @@ public class QueryContext {
             return -1;
         }
         return Math.max(0, limit - returnedCount);
+    }
+
+    /**
+     * Returns the batch size for the current round, capped by the remaining LIMIT.
+     * Returns the configured batch size when no limit is set.
+     */
+    public int effectiveBatch() {
+        int remainingLimit = remainingLimit();
+        if (remainingLimit == -1) {
+            return options.batch();
+        }
+        return Math.min(remainingLimit, options.batch());
+    }
+
+    /**
+     * Marks the LIMIT budget as used up. Once set, the flag stays true.
+     */
+    public void markLimitReached() {
+        this.limitReached = true;
+    }
+
+    /**
+     * Returns whether the LIMIT budget is used up and the cursor should be closed.
+     */
+    public boolean isLimitReached() {
+        return limitReached;
     }
 }
 

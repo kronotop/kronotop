@@ -23,6 +23,7 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketObjectIdArrayResponse;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketDeleteMessage;
+import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -68,6 +69,9 @@ public class BucketDeleteHandler extends AbstractBucketHandler implements Handle
             List<ObjectId> objectIds = service.getQueryExecutor().delete(tr, ctx);
 
             TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());
+            if (closeCursorIfLimitReached(ctx, session, cursorId, BucketOperation.DELETE)) {
+                cursorId = -1;
+            }
             return new BucketObjectIdArrayResponse(cursorId, objectIds);
         }, (objectIdResponse) -> {
             ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();

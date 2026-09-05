@@ -528,4 +528,27 @@ public abstract class AbstractBucketHandler implements Handler {
             }
         }
     }
+
+    /**
+     * Removes the query context from the session when the LIMIT budget is used up.
+     *
+     * @param ctx       the query context of the current cursor
+     * @param session   the client session that owns the cursor
+     * @param cursorId  the cursor to close
+     * @param operation the bucket operation that owns the cursor registry
+     * @return true if the cursor was closed, false otherwise
+     */
+    protected boolean closeCursorIfLimitReached(
+            QueryContext ctx,
+            Session session,
+            int cursorId,
+            BucketOperation operation
+    ) {
+        if (ctx.isLimitReached()) {
+            Map<Integer, QueryContext> contexts = findQueryContext(session, operation);
+            contexts.remove(cursorId);
+            return true;
+        }
+        return false;
+    }
 }

@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.*;
 import com.kronotop.bucket.bql.BqlParser;
+import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.handlers.protocol.BucketUpdateMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.UpdateOptions;
@@ -100,6 +101,9 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
                 objectIds = List.of(ctx.upsertResult().getObjectId());
             }
 
+            if (closeCursorIfLimitReached(ctx, session, cursorId, BucketOperation.UPDATE)) {
+                cursorId = -1;
+            }
             return new BucketObjectIdArrayResponse(cursorId, objectIds);
         }, (objectIdResponse) -> {
             ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();

@@ -65,7 +65,16 @@ public class QueryExecutor {
      * @return list of document bodies for matching documents
      */
     public List<ByteBuffer> read(Transaction tr, QueryContext ctx) {
-        return readExecutor.execute(tr, ctx);
+        if (ctx.remainingLimit() == 0) {
+            ctx.markLimitReached();
+            return List.of();
+        }
+        List<ByteBuffer> result = readExecutor.execute(tr, ctx);
+        ctx.addReturnedCount(result.size());
+        if (ctx.remainingLimit() == 0) {
+            ctx.markLimitReached();
+        }
+        return result;
     }
 
     /**
@@ -76,7 +85,16 @@ public class QueryExecutor {
      * @return list of ObjectIds for deleted documents
      */
     public List<ObjectId> delete(Transaction tr, QueryContext ctx) {
-        return deleteExecutor.execute(tr, ctx);
+        if (ctx.remainingLimit() == 0) {
+            ctx.markLimitReached();
+            return List.of();
+        }
+        List<ObjectId> result = deleteExecutor.execute(tr, ctx);
+        ctx.addReturnedCount(result.size());
+        if (ctx.remainingLimit() == 0) {
+            ctx.markLimitReached();
+        }
+        return result;
     }
 
     /**
@@ -87,6 +105,15 @@ public class QueryExecutor {
      * @return list of ObjectIds for updated documents
      */
     public List<ObjectId> update(Transaction tr, QueryContext ctx) {
-        return updateExecutor.execute(tr, ctx);
+        if (ctx.remainingLimit() == 0) {
+            ctx.markLimitReached();
+            return List.of();
+        }
+        List<ObjectId> result = updateExecutor.execute(tr, ctx);
+        ctx.addReturnedCount(result.size());
+        if (ctx.remainingLimit() == 0) {
+            ctx.markLimitReached();
+        }
+        return result;
     }
 }

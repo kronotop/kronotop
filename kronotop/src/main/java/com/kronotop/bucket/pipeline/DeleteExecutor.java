@@ -64,8 +64,6 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
         if (sink == null) {
             return List.of();
         }
-        ctx.addReturnedCount(sink.size());
-
         try {
             Map<Integer, List<DocumentRef>> byShardId = accumulateDocumentRefsByShardId(ctx, sink);
 

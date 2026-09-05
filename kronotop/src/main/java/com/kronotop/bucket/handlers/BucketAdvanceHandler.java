@@ -92,7 +92,11 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
                 QueryContext ctx = getQueryContextAndValidate(tr, request);
                 List<ByteBuffer> entries = service.getQueryExecutor().read(tr, ctx);
                 entries = applyProjection(entries, ctx);
-                return new BucketEntriesMapResponse(message.getCursorId(), entries);
+                int cursorId = message.getCursorId();
+                if (closeCursorIfLimitReached(ctx, request.getSession(), cursorId, BucketOperation.QUERY)) {
+                    cursorId = -1;
+                }
+                return new BucketEntriesMapResponse(cursorId, entries);
             }, (readResponse) -> {
                 RESPVersion protoVer = request.getSession().getProtocolVersion();
                 if (protoVer.equals(RESPVersion.RESP3)) {
@@ -129,7 +133,11 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
                 }
 
                 TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());
-                return new BucketObjectIdArrayResponse(message.getCursorId(), objectIds);
+                int cursorId = message.getCursorId();
+                if (closeCursorIfLimitReached(ctx, request.getSession(), cursorId, operation)) {
+                    cursorId = -1;
+                }
+                return new BucketObjectIdArrayResponse(cursorId, objectIds);
             }, (objectIdResponse) -> {
                 ObjectIdFormat format = request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).get();
                 RESPVersion protoVer = request.getSession().getProtocolVersion();

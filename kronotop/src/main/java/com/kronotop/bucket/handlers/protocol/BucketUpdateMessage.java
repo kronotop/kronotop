@@ -28,7 +28,12 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
     public static final String COMMAND = "BUCKET.UPDATE";
     public static final int MINIMUM_PARAMETER_COUNT = 3;
     public static final int MAXIMUM_PARAMETER_COUNT = 10;
-    private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(QueryArgumentKey.SORTBY, QueryArgumentKey.BATCH, QueryArgumentKey.COLLATION);
+    private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(
+            QueryArgumentKey.SORTBY,
+            QueryArgumentKey.BATCH,
+            QueryArgumentKey.COLLATION,
+            QueryArgumentKey.LIMIT
+    );
     private final Request request;
     private String bucket;
     private byte[] query;

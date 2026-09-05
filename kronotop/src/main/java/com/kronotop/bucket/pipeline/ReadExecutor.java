@@ -81,8 +81,6 @@ public final class ReadExecutor extends BaseExecutor implements Executor<List<By
         if (sink == null) {
             return List.of();
         }
-        ctx.addReturnedCount(sink.size());
-
         List<ByteBuffer> result = new ArrayList<>();
         try {
             return switch (sink) {
@@ -117,7 +115,7 @@ public final class ReadExecutor extends BaseExecutor implements Executor<List<By
     }
 
     private List<ByteBuffer> applyLimit(QueryContext ctx, List<ByteBuffer> result) {
-        int batch = ctx.options().batch();
+        int batch = ctx.effectiveBatch();
         if (result.size() > batch) {
             return result.subList(0, batch);
         }

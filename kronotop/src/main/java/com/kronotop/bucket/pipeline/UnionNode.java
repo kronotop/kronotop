@@ -197,7 +197,7 @@ public class UnionNode extends AbstractLogicalNode implements LogicalNode {
                                                Roaring64Bitmap union, Map<Long, DocumentPointer> result,
                                                Roaring64Bitmap[] childBitmaps) {
         boolean needsInMemorySort = ctx.options().getSortByField() != null;
-        int remainingCapacity = needsInMemorySort ? Integer.MAX_VALUE : ctx.options().batch() - sink.size();
+        int remainingCapacity = needsInMemorySort ? Integer.MAX_VALUE : ctx.effectiveBatch() - sink.size();
 
         // Split handles into kept vs excess
         Roaring64Bitmap keptHandles = new Roaring64Bitmap();

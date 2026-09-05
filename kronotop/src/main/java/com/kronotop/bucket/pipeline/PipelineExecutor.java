@@ -128,7 +128,7 @@ public class PipelineExecutor {
             Transaction tr, QueryContext ctx, PipelineNode node,
             Runnable beforeExecute, OnLimitReached onLimitReached) {
         ExecutionState state = ctx.getOrCreateExecutionState(node.id());
-        int batchSize = ctx.options().batch();
+        int batchSize = ctx.effectiveBatch();
         ScanBudget budget = tr == null
                 ? ScanBudget.unbounded(batchSize)
                 : new ScanBudget(batchSize, getTransactionDeadline(tr));

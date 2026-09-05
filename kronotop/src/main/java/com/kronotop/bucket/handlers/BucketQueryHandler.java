@@ -21,6 +21,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.handlers.protocol.BucketQueryMessage;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.server.*;
@@ -61,6 +62,9 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
 
             List<ByteBuffer> entries = service.getQueryExecutor().read(tr, ctx);
             entries = applyProjection(entries, ctx);
+            if (closeCursorIfLimitReached(ctx, session, cursorId, BucketOperation.QUERY)) {
+                cursorId = -1;
+            }
             return new BucketEntriesMapResponse(cursorId, entries);
         }, (entryMapResponse) -> {
             RESPVersion protoVer = request.getSession().getProtocolVersion();
