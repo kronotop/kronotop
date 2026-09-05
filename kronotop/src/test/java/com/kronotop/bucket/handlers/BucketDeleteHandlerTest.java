@@ -397,7 +397,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldDeleteWithLimitAndAdvance() {
+    void shouldDeleteWithBatchAndAdvance() {
         // Behavior: Delete with BATCH restricts per-batch count; BUCKET.ADVANCE DELETE continues deleting remaining matches.
 
         // Step 1: Insert test documents with different ages
@@ -548,7 +548,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldDeleteWithOrQueryLimitAndAdvance() {
+    void shouldDeleteWithOrQueryBatchAndAdvance() {
         // Behavior: DELETE with $or on two indexed fields and batch=2 triggers child rewind in
         // UnionNode. Each ADVANCE DELETE batch deletes at most 2 documents. All matching documents
         // are deleted across multiple ADVANCE calls without missing or double-deleting.
