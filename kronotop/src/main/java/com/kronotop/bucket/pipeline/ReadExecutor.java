@@ -81,6 +81,7 @@ public final class ReadExecutor extends BaseExecutor implements Executor<List<By
         if (sink == null) {
             return List.of();
         }
+        ctx.addReturnedCount(sink.size());
 
         List<ByteBuffer> result = new ArrayList<>();
         try {

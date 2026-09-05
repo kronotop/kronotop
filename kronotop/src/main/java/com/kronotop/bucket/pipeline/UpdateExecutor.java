@@ -131,6 +131,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             handleNoMatch(tr, ctx);
             return List.of();
         }
+        ctx.addReturnedCount(sink.size());
 
         try {
             Map<Integer, List<DocumentRef>> byShardId = accumulateDocumentRefsByShardId(ctx, sink);
@@ -689,6 +690,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
         // Store the upsert result for ObjectId resolution after commit
         ctx.setUpsertResult(new UpsertResult(objectId));
+        ctx.addReturnedCount(1);
     }
 
     private void setSecondaryIndexesForUpsert(

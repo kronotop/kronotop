@@ -367,10 +367,14 @@ public abstract class AbstractBucketHandler implements Handler {
         } else {
             builder.batch(arguments.getBatch());
         }
+
+        builder.limit(arguments.getLimit());
+
         if (arguments.getSortBy() != null) {
             builder.sortByField(arguments.getSortBy());
             builder.sortDirection(arguments.getSortDirection());
         }
+
         if (arguments.getResultSortBy() != null) {
             if (arguments.getResultSortBy().equals(arguments.getSortBy())) {
                 throw new KronotopException("SORTBY and RESULTSORT cannot use the same field: '" + arguments.getSortBy() + "'");
@@ -378,9 +382,11 @@ public abstract class AbstractBucketHandler implements Handler {
             builder.resultSortField(arguments.getResultSortBy());
             builder.resultSortDirection(arguments.getResultSortDirection());
         }
+
         if (updateOptions != null) {
             builder.update(updateOptions);
         }
+
         if (arguments.getCollation() != null) {
             builder.collation(arguments.getCollation());
         }
@@ -441,7 +447,14 @@ public abstract class AbstractBucketHandler implements Handler {
      * @param disablePlanCache whether to bypass plan cache
      * @return initialized query context ready for execution
      */
-    QueryContext buildQueryContext(Request request, BucketMetadata metadata, @Nonnull byte[] query, QueryArguments arguments, UpdateOptions updateOptions, boolean disablePlanCache) {
+    QueryContext buildQueryContext(
+            Request request,
+            BucketMetadata metadata,
+            @Nonnull byte[] query,
+            QueryArguments arguments,
+            UpdateOptions updateOptions,
+            boolean disablePlanCache
+    ) {
         Session session = request.getSession();
         QueryOptions options = buildQueryOptions(session, updateOptions, arguments);
 
@@ -449,7 +462,9 @@ public abstract class AbstractBucketHandler implements Handler {
         List<BqlValue> parameters = ParameterExtractor.extract(expr);
 
         boolean usePlanCache = !disablePlanCache && planCacheEnabled;
-        PipelineNode plan = service.getPlanner().plan(context, metadata, expr, parameters, usePlanCache, planCacheMaxTtl, arguments.getSortBy(), arguments.getCollation());
+        PipelineNode plan = service.getPlanner().plan(context, metadata, expr, parameters, usePlanCache,
+                planCacheMaxTtl, arguments.getSortBy(), arguments.getCollation()
+        );
         QueryContext ctx = new QueryContext(session, metadata, options, plan, parameters);
 
         ctx.setQueryBytes(query);

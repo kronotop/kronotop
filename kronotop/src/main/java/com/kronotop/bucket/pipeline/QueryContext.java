@@ -54,24 +54,30 @@ public class QueryContext {
      * Default batch size when none is specified.
      */
     public static final int DEFAULT_BATCH = 100;
+
     /**
      * Execution state keyed by pipeline node ID.
      */
     private final Map<Integer, ExecutionState> executionStates = new HashMap<>();
+
     private final Map<Integer, Integer> relations = new HashMap<>();
+
     /**
      * The execution plan as a tree of pipeline nodes.
      */
     private final PipelineNode plan;
+
     /**
      * Immutable query configuration options.
      */
     private final QueryOptions options;
+
     /**
      * Holds the data sinks used during query execution. Provides or creates a sink
      * per pipeline node for document locations or byte buffers.
      */
     private final DataSinkRegistry sinks = new DataSinkRegistry();
+
     /**
      * Parameter values extracted from the query for resolving Operand.Param references.
      */
@@ -79,53 +85,68 @@ public class QueryContext {
     private final Session session;
     private BucketMetadata metadata;
     private int currentNodeId;
+
     /**
      * Pipeline environment providing access to services and utilities.
      * Set lazily during execution and cached for reuse.
      */
     private PipelineEnv env;
+
     /**
      * The field used by the driving index scan. Used to determine if in-memory sorting is needed
      * when the SORTBY field differs from the scanned field.
      */
     private String scannedIndexField;
+
     /**
      * Tracks whether any scan node used a multi-key index. Used to conditionally
      * enable ObjectId deduplication in executors.
      */
     private boolean scannedIndexIsMultiKey;
+
     /**
      * Raw query bytes for upsert document construction.
      * Stored when upsert is enabled to extract equality conditions.
      */
     private byte[] queryBytes;
+
     /**
      * Holds the result of an upsert operation for versionstamp resolution after commit.
      */
     private UpsertResult upsertResult;
+
     /**
      * Whether index scans should use snapshot isolation (no read conflict ranges).
      */
     private boolean snapshotRead;
+
     /**
      * Supplier for generating unique user versions within a transaction.
      */
     private IntSupplier userVersionSupplier;
+
     /**
      * Parsed projection specification for field-level projection.
      */
     private BsonDocument projectionSpec;
+
     /**
      * Parsed BQL expression, stored for positional {@code $} operator resolution in projection.
      */
     private BqlExpr parsedQuery;
 
     /**
+     * The total number of documents returned to the client across all batches.
+     * Compared against the LIMIT option to stop the query.
+     */
+    private int returnedCount;
+
+    /**
      * Constructs a new QueryContext with parameters for parameterized query execution.
      *
      * @param session    the client session for registering post-commit hooks
      * @param metadata   the bucket metadata containing schema and configuration information
-     * @param options    the query configuration options (limits, sorting, etc.)
+     * @param options    the query configuration options (batch, limit, sorting, etc.)
      * @param plan       the execution plan as a tree of pipeline nodes
      * @param parameters the parameter values for resolving Operand.Param references
      */
@@ -349,6 +370,32 @@ public class QueryContext {
      */
     public void setParsedQuery(BqlExpr parsedQuery) {
         this.parsedQuery = parsedQuery;
+    }
+
+    /**
+     * Returns the total number of documents returned to the client so far.
+     */
+    public int getReturnedCount() {
+        return returnedCount;
+    }
+
+    /**
+     * Adds the number of documents returned in the latest batch to the running total.
+     */
+    public void addReturnedCount(int n) {
+        this.returnedCount += n;
+    }
+
+    /**
+     * Returns how many more documents can be returned before the LIMIT is reached.
+     * Returns -1 when no limit is set.
+     */
+    public int remainingLimit() {
+        int limit = options.limit();
+        if (limit == DEFAULT_LIMIT) {
+            return -1;
+        }
+        return Math.max(0, limit - returnedCount);
     }
 }
 
