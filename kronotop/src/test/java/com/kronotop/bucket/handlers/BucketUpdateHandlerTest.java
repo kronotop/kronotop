@@ -466,7 +466,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldUpdateWithLimitAndAdvance() {
+    void shouldUpdateWithBatchAndAdvance() {
         // Step 1: Insert test documents - more than batch size to test pagination
         List<byte[]> testDocuments = Arrays.asList(
                 BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 35, \"city\": \"New York\"}"),
@@ -736,7 +736,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldUpdateWithSortByLimitAndAdvance() {
+    void shouldUpdateWithSortByBatchAndAdvance() {
         // Behavior: UPDATE with SORTBY and BATCH preserves sort order across BUCKET.ADVANCE calls.
         // Documents are updated in the specified order, and cursor continuation maintains global ordering.
 
@@ -839,7 +839,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldUpdateWithSortByLimitAndAdvanceDescending() {
+    void shouldUpdateWithSortByBatchAndAdvanceDescending() {
         // Behavior: UPDATE with SORTBY DESC and BATCH preserves descending sort order across
         // BUCKET.ADVANCE calls. Documents are updated from highest to lowest value.
 
@@ -1020,7 +1020,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldUpdateWithSortByAndLimit() {
+    void shouldUpdateWithSortByAndBatch() {
         // Behavior: UPDATE with SORTBY and BATCH only updates the specified number of documents,
         // selecting them in sorted order.
 
@@ -1382,7 +1382,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldUpdateWithSortByWithoutLimit() {
+    void shouldUpdateWithSortByWithoutBatch() {
         // Behavior: UPDATE with SORTBY but without BATCH returns all matching documents
         // in sorted order within a single response.
 
@@ -1609,7 +1609,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldUpdateWithOrQueryLimitAndAdvance() {
+    void shouldUpdateWithOrQueryBatchAndAdvance() {
         // Behavior: UPDATE with $or on two indexed fields and batch=1 triggers child rewind in
         // UnionNode. Each ADVANCE UPDATE batch updates at most 1 document. All matching documents
         // are updated exactly once across multiple ADVANCE calls.
@@ -1710,7 +1710,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
     // --- Numeric Widening Integration Tests ---
 
     @Test
-    void shouldUpdateWithOrQueryLimitTwoAndAdvance() {
+    void shouldUpdateWithOrQueryBatchTwoAndAdvance() {
         // Behavior: UPDATE with $or on two indexed fields and batch=2 exercises the keptHandles/excessHandles
         // split in UnionNode.writeResultsAndRewindChildren where a single child contributes both kept and
         // excess entries in the same batch. All matching documents are updated exactly once across multiple

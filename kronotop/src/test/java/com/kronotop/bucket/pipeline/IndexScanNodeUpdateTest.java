@@ -89,7 +89,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldUpdateWithGreaterThanFilterWithLimit() {
+    void shouldUpdateWithGreaterThanFilterWithBatch() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-batch";
 
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);
@@ -132,7 +132,7 @@ class IndexScanNodeUpdateTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldUpdateWithGreaterThanFilterWithLimitReverse() {
+    void shouldUpdateWithGreaterThanFilterWithBatchReverse() {
         final String TEST_BUCKET_NAME = "test-bucket-gt-set-field-scan-with-batch-reverse";
 
         SingleFieldIndexDefinition ageIndex = SingleFieldIndexDefinition.create("age-index", "age", BsonType.INT32, false, IndexStatus.WAITING);

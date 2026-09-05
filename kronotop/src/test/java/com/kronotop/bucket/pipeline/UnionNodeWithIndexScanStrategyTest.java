@@ -545,7 +545,7 @@ class UnionNodeWithIndexScanStrategyTest extends BasePipelineTest {
     }
 
     @Test
-    void shouldUpdateWithOrQueryLimitTwoAndRewind() {
+    void shouldUpdateWithOrQueryBatchTwoAndRewind() {
         // Behavior: UPDATE with $or on two indexed fields and batch=2 exercises the
         // keptHandles/excessHandles split in UnionNode where a single child contributes
         // both kept and excess entries in the same batch. All matching documents are
