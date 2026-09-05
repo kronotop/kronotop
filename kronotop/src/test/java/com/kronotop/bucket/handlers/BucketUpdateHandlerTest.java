@@ -408,7 +408,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertTrue(updatedObjectIds.contains(targetObjectId), "Should have updated the target document");
 
         // Step 3: Query the specific document to verify all BSON types were set
-        BsonDocument updatedDocument = null;
+        BsonDocument updatedDocument;
         {
             ByteBuf buf = Unpooled.buffer();
             cmd.query(TEST_BUCKET, "{\"_id\": {\"$eq\": \"" + targetObjectId.toHexString() + "\"}}").encode(buf);
@@ -487,7 +487,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
         // Step 2: Update documents with age > 30 using BUCKET.UPDATE with batch=1 to add a "status" field
         List<ObjectId> allUpdatedObjectIds = new ArrayList<>();
-        int cursorId = -1;
+        int cursorId;
 
         // Initial update with batch=1
         {
