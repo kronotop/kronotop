@@ -2057,4 +2057,62 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertEquals(-1, extractCursorId(msg));
         assertEquals(5, extractEntries(msg).size());
     }
+
+    @Test
+    void shouldApplyLimitWithResultSort() {
+        // Behavior: LIMIT caps the total documents across rounds. RESULTSORT sorts each round's
+        // entries in memory before the effective batch is cut. The round that fills the LIMIT
+        // budget returns cursor_id -1.
+        List<byte[]> documents = new ArrayList<>();
+        // Insert ages in descending order so the scan order differs from the RESULTSORT order.
+        for (int age = 20; age >= 1; age--) {
+            documents.add(BSONUtil.jsonToDocumentThenBytes("{\"age\": " + age + "}"));
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        // Round 1: batch(10), limit(15). effectiveBatch = min(10, 15) = 10.
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(10).limit(15).resultSort("age", "ASC")).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        List<BsonDocument> first = extractEntries(msg);
+        int cursorId = extractCursorId(msg);
+        assertEquals(10, first.size(), "First round should return a full batch of 10");
+        assertTrue(cursorId >= 0, "Cursor should stay open because the limit is not yet reached");
+
+        List<Integer> firstAges = new ArrayList<>();
+        for (BsonDocument doc : first) {
+            firstAges.add(doc.getInt32("age").getValue());
+        }
+        List<Integer> firstAgesSorted = new ArrayList<>(firstAges);
+        Collections.sort(firstAgesSorted);
+        assertEquals(firstAgesSorted, firstAges, "First round must be sorted by the RESULTSORT field");
+
+        // Round 2: remaining limit is 5, so effectiveBatch = min(10, 5) = 5 and the limit is now reached.
+        ByteBuf advanceBuf = Unpooled.buffer();
+        cmd.advanceQuery(cursorId).encode(advanceBuf);
+        Object advanceMsg = runCommand(channel, advanceBuf);
+        assertInstanceOf(MapRedisMessage.class, advanceMsg);
+
+        List<BsonDocument> second = extractEntries(advanceMsg);
+        assertEquals(5, second.size(), "Second round should return only the 5 remaining up to LIMIT");
+        assertEquals(-1, extractCursorId(advanceMsg), "Cursor should close when the LIMIT budget is used up");
+
+        List<Integer> secondAges = new ArrayList<>();
+        for (BsonDocument doc : second) {
+            secondAges.add(doc.getInt32("age").getValue());
+        }
+        List<Integer> secondAgesSorted = new ArrayList<>(secondAges);
+        Collections.sort(secondAgesSorted);
+        assertEquals(secondAgesSorted, secondAges, "Second round must be sorted by the RESULTSORT field");
+
+        List<Integer> allAges = new ArrayList<>(firstAges);
+        allAges.addAll(secondAges);
+        assertEquals(15, first.size() + second.size(), "Total returned should equal the LIMIT");
+        assertEquals(15, new HashSet<>(allAges).size(), "Documents must not be duplicated across rounds");
+    }
 }
