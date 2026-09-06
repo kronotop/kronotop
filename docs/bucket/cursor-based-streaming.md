@@ -38,7 +38,8 @@ see [Partial and Empty Batches](#partial-and-empty-batches)). There is no time l
 cursor remains valid indefinitely as long as the session is open and the cursor has not been closed. You can fetch the
 first batch now, wait an hour, and call `BUCKET.ADVANCE` to pick up where you left off.
 
-**Closing** releases the cursor. Always call `BUCKET.CLOSE` when you are done paginating.
+**Closing** releases the cursor. Always call `BUCKET.CLOSE` when you are done paginating. A cursor created with
+`LIMIT` is removed automatically once the limit is reached (see [Limit](#limit)).
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2
@@ -97,6 +98,42 @@ parameter.
 This query returns at most 10 documents per batch, regardless of the session default.
 
 See [BUCKET.QUERY](commands/bucket-query.md) for the full parameter reference.
+
+## Limit
+
+`BATCH` caps a single call. `LIMIT` caps the whole cursor: the total number of documents (or object IDs) returned
+across the first call and all `BUCKET.ADVANCE` calls. When omitted or set to `0`, there is no limit.
+
+Each call returns at most the smaller of `BATCH` and the remaining `LIMIT`. The call that reaches the limit returns
+`cursor_id` `-1`. At that point the cursor is removed from the session. There is nothing to close, and a further
+`BUCKET.ADVANCE` with the old ID returns an error.
+
+```kronotop
+127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2 LIMIT 3
+1# "cursor_id" => (integer) 1
+2# "entries" =>
+   1) {"_id": "69ce80c76597b10d87d134ff", "category": "books", "price": 19.99, "name": "The Disconnected"}
+   2) {"_id": "69ce80c76597b10d87d13500", "category": "electronics", "price": 499.99, "name": "Wireless Headphones"}
+```
+
+The second call returns the last document allowed by the limit:
+
+```kronotop
+127.0.0.1:5484> BUCKET.ADVANCE QUERY 1
+1# "cursor_id" => (integer) -1
+2# "entries" =>
+   1) {"_id": "69ce80c76597b10d87d13501", "category": "electronics", "price": 79.99, "name": "USB-C Hub"}
+```
+
+The cursor is gone:
+
+```kronotop
+127.0.0.1:5484> BUCKET.ADVANCE QUERY 1
+(error) ERR No previous query context found for 'query' operation with the given cursor id
+```
+
+`LIMIT` works the same way for `BUCKET.DELETE` and `BUCKET.UPDATE`. For `BUCKET.UPDATE`, a document inserted by
+`upsert` counts as one toward the limit.
 
 ## Checkpointing
 
@@ -214,6 +251,8 @@ disconnects, all its cursors are released automatically.
   See [Partial and Empty Batches](#partial-and-empty-batches).
 - **Choose an appropriate batch size.** Smaller batches use less memory per transaction. Larger batches reduce round trips.
   The default (100) is a reasonable starting point for most workloads.
+- **Use `LIMIT` to bound the total.** When you only need the first N results, or want to delete or update at most N
+  documents, set `LIMIT`. The cursor is removed for you when the limit is reached. See [Limit](#limit).
 - **Use `BUCKET.CURSORS` for debugging.** List active cursors to verify none are leaked.
 - **Use `SORTBY` when ordering matters.** Without `SORTBY`, document order across batches depends on the index the
   engine selected and is not guaranteed to be meaningful.

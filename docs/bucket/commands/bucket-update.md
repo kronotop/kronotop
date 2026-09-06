@@ -10,7 +10,7 @@ Updates documents in a bucket that match a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [COLLATION <json-spec>]
+BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <json-spec>]
 ```
 
 ## Parameters
@@ -21,7 +21,8 @@ BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] 
 | `query`     | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                          |
 | `update`    | JSON or BSON       | Yes      | Update document with update operators. Cannot be empty.                                                                                                         |
 | `SORTBY`    | string + direction | No       | Process documents in sorted order. Requires field name followed by `ASC` or `DESC`.                                                                             |
-| `BATCH`     | integer            | No       | Maximum number of documents to update per batch. Must be non-negative. It does not cap the total number of results. Use `BUCKET.ADVANCE` to get the next batch. |
+| `BATCH`     | integer            | No       | Maximum number of documents to update per batch. Must be non-negative. It does not cap the total number of results, use `LIMIT` for that. Use `BUCKET.ADVANCE` to get the next batch. |
+| `LIMIT`     | integer            | No       | Maximum total number of documents the cursor updates across the first call and all `BUCKET.ADVANCE` calls. Must be non-negative. `0` means no limit (default). When the limit is reached, the response carries `cursor_id` `-1` and the cursor is removed. An upsert counts as one document. |
 | `COLLATION` | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                        |
 
 ## Return Value
@@ -127,6 +128,10 @@ BUCKET.ADVANCE UPDATE <cursor-id>
 
 Each call updates the next batch of documents up to the batch size.
 
+`BATCH` caps a single call, `LIMIT` caps the whole cursor. Each call updates at most the smaller of `BATCH` and the
+remaining `LIMIT`. The call that reaches the limit returns `cursor_id` `-1` and removes the cursor from the session.
+There is no need to call `BUCKET.CLOSE` on it. A document inserted by `upsert` counts as one toward the limit.
+
 ## Routing
 
 The command must be sent to a node that owns at least one shard assigned to the bucket. If the bucket's shards are all
@@ -145,6 +150,10 @@ hosted on other nodes, the server rejects the request with a redirect to the app
 | `DUPLICATEKEY`          | Duplicate `_id` encountered during upsert.                                                                               |
 | `VECTORINDEXNOTREADY`   | A vector index on the bucket is still bootstrapping. Retry after a short delay.                                          |
 | `ERR`                   | The update parameter is missing, or the update document is empty.                                                        |
+| `ERR`                   | `BATCH argument must be followed by a positive integer`: no value after `BATCH`. |
+| `ERR`                   | `BATCH argument must be a non-negative integer`: negative `BATCH` value. |
+| `ERR`                   | `LIMIT argument must be followed by a positive integer`: no value after `LIMIT`. |
+| `ERR`                   | `LIMIT argument must be a non-negative integer`: negative `LIMIT` value. |
 
 ## Examples
 
@@ -190,6 +199,15 @@ BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' SOR
 BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BATCH 50
 ```
 
+**Update with a total limit:**
+
+```kronotop
+BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BATCH 50 LIMIT 120
+```
+
+Updates at most 120 documents in total. The first two calls update 50 each, the third updates 20 and returns
+`cursor_id` `-1`.
+
 **Update with collation:**
 
 ```kronotop
@@ -208,6 +226,21 @@ Updates documents matching `"alice"` using case-insensitive English collation.
 > BUCKET.ADVANCE UPDATE 1
 1# "cursor_id" => (integer) 1
 2# "object_ids" => ... (next 100 updated)
+```
+
+**Batch update with a limit:**
+
+```kronotop
+> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BATCH 2 LIMIT 3
+1# "cursor_id" => (integer) 2
+2# "object_ids" => ... (2 updated)
+
+> BUCKET.ADVANCE UPDATE 2
+1# "cursor_id" => (integer) -1
+2# "object_ids" => ... (1 updated)
+
+> BUCKET.ADVANCE UPDATE 2
+(error) ERR No previous query context found for 'update' operation with the given cursor id
 ```
 
 **Update within a transaction:**

@@ -10,7 +10,7 @@ Returns the query execution plan for a given query without executing it.
 ## Syntax
 
 ```kronotop
-BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [COLLATION <json-spec>]
+BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <json-spec>]
 ```
 
 ## Parameters
@@ -21,6 +21,7 @@ BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [COLLATI
 | `query`     | JSON or BSON       | Yes      | Filter expression to analyze. Use `{}` to match all documents.                                      |
 | `SORTBY`    | string + direction | No       | Sort specification. Requires field name followed by `ASC` or `DESC`.                                |
 | `BATCH`     | integer            | No       | Maximum number of documents per batch.                                                              |
+| `LIMIT`     | integer            | No       | Maximum total number of documents across all batches. `0` means no limit.                           |
 | `COLLATION` | JSON               | No       | Query-level collation spec. When provided, the plan reflects how collation affects index selection. |
 
 The parameters are identical to `BUCKET.QUERY`. The query is parsed and planned but never executed.
@@ -205,6 +206,10 @@ Residual predicates represent filter conditions that are evaluated after index s
 | `BUCKETBEINGREMOVED`    | The bucket is being removed.    |
 | `NOSUCHNAMESPACE`       | The namespace does not exist.   |
 | `NAMESPACEBEINGREMOVED` | The namespace is being removed. |
+| `ERR`                   | `BATCH argument must be followed by a positive integer`: no value after `BATCH`. |
+| `ERR`                   | `BATCH argument must be a non-negative integer`: negative `BATCH` value. |
+| `ERR`                   | `LIMIT argument must be followed by a positive integer`: no value after `LIMIT`. |
+| `ERR`                   | `LIMIT argument must be a non-negative integer`: negative `LIMIT` value. |
 
 ## Examples
 

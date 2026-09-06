@@ -58,6 +58,9 @@ The response is an array with two elements: the cursor ID and a nested array of 
 An empty `entries` array means no documents were available at that moment. It does not mean the cursor is exhausted.
 A later call may return new documents.
 
+A `cursor_id` of `-1` means the `LIMIT` of the initial command was reached. The cursor is removed and cannot be
+advanced again.
+
 **DELETE operation:**
 
 Deletes the next batch of matching documents and returns their ObjectIds.
@@ -88,6 +91,9 @@ The response is an array with two elements: the cursor ID and a nested array of 
 An empty `object_ids` array means no documents were available at that moment. It does not mean the cursor is exhausted.
 A later call may return new documents.
 
+A `cursor_id` of `-1` means the `LIMIT` of the initial command was reached. The cursor is removed and cannot be
+advanced again.
+
 **UPDATE operation:**
 
 Updates the next batch of matching documents and returns their ObjectIds.
@@ -99,9 +105,10 @@ The format is the same as the DELETE operation.
 Cursors are created by `BUCKET.QUERY`, `BUCKET.DELETE`, or `BUCKET.UPDATE` commands. Each cursor:
 
 - Is bound to the session that created it
-- Stores the query context (filter, sort, batch size)
+- Stores the query context (filter, sort, batch size, limit)
 - Tracks the current position in the result set
 - Respects the original batch size from the initial command
+- Respects the original `LIMIT` from the initial command and is removed once the limit is reached
 
 The cursor ID must match the operation type. For example, a cursor created by `BUCKET.QUERY` can only be used with
 `BUCKET.ADVANCE QUERY`.
@@ -110,7 +117,7 @@ The cursor ID must match the operation type. For example, a cursor created by `B
 
 | Error Code           | Description                                                                          |
 |----------------------|--------------------------------------------------------------------------------------|
-| `ERR`                | No previous query context found for `<operation>` operation with the given cursor id |
+| `ERR`                | No previous query context found for `<operation>` operation with the given cursor id. Also returned when the cursor was removed because its `LIMIT` was reached. |
 | `BUCKETBEINGREMOVED` | The bucket is being removed.                                                         |
 
 ## Examples

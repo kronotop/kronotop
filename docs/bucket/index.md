@@ -79,8 +79,9 @@ containing field names and operator expressions.
 ### Sorting and Pagination
 
 `BUCKET.QUERY` and `BUCKET.UPDATE` accept `SORTBY <field> <ASC|DESC>` to control result ordering and `BATCH <n>` to
-cap the number of documents processed per batch. Results are paginated through cursors. Call `BUCKET.ADVANCE` to
-fetch the next batch, and `BUCKET.CLOSE` to release the cursor when done.
+cap the number of documents processed per batch. `LIMIT <n>` caps the total number of documents across all batches.
+Results are paginated through cursors. Call `BUCKET.ADVANCE` to fetch the next batch, and `BUCKET.CLOSE` to release
+the cursor when done. A cursor whose `LIMIT` is reached returns `cursor_id` `-1` and is removed automatically.
 
 ```kronotop
 > BUCKET.QUERY users '{"age": {"$gte": 18}}' SORTBY name ASC BATCH 10
