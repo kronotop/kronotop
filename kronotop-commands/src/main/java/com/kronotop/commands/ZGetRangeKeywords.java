@@ -21,15 +21,15 @@ import io.lettuce.core.protocol.ProtocolKeyword;
 import java.nio.charset.StandardCharsets;
 
 public enum ZGetRangeKeywords implements ProtocolKeyword {
-    LIMIT,
-    REVERSE,
-    BEGIN_KEY_SELECTOR,
-    END_KEY_SELECTOR;
+    LIMIT("LIMIT"),
+    REVERSE("REVERSE"),
+    BEGIN_KEY_SELECTOR("BEGIN-KEY-SELECTOR"),
+    END_KEY_SELECTOR("END-KEY-SELECTOR");
 
     public final byte[] bytes;
 
-    ZGetRangeKeywords() {
-        bytes = name().getBytes(StandardCharsets.US_ASCII);
+    ZGetRangeKeywords(String key) {
+        bytes = key.getBytes(StandardCharsets.US_ASCII);
     }
 
     @Override

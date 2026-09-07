@@ -25,6 +25,7 @@ import com.kronotop.cluster.MembershipService;
 import com.kronotop.cluster.ShardRegistry;
 import com.kronotop.cluster.handlers.InvalidShardIdException;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.server.IllegalCommandArgumentException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.HashSet;
@@ -235,6 +236,44 @@ public class ProtocolMessageUtil {
         } catch (NumberFormatException e) {
             throw new InvalidShardIdException();
         }
+    }
+
+    /**
+     * Marks a keyword argument as seen and rejects a repeated keyword.
+     * <p>
+     * The seen set is a bitmask over the enum ordinals. It costs one {@code long} on the stack
+     * and two-bit operations per keyword, with no allocation. Callers start with {@code 0} and
+     * pass the returned value to the next call.
+     *
+     * @param seen the current bitmask
+     * @param key  the parsed keyword
+     * @param name the keyword as it is written on the wire, used in the error message
+     * @return the bitmask with the keyword added
+     * @throws IllegalCommandArgumentException if the keyword was already seen
+     */
+    public static long markArgumentSeen(long seen, Enum<?> key, String name) {
+        if (key.ordinal() >= Long.SIZE) {
+            throw new IllegalStateException("Too many keyword arguments to track: " + key.getClass().getName());
+        }
+        long bit = 1L << key.ordinal();
+        if ((seen & bit) != 0) {
+            throw new IllegalCommandArgumentException(String.format("Duplicate '%s' argument", name));
+        }
+        return seen | bit;
+    }
+
+    /**
+     * Marks a keyword argument as seen and rejects a repeated keyword, using the enum constant
+     * name in the error message.
+     *
+     * @param seen the current bitmask
+     * @param key  the parsed keyword
+     * @return the bitmask with the keyword added
+     * @throws IllegalCommandArgumentException if the keyword was already seen
+     * @see #markArgumentSeen(long, Enum, String)
+     */
+    public static long markArgumentSeen(long seen, Enum<?> key) {
+        return markArgumentSeen(seen, key, key.name());
     }
 
     /**

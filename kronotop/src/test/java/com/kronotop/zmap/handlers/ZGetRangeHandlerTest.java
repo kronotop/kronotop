@@ -17,23 +17,35 @@
 package com.kronotop.zmap.handlers;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.commands.CommandType;
 import com.kronotop.commands.ZGetRangeArgs;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.output.ArrayOutput;
+import io.lettuce.core.protocol.Command;
+import io.lettuce.core.protocol.CommandArgs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZGetRangeHandlerTest extends BaseHandlerTest {
 
@@ -327,5 +339,88 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
             i--;
         }
         assertEquals(-1, i);
+    }
+
+    private Object runRaw(EmbeddedChannel channel, List<String> rawArgs) {
+        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII);
+        rawArgs.forEach(args::add);
+        Command<String, String, List<Object>> rawCmd =
+                new Command<>(CommandType.ZGETRANGE, new ArrayOutput<>(StringCodec.ASCII), args);
+
+        ByteBuf buf = Unpooled.buffer();
+        rawCmd.encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    static Stream<Arguments> invalidArguments() {
+        String limitValue = "ERR LIMIT argument must be followed by a positive integer";
+        return Stream.of(
+                arguments("unknown keyword",
+                        List.of("key-0", "key-5", "LIMI", "3"),
+                        "ERR Unknown 'LIMI' argument"),
+                arguments("old underscore spelling",
+                        List.of("key-0", "key-5", "BEGIN_KEY_SELECTOR", "first_greater_than"),
+                        "ERR Unknown 'BEGIN_KEY_SELECTOR' argument"),
+                arguments("limit without value",
+                        List.of("key-0", "key-5", "LIMIT"),
+                        limitValue),
+                arguments("zero limit",
+                        List.of("key-0", "key-5", "LIMIT", "0"),
+                        limitValue),
+                arguments("negative limit",
+                        List.of("key-0", "key-5", "LIMIT", "-1"),
+                        limitValue),
+                arguments("non-numeric limit",
+                        List.of("key-0", "key-5", "LIMIT", "abc"),
+                        "ERR value is not a int or out of range"),
+                arguments("begin selector without value",
+                        List.of("key-0", "key-5", "BEGIN-KEY-SELECTOR"),
+                        "ERR BEGIN-KEY-SELECTOR argument must be followed by a valid key selector"),
+                arguments("end selector without value",
+                        List.of("key-0", "key-5", "END-KEY-SELECTOR"),
+                        "ERR END-KEY-SELECTOR argument must be followed by a valid key selector"),
+                arguments("invalid key selector",
+                        List.of("key-0", "key-5", "BEGIN-KEY-SELECTOR", "bogus"),
+                        "ERR Unknown key selector: 'bogus'"),
+                arguments("duplicate limit",
+                        List.of("key-0", "key-5", "LIMIT", "3", "LIMIT", "5"),
+                        "ERR Duplicate 'LIMIT' argument"),
+                arguments("duplicate reverse in mixed case",
+                        List.of("key-0", "key-5", "REVERSE", "reverse"),
+                        "ERR Duplicate 'REVERSE' argument"),
+                arguments("duplicate begin key selector",
+                        List.of("key-0", "key-5",
+                                "BEGIN-KEY-SELECTOR", "first_greater_than",
+                                "BEGIN-KEY-SELECTOR", "first_greater_or_equal"),
+                        "ERR Duplicate 'BEGIN-KEY-SELECTOR' argument"),
+                arguments("duplicate end key selector",
+                        List.of("key-0", "key-5",
+                                "END-KEY-SELECTOR", "first_greater_than",
+                                "END-KEY-SELECTOR", "first_greater_or_equal"),
+                        "ERR Duplicate 'END-KEY-SELECTOR' argument")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: ZGETRANGE rejects malformed keyword arguments with an ERR reply instead of
+        // silently ignoring them.
+        Object response = runRaw(getChannel(), rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenArgumentCountExceedsMaximum() {
+        // Behavior: More than nine arguments is rejected before the handler runs.
+        Object response = runRaw(getChannel(), List.of(
+                "key-0", "key-5", "LIMIT", "3", "REVERSE",
+                "BEGIN-KEY-SELECTOR", "first_greater_or_equal",
+                "END-KEY-SELECTOR", "first_greater_than", "EXTRA"));
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertTrue(((ErrorRedisMessage) response).content().contains("wrong number of arguments"));
     }
 }

@@ -109,7 +109,7 @@ buf.writeBigInt64LE(5n);
 The ordered key space enables efficient range operations:
 
 - **`ZGETRANGE`**: Read an ordered range of key-value pairs with optional `LIMIT` (default 100), `REVERSE`, and key
-  selector parameters. Both endpoints are inclusive by default.
+  selector keywords. Both endpoints are inclusive by default.
 - **`ZDELRANGE`**: Delete all keys in a half-open interval `[begin, end)`.
 - **`ZGETKEY`**: Resolve the key name that matches a key selector (`first_greater_or_equal`, `first_greater_than`,
   `last_less_than`, `last_less_or_equal`) relative to a reference key. Useful for cursor-like navigation.

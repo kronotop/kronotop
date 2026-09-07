@@ -8,19 +8,22 @@ Retrieves an ordered range of key-value pairs from the ZMap ordered key-value st
 ## Syntax
 
 ```kronotop
-ZGETRANGE <begin> <end> [LIMIT count] [REVERSE] [BEGIN_KEY_SELECTOR selector] [END_KEY_SELECTOR selector]
+ZGETRANGE <begin> <end> [LIMIT count] [REVERSE] [BEGIN-KEY-SELECTOR selector] [END-KEY-SELECTOR selector]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter            | Type    | Required | Description                                                                                   |
+The first two arguments are positional. The rest are keywords. Keyword names are not case sensitive, and each keyword
+can appear at most once.
+
+| Argument             | Type    | Required | Description                                                                                   |
 |----------------------|---------|----------|-----------------------------------------------------------------------------------------------|
 | `begin`              | bytes   | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace). |
 | `end`                | bytes   | Yes      | The end key of the range. Use `*` for unbounded end (to the end of the subspace).             |
-| `LIMIT`              | integer | No       | Maximum number of key-value pairs to return. Default is `100`.                                |
+| `LIMIT count`        | integer | No       | Maximum number of key-value pairs to return. Must be greater than zero. Default is `100`.     |
 | `REVERSE`            | flag    | No       | When present, reverses the scan direction so results are returned in descending key order.    |
-| `BEGIN_KEY_SELECTOR` | string  | No       | Controls how the begin boundary is resolved. Default is `first_greater_or_equal`.             |
-| `END_KEY_SELECTOR`   | string  | No       | Controls how the end boundary is resolved. Default is `first_greater_than`.                   |
+| `BEGIN-KEY-SELECTOR` | string  | No       | Controls how the begin boundary is resolved. Default is `first_greater_or_equal`.             |
+| `END-KEY-SELECTOR`   | string  | No       | Controls how the end boundary is resolved. Default is `first_greater_than`.                   |
 
 ## Key Selectors
 
@@ -28,10 +31,12 @@ Key selectors control exactly which keys are included at the range boundaries.
 
 | Selector                 | Description                                                                                             |
 |--------------------------|---------------------------------------------------------------------------------------------------------|
-| `first_greater_or_equal` | The first key greater than or equal to the specified key. This is the default for `BEGIN_KEY_SELECTOR`. |
-| `first_greater_than`     | The first key strictly greater than the specified key. This is the default for `END_KEY_SELECTOR`.      |
+| `first_greater_or_equal` | The first key greater than or equal to the specified key. This is the default for `BEGIN-KEY-SELECTOR`. |
+| `first_greater_than`     | The first key strictly greater than the specified key. This is the default for `END-KEY-SELECTOR`.      |
 | `last_less_than`         | The last key strictly less than the specified key.                                                      |
 | `last_less_or_equal`     | The last key less than or equal to the specified key.                                                   |
+
+Selector names are not case sensitive.
 
 With the default selectors, the begin key is **inclusive** and the end key is also **inclusive**. This is because
 `first_greater_than` on the end key resolves to the first key *after* the specified end key, and FoundationDB uses a
@@ -48,7 +53,7 @@ bulk strings. Returns an empty array if no keys match the range.
 by FoundationDB.
 
 With the default key selectors, the range is **both endpoints inclusive**: both the begin and end keys are included in
-the results. FoundationDB natively uses half-open intervals; the default `END_KEY_SELECTOR first_greater_than` resolves
+the results. FoundationDB natively uses half-open intervals; the default `END-KEY-SELECTOR first_greater_than` resolves
 the end boundary to the key *after* the specified end key, which makes the specified end key inclusive within that
 half-open interval.
 
@@ -57,11 +62,19 @@ The special value `*` can be used as a wildcard to represent an unbounded bounda
 - `*` as `begin`: starts the range from the very first key in the subspace.
 - `*` as `end`: extends the range to the very last key in the subspace.
 
-The `LIMIT` parameter caps the number of returned pairs. Combined with `REVERSE`, you can retrieve the last N entries in
+The `LIMIT` keyword caps the number of returned pairs. Combined with `REVERSE`, you can retrieve the last N entries in
 a range.
 
-Key selectors allow fine-tuning of the range boundaries. For example, using `BEGIN_KEY_SELECTOR first_greater_than`
+Key selectors allow fine-tuning of the range boundaries. For example, using `BEGIN-KEY-SELECTOR first_greater_than`
 excludes the begin key from the results.
+
+Keyword arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- An unknown keyword is rejected. `LIMI 3` fails, it is not treated as a missing `LIMIT`.
+- A keyword that needs a value must be followed by one. `LIMIT` as the last argument fails.
+- `LIMIT` must be greater than zero. `LIMIT 0` and `LIMIT -1` fail.
+- A key selector must be one of the four names listed above.
+- A keyword can appear only once. `LIMIT 3 LIMIT 5` fails.
 
 The command supports two transaction modes:
 
@@ -76,9 +89,17 @@ All data is scoped to the session's active namespace. The same keys in different
 
 ## Errors
 
-| Error Code | Description                                                                                |
-|------------|--------------------------------------------------------------------------------------------|
-| `ERR`      | Wrong number of arguments, invalid LIMIT value, invalid key selector, or internal failure. |
+All argument errors are returned with the `ERR` prefix.
+
+| Error message                                             | Cause                                                    |
+|-----------------------------------------------------------|----------------------------------------------------------|
+| `wrong number of arguments for 'ZGETRANGE' command`       | Fewer than two or more than nine arguments.              |
+| `Unknown '<keyword>' argument`                            | The keyword is not one of the four listed above.         |
+| `Duplicate '<keyword>' argument`                          | The same keyword was given more than once.               |
+| `LIMIT argument must be followed by a positive integer`   | `LIMIT` has no value, or the value is zero or negative.  |
+| `value is not a int or out of range`                      | The `LIMIT` value is not a number.                       |
+| `<keyword> argument must be followed by a valid key selector` | A key selector keyword has no value.                 |
+| `Unknown key selector: '<value>'`                         | The key selector name is not recognized.                 |
 
 ## Examples
 
