@@ -35,9 +35,6 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
     public static final RangeKeySelector DEFAULT_BEGIN_KEY_SELECTOR = RangeKeySelector.FIRST_GREATER_OR_EQUAL;
     public static final RangeKeySelector DEFAULT_END_KEY_SELECTOR = RangeKeySelector.FIRST_GREATER_THAN;
 
-    private static final String POSITIVE_INTEGER = "a positive integer";
-    private static final String VALID_KEY_SELECTOR = "a valid key selector";
-
     private final Request request;
     private byte[] begin;
     private byte[] end;
@@ -62,22 +59,26 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
             seen = ProtocolMessageUtil.markArgumentSeen(seen, argument, argument.getValue());
             switch (argument) {
                 case LIMIT -> {
-                    ByteBuf value = requireValue(i, ZGetRangeArgumentKey.LIMIT, POSITIVE_INTEGER);
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.POSITIVE_INTEGER);
                     limit = ProtocolMessageUtil.readAsInteger(value);
                     if (limit <= 0) {
-                        throw illegalValue(ZGetRangeArgumentKey.LIMIT, POSITIVE_INTEGER);
+                        throw ProtocolMessageUtil.illegalValue(
+                                argument.getValue(), ProtocolMessageUtil.POSITIVE_INTEGER);
                     }
                     i++;
                 }
                 case REVERSE -> reverse = true;
                 case BEGIN_KEY_SELECTOR -> {
-                    ByteBuf value = requireValue(i, ZGetRangeArgumentKey.BEGIN_KEY_SELECTOR, VALID_KEY_SELECTOR);
-                    beginKeySelector = valueOfRangeKeySelector(ProtocolMessageUtil.readAsString(value));
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
+                    beginKeySelector = RangeKeySelector.getValue(ProtocolMessageUtil.readAsString(value));
                     i++;
                 }
                 case END_KEY_SELECTOR -> {
-                    ByteBuf value = requireValue(i, ZGetRangeArgumentKey.END_KEY_SELECTOR, VALID_KEY_SELECTOR);
-                    endKeySelector = valueOfRangeKeySelector(ProtocolMessageUtil.readAsString(value));
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
+                    endKeySelector = RangeKeySelector.getValue(ProtocolMessageUtil.readAsString(value));
                     i++;
                 }
             }
@@ -116,32 +117,6 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return null;
-    }
-
-    /**
-     * Returns the value that follows a keyword at index {@code i}.
-     *
-     * @throws IllegalCommandArgumentException if the keyword is the last argument
-     */
-    private ByteBuf requireValue(int i, ZGetRangeArgumentKey key, String expected) {
-        if (request.getParams().size() <= i + 1) {
-            throw illegalValue(key, expected);
-        }
-        return request.getParams().get(i + 1);
-    }
-
-    private IllegalCommandArgumentException illegalValue(ZGetRangeArgumentKey key, String expected) {
-        return new IllegalCommandArgumentException(
-                String.format("%s argument must be followed by %s", key.getValue(), expected)
-        );
-    }
-
-    private RangeKeySelector valueOfRangeKeySelector(String value) {
-        try {
-            return RangeKeySelector.valueOf(StringUtil.toUpperCaseAscii(value));
-        } catch (IllegalArgumentException ignored) {
-            throw new IllegalCommandArgumentException(String.format("Unknown key selector: '%s'", value));
-        }
     }
 
     private ZGetRangeArgumentKey valueOfArgument(String raw) {

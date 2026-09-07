@@ -17,9 +17,15 @@
 package com.kronotop.internal;
 
 import com.kronotop.server.IllegalCommandArgumentException;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ProtocolMessageUtilTest {
@@ -59,6 +65,41 @@ class ProtocolMessageUtilTest {
                 () -> ProtocolMessageUtil.markArgumentSeen(seen, Keyword.SELECTOR, "BEGIN-KEY-SELECTOR")
         );
         assertEquals("Duplicate 'BEGIN-KEY-SELECTOR' argument", exception.getMessage());
+    }
+
+    @Test
+    void shouldReturnValueThatFollowsKeyword() {
+        // Behavior: requireValue returns the buffer right after the keyword index.
+        ByteBuf keyword = Unpooled.copiedBuffer("LIMIT", StandardCharsets.US_ASCII);
+        ByteBuf value = Unpooled.copiedBuffer("3", StandardCharsets.US_ASCII);
+        List<ByteBuf> params = List.of(keyword, value);
+
+        ByteBuf actual = ProtocolMessageUtil.requireValue(
+                params, 0, "LIMIT", ProtocolMessageUtil.POSITIVE_INTEGER);
+
+        assertSame(value, actual);
+    }
+
+    @Test
+    void shouldRejectKeywordWithoutValue() {
+        // Behavior: A keyword that is the last argument fails with the expected value in the message.
+        List<ByteBuf> params = List.of(Unpooled.copiedBuffer("LIMIT", StandardCharsets.US_ASCII));
+
+        IllegalCommandArgumentException exception = assertThrows(
+                IllegalCommandArgumentException.class,
+                () -> ProtocolMessageUtil.requireValue(
+                        params, 0, "LIMIT", ProtocolMessageUtil.POSITIVE_INTEGER)
+        );
+        assertEquals("LIMIT argument must be followed by a positive integer", exception.getMessage());
+    }
+
+    @Test
+    void shouldBuildIllegalValueError() {
+        // Behavior: illegalValue formats the keyword and the expected value into one message.
+        IllegalCommandArgumentException exception = ProtocolMessageUtil.illegalValue(
+                "KEY-SELECTOR", ProtocolMessageUtil.VALID_KEY_SELECTOR);
+
+        assertEquals("KEY-SELECTOR argument must be followed by a valid key selector", exception.getMessage());
     }
 
     enum Keyword {

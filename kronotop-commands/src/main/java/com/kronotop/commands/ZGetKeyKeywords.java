@@ -21,12 +21,12 @@ import io.lettuce.core.protocol.ProtocolKeyword;
 import java.nio.charset.StandardCharsets;
 
 public enum ZGetKeyKeywords implements ProtocolKeyword {
-    KEY_SELECTOR;
+    KEY_SELECTOR("KEY-SELECTOR");
 
     public final byte[] bytes;
 
-    ZGetKeyKeywords() {
-        bytes = name().getBytes(StandardCharsets.US_ASCII);
+    ZGetKeyKeywords(String key) {
+        bytes = key.getBytes(StandardCharsets.US_ASCII);
     }
 
     @Override

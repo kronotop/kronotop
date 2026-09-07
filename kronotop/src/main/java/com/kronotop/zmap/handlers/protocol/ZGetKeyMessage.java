@@ -17,8 +17,11 @@
 package com.kronotop.zmap.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
+import io.netty.buffer.ByteBuf;
 
 import java.util.List;
 
@@ -26,7 +29,6 @@ public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZGETKEY";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     public static final int MAXIMUM_PARAMETER_COUNT = 3;
-    public static final String KEY_SELECTOR_KEYWORD = "KEY_SELECTOR";
     public static final RangeKeySelector DEFAULT_KEY_SELECTOR = RangeKeySelector.FIRST_GREATER_OR_EQUAL;
 
     private final Request request;
@@ -39,17 +41,17 @@ public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
     }
 
     private void parse() {
-        key = new byte[request.getParams().getFirst().readableBytes()];
-        request.getParams().getFirst().readBytes(key);
+        key = ProtocolMessageUtil.readAsByteArray(request.getParams().getFirst());
 
-        if (request.getParams().size() > 1) {
-            for (int i = 1; i < request.getParams().size(); i++) {
-                String keyword = ProtocolMessageUtil.readAsString(request.getParams().get(i));
-                if (keyword.equalsIgnoreCase(KEY_SELECTOR_KEYWORD)) {
-                    String enumVal = ProtocolMessageUtil.readAsString(request.getParams().get(i + 1));
-                    keySelector = RangeKeySelector.valueOf(enumVal.toUpperCase());
-                    i++;
-                }
+        for (int i = 1; i < request.getParams().size(); i++) {
+            String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
+            ZGetKeyArgumentKey argument = valueOfArgument(raw);
+
+            if (argument.equals(ZGetKeyArgumentKey.KEY_SELECTOR)) {
+                ByteBuf value = ProtocolMessageUtil.requireValue(
+                        request.getParams(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
+                keySelector = RangeKeySelector.getValue(ProtocolMessageUtil.readAsString(value));
+                i++;
             }
         }
     }
@@ -66,5 +68,29 @@ public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
 
     public RangeKeySelector getKeySelector() {
         return keySelector;
+    }
+
+    private ZGetKeyArgumentKey valueOfArgument(String raw) {
+        String upper = StringUtil.toUpperCaseAscii(raw);
+        for (ZGetKeyArgumentKey key : ZGetKeyArgumentKey.values()) {
+            if (key.getValue().equals(upper)) {
+                return key;
+            }
+        }
+        throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+    }
+
+    enum ZGetKeyArgumentKey {
+        KEY_SELECTOR("KEY-SELECTOR");
+
+        private final String value;
+
+        ZGetKeyArgumentKey(String value) {
+            this.value = value;
+        }
+
+        String getValue() {
+            return value;
+        }
     }
 }

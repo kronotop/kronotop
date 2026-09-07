@@ -17,6 +17,8 @@
 package com.kronotop.zmap.handlers.protocol;
 
 import com.apple.foundationdb.KeySelector;
+import com.kronotop.internal.StringUtil;
+import com.kronotop.server.IllegalCommandArgumentException;
 
 public enum RangeKeySelector {
     FIRST_GREATER_OR_EQUAL,
@@ -24,8 +26,8 @@ public enum RangeKeySelector {
     LAST_LESS_THAN,
     LAST_LESS_OR_EQUAL;
 
-    public static KeySelector getKeySelector(RangeKeySelector rangeKeySelector, byte[] key) {
-        switch (rangeKeySelector) {
+    public static KeySelector getKeySelector(RangeKeySelector selector, byte[] key) {
+        switch (selector) {
             case FIRST_GREATER_OR_EQUAL:
                 // Default.
                 return KeySelector.firstGreaterOrEqual(key);
@@ -36,7 +38,15 @@ public enum RangeKeySelector {
             case LAST_LESS_THAN:
                 return KeySelector.lastLessThan(key);
             default:
-                throw new IllegalArgumentException(String.format("unknown argument: %s", rangeKeySelector));
+                throw new IllegalArgumentException(String.format("Unknown selector: '%s'", selector));
+        }
+    }
+
+    public static RangeKeySelector getValue(String value) {
+        try {
+            return RangeKeySelector.valueOf(StringUtil.toUpperCaseAscii(value));
+        } catch (IllegalArgumentException ignored) {
+            throw new IllegalCommandArgumentException(String.format("Unknown key selector: '%s'", value));
         }
     }
 }

@@ -29,6 +29,7 @@ import com.kronotop.server.IllegalCommandArgumentException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -38,6 +39,16 @@ import java.util.TreeSet;
  * integers, doubles, booleans, and member IDs, from raw byte buffers.
  */
 public class ProtocolMessageUtil {
+
+    /**
+     * Expected value description for keywords that take a count.
+     */
+    public static final String POSITIVE_INTEGER = "a positive integer";
+
+    /**
+     * Expected value description for keywords that take a key selector name.
+     */
+    public static final String VALID_KEY_SELECTOR = "a valid key selector";
 
     public static byte[] readAsByteArray(ByteBuf buf) {
         byte[] raw = new byte[buf.readableBytes()];
@@ -274,6 +285,36 @@ public class ProtocolMessageUtil {
      */
     public static long markArgumentSeen(long seen, Enum<?> key) {
         return markArgumentSeen(seen, key, key.name());
+    }
+
+    /**
+     * Returns the value that follows a keyword at index {@code i}.
+     *
+     * @param params   the command parameters
+     * @param i        the index of the keyword
+     * @param keyword  the keyword as it is written on the wire, used in the error message
+     * @param expected a short description of the accepted value, used in the error message
+     * @return the buffer holding the value
+     * @throws IllegalCommandArgumentException if the keyword is the last argument
+     */
+    public static ByteBuf requireValue(List<ByteBuf> params, int i, String keyword, String expected) {
+        if (params.size() <= i + 1) {
+            throw illegalValue(keyword, expected);
+        }
+        return params.get(i + 1);
+    }
+
+    /**
+     * Builds the error for a keyword that is missing its value or carries an unusable one.
+     *
+     * @param keyword  the keyword as it is written on the wire
+     * @param expected a short description of the accepted value
+     * @return the exception to throw
+     */
+    public static IllegalCommandArgumentException illegalValue(String keyword, String expected) {
+        return new IllegalCommandArgumentException(
+                String.format("%s argument must be followed by %s", keyword, expected)
+        );
     }
 
     /**

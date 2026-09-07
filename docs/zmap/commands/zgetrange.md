@@ -70,7 +70,7 @@ excludes the begin key from the results.
 
 Keyword arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
 
-- An unknown keyword is rejected. `LIMI 3` fails, it is not treated as a missing `LIMIT`.
+- An unknown keyword is rejected.
 - A keyword that needs a value must be followed by one. `LIMIT` as the last argument fails.
 - `LIMIT` must be greater than zero. `LIMIT 0` and `LIMIT -1` fail.
 - A key selector must be one of the four names listed above.
@@ -89,17 +89,15 @@ All data is scoped to the session's active namespace. The same keys in different
 
 ## Errors
 
-All argument errors are returned with the `ERR` prefix.
-
-| Error message                                             | Cause                                                    |
-|-----------------------------------------------------------|----------------------------------------------------------|
-| `wrong number of arguments for 'ZGETRANGE' command`       | Fewer than two or more than nine arguments.              |
-| `Unknown '<keyword>' argument`                            | The keyword is not one of the four listed above.         |
-| `Duplicate '<keyword>' argument`                          | The same keyword was given more than once.               |
-| `LIMIT argument must be followed by a positive integer`   | `LIMIT` has no value, or the value is zero or negative.  |
-| `value is not a int or out of range`                      | The `LIMIT` value is not a number.                       |
-| `<keyword> argument must be followed by a valid key selector` | A key selector keyword has no value.                 |
-| `Unknown key selector: '<value>'`                         | The key selector name is not recognized.                 |
+| Error Code | Error message                                                 | Cause                                                   |
+|------------|---------------------------------------------------------------|---------------------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZGETRANGE' command`           | Fewer than two or more than nine arguments.             |
+| `ERR`      | `Unknown '<keyword>' argument`                                | The keyword is not one of the four listed above.        |
+| `ERR`      | `Duplicate '<keyword>' argument`                              | The same keyword was given more than once.              |
+| `ERR`      | `LIMIT argument must be followed by a positive integer`       | `LIMIT` has no value, or the value is zero or negative. |
+| `ERR`      | `value is not a int or out of range`                          | The `LIMIT` value is not a number.                      |
+| `ERR`      | `<keyword> argument must be followed by a valid key selector` | A key selector keyword has no value.                    |
+| `ERR`      | `Unknown key selector: '<value>'`                             | The key selector name is not recognized.                |
 
 ## Examples
 

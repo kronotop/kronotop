@@ -9,15 +9,17 @@ store.
 ## Syntax
 
 ```kronotop
-ZGETKEY <key> [KEY_SELECTOR selector]
+ZGETKEY <key> [KEY-SELECTOR selector]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter      | Type   | Required | Description                                                      |
+The first argument is positional. `KEY-SELECTOR` is a keyword. Keyword names are not case sensitive.
+
+| Argument       | Type   | Required | Description                                                      |
 |----------------|--------|----------|------------------------------------------------------------------|
 | `key`          | bytes  | Yes      | The reference key for the selector lookup.                       |
-| `KEY_SELECTOR` | string | No       | The key selector strategy. Defaults to `first_greater_or_equal`. |
+| `KEY-SELECTOR` | string | No       | The key selector strategy. Defaults to `first_greater_or_equal`. |
 
 ## Key Selectors
 
@@ -27,6 +29,8 @@ ZGETKEY <key> [KEY_SELECTOR selector]
 | `first_greater_than`     | Returns the first key strictly greater than the reference key.                         |
 | `last_less_than`         | Returns the last key strictly less than the reference key.                             |
 | `last_less_or_equal`     | Returns the last key less than or equal to the reference key.                          |
+
+Selector names are not case-sensitive.
 
 ## Return Value
 
@@ -43,6 +47,12 @@ in order if it does not.
 
 If no key in the keyspace satisfies the selector, the command returns `nil`.
 
+Keyword arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- An unknown keyword is rejected.
+- `KEY-SELECTOR` must be followed by a value. `KEY-SELECTOR` as the last argument fails.
+- The selector must be one of the four names listed above.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the read,
@@ -56,9 +66,12 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Description                                                           |
-|------------|-----------------------------------------------------------------------|
-| `ERR`      | Wrong number of arguments, invalid key selector, or internal failure. |
+| Error Code | Error message                                                    | Cause                                        |
+|------------|------------------------------------------------------------------|----------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZGETKEY' command`                | Fewer than one or more than three arguments. |
+| `ERR`      | `Unknown '<keyword>' argument`                                   | The keyword is not `KEY-SELECTOR`.           |
+| `ERR`      | `KEY-SELECTOR argument must be followed by a valid key selector` | `KEY-SELECTOR` has no value.                 |
+| `ERR`      | `Unknown key selector: '<value>'`                                | The key selector name is not recognized.     |
 
 ## Examples
 
@@ -81,7 +94,7 @@ OK
 > ZSET key-1 "value-1"
 OK
 
-> ZGETKEY key-0 KEY_SELECTOR first_greater_than
+> ZGETKEY key-0 KEY-SELECTOR first_greater_than
 "key-1"
 ```
 
@@ -94,7 +107,7 @@ OK
 > ZSET key-1 "value-1"
 OK
 
-> ZGETKEY key-1 KEY_SELECTOR last_less_than
+> ZGETKEY key-1 KEY-SELECTOR last_less_than
 "key-0"
 ```
 
@@ -110,7 +123,7 @@ OK
 > ZSET key-1 "value-1"
 OK
 
-> ZGETKEY key-0 KEY_SELECTOR first_greater_than
+> ZGETKEY key-0 KEY-SELECTOR first_greater_than
 "key-1"
 
 > COMMIT
