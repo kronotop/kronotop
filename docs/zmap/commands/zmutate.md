@@ -18,11 +18,12 @@ All three arguments are positional.
 | Argument        | Type   | Required | Description                                                                                                                    |
 |-----------------|--------|----------|--------------------------------------------------------------------------------------------------------------------------------|
 | `key`           | bytes  | Yes      | The key to mutate.                                                                                                             |
-| `param`         | bytes  | Yes      | The operand value for the mutation. Interpretation depends on the mutation type (e.g. little-endian 8-byte integer for `ADD`). |
+| `param`         | bytes  | Yes      | The operand value for the mutation. Interpretation depends on the mutation type (e.g. a little-endian integer for `ADD`).      |
 | `mutation_type` | string | Yes      | The mutation operation to apply. Must be one of the types listed below.                                                        |
 
-The `param` operand is raw bytes. For `ADD`, it must be a little-endian signed 64-bit integer (8 bytes). `kronotop-cli`
-accepts `\x` hex escape notation (e.g. `"\x05\x00\x00\x00\x00\x00\x00\x00"` for integer 5).
+The `param` operand is raw bytes. Its length is not checked. For `ADD`, `param` is read as a little-endian integer of
+any length, and the stored value takes that length. See "Value Length Rules" below. For a 64-bit counter, send 8 bytes.
+`kronotop-cli` accepts `\x` hex escape notation (e.g. `"\x05\x00\x00\x00\x00\x00\x00\x00"` for integer 5).
 In client SDKs, construct the operand as a byte array:
 
 Java
