@@ -16,6 +16,7 @@
 
 package com.kronotop.zmap.handlers.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -35,11 +36,8 @@ public class ZDelRangeMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        begin = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(begin);
-
-        end = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(end);
+        begin = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
+        end = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
     }
 
     public byte[] getBegin() {

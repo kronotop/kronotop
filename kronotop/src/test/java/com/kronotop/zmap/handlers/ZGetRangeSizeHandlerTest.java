@@ -17,18 +17,30 @@
 package com.kronotop.zmap.handlers;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.commands.CommandType;
 import com.kronotop.commands.ZGetRangeSizeArgs;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.Response;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.output.StatusOutput;
+import io.lettuce.core.protocol.Command;
+import io.lettuce.core.protocol.CommandArgs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZGetRangeSizeHandlerTest extends BaseHandlerTest {
 
@@ -130,5 +142,47 @@ class ZGetRangeSizeHandlerTest extends BaseHandlerTest {
         Object response = runCommand(channel, buf);
         // FDB returns zero.
         assertInstanceOf(IntegerRedisMessage.class, response);
+    }
+
+    private Object runRaw(EmbeddedChannel channel, List<String> rawArgs) {
+        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII);
+        rawArgs.forEach(args::add);
+        Command<String, String, String> rawCmd =
+                new Command<>(CommandType.ZGETRANGESIZE, new StatusOutput<>(StringCodec.ASCII), args);
+
+        ByteBuf buf = Unpooled.buffer();
+        rawCmd.encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("too few arguments",
+                        List.of("key-0"),
+                        "ERR wrong number of arguments for 'ZGETRANGESIZE' command"),
+                arguments("too many arguments",
+                        List.of("key-0", "key-5", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZGETRANGESIZE' command")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: ZGETRANGESIZE rejects a wrong argument count with an ERR reply.
+        Object response = runRaw(getChannel(), rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldRejectInvertedRange() {
+        // Behavior: A begin key larger than the end key fails with the INVERTED_RANGE error.
+        Object response = runRaw(getChannel(), List.of("key-5", "key-0"));
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals("INVERTED_RANGE Range begin key larger than end key",
+                ((ErrorRedisMessage) response).content());
     }
 }

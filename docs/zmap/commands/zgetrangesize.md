@@ -11,12 +11,14 @@ Returns the estimated byte size of a key range in the ZMap ordered key-value sto
 ZGETRANGESIZE <begin> <end>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type  | Required | Description                                                                                   |
-|-----------|-------|----------|-----------------------------------------------------------------------------------------------|
-| `begin`   | bytes | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace). |
-| `end`     | bytes | Yes      | The end key of the range. Use `*` for unbounded end (to the end of the subspace).             |
+Both arguments are positional.
+
+| Argument | Type  | Required | Description                                                                                   |
+|----------|-------|----------|-----------------------------------------------------------------------------------------------|
+| `begin`  | bytes | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace). |
+| `end`    | bytes | Yes      | The end key of the range. Use `*` for unbounded end (to the end of the subspace).             |
 
 ## Return Value
 
@@ -35,6 +37,11 @@ The special value `*` can be used as a wildcard to represent an unbounded bounda
 - `*` as `begin`: starts the range from the very first key in the subspace.
 - `*` as `end`: extends the range to the very last key in the subspace.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly two arguments.
+- The begin key must not be larger than the end key.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the read,
@@ -48,9 +55,17 @@ All data is scoped to the session's active namespace. The same keys in different
 
 ## Errors
 
-| Error Code | Description                                    |
-|------------|------------------------------------------------|
-| `ERR`      | Wrong number of arguments or internal failure. |
+Argument errors:
+
+| Error Code | Error message                                           | Cause                      |
+|------------|---------------------------------------------------------|----------------------------|
+| `ERR`      | `wrong number of arguments for 'ZGETRANGESIZE' command` | Not exactly two arguments. |
+
+Transaction errors:
+
+| Error Code       | Error message                         | Cause                                     |
+|------------------|---------------------------------------|-------------------------------------------|
+| `INVERTED_RANGE` | `Range begin key larger than end key` | The begin key is larger than the end key. |
 
 ## Examples
 

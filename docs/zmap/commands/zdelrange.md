@@ -11,12 +11,14 @@ Deletes a range of keys from the ZMap ordered key-value store.
 ZDELRANGE <begin> <end>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type  | Required | Description                                                                                   |
-|-----------|-------|----------|-----------------------------------------------------------------------------------------------|
-| `begin`   | bytes | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace). |
-| `end`     | bytes | Yes      | The end key of the range (exclusive). Use `*` for unbounded end (to the end of the subspace). |
+Both arguments are positional.
+
+| Argument | Type  | Required | Description                                                                                   |
+|----------|-------|----------|-----------------------------------------------------------------------------------------------|
+| `begin`  | bytes | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace). |
+| `end`    | bytes | Yes      | The end key of the range (exclusive). Use `*` for unbounded end (to the end of the subspace). |
 
 ## Return Value
 
@@ -43,13 +45,24 @@ The command supports two transaction modes:
 - **Explicit transaction:** When a `BEGIN` has been issued, the range delete is staged in the current transaction and
   only takes effect when `COMMIT` is called.
 
+Inside an explicit transaction a range with the begin key larger than the end key is accepted when the command runs,
+and the error is reported at `COMMIT`.
+
 All data is scoped to the session's active namespace. The same keys in different namespaces refer to different entries.
 
 ## Errors
 
-| Error Code | Description                                    |
-|------------|------------------------------------------------|
-| `ERR`      | Wrong number of arguments or internal failure. |
+Argument errors:
+
+| Error Code | Error message                                       | Cause                      |
+|------------|-----------------------------------------------------|----------------------------|
+| `ERR`      | `wrong number of arguments for 'ZDELRANGE' command` | Not exactly two arguments. |
+
+Transaction errors:
+
+| Error Code       | Error message                         | Cause                                     |
+|------------------|---------------------------------------|-------------------------------------------|
+| `INVERTED_RANGE` | `Range begin key larger than end key` | The begin key is larger than the end key. |
 
 ## Examples
 
