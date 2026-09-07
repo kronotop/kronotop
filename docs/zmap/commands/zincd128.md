@@ -11,12 +11,14 @@ Increments a 128-bit decimal value in the ZMap ordered key-value store.
 ZINC.D128 <key> <value>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type   | Required | Description                                                                                                                                         |
-|-----------|--------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `key`     | bytes  | Yes      | The key to increment.                                                                                                                               |
-| `value`   | string | Yes      | A decimal number to add to the current value. Accepts plain decimals and scientific notation (e.g., `1.5E+10`). Use a negative number to decrement. |
+Both arguments are positional.
+
+| Argument | Type   | Required | Description                                                                                                                                         |
+|----------|--------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`    | bytes  | Yes      | The key to increment.                                                                                                                               |
+| `value`  | string | Yes      | A decimal number to add to the current value. Accepts plain decimals and scientific notation (e.g., `1.5E+10`). Use a negative number to decrement. |
 
 ## Return Value
 
@@ -41,6 +43,11 @@ validation guards protect against invalid states:
 3. **Range check**: the computed result must be representable as a Decimal128; values that exceed the Decimal128 range
    are rejected.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly two arguments.
+- The value must be a decimal number within the Decimal128 range.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the
@@ -54,12 +61,20 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code                                                             | Description                                            |
-|------------------------------------------------------------------------|--------------------------------------------------------|
-| `ERR invalid decimal`                                                  | The provided value is not a valid decimal number.      |
-| `ERR Invalid stored value: expected 16-byte Decimal128 (IEEE-754 BID)` | The existing value at the key is not 16 bytes.         |
-| `ERR Exponent is out of range for Decimal128 encoding ...`             | The result exceeds the Decimal128 representable range. |
-| `ERR`                                                                  | Wrong number of arguments or internal failure.         |
+Argument errors:
+
+| Error Code | Error message                                                 | Cause                                      |
+|------------|---------------------------------------------------------------|--------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZINC.D128' command`           | Not exactly two arguments.                 |
+| `ERR`      | `invalid decimal`                                             | The value is not a decimal number.         |
+| `ERR`      | `Exponent is out of range for Decimal128 encoding of <value>` | The value is outside the Decimal128 range. |
+
+Stored value and result errors:
+
+| Error Code | Error message                                                      | Cause                                     |
+|------------|--------------------------------------------------------------------|-------------------------------------------|
+| `ERR`      | `Invalid stored value: expected 16-byte Decimal128 (IEEE-754 BID)` | The stored value is not exactly 16 bytes. |
+| `ERR`      | `Exponent is out of range for Decimal128 encoding: <exponent>`     | The sum is outside the Decimal128 range.  |
 
 ## Examples
 

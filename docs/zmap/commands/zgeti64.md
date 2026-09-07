@@ -11,11 +11,13 @@ Retrieves the value for a key from the ZMap ordered key-value store as a signed 
 ZGET.I64 <key>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type  | Required | Description         |
-|-----------|-------|----------|---------------------|
-| `key`     | bytes | Yes      | The key to look up. |
+The argument is positional.
+
+| Argument | Type  | Required | Description         |
+|----------|-------|----------|---------------------|
+| `key`    | bytes | Yes      | The key to look up. |
 
 ## Return Value
 
@@ -32,6 +34,10 @@ If the key does not exist, the command returns `nil`.
 If the stored value is not exactly 8 bytes, the command returns an error. This can happen when a key was written with
 `ZSET` using a value that is not a valid 8-byte integer encoding.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly one argument.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the read,
@@ -45,11 +51,17 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-**`ERR`** is returned when:
+Argument errors:
 
-- Wrong number of arguments or internal failure.
-- `Invalid stored value: expected 8-byte two's-complement int64`: The stored value is not exactly 8 bytes and cannot be
-  decoded as a 64-bit integer.
+| Error Code | Error message                                      | Cause                     |
+|------------|----------------------------------------------------|---------------------------|
+| `ERR`      | `wrong number of arguments for 'ZGET.I64' command` | Not exactly one argument. |
+
+Stored value errors:
+
+| Error Code | Error message                                                  | Cause                                    |
+|------------|----------------------------------------------------------------|------------------------------------------|
+| `ERR`      | `Invalid stored value: expected 8-byte two's-complement int64` | The stored value is not exactly 8 bytes. |
 
 ## Examples
 

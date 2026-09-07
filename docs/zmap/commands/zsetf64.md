@@ -11,12 +11,14 @@ Sets a key to a double-precision floating-point value in the ZMap ordered key-va
 ZSET.F64 <key> <value>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type   | Required | Description                               |
-|-----------|--------|----------|-------------------------------------------|
-| `key`     | bytes  | Yes      | The key to set.                           |
-| `value`   | double | Yes      | A finite IEEE-754 double-precision value. |
+Both arguments are positional.
+
+| Argument | Type   | Required | Description                               |
+|----------|--------|----------|-------------------------------------------|
+| `key`    | bytes  | Yes      | The key to set.                           |
+| `value`  | double | Yes      | A finite IEEE-754 double-precision value. |
 
 ## Return Value
 
@@ -32,6 +34,11 @@ If the key already exists, its value is overwritten silently.
 
 The value must be a finite double. NaN and Infinity are rejected. Negative zero (`-0.0`) is normalized to `0.0`.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly two arguments.
+- The value must be a finite double.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the write,
@@ -43,10 +50,11 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-**`ERR`** is returned when:
-
-- `Invalid value: must be a finite IEEE-754 double`: The provided value is NaN or Infinity.
-- Wrong number of arguments, value is not a valid double, or internal failure.
+| Error Code | Error message                                      | Cause                         |
+|------------|----------------------------------------------------|-------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZSET.F64' command` | Not exactly two arguments.    |
+| `ERR`      | `value is not a double or out of range`            | The value is not a number.    |
+| `ERR`      | `Invalid value: must be a finite IEEE-754 double`  | The value is NaN or Infinity. |
 
 ## Examples
 

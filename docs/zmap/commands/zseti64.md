@@ -11,12 +11,14 @@ Sets a key to a signed 64-bit integer value in the ZMap ordered key-value store.
 ZSET.I64 <key> <value>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type    | Required | Description                       |
-|-----------|---------|----------|-----------------------------------|
-| `key`     | bytes   | Yes      | The key to set.                   |
-| `value`   | integer | Yes      | A signed 64-bit integer to store. |
+Both arguments are positional.
+
+| Argument | Type    | Required | Description                       |
+|----------|---------|----------|-----------------------------------|
+| `key`    | bytes   | Yes      | The key to set.                   |
+| `value`  | integer | Yes      | A signed 64-bit integer to store. |
 
 ## Return Value
 
@@ -32,6 +34,11 @@ If the key already exists, its value is overwritten silently.
 
 The full signed 64-bit range is supported: from `-9223372036854775808` to `9223372036854775807`.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly two arguments.
+- The value must be a signed 64-bit integer.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the write,
@@ -43,9 +50,10 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Description                                                                   |
-|------------|-------------------------------------------------------------------------------|
-| `ERR`      | Wrong number of arguments, value is not a valid integer, or internal failure. |
+| Error Code | Error message                                      | Cause                                     |
+|------------|----------------------------------------------------|-------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZSET.I64' command` | Not exactly two arguments.                |
+| `ERR`      | `value is not a long or out of range`              | The value is not a signed 64-bit integer. |
 
 ## Examples
 

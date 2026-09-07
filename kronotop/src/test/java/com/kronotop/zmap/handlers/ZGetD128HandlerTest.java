@@ -17,6 +17,7 @@
 package com.kronotop.zmap.handlers;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.commands.CommandType;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.SnapshotReadArgs;
 import com.kronotop.commands.ZMapCommandBuilder;
@@ -29,11 +30,17 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZGetD128HandlerTest extends BaseHandlerTest {
 
@@ -262,5 +269,26 @@ class ZGetD128HandlerTest extends BaseHandlerTest {
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
             assertEquals("ERR Invalid stored value: expected 16-byte Decimal128 (IEEE-754 BID)", actualMessage.content());
         }
+    }
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("too few arguments",
+                        List.of(),
+                        "ERR wrong number of arguments for 'ZGET.D128' command"),
+                arguments("too many arguments",
+                        List.of("key", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZGET.D128' command")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: ZGET.D128 rejects a wrong argument count with an ERR reply.
+        Object response = runRaw(getChannel(), CommandType.ZGET_D128, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 }

@@ -25,9 +25,6 @@ import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.output.ArrayOutput;
-import io.lettuce.core.protocol.Command;
-import io.lettuce.core.protocol.CommandArgs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -90,17 +87,6 @@ class ZGetKeyHandlerTest extends BaseHandlerTest {
         }
     }
 
-    private Object runRaw(EmbeddedChannel channel, List<String> rawArgs) {
-        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII);
-        rawArgs.forEach(args::add);
-        Command<String, String, List<Object>> rawCmd =
-                new Command<>(CommandType.ZGETKEY, new ArrayOutput<>(StringCodec.ASCII), args);
-
-        ByteBuf buf = Unpooled.buffer();
-        rawCmd.encode(buf);
-        return runCommand(channel, buf);
-    }
-
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("unknown keyword",
@@ -111,7 +97,7 @@ class ZGetKeyHandlerTest extends BaseHandlerTest {
                         "ERR KEY-SELECTOR argument must be followed by a valid key selector"),
                 arguments("invalid key selector",
                         List.of("key-0", "KEY-SELECTOR", "bogus"),
-                        "ERR Unknown key selector: 'bogus'"),
+                        "ERR Unknown range key selector: 'bogus'"),
                 arguments("repeated key selector exceeds the argument limit",
                         List.of("key-0",
                                 "KEY-SELECTOR", "first_greater_than",
@@ -125,7 +111,7 @@ class ZGetKeyHandlerTest extends BaseHandlerTest {
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
         // Behavior: ZGETKEY rejects malformed keyword arguments with an ERR reply instead of
         // failing with an unhandled error.
-        Object response = runRaw(getChannel(), rawArgs);
+        Object response = runRaw(getChannel(), CommandType.ZGETKEY, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());

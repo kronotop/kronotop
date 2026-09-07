@@ -17,6 +17,7 @@
 package com.kronotop.zmap.handlers;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.commands.CommandType;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.Response;
@@ -29,6 +30,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -37,9 +41,11 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZWatchHandlerTest extends BaseHandlerTest {
 
@@ -257,5 +263,26 @@ class ZWatchHandlerTest extends BaseHandlerTest {
             return waiter.readOutbound();
         }, Objects::nonNull);
         assertInstanceOf(ErrorRedisMessage.class, response);
+    }
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("too few arguments",
+                        List.of(),
+                        "ERR wrong number of arguments for 'ZWATCH' command"),
+                arguments("too many arguments",
+                        List.of("key", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZWATCH' command")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: ZWATCH rejects a wrong argument count with an ERR reply.
+        Object response = runRaw(getChannel(), CommandType.ZWATCH, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 }

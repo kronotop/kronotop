@@ -11,12 +11,14 @@ Increments a 64-bit floating-point value in the ZMap ordered key-value store.
 ZINC.F64 <key> <value>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type   | Required | Description                                                                               |
-|-----------|--------|----------|-------------------------------------------------------------------------------------------|
-| `key`     | bytes  | Yes      | The key to increment.                                                                     |
-| `value`   | double | Yes      | A finite IEEE-754 double to add to the current value. Use a negative number to decrement. |
+Both arguments are positional.
+
+| Argument | Type   | Required | Description                                                                               |
+|----------|--------|----------|-------------------------------------------------------------------------------------------|
+| `key`    | bytes  | Yes      | The key to increment.                                                                     |
+| `value`  | double | Yes      | A finite IEEE-754 double to add to the current value. Use a negative number to decrement. |
 
 ## Return Value
 
@@ -39,6 +41,11 @@ The value is encoded as an 8-byte little-endian IEEE-754 double. Three validatio
 
 The command normalizes negative zero: if the result is `-0.0`, it is stored as `0.0`.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly two arguments.
+- The value must be a finite double.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the
@@ -52,12 +59,20 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-**`ERR`** is returned when:
+Argument errors:
 
-- `Invalid delta: value must be a finite IEEE-754 double`: The provided value is NaN or Infinity.
-- `Invalid stored value: expected 8-byte IEEE-754 double`: The existing value at the key is not 8 bytes.
-- `Resulting value is not a finite IEEE-754 double (overflow or invalid operation)`: The sum overflows to Infinity.
-- Wrong number of arguments, value is not a valid double, or internal failure.
+| Error Code | Error message                                           | Cause                         |
+|------------|---------------------------------------------------------|-------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZINC.F64' command`      | Not exactly two arguments.    |
+| `ERR`      | `value is not a double or out of range`                 | The value is not a number.    |
+| `ERR`      | `Invalid delta: value must be a finite IEEE-754 double` | The value is NaN or Infinity. |
+
+Stored value and result errors:
+
+| Error Code | Error message                                                                     | Cause                                    |
+|------------|-----------------------------------------------------------------------------------|------------------------------------------|
+| `ERR`      | `Invalid stored value: expected 8-byte IEEE-754 double`                           | The stored value is not exactly 8 bytes. |
+| `ERR`      | `Resulting value is not a finite IEEE-754 double (overflow or invalid operation)` | The sum overflows to Infinity.           |
 
 ## Examples
 

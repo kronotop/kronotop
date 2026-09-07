@@ -11,11 +11,13 @@ Retrieves the value for a key from the ZMap ordered key-value store.
 ZGET <key>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type  | Required | Description         |
-|-----------|-------|----------|---------------------|
-| `key`     | bytes | Yes      | The key to look up. |
+The argument is positional.
+
+| Argument | Type  | Required | Description         |
+|----------|-------|----------|---------------------|
+| `key`    | bytes | Yes      | The key to look up. |
 
 ## Return Value
 
@@ -27,6 +29,10 @@ Bulk string: the value associated with the key, or `nil` if the key does not exi
 FoundationDB.
 
 If the key does not exist, the command returns `nil`.
+
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly one argument.
 
 The command supports two transaction modes:
 
@@ -41,9 +47,9 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Description                                    |
-|------------|------------------------------------------------|
-| `ERR`      | Wrong number of arguments or internal failure. |
+| Error Code | Error message                                  | Cause                     |
+|------------|------------------------------------------------|---------------------------|
+| `ERR`      | `wrong number of arguments for 'ZGET' command` | Not exactly one argument. |
 
 ## Examples
 

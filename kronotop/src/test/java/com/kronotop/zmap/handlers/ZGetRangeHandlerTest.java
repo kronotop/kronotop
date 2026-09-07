@@ -27,9 +27,6 @@ import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.output.ArrayOutput;
-import io.lettuce.core.protocol.Command;
-import io.lettuce.core.protocol.CommandArgs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -341,17 +338,6 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
         assertEquals(-1, i);
     }
 
-    private Object runRaw(EmbeddedChannel channel, List<String> rawArgs) {
-        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII);
-        rawArgs.forEach(args::add);
-        Command<String, String, List<Object>> rawCmd =
-                new Command<>(CommandType.ZGETRANGE, new ArrayOutput<>(StringCodec.ASCII), args);
-
-        ByteBuf buf = Unpooled.buffer();
-        rawCmd.encode(buf);
-        return runCommand(channel, buf);
-    }
-
     static Stream<Arguments> invalidArguments() {
         String limitValue = "ERR LIMIT argument must be followed by a positive integer";
         return Stream.of(
@@ -381,7 +367,7 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
                         "ERR END-KEY-SELECTOR argument must be followed by a valid key selector"),
                 arguments("invalid key selector",
                         List.of("key-0", "key-5", "BEGIN-KEY-SELECTOR", "bogus"),
-                        "ERR Unknown key selector: 'bogus'"),
+                        "ERR Unknown range key selector: 'bogus'"),
                 arguments("duplicate limit",
                         List.of("key-0", "key-5", "LIMIT", "3", "LIMIT", "5"),
                         "ERR Duplicate 'LIMIT' argument"),
@@ -406,7 +392,7 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
         // Behavior: ZGETRANGE rejects malformed keyword arguments with an ERR reply instead of
         // silently ignoring them.
-        Object response = runRaw(getChannel(), rawArgs);
+        Object response = runRaw(getChannel(), CommandType.ZGETRANGE, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
@@ -415,12 +401,21 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
     @Test
     void shouldReturnErrorWhenArgumentCountExceedsMaximum() {
         // Behavior: More than nine arguments is rejected before the handler runs.
-        Object response = runRaw(getChannel(), List.of(
+        Object response = runRaw(getChannel(), CommandType.ZGETRANGE, List.of(
                 "key-0", "key-5", "LIMIT", "3", "REVERSE",
                 "BEGIN-KEY-SELECTOR", "first_greater_or_equal",
                 "END-KEY-SELECTOR", "first_greater_than", "EXTRA"));
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertTrue(((ErrorRedisMessage) response).content().contains("wrong number of arguments"));
+    }
+
+    @Test
+    void shouldReturnEmptyArrayForInvertedRange() {
+        // Behavior: A begin key larger than the end key is not an error. The command returns an empty array.
+        Object response = runRaw(getChannel(), CommandType.ZGETRANGE, List.of("key-5", "key-0"));
+
+        assertInstanceOf(ArrayRedisMessage.class, response);
+        assertEquals(0, ((ArrayRedisMessage) response).children().size());
     }
 }

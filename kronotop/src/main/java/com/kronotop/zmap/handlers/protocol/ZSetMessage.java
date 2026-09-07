@@ -16,6 +16,7 @@
 
 package com.kronotop.zmap.handlers.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -35,11 +36,8 @@ public class ZSetMessage implements ProtocolMessage<byte[]> {
     }
 
     private void parse() {
-        key = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(key);
-
-        value = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(value);
+        key = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
+        value = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
     }
 
     @Override

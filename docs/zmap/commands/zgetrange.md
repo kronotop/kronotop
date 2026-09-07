@@ -68,6 +68,8 @@ a range.
 Key selectors allow fine-tuning of the range boundaries. For example, using `BEGIN-KEY-SELECTOR first_greater_than`
 excludes the begin key from the results.
 
+A begin key larger than the end key is not an error. The command returns an empty array.
+
 Keyword arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
 
 - An unknown keyword is rejected.
@@ -97,7 +99,7 @@ All data is scoped to the session's active namespace. The same keys in different
 | `ERR`      | `LIMIT argument must be followed by a positive integer`       | `LIMIT` has no value, or the value is zero or negative. |
 | `ERR`      | `value is not a int or out of range`                          | The `LIMIT` value is not a number.                      |
 | `ERR`      | `<keyword> argument must be followed by a valid key selector` | A key selector keyword has no value.                    |
-| `ERR`      | `Unknown key selector: '<value>'`                             | The key selector name is not recognized.                |
+| `ERR`      | `Unknown range key selector: '<value>'`                       | The key selector name is not recognized.                |
 
 ## Examples
 

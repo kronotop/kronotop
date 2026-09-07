@@ -11,12 +11,14 @@ Sets a key-value pair in the ZMap ordered key-value store.
 ZSET <key> <value>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type  | Required | Description                          |
-|-----------|-------|----------|--------------------------------------|
-| `key`     | bytes | Yes      | The key to set.                      |
-| `value`   | bytes | Yes      | The value to associate with the key. |
+Both arguments are positional.
+
+| Argument | Type  | Required | Description                          |
+|----------|-------|----------|--------------------------------------|
+| `key`    | bytes | Yes      | The key to set.                      |
+| `value`  | bytes | Yes      | The value to associate with the key. |
 
 ## Return Value
 
@@ -29,6 +31,10 @@ are stored in lexicographic order.
 
 If the key already exists, its value is overwritten silently. There is no duplicate-key error.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly two arguments.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the write,
@@ -40,9 +46,9 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Description                                    |
-|------------|------------------------------------------------|
-| `ERR`      | Wrong number of arguments or internal failure. |
+| Error Code | Error message                                  | Cause                      |
+|------------|------------------------------------------------|----------------------------|
+| `ERR`      | `wrong number of arguments for 'ZSET' command` | Not exactly two arguments. |
 
 ## Examples
 

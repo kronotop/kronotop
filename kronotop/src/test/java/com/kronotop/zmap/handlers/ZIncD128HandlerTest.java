@@ -17,6 +17,7 @@
 package com.kronotop.zmap.handlers;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.commands.CommandType;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.Response;
@@ -28,6 +29,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -35,9 +39,11 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZIncD128HandlerTest extends BaseHandlerTest {
 
@@ -402,6 +408,48 @@ class ZIncD128HandlerTest extends BaseHandlerTest {
             assertInstanceOf(FullBulkStringRedisMessage.class, response);
             FullBulkStringRedisMessage actualMessage = (FullBulkStringRedisMessage) response;
             assertEquals(expectedTotal, actualMessage.content().toString(StandardCharsets.UTF_8));
+        }
+    }
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("too few arguments",
+                        List.of("key"),
+                        "ERR wrong number of arguments for 'ZINC.D128' command"),
+                arguments("too many arguments",
+                        List.of("key", "value", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZINC.D128' command")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: ZINC.D128 rejects a wrong argument count with an ERR reply.
+        Object response = runRaw(getChannel(), CommandType.ZINC_D128, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldRejectResultOutsideDecimal128Range() {
+        // Behavior: Two values that each fit in Decimal128 but whose sum does not fail with an ERR reply.
+        EmbeddedChannel channel = getChannel();
+
+        // ZSET.D128 key 9E+6144
+        {
+            Object response = runRaw(channel, CommandType.ZSET_D128, List.of("key", "9E+6144"));
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+
+        // ZINC.D128 key 9E+6144
+        {
+            Object response = runRaw(channel, CommandType.ZINC_D128, List.of("key", "9E+6144"));
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            assertEquals("ERR Exponent is out of range for Decimal128 encoding: 6112",
+                    ((ErrorRedisMessage) response).content());
         }
     }
 }

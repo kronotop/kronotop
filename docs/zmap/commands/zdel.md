@@ -11,11 +11,13 @@ Deletes a key from the ZMap ordered key-value store.
 ZDEL <key>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type  | Required | Description        |
-|-----------|-------|----------|--------------------|
-| `key`     | bytes | Yes      | The key to delete. |
+The argument is positional.
+
+| Argument | Type  | Required | Description        |
+|----------|-------|----------|--------------------|
+| `key`    | bytes | Yes      | The key to delete. |
 
 ## Return Value
 
@@ -28,6 +30,10 @@ FoundationDB.
 
 The operation is idempotent: deleting a non-existent key returns `OK` without raising an error.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly one argument.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the
@@ -39,9 +45,9 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Description                                    |
-|------------|------------------------------------------------|
-| `ERR`      | Wrong number of arguments or internal failure. |
+| Error Code | Error message                                  | Cause                     |
+|------------|------------------------------------------------|---------------------------|
+| `ERR`      | `wrong number of arguments for 'ZDEL' command` | Not exactly one argument. |
 
 ## Examples
 

@@ -11,12 +11,14 @@ Sets a key to a 128-bit decimal value in the ZMap ordered key-value store.
 ZSET.D128 <key> <value>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type   | Required | Description                                                                                     |
-|-----------|--------|----------|-------------------------------------------------------------------------------------------------|
-| `key`     | bytes  | Yes      | The key to set.                                                                                 |
-| `value`   | string | Yes      | A decimal number as a string. Accepts plain decimals and scientific notation (e.g., `1.5E+10`). |
+Both arguments are positional.
+
+| Argument | Type   | Required | Description                                                                                     |
+|----------|--------|----------|-------------------------------------------------------------------------------------------------|
+| `key`    | bytes  | Yes      | The key to set.                                                                                 |
+| `value`  | string | Yes      | A decimal number as a string. Accepts plain decimals and scientific notation (e.g., `1.5E+10`). |
 
 ## Return Value
 
@@ -33,6 +35,11 @@ cases where exact decimal representation matters.
 
 If the key already exists, its value is overwritten silently.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly two arguments.
+- The value must be a decimal number within the Decimal128 range.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the write,
@@ -44,11 +51,11 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-**`ERR`** is returned when:
-
-- Invalid decimal: the value is not a parseable decimal string.
-- `Exponent is out of range for Decimal128 encoding ...`: The value exceeds the Decimal128 representable range.
-- Wrong number of arguments or internal failure.
+| Error Code | Error message                                                 | Cause                                      |
+|------------|---------------------------------------------------------------|--------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZSET.D128' command`           | Not exactly two arguments.                 |
+| `ERR`      | `invalid decimal`                                             | The value is not a decimal number.         |
+| `ERR`      | `Exponent is out of range for Decimal128 encoding of <value>` | The value is outside the Decimal128 range. |
 
 ## Examples
 

@@ -11,11 +11,13 @@ Blocks the connection until the value at a key changes, then wakes the caller.
 ZWATCH <key>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type  | Required | Description        |
-|-----------|-------|----------|--------------------|
-| `key`     | bytes | Yes      | The key to watch.  |
+The argument is positional.
+
+| Argument | Type  | Required | Description       |
+|----------|-------|----------|-------------------|
+| `key`    | bytes | Yes      | The key to watch. |
 
 ## Return Value
 
@@ -45,6 +47,10 @@ so two sessions in different namespaces that watch the same key name watch diffe
 `ZWATCH` is an edge-triggered wakeup, not a change feed. It reports that the value differs from when the watch was registered,
 not the sequence of changes that produced the difference. The usual pattern is a loop: issue `ZWATCH`, and on each signal
 read the value with `ZGET` and re-issue `ZWATCH`.
+
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly one argument.
 
 ## Guarantees
 
@@ -91,10 +97,10 @@ are unaffected.
 
 ## Errors
 
-| Error Code | Description                                                              |
-|------------|--------------------------------------------------------------------------|
-| `ERR`      | Wrong number of arguments, watch failure, or internal failure.           |
-| `ERR`      | `ZWATCH is not allowed within a transaction` when issued inside `BEGIN`. |
+| Error Code | Error message                                    | Cause                                  |
+|------------|--------------------------------------------------|----------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZWATCH' command` | Not exactly one argument.              |
+| `ERR`      | `ZWATCH is not allowed within a transaction`     | The command was issued inside `BEGIN`. |
 
 ## Examples
 

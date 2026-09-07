@@ -13,11 +13,13 @@ decimal string.
 ZGET.D128 <key>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type  | Required | Description         |
-|-----------|-------|----------|---------------------|
-| `key`     | bytes | Yes      | The key to look up. |
+The argument is positional.
+
+| Argument | Type  | Required | Description         |
+|----------|-------|----------|---------------------|
+| `key`    | bytes | Yes      | The key to look up. |
 
 ## Return Value
 
@@ -39,6 +41,10 @@ cases where exact decimal representation matters.
 * If the stored Decimal128 value is not representable as a BigDecimal (e.g., NaN or Infinity), the command returns an
   error.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly one argument.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the read,
@@ -52,13 +58,18 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-**`ERR`** is returned when:
+Argument errors:
 
-- Wrong number of arguments or internal failure.
-- `Invalid stored value: expected 16-byte Decimal128 (IEEE-754 BID)`: The stored value is not exactly 16 bytes and
-  cannot be decoded as a Decimal128.
-- `Invalid stored value: Decimal128 is not representable as BigDecimal`: The stored value is a valid Decimal128 but
-  cannot be converted to a BigDecimal (e.g., NaN or Infinity).
+| Error Code | Error message                                       | Cause                     |
+|------------|-----------------------------------------------------|---------------------------|
+| `ERR`      | `wrong number of arguments for 'ZGET.D128' command` | Not exactly one argument. |
+
+Stored value errors:
+
+| Error Code | Error message                                                         | Cause                                     |
+|------------|-----------------------------------------------------------------------|-------------------------------------------|
+| `ERR`      | `Invalid stored value: expected 16-byte Decimal128 (IEEE-754 BID)`    | The stored value is not exactly 16 bytes. |
+| `ERR`      | `Invalid stored value: Decimal128 is not representable as BigDecimal` | The stored value is NaN or Infinity.      |
 
 ## Examples
 

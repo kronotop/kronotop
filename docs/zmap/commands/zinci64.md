@@ -11,12 +11,14 @@ Atomically increments a 64-bit integer value in the ZMap ordered key-value store
 ZINC.I64 <key> <value>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type    | Required | Description                                                                              |
-|-----------|---------|----------|------------------------------------------------------------------------------------------|
-| `key`     | bytes   | Yes      | The key to increment.                                                                    |
-| `value`   | integer | Yes      | A signed 64-bit integer to add to the current value. Use a negative number to decrement. |
+Both arguments are positional.
+
+| Argument | Type    | Required | Description                                                                              |
+|----------|---------|----------|------------------------------------------------------------------------------------------|
+| `key`    | bytes   | Yes      | The key to increment.                                                                    |
+| `value`  | integer | Yes      | A signed 64-bit integer to add to the current value. Use a negative number to decrement. |
 
 ## Return Value
 
@@ -36,6 +38,11 @@ If the key does not exist, it is created with an implicit starting value of zero
 The value is encoded as an 8-byte little-endian signed integer. Overflow follows two's complement arithmetic:
 incrementing `Long.MAX_VALUE` by 1 wraps to `Long.MIN_VALUE`.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly two arguments.
+- The value must be a signed 64-bit integer.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the
@@ -49,9 +56,10 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Description                                                                   |
-|------------|-------------------------------------------------------------------------------|
-| `ERR`      | Wrong number of arguments, value is not a valid integer, or internal failure. |
+| Error Code | Error message                                      | Cause                                     |
+|------------|----------------------------------------------------|-------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZINC.I64' command` | Not exactly two arguments.                |
+| `ERR`      | `value is not a long or out of range`              | The value is not a signed 64-bit integer. |
 
 ## Examples
 

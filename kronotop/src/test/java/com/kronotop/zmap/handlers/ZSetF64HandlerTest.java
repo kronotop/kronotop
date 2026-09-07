@@ -17,6 +17,7 @@
 package com.kronotop.zmap.handlers;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.commands.CommandType;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.RESPVersion;
@@ -30,11 +31,17 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.net.UnknownHostException;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZSetF64HandlerTest extends BaseHandlerTest {
 
@@ -211,5 +218,29 @@ class ZSetF64HandlerTest extends BaseHandlerTest {
         cmd.zsetf64("key", Double.POSITIVE_INFINITY).encode(buf);
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
+    }
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("too few arguments",
+                        List.of("key"),
+                        "ERR wrong number of arguments for 'ZSET.F64' command"),
+                arguments("too many arguments",
+                        List.of("key", "value", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZSET.F64' command"),
+                arguments("value is not a number",
+                        List.of("key", "abc"),
+                        "ERR value is not a double or out of range")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: ZSET.F64 rejects a wrong argument count or a value that is not a number with an ERR reply.
+        Object response = runRaw(getChannel(), CommandType.ZSET_F64, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 }

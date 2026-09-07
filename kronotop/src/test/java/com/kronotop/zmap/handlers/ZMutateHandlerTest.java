@@ -27,9 +27,7 @@ import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.output.StatusOutput;
 import io.lettuce.core.protocol.Command;
-import io.lettuce.core.protocol.CommandArgs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -527,17 +525,6 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         runTransactionCommand(channel, kronotopCmd.rollback());
     }
 
-    private Object runRaw(EmbeddedChannel channel, List<String> rawArgs) {
-        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII);
-        rawArgs.forEach(args::add);
-        Command<String, String, String> rawCmd =
-                new Command<>(CommandType.ZMUTATE, new StatusOutput<>(StringCodec.ASCII), args);
-
-        ByteBuf buf = Unpooled.buffer();
-        rawCmd.encode(buf);
-        return runCommand(channel, buf);
-    }
-
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("unknown mutation type",
@@ -560,7 +547,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
         // Behavior: ZMUTATE rejects malformed arguments with an ERR reply that carries no
         // internal type name.
-        Object response = runRaw(getChannel(), rawArgs);
+        Object response = runRaw(getChannel(), CommandType.ZMUTATE, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
@@ -569,7 +556,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
     @Test
     void shouldAcceptLowercaseMutationType() {
         // Behavior: Mutation type names are not case-sensitive.
-        Object response = runRaw(getChannel(), List.of("lower-key", "some-value", "byte_max"));
+        Object response = runRaw(getChannel(), CommandType.ZMUTATE, List.of("lower-key", "some-value", "byte_max"));
 
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
