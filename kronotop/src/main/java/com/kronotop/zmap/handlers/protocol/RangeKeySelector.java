@@ -27,26 +27,21 @@ public enum RangeKeySelector {
     LAST_LESS_OR_EQUAL;
 
     public static KeySelector getKeySelector(RangeKeySelector selector, byte[] key) {
-        switch (selector) {
-            case FIRST_GREATER_OR_EQUAL:
+        return switch (selector) {
+            case FIRST_GREATER_OR_EQUAL ->
                 // Default.
-                return KeySelector.firstGreaterOrEqual(key);
-            case FIRST_GREATER_THAN:
-                return KeySelector.firstGreaterThan(key);
-            case LAST_LESS_OR_EQUAL:
-                return KeySelector.lastLessOrEqual(key);
-            case LAST_LESS_THAN:
-                return KeySelector.lastLessThan(key);
-            default:
-                throw new IllegalArgumentException(String.format("Unknown selector: '%s'", selector));
-        }
+                    KeySelector.firstGreaterOrEqual(key);
+            case FIRST_GREATER_THAN -> KeySelector.firstGreaterThan(key);
+            case LAST_LESS_OR_EQUAL -> KeySelector.lastLessOrEqual(key);
+            case LAST_LESS_THAN -> KeySelector.lastLessThan(key);
+        };
     }
 
     public static RangeKeySelector getValue(String value) {
         try {
             return RangeKeySelector.valueOf(StringUtil.toUpperCaseAscii(value));
         } catch (IllegalArgumentException ignored) {
-            throw new IllegalCommandArgumentException(String.format("Unknown key selector: '%s'", value));
+            throw new IllegalCommandArgumentException(String.format("Unknown range key selector: '%s'", value));
         }
     }
 }

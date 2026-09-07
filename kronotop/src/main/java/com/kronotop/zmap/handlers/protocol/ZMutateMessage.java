@@ -17,12 +17,11 @@
 package com.kronotop.zmap.handlers.protocol;
 
 import com.apple.foundationdb.MutationType;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
-import io.netty.buffer.ByteBuf;
 
 import java.util.List;
-import java.util.Locale;
 
 public class ZMutateMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZMUTATE";
@@ -39,17 +38,11 @@ public class ZMutateMessage implements ProtocolMessage<byte[]> {
     }
 
     private void parse() {
-        key = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(key);
+        key = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
+        param = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
 
-        param = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(param);
-
-        ByteBuf buf = request.getParams().get(2);
-        byte[] rawItem = new byte[buf.readableBytes()];
-        buf.readBytes(rawItem);
-        String mt = new String(rawItem);
-        mutationType = ZMutationType.getMutationType(ZMutationType.valueOf(mt.toUpperCase(Locale.ROOT)));
+        String raw = ProtocolMessageUtil.readAsString(request.getParams().get(2));
+        mutationType = ZMutationType.getMutationType(ZMutationType.getValue(raw));
     }
 
     public byte[] getKey() {

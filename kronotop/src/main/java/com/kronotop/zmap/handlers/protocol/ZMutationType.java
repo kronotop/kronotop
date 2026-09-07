@@ -17,6 +17,8 @@
 package com.kronotop.zmap.handlers.protocol;
 
 import com.apple.foundationdb.MutationType;
+import com.kronotop.internal.StringUtil;
+import com.kronotop.server.IllegalCommandArgumentException;
 
 public enum ZMutationType {
     ADD,
@@ -31,33 +33,34 @@ public enum ZMutationType {
     BYTE_MAX,
     COMPARE_AND_CLEAR;
 
-    public static MutationType getMutationType(ZMutationType type) {
-        switch (type) {
-            case ADD:
-                return MutationType.ADD;
-            case BIT_AND:
-                return MutationType.BIT_AND;
-            case BIT_OR:
-                return MutationType.BIT_OR;
-            case BIT_XOR:
-                return MutationType.BIT_XOR;
-            case APPEND_IF_FITS:
-                return MutationType.APPEND_IF_FITS;
-            case MAX:
-                return MutationType.MAX;
-            case MIN:
-                return MutationType.MIN;
-            case SET_VERSIONSTAMPED_VALUE:
-                return MutationType.SET_VERSIONSTAMPED_VALUE;
-            case BYTE_MIN:
-                return MutationType.BYTE_MIN;
-            case BYTE_MAX:
-                return MutationType.BYTE_MAX;
-            case COMPARE_AND_CLEAR:
-                return MutationType.COMPARE_AND_CLEAR;
-            default:
-                throw new IllegalArgumentException(String.format("invalid ZMutationType: '%s'", type));
+    /**
+     * Parses a mutation type name. The name is not case sensitive.
+     *
+     * @param value the mutation type name as it is written on the wire
+     * @return the matching mutation type
+     * @throws IllegalCommandArgumentException if the name is not a known mutation type
+     */
+    public static ZMutationType getValue(String value) {
+        try {
+            return ZMutationType.valueOf(StringUtil.toUpperCaseAscii(value));
+        } catch (IllegalArgumentException ignored) {
+            throw new IllegalCommandArgumentException(String.format("Unknown mutation type: '%s'", value));
         }
     }
 
+    public static MutationType getMutationType(ZMutationType type) {
+        return switch (type) {
+            case ADD -> MutationType.ADD;
+            case BIT_AND -> MutationType.BIT_AND;
+            case BIT_OR -> MutationType.BIT_OR;
+            case BIT_XOR -> MutationType.BIT_XOR;
+            case APPEND_IF_FITS -> MutationType.APPEND_IF_FITS;
+            case MAX -> MutationType.MAX;
+            case MIN -> MutationType.MIN;
+            case SET_VERSIONSTAMPED_VALUE -> MutationType.SET_VERSIONSTAMPED_VALUE;
+            case BYTE_MIN -> MutationType.BYTE_MIN;
+            case BYTE_MAX -> MutationType.BYTE_MAX;
+            case COMPARE_AND_CLEAR -> MutationType.COMPARE_AND_CLEAR;
+        };
+    }
 }

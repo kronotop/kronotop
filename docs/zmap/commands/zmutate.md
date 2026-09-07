@@ -11,13 +11,15 @@ Performs an atomic mutation on a key's value in the ZMap ordered key-value store
 ZMUTATE <key> <param> <mutation_type>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter       | Type   | Required | Description                                                                                                                    |
+All three arguments are positional.
+
+| Argument        | Type   | Required | Description                                                                                                                    |
 |-----------------|--------|----------|--------------------------------------------------------------------------------------------------------------------------------|
 | `key`           | bytes  | Yes      | The key to mutate.                                                                                                             |
 | `param`         | bytes  | Yes      | The operand value for the mutation. Interpretation depends on the mutation type (e.g. little-endian 8-byte integer for `ADD`). |
-| `mutation_type` | string | Yes      | The mutation operation to apply. Case-insensitive. Must be one of the types listed below.                                      |
+| `mutation_type` | string | Yes      | The mutation operation to apply. Must be one of the types listed below.                                                        |
 
 The `param` operand is raw bytes. For `ADD`, it must be a little-endian signed 64-bit integer (8 bytes). `kronotop-cli`
 accepts `\x` hex escape notation (e.g. `"\x05\x00\x00\x00\x00\x00\x00\x00"` for integer 5).
@@ -57,6 +59,8 @@ buf.writeBigInt64LE(5n);
 | `BYTE_MIN`                 | Stores the smaller of the two byte strings. Bytes are compared from left to right.                                                                       |
 | `COMPARE_AND_CLEAR`        | Deletes the key if its current value is equal to `param`. Writes nothing.                                                                                |
 | `SET_VERSIONSTAMPED_VALUE` | Writes `param` with a commit versionstamp inside it. `param` needs a special layout, see below.                                                          |
+
+Mutation type names are not case sensitive.
 
 `MAX` and `MIN` compare numbers. `BYTE_MAX` and `BYTE_MIN` compare byte strings. For the same input they can return
 different results.
@@ -138,6 +142,11 @@ FoundationDB. The mutation executes without reading the current value first, mak
 mutations on the same key do not cause transaction conflicts. This makes `ZMUTATE` ideal for counters, flags, and
 lock-free data structures.
 
+Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
+
+- The command takes exactly three arguments.
+- The mutation type must be one of the types listed above.
+
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the
@@ -151,9 +160,17 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
+Argument errors:
+
+| Error Code | Error message                                     | Cause                                |
+|------------|---------------------------------------------------|--------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZMUTATE' command` | Not exactly three arguments.         |
+| `ERR`      | `Unknown mutation type: '<value>'`                | The mutation type is not recognized. |
+
+Transaction errors:
+
 | Error Code                 | Description                                                                                                                |
 |----------------------------|----------------------------------------------------------------------------------------------------------------------------|
-| `ERR`                      | Wrong number of arguments, invalid mutation type, or internal failure.                                                     |
 | `CLIENT_INVALID_OPERATION` | `SET_VERSIONSTAMPED_VALUE` got a `param` shorter than 14 bytes, or an offset that puts the 10 reserved bytes out of range. |
 | `ACCESSED_UNREADABLE`      | A key written by `SET_VERSIONSTAMPED_VALUE` was read in the same transaction, before `COMMIT`.                             |
 

@@ -34,13 +34,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZMutateHandlerTest extends BaseHandlerTest {
 
@@ -521,21 +527,51 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         runTransactionCommand(channel, kronotopCmd.rollback());
     }
 
-    @Test
-    void shouldReturnErrorForInvalidMutationType() {
-        // Behavior: An invalid mutation type string causes an error response.
-        EmbeddedChannel channel = getChannel();
-
-        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII)
-                .addKey("some-key")
-                .addValue("some-value")
-                .add("INVALID_TYPE");
-        Command<String, String, String> rawCmd = new Command<>(CommandType.ZMUTATE, new StatusOutput<>(StringCodec.ASCII), args);
+    private Object runRaw(EmbeddedChannel channel, List<String> rawArgs) {
+        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII);
+        rawArgs.forEach(args::add);
+        Command<String, String, String> rawCmd =
+                new Command<>(CommandType.ZMUTATE, new StatusOutput<>(StringCodec.ASCII), args);
 
         ByteBuf buf = Unpooled.buffer();
         rawCmd.encode(buf);
+        return runCommand(channel, buf);
+    }
 
-        Object response = runCommand(channel, buf);
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("unknown mutation type",
+                        List.of("some-key", "some-value", "INVALID_TYPE"),
+                        "ERR Unknown mutation type: 'INVALID_TYPE'"),
+                arguments("empty mutation type",
+                        List.of("some-key", "some-value", ""),
+                        "ERR Unknown mutation type: ''"),
+                arguments("too few arguments",
+                        List.of("some-key", "some-value"),
+                        "ERR wrong number of arguments for 'ZMUTATE' command"),
+                arguments("too many arguments",
+                        List.of("some-key", "some-value", "ADD", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZMUTATE' command")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: ZMUTATE rejects malformed arguments with an ERR reply that carries no
+        // internal type name.
+        Object response = runRaw(getChannel(), rawArgs);
+
         assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldAcceptLowercaseMutationType() {
+        // Behavior: Mutation type names are not case-sensitive.
+        Object response = runRaw(getChannel(), List.of("lower-key", "some-value", "byte_max"));
+
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
     }
 }
