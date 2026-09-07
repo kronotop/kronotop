@@ -134,7 +134,7 @@ public class ProtocolMessageUtil {
         try {
             return Integer.parseInt(raw);
         } catch (NumberFormatException e) {
-            throw new KronotopException("value is not a int or out of range");
+            throw new KronotopException("value is not an integer or out of range");
         }
     }
 

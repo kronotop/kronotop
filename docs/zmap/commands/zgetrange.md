@@ -97,7 +97,7 @@ All data is scoped to the session's active namespace. The same keys in different
 | `ERR`      | `Unknown '<keyword>' argument`                                | The keyword is not one of the four listed above.        |
 | `ERR`      | `Duplicate '<keyword>' argument`                              | The same keyword was given more than once.              |
 | `ERR`      | `LIMIT argument must be followed by a positive integer`       | `LIMIT` has no value, or the value is zero or negative. |
-| `ERR`      | `value is not a int or out of range`                          | The `LIMIT` value is not a number.                      |
+| `ERR`      | `value is not an integer or out of range`                     | The `LIMIT` value is not a number.                      |
 | `ERR`      | `<keyword> argument must be followed by a valid key selector` | A key selector keyword has no value.                    |
 | `ERR`      | `Unknown range key selector: '<value>'`                       | The key selector name is not recognized.                |
 

@@ -358,7 +358,7 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
                         limitValue),
                 arguments("non-numeric limit",
                         List.of("key-0", "key-5", "LIMIT", "abc"),
-                        "ERR value is not a int or out of range"),
+                        "ERR value is not an integer or out of range"),
                 arguments("begin selector without value",
                         List.of("key-0", "key-5", "BEGIN-KEY-SELECTOR"),
                         "ERR BEGIN-KEY-SELECTOR argument must be followed by a valid key selector"),
