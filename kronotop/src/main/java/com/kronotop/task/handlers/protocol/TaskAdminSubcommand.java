@@ -16,6 +16,8 @@
 
 package com.kronotop.task.handlers.protocol;
 
+import com.kronotop.internal.StringUtil;
+
 public enum TaskAdminSubcommand {
     LIST("list");
 
@@ -26,8 +28,9 @@ public enum TaskAdminSubcommand {
     }
 
     public static TaskAdminSubcommand valueOfSubcommand(String command) {
+        String lower = StringUtil.toLowerCaseAscii(command);
         for (TaskAdminSubcommand value : values()) {
-            if (value.value.equalsIgnoreCase(command)) {
+            if (value.value.equals(lower)) {
                 return value;
             }
         }

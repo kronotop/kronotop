@@ -280,7 +280,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Invalid volume status: INVALID"));
+        assertEquals("ERR Unknown volume status: 'INVALID'", errorMessage.content());
     }
 
     @Test

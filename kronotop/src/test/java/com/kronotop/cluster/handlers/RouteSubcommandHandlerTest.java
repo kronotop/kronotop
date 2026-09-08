@@ -307,7 +307,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Invalid operation kind: invalid"));
+        assertEquals("ERR Unknown operation kind: 'invalid'", errorMessage.content());
     }
 
     @Test
@@ -324,7 +324,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Invalid route kind: invalid"));
+        assertEquals("ERR Unknown route kind: 'invalid'", errorMessage.content());
     }
 
     @Test

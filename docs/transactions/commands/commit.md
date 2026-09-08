@@ -44,9 +44,12 @@ The session returns to its default state and is ready to accept new commands or 
 
 ## Errors
 
-| Error Code    | Description                                         |
-|---------------|-----------------------------------------------------|
-| `TRANSACTION` | There is no transaction in progress on the session. |
+| Error Code    | Description                                                                                                  |
+|---------------|--------------------------------------------------------------------------------------------------------------|
+| `TRANSACTION` | There is no transaction in progress on the session.                                                          |
+| `ERR`         | `Unknown '<argument>' argument`: the first argument is not `RETURNING`.                                      |
+| `ERR`         | `RETURNING argument must be followed by VERSIONSTAMP or COMMITTED_VERSION`: `RETURNING` has no value.        |
+| `ERR`         | `Unknown RETURNING parameter: '<value>'`: the value is not `committed-version` or `versionstamp`.            |
 
 ## Examples
 

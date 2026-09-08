@@ -41,11 +41,6 @@ The value is encoded as an 8-byte little-endian IEEE-754 double. Three validatio
 
 The command normalizes negative zero: if the result is `-0.0`, it is stored as `0.0`.
 
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly two arguments.
-- The value must be a finite double.
-
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the

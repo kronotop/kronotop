@@ -31,8 +31,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
+import com.kronotop.commands.CommandType;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class CommitHandlerTest extends BaseHandlerTest {
 
@@ -152,5 +159,30 @@ class CommitHandlerTest extends BaseHandlerTest {
             assertTrue(errorMessage.content().contains("wrong number of arguments"),
                     "Should reject multiple RETURNING parameters");
         }
+    }
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("unknown keyword",
+                        List.of("BOGUS"),
+                        "ERR Unknown 'BOGUS' argument"),
+                arguments("RETURNING without value",
+                        List.of("RETURNING"),
+                        "ERR RETURNING argument must be followed by VERSIONSTAMP or COMMITTED_VERSION"),
+                arguments("unknown RETURNING parameter",
+                        List.of("returning", "bogus"),
+                        "ERR Unknown RETURNING parameter: 'bogus'")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: COMMIT rejects an unknown keyword, a RETURNING keyword without a value and an
+        // unknown RETURNING parameter with an exact ERR reply, before touching the transaction.
+        Object response = runRaw(getChannel(), CommandType.COMMIT, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 }

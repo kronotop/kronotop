@@ -34,7 +34,7 @@ public enum ZMutationType {
     COMPARE_AND_CLEAR;
 
     /**
-     * Parses a mutation type name. The name is not case sensitive.
+     * Parses a mutation type name. The name is not case-sensitive.
      *
      * @param value the mutation type name as it is written on the wire
      * @return the matching mutation type

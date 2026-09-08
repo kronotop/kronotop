@@ -34,10 +34,6 @@ If the key does not exist, the command returns `nil`.
 If the stored value is not exactly 8 bytes, the command returns an error. This can happen when a key was written with
 `ZSET` using a value that is not a valid 8-byte integer encoding.
 
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly one argument.
-
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the read,

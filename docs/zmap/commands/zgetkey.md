@@ -14,7 +14,7 @@ ZGETKEY <key> [KEY-SELECTOR selector]
 
 ## Arguments
 
-The first argument is positional. `KEY-SELECTOR` is a keyword. Keyword names are not case sensitive.
+The first argument is positional. `KEY-SELECTOR` is a keyword. Keyword names are not case-sensitive.
 
 | Argument       | Type   | Required | Description                                                      |
 |----------------|--------|----------|------------------------------------------------------------------|
@@ -46,12 +46,6 @@ The default selector is `first_greater_or_equal`, which returns the reference ke
 in order if it does not.
 
 If no key in the keyspace satisfies the selector, the command returns `nil`.
-
-Keyword arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- An unknown keyword is rejected.
-- `KEY-SELECTOR` must be followed by a value. `KEY-SELECTOR` as the last argument fails.
-- The selector must be one of the four names listed above.
 
 The command supports two transaction modes:
 

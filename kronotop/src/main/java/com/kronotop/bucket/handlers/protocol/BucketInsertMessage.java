@@ -17,6 +17,7 @@
 package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
@@ -45,14 +46,16 @@ public class BucketInsertMessage extends AbstractBucketMessage implements Protoc
         bucket = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
         for (int i = 1; i < request.getParams().size(); i++) {
             String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
+            InsertArgumentKey argument;
             try {
-                InsertArgumentKey argument = InsertArgumentKey.valueOf(raw.toUpperCase());
-                if (argument.equals(InsertArgumentKey.DOCS)) {
-                    readDocuments(i + 1);
-                    break;
-                }
+                argument = InsertArgumentKey.valueOf(StringUtil.toUpperCaseAscii(raw));
             } catch (IllegalArgumentException e) {
                 throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+            }
+            if (argument.equals(InsertArgumentKey.DOCS)) {
+                ProtocolMessageUtil.requireValue(request.getParams(), i, argument.name(), "one or more documents");
+                readDocuments(i + 1);
+                break;
             }
         }
     }

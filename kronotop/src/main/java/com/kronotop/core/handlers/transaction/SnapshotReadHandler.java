@@ -50,7 +50,7 @@ public class SnapshotReadHandler implements Handler {
         AsyncCommandExecutor.runAsync(context, response, () -> {
             SnapshotReadMessage message = request.attr(MessageTypes.SNAPSHOTREAD).get();
             Attribute<Boolean> snapshotReadAttr = request.getSession().attr(SessionAttributes.SNAPSHOT_READ);
-            if (message.getOption().equals(SnapshotReadMessage.ON_KEYWORD)) {
+            if (message.getOption() == SnapshotReadMessage.Option.ON) {
                 snapshotReadAttr.set(true);
             } else {
                 snapshotReadAttr.set(null);

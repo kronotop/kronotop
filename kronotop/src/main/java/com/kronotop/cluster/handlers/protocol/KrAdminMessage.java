@@ -17,6 +17,7 @@
 package com.kronotop.cluster.handlers.protocol;
 
 import com.kronotop.cluster.handlers.KrAdminSubcommand;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
@@ -35,11 +36,9 @@ public class KrAdminMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawSubcommand = new byte[request.getParams().getFirst().readableBytes()];
-        request.getParams().getFirst().readBytes(rawSubcommand);
-        String cmd = new String(rawSubcommand);
+        String cmd = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
         try {
-            subcommand = KrAdminSubcommand.valueOfSubcommand(cmd.toLowerCase());
+            subcommand = KrAdminSubcommand.valueOfSubcommand(cmd);
         } catch (IllegalArgumentException e) {
             throw new UnknownSubcommandException(cmd);
         }

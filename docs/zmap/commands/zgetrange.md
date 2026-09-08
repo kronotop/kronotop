@@ -13,7 +13,7 @@ ZGETRANGE <begin> <end> [LIMIT count] [REVERSE] [BEGIN-KEY-SELECTOR selector] [E
 
 ## Arguments
 
-The first two arguments are positional. The rest are keywords. Keyword names are not case sensitive, and each keyword
+The first two arguments are positional. The rest are keywords. Keyword names are not case-sensitive, and each keyword
 can appear at most once.
 
 | Argument             | Type    | Required | Description                                                                                   |
@@ -36,7 +36,7 @@ Key selectors control exactly which keys are included at the range boundaries.
 | `last_less_than`         | The last key strictly less than the specified key.                                                      |
 | `last_less_or_equal`     | The last key less than or equal to the specified key.                                                   |
 
-Selector names are not case sensitive.
+Selector names are not case-sensitive.
 
 With the default selectors, the begin key is **inclusive** and the end key is also **inclusive**. This is because
 `first_greater_than` on the end key resolves to the first key *after* the specified end key, and FoundationDB uses a
@@ -69,14 +69,6 @@ Key selectors allow fine-tuning of the range boundaries. For example, using `BEG
 excludes the begin key from the results.
 
 A begin key larger than the end key is not an error. The command returns an empty array.
-
-Keyword arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- An unknown keyword is rejected.
-- A keyword that needs a value must be followed by one. `LIMIT` as the last argument fails.
-- `LIMIT` must be greater than zero. `LIMIT 0` and `LIMIT -1` fail.
-- A key selector must be one of the four names listed above.
-- A keyword can appear only once. `LIMIT 3 LIMIT 5` fails.
 
 The command supports two transaction modes:
 

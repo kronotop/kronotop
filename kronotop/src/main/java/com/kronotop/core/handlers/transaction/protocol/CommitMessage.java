@@ -16,10 +16,11 @@
 
 package com.kronotop.core.handlers.transaction.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
-import com.kronotop.server.UnknownSubcommandException;
 import io.netty.buffer.ByteBuf;
 
 import java.nio.charset.StandardCharsets;
@@ -39,23 +40,13 @@ public class CommitMessage implements ProtocolMessage<Void> {
 
     private void parse() {
         if (!request.getParams().isEmpty()) {
-            byte[] rawReturning = new byte[request.getParams().getFirst().readableBytes()];
-            request.getParams().getFirst().readBytes(rawReturning);
-
-            String returning = new String(rawReturning);
-            if (!returning.equalsIgnoreCase(RETURNING_ARGUMENT)) {
-                throw new UnknownSubcommandException(returning);
+            String raw = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+            if (!StringUtil.toUpperCaseAscii(raw).equals(RETURNING_ARGUMENT)) {
+                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
             }
-
-            int paramCount = request.getParams().size() - 1;
-            if (paramCount == 0) {
-                throw new IllegalArgumentException("No arguments given for " + returning);
-            }
-            if (paramCount > 1) {
-                throw new IllegalArgumentException("RETURNING accepts only one parameter");
-            }
-
-            this.returning = Parameter.fromByteBuf(request.getParams().get(1));
+            ByteBuf value = ProtocolMessageUtil.requireValue(
+                    request.getParams(), 0, RETURNING_ARGUMENT, "VERSIONSTAMP or COMMITTED_VERSION");
+            this.returning = Parameter.fromByteBuf(value);
         }
     }
 
@@ -114,7 +105,8 @@ public class CommitMessage implements ProtocolMessage<Void> {
         }
 
         private static IllegalCommandArgumentException illegalArgument(ByteBuf buf) {
-            return new IllegalCommandArgumentException("Illegal argument: " + buf.toString(StandardCharsets.US_ASCII));
+            return new IllegalCommandArgumentException(
+                    String.format("Unknown RETURNING parameter: '%s'", buf.toString(StandardCharsets.US_ASCII)));
         }
 
         public String getValue() {

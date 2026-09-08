@@ -48,10 +48,6 @@ so two sessions in different namespaces that watch the same key name watch diffe
 not the sequence of changes that produced the difference. The usual pattern is a loop: issue `ZWATCH`, and on each signal
 read the value with `ZGET` and re-issue `ZWATCH`.
 
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly one argument.
-
 ## Guarantees
 
 What `ZWATCH` guarantees:

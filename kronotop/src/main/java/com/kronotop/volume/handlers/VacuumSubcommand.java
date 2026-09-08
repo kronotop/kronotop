@@ -20,6 +20,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketEntryEvacuator;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
@@ -60,7 +61,7 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
         if (params.size() < 2) {
             throw new InvalidNumberOfParametersException();
         }
-        String operation = ProtocolMessageUtil.readAsString(params.get(1)).toUpperCase();
+        String operation = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(params.get(1)));
         switch (operation) {
             case "START" -> vacuumStart(request, response);
             case "STOP" -> vacuumStop(request, response);

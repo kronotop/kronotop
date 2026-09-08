@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import com.kronotop.cluster.client.protocol.ReplicationCommandType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -123,5 +124,16 @@ class SegmentRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("OUTOFBOUND position: " + (segmentSize - 10) + ", length: 20 but size: " + segmentSize, message.content());
+    }
+
+    @Test
+    void shouldRejectOddNumberOfArguments() {
+        // Behavior: SEGMENT.RANGE needs two values for each entry after the volume name and segment id;
+        // an odd number of arguments is rejected with the standard wrong number of arguments error.
+        Object response = runRaw(kronotopInstance.getChannel(), ReplicationCommandType.SEGMENTRANGE,
+                List.of(volumeConfig.name(), "1", "0", "3", "6"));
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals("ERR wrong number of arguments for 'SEGMENT.RANGE' command", ((ErrorRedisMessage) response).content());
     }
 }

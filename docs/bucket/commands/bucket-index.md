@@ -619,7 +619,12 @@ Returns `OK` on success. A background task is created to compute index statistic
 OK
 ```
 
----
+## Errors
+
+| Error Code | Description                                                                              |
+|------------|------------------------------------------------------------------------------------------|
+| `ERR`      | `unknown subcommand: '<subcommand>'`: the subcommand is not one of the six listed above. |
+
 
 ## Index Lifecycle
 

@@ -52,9 +52,9 @@ shard), post-initialization (set `READWRITE` after assigning routes).
 |--------------------------------------------|-------------------------------------------------------------------------|
 | `ERR cluster has not been initialized yet` | The cluster must be initialized first.                                  |
 | `ERR invalid number of parameters`         | Exactly 3 arguments are required after `SET-SHARD-STATUS`.              |
-| `ERR invalid shard kind`                   | The shard kind must be `STASH` or `BUCKET`.                             |
+| `ERR Unknown shard kind: '<value>'`        | The shard kind must be `STASH` or `BUCKET`.                             |
 | `ERR invalid shard id`                     | The shard ID is not a valid integer, or is out of the configured range. |
-| `ERR Invalid shard status <value>`         | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |
+| `ERR Unknown shard status: '<value>'`      | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |
 
 ## Examples
 
@@ -83,7 +83,7 @@ OK
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN SET-SHARD-STATUS BUCKET 0 DISABLED
-(error) ERR Invalid shard status DISABLED
+(error) ERR Unknown shard status: 'DISABLED'
 ```
 
 **Shard ID out of range:**

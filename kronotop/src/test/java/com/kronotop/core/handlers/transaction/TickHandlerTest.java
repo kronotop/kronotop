@@ -119,7 +119,7 @@ class TickHandlerTest extends BaseHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
-        assertTrue(actualMessage.content().contains("illegal argument for TICK: 'FOO'"));
+        assertEquals("ERR Unknown mode: 'FOO'", actualMessage.content());
     }
 
     @Test

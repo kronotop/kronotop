@@ -19,7 +19,7 @@ package com.kronotop.cluster.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.Context;
-import com.kronotop.KronotopException;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.cluster.*;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
@@ -110,18 +110,10 @@ public class BaseKrAdminSubcommandHandler {
      *
      * @param shardStatusBuf the ByteBuf containing the raw bytes of the shard status
      * @return the corresponding ShardStatus enum value
-     * @throws KronotopException if the shard status is invalid
+     * @throws IllegalCommandArgumentException if the shard status is invalid
      */
     protected ShardStatus readShardStatus(ByteBuf shardStatusBuf) {
-        byte[] rawShardStatus = new byte[shardStatusBuf.readableBytes()];
-        shardStatusBuf.readBytes(rawShardStatus);
-        String stringShardStatus = new String(rawShardStatus);
-
-        try {
-            return ShardStatus.valueOf(stringShardStatus.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new KronotopException("Invalid shard status " + stringShardStatus);
-        }
+        return ProtocolMessageUtil.readEnum(ShardStatus.class, shardStatusBuf, "shard status");
     }
 
     /**
@@ -129,17 +121,10 @@ public class BaseKrAdminSubcommandHandler {
      *
      * @param memberStatusBuf the ByteBuf containing the raw bytes of the member status
      * @return the corresponding MemberStatus enum value
-     * @throws KronotopException if the member status is invalid
+     * @throws IllegalCommandArgumentException if the member status is invalid
      */
     protected MemberStatus readMemberStatus(ByteBuf memberStatusBuf) {
-        byte[] rawMemberStatus = new byte[memberStatusBuf.readableBytes()];
-        memberStatusBuf.readBytes(rawMemberStatus);
-        String stringMemberStatus = new String(rawMemberStatus);
-        try {
-            return MemberStatus.valueOf(stringMemberStatus.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new KronotopException("Invalid member status " + stringMemberStatus);
-        }
+        return ProtocolMessageUtil.readEnum(MemberStatus.class, memberStatusBuf, "member status");
     }
 
     /**

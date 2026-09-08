@@ -16,6 +16,8 @@
 
 package com.kronotop.core.handlers.server.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
@@ -42,10 +44,7 @@ public class CommandMessage implements ProtocolMessage<Void> {
             return;
         }
         for (int i = 1; i < request.getParams().size(); i++) {
-            byte[] rawCommand = new byte[request.getParams().get(i).readableBytes()];
-            request.getParams().get(i).readBytes(rawCommand);
-            String command = new String(rawCommand);
-            commands.add(command);
+            commands.add(ProtocolMessageUtil.readAsString(request.getParams().get(i)));
         }
     }
 
@@ -55,9 +54,7 @@ public class CommandMessage implements ProtocolMessage<Void> {
         }
 
         hasSubcommand = true;
-        byte[] rawSubcommand = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawSubcommand);
-        subcommand = new String(rawSubcommand).toUpperCase();
+        subcommand = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getParams().get(0)));
         if (subcommand.equals(SUBCOMMAND_INFO) || subcommand.equals(SUBCOMMAND_DOCS)) {
             parseCommands();
         } else if (subcommand.equals(SUBCOMMAND_COUNT)) {

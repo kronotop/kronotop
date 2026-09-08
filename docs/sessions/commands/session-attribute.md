@@ -37,15 +37,15 @@ All attribute names and enum values are case-insensitive.
 
 ## Errors
 
-| Error                                      | Cause                                         |
-|--------------------------------------------|-----------------------------------------------|
-| `ERR Invalid subcommand status: <value>`   | The subcommand is neither `LIST` nor `SET`    |
-| `ERR Invalid reply type: <value>`          | Invalid value for `reply_type`                |
-| `ERR Invalid input type: <value>`          | Invalid value for `input_type`                |
-| `ERR 'batch' must be greater than 0`       | `batch` was set to 0 or a negative number     |
-| `ERR Invalid versionstamp format: <value>` | Invalid value for `object_id_format`          |
-| `ERR invalid number of parameters`         | `SET` called without both attribute and value |
-| `ERR Invalid session attribute: '<name>'`  | The attribute name does not exist             |
+| Error                                       | Cause                                         |
+|---------------------------------------------|-----------------------------------------------|
+| `ERR Unknown subcommand: '<value>'`         | The subcommand is neither `LIST` nor `SET`    |
+| `ERR Unknown reply type: '<value>'`         | Unknown value for `reply_type`                |
+| `ERR Unknown input type: '<value>'`         | Unknown value for `input_type`                |
+| `ERR 'batch' must be greater than 0`        | `batch` was set to 0 or a negative number     |
+| `ERR Unknown object id format: '<value>'`   | Unknown value for `object_id_format`          |
+| `ERR invalid number of parameters`          | `SET` called without both attribute and value |
+| `ERR Unknown session attribute: '<name>'`   | The attribute name does not exist             |
 
 ## Examples
 
@@ -77,12 +77,12 @@ OK
 
 ```kronotop
 > SESSION.ATTRIBUTE SET unknown_attr value
-(error) ERR Invalid session attribute: 'unknown_attr'
+(error) ERR Unknown session attribute: 'unknown_attr'
 ```
 
 **Invalid reply type value:**
 
 ```kronotop
 > SESSION.ATTRIBUTE SET reply_type xml
-(error) ERR Invalid reply type: xml
+(error) ERR Unknown reply type: 'xml'
 ```

@@ -41,10 +41,6 @@ cases where exact decimal representation matters.
 * If the stored Decimal128 value is not representable as a BigDecimal (e.g., NaN or Infinity), the command returns an
   error.
 
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly one argument.
-
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the read,

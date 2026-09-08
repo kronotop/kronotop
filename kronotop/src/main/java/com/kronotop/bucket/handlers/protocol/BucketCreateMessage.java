@@ -45,37 +45,57 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
         return CreateArgumentKey.findByName(raw);
     }
 
+    /**
+     * Reads shard ids that follow the SHARDS keyword until the next keyword or the end of the command.
+     *
+     * @return the index of the last shard id
+     */
+    private int readShards(int index, String keyword) {
+        int last = index;
+        for (int i = index + 1; i < request.getParams().size(); i++) {
+            ByteBuf buf = request.getParams().get(i);
+            buf.markReaderIndex();
+            if (tryParseKey(ProtocolMessageUtil.readAsString(buf)) != null) {
+                buf.resetReaderIndex();
+                break;
+            }
+            buf.resetReaderIndex();
+            shards.add(ProtocolMessageUtil.readAsInteger(buf));
+            last = i;
+        }
+        if (last == index) {
+            throw ProtocolMessageUtil.illegalValue(keyword, "one or more shard ids");
+        }
+        return last;
+    }
+
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
 
-        CreateArgumentKey currentKey = null;
         long seen = 0;
         for (int i = 1; i < request.getParams().size(); i++) {
-            ByteBuf buf = request.getParams().get(i);
-
-            buf.markReaderIndex();
-            String raw = ProtocolMessageUtil.readAsString(buf);
-            CreateArgumentKey parsedKey = tryParseKey(raw);
-            if (parsedKey != null) {
-                seen = ProtocolMessageUtil.markArgumentSeen(seen, parsedKey, StringUtil.toUpperCaseAscii(raw));
-                if (parsedKey == CreateArgumentKey.IF_NOT_EXISTS) {
-                    ifNotExists = true;
-                    continue;
+            String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
+            CreateArgumentKey key = tryParseKey(raw);
+            if (key == null) {
+                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+            }
+            String keyword = StringUtil.toUpperCaseAscii(raw);
+            seen = ProtocolMessageUtil.markArgumentSeen(seen, key, keyword);
+            switch (key) {
+                case IF_NOT_EXISTS -> ifNotExists = true;
+                case SHARDS -> i = readShards(i, keyword);
+                case INDEXES -> {
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, keyword, "an index specification");
+                    indexes = ProtocolMessageUtil.readAsByteArray(value);
+                    i++;
                 }
-                currentKey = parsedKey;
-                continue;
-            }
-            buf.resetReaderIndex();
-
-            if (currentKey == null) {
-                throw new IllegalCommandArgumentException(
-                        String.format("Unknown '%s' argument", raw));
-            }
-
-            switch (currentKey) {
-                case SHARDS -> shards.add(ProtocolMessageUtil.readAsInteger(buf));
-                case INDEXES -> indexes = ProtocolMessageUtil.readAsByteArray(buf);
-                case COLLATION -> collation = ProtocolMessageUtil.readAsByteArray(buf);
+                case COLLATION -> {
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, keyword, COLLATION_SPECIFICATION);
+                    collation = ProtocolMessageUtil.readAsByteArray(value);
+                    i++;
+                }
             }
         }
     }

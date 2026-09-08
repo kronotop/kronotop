@@ -30,6 +30,9 @@ import io.netty.util.Attribute;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import com.kronotop.commands.CommandType;
+import com.kronotop.server.resp3.ErrorRedisMessage;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -133,5 +136,14 @@ class SnapshotReadHandlerTest extends BaseHandlerTest {
             Attribute<Boolean> snapshotReadAttr = channel.attr(SessionAttributes.SNAPSHOT_READ);
             assertNull(snapshotReadAttr.get());
         }
+    }
+
+    @Test
+    void shouldRejectUnknownOption() {
+        // Behavior: SNAPSHOTREAD rejects an argument other than ON or OFF with an exact ERR reply
+        Object response = runRaw(getChannel(), CommandType.SNAPSHOTREAD, List.of("MAYBE"));
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals("ERR Unknown option: 'MAYBE'", ((ErrorRedisMessage) response).content());
     }
 }

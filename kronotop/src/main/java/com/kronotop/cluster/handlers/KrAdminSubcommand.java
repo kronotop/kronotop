@@ -16,6 +16,8 @@
 
 package com.kronotop.cluster.handlers;
 
+import com.kronotop.internal.StringUtil;
+
 public enum KrAdminSubcommand {
     INITIALIZE_CLUSTER("initialize-cluster"),
     DESCRIBE_CLUSTER("describe-cluster"),
@@ -37,8 +39,9 @@ public enum KrAdminSubcommand {
     }
 
     public static KrAdminSubcommand valueOfSubcommand(String command) {
+        String lower = StringUtil.toLowerCaseAscii(command);
         for (KrAdminSubcommand value : values()) {
-            if (value.value.equalsIgnoreCase(command)) {
+            if (value.value.equals(lower)) {
                 return value;
             }
         }

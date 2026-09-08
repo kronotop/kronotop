@@ -16,6 +16,7 @@
 
 package com.kronotop.core.handlers.transaction.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
@@ -26,10 +27,8 @@ public class SnapshotReadMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SNAPSHOTREAD";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     public static final int MAXIMUM_PARAMETER_COUNT = 1;
-    public static final String ON_KEYWORD = "ON";
-    public static final String OFF_KEYWORD = "OFF";
     private final Request request;
-    private String option;
+    private Option option;
 
     public SnapshotReadMessage(Request request) {
         this.request = request;
@@ -38,19 +37,10 @@ public class SnapshotReadMessage implements ProtocolMessage<Void> {
 
     private void parse() {
         ByteBuf buf = request.getParams().getFirst();
-        byte[] rawOpt = new byte[buf.readableBytes()];
-        buf.readBytes(rawOpt);
-        String opt = new String(rawOpt);
-        if (opt.equalsIgnoreCase(ON_KEYWORD)) {
-            option = ON_KEYWORD;
-        } else if (opt.equalsIgnoreCase(OFF_KEYWORD)) {
-            option = OFF_KEYWORD;
-        } else {
-            throw new IllegalArgumentException(String.format("illegal argument for SNAPSHOTREAD: '%s'", opt));
-        }
+        option = ProtocolMessageUtil.readEnum(Option.class, buf, "option");
     }
 
-    public String getOption() {
+    public Option getOption() {
         return option;
     }
 
@@ -62,5 +52,10 @@ public class SnapshotReadMessage implements ProtocolMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return null;
+    }
+
+    public enum Option {
+        ON,
+        OFF
     }
 }

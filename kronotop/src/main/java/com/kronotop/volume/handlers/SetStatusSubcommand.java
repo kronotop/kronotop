@@ -16,7 +16,6 @@
 
 package com.kronotop.volume.handlers;
 
-import com.kronotop.KronotopException;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
@@ -56,12 +55,7 @@ public class SetStatusSubcommand extends BaseSubcommandHandler implements Subcom
             }
 
             name = ProtocolMessageUtil.readAsString(params.get(1));
-            String rawStatus = ProtocolMessageUtil.readAsString(params.get(2));
-            try {
-                status = VolumeStatus.valueOf(rawStatus.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new KronotopException("Invalid volume status: " + rawStatus);
-            }
+            status = ProtocolMessageUtil.readEnum(VolumeStatus.class, params.get(2), "volume status");
         }
     }
 }

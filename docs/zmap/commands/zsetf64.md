@@ -34,11 +34,6 @@ If the key already exists, its value is overwritten silently.
 
 The value must be a finite double. NaN and Infinity are rejected. Negative zero (`-0.0`) is normalized to `0.0`.
 
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly two arguments.
-- The value must be a finite double.
-
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the write,

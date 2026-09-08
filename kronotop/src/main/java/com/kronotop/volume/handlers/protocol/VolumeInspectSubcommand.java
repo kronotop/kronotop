@@ -16,6 +16,8 @@
 
 package com.kronotop.volume.handlers.protocol;
 
+import com.kronotop.internal.StringUtil;
+
 public enum VolumeInspectSubcommand {
     CURSOR("cursor"),
     REPLICATION("replication");
@@ -27,8 +29,9 @@ public enum VolumeInspectSubcommand {
     }
 
     public static VolumeInspectSubcommand valueOfSubcommand(String command) {
+        String lower = StringUtil.toLowerCaseAscii(command);
         for (VolumeInspectSubcommand value : values()) {
-            if (value.value.equalsIgnoreCase(command)) {
+            if (value.value.equals(lower)) {
                 return value;
             }
         }

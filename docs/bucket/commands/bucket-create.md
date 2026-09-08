@@ -138,6 +138,10 @@ transaction as the bucket itself.
 | `BUCKETBEINGREMOVED`  | The bucket was removed but not yet purged. `IF-NOT-EXISTS` does not suppress this error.  |
 | `ERR`                 | Invalid index schema (e.g., missing or unknown `bson_type`), or a shard has no route.     |
 | `ERR`                 | `Duplicate '<keyword>' argument`: the same keyword was given more than once.              |
+| `ERR`                 | `Unknown '<keyword>' argument`: the keyword is not one listed above.                      |
+| `ERR`                 | `SHARDS argument must be followed by one or more shard ids`: `SHARDS` has no value.       |
+| `ERR`                 | `INDEXES argument must be followed by an index specification`: `INDEXES` has no value.    |
+| `ERR`                 | `COLLATION argument must be followed by a collation specification`: `COLLATION` has no value. |
 
 ## Examples
 

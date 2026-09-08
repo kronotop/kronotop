@@ -220,7 +220,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR Invalid member status some-status", actualMessage.content());
+        assertEquals("ERR Unknown member status: 'some-status'", actualMessage.content());
     }
 
     @Test

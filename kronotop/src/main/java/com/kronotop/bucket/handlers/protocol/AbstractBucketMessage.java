@@ -17,18 +17,21 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.KronotopException;
 import com.kronotop.bucket.handlers.CollationHelper;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
+import io.netty.buffer.ByteBuf;
 
 import java.util.List;
 import java.util.Set;
 
 public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
+    protected static final String COLLATION_SPECIFICATION = "a collation specification";
+    private static final String FIELD_AND_DIRECTION = "a field name and direction (ASC or DESC)";
+    private static final String SORT_DIRECTION = "sort direction";
 
     @Override
     public Void getKey() {
@@ -60,12 +63,11 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                     if (!supportedArguments.contains(QueryArgumentKey.BATCH)) {
                         throw new UnsupportedArgumentException(QueryArgumentKey.BATCH);
                     }
-                    if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandArgumentException("BATCH argument must be followed by a positive integer");
-                    }
-                    int batch = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
+                    int batch = ProtocolMessageUtil.readAsInteger(value);
                     if (batch < 0) {
-                        throw new IllegalCommandArgumentException("BATCH argument must be a non-negative integer");
+                        throw ProtocolMessageUtil.illegalValue(argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
                     }
                     arguments.setBatch(batch);
                     i++;
@@ -74,12 +76,11 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                     if (!supportedArguments.contains(QueryArgumentKey.LIMIT)) {
                         throw new UnsupportedArgumentException(QueryArgumentKey.LIMIT);
                     }
-                    if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandArgumentException("LIMIT argument must be followed by a positive integer");
-                    }
-                    int limit = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
+                    int limit = ProtocolMessageUtil.readAsInteger(value);
                     if (limit < 0) {
-                        throw new IllegalCommandArgumentException("LIMIT argument must be a non-negative integer");
+                        throw ProtocolMessageUtil.illegalValue(argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
                     }
                     arguments.setLimit(limit);
                     i++;
@@ -89,15 +90,11 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                         throw new UnsupportedArgumentException(QueryArgumentKey.SORTBY);
                     }
                     if (request.getParams().size() <= i + 2) {
-                        throw new IllegalCommandArgumentException("SORTBY argument must be followed by a field name and direction (ASC or DESC)");
+                        throw ProtocolMessageUtil.illegalValue(argument.name(), FIELD_AND_DIRECTION);
                     }
                     arguments.setSortBy(ProtocolMessageUtil.readAsString(request.getParams().get(i + 1)));
-                    String rawDirection = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getParams().get(i + 2)));
-                    try {
-                        arguments.setSortDirection(SortDirection.valueOf(rawDirection));
-                    } catch (IllegalArgumentException e) {
-                        throw new KronotopException("Invalid sort direction: " + rawDirection);
-                    }
+                    arguments.setSortDirection(ProtocolMessageUtil.readEnum(
+                            SortDirection.class, request.getParams().get(i + 2), SORT_DIRECTION));
                     i += 2;
                 }
                 case RESULTSORT -> {
@@ -105,35 +102,29 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                         throw new UnsupportedArgumentException(QueryArgumentKey.RESULTSORT);
                     }
                     if (request.getParams().size() <= i + 2) {
-                        throw new IllegalCommandArgumentException("RESULTSORT argument must be followed by a field name and direction (ASC or DESC)");
+                        throw ProtocolMessageUtil.illegalValue(argument.name(), FIELD_AND_DIRECTION);
                     }
                     arguments.setResultSortBy(ProtocolMessageUtil.readAsString(request.getParams().get(i + 1)));
-                    String rawResultSortDirection = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getParams().get(i + 2)));
-                    try {
-                        arguments.setResultSortDirection(SortDirection.valueOf(rawResultSortDirection));
-                    } catch (IllegalArgumentException e) {
-                        throw new KronotopException("Invalid sort direction: " + rawResultSortDirection);
-                    }
+                    arguments.setResultSortDirection(ProtocolMessageUtil.readEnum(
+                            SortDirection.class, request.getParams().get(i + 2), SORT_DIRECTION));
                     i += 2;
                 }
                 case PROJECTION -> {
                     if (!supportedArguments.contains(QueryArgumentKey.PROJECTION)) {
                         throw new UnsupportedArgumentException(QueryArgumentKey.PROJECTION);
                     }
-                    if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandArgumentException("PROJECTION argument must be followed by a projection specification");
-                    }
-                    arguments.setProjection(ProtocolMessageUtil.readAsByteArray(request.getParams().get(i + 1)));
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.name(), "a projection specification");
+                    arguments.setProjection(ProtocolMessageUtil.readAsByteArray(value));
                     i++;
                 }
                 case COLLATION -> {
                     if (!supportedArguments.contains(QueryArgumentKey.COLLATION)) {
                         throw new UnsupportedArgumentException(QueryArgumentKey.COLLATION);
                     }
-                    if (request.getParams().size() <= i + 1) {
-                        throw new IllegalCommandArgumentException("COLLATION argument must be followed by a collation specification");
-                    }
-                    byte[] data = ProtocolMessageUtil.readAsByteArray(request.getParams().get(i + 1));
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.name(), COLLATION_SPECIFICATION);
+                    byte[] data = ProtocolMessageUtil.readAsByteArray(value);
                     arguments.setCollation(CollationHelper.deserializeAndValidate(data));
                     i++;
                 }

@@ -16,6 +16,8 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
+import com.kronotop.internal.StringUtil;
+
 public enum BucketIndexSubcommand {
     CREATE("create"),
     TASKS("tasks"),
@@ -31,8 +33,9 @@ public enum BucketIndexSubcommand {
     }
 
     public static BucketIndexSubcommand valueOfSubcommand(String command) {
+        String lower = StringUtil.toLowerCaseAscii(command);
         for (BucketIndexSubcommand value : values()) {
-            if (value.value.equalsIgnoreCase(command)) {
+            if (value.value.equals(lower)) {
                 return value;
             }
         }

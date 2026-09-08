@@ -530,6 +530,7 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldRejectUnknownParentOperationKind() {
+        // Behavior: CHANGELOG.RANGE rejects a parent operation kind other than LIFECYCLE, FINALIZATION or *
         InternalCommandBuilder<String, String> cmd = new InternalCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
 
@@ -541,7 +542,7 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("Unknown"));
+        assertEquals("ERR Unknown parent operation kind: 'UNKNOWN'", errorMessage.content());
     }
 
     @Test
@@ -700,7 +701,7 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
                         "ERR Unknown 'BOGUS' argument"),
                 arguments("LIMIT without value",
                         List.of("LIMIT"),
-                        "ERR LIMIT requires a number argument")
+                        "ERR LIMIT argument must be followed by an integer")
         );
     }
 

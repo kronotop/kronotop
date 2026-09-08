@@ -128,9 +128,7 @@ public class ChangeLogRangeMessage extends BaseMessage implements ProtocolMessag
             seen = ProtocolMessageUtil.markArgumentSeen(seen, key);
             switch (key) {
                 case LIMIT -> {
-                    if (index + 1 >= request.getParams().size()) {
-                        throw new IllegalCommandArgumentException("LIMIT requires a number argument");
-                    }
+                    ProtocolMessageUtil.requireValue(request.getParams(), index, key.name(), "an integer");
                     limit = Math.toIntExact(readLong(index + 1));
                     index += 2;
                 }
@@ -147,11 +145,7 @@ public class ChangeLogRangeMessage extends BaseMessage implements ProtocolMessag
         volume = readString(0);
         String rawParentOpKind = readString(1);
         if (!Objects.equals(rawParentOpKind, "*")) {
-            try {
-                parentOpKind = ParentOperationKind.valueOf(rawParentOpKind.toUpperCase());
-            } catch (IllegalArgumentException exp) {
-                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", rawParentOpKind));
-            }
+            parentOpKind = ProtocolMessageUtil.readEnum(ParentOperationKind.class, rawParentOpKind, "parent operation kind");
         }
 
         parseStart(readString(2));

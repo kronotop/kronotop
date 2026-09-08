@@ -16,7 +16,7 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.KronotopException;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
@@ -50,7 +50,7 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
         query = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
         update = ProtocolMessageUtil.readAsByteArray(request.getParams().get(2));
         if (update.length == 0) {
-            throw new KronotopException("update parameter cannot be empty");
+            throw new IllegalCommandArgumentException("update argument cannot be empty");
         }
         arguments = parseCommonQueryArguments(request, 3, supportedArguments);
     }

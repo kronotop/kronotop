@@ -28,8 +28,14 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import com.kronotop.commands.CommandType;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class SessionAttributeHandlerTest extends BaseHandlerTest {
 
@@ -179,7 +185,7 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldRejectInvalidVersionstampFormat() {
+    void shouldRejectInvalidObjectIdFormat() {
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf = Unpooled.buffer();
@@ -187,7 +193,7 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
 
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertTrue(((ErrorRedisMessage) response).content().contains("Invalid versionstamp format"));
+        assertEquals("ERR Unknown object id format: 'invalid'", ((ErrorRedisMessage) response).content());
     }
 
     @Test
@@ -199,7 +205,7 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
 
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertTrue(((ErrorRedisMessage) response).content().contains("Invalid reply type"));
+        assertEquals("ERR Unknown reply type: 'invalid'", ((ErrorRedisMessage) response).content());
     }
 
     @Test
@@ -211,7 +217,7 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
 
         Object response = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, response);
-        assertTrue(((ErrorRedisMessage) response).content().contains("Invalid input type"));
+        assertEquals("ERR Unknown input type: 'invalid'", ((ErrorRedisMessage) response).content());
     }
 
     private boolean containsAttribute(List<RedisMessage> children, String attributeName) {
@@ -271,4 +277,28 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
         fail("Attribute not found: " + attributeName);
     }
 
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("unknown subcommand",
+                        List.of("BOGUS"),
+                        "ERR Unknown subcommand: 'BOGUS'"),
+                arguments("unknown attribute",
+                        List.of("SET", "unknown_attr", "value"),
+                        "ERR Unknown session attribute: 'unknown_attr'"),
+                arguments("attribute name with a matching suffix",
+                        List.of("SET", "xobject_id_format", "hex"),
+                        "ERR Unknown session attribute: 'xobject_id_format'")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: SESSION.ATTRIBUTE rejects an unknown subcommand and an unknown attribute name
+        // with an exact ERR reply. Attribute names must match exactly, not by suffix.
+        Object response = runRaw(channel, CommandType.SESSION_ATTRIBUTE, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
 }

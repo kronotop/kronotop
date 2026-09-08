@@ -16,6 +16,8 @@
 
 package com.kronotop.volume.handlers.protocol;
 
+import com.kronotop.internal.StringUtil;
+
 public enum VolumeStatsSubcommand {
     OPCOUNTERS("opcounters"),
     REPLICATION("replication"),
@@ -29,8 +31,9 @@ public enum VolumeStatsSubcommand {
     }
 
     public static VolumeStatsSubcommand valueOfSubcommand(String command) {
+        String lower = StringUtil.toLowerCaseAscii(command);
         for (VolumeStatsSubcommand value : values()) {
-            if (value.value.equalsIgnoreCase(command)) {
+            if (value.value.equals(lower)) {
                 return value;
             }
         }

@@ -205,19 +205,8 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
                 throw new InvalidNumberOfParametersException();
             }
 
-            String rawOperationKind = ProtocolMessageUtil.readAsString(params.get(1));
-            try {
-                operationKind = OperationKind.valueOf(rawOperationKind.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new KronotopException("Invalid operation kind: " + rawOperationKind);
-            }
-
-            String rawRouteKind = ProtocolMessageUtil.readAsString(params.get(2));
-            try {
-                routeKind = RouteKind.valueOf(rawRouteKind.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new KronotopException("Invalid route kind: " + rawRouteKind);
-            }
+            operationKind = ProtocolMessageUtil.readEnum(OperationKind.class, params.get(1), "operation kind");
+            routeKind = ProtocolMessageUtil.readEnum(RouteKind.class, params.get(2), "route kind");
 
             shardKind = ProtocolMessageUtil.readShardKind(params.get(3));
 

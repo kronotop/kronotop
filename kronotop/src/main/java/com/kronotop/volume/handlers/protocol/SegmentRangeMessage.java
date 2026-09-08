@@ -16,9 +16,9 @@
 
 package com.kronotop.volume.handlers.protocol;
 
-import com.kronotop.KronotopException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.volume.SegmentRange;
 
 import java.util.List;
@@ -38,7 +38,8 @@ public class SegmentRangeMessage extends BaseMessage implements ProtocolMessage<
 
     private void parse() {
         if (request.getParams().size() % 2 > 0) {
-            throw new KronotopException("Wrong number of parameters");
+            throw new WrongNumberOfArgumentsException(
+                    String.format("wrong number of arguments for '%s' command", request.getCommand()));
         }
 
         // segmentrange <volume-name> <segment-id> position length position length ...

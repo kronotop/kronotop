@@ -135,12 +135,7 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
                 throw new InvalidNumberOfParametersException();
             }
 
-            String tmp = ProtocolMessageUtil.readAsString(params.get(1));
-            try {
-                operation = Operation.valueOf(tmp.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new KronotopException("invalid operation: " + tmp);
-            }
+            operation = ProtocolMessageUtil.readEnum(Operation.class, params.get(1), "operation");
         }
 
         enum Operation {

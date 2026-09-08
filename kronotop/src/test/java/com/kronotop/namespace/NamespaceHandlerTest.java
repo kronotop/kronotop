@@ -54,6 +54,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import com.kronotop.commands.CommandType;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -1428,5 +1429,14 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         await().atMost(15, TimeUnit.SECONDS).until(() ->
                 !openNamespaces.containsKey(namespaceOld)
         );
+    }
+
+    @Test
+    void shouldRejectUnknownSubcommand() {
+        // Behavior: NAMESPACE rejects an unknown subcommand with an exact ERR reply.
+        Object response = runRaw(getChannel(), CommandType.NAMESPACE, List.of("BOGUS"));
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals("ERR unknown subcommand: 'BOGUS'", ((ErrorRedisMessage) response).content());
     }
 }

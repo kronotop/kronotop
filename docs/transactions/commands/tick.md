@@ -59,7 +59,7 @@ This command does not require an active transaction.
 
 | Error Code | Description                                                         |
 |------------|---------------------------------------------------------------------|
-| `ERR`      | `illegal argument for TICK: '<value>'`: The mode is not recognized. |
+| `ERR`      | `Unknown mode: '<value>'`: The mode is not `CACHED` or `FRESH`.     |
 
 ## Examples
 
@@ -97,5 +97,5 @@ This command does not require an active transaction.
 
 ```kronotop
 > TICK FOO
-(error) ERR illegal argument for TICK: 'FOO'
+(error) ERR Unknown mode: 'FOO'
 ```

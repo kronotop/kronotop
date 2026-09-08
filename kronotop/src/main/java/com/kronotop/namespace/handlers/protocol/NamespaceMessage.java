@@ -174,18 +174,11 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        byte[] rawSubcommand = new byte[request.getParams().getFirst().readableBytes()];
-        request.getParams().getFirst().readBytes(rawSubcommand);
-
-        String preSubcommand = new String(rawSubcommand).trim().toUpperCase();
-        if (preSubcommand.isBlank()) {
-            throw new IllegalArgumentException("invalid subcommand given");
-        }
-
+        String raw = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
         try {
-            subcommand = NamespaceSubcommand.valueOf(preSubcommand);
+            subcommand = NamespaceSubcommand.valueOf(StringUtil.toUpperCaseAscii(raw));
         } catch (IllegalArgumentException e) {
-            throw new UnknownSubcommandException(preSubcommand);
+            throw new UnknownSubcommandException(raw);
         }
         switch (subcommand) {
             case CREATE:

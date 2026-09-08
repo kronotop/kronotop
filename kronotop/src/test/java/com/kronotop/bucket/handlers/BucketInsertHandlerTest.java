@@ -56,6 +56,7 @@ import java.util.stream.Stream;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class BucketInsertHandlerTest extends BaseBucketHandlerTest {
 
@@ -1948,5 +1949,27 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, entries.size(), "Should find 1 document via full scan with INT64 predicate matching INT32 field");
         assertEquals(42, BsonHelper.getInteger(entries.get(0), "age"),
                 "Returned document should have age = 42");
+    }
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("unknown keyword",
+                        List.of("test-bucket", "BOGUS"),
+                        "ERR Unknown 'BOGUS' argument"),
+                arguments("DOCS without documents",
+                        List.of("test-bucket", "docs"),
+                        "ERR DOCS argument must be followed by one or more documents")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: BUCKET.INSERT rejects an unknown keyword and a DOCS keyword without documents
+        // with an exact ERR reply.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INSERT, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 }

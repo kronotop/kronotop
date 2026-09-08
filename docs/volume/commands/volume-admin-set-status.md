@@ -34,7 +34,7 @@ It does not require cluster initialization. It is available on the management po
 |----------------------------------------------------|-----------------------------------------------|
 | Missing volume name or status parameter            | `ERR invalid number of parameters`            |
 | No volume with that name is managed by this member | `ERR Volume: '<name>' is not open`            |
-| Status value is not a valid volume status          | `ERR Invalid volume status: <provided-value>` |
+| Status value is not a valid volume status          | `ERR Unknown volume status: '<value>'`        |
 
 ## Examples
 
@@ -66,7 +66,7 @@ OK
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN SET-STATUS bucket-shard-0 INVALID
-(error) ERR Invalid volume status: INVALID
+(error) ERR Unknown volume status: 'INVALID'
 ```
 
 **Volume not found:**

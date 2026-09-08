@@ -16,6 +16,7 @@
 
 package com.kronotop.volume.handlers.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
@@ -34,11 +35,9 @@ public class VolumeInspectMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawSubcommand = new byte[request.getParams().getFirst().readableBytes()];
-        request.getParams().getFirst().readBytes(rawSubcommand);
-        String cmd = new String(rawSubcommand);
+        String cmd = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
         try {
-            subcommand = VolumeInspectSubcommand.valueOfSubcommand(cmd.toLowerCase());
+            subcommand = VolumeInspectSubcommand.valueOfSubcommand(cmd);
         } catch (IllegalArgumentException e) {
             throw new UnknownSubcommandException(cmd);
         }

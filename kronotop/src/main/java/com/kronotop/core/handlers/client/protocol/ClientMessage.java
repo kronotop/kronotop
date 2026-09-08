@@ -16,6 +16,8 @@
 
 package com.kronotop.core.handlers.client.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 import com.kronotop.server.UnknownSubcommandException;
@@ -34,11 +36,9 @@ public class ClientMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawSubcommand = new byte[request.getParams().getFirst().readableBytes()];
-        request.getParams().getFirst().readBytes(rawSubcommand);
-        String cmd = new String(rawSubcommand);
+        String cmd = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
         try {
-            subcommand = ClientSubcommand.valueOf(cmd.toUpperCase());
+            subcommand = ClientSubcommand.valueOf(StringUtil.toUpperCaseAscii(cmd));
         } catch (IllegalArgumentException e) {
             throw new UnknownSubcommandException(cmd);
         }

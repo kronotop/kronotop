@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.KronotopException;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.Request;
 import com.kronotop.server.Session;
@@ -179,7 +178,7 @@ class AbstractBucketMessageTest {
                 () -> message.parseCommonQueryArguments(request, 2, supported)
         );
 
-        assertTrue(ex.getMessage().contains("non-negative"));
+        assertEquals("LIMIT argument must be followed by a non-negative integer", ex.getMessage());
     }
 
     @Test
@@ -247,7 +246,7 @@ class AbstractBucketMessageTest {
                 () -> message.parseCommonQueryArguments(request, 2, supported)
         );
 
-        assertTrue(ex.getMessage().contains("non-negative"));
+        assertEquals("BATCH argument must be followed by a non-negative integer", ex.getMessage());
     }
 
     @Test
@@ -291,16 +290,16 @@ class AbstractBucketMessageTest {
 
     @Test
     void shouldThrowOnInvalidSortDirection() {
-        // Behavior: Invalid sort direction (not ASC or DESC) throws KronotopException.
+        // Behavior: Unknown sort direction (not ASC or DESC) throws IllegalCommandArgumentException.
         Request request = new TestRequest("bucket", "{}", "SORTBY", "field", "INVALID");
         Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.SORTBY);
 
-        KronotopException ex = assertThrows(
-                KronotopException.class,
+        IllegalCommandArgumentException ex = assertThrows(
+                IllegalCommandArgumentException.class,
                 () -> message.parseCommonQueryArguments(request, 2, supported)
         );
 
-        assertTrue(ex.getMessage().contains("Invalid sort direction"));
+        assertEquals("Unknown sort direction: 'INVALID'", ex.getMessage());
     }
 
     @Test

@@ -588,4 +588,42 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
+
+    static Stream<Arguments> keywordsWithoutValue() {
+        return Stream.of(
+                arguments("SHARDS as the last argument",
+                        List.of("test-bucket", "SHARDS"),
+                        "ERR SHARDS argument must be followed by one or more shard ids"),
+                arguments("SHARDS followed by another keyword",
+                        List.of("test-bucket", "SHARDS", "INDEXES", "{}"),
+                        "ERR SHARDS argument must be followed by one or more shard ids"),
+                arguments("INDEXES as the last argument",
+                        List.of("test-bucket", "INDEXES"),
+                        "ERR INDEXES argument must be followed by an index specification"),
+                arguments("COLLATION as the last argument",
+                        List.of("test-bucket", "SHARDS", "1", "COLLATION"),
+                        "ERR COLLATION argument must be followed by a collation specification")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("keywordsWithoutValue")
+    void shouldRejectKeywordWithoutValue(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: BUCKET.CREATE fails when a keyword that needs a value has none, instead of
+        // silently falling back to the default.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_CREATE, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldAcceptSeveralShardsBeforeAnotherKeyword() {
+        // Behavior: SHARDS takes every value up to the next keyword; the following keyword is still parsed.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_CREATE,
+                List.of("test-bucket", "shards", "1", "2", "if-not-exists"));
+
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+    }
 }

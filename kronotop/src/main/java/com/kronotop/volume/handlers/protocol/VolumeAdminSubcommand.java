@@ -16,6 +16,8 @@
 
 package com.kronotop.volume.handlers.protocol;
 
+import com.kronotop.internal.StringUtil;
+
 public enum VolumeAdminSubcommand {
     LIST("list"),
     DESCRIBE("describe"),
@@ -34,8 +36,9 @@ public enum VolumeAdminSubcommand {
     }
 
     public static VolumeAdminSubcommand valueOfSubcommand(String command) {
+        String lower = StringUtil.toLowerCaseAscii(command);
         for (VolumeAdminSubcommand value : values()) {
-            if (value.value.equalsIgnoreCase(command)) {
+            if (value.value.equals(lower)) {
                 return value;
             }
         }

@@ -35,11 +35,6 @@ cases where exact decimal representation matters.
 
 If the key already exists, its value is overwritten silently.
 
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly two arguments.
-- The value must be a decimal number within the Decimal128 range.
-
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the write,

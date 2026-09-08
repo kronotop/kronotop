@@ -64,7 +64,7 @@ It is available on the management port (default 3320).
 | Condition                          | Message                                                             |
 |------------------------------------|---------------------------------------------------------------------|
 | Missing or extra parameters        | `ERR invalid number of parameters`                                  |
-| Invalid operation value            | `ERR invalid operation: <value>`                                    |
+| Unknown operation value            | `ERR Unknown operation: '<value>'`                                  |
 | Task already running               | `ERR Task volume:mark-stale-prefixes-task already exists`           |
 | STOP when no task is running       | `ERR Task with name volume:mark-stale-prefixes-task does not exist` |
 | REMOVE when no task is running     | `ERR Task with name volume:mark-stale-prefixes-task does not exist` |

@@ -16,6 +16,8 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
+import com.kronotop.internal.StringUtil;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,7 +31,7 @@ public enum CreateArgumentKey {
 
     static {
         for (CreateArgumentKey key : values()) {
-            LOOKUP.put(key.name.toLowerCase(), key);
+            LOOKUP.put(key.name, key);
         }
     }
 
@@ -40,6 +42,6 @@ public enum CreateArgumentKey {
     }
 
     public static CreateArgumentKey findByName(String raw) {
-        return LOOKUP.get(raw.toLowerCase());
+        return LOOKUP.get(StringUtil.toLowerCaseAscii(raw));
     }
 }

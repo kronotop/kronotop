@@ -45,7 +45,7 @@ Requires cluster initialization.
 |--------------------------------------------|-------------------------------------------------------------------------|
 | `ERR cluster has not been initialized yet` | The cluster must be initialized first.                                  |
 | `ERR invalid number of parameters`         | Exactly 2 arguments are required after `DESCRIBE-SHARD`.                |
-| `ERR invalid shard kind`                   | The shard kind must be `STASH` or `BUCKET`.                             |
+| `ERR Unknown shard kind: '<value>'`        | The shard kind must be `STASH` or `BUCKET`.                             |
 | `ERR invalid shard id`                     | The shard ID is not a valid integer, or is out of the configured range. |
 
 ## Examples
@@ -78,5 +78,5 @@ Requires cluster initialization.
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN DESCRIBE-SHARD FOOBAR 0
-(error) ERR invalid shard kind
+(error) ERR Unknown shard kind: 'FOOBAR'
 ```

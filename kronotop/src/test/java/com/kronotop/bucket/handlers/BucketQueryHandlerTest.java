@@ -2149,4 +2149,41 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("LIMIT without value",
+                        List.of("test-bucket", "{}", "LIMIT"),
+                        "ERR LIMIT argument must be followed by a non-negative integer"),
+                arguments("negative LIMIT",
+                        List.of("test-bucket", "{}", "LIMIT", "-1"),
+                        "ERR LIMIT argument must be followed by a non-negative integer"),
+                arguments("BATCH without value",
+                        List.of("test-bucket", "{}", "BATCH"),
+                        "ERR BATCH argument must be followed by a non-negative integer"),
+                arguments("SORTBY without direction",
+                        List.of("test-bucket", "{}", "SORTBY", "a"),
+                        "ERR SORTBY argument must be followed by a field name and direction (ASC or DESC)"),
+                arguments("unknown sort direction",
+                        List.of("test-bucket", "{}", "SORTBY", "a", "UP"),
+                        "ERR Unknown sort direction: 'UP'"),
+                arguments("PROJECTION without value",
+                        List.of("test-bucket", "{}", "PROJECTION"),
+                        "ERR PROJECTION argument must be followed by a projection specification"),
+                arguments("unknown keyword",
+                        List.of("test-bucket", "{}", "BOGUS"),
+                        "ERR Unknown 'BOGUS' argument")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidArguments")
+    void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: BUCKET.QUERY rejects a keyword without its value, an unusable value or an
+        // unknown keyword with an exact ERR reply.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_QUERY, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
 }

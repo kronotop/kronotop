@@ -16,10 +16,8 @@
 
 package com.kronotop.volume.handlers.protocol;
 
-import com.kronotop.KronotopException;
-import com.kronotop.server.RESPError;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
-import io.netty.buffer.ByteBuf;
 
 class BaseMessage {
     protected final Request request;
@@ -29,22 +27,14 @@ class BaseMessage {
     }
 
     protected byte[] readBytes(int index) {
-        ByteBuf byteBuf = request.getParams().get(index);
-        byte[] data = new byte[byteBuf.readableBytes()];
-        byteBuf.readBytes(data);
-        return data;
+        return ProtocolMessageUtil.readAsByteArray(request.getParams().get(index));
     }
 
     protected String readString(int index) {
-        return new String(readBytes(index));
+        return ProtocolMessageUtil.readAsString(request.getParams().get(index));
     }
 
     protected long readLong(int index) {
-        String data = readString(index);
-        try {
-            return Long.parseLong(data);
-        } catch (NumberFormatException e) {
-            throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_LONG);
-        }
+        return ProtocolMessageUtil.readAsLong(request.getParams().get(index));
     }
 }

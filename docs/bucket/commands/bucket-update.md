@@ -152,10 +152,10 @@ hosted on other nodes, the server rejects the request with a redirect to the app
 | `DUPLICATEKEY`          | Duplicate `_id` encountered during upsert.                                                                               |
 | `VECTORINDEXNOTREADY`   | A vector index on the bucket is still bootstrapping. Retry after a short delay.                                          |
 | `ERR`                   | The update parameter is missing, or the update document is empty.                                                        |
-| `ERR`                   | `BATCH argument must be followed by a positive integer`: no value after `BATCH`. |
-| `ERR`                   | `BATCH argument must be a non-negative integer`: negative `BATCH` value. |
-| `ERR`                   | `LIMIT argument must be followed by a positive integer`: no value after `LIMIT`. |
-| `ERR`                   | `LIMIT argument must be a non-negative integer`: negative `LIMIT` value. |
+| `ERR`                   | `BATCH argument must be followed by a non-negative integer`: `BATCH` has no value, or the value is negative. |
+| `ERR`                   | `LIMIT argument must be followed by a non-negative integer`: `LIMIT` has no value, or the value is negative. |
+| `ERR`                   | `Unknown sort direction: '<value>'`: the `SORTBY` direction is not `ASC` or `DESC`. |
+| `ERR`                   | `Unknown '<keyword>' argument`: the keyword is not one listed above. |
 | `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once. |
 
 ## Examples

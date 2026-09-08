@@ -21,6 +21,7 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
@@ -45,7 +46,7 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
         if (params.size() < 2) {
             throw new InvalidNumberOfParametersException();
         }
-        String operation = ProtocolMessageUtil.readAsString(params.get(1)).toUpperCase();
+        String operation = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(params.get(1)));
         switch (operation) {
             case "START" -> startReplication(request, response);
             case "STOP" -> stopReplication(request, response);

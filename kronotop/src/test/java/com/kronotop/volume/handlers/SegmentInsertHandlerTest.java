@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
+import com.kronotop.cluster.client.protocol.ReplicationCommandType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -116,5 +117,16 @@ class SegmentInsertHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         ErrorRedisMessage message = (ErrorRedisMessage) response;
         assertEquals("ERR Segment with id: '1' could not be found", message.content());
+    }
+
+    @Test
+    void shouldRejectOddNumberOfArguments() {
+        // Behavior: SEGMENT.INSERT needs two values for each entry after the volume name and segment id;
+        // an odd number of arguments is rejected with the standard wrong number of arguments error.
+        Object response = runRaw(kronotopInstance.getChannel(), ReplicationCommandType.SEGMENTINSERT,
+                List.of(volumeConfig.name(), "1", "0", "3", "6"));
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals("ERR wrong number of arguments for 'SEGMENT.INSERT' command", ((ErrorRedisMessage) response).content());
     }
 }

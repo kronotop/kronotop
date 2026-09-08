@@ -16,9 +16,10 @@
 
 package com.kronotop.core.handlers.session.protocol;
 
-import com.kronotop.KronotopException;
 import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.InputType;
 import com.kronotop.server.ObjectIdFormat;
 import com.kronotop.server.ReplyType;
@@ -35,12 +36,7 @@ public class SessionAttributeParameters {
     private ObjectIdFormat objectIdFormat;
 
     public SessionAttributeParameters(ArrayList<ByteBuf> params) {
-        String rawSubcommand = ProtocolMessageUtil.readAsString(params.getFirst());
-        try {
-            subcommand = SessionAttributeSubcommand.valueOf(rawSubcommand.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new KronotopException("Invalid subcommand status: " + rawSubcommand);
-        }
+        subcommand = ProtocolMessageUtil.readEnum(SessionAttributeSubcommand.class, params.getFirst(), "subcommand");
 
         if (subcommand.equals(SessionAttributeSubcommand.LIST)) {
             return;
@@ -56,34 +52,11 @@ public class SessionAttributeParameters {
         attribute = SessionAttribute.findByValue(rawSessionAttribute);
 
         switch (attribute) {
-            case INPUT_TYPE -> {
-                String rawInputType = ProtocolMessageUtil.readAsString(params.get(2));
-                try {
-                    inputType = InputType.valueOf(rawInputType.toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    throw new KronotopException("Invalid input type: " + rawInputType);
-                }
-            }
-            case REPLY_TYPE -> {
-                String rawReplyType = ProtocolMessageUtil.readAsString(params.get(2));
-                try {
-                    replyType = ReplyType.valueOf(rawReplyType.toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    throw new KronotopException("Invalid reply type: " + rawReplyType);
-                }
-            }
-            case BATCH -> {
-                bucketBatchSize = ProtocolMessageUtil.readAsInteger(params.get(2));
-            }
-            case OBJECT_ID_FORMAT -> {
-                String rawVersionstampFormat = ProtocolMessageUtil.readAsString(params.get(2));
-                try {
-                    objectIdFormat = ObjectIdFormat.valueOf(rawVersionstampFormat.toUpperCase());
-                } catch (IllegalArgumentException e) {
-                    throw new KronotopException("Invalid versionstamp format: " + rawVersionstampFormat);
-                }
-            }
-            default -> throw new KronotopException("Unknown session attribute: " + rawSessionAttribute);
+            case INPUT_TYPE -> inputType = ProtocolMessageUtil.readEnum(InputType.class, params.get(2), "input type");
+            case REPLY_TYPE -> replyType = ProtocolMessageUtil.readEnum(ReplyType.class, params.get(2), "reply type");
+            case BATCH -> bucketBatchSize = ProtocolMessageUtil.readAsInteger(params.get(2));
+            case OBJECT_ID_FORMAT ->
+                    objectIdFormat = ProtocolMessageUtil.readEnum(ObjectIdFormat.class, params.get(2), "object id format");
         }
     }
 
@@ -129,19 +102,13 @@ public class SessionAttributeParameters {
         }
 
         public static SessionAttribute findByValue(String v) {
-            if (v.toLowerCase().equals(REPLY_TYPE.getValue())) {
-                return REPLY_TYPE;
-            } else if (v.toLowerCase().equals(INPUT_TYPE.getValue())) {
-                return INPUT_TYPE;
-            } else if (v.toLowerCase().equals(BATCH.getValue())) {
-                return BATCH;
-            } else if (v.toLowerCase().endsWith(OBJECT_ID_FORMAT.getValue())) {
-                return OBJECT_ID_FORMAT;
-            } else {
-                throw new IllegalArgumentException(
-                        String.format("Invalid session attribute: '%s'", v)
-                );
+            String lower = StringUtil.toLowerCaseAscii(v);
+            for (SessionAttribute attribute : values()) {
+                if (attribute.value.equals(lower)) {
+                    return attribute;
+                }
             }
+            throw new IllegalCommandArgumentException(String.format("Unknown session attribute: '%s'", v));
         }
 
         public String getValue() {

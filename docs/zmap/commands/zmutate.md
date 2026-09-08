@@ -61,7 +61,7 @@ buf.writeBigInt64LE(5n);
 | `COMPARE_AND_CLEAR`        | Deletes the key if its current value is equal to `param`. Writes nothing.                                                                                |
 | `SET_VERSIONSTAMPED_VALUE` | Writes `param` with a commit versionstamp inside it. `param` needs a special layout, see below.                                                          |
 
-Mutation type names are not case sensitive.
+Mutation type names are not case-sensitive.
 
 `MAX` and `MIN` compare numbers. `BYTE_MAX` and `BYTE_MIN` compare byte strings. For the same input they can return
 different results.
@@ -142,11 +142,6 @@ value does not match, and `APPEND_IF_FITS` returns `OK` when the result was too 
 FoundationDB. The mutation executes without reading the current value first, making it conflict-free: concurrent
 mutations on the same key do not cause transaction conflicts. This makes `ZMUTATE` ideal for counters, flags, and
 lock-free data structures.
-
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly three arguments.
-- The mutation type must be one of the types listed above.
 
 The command supports two transaction modes:
 

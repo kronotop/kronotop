@@ -22,7 +22,6 @@ import com.kronotop.server.Request;
 import io.netty.buffer.ByteBuf;
 
 import java.util.List;
-import java.util.Locale;
 
 public class TickMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "TICK";
@@ -38,12 +37,7 @@ public class TickMessage implements ProtocolMessage<Void> {
 
     private void parse() {
         ByteBuf buf = request.getParams().getFirst();
-        String value = ProtocolMessageUtil.readAsString(buf);
-        try {
-            mode = Mode.valueOf(value.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(String.format("illegal argument for TICK: '%s'", value));
-        }
+        mode = ProtocolMessageUtil.readEnum(Mode.class, buf, "mode");
     }
 
     public Mode getMode() {

@@ -37,11 +37,6 @@ The special value `*` can be used as a wildcard to represent an unbounded bounda
 - `*` as `begin`: starts the range from the very first key in the subspace.
 - `*` as `end`: extends the range to the very last key in the subspace.
 
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly two arguments.
-- The begin key must not be larger than the end key.
-
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the read,

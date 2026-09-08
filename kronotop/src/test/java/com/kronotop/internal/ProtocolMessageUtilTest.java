@@ -102,6 +102,22 @@ class ProtocolMessageUtilTest {
         assertEquals("KEY-SELECTOR argument must be followed by a valid key selector", exception.getMessage());
     }
 
+    @Test
+    void shouldReadEnumIgnoringCase() {
+        // Behavior: readEnum resolves the constant from a lower case argument.
+        assertEquals(Keyword.REVERSE, ProtocolMessageUtil.readEnum(Keyword.class, "reverse", "keyword"));
+    }
+
+    @Test
+    void shouldRejectUnknownEnumValue() {
+        // Behavior: readEnum reports the value name and the raw argument in the error message.
+        IllegalCommandArgumentException exception = assertThrows(
+                IllegalCommandArgumentException.class,
+                () -> ProtocolMessageUtil.readEnum(Keyword.class, "bogus", "keyword")
+        );
+        assertEquals("Unknown keyword: 'bogus'", exception.getMessage());
+    }
+
     enum Keyword {
         LIMIT,
         REVERSE,

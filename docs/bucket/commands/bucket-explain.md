@@ -15,6 +15,8 @@ BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <
 
 ## Parameters
 
+Keyword names are not case-sensitive, and each keyword can appear at most once.
+
 | Parameter   | Type               | Required | Description                                                                                         |
 |-------------|--------------------|----------|-----------------------------------------------------------------------------------------------------|
 | `bucket`    | string             | Yes      | Name of the bucket to explain the query against.                                                    |
@@ -200,16 +202,17 @@ Residual predicates represent filter conditions that are evaluated after index s
 
 ## Errors
 
-| Error Code              | Description                     |
-|-------------------------|---------------------------------|
-| `NOSUCHBUCKET`          | The bucket does not exist.      |
-| `BUCKETBEINGREMOVED`    | The bucket is being removed.    |
-| `NOSUCHNAMESPACE`       | The namespace does not exist.   |
-| `NAMESPACEBEINGREMOVED` | The namespace is being removed. |
-| `ERR`                   | `BATCH argument must be followed by a positive integer`: no value after `BATCH`. |
-| `ERR`                   | `BATCH argument must be a non-negative integer`: negative `BATCH` value. |
-| `ERR`                   | `LIMIT argument must be followed by a positive integer`: no value after `LIMIT`. |
-| `ERR`                   | `LIMIT argument must be a non-negative integer`: negative `LIMIT` value. |
+| Error Code              | Description                                                                                                  |
+|-------------------------|--------------------------------------------------------------------------------------------------------------|
+| `NOSUCHBUCKET`          | The bucket does not exist.                                                                                   |
+| `BUCKETBEINGREMOVED`    | The bucket is being removed.                                                                                 |
+| `NOSUCHNAMESPACE`       | The namespace does not exist.                                                                                |
+| `NAMESPACEBEINGREMOVED` | The namespace is being removed.                                                                              |
+| `ERR`                   | `BATCH argument must be followed by a non-negative integer`: `BATCH` has no value, or the value is negative. |
+| `ERR`                   | `LIMIT argument must be followed by a non-negative integer`: `LIMIT` has no value, or the value is negative. |
+| `ERR`                   | `Unknown sort direction: '<value>'`: the `SORTBY` direction is not `ASC` or `DESC`.                          |
+| `ERR`                   | `Unknown '<keyword>' argument`: the keyword is not one listed above.                                         |
+| `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once.                                 |
 
 ## Examples
 

@@ -18,6 +18,7 @@ package com.kronotop.core.handlers.client;
 
 import com.kronotop.KronotopException;
 import com.kronotop.core.handlers.client.protocol.ClientMessage;
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.*;
 
 import java.util.HashMap;
@@ -37,13 +38,8 @@ public class SetInfoSubcommand implements SubcommandHandler {
             );
         }
 
-        byte[] rawAttribute = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(rawAttribute);
-        String attribute = new String(rawAttribute);
-
-        byte[] rawValue = new byte[request.getParams().get(2).readableBytes()];
-        request.getParams().get(2).readBytes(rawValue);
-        String value = new String(rawValue);
+        String attribute = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        String value = ProtocolMessageUtil.readAsString(request.getParams().get(2));
 
         HashMap<String, Object> channelAttributes = request.getSession().attr(SessionAttributes.CLIENT_ATTRIBUTES).get();
         if (attribute.equalsIgnoreCase(Attribute.LIBNAME.toString())) {

@@ -38,11 +38,6 @@ If the key does not exist, it is created with an implicit starting value of zero
 The value is encoded as an 8-byte little-endian signed integer. Overflow follows two's complement arithmetic:
 incrementing `Long.MAX_VALUE` by 1 wraps to `Long.MIN_VALUE`.
 
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly two arguments.
-- The value must be a signed 64-bit integer.
-
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the

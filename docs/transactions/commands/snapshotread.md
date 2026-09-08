@@ -62,7 +62,7 @@ Mutation commands (`BUCKET.INSERT`, `BUCKET.DELETE`, `BUCKET.UPDATE`) always use
 
 | Error Code | Description                                                                             |
 |------------|-----------------------------------------------------------------------------------------|
-| `ERR`      | `illegal argument for SNAPSHOTREAD: '<value>'`: The argument is neither `ON` nor `OFF`. |
+| `ERR`      | `Unknown option: '<value>'`: The argument is neither `ON` nor `OFF`.                    |
 
 ## Examples
 
@@ -84,5 +84,5 @@ OK
 
 ```kronotop
 > SNAPSHOTREAD MAYBE
-(error) ERR illegal argument for SNAPSHOTREAD: 'MAYBE'
+(error) ERR Unknown option: 'MAYBE'
 ```

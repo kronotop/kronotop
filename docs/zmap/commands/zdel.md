@@ -30,10 +30,6 @@ FoundationDB.
 
 The operation is idempotent: deleting a non-existent key returns `OK` without raising an error.
 
-Arguments are validated strictly. The command fails instead of ignoring input that it cannot use:
-
-- The command takes exactly one argument.
-
 The command supports two transaction modes:
 
 - **Auto-commit (one-off):** When no explicit transaction is active, Kronotop creates a transaction, performs the

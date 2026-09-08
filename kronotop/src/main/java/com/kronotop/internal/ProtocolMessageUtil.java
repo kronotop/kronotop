@@ -50,6 +50,11 @@ public class ProtocolMessageUtil {
      */
     public static final String VALID_KEY_SELECTOR = "a valid key selector";
 
+    /**
+     * Expected value description for keywords that take a count where zero is allowed.
+     */
+    public static final String NON_NEGATIVE_INTEGER = "a non-negative integer";
+
     public static byte[] readAsByteArray(ByteBuf buf) {
         byte[] raw = new byte[buf.readableBytes()];
         buf.readBytes(raw);
@@ -73,15 +78,36 @@ public class ProtocolMessageUtil {
      *
      * @param shardKindBuf buffer containing the shard kind name (e.g., "STASH", "BUCKET")
      * @return the parsed ShardKind enum value
-     * @throws KronotopException if the value is not a valid shard kind
+     * @throws IllegalCommandArgumentException if the value is not a valid shard kind
      */
     public static ShardKind readShardKind(ByteBuf shardKindBuf) {
-        String rawKind = ProtocolMessageUtil.readAsString(shardKindBuf);
+        return readEnum(ShardKind.class, shardKindBuf, "shard kind");
+    }
+
+    /**
+     * Resolves an enum constant from a raw argument, ignoring ASCII case.
+     *
+     * @param type the enum type
+     * @param raw  the argument as it is written on the wire, used in the error message
+     * @param what a short name for the value, used in the error message
+     * @return the matching constant
+     * @throws IllegalCommandArgumentException if no constant matches
+     */
+    public static <E extends Enum<E>> E readEnum(Class<E> type, String raw, String what) {
         try {
-            return ShardKind.valueOf(rawKind.toUpperCase());
+            return Enum.valueOf(type, StringUtil.toUpperCaseAscii(raw));
         } catch (IllegalArgumentException e) {
-            throw new KronotopException("invalid shard kind");
+            throw new IllegalCommandArgumentException(String.format("Unknown %s: '%s'", what, raw));
         }
+    }
+
+    /**
+     * Resolves an enum constant from a buffer, ignoring ASCII case.
+     *
+     * @see #readEnum(Class, String, String)
+     */
+    public static <E extends Enum<E>> E readEnum(Class<E> type, ByteBuf buf, String what) {
+        return readEnum(type, readAsString(buf), what);
     }
 
     /**

@@ -20,6 +20,8 @@ BUCKET.INSERT <bucket> DOCS <document> [document ...]
 | `bucket`  | string       | Yes      | Name of the target bucket. The bucket must already exist (see `BUCKET.CREATE`).                                         |
 | `DOCS`    | JSON or BSON | Yes      | One or more documents to insert. Documents can be in JSON or BSON format depending on the session's input type setting. |
 
+The `DOCS` keyword is not case-sensitive. Every argument after it is read as a document.
+
 ## Return Value
 
 Returns an array of ObjectIds, one for each inserted document. ObjectIds are returned in both auto-commit mode and
@@ -99,6 +101,8 @@ hosted on other nodes, the server rejects the request with a redirect to the app
 | `NAMESPACEBEINGREMOVED` | The target namespace is being removed.                                                                                   |
 | `NOSUCHNAMESPACE`       | The specified namespace does not exist.                                                                                  |
 | `VECTORINDEXNOTREADY`   | A vector index on the bucket is still bootstrapping. Retry after a short delay.                                          |
+| `ERR`                   | `Unknown '<keyword>' argument`: the argument after the bucket name is not `DOCS`.                                        |
+| `ERR`                   | `DOCS argument must be followed by one or more documents`: `DOCS` is the last argument.                                  |
 
 ## Examples
 
