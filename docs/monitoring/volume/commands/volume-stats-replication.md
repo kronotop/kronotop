@@ -48,12 +48,14 @@ This command is available on the management port (default 3320).
 
 ## Errors
 
-| Condition                      | Message                              |
-|--------------------------------|--------------------------------------|
-| Incorrect number of parameters | `ERR invalid number of parameters`   |
-| Invalid shard kind             | `ERR Unknown ShardKind '<kind>'`     |
-| Invalid shard ID               | Error from shard registry validation |
-| Invalid member ID              | Error from member ID validation      |
+Argument errors:
+
+| Error Code | Error message                   | Cause                                                                   |
+|------------|---------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `invalid number of parameters`  | -                                                                       |
+| `ERR`      | `Unknown shard kind: '<value>'` | The shard kind must be `STASH` or `BUCKET`.                             |
+| `ERR`      | `invalid shard id`              | The shard ID is not a valid integer, or is out of the configured range. |
+| `ERR`      | `Invalid memberId: <id>`        | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 ## Examples
 

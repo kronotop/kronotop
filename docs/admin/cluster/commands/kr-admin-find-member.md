@@ -39,15 +39,22 @@ Requires cluster initialization.
 
 ## Errors
 
-| Error                                                  | Condition                                                                |
-|--------------------------------------------------------|--------------------------------------------------------------------------|
-| `ERR cluster has not been initialized yet`             | The cluster must be initialized first.                                   |
-| `ERR member id is required`                            | No member ID was provided.                                               |
-| `ERR Invalid memberId: <id>`                           | The value is not a valid member ID and is not exactly 4 characters long. |
-| `ERR Member: <member-id> not registered`               | No member with the given ID exists in the cluster.                       |
-| `ERR Member: <member-id> not registered properly`      | The member directory exists but contains no member data.                 |
-| `ERR no member found with prefix: <prefix>`            | No registered member ID starts with the given 4-character prefix.        |
-| `ERR more than one member found with prefix: <prefix>` | The 4-character prefix is ambiguous.                                     |
+Argument errors:
+
+| Error Code | Error message            | Cause                                                                   |
+|------------|--------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `member id is required`  | -                                                                       |
+| `ERR`      | `Invalid memberId: <id>` | The value is neither a 40-character member ID nor a 4-character prefix. |
+
+Cluster errors:
+
+| Error Code | Error message                                      | Cause                                                    |
+|------------|----------------------------------------------------|----------------------------------------------------------|
+| `ERR`      | `cluster has not been initialized yet`             | -                                                        |
+| `ERR`      | `Member: <member-id> not registered`               | -                                                        |
+| `ERR`      | `Member: <member-id> not registered properly`      | The member directory exists but contains no member data. |
+| `ERR`      | `no member found with prefix: <prefix>`            | -                                                        |
+| `ERR`      | `more than one member found with prefix: <prefix>` | -                                                        |
 
 ## Examples
 

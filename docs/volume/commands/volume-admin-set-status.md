@@ -30,11 +30,18 @@ It does not require cluster initialization. It is available on the management po
 
 ## Errors
 
-| Condition                                          | Message                                       |
-|----------------------------------------------------|-----------------------------------------------|
-| Missing volume name or status parameter            | `ERR invalid number of parameters`            |
-| No volume with that name is managed by this member | `ERR Volume: '<name>' is not open`            |
-| Status value is not a valid volume status          | `ERR Unknown volume status: '<value>'`        |
+Argument errors:
+
+| Error Code | Error message                      | Cause |
+|------------|------------------------------------|-------|
+| `ERR`      | `invalid number of parameters`     | -     |
+| `ERR`      | `Unknown volume status: '<value>'` | -     |
+
+Volume errors:
+
+| Error Code | Error message                  | Cause                                               |
+|------------|--------------------------------|-----------------------------------------------------|
+| `ERR`      | `Volume: '<name>' is not open` | No volume with that name is managed by this member. |
 
 ## Examples
 

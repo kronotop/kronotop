@@ -53,12 +53,19 @@ member has not yet observed, the barrier check re-publishes the event to nudge l
 
 ## Errors
 
-| Error Code               | Description                                                                                    |
-|--------------------------|------------------------------------------------------------------------------------------------|
-| `NOSUCHNAMESPACE`        | The source namespace does not exist.                                                           |
-| `NAMESPACEALREADYEXISTS` | The destination namespace already exists.                                                      |
-| `NAMESPACEBEINGREMOVED`  | The source namespace is marked for removal via `NAMESPACE REMOVE` and has not yet been purged. |
-| `ERR`                    | The namespace path contains the reserved `__internal__` name.                                  |
+Argument errors:
+
+| Error Code | Error message                                     | Cause                                                         |
+|------------|---------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `Namespace '<path>' is reserved for internal use` | The namespace path contains the reserved `__internal__` name. |
+
+Namespace errors:
+
+| Error Code               | Error message                         | Cause |
+|--------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`        | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEALREADYEXISTS` | `Namespace already exists: <path>`    | -     |
+| `NAMESPACEBEINGREMOVED`  | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

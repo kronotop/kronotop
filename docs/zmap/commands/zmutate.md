@@ -158,17 +158,17 @@ All data is scoped to the session's active namespace. The same key in different 
 
 Argument errors:
 
-| Error Code | Error message                                     | Cause                                |
-|------------|---------------------------------------------------|--------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZMUTATE' command` | Not exactly three arguments.         |
-| `ERR`      | `Unknown mutation type: '<value>'`                | The mutation type is not recognized. |
+| Error Code | Error message                                     | Cause |
+|------------|---------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZMUTATE' command` | -     |
+| `ERR`      | `Unknown mutation type: '<value>'`                | -     |
 
 Transaction errors:
 
-| Error Code                 | Description                                                                                                                |
-|----------------------------|----------------------------------------------------------------------------------------------------------------------------|
-| `CLIENT_INVALID_OPERATION` | `SET_VERSIONSTAMPED_VALUE` got a `param` shorter than 14 bytes, or an offset that puts the 10 reserved bytes out of range. |
-| `ACCESSED_UNREADABLE`      | A key written by `SET_VERSIONSTAMPED_VALUE` was read in the same transaction, before `COMMIT`.                             |
+| Error Code                 | Error message                    | Cause                                                                                                        |
+|----------------------------|----------------------------------|--------------------------------------------------------------------------------------------------------------|
+| `CLIENT_INVALID_OPERATION` | `Invalid API call`               | `SET_VERSIONSTAMPED_VALUE` got a `param` shorter than 14 bytes, or an offset that puts the 10 reserved bytes out of range. |
+| `ACCESSED_UNREADABLE`      | `Read or wrote an unreadable key` | A key written by `SET_VERSIONSTAMPED_VALUE` was read in the same transaction, before `COMMIT`.              |
 
 ## Examples
 

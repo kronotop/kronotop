@@ -62,13 +62,20 @@ It is available on the management port (default 3320).
 
 ## Errors
 
-| Condition                                         | Message                                                |
-|---------------------------------------------------|--------------------------------------------------------|
-| Missing or extra parameters                       | `ERR invalid number of parameters`                     |
-| Invalid volume name format                        | `ERR invalid volume name: <name>`                      |
-| Invalid member ID format                          | `ERR Invalid memberId: <id>`                           |
-| No member found with the given 4-character prefix | `ERR no member found with prefix: <prefix>`            |
-| More than one member matches the prefix           | `ERR more than one member found with prefix: <prefix>` |
+Argument errors:
+
+| Error Code | Error message                  | Cause                                                                   |
+|------------|--------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `invalid number of parameters` | -                                                                       |
+| `ERR`      | `invalid volume name: <name>`  | The name does not match the `<kind>-shard-<id>` format.                 |
+| `ERR`      | `Invalid memberId: <id>`       | The value is neither a 40-character member ID nor a 4-character prefix. |
+
+Volume errors:
+
+| Error Code | Error message                                      | Cause |
+|------------|----------------------------------------------------|-------|
+| `ERR`      | `no member found with prefix: <prefix>`            | -     |
+| `ERR`      | `more than one member found with prefix: <prefix>` | -     |
 
 ## Examples
 

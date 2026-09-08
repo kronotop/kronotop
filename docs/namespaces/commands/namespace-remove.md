@@ -52,11 +52,19 @@ A cluster-wide event is published to the journal. Every cluster member that cons
 
 ## Errors
 
-| Error Code              | Description                                                                                                  |
-|-------------------------|--------------------------------------------------------------------------------------------------------------|
-| `NOSUCHNAMESPACE`       | The namespace does not exist.                                                                                |
-| `NAMESPACEBEINGREMOVED` | The namespace is already marked for removal.                                                                 |
-| `ERR`                   | Attempting to remove the default namespace, or the namespace path contains the reserved `__internal__` name. |
+Argument errors:
+
+| Error Code | Error message                                     | Cause                                                         |
+|------------|---------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `Namespace '<path>' is reserved for internal use` | The namespace path contains the reserved `__internal__` name. |
+
+Namespace errors:
+
+| Error Code              | Error message                                   | Cause |
+|-------------------------|-------------------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`                   | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed`           | -     |
+| `ERR`                   | `Cannot remove the default namespace: '<path>'` | -     |
 
 ## Examples
 

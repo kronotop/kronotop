@@ -111,17 +111,29 @@ use `BUCKET.LOCATE` to find the node that owns the bucket's shards and send the 
 
 ## Errors
 
-| Error Code              | Description                                                                                                  |
-|-------------------------|--------------------------------------------------------------------------------------------------------------|
-| `NOSUCHBUCKET`          | The bucket does not exist.                                                                                   |
-| `BUCKETBEINGREMOVED`    | The bucket is being removed.                                                                                 |
-| `NOSUCHNAMESPACE`       | The namespace does not exist.                                                                                |
-| `NAMESPACEBEINGREMOVED` | The namespace is being removed.                                                                              |
-| `ERR`                   | `BATCH argument must be followed by a non-negative integer`: `BATCH` has no value, or the value is negative. |
-| `ERR`                   | `LIMIT argument must be followed by a non-negative integer`: `LIMIT` has no value, or the value is negative. |
-| `ERR`                   | `Unknown sort direction: '<value>'`: the `SORTBY` direction is not `ASC` or `DESC`.                          |
-| `ERR`                   | `Unknown '<keyword>' argument`: the keyword is not one listed above.                                         |
-| `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once.                                 |
+Argument errors:
+
+| Error Code | Error message                                               | Cause                                          |
+|------------|-------------------------------------------------------------|------------------------------------------------|
+| `ERR`      | `BATCH argument must be followed by a non-negative integer` | -                                              |
+| `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -                                              |
+| `ERR`      | `Unknown sort direction: '<value>'`                         | The `SORTBY` direction is not `ASC` or `DESC`. |
+| `ERR`      | `Unknown '<keyword>' argument`                              | -                                              |
+| `ERR`      | `Duplicate '<keyword>' argument`                            | -                                              |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
+
+Bucket errors:
+
+| Error Code           | Error message                        | Cause |
+|----------------------|--------------------------------------|-------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -     |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -     |
 
 ## Examples
 

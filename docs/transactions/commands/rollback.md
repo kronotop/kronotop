@@ -27,9 +27,11 @@ The session returns to its default state and is ready to accept new commands or 
 
 ## Errors
 
-| Error Code    | Description                                         |
-|---------------|-----------------------------------------------------|
-| `TRANSACTION` | There is no transaction in progress on the session. |
+Transaction errors:
+
+| Error Code    | Error message                          | Cause |
+|---------------|----------------------------------------|-------|
+| `TRANSACTION` | `there is no transaction in progress.` | -     |
 
 ## Examples
 

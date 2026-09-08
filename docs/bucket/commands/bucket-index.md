@@ -163,14 +163,21 @@ Returns `OK` on success.
 
 ### Errors
 
-| Error Code           | Description                          |
-|----------------------|--------------------------------------|
-| `ERR`                | The index already exists.            |
-| `ERR`                | The schema is invalid.               |
-| `ERR`                | Unknown BSON type.                   |
-| `ERR`                | A unique index cannot be multi-key.  |
-| `NOSUCHBUCKET`       | The specified bucket does not exist. |
-| `BUCKETBEINGREMOVED` | The target bucket is being removed.  |
+Bucket errors:
+
+| Error Code           | Error message                        | Cause |
+|----------------------|--------------------------------------|-------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -     |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -     |
+
+Index errors:
+
+| Error Code | Error message                                | Cause |
+|------------|----------------------------------------------|-------|
+| `ERR`      | `An index on field '<field>' already exists` | -     |
+| `ERR`      | `Invalid index schema`                       | -     |
+| `ERR`      | `Unknown BSON type: <type>`                  | -     |
+| `ERR`      | `A unique index cannot be multi-key`         | -     |
 
 ### Examples
 
@@ -319,10 +326,12 @@ Returns an array of index names.
 
 ### Errors
 
-| Error Code           | Description                          |
-|----------------------|--------------------------------------|
-| `NOSUCHBUCKET`       | The specified bucket does not exist. |
-| `BUCKETBEINGREMOVED` | The bucket is being removed.         |
+Bucket errors:
+
+| Error Code           | Error message                        | Cause |
+|----------------------|--------------------------------------|-------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -     |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -     |
 
 ### Examples
 
@@ -383,11 +392,18 @@ Returns a map with the following fields:
 
 ### Errors
 
-| Error Code           | Description                          |
-|----------------------|--------------------------------------|
-| `NOSUCHBUCKET`       | The specified bucket does not exist. |
-| `NOSUCHINDEX`        | The specified index does not exist.  |
-| `BUCKETBEINGREMOVED` | The bucket is being removed.         |
+Bucket errors:
+
+| Error Code           | Error message                        | Cause |
+|----------------------|--------------------------------------|-------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -     |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -     |
+
+Index errors:
+
+| Error Code    | Error message              | Cause |
+|---------------|----------------------------|-------|
+| `NOSUCHINDEX` | `No such index: '<index>'` | -     |
 
 ### Examples
 
@@ -455,14 +471,21 @@ Returns `OK` on success. The index is marked as `DROPPED` and a background task 
 
 ### Errors
 
-| Error Code           | Description                                      |
-|----------------------|--------------------------------------------------|
-| `ERR`                | Cannot drop the primary index (`primary-index`). |
-| `ERR`                | The index is already in the `DROPPED` status.    |
-| `ERR`                | The index has active tasks.                      |
-| `NOSUCHBUCKET`       | The specified bucket does not exist.             |
-| `NOSUCHINDEX`        | The specified index does not exist.              |
-| `BUCKETBEINGREMOVED` | The bucket is being removed.                     |
+Bucket errors:
+
+| Error Code           | Error message                        | Cause |
+|----------------------|--------------------------------------|-------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -     |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -     |
+
+Index errors:
+
+| Error Code    | Error message                              | Cause |
+|---------------|--------------------------------------------|-------|
+| `NOSUCHINDEX` | `No such index: '<index>'`                 | -     |
+| `ERR`         | `Cannot drop the primary index`            | -     |
+| `ERR`         | `Index is already in the 'DROPPED' status` | -     |
+| `ERR`         | `Index has active tasks`                   | -     |
 
 ### Examples
 
@@ -538,10 +561,12 @@ Returns a map where each key is a task ID and the value contains task details:
 
 ### Errors
 
-| Error Code           | Description                          |
-|----------------------|--------------------------------------|
-| `NOSUCHBUCKET`       | The specified bucket does not exist. |
-| `BUCKETBEINGREMOVED` | The bucket is being removed.         |
+Bucket errors:
+
+| Error Code           | Error message                        | Cause |
+|----------------------|--------------------------------------|-------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -     |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -     |
 
 ### Examples
 
@@ -604,13 +629,20 @@ Returns `OK` on success. A background task is created to compute index statistic
 
 ### Errors
 
-| Error Code           | Description                                                                                       |
-|----------------------|---------------------------------------------------------------------------------------------------|
-| `ERR`                | An analysis task already exists for this index.                                                   |
-| `ERR`                | The index is not in the `READY` state. Only indexes that have completed building can be analyzed. |
-| `NOSUCHBUCKET`       | The specified bucket does not exist.                                                              |
-| `NOSUCHINDEX`        | The specified index does not exist.                                                               |
-| `BUCKETBEINGREMOVED` | The bucket is being removed.                                                                      |
+Bucket errors:
+
+| Error Code           | Error message                        | Cause |
+|----------------------|--------------------------------------|-------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -     |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -     |
+
+Index errors:
+
+| Error Code    | Error message                                                          | Cause |
+|---------------|------------------------------------------------------------------------|-------|
+| `NOSUCHINDEX` | `No such index: '<index>'`                                             | -     |
+| `ERR`         | `An analyze task has already exist`                                    | -     |
+| `ERR`         | `Cannot analyze index: index is not in READY state (current=<status>)` | -     |
 
 ### Examples
 
@@ -621,12 +653,11 @@ OK
 
 ## Errors
 
-| Error Code | Description                                                                              |
-|------------|------------------------------------------------------------------------------------------|
-| `ERR`      | `unknown subcommand: '<subcommand>'`: the subcommand is not one of the six listed above. |
+Argument errors:
 
-
-## Index Lifecycle
+| Error Code | Error message                        | Cause |
+|------------|--------------------------------------|-------|
+| `ERR`      | `unknown subcommand: '<subcommand>'` | -     |
 
 Indexes go through the following states:
 

@@ -121,18 +121,37 @@ hosted on other nodes, the server rejects the request with a redirect to the app
 
 ## Errors
 
-| Error Code              | Description                                                                                                              |
-|-------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| `ERR`                   | No vector index exists for the given selector.                                                                           |
-| `ERR`                   | The query vector dimensions do not match the index dimensions.                                                           |
-| `ERR`                   | An argument is invalid (negative TOP, OVERQUERY below 1.0, or non-positive MAX-SCAN-CANDIDATES).                         |
-| `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once.                                             |
-| `REJECT`                | The bucket's shards are hosted on another node. The error includes the target address: `REJECT <shardId> <host>:<port>`. |
-| `VECTORINDEXNOTREADY`   | The vector index is still being built or recovered. Retry after the background build completes.                          |
-| `NOSUCHBUCKET`          | The bucket does not exist.                                                                                               |
-| `BUCKETBEINGREMOVED`    | The bucket is being removed.                                                                                             |
-| `NOSUCHNAMESPACE`       | The namespace does not exist.                                                                                            |
-| `NAMESPACEBEINGREMOVED` | The namespace is being removed.                                                                                          |
+Argument errors:
+
+| Error Code | Error message                                                             | Cause |
+|------------|---------------------------------------------------------------------------|-------|
+| `ERR`      | `Duplicate '<keyword>' argument`                                          | -     |
+| `ERR`      | `TOP argument must be a non-negative integer`                             | -     |
+| `ERR`      | `OVERQUERY argument must be >= 1.0`                                       | -     |
+| `ERR`      | `MAX-SCAN-CANDIDATES argument must be a positive integer`                 | -     |
+| `ERR`      | `Vector index '<index>' requires <n> dimensions but query vector has <m>` | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
+
+Bucket errors:
+
+| Error Code           | Error message                        | Cause                                                                                     |
+|----------------------|--------------------------------------|-------------------------------------------------------------------------------------------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                         |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                         |
+| `REJECT`             | `<shardId> <host>:<port>`            | The bucket's shards are hosted on another member. The message carries the target address. |
+
+Index errors:
+
+| Error Code            | Error message                                                    | Cause                                                                                           |
+|-----------------------|------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| `ERR`                 | `No vector index found for selector: '<selector>'`               | -                                                                                               |
+| `VECTORINDEXNOTREADY` | `Vector index '<namespace>/<bucket>/<indexId>' is not ready yet` | The vector index is still being built or recovered. Retry after the background build completes. |
 
 ## Examples
 

@@ -48,13 +48,20 @@ shard), post-initialization (set `READWRITE` after assigning routes).
 
 ## Errors
 
-| Error                                      | Condition                                                               |
-|--------------------------------------------|-------------------------------------------------------------------------|
-| `ERR cluster has not been initialized yet` | The cluster must be initialized first.                                  |
-| `ERR invalid number of parameters`         | Exactly 3 arguments are required after `SET-SHARD-STATUS`.              |
-| `ERR Unknown shard kind: '<value>'`        | The shard kind must be `STASH` or `BUCKET`.                             |
-| `ERR invalid shard id`                     | The shard ID is not a valid integer, or is out of the configured range. |
-| `ERR Unknown shard status: '<value>'`      | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |
+Argument errors:
+
+| Error Code | Error message                     | Cause                                                                   |
+|------------|-----------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `invalid number of parameters`    | -                                                                       |
+| `ERR`      | `Unknown shard kind: '<value>'`   | The shard kind must be `STASH` or `BUCKET`.                             |
+| `ERR`      | `invalid shard id`                | The shard ID is not a valid integer, or is out of the configured range. |
+| `ERR`      | `Unknown shard status: '<value>'` | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |
+
+Cluster errors:
+
+| Error Code | Error message                          | Cause |
+|------------|----------------------------------------|-------|
+| `ERR`      | `cluster has not been initialized yet` | -     |
 
 ## Examples
 

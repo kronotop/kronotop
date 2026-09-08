@@ -41,11 +41,13 @@ Returns `OK` on success.
 
 ## Errors
 
-| Error Code            | Description                                                                |
-|-----------------------|----------------------------------------------------------------------------|
-| `NOSUCHBUCKET`        | The specified bucket does not exist.                                       |
-| `ERR`                 | The bucket is not marked for removal. You must call `BUCKET.REMOVE` first. |
-| `BARRIERNOTSATISFIED` | Not all shards have observed the removal. Retry the command.               |
+Bucket errors:
+
+| Error Code            | Error message                                                                          | Cause                                                             |
+|-----------------------|----------------------------------------------------------------------------------------|-------------------------------------------------------------------|
+| `NOSUCHBUCKET`        | `No such bucket: '<bucket>'`                                                           | -                                                                 |
+| `ERR`                 | `Bucket '<bucket>' is not removed`                                                     | The bucket is not marked for removal. Call `BUCKET.REMOVE` first. |
+| `BARRIERNOTSATISFIED` | `Barrier not satisfied: not all shards observed version <version> within <n> attempts` | Not all shards have observed the removal. Retry the command.      |
 
 ## Examples
 

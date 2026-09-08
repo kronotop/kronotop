@@ -141,22 +141,40 @@ hosted on other nodes, the server rejects the request with a redirect to the app
 
 ## Errors
 
-| Error Code              | Description                                                                                                              |
-|-------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| `REJECT`                | The bucket's shards are hosted on another node. The error includes the target address: `REJECT <shardId> <host>:<port>`. |
-| `BUCKETBEINGREMOVED`    | The bucket is being removed.                                                                                             |
-| `NOSUCHBUCKET`          | The bucket does not exist.                                                                                               |
-| `NOSUCHNAMESPACE`       | The namespace does not exist.                                                                                            |
-| `NAMESPACEBEINGREMOVED` | The namespace is being removed.                                                                                          |
-| `INDEXTYPE_MISMATCH`    | The updated value type does not match the expected index type.                                                           |
-| `DUPLICATEKEY`          | Duplicate `_id` encountered during upsert.                                                                               |
-| `VECTORINDEXNOTREADY`   | A vector index on the bucket is still bootstrapping. Retry after a short delay.                                          |
-| `ERR`                   | The update parameter is missing, or the update document is empty.                                                        |
-| `ERR`                   | `BATCH argument must be followed by a non-negative integer`: `BATCH` has no value, or the value is negative. |
-| `ERR`                   | `LIMIT argument must be followed by a non-negative integer`: `LIMIT` has no value, or the value is negative. |
-| `ERR`                   | `Unknown sort direction: '<value>'`: the `SORTBY` direction is not `ASC` or `DESC`. |
-| `ERR`                   | `Unknown '<keyword>' argument`: the keyword is not one listed above. |
-| `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once. |
+Argument errors:
+
+| Error Code | Error message                                               | Cause                                          |
+|------------|-------------------------------------------------------------|------------------------------------------------|
+| `ERR`      | `update argument cannot be empty`                           | -                                              |
+| `ERR`      | `update document cannot be an empty document`               | -                                              |
+| `ERR`      | `BATCH argument must be followed by a non-negative integer` | -                                              |
+| `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -                                              |
+| `ERR`      | `Unknown sort direction: '<value>'`                         | The `SORTBY` direction is not `ASC` or `DESC`. |
+| `ERR`      | `Unknown '<keyword>' argument`                              | -                                              |
+| `ERR`      | `Duplicate '<keyword>' argument`                            | -                                              |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
+
+Bucket errors:
+
+| Error Code           | Error message                        | Cause                                                                                     |
+|----------------------|--------------------------------------|-------------------------------------------------------------------------------------------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                         |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                         |
+| `REJECT`             | `<shardId> <host>:<port>`            | The bucket's shards are hosted on another member. The message carries the target address. |
+| `DUPLICATEKEY`       | `Duplicate key: _id '<hex>'`         | A duplicate `_id` was found during upsert.                                                |
+
+Index errors:
+
+| Error Code            | Error message                                                                                                         | Cause                                                                                           |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| `INDEXTYPE_MISMATCH`  | `Index type mismatch: index '<index>' expects '<type>', but selector '<selector>' matched a value of type '<actual>'` | -                                                                                               |
+| `VECTORINDEXNOTREADY` | `Vector index '<namespace>/<bucket>/<indexId>' is not ready yet`                                                      | The vector index is still being built or recovered. Retry after the background build completes. |
 
 ## Examples
 

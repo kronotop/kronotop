@@ -45,10 +45,12 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
+Argument errors:
+
 | Error Code | Error message                                      | Cause                         |
 |------------|----------------------------------------------------|-------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZSET.F64' command` | Not exactly two arguments.    |
-| `ERR`      | `value is not a double or out of range`            | The value is not a number.    |
+| `ERR`      | `wrong number of arguments for 'ZSET.F64' command` | -                             |
+| `ERR`      | `value is not a double or out of range`            | -                             |
 | `ERR`      | `Invalid value: must be a finite IEEE-754 double`  | The value is NaN or Infinity. |
 
 ## Examples

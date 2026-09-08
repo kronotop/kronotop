@@ -74,9 +74,11 @@ When no cursors exist for an operation type, the corresponding map or array is e
 
 ## Errors
 
-| Error Code | Description                                                                         |
-|------------|-------------------------------------------------------------------------------------|
-| `ERR`      | Unknown operation type. The error message format is `Unknown '<operation>' action`. |
+Argument errors:
+
+| Error Code | Error message                  | Cause                                                     |
+|------------|--------------------------------|-----------------------------------------------------------|
+| `ERR`      | `Unknown '<operation>' action` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
 
 ## Examples
 

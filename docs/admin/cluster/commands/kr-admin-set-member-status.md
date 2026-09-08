@@ -30,16 +30,23 @@ Updates the status of the specified member and notifies the cluster so that othe
 
 ## Errors
 
-| Error                                                  | Condition                                                                |
-|--------------------------------------------------------|--------------------------------------------------------------------------|
-| `ERR cluster has not been initialized yet`             | The cluster must be initialized first.                                   |
-| `ERR Invalid number of parameters`                     | The wrong number of arguments was supplied.                              |
-| `ERR Unknown member status: '<value>'`                 | The value does not match any valid status.                               |
-| `ERR Member: <member-id> not registered`               | No member with the given ID exists in the cluster.                       |
-| `ERR Member: <member-id> not registered properly`      | The member exists but its record is incomplete.                          |
-| `ERR Invalid memberId: <id>`                           | The value is not a valid member ID and is not exactly 4 characters long. |
-| `ERR no member found with prefix: <prefix>`            | No registered member ID starts with the given 4-character prefix.        |
-| `ERR more than one member found with prefix: <prefix>` | The 4-character prefix is ambiguous.                                     |
+Argument errors:
+
+| Error Code | Error message                      | Cause                                                                   |
+|------------|------------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `Invalid number of parameters`     | -                                                                       |
+| `ERR`      | `Unknown member status: '<value>'` | -                                                                       |
+| `ERR`      | `Invalid memberId: <id>`           | The value is neither a 40-character member ID nor a 4-character prefix. |
+
+Cluster errors:
+
+| Error Code | Error message                                      | Cause                                                    |
+|------------|----------------------------------------------------|----------------------------------------------------------|
+| `ERR`      | `cluster has not been initialized yet`             | -                                                        |
+| `ERR`      | `Member: <member-id> not registered`               | -                                                        |
+| `ERR`      | `Member: <member-id> not registered properly`      | The member directory exists but contains no member data. |
+| `ERR`      | `no member found with prefix: <prefix>`            | -                                                        |
+| `ERR`      | `more than one member found with prefix: <prefix>` | -                                                        |
 
 ## Examples
 

@@ -34,15 +34,22 @@ decommission it.
 
 ## Errors
 
-| Error                                                  | Condition                                                                    |
-|--------------------------------------------------------|------------------------------------------------------------------------------|
-| `ERR cluster has not been initialized yet`             | The cluster must be initialized first.                                       |
-| `ERR Member in RUNNING status cannot be removed`       | The member is still active and must be stopped first.                        |
-| `ERR Member: <member-id> not registered`               | No member with the given ID exists in the cluster.                           |
-| `ERR Member: <member-id> not registered properly`      | The member's directory exists but its data is missing or corrupted.          |
-| `ERR Invalid memberId: <id>`                           | The value is neither a 40-character full member ID nor a 4-character prefix. |
-| `ERR no member found with prefix: <prefix>`            | No registered member ID starts with the given 4-character prefix.            |
-| `ERR more than one member found with prefix: <prefix>` | The 4-character prefix is ambiguous.                                         |
+Argument errors:
+
+| Error Code | Error message            | Cause                                                                   |
+|------------|--------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `Invalid memberId: <id>` | The value is neither a 40-character member ID nor a 4-character prefix. |
+
+Cluster errors:
+
+| Error Code | Error message                                      | Cause                                                    |
+|------------|----------------------------------------------------|----------------------------------------------------------|
+| `ERR`      | `cluster has not been initialized yet`             | -                                                        |
+| `ERR`      | `Member in RUNNING status cannot be removed`       | -                                                        |
+| `ERR`      | `Member: <member-id> not registered`               | -                                                        |
+| `ERR`      | `Member: <member-id> not registered properly`      | The member directory exists but contains no member data. |
+| `ERR`      | `no member found with prefix: <prefix>`            | -                                                        |
+| `ERR`      | `more than one member found with prefix: <prefix>` | -                                                        |
 
 ## Examples
 

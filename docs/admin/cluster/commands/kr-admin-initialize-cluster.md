@@ -33,10 +33,12 @@ Operators must explicitly set shard status and assign routes before the cluster 
 
 ## Errors
 
-| Error                                                      | Condition                                                                                                             |
-|------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
-| `ERR cluster has already been initialized`                 | The cluster has already been initialized.                                                                             |
-| `ERR KronotopDirectory: '<path>' has already been created` | A directory created during initialization already exists, indicating a partial or conflicting initialization attempt. |
+Cluster errors:
+
+| Error Code | Error message                                          | Cause                                                                                                                 |
+|------------|--------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| `ERR`      | `cluster has already been initialized`                 | -                                                                                                                     |
+| `ERR`      | `KronotopDirectory: '<path>' has already been created` | A directory created during initialization already exists, indicating a partial or conflicting initialization attempt. |
 
 ## Examples
 

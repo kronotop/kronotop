@@ -36,10 +36,17 @@ The `__internal__` reserved name is rejected at parse time.
 
 ## Errors
 
-| Error Code              | Description                                                                                                    |
-|-------------------------|----------------------------------------------------------------------------------------------------------------|
-| `NAMESPACEBEINGREMOVED` | The namespace was previously removed via `NAMESPACE REMOVE` but has not yet been purged via `NAMESPACE PURGE`. |
-| `ERR`                   | The namespace path contains the reserved `__internal__` leaf.                                                  |
+Argument errors:
+
+| Error Code | Error message                                     | Cause                                                         |
+|------------|---------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `Namespace '<path>' is reserved for internal use` | The namespace path contains the reserved `__internal__` name. |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

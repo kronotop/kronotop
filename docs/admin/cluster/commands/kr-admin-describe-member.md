@@ -39,10 +39,17 @@ Requires cluster initialization.
 
 ## Errors
 
-| Error                                      | Condition                                          |
-|--------------------------------------------|----------------------------------------------------|
-| `ERR cluster has not been initialized yet` | The cluster must be initialized first.             |
-| `ERR invalid number of parameters`         | No arguments are accepted after `DESCRIBE-MEMBER`. |
+Argument errors:
+
+| Error Code | Error message                  | Cause |
+|------------|--------------------------------|-------|
+| `ERR`      | `invalid number of parameters` | -     |
+
+Cluster errors:
+
+| Error Code | Error message                          | Cause |
+|------------|----------------------------------------|-------|
+| `ERR`      | `cluster has not been initialized yet` | -     |
 
 ## Examples
 

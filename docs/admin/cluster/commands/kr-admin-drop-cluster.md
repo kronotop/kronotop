@@ -56,13 +56,15 @@ operator must request a new token from Phase 1 to retry.
 
 ## Errors
 
-| Error                                                | Condition                                                                    |
-|------------------------------------------------------|------------------------------------------------------------------------------|
-| `ERR cluster has not been initialized yet`           | The cluster must be initialized first.                                       |
-| `ERR cluster name does not match`                    | The provided cluster name does not match the node's configured cluster name. |
-| `ERR no pending drop-cluster token for this cluster` | No token has been requested, or the token was already consumed.              |
-| `ERR drop-cluster token has expired`                 | The token's 60-second TTL has elapsed.                                       |
-| `ERR invalid drop-cluster token`                     | The provided token does not match the issued token.                          |
+Cluster errors:
+
+| Error Code | Error message                                    | Cause                                                           |
+|------------|--------------------------------------------------|-----------------------------------------------------------------|
+| `ERR`      | `cluster has not been initialized yet`           | -                                                               |
+| `ERR`      | `cluster name does not match`                    | -                                                               |
+| `ERR`      | `no pending drop-cluster token for this cluster` | No token has been requested, or the token was already consumed. |
+| `ERR`      | `drop-cluster token has expired`                 | The token's 60-second TTL has elapsed.                          |
+| `ERR`      | `invalid drop-cluster token`                     | -                                                               |
 
 ## Examples
 

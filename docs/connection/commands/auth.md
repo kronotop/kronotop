@@ -37,10 +37,12 @@ This command does not require the cluster to be initialized.
 
 ## Errors
 
-| Error       | Condition                                                             |
-|-------------|-----------------------------------------------------------------------|
-| `WRONGPASS` | Invalid username or password                                          |
-| `ERR`       | No password is configured but AUTH was called with a single parameter |
+Argument errors:
+
+| Error Code  | Error message                                                                                                              | Cause |
+|-------------|----------------------------------------------------------------------------------------------------------------------------|-------|
+| `WRONGPASS` | `invalid username-password pair or user is disabled.`                                                                      | -     |
+| `ERR`       | `AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?` | -     |
 
 ## Examples
 

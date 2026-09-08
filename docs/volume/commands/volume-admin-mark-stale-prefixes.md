@@ -61,15 +61,21 @@ It is available on the management port (default 3320).
 
 ## Errors
 
-| Condition                          | Message                                                             |
-|------------------------------------|---------------------------------------------------------------------|
-| Missing or extra parameters        | `ERR invalid number of parameters`                                  |
-| Unknown operation value            | `ERR Unknown operation: '<value>'`                                  |
-| Task already running               | `ERR Task volume:mark-stale-prefixes-task already exists`           |
-| STOP when no task is running       | `ERR Task with name volume:mark-stale-prefixes-task does not exist` |
-| REMOVE when no task is running     | `ERR Task with name volume:mark-stale-prefixes-task does not exist` |
-| Task owned by another alive member | `ERR Run by another cluster member`                                 |
-| LOCATE when no metadata exists     | `ERR no metadata found`                                             |
+Argument errors:
+
+| Error Code | Error message                  | Cause |
+|------------|--------------------------------|-------|
+| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `Unknown operation: '<value>'` | -     |
+
+Volume errors:
+
+| Error Code | Error message                                                   | Cause |
+|------------|-----------------------------------------------------------------|-------|
+| `ERR`      | `Task volume:mark-stale-prefixes-task already exists`           | -     |
+| `ERR`      | `Task with name volume:mark-stale-prefixes-task does not exist` | -     |
+| `ERR`      | `Run by another cluster member`                                 | -     |
+| `ERR`      | `no metadata found`                                             | -     |
 
 ## Examples
 

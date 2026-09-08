@@ -51,11 +51,13 @@ This command does not require the cluster to be initialized.
 
 ## Errors
 
-**`ERR`** is returned when:
+Argument errors:
 
-- Wrong number of arguments for the subcommand.
-- Unrecognized attribute for `SETINFO` (not `lib-name` or `lib-ver`).
-- Unknown subcommand.
+| Error Code | Error message                                                  | Cause                                                   |
+|------------|----------------------------------------------------------------|---------------------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'CLIENT\|<subcommand>' command` | -                                                       |
+| `ERR`      | `Unrecognized option '<attribute>'`                            | The `SETINFO` attribute is not `lib-name` or `lib-ver`. |
+| `ERR`      | `unknown subcommand: '<value>'`                                | -                                                       |
 
 ## Examples
 

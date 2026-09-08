@@ -33,10 +33,17 @@ This command is available on the management port (default 3320).
 
 ## Errors
 
-| Condition                                          | Message                                                    |
-|----------------------------------------------------|------------------------------------------------------------|
-| Volume name parameter is missing                   | `ERR wrong number of arguments for 'VOLUME.STATS' command` |
-| No volume with that name is managed by this member | `ERR Volume: '<name>' is not open`                         |
+Argument errors:
+
+| Error Code | Error message                                          | Cause |
+|------------|--------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'VOLUME.STATS' command` | -     |
+
+Volume errors:
+
+| Error Code | Error message                  | Cause                                               |
+|------------|--------------------------------|-----------------------------------------------------|
+| `ERR`      | `Volume: '<name>' is not open` | No volume with that name is managed by this member. |
 
 ## Examples
 

@@ -91,18 +91,35 @@ hosted on other nodes, the server rejects the request with a redirect to the app
 
 ## Errors
 
-| Error Code              | Description                                                                                                              |
-|-------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| `REJECT`                | The bucket's shards are hosted on another node. The error includes the target address: `REJECT <shardId> <host>:<port>`. |
-| `DUPLICATEKEY`          | A document with the same `_id` already exists in the bucket.                                                             |
-| `ERR`                   | `_id field must be of type ObjectId`: the `_id` field in a document is not an ObjectId.                                  |
-| `INDEXTYPE_MISMATCH`    | The value type does not match the expected index type (when `strict_types` is enabled).                                  |
-| `BUCKETBEINGREMOVED`    | The target bucket is being removed.                                                                                      |
-| `NAMESPACEBEINGREMOVED` | The target namespace is being removed.                                                                                   |
-| `NOSUCHNAMESPACE`       | The specified namespace does not exist.                                                                                  |
-| `VECTORINDEXNOTREADY`   | A vector index on the bucket is still bootstrapping. Retry after a short delay.                                          |
-| `ERR`                   | `Unknown '<keyword>' argument`: the argument after the bucket name is not `DOCS`.                                        |
-| `ERR`                   | `DOCS argument must be followed by one or more documents`: `DOCS` is the last argument.                                  |
+Argument errors:
+
+| Error Code | Error message                                             | Cause |
+|------------|-----------------------------------------------------------|-------|
+| `ERR`      | `Unknown '<keyword>' argument`                            | -     |
+| `ERR`      | `DOCS argument must be followed by one or more documents` | -     |
+| `ERR`      | `_id field must be of type ObjectId`                      | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
+
+Bucket errors:
+
+| Error Code           | Error message                        | Cause                                                                                     |
+|----------------------|--------------------------------------|-------------------------------------------------------------------------------------------|
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                         |
+| `REJECT`             | `<shardId> <host>:<port>`            | The bucket's shards are hosted on another member. The message carries the target address. |
+| `DUPLICATEKEY`       | `Duplicate key: _id '<hex>'`         | -                                                                                         |
+
+Index errors:
+
+| Error Code            | Error message                                                                                                         | Cause                                                                                           |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| `INDEXTYPE_MISMATCH`  | `Index type mismatch: index '<index>' expects '<type>', but selector '<selector>' matched a value of type '<actual>'` | The value type does not match the index type. Only when `strict_types` is enabled.              |
+| `VECTORINDEXNOTREADY` | `Vector index '<namespace>/<bucket>/<indexId>' is not ready yet`                                                      | The vector index is still being built or recovered. Retry after the background build completes. |
 
 ## Examples
 

@@ -37,15 +37,17 @@ All attribute names and enum values are case-insensitive.
 
 ## Errors
 
-| Error                                       | Cause                                         |
-|---------------------------------------------|-----------------------------------------------|
-| `ERR Unknown subcommand: '<value>'`         | The subcommand is neither `LIST` nor `SET`    |
-| `ERR Unknown reply type: '<value>'`         | Unknown value for `reply_type`                |
-| `ERR Unknown input type: '<value>'`         | Unknown value for `input_type`                |
-| `ERR 'batch' must be greater than 0`        | `batch` was set to 0 or a negative number     |
-| `ERR Unknown object id format: '<value>'`   | Unknown value for `object_id_format`          |
-| `ERR invalid number of parameters`          | `SET` called without both attribute and value |
-| `ERR Unknown session attribute: '<name>'`   | The attribute name does not exist             |
+Argument errors:
+
+| Error Code | Error message                         | Cause |
+|------------|---------------------------------------|-------|
+| `ERR`      | `Unknown subcommand: '<value>'`       | -     |
+| `ERR`      | `invalid number of parameters`        | -     |
+| `ERR`      | `Unknown session attribute: '<name>'` | -     |
+| `ERR`      | `Unknown reply type: '<value>'`       | -     |
+| `ERR`      | `Unknown input type: '<value>'`       | -     |
+| `ERR`      | `Unknown object id format: '<value>'` | -     |
+| `ERR`      | `'batch' must be greater than 0`      | -     |
 
 ## Examples
 

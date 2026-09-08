@@ -42,9 +42,11 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Error message                                  | Cause                      |
-|------------|------------------------------------------------|----------------------------|
-| `ERR`      | `wrong number of arguments for 'ZSET' command` | Not exactly two arguments. |
+Argument errors:
+
+| Error Code | Error message                                  | Cause |
+|------------|------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZSET' command` | -     |
 
 ## Examples
 

@@ -26,10 +26,17 @@ Returns `OK` on success.
 
 ## Errors
 
-| Error Code | Description                                                                                 |
-|------------|---------------------------------------------------------------------------------------------|
-| `ERR`      | `no cursor found` if the cursor does not exist or was already closed.                       |
-| `ERR`      | `Unknown '<operation>' action` if the operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
+Argument errors:
+
+| Error Code | Error message                  | Cause                                                     |
+|------------|--------------------------------|-----------------------------------------------------------|
+| `ERR`      | `Unknown '<operation>' action` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
+
+Bucket errors:
+
+| Error Code | Error message     | Cause |
+|------------|-------------------|-------|
+| `ERR`      | `no cursor found` | -     |
 
 ## Examples
 

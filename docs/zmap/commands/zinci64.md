@@ -51,9 +51,11 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
+Argument errors:
+
 | Error Code | Error message                                      | Cause                                     |
 |------------|----------------------------------------------------|-------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZINC.I64' command` | Not exactly two arguments.                |
+| `ERR`      | `wrong number of arguments for 'ZINC.I64' command` | -                                         |
 | `ERR`      | `value is not a long or out of range`              | The value is not a signed 64-bit integer. |
 
 ## Examples

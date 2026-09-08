@@ -48,12 +48,19 @@ Returns `OK` on success.
 
 ## Errors
 
-| Error Code              | Description                               |
-|-------------------------|-------------------------------------------|
-| `NOSUCHBUCKET`          | The specified bucket does not exist.      |
-| `BUCKETBEINGREMOVED`    | The bucket is already marked for removal. |
-| `NOSUCHNAMESPACE`       | The namespace does not exist.             |
-| `NAMESPACEBEINGREMOVED` | The namespace is being removed.           |
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
+
+Bucket errors:
+
+| Error Code           | Error message                        | Cause |
+|----------------------|--------------------------------------|-------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -     |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -     |
 
 ## Examples
 

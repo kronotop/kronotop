@@ -27,7 +27,7 @@ It is available on the management port (default 3320).
 
 ## Errors
 
-No command-specific errors. The command takes no parameters beyond the subcommand itself.
+No command-specific errors.
 
 ## Examples
 

@@ -43,9 +43,11 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Error message                                  | Cause                     |
-|------------|------------------------------------------------|---------------------------|
-| `ERR`      | `wrong number of arguments for 'ZGET' command` | Not exactly one argument. |
+Argument errors:
+
+| Error Code | Error message                                  | Cause |
+|------------|------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZGET' command` | -     |
 
 ## Examples
 

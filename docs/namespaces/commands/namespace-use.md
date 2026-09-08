@@ -33,11 +33,18 @@ The `__internal__` reserved name is rejected at parse time.
 
 ## Errors
 
-| Error Code              | Description                                                                                                                              |
-|-------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| `NOSUCHNAMESPACE`       | The namespace does not exist.                                                                                                            |
-| `NAMESPACEBEINGREMOVED` | The namespace (or one of its ancestors) was previously removed via `NAMESPACE REMOVE` but has not yet been purged via `NAMESPACE PURGE`. |
-| `ERR`                   | The namespace path contains the reserved `__internal__` leaf.                                                                            |
+Argument errors:
+
+| Error Code | Error message                                     | Cause                                                         |
+|------------|---------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `Namespace '<path>' is reserved for internal use` | The namespace path contains the reserved `__internal__` name. |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause                                                                                                                  |
+|-------------------------|---------------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -                                                                                                                      |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | The namespace, or one of its ancestors, was removed with `NAMESPACE REMOVE` but not yet purged with `NAMESPACE PURGE`. |
 
 ## Examples
 

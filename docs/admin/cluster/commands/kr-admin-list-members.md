@@ -35,9 +35,11 @@ Requires cluster initialization.
 
 ## Errors
 
-| Error                                      | Condition                              |
-|--------------------------------------------|----------------------------------------|
-| `ERR cluster has not been initialized yet` | The cluster must be initialized first. |
+Cluster errors:
+
+| Error Code | Error message                          | Cause |
+|------------|----------------------------------------|-------|
+| `ERR`      | `cluster has not been initialized yet` | -     |
 
 ## Examples
 

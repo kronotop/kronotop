@@ -78,9 +78,11 @@ This command does not require the cluster to be initialized.
 
 ## Errors
 
-| Error | Condition          |
-|-------|--------------------|
-| `ERR` | Unknown subcommand |
+Argument errors:
+
+| Error Code | Error message                                     | Cause |
+|------------|---------------------------------------------------|-------|
+| `ERR`      | `unknown subcommand '<value>'. Try COMMAND HELP.` | -     |
 
 ## Examples
 

@@ -47,10 +47,17 @@ It is available on the management port (default 3320).
 
 ## Errors
 
-| Condition                                          | Message                            |
-|----------------------------------------------------|------------------------------------|
-| Volume name parameter is missing                   | `ERR invalid number of parameters` |
-| No volume with that name is managed by this member | `ERR Volume: '<name>' is not open` |
+Argument errors:
+
+| Error Code | Error message                  | Cause |
+|------------|--------------------------------|-------|
+| `ERR`      | `invalid number of parameters` | -     |
+
+Volume errors:
+
+| Error Code | Error message                  | Cause                                               |
+|------------|--------------------------------|-----------------------------------------------------|
+| `ERR`      | `Volume: '<name>' is not open` | No volume with that name is managed by this member. |
 
 ## Examples
 

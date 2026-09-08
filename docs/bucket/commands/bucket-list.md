@@ -25,10 +25,12 @@ in the result. Only after a successful `BUCKET.PURGE` does the bucket disappear 
 
 ## Errors
 
-| Error Code              | Description                     |
-|-------------------------|---------------------------------|
-| `NOSUCHNAMESPACE`       | The namespace does not exist.   |
-| `NAMESPACEBEINGREMOVED` | The namespace is being removed. |
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

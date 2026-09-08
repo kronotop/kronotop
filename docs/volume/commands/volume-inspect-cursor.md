@@ -38,10 +38,12 @@ It is available on the management port (default 3320).
 
 ## Errors
 
-| Condition                                             | Message                            |
-|-------------------------------------------------------|------------------------------------|
-| Missing volume-name parameter                         | `ERR invalid number of parameters` |
-| Volume name does not match `<kind>-shard-<id>` format | `ERR invalid volume name: <name>`  |
+Argument errors:
+
+| Error Code | Error message                  | Cause                                                   |
+|------------|--------------------------------|---------------------------------------------------------|
+| `ERR`      | `invalid number of parameters` | -                                                       |
+| `ERR`      | `invalid volume name: <name>`  | The name does not match the `<kind>-shard-<id>` format. |
 
 ## Examples
 

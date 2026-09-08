@@ -31,9 +31,11 @@ one-off transactions.
 
 ## Errors
 
-| Error Code    | Description                                          |
-|---------------|------------------------------------------------------|
-| `TRANSACTION` | A transaction is already in progress on the session. |
+Transaction errors:
+
+| Error Code    | Error message                                 | Cause |
+|---------------|-----------------------------------------------|-------|
+| `TRANSACTION` | `there is already a transaction in progress.` | -     |
 
 ## Examples
 

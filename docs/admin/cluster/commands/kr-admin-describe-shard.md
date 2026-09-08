@@ -41,12 +41,19 @@ Requires cluster initialization.
 
 ## Errors
 
-| Error                                      | Condition                                                               |
-|--------------------------------------------|-------------------------------------------------------------------------|
-| `ERR cluster has not been initialized yet` | The cluster must be initialized first.                                  |
-| `ERR invalid number of parameters`         | Exactly 2 arguments are required after `DESCRIBE-SHARD`.                |
-| `ERR Unknown shard kind: '<value>'`        | The shard kind must be `STASH` or `BUCKET`.                             |
-| `ERR invalid shard id`                     | The shard ID is not a valid integer, or is out of the configured range. |
+Argument errors:
+
+| Error Code | Error message                   | Cause                                                                   |
+|------------|---------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `invalid number of parameters`  | -                                                                       |
+| `ERR`      | `Unknown shard kind: '<value>'` | The shard kind must be `STASH` or `BUCKET`.                             |
+| `ERR`      | `invalid shard id`              | The shard ID is not a valid integer, or is out of the configured range. |
+
+Cluster errors:
+
+| Error Code | Error message                          | Cause |
+|------------|----------------------------------------|-------|
+| `ERR`      | `cluster has not been initialized yet` | -     |
 
 ## Examples
 

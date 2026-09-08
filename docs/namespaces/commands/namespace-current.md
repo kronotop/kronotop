@@ -28,9 +28,11 @@ active namespace can be changed with `NAMESPACE USE`.
 
 ## Errors
 
-| Error Code | Description                                                                                                                                             |
-|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ERR`      | The current namespace is null, empty, or blank. This should not occur under normal operation since sessions are initialized with the default namespace. |
+Namespace errors:
+
+| Error Code | Error message                               | Cause                                                                              |
+|------------|---------------------------------------------|------------------------------------------------------------------------------------|
+| `ERR`      | `current namespace is empty, blank or null` | The session has no current namespace. This does not happen under normal operation. |
 
 ## Examples
 

@@ -83,15 +83,17 @@ All data is scoped to the session's active namespace. The same keys in different
 
 ## Errors
 
-| Error Code | Error message                                                 | Cause                                                   |
-|------------|---------------------------------------------------------------|---------------------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZGETRANGE' command`           | Fewer than two or more than nine arguments.             |
-| `ERR`      | `Unknown '<keyword>' argument`                                | The keyword is not one of the four listed above.        |
-| `ERR`      | `Duplicate '<keyword>' argument`                              | The same keyword was given more than once.              |
-| `ERR`      | `LIMIT argument must be followed by a positive integer`       | `LIMIT` has no value, or the value is zero or negative. |
-| `ERR`      | `value is not an integer or out of range`                     | The `LIMIT` value is not a number.                      |
-| `ERR`      | `<keyword> argument must be followed by a valid key selector` | A key selector keyword has no value.                    |
-| `ERR`      | `Unknown range key selector: '<value>'`                       | The key selector name is not recognized.                |
+Argument errors:
+
+| Error Code | Error message                                                 | Cause |
+|------------|---------------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZGETRANGE' command`           | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                                | -     |
+| `ERR`      | `Duplicate '<keyword>' argument`                              | -     |
+| `ERR`      | `LIMIT argument must be followed by a positive integer`       | -     |
+| `ERR`      | `value is not an integer or out of range`                     | -     |
+| `ERR`      | `<keyword> argument must be followed by a valid key selector` | -     |
+| `ERR`      | `Unknown range key selector: '<value>'`                       | -     |
 
 ## Examples
 

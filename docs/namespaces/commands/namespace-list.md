@@ -34,10 +34,17 @@ If the cluster has not been initialized yet and no path is provided, an empty ar
 
 ## Errors
 
-| Error Code        | Description                                                   |
-|-------------------|---------------------------------------------------------------|
-| `NOSUCHNAMESPACE` | The given namespace path does not exist.                      |
-| `ERR`             | The namespace path contains the reserved `__internal__` leaf. |
+Argument errors:
+
+| Error Code | Error message                                     | Cause                                                         |
+|------------|---------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `Namespace '<path>' is reserved for internal use` | The namespace path contains the reserved `__internal__` name. |
+
+Namespace errors:
+
+| Error Code        | Error message                 | Cause |
+|-------------------|-------------------------------|-------|
+| `NOSUCHNAMESPACE` | `No such namespace: '<path>'` | -     |
 
 ## Examples
 

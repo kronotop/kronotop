@@ -57,9 +57,11 @@ This command does not require an active transaction.
 
 ## Errors
 
-| Error Code | Description                                                         |
-|------------|---------------------------------------------------------------------|
-| `ERR`      | `Unknown mode: '<value>'`: The mode is not `CACHED` or `FRESH`.     |
+Argument errors:
+
+| Error Code | Error message             | Cause                                |
+|------------|---------------------------|--------------------------------------|
+| `ERR`      | `Unknown mode: '<value>'` | The mode is not `CACHED` or `FRESH`. |
 
 ## Examples
 

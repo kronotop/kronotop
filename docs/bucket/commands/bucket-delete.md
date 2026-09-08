@@ -100,20 +100,37 @@ rejects the request with a redirect to that node.
 
 ## Errors
 
-| Error Code              | Description                                                                                                                                                     |
-|-------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `REJECT`                | Only when the bucket has a vector index: the bucket's shard is hosted on another node. The error includes the target address: `REJECT <shardId> <host>:<port>`. |
-| `BUCKETBEINGREMOVED`    | The bucket is being removed.                                                                                                                                    |
-| `NOSUCHBUCKET`          | The bucket does not exist.                                                                                                                                      |
-| `NOSUCHNAMESPACE`       | The namespace does not exist.                                                                                                                                   |
-| `NAMESPACEBEINGREMOVED` | The namespace is being removed.                                                                                                                                 |
-| `VECTORINDEXNOTREADY`   | A vector index on the bucket is still bootstrapping. Retry after a short delay.                                                                                 |
-| `ERR`                   | `SORTBY` is an unsupported argument.                                                                                                                            |
-| `ERR`                   | `BATCH argument must be followed by a non-negative integer`: `BATCH` has no value, or the value is negative. |
-| `ERR`                   | `LIMIT argument must be followed by a non-negative integer`: `LIMIT` has no value, or the value is negative. |
-| `ERR`                   | `Unknown sort direction: '<value>'`: the `SORTBY` direction is not `ASC` or `DESC`. |
-| `ERR`                   | `Unknown '<keyword>' argument`: the keyword is not one listed above. |
-| `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once.                                                                                    |
+Argument errors:
+
+| Error Code | Error message                                               | Cause                                          |
+|------------|-------------------------------------------------------------|------------------------------------------------|
+| `ERR`      | `'SORTBY' is an unsupported argument`                       | -                                              |
+| `ERR`      | `BATCH argument must be followed by a non-negative integer` | -                                              |
+| `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -                                              |
+| `ERR`      | `Unknown sort direction: '<value>'`                         | The `SORTBY` direction is not `ASC` or `DESC`. |
+| `ERR`      | `Unknown '<keyword>' argument`                              | -                                              |
+| `ERR`      | `Duplicate '<keyword>' argument`                            | -                                              |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
+
+Bucket errors:
+
+| Error Code           | Error message                        | Cause                                                                                                                            |
+|----------------------|--------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `NOSUCHBUCKET`       | `No such bucket: '<bucket>'`         | -                                                                                                                                |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed` | -                                                                                                                                |
+| `REJECT`             | `<shardId> <host>:<port>`            | Only when the bucket has a vector index: the bucket's shard is hosted on another member. The message carries the target address. |
+
+Index errors:
+
+| Error Code            | Error message                                                    | Cause                                                                                           |
+|-----------------------|------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| `VECTORINDEXNOTREADY` | `Vector index '<namespace>/<bucket>/<indexId>' is not ready yet` | The vector index is still being built or recovered. Retry after the background build completes. |
 
 ## Examples
 

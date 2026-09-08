@@ -115,10 +115,12 @@ The cursor ID must match the operation type. For example, a cursor created by `B
 
 ## Errors
 
-| Error Code           | Description                                                                          |
-|----------------------|--------------------------------------------------------------------------------------|
-| `ERR`                | No previous query context found for `<operation>` operation with the given cursor id. Also returned when the cursor was removed because its `LIMIT` was reached. |
-| `BUCKETBEINGREMOVED` | The bucket is being removed.                                                         |
+Bucket errors:
+
+| Error Code           | Error message                                                                          | Cause                                                                                |
+|----------------------|----------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| `ERR`                | `No previous query context found for '<operation>' operation with the given cursor id` | The cursor id is unknown, or the cursor was removed because its `LIMIT` was reached. |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed`                                                   | -                                                                                    |
 
 ## Examples
 

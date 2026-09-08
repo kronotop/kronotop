@@ -33,6 +33,14 @@ Everything that belongs to the connection rather than the session is kept: the n
 authentication state, and the client name and library info set with `CLIENT SETNAME` and `CLIENT SETINFO`. A client
 that has already authenticated does not need to send `AUTH` again after this command.
 
+## Errors
+
+Argument errors:
+
+| Error Code | Error message                                           | Cause |
+|------------|---------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'SESSION.CLOSE' command` | -     |
+
 ## Examples
 
 **Basic usage:**

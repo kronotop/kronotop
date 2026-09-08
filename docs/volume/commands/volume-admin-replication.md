@@ -42,13 +42,20 @@ This command must be run on the standby node. It is available on the management 
 
 ## Errors
 
-| Condition                                    | Message                                            |
-|----------------------------------------------|----------------------------------------------------|
-| Missing or extra parameters                  | `ERR invalid number of parameters`                 |
-| Invalid volume name format                   | `ERR invalid volume name: <name>`                  |
-| No route found for the volume                | `ERR No route found for <volume-name>`             |
-| Current node is not a standby for the volume | `ERR This node is not a standby for <volume-name>` |
-| Invalid operation (not START or STOP)        | `ERR unknown subcommand: '<operation>'`            |
+Argument errors:
+
+| Error Code | Error message                       | Cause                                                   |
+|------------|-------------------------------------|---------------------------------------------------------|
+| `ERR`      | `invalid number of parameters`      | -                                                       |
+| `ERR`      | `invalid volume name: <name>`       | The name does not match the `<kind>-shard-<id>` format. |
+| `ERR`      | `unknown subcommand: '<operation>'` | -                                                       |
+
+Volume errors:
+
+| Error Code | Error message                                  | Cause |
+|------------|------------------------------------------------|-------|
+| `ERR`      | `No route found for <volume-name>`             | -     |
+| `ERR`      | `This node is not a standby for <volume-name>` | -     |
 
 ## Examples
 

@@ -48,10 +48,12 @@ This command does not require the cluster to be initialized.
 
 ## Errors
 
-| Error       | Condition                                       |
-|-------------|-------------------------------------------------|
-| `NOPROTO`   | Unsupported protocol version (not 2 or 3)       |
-| `WRONGPASS` | Invalid username or password in the AUTH clause |
+Argument errors:
+
+| Error Code  | Error message                                         | Cause                               |
+|-------------|-------------------------------------------------------|-------------------------------------|
+| `NOPROTO`   | `unsupported protocol version`                        | The protocol version is not 2 or 3. |
+| `WRONGPASS` | `invalid username-password pair or user is disabled.` | -                                   |
 
 ## Examples
 

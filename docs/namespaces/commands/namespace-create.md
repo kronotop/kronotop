@@ -39,11 +39,20 @@ The `__internal__` name is reserved at any level of the hierarchy and cannot be 
 
 ## Errors
 
-| Error Code               | Description                                                                                                                                                                                          |
-|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `NAMESPACEALREADYEXISTS` | A namespace with the same path already exists.                                                                                                                                                       |
-| `NAMESPACEBEINGREMOVED`  | The namespace was previously removed via `NAMESPACE REMOVE` but has not yet been purged via `NAMESPACE PURGE`.                                                                                       |
-| `ERR`                    | The namespace path contains the reserved `__internal__` leaf, the namespace depth exceeds the maximum allowed depth of 10, or the tombstone barrier is not satisfied after a prior `NAMESPACE MOVE`. |
+Argument errors:
+
+| Error Code | Error message                                         | Cause                                                         |
+|------------|-------------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `Namespace '<path>' is reserved for internal use`     | The namespace path contains the reserved `__internal__` name. |
+| `ERR`      | `Namespace depth exceeds maximum allowed depth of 10` | -                                                             |
+
+Namespace errors:
+
+| Error Code               | Error message                                                                | Cause                                                                                             |
+|--------------------------|------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `NAMESPACEALREADYEXISTS` | `Namespace already exists: <path>`                                           | -                                                                                                 |
+| `NAMESPACEBEINGREMOVED`  | `Namespace '<path>' is being removed`                                        | -                                                                                                 |
+| `BARRIERNOTSATISFIED`    | `Not all cluster members have observed the tombstone for namespace '<path>'` | The tombstone from a prior `NAMESPACE MOVE` is not yet visible on all members. Retry the command. |
 
 ## Examples
 

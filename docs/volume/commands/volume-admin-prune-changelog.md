@@ -31,11 +31,13 @@ It is available on the management port (default 3320).
 
 ## Errors
 
-| Condition                                                 | Message                                          |
-|-----------------------------------------------------------|--------------------------------------------------|
-| Missing volume name or retention period parameter         | `ERR invalid number of parameters`               |
-| Retention period is zero or negative                      | `ERR retention period must be greater than zero` |
-| Volume name does not match the `<kind>-shard-<id>` format | `ERR invalid volume name: <name>`                |
+Argument errors:
+
+| Error Code | Error message                                | Cause                                                   |
+|------------|----------------------------------------------|---------------------------------------------------------|
+| `ERR`      | `invalid number of parameters`               | -                                                       |
+| `ERR`      | `retention period must be greater than zero` | -                                                       |
+| `ERR`      | `invalid volume name: <name>`                | The name does not match the `<kind>-shard-<id>` format. |
 
 ## Examples
 

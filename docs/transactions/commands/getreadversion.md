@@ -30,9 +30,11 @@ A transaction must be started with `BEGIN` before calling this command.
 
 ## Errors
 
-| Error Code    | Description                                                                   |
-|---------------|-------------------------------------------------------------------------------|
-| `TRANSACTION` | `there is no transaction in progress.`: No active transaction on the session. |
+Transaction errors:
+
+| Error Code    | Error message                          | Cause |
+|---------------|----------------------------------------|-------|
+| `TRANSACTION` | `there is no transaction in progress.` | -     |
 
 ## Examples
 

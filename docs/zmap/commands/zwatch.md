@@ -93,10 +93,17 @@ are unaffected.
 
 ## Errors
 
-| Error Code | Error message                                    | Cause                                  |
-|------------|--------------------------------------------------|----------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZWATCH' command` | Not exactly one argument.              |
-| `ERR`      | `ZWATCH is not allowed within a transaction`     | The command was issued inside `BEGIN`. |
+Argument errors:
+
+| Error Code | Error message                                    | Cause |
+|------------|--------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZWATCH' command` | -     |
+
+Transaction errors:
+
+| Error Code | Error message                                | Cause |
+|------------|----------------------------------------------|-------|
+| `ERR`      | `ZWATCH is not allowed within a transaction` | -     |
 
 ## Examples
 

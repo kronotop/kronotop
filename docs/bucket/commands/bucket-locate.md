@@ -48,9 +48,11 @@ route table are left out. Clients can use the member ID as a cache key for conne
 
 ## Errors
 
-| Error Code     | Description                          |
-|----------------|--------------------------------------|
-| `NOSUCHBUCKET` | The specified bucket does not exist. |
+Bucket errors:
+
+| Error Code     | Error message                | Cause |
+|----------------|------------------------------|-------|
+| `NOSUCHBUCKET` | `No such bucket: '<bucket>'` | -     |
 
 ## Examples
 

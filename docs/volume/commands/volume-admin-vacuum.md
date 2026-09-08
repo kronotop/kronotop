@@ -65,13 +65,20 @@ before a worker completes, that segment's status is marked `STOPPED` and the fil
 
 **Errors**
 
-| Condition                                          | Message                                                             |
-|----------------------------------------------------|---------------------------------------------------------------------|
-| A vacuum is already running on this volume         | `ERR Vacuum is already running on volume <name>`                    |
-| Metadata from a previous run exists                | `ERR Stale vacuum metadata exists on volume <name>, run DROP first` |
-| Threshold is not a valid number                    | `ERR garbage-threshold must be a number`                            |
-| Threshold is out of range                          | `ERR garbage-threshold must be between 0 and 100 (exclusive)`       |
-| No volume with that name is managed by this member | `ERR Volume: '<name>' is not open`                                  |
+Argument errors:
+
+| Error Code | Error message                                             | Cause |
+|------------|-----------------------------------------------------------|-------|
+| `ERR`      | `garbage-threshold must be a number`                      | -     |
+| `ERR`      | `garbage-threshold must be between 0 and 100 (exclusive)` | -     |
+
+Volume errors:
+
+| Error Code | Error message                                                   | Cause                                               |
+|------------|-----------------------------------------------------------------|-----------------------------------------------------|
+| `ERR`      | `Vacuum is already running on volume <name>`                    | -                                                   |
+| `ERR`      | `Stale vacuum metadata exists on volume <name>, run DROP first` | -                                                   |
+| `ERR`      | `Volume: '<name>' is not open`                                  | No volume with that name is managed by this member. |
 
 **Examples**
 
@@ -127,10 +134,12 @@ After stopping, the metadata remains in place. Use `DROP` to clear it before sta
 
 **Errors**
 
-| Condition                                          | Message                                 |
-|----------------------------------------------------|-----------------------------------------|
-| No vacuum is running on this volume                | `ERR No active vacuum on volume <name>` |
-| No volume with that name is managed by this member | `ERR Volume: '<name>' is not open`      |
+Volume errors:
+
+| Error Code | Error message                       | Cause                                               |
+|------------|-------------------------------------|-----------------------------------------------------|
+| `ERR`      | `No active vacuum on volume <name>` | -                                                   |
+| `ERR`      | `Volume: '<name>' is not open`      | No volume with that name is managed by this member. |
 
 **Examples**
 
@@ -177,11 +186,13 @@ before dropping. Drop metadata before starting a new vacuum run on the same volu
 
 **Errors**
 
-| Condition                                          | Message                                                        |
-|----------------------------------------------------|----------------------------------------------------------------|
-| Vacuum is still running                            | `ERR Vacuum is still running on volume <name>, run STOP first` |
-| No metadata exists                                 | `ERR No active vacuum on volume <name>`                        |
-| No volume with that name is managed by this member | `ERR Volume: '<name>' is not open`                             |
+Volume errors:
+
+| Error Code | Error message                                              | Cause                                               |
+|------------|------------------------------------------------------------|-----------------------------------------------------|
+| `ERR`      | `Vacuum is still running on volume <name>, run STOP first` | -                                                   |
+| `ERR`      | `No active vacuum on volume <name>`                        | -                                                   |
+| `ERR`      | `Volume: '<name>' is not open`                             | No volume with that name is managed by this member. |
 
 **Examples**
 
@@ -254,10 +265,12 @@ while `segments` reflects real-time per-segment progress.
 
 **Errors**
 
-| Condition                                          | Message                                 |
-|----------------------------------------------------|-----------------------------------------|
-| No metadata exists (never run or already dropped)  | `ERR No active vacuum on volume <name>` |
-| No volume with that name is managed by this member | `ERR Volume: '<name>' is not open`      |
+Volume errors:
+
+| Error Code | Error message                       | Cause                                               |
+|------------|-------------------------------------|-----------------------------------------------------|
+| `ERR`      | `No active vacuum on volume <name>` | -                                                   |
+| `ERR`      | `Volume: '<name>' is not open`      | No volume with that name is managed by this member. |
 
 **Examples**
 

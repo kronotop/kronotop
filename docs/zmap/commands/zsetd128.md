@@ -46,11 +46,13 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Error message                                                 | Cause                                      |
-|------------|---------------------------------------------------------------|--------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZSET.D128' command`           | Not exactly two arguments.                 |
-| `ERR`      | `invalid decimal`                                             | The value is not a decimal number.         |
-| `ERR`      | `Exponent is out of range for Decimal128 encoding of <value>` | The value is outside the Decimal128 range. |
+Argument errors:
+
+| Error Code | Error message                                                 | Cause |
+|------------|---------------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZSET.D128' command`           | -     |
+| `ERR`      | `invalid decimal`                                             | -     |
+| `ERR`      | `Exponent is out of range for Decimal128 encoding of <value>` | -     |
 
 ## Examples
 

@@ -60,12 +60,14 @@ All data is scoped to the session's active namespace. The same key in different 
 
 ## Errors
 
-| Error Code | Error message                                                    | Cause                                        |
-|------------|------------------------------------------------------------------|----------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZGETKEY' command`                | Fewer than one or more than three arguments. |
-| `ERR`      | `Unknown '<keyword>' argument`                                   | The keyword is not `KEY-SELECTOR`.           |
-| `ERR`      | `KEY-SELECTOR argument must be followed by a valid key selector` | `KEY-SELECTOR` has no value.                 |
-| `ERR`      | `Unknown range key selector: '<value>'`                          | The key selector name is not recognized.     |
+Argument errors:
+
+| Error Code | Error message                                                    | Cause |
+|------------|------------------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZGETKEY' command`                | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                                   | -     |
+| `ERR`      | `KEY-SELECTOR argument must be followed by a valid key selector` | -     |
+| `ERR`      | `Unknown range key selector: '<value>'`                          | -     |
 
 ## Examples
 

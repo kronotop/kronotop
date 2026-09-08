@@ -60,9 +60,11 @@ Mutation commands (`BUCKET.INSERT`, `BUCKET.DELETE`, `BUCKET.UPDATE`) always use
 
 ## Errors
 
-| Error Code | Description                                                                             |
-|------------|-----------------------------------------------------------------------------------------|
-| `ERR`      | `Unknown option: '<value>'`: The argument is neither `ON` nor `OFF`.                    |
+Argument errors:
+
+| Error Code | Error message               | Cause                                   |
+|------------|-----------------------------|-----------------------------------------|
+| `ERR`      | `Unknown option: '<value>'` | The argument is neither `ON` nor `OFF`. |
 
 ## Examples
 

@@ -63,11 +63,20 @@ retried.
 
 ## Errors
 
-| Error Code            | Description                                                                                                                                          |
-|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `NOSUCHNAMESPACE`     | The namespace does not exist.                                                                                                                        |
-| `ERR`                 | The namespace is not marked for removal, attempting to purge the default namespace, or the namespace path contains the reserved `__internal__` name. |
-| `BARRIERNOTSATISFIED` | Not all cluster members have observed the removal. Retry the command.                                                                                |
+Argument errors:
+
+| Error Code | Error message                                     | Cause                                                         |
+|------------|---------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `Namespace '<path>' is reserved for internal use` | The namespace path contains the reserved `__internal__` name. |
+
+Namespace errors:
+
+| Error Code            | Error message                                                                           | Cause                                                                 |
+|-----------------------|-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------|
+| `NOSUCHNAMESPACE`     | `No such namespace: '<path>'`                                                           | -                                                                     |
+| `ERR`                 | `Cannot purge the default namespace: '<path>'`                                          | -                                                                     |
+| `ERR`                 | `Namespace '<path>' must be logically removed before purge`                             | -                                                                     |
+| `BARRIERNOTSATISFIED` | `Barrier not satisfied: not all members observed version <version> within <n> attempts` | Not all cluster members have observed the removal. Retry the command. |
 
 ## Examples
 
