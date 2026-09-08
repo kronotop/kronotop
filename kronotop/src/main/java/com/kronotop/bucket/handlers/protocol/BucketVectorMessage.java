@@ -52,17 +52,23 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
     }
 
     private void parseOptionalArguments() {
+        long seen = 0;
         for (int i = 3; i < request.getParams().size(); i++) {
             String raw = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getParams().get(i)));
-            switch (raw) {
-                case "FILTER" -> {
+            VectorArgumentKey key = VectorArgumentKey.findByValue(raw);
+            if (key == null) {
+                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+            }
+            seen = ProtocolMessageUtil.markArgumentSeen(seen, key, key.getValue());
+            switch (key) {
+                case FILTER -> {
                     if (request.getParams().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("FILTER argument must be followed by a BQL expression");
                     }
                     filter = ProtocolMessageUtil.readAsByteArray(request.getParams().get(i + 1));
                     i++;
                 }
-                case "TOP" -> {
+                case TOP -> {
                     if (request.getParams().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("TOP argument must be followed by a positive integer");
                     }
@@ -72,14 +78,14 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
                     }
                     i++;
                 }
-                case "THRESHOLD" -> {
+                case THRESHOLD -> {
                     if (request.getParams().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("THRESHOLD argument must be followed by a number");
                     }
                     threshold = (float) ProtocolMessageUtil.readAsDouble(request.getParams().get(i + 1));
                     i++;
                 }
-                case "MAX-SCAN-CANDIDATES" -> {
+                case MAX_SCAN_CANDIDATES -> {
                     if (request.getParams().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("MAX-SCAN-CANDIDATES argument must be followed by a positive integer");
                     }
@@ -89,7 +95,7 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
                     }
                     i++;
                 }
-                case "OVERQUERY" -> {
+                case OVERQUERY -> {
                     if (request.getParams().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("OVERQUERY argument must be followed by a number >= 1.0");
                     }
@@ -99,14 +105,14 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
                     }
                     i++;
                 }
-                case "PROJECTION" -> {
+                case PROJECTION -> {
                     if (request.getParams().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("PROJECTION argument must be followed by a projection specification");
                     }
                     projection = ProtocolMessageUtil.readAsByteArray(request.getParams().get(i + 1));
                     i++;
                 }
-                case "COLLATION" -> {
+                case COLLATION -> {
                     if (request.getParams().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("COLLATION argument must be followed by a collation specification");
                     }
@@ -114,7 +120,6 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
                     collation = CollationHelper.deserializeAndValidate(data);
                     i++;
                 }
-                default -> throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
             }
         }
     }

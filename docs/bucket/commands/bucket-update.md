@@ -15,15 +15,17 @@ BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] 
 
 ## Parameters
 
-| Parameter   | Type               | Required | Description                                                                                                                                                     |
-|-------------|--------------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bucket`    | string             | Yes      | Name of the bucket to update.                                                                                                                                   |
-| `query`     | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                          |
-| `update`    | JSON or BSON       | Yes      | Update document with update operators. Cannot be empty.                                                                                                         |
-| `SORTBY`    | string + direction | No       | Process documents in sorted order. Requires field name followed by `ASC` or `DESC`.                                                                             |
-| `BATCH`     | integer            | No       | Maximum number of documents to update per batch. Must be non-negative. It does not cap the total number of results, use `LIMIT` for that. Use `BUCKET.ADVANCE` to get the next batch. |
+Keyword names are not case-sensitive, and each keyword can appear at most once.
+
+| Parameter   | Type               | Required | Description                                                                                                                                                                                                                                                                                  |
+|-------------|--------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string             | Yes      | Name of the bucket to update.                                                                                                                                                                                                                                                                |
+| `query`     | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                                                                                                                                                       |
+| `update`    | JSON or BSON       | Yes      | Update document with update operators. Cannot be empty.                                                                                                                                                                                                                                      |
+| `SORTBY`    | string + direction | No       | Process documents in sorted order. Requires field name followed by `ASC` or `DESC`.                                                                                                                                                                                                          |
+| `BATCH`     | integer            | No       | Maximum number of documents to update per batch. Must be non-negative. It does not cap the total number of results, use `LIMIT` for that. Use `BUCKET.ADVANCE` to get the next batch.                                                                                                        |
 | `LIMIT`     | integer            | No       | Maximum total number of documents the cursor updates across the first call and all `BUCKET.ADVANCE` calls. Must be non-negative. `0` means no limit (default). When the limit is reached, the response carries `cursor_id` `-1` and the cursor is removed. An upsert counts as one document. |
-| `COLLATION` | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                        |
+| `COLLATION` | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                                                                                     |
 
 ## Return Value
 
@@ -154,6 +156,7 @@ hosted on other nodes, the server rejects the request with a redirect to the app
 | `ERR`                   | `BATCH argument must be a non-negative integer`: negative `BATCH` value. |
 | `ERR`                   | `LIMIT argument must be followed by a positive integer`: no value after `LIMIT`. |
 | `ERR`                   | `LIMIT argument must be a non-negative integer`: negative `LIMIT` value. |
+| `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once. |
 
 ## Examples
 

@@ -15,16 +15,18 @@ BUCKET.QUERY <bucket> <query> [SORTBY <field> <ASC|DESC>] [RESULTSORT <field> <A
 
 ## Parameters
 
-| Parameter    | Type               | Required | Description                                                                                                                                                                                                                                                                                      |
-|--------------|--------------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bucket`     | string             | Yes      | Name of the bucket to query.                                                                                                                                                                                                                                                                     |
-| `query`      | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                                                                                                                                                           |
-| `SORTBY`     | string + direction | No       | Sort results by a field. Requires field name followed by `ASC` or `DESC`.                                                                                                                                                                                                                        |
-| `RESULTSORT` | string + direction | No       | Sort each result batch in memory by any field (indexed or not). Requires field name followed by `ASC` or `DESC`. Does not guarantee global ordering across `BUCKET.ADVANCE` calls. See [RESULTSORT](../sortby.md#resultsort).                                                                    |
-| `PROJECTION` | JSON or BSON       | No       | Projection specification that controls which fields appear in returned documents. Use `{"field": 1}` for inclusion or `{"field": 0}` for exclusion. See [Projection](../projection.md).                                                                                                          |
+Keyword names are not case-sensitive, and each keyword can appear at most once.
+
+| Parameter    | Type               | Required | Description                                                                                                                                                                                                                                                                                                            |
+|--------------|--------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`     | string             | Yes      | Name of the bucket to query.                                                                                                                                                                                                                                                                                           |
+| `query`      | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                                                                                                                                                                                 |
+| `SORTBY`     | string + direction | No       | Sort results by a field. Requires field name followed by `ASC` or `DESC`.                                                                                                                                                                                                                                              |
+| `RESULTSORT` | string + direction | No       | Sort each result batch in memory by any field (indexed or not). Requires field name followed by `ASC` or `DESC`. Does not guarantee global ordering across `BUCKET.ADVANCE` calls. See [RESULTSORT](../sortby.md#resultsort).                                                                                          |
+| `PROJECTION` | JSON or BSON       | No       | Projection specification that controls which fields appear in returned documents. Use `{"field": 1}` for inclusion or `{"field": 0}` for exclusion. See [Projection](../projection.md).                                                                                                                                |
 | `BATCH`      | integer            | No       | Maximum number of documents to return per batch. Must be non-negative. It does not cap the total number of results, use `LIMIT` for that. Use `BUCKET.ADVANCE` to get the next batch. When not specified, the session's default batch size is used (default: 100, configurable via `SESSION.ATTRIBUTE SET BATCH <n>`). |
-| `LIMIT`      | integer            | No       | Maximum total number of documents the cursor returns across the first call and all `BUCKET.ADVANCE` calls. Must be non-negative. `0` means no limit (default). When the limit is reached, the response carries `cursor_id` `-1` and the cursor is removed.                                       |
-| `COLLATION`  | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                                                                                         |
+| `LIMIT`      | integer            | No       | Maximum total number of documents the cursor returns across the first call and all `BUCKET.ADVANCE` calls. Must be non-negative. `0` means no limit (default). When the limit is reached, the response carries `cursor_id` `-1` and the cursor is removed.                                                             |
+| `COLLATION`  | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                                                                                                               |
 
 ## Return Value
 
@@ -109,16 +111,17 @@ use `BUCKET.LOCATE` to find the node that owns the bucket's shards and send the 
 
 ## Errors
 
-| Error Code              | Description                     |
-|-------------------------|---------------------------------|
-| `NOSUCHBUCKET`          | The bucket does not exist.      |
-| `BUCKETBEINGREMOVED`    | The bucket is being removed.    |
-| `NOSUCHNAMESPACE`       | The namespace does not exist.   |
-| `NAMESPACEBEINGREMOVED` | The namespace is being removed. |
+| Error Code              | Description                                                                      |
+|-------------------------|----------------------------------------------------------------------------------|
+| `NOSUCHBUCKET`          | The bucket does not exist.                                                       |
+| `BUCKETBEINGREMOVED`    | The bucket is being removed.                                                     |
+| `NOSUCHNAMESPACE`       | The namespace does not exist.                                                    |
+| `NAMESPACEBEINGREMOVED` | The namespace is being removed.                                                  |
 | `ERR`                   | `BATCH argument must be followed by a positive integer`: no value after `BATCH`. |
-| `ERR`                   | `BATCH argument must be a non-negative integer`: negative `BATCH` value. |
+| `ERR`                   | `BATCH argument must be a non-negative integer`: negative `BATCH` value.         |
 | `ERR`                   | `LIMIT argument must be followed by a positive integer`: no value after `LIMIT`. |
-| `ERR`                   | `LIMIT argument must be a non-negative integer`: negative `LIMIT` value. |
+| `ERR`                   | `LIMIT argument must be a non-negative integer`: negative `LIMIT` value.         |
+| `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once.     |
 
 ## Examples
 

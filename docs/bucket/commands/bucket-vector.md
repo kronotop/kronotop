@@ -21,6 +21,8 @@ BUCKET.VECTOR <bucket> <selector> <vector> [FILTER <expression>] [PROJECTION <sp
 
 ## Parameters
 
+Keyword names are not case-sensitive, and each keyword can appear at most once.
+
 | Parameter             | Type           | Required | Description                                                                                                                                                                                                                                                |
 |-----------------------|----------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`              | string         | Yes      | Name of the bucket to search.                                                                                                                                                                                                                              |
@@ -124,6 +126,7 @@ hosted on other nodes, the server rejects the request with a redirect to the app
 | `ERR`                   | No vector index exists for the given selector.                                                                           |
 | `ERR`                   | The query vector dimensions do not match the index dimensions.                                                           |
 | `ERR`                   | An argument is invalid (negative TOP, OVERQUERY below 1.0, or non-positive MAX-SCAN-CANDIDATES).                         |
+| `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once.                                             |
 | `REJECT`                | The bucket's shards are hosted on another node. The error includes the target address: `REJECT <shardId> <host>:<port>`. |
 | `VECTORINDEXNOTREADY`   | The vector index is still being built or recovered. Retry after the background build completes.                          |
 | `NOSUCHBUCKET`          | The bucket does not exist.                                                                                               |

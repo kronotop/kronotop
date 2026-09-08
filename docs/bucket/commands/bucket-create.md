@@ -15,6 +15,8 @@ BUCKET.CREATE <bucket> [SHARDS <shard-id> [shard-id ...]] [INDEXES <json-schema>
 
 ## Parameters
 
+Keyword names are not case-sensitive, and each keyword can appear at most once. `SHARDS` takes one or more values after a single keyword.
+
 | Parameter       | Type       | Required | Description                                                                                                                                                           |
 |-----------------|------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`        | string     | Yes      | Name of the bucket to create.                                                                                                                                         |
@@ -31,13 +33,11 @@ Returns `OK` on success.
 
 When the `SHARDS` parameter is omitted, Kronotop automatically assigns the bucket to a shard using round-robin selection
 across available shards. This ensures even distribution of buckets across the cluster. When multiple shard IDs are
-provided,
-the bucket is assigned to all specified shards.
+provided, the bucket is assigned to all specified shards.
 
 Regardless of how shards are selected, every shard ID is validated before the bucket is created: the shard must have a
 known route. If a shard has no route, the command returns an error and the bucket is not created. A bucket can span
-shards
-across multiple nodes.
+shards across multiple nodes.
 
 ## Removed buckets
 
@@ -132,11 +132,12 @@ transaction as the bucket itself.
 
 ## Errors
 
-| Error Code            | Description                                                                                                                                                      |
-|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `BUCKETALREADYEXISTS` | A bucket with the same name already exists. Suppressed when `IF-NOT-EXISTS` is specified.                                                                        |
-| `BUCKETBEINGREMOVED`  | The bucket was removed but not yet purged. `IF-NOT-EXISTS` does not suppress this error.                                                                         |
-| `ERR`                 | Invalid index schema (e.g., missing or unknown `bson_type`), or a shard has no route.                                                                            |
+| Error Code            | Description                                                                               |
+|-----------------------|-------------------------------------------------------------------------------------------|
+| `BUCKETALREADYEXISTS` | A bucket with the same name already exists. Suppressed when `IF-NOT-EXISTS` is specified. |
+| `BUCKETBEINGREMOVED`  | The bucket was removed but not yet purged. `IF-NOT-EXISTS` does not suppress this error.  |
+| `ERR`                 | Invalid index schema (e.g., missing or unknown `bson_type`), or a shard has no route.     |
+| `ERR`                 | `Duplicate '<keyword>' argument`: the same keyword was given more than once.              |
 
 ## Examples
 

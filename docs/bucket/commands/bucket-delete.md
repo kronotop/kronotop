@@ -15,13 +15,15 @@ BUCKET.DELETE <bucket> <query> [BATCH <n>] [LIMIT <n>] [COLLATION <json-spec>]
 
 ## Parameters
 
-| Parameter   | Type         | Required | Description                                                                                                                                                     |
-|-------------|--------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `bucket`    | string       | Yes      | Name of the bucket to delete from.                                                                                                                              |
-| `query`     | JSON or BSON | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                          |
-| `BATCH`     | integer      | No       | Maximum number of documents to delete per batch. Must be non-negative. It does not cap the total number of results, use `LIMIT` for that. Use `BUCKET.ADVANCE` to get the next batch. |
+Keyword names are not case-sensitive, and each keyword can appear at most once.
+
+| Parameter   | Type         | Required | Description                                                                                                                                                                                                                                                |
+|-------------|--------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string       | Yes      | Name of the bucket to delete from.                                                                                                                                                                                                                         |
+| `query`     | JSON or BSON | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                                                                                                                     |
+| `BATCH`     | integer      | No       | Maximum number of documents to delete per batch. Must be non-negative. It does not cap the total number of results, use `LIMIT` for that. Use `BUCKET.ADVANCE` to get the next batch.                                                                      |
 | `LIMIT`     | integer      | No       | Maximum total number of documents the cursor deletes across the first call and all `BUCKET.ADVANCE` calls. Must be non-negative. `0` means no limit (default). When the limit is reached, the response carries `cursor_id` `-1` and the cursor is removed. |
-| `COLLATION` | JSON         | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                        |
+| `COLLATION` | JSON         | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                                                   |
 
 Note: `SORTBY` is not supported for delete operations.
 
@@ -107,10 +109,11 @@ rejects the request with a redirect to that node.
 | `NAMESPACEBEINGREMOVED` | The namespace is being removed.                                                                                                                                 |
 | `VECTORINDEXNOTREADY`   | A vector index on the bucket is still bootstrapping. Retry after a short delay.                                                                                 |
 | `ERR`                   | `SORTBY` is an unsupported argument.                                                                                                                            |
-| `ERR`                   | `BATCH argument must be followed by a positive integer`: no value after `BATCH`. |
-| `ERR`                   | `BATCH argument must be a non-negative integer`: negative `BATCH` value. |
-| `ERR`                   | `LIMIT argument must be followed by a positive integer`: no value after `LIMIT`. |
-| `ERR`                   | `LIMIT argument must be a non-negative integer`: negative `LIMIT` value. |
+| `ERR`                   | `BATCH argument must be followed by a positive integer`: no value after `BATCH`.                                                                                |
+| `ERR`                   | `BATCH argument must be a non-negative integer`: negative `BATCH` value.                                                                                        |
+| `ERR`                   | `LIMIT argument must be followed by a positive integer`: no value after `LIMIT`.                                                                                |
+| `ERR`                   | `LIMIT argument must be a non-negative integer`: negative `LIMIT` value.                                                                                        |
+| `ERR`                   | `Duplicate '<keyword>' argument`: the same keyword was given more than once.                                                                                    |
 
 ## Examples
 

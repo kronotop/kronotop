@@ -44,7 +44,13 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.util.List;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -2114,5 +2120,33 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         allAges.addAll(secondAges);
         assertEquals(15, first.size() + second.size(), "Total returned should equal the LIMIT");
         assertEquals(15, new HashSet<>(allAges).size(), "Documents must not be duplicated across rounds");
+    }
+
+    static Stream<Arguments> duplicateArguments() {
+        return Stream.of(
+                arguments("repeated LIMIT",
+                        List.of("test-bucket", "{}", "LIMIT", "10", "LIMIT", "10"),
+                        "ERR Duplicate 'LIMIT' argument"),
+                arguments("repeated BATCH",
+                        List.of("test-bucket", "{}", "BATCH", "5", "BATCH", "5"),
+                        "ERR Duplicate 'BATCH' argument"),
+                arguments("repeated SORTBY",
+                        List.of("test-bucket", "{}", "SORTBY", "a", "ASC", "SORTBY", "b", "ASC"),
+                        "ERR Duplicate 'SORTBY' argument"),
+                arguments("repeated PROJECTION",
+                        List.of("test-bucket", "{}", "PROJECTION", "{}", "PROJECTION", "{}"),
+                        "ERR Duplicate 'PROJECTION' argument")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("duplicateArguments")
+    void shouldRejectDuplicateArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: BUCKET.QUERY rejects a keyword argument that appears more than once instead of
+        // silently taking the last value.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_QUERY, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 }

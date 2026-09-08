@@ -17,6 +17,7 @@
 package com.kronotop.bucket.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
@@ -48,6 +49,7 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
         bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
 
         CreateArgumentKey currentKey = null;
+        long seen = 0;
         for (int i = 1; i < request.getParams().size(); i++) {
             ByteBuf buf = request.getParams().get(i);
 
@@ -55,6 +57,7 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
             String raw = ProtocolMessageUtil.readAsString(buf);
             CreateArgumentKey parsedKey = tryParseKey(raw);
             if (parsedKey != null) {
+                seen = ProtocolMessageUtil.markArgumentSeen(seen, parsedKey, StringUtil.toUpperCaseAscii(raw));
                 if (parsedKey == CreateArgumentKey.IF_NOT_EXISTS) {
                     ifNotExists = true;
                     continue;

@@ -48,7 +48,13 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.util.List;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
@@ -3044,5 +3050,23 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, all.size());
         assertEquals("x", BsonHelper.getString(all.getFirst(), "name"));
         assertEquals(30, BsonHelper.getInteger(all.getFirst(), "age"));
+    }
+
+    static Stream<Arguments> duplicateArguments() {
+        return Stream.of(
+                arguments("repeated LIMIT",
+                        List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "LIMIT", "10", "LIMIT", "10"),
+                        "ERR Duplicate 'LIMIT' argument")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("duplicateArguments")
+    void shouldRejectDuplicateArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: BUCKET.UPDATE rejects a keyword argument that appears more than once.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 }

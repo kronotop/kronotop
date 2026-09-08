@@ -41,7 +41,12 @@ import org.junit.jupiter.api.Test;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketVectorHandlerTest extends BaseBucketHandlerTest {
@@ -860,5 +865,33 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
             double score = ByteBuffer.wrap(scoreBytes).getDouble();
             assertTrue(Double.isFinite(score), "Score must decode to a finite number");
         }
+    }
+
+    static Stream<Arguments> duplicateArguments() {
+        return Stream.of(
+                arguments("repeated TOP",
+                        List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "TOP", "5", "TOP", "5"),
+                        "ERR Duplicate 'TOP' argument"),
+                arguments("repeated MAX-SCAN-CANDIDATES in mixed case",
+                        List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "MAX-SCAN-CANDIDATES", "10", "max-scan-candidates", "10"),
+                        "ERR Duplicate 'MAX-SCAN-CANDIDATES' argument"),
+                arguments("repeated FILTER",
+                        List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "FILTER", "{}", "FILTER", "{}"),
+                        "ERR Duplicate 'FILTER' argument"),
+                arguments("unknown keyword",
+                        List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "BOGUS", "1"),
+                        "ERR Unknown 'BOGUS' argument")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("duplicateArguments")
+    void shouldRejectDuplicateArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: BUCKET.VECTOR rejects a keyword argument that appears more than once and still
+        // rejects an unknown keyword.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_VECTOR, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 }

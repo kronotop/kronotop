@@ -50,9 +50,11 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
 
     protected QueryArguments parseCommonQueryArguments(Request request, int index, Set<QueryArgumentKey> supportedArguments) {
         QueryArguments arguments = new QueryArguments();
+        long seen = 0;
         for (int i = index; i < request.getParams().size(); i++) {
             String raw = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getParams().get(i)));
             QueryArgumentKey argument = valueOfArgument(raw);
+            seen = ProtocolMessageUtil.markArgumentSeen(seen, argument, argument.name());
             switch (argument) {
                 case BATCH -> {
                     if (!supportedArguments.contains(QueryArgumentKey.BATCH)) {

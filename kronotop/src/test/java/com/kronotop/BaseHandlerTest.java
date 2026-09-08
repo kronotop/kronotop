@@ -17,19 +17,14 @@
 package com.kronotop;
 
 import com.kronotop.commands.BucketCommandBuilder;
-import com.kronotop.commands.CommandType;
 import com.kronotop.server.RESPVersion;
 import io.lettuce.core.codec.StringCodec;
-import io.lettuce.core.output.StatusOutput;
-import io.lettuce.core.protocol.Command;
-import io.lettuce.core.protocol.CommandArgs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.net.UnknownHostException;
-import java.util.List;
 import java.util.UUID;
 
 public class BaseHandlerTest extends BaseStandaloneInstanceTest {
@@ -59,19 +54,5 @@ public class BaseHandlerTest extends BaseStandaloneInstanceTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.hello(version.getValue()).encode(buf);
         runCommand(channel, buf);
-    }
-
-    /**
-     * Encodes the command with raw string arguments and runs it. Use it for payloads that the typed builders cannot
-     * produce, such as a wrong argument count or an invalid keyword.
-     */
-    protected Object runRaw(EmbeddedChannel channel, CommandType type, List<String> rawArgs) {
-        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII);
-        rawArgs.forEach(args::add);
-        Command<String, String, String> rawCmd = new Command<>(type, new StatusOutput<>(StringCodec.ASCII), args);
-
-        ByteBuf buf = Unpooled.buffer();
-        rawCmd.encode(buf);
-        return runCommand(channel, buf);
     }
 }

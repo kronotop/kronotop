@@ -16,6 +16,8 @@
 
 package com.kronotop.volume.handlers.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
@@ -51,8 +53,6 @@ public class ChangeLogRangeMessage extends BaseMessage implements ProtocolMessag
     public static final String COMMAND = "CHANGELOG.RANGE";
     public static final int MINIMUM_PARAMETER_COUNT = 4;
     public static final int MAXIMUM_PARAMETER_COUNT = 7;
-    private static final String LIMIT = "LIMIT";
-    private static final String REVERSE = "REVERSE";
     // Pattern for start: [100 or (100
     private static final Pattern START_PATTERN = Pattern.compile("^([(\\[])(\\d+)$");
     // Pattern for end: 200] or 200)
@@ -112,20 +112,32 @@ public class ChangeLogRangeMessage extends BaseMessage implements ProtocolMessag
         }
     }
 
+    private ChangeLogRangeArgumentKey valueOfArgument(String raw) {
+        try {
+            return ChangeLogRangeArgumentKey.valueOf(raw);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+        }
+    }
+
     private void parseOptionalParameters(int index) {
+        long seen = 0;
         while (index < request.getParams().size()) {
-            String param = readString(index);
-            if (param.equalsIgnoreCase(LIMIT)) {
-                if (index + 1 >= request.getParams().size()) {
-                    throw new IllegalCommandArgumentException("LIMIT requires a number argument");
+            String raw = StringUtil.toUpperCaseAscii(readString(index));
+            ChangeLogRangeArgumentKey key = valueOfArgument(raw);
+            seen = ProtocolMessageUtil.markArgumentSeen(seen, key);
+            switch (key) {
+                case LIMIT -> {
+                    if (index + 1 >= request.getParams().size()) {
+                        throw new IllegalCommandArgumentException("LIMIT requires a number argument");
+                    }
+                    limit = Math.toIntExact(readLong(index + 1));
+                    index += 2;
                 }
-                limit = Math.toIntExact(readLong(index + 1));
-                index += 2;
-            } else if (param.equalsIgnoreCase(REVERSE)) {
-                reverse = true;
-                index++;
-            } else {
-                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", param));
+                case REVERSE -> {
+                    reverse = true;
+                    index++;
+                }
             }
         }
     }
@@ -196,5 +208,10 @@ public class ChangeLogRangeMessage extends BaseMessage implements ProtocolMessag
     @Override
     public List<Void> getKeys() {
         return null;
+    }
+
+    private enum ChangeLogRangeArgumentKey {
+        LIMIT,
+        REVERSE
     }
 }

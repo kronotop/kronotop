@@ -35,7 +35,12 @@ import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketCreateHandlerTest extends BaseBucketHandlerTest {
@@ -557,5 +562,30 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
             assertEquals("tr", definition.collation().locale());
             assertEquals(2, definition.collation().strength());
         }
+    }
+
+    static Stream<Arguments> duplicateArguments() {
+        return Stream.of(
+                arguments("repeated SHARDS",
+                        List.of("test-bucket", "SHARDS", "1", "SHARDS", "2"),
+                        "ERR Duplicate 'SHARDS' argument"),
+                arguments("repeated INDEXES",
+                        List.of("test-bucket", "INDEXES", "{}", "INDEXES", "{}"),
+                        "ERR Duplicate 'INDEXES' argument"),
+                arguments("repeated IF-NOT-EXISTS in mixed case",
+                        List.of("test-bucket", "if-not-exists", "IF-NOT-EXISTS"),
+                        "ERR Duplicate 'IF-NOT-EXISTS' argument")
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("duplicateArguments")
+    void shouldRejectDuplicateArguments(String name, List<String> rawArgs, String expectedError) {
+        // Behavior: BUCKET.CREATE rejects a keyword argument that appears more than once. SHARDS still
+        // takes several values after a single keyword.
+        Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_CREATE, rawArgs);
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 }

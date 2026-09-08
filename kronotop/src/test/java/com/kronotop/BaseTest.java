@@ -29,6 +29,10 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.output.StatusOutput;
+import io.lettuce.core.protocol.Command;
+import io.lettuce.core.protocol.CommandArgs;
+import io.lettuce.core.protocol.ProtocolKeyword;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -51,6 +55,20 @@ public class BaseTest {
 
     @TempDir
     public File temporaryParentDataDir;
+
+    /**
+     * Encodes the command with raw string arguments and runs it. Use it for payloads that the typed builders cannot
+     * produce, such as a wrong argument count or an invalid keyword.
+     */
+    public static Object runRaw(EmbeddedChannel channel, ProtocolKeyword type, List<String> rawArgs) {
+        CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII);
+        rawArgs.forEach(args::add);
+        Command<String, String, String> rawCmd = new Command<>(type, new StatusOutput<>(StringCodec.ASCII), args);
+
+        ByteBuf buf = Unpooled.buffer();
+        rawCmd.encode(buf);
+        return runCommand(channel, buf);
+    }
 
     /**
      * Executes a command on the provided {@link EmbeddedChannel} using the specified {@link ByteBuf}.

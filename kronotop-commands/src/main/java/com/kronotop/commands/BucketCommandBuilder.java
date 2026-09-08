@@ -269,7 +269,7 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return createCommand(CommandType.BUCKET_CURSORS, new MapOutput<>(codec), args);
     }
 
-    enum CommandType implements ProtocolKeyword {
+    public enum CommandType implements ProtocolKeyword {
         QUERY("QUERY"),
         BUCKET_INSERT("BUCKET.INSERT"),
         BUCKET_QUERY("BUCKET.QUERY"),
