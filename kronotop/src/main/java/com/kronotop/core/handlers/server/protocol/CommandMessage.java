@@ -18,59 +18,37 @@ package com.kronotop.core.handlers.server.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class CommandMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "COMMAND";
-    public static final String SUBCOMMAND_COUNT = "COUNT";
-    public static final String SUBCOMMAND_INFO = "INFO";
-    public static final String SUBCOMMAND_DOCS = "DOCS";
-    private final List<String> commands = new ArrayList<>();
+    public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private final Request request;
-    private String subcommand;
-    private boolean hasSubcommand;
+    private CommandArgumentKey argument;
 
     public CommandMessage(Request request) {
         this.request = request;
         parse();
     }
 
-    private void parseCommands() {
-        if (request.getParams().size() <= 1) {
-            return;
-        }
-        for (int i = 1; i < request.getParams().size(); i++) {
-            commands.add(ProtocolMessageUtil.readAsString(request.getParams().get(i)));
-        }
-    }
-
     private void parse() {
         if (request.getParams().isEmpty()) {
             return;
         }
-
-        hasSubcommand = true;
-        subcommand = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getParams().get(0)));
-        if (subcommand.equals(SUBCOMMAND_INFO) || subcommand.equals(SUBCOMMAND_DOCS)) {
-            parseCommands();
-        } else if (subcommand.equals(SUBCOMMAND_COUNT)) {
-        }
+        String raw = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        argument = valueOfArgument(raw);
     }
 
-    public boolean hasSubcommand() {
-        return hasSubcommand;
+    public boolean hasArgument() {
+        return getArgument() != null;
     }
 
-    public String getSubcommand() {
-        return subcommand;
-    }
-
-    public List<String> getCommands() {
-        return commands;
+    public CommandArgumentKey getArgument() {
+        return argument;
     }
 
     @Override
@@ -81,5 +59,24 @@ public class CommandMessage implements ProtocolMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return null;
+    }
+
+    private CommandArgumentKey valueOfArgument(String raw) {
+        String upper = StringUtil.toUpperCaseAscii(raw);
+        for (CommandArgumentKey key : CommandArgumentKey.values()) {
+            if (key.name().equals(upper)) {
+                return key;
+            }
+        }
+        throw new IllegalCommandArgumentException(String.format("unknown subcommand '%s'. Try COMMAND HELP.", raw));
+    }
+
+    public enum CommandArgumentKey {
+        COUNT,
+        DOCS,
+        GETKEYS,
+        GETKEYSANDFLAGS,
+        INFO,
+        LIST
     }
 }
