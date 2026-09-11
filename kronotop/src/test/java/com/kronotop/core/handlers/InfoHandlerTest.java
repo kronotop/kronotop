@@ -19,11 +19,16 @@ package com.kronotop.core.handlers;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.commands.KronotopCommandBuilder;
+import com.kronotop.commands.SnapshotReadArgs;
+import com.kronotop.commands.redis.RedisCommandBuilder;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
+import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.lettuce.core.codec.StringCodec;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
@@ -68,6 +73,8 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(info.startsWith("# Server\r\n"));
         assertTrue(info.contains("\r\n\r\n# Cluster\r\n"));
         assertTrue(info.contains("\r\n\r\n# Kronotop\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Clients\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Memory\r\n"));
         assertTrue(info.contains("kronotop_version:"));
         assertTrue(info.contains("os:"));
     }
@@ -137,6 +144,107 @@ class InfoHandlerTest extends BaseHandlerTest {
 
         assertEquals(0, context.getConfig().getInt("network.external.port"));
         assertNotEquals("0", fieldValue(info, "tcp_port"));
+    }
+
+    private int intField(String info, String key) {
+        String value = fieldValue(info, key);
+        assertNotNull(value, key);
+        return Integer.parseInt(value);
+    }
+
+    private long longField(String info, String key) {
+        String value = fieldValue(info, key);
+        assertNotNull(value, key);
+        return Long.parseLong(value);
+    }
+
+    @Test
+    void shouldCountConnectedClients() {
+        // Behavior: connected_clients grows by one for every new channel
+        int before = intField(runInfo(getChannel(), "clients"), "connected_clients");
+
+        EmbeddedChannel second = newChannel();
+        int after = intField(runInfo(second, "clients"), "connected_clients");
+
+        assertEquals(before + 1, after);
+    }
+
+    @Test
+    void shouldCountClientsInTransaction() {
+        // Behavior: a session inside BEGIN is counted in clients_in_transaction
+        EmbeddedChannel second = newChannel();
+        int before = intField(runInfo(getChannel(), "clients"), "clients_in_transaction");
+
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.begin().encode(buf);
+        runCommand(second, buf);
+
+        int after = intField(runInfo(getChannel(), "clients"), "clients_in_transaction");
+        assertEquals(before + 1, after);
+    }
+
+    @Test
+    void shouldCountClientsInMulti() {
+        // Behavior: a session inside MULTI is counted in clients_in_multi
+        EmbeddedChannel second = newChannel();
+        int before = intField(runInfo(getChannel(), "clients"), "clients_in_multi");
+
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.multi().encode(buf);
+        runCommand(second, buf);
+
+        int after = intField(runInfo(getChannel(), "clients"), "clients_in_multi");
+        assertEquals(before + 1, after);
+    }
+
+    @Test
+    void shouldCountSnapshotReadClients() {
+        // Behavior: a session with SNAPSHOTREAD ON is counted in snapshot_read_clients
+        EmbeddedChannel second = newChannel();
+        int before = intField(runInfo(getChannel(), "clients"), "snapshot_read_clients");
+
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.snapshotRead(SnapshotReadArgs.Builder.on()).encode(buf);
+        runCommand(second, buf);
+
+        int after = intField(runInfo(getChannel(), "clients"), "snapshot_read_clients");
+        assertEquals(before + 1, after);
+    }
+
+    @Test
+    void shouldCountProtocolVersions() {
+        // Behavior: resp2_clients and resp3_clients split every connected client by
+        // its negotiated protocol and add up to connected_clients
+        EmbeddedChannel second = newChannel();
+        int resp3Before = intField(runInfo(getChannel(), "clients"), "resp3_clients");
+
+        switchProtocol(second, RESPVersion.RESP3);
+
+        String info = runInfo(getChannel(), "clients");
+        int resp2 = intField(info, "resp2_clients");
+        int resp3 = intField(info, "resp3_clients");
+        assertEquals(resp3Before + 1, resp3);
+        assertEquals(intField(info, "connected_clients"), resp2 + resp3);
+    }
+
+    @Test
+    void shouldReportMemoryFields() {
+        // Behavior: the Memory section reports JVM heap usage and GC totals
+        String info = runInfo(getChannel(), "memory");
+
+        long used = longField(info, "used_memory");
+        long committed = longField(info, "committed_memory");
+        long max = longField(info, "max_memory");
+        assertTrue(used > 0);
+        assertTrue(committed >= used);
+        assertTrue(max >= used);
+        assertTrue(longField(info, "gc_count") >= 0);
+        assertTrue(longField(info, "gc_time_msec") >= 0);
+        assertFalse(fieldValue(info, "used_memory_human").isBlank());
+        assertFalse(fieldValue(info, "max_memory_human").isBlank());
     }
 
     private static String fieldValue(String info, String key) {

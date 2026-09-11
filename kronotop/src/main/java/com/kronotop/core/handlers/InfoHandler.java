@@ -29,14 +29,19 @@ import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.RESPVersion;
+import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +53,8 @@ public class InfoHandler implements Handler {
     public static final String SERVER_SECTION = "Server";
     public static final String CLUSTER_SECTION = "Cluster";
     public static final String KRONOTOP_SECTION = "Kronotop";
+    public static final String CLIENTS_SECTION = "Clients";
+    public static final String MEMORY_SECTION = "Memory";
     private static final Logger LOGGER = LoggerFactory.getLogger(InfoHandler.class);
     private static final Set<String> ALL_SECTIONS = Set.of("all", "default", "everything");
 
@@ -94,6 +101,8 @@ public class InfoHandler implements Handler {
         collectServer(collector);
         collector.put(CLUSTER_SECTION, "cluster_enabled", 0);
         collectKronotop(collector);
+        collectClients(collector);
+        collectMemory(collector);
         for (KronotopService service : context.getServices()) {
             try {
                 service.collectInfo(collector);
@@ -157,6 +166,58 @@ public class InfoHandler implements Handler {
             sb.append(",advertise=").append(address);
         }
         return sb.toString();
+    }
+
+    private void collectClients(InfoCollector collector) {
+        int[] counters = new int[5];
+        context.getSessionStore().forEach(session -> {
+            if (Boolean.TRUE.equals(session.attr(SessionAttributes.BEGIN).get())) {
+                counters[0]++;
+            }
+            if (Boolean.TRUE.equals(session.attr(SessionAttributes.MULTI).get())) {
+                counters[1]++;
+            }
+            if (TransactionUtil.isSnapshotRead(session)) {
+                counters[2]++;
+            }
+            if (session.getProtocolVersion() == RESPVersion.RESP3) {
+                counters[4]++;
+            } else {
+                counters[3]++;
+            }
+        });
+        collector.put(CLIENTS_SECTION, "connected_clients", context.getSessionStore().size());
+        collector.put(CLIENTS_SECTION, "clients_in_transaction", counters[0]);
+        if (context.getShardRegistry().getShardKinds().contains(ShardKind.STASH)) {
+            collector.put(CLIENTS_SECTION, "clients_in_multi", counters[1]);
+        }
+        collector.put(CLIENTS_SECTION, "snapshot_read_clients", counters[2]);
+        collector.put(CLIENTS_SECTION, "resp2_clients", counters[3]);
+        collector.put(CLIENTS_SECTION, "resp3_clients", counters[4]);
+    }
+
+    private void collectMemory(InfoCollector collector) {
+        Runtime runtime = Runtime.getRuntime();
+        long committed = runtime.totalMemory();
+        long used = committed - runtime.freeMemory();
+        long max = runtime.maxMemory();
+        long gcCount = 0;
+        long gcTime = 0;
+        for (GarbageCollectorMXBean gc : ManagementFactory.getGarbageCollectorMXBeans()) {
+            if (gc.getCollectionCount() > 0) {
+                gcCount += gc.getCollectionCount();
+            }
+            if (gc.getCollectionTime() > 0) {
+                gcTime += gc.getCollectionTime();
+            }
+        }
+        collector.put(MEMORY_SECTION, "used_memory", used);
+        collector.put(MEMORY_SECTION, "used_memory_human", KronotopInstanceStarter.formatBytes(used));
+        collector.put(MEMORY_SECTION, "committed_memory", committed);
+        collector.put(MEMORY_SECTION, "max_memory", max);
+        collector.put(MEMORY_SECTION, "max_memory_human", KronotopInstanceStarter.formatBytes(max));
+        collector.put(MEMORY_SECTION, "gc_count", gcCount);
+        collector.put(MEMORY_SECTION, "gc_time_msec", gcTime);
     }
 
     private void collectKronotop(InfoCollector collector) {

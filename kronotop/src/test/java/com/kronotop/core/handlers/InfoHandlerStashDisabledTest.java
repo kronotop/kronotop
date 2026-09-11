@@ -35,6 +35,21 @@ class InfoHandlerStashDisabledTest extends BaseHandlerTest {
     }
 
     @Test
+    void shouldOmitClientsInMultiWhenStashDisabled() {
+        // Behavior: with stash.enabled=false the Clients section has no clients_in_multi
+        // field because MULTI is a stash feature
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*2\r\n$4\r\nINFO\r\n$7\r\nclients\r\n".getBytes(StandardCharsets.US_ASCII));
+
+        Object response = runCommand(getChannel(), buf);
+        assertInstanceOf(FullBulkStringRedisMessage.class, response);
+        String info = ((FullBulkStringRedisMessage) response).content().toString(StandardCharsets.US_ASCII);
+
+        assertTrue(info.contains("connected_clients:"));
+        assertFalse(info.contains("clients_in_multi:"));
+    }
+
+    @Test
     void shouldOmitStashFieldsWhenStashDisabled() {
         // Behavior: with stash.enabled=false the Kronotop section has no stash_shards
         // field and stash shards are not counted in primary_shards

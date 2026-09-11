@@ -21,6 +21,7 @@ import com.kronotop.namespace.handlers.Namespace;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.StampedLock;
+import java.util.function.Consumer;
 
 /**
  * Thread-safe store for managing client sessions.
@@ -55,6 +56,33 @@ public class SessionStore {
             sessions.remove(clientId);
         } finally {
             lock.unlockWrite(stamp);
+        }
+    }
+
+    /**
+     * Returns the number of registered sessions.
+     */
+    public int size() {
+        long stamp = lock.readLock();
+        try {
+            return sessions.size();
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    /**
+     * Runs the action for every registered session under the read lock.
+     * The action must not register or remove sessions.
+     */
+    public void forEach(Consumer<Session> action) {
+        long stamp = lock.readLock();
+        try {
+            for (Session session : sessions.values()) {
+                action.accept(session);
+            }
+        } finally {
+            lock.unlockRead(stamp);
         }
     }
 

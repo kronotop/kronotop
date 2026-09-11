@@ -20,6 +20,8 @@ import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.namespace.handlers.Namespace;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -70,6 +72,37 @@ class SessionStoreTest extends BaseStandaloneInstanceTest {
         assertFalse(openNamespaces.containsKey("a.b.c"));
         assertFalse(openNamespaces.containsKey("a.b.c.d"));
         assertTrue(openNamespaces.containsKey("a.b2"));
+    }
+
+    @Test
+    void shouldReportSize() {
+        // Behavior: size reflects put and remove
+        SessionStore store = new SessionStore();
+        Session session = getSession();
+        long clientId = session.getClientId();
+
+        assertEquals(0, store.size());
+        store.put(clientId, session);
+        assertEquals(1, store.size());
+        store.remove(clientId);
+        assertEquals(0, store.size());
+    }
+
+    @Test
+    void shouldIterateSessions() {
+        // Behavior: forEach visits every registered session once
+        SessionStore store = new SessionStore();
+        Session first = Session.extractSessionFromChannel(instance.newChannel());
+        Session second = Session.extractSessionFromChannel(instance.newChannel());
+        store.put(first.getClientId(), first);
+        store.put(second.getClientId(), second);
+
+        List<Long> visited = new ArrayList<>();
+        store.forEach(session -> visited.add(session.getClientId()));
+
+        assertEquals(2, visited.size());
+        assertTrue(visited.contains(first.getClientId()));
+        assertTrue(visited.contains(second.getClientId()));
     }
 
     @Test

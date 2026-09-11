@@ -110,7 +110,7 @@ public class KronotopInstanceStarter {
     /**
      * Renders a byte count as a short human-readable string (B, KB, MB, GB).
      */
-    static String formatBytes(long bytes) {
+    public static String formatBytes(long bytes) {
         if (bytes < 1024) {
             return bytes + " B";
         }

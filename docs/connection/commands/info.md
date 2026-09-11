@@ -27,6 +27,8 @@ are separated by an empty line.
 | `Server`   | `server_name`, `kronotop_version`, `kronotop_git_sha1`, `kronotop_build_time`, `server_mode`, `os`, `arch_bits`, `java_version`, `process_id`, `run_id`, `tcp_port`, `server_time_usec`, `fdb_api_version`, `listener0`, `listener1` |
 | `Cluster`  | `cluster_enabled`                                                                                                                                                                                                                    |
 | `Kronotop` | `cluster_name`, `member_id`, `member_status`, `bucket_shards`, `stash_shards`, `known_members`, `alive_members`, `primary_shards`, `standby_shards`                                                                                  |
+| `Clients`  | `connected_clients`, `clients_in_transaction`, `clients_in_multi`, `snapshot_read_clients`, `resp2_clients`, `resp3_clients`                                                                                                         |
+| `Memory`   | `used_memory`, `used_memory_human`, `committed_memory`, `max_memory`, `max_memory_human`, `gc_count`, `gc_time_msec`                                                                                                                 |
 
 Field notes:
 
@@ -43,6 +45,14 @@ Field notes:
 - `known_members` counts every member this node has seen. `alive_members` counts the ones with a recent heartbeat.
 - `primary_shards` and `standby_shards` count the shards where this member is the primary or a standby.
 - `stash_shards` is present only when `stash.enabled` is true.
+- `connected_clients` counts every open connection on both listeners, client and internal.
+- `clients_in_transaction` counts sessions between `BEGIN` and `COMMIT` or `ROLLBACK`. `snapshot_read_clients` counts
+  sessions with `SNAPSHOTREAD ON`.
+- `clients_in_multi` counts sessions between `MULTI` and `EXEC` or `DISCARD`. Present only when `stash.enabled` is
+  true.
+- `resp2_clients` and `resp3_clients` split `connected_clients` by the negotiated protocol version.
+- `used_memory` is the JVM heap in use, `committed_memory` the heap reserved from the operating system and
+  `max_memory` the heap limit. All three are in bytes. `gc_count` and `gc_time_msec` are totals since startup.
 
 ## Behavior
 
@@ -94,6 +104,23 @@ known_members:1
 alive_members:1
 primary_shards:1
 standby_shards:0
+
+# Clients
+connected_clients:3
+clients_in_transaction:1
+clients_in_multi:0
+snapshot_read_clients:0
+resp2_clients:2
+resp3_clients:1
+
+# Memory
+used_memory:17106512
+used_memory_human:16 MB
+committed_memory:125829120
+max_memory:12884901888
+max_memory_human:12.0 GB
+gc_count:9
+gc_time_msec:9
 ```
 
 ```kronotop
