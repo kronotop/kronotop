@@ -161,6 +161,26 @@ public class PlanCache {
     }
 
     /**
+     * Returns the number of cached plans across all namespaces and buckets.
+     *
+     * @return the total number of cached plans
+     */
+    public int size() {
+        long stamp = lock.readLock();
+        try {
+            int total = 0;
+            for (HashMap<UUID, Long2ObjectLinkedOpenHashMap<CachedPlan>> namespaceCache : cache.values()) {
+                for (Long2ObjectLinkedOpenHashMap<CachedPlan> bucketCache : namespaceCache.values()) {
+                    total += bucketCache.size();
+                }
+            }
+            return total;
+        } finally {
+            lock.unlockRead(stamp);
+        }
+    }
+
+    /**
      * Clears the entire cache.
      */
     public void clear() {

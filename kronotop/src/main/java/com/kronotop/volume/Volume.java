@@ -1081,14 +1081,20 @@ public class Volume {
         }
     }
 
-    public VacuumStatusResult vacuumStatus() {
-        boolean active;
+    /**
+     * Returns true while a vacuum watchdog is running on this volume. Reads only in-memory state.
+     */
+    public boolean isVacuumActive() {
         vacuumLock.lock();
         try {
-            active = vacuumWatchDog != null && !vacuumWatchDog.isStopped();
+            return vacuumWatchDog != null && !vacuumWatchDog.isStopped();
         } finally {
             vacuumLock.unlock();
         }
+    }
+
+    public VacuumStatusResult vacuumStatus() {
+        boolean active = isVacuumActive();
         if (!active) {
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
                 if (!VacuumMetadataUtil.exists(tr, subspace)) {

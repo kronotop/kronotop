@@ -24,6 +24,8 @@ import com.kronotop.bucket.index.VectorIndexDefinition;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -69,6 +71,30 @@ class VectorGraphIndexRegistryTest {
         VectorIndex index = newVectorIndex(indexId);
         registry.computeIfAbsent(metadata, index,
                 () -> new VectorGraphIndexGroup(null, metadata, index));
+    }
+
+    // --- forEachGroup() ---
+
+    @Test
+    void shouldIterateGroups() {
+        // Behavior: forEachGroup visits every registered group once, across namespaces and buckets.
+        VectorGraphIndexGroup first = registerGroup("ns-a", "bucket-1", 1L);
+        VectorGraphIndexGroup second = registerGroup("ns-b", "bucket-2", 2L);
+
+        List<VectorGraphIndexGroup> seen = new ArrayList<>();
+        registry.forEachGroup(seen::add);
+
+        assertEquals(2, seen.size());
+        assertTrue(seen.contains(first));
+        assertTrue(seen.contains(second));
+    }
+
+    @Test
+    void shouldNotVisitAnythingWhenEmpty() {
+        // Behavior: forEachGroup on an empty registry does not call the action.
+        AtomicInteger visits = new AtomicInteger();
+        registry.forEachGroup(group -> visits.incrementAndGet());
+        assertEquals(0, visits.get());
     }
 
     // --- get() ---

@@ -16,8 +16,11 @@
 
 package com.kronotop.bucket;
 
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceRoutineMetrics;
 import com.kronotop.cluster.sharding.Shard;
 import com.kronotop.volume.Volume;
+
+import java.util.List;
 
 public interface BucketShard extends Shard {
     /**
@@ -38,4 +41,11 @@ public interface BucketShard extends Shard {
      * @return true if the shard is closed, otherwise false
      */
     boolean isClosed();
+
+    /**
+     * Returns the runtime metrics of the active index maintenance workers on this shard.
+     *
+     * @return one metrics object per active worker
+     */
+    List<IndexMaintenanceRoutineMetrics> indexMaintenanceMetrics();
 }

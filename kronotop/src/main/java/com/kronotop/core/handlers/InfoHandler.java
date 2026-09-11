@@ -55,6 +55,10 @@ public class InfoHandler implements Handler {
     public static final String KRONOTOP_SECTION = "Kronotop";
     public static final String CLIENTS_SECTION = "Clients";
     public static final String MEMORY_SECTION = "Memory";
+    public static final String TASKS_SECTION = "Tasks";
+    public static final String VOLUME_SECTION = "Volume";
+    public static final String BUCKET_SECTION = "Bucket";
+    public static final String VECTOR_SECTION = "Vector";
     private static final Logger LOGGER = LoggerFactory.getLogger(InfoHandler.class);
     private static final Set<String> ALL_SECTIONS = Set.of("all", "default", "everything");
 

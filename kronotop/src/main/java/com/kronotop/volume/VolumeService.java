@@ -28,6 +28,8 @@ import com.kronotop.KronotopService;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.core.InfoCollector;
+import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.ExecutorServiceUtil;
@@ -38,6 +40,7 @@ import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
 import com.kronotop.task.TaskService;
 import com.kronotop.volume.handlers.*;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +48,7 @@ import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -277,6 +281,35 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    @Override
+    public void collectInfo(InfoCollector collector) {
+        List<Volume> open = list().stream()
+                .filter(volume -> !volume.isClosed())
+                .sorted(Comparator.comparing(volume -> volume.getConfig().name()))
+                .toList();
+        collector.put(InfoHandler.VOLUME_SECTION, "volume_count", open.size());
+        int index = 0;
+        for (Volume volume : open) {
+            String line = prepareVolumeSection(volume);
+            collector.put(InfoHandler.VOLUME_SECTION, "volume" + index, line);
+            index++;
+        }
+    }
+
+    private static @NonNull String prepareVolumeSection(Volume volume) {
+        VolumeStats stats = volume.getStats();
+        return "name=" + volume.getConfig().name() +
+                ",status=" + volume.getStatus() +
+                ",vacuum_active=" + (volume.isVacuumActive() ? 1 : 0) +
+                ",appends=" + stats.getAppends() +
+                ",deletes=" + stats.getDeletes() +
+                ",updates=" + stats.getUpdates() +
+                ",gets=" + stats.getGets() +
+                ",bytes_appended=" + stats.getBytesAppended() +
+                ",bytes_read=" + stats.getBytesRead() +
+                ",segments_created=" + stats.getSegmentsCreated();
     }
 
     public DirectorySubspace openSubspace(String volumeName) {

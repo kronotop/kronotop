@@ -29,6 +29,10 @@ are separated by an empty line.
 | `Kronotop` | `cluster_name`, `member_id`, `member_status`, `bucket_shards`, `stash_shards`, `known_members`, `alive_members`, `primary_shards`, `standby_shards`                                                                                  |
 | `Clients`  | `connected_clients`, `clients_in_transaction`, `clients_in_multi`, `snapshot_read_clients`, `resp2_clients`, `resp3_clients`                                                                                                         |
 | `Memory`   | `used_memory`, `used_memory_human`, `committed_memory`, `max_memory`, `max_memory_human`, `gc_count`, `gc_time_msec`                                                                                                                 |
+| `Tasks`    | `task_count`, `running_tasks`                                                                                                                                                                                                        |
+| `Volume`   | `volume_count`, `volume0`, `volume1`, ...                                                                                                                                                                                            |
+| `Bucket`   | `plan_cache_size`, `index_maintenance_workers`, `index_maintenance_processed_entries`, `index_maintenance_retried_conflicts`, `index_maintenance_last_run`                                                                           |
+| `Vector`   | `vector_indexes`, `vector_bytes_used`                                                                                                                                                                                                |
 
 Field notes:
 
@@ -53,6 +57,19 @@ Field notes:
 - `resp2_clients` and `resp3_clients` split `connected_clients` by the negotiated protocol version.
 - `used_memory` is the JVM heap in use, `committed_memory` the heap reserved from the operating system and
   `max_memory` the heap limit. All three are in bytes. `gc_count` and `gc_time_msec` are totals since startup.
+- `task_count` counts the background tasks registered on this member. `running_tasks` counts the ones executing at
+  the moment of the call.
+- `volume_count` counts the open volumes on this member. Each `volumeN` line has the volume name, its status
+  (`READWRITE`, `READONLY` or `INOPERABLE`), `vacuum_active` (`1` while a vacuum runs on that volume) and the
+  operation counters `appends`, `deletes`, `updates`, `gets`, `bytes_appended`, `bytes_read` and `segments_created`.
+  The counters start at zero on restart and `VOLUME.STATS RESET` clears them. Volumes are listed in name order.
+- `plan_cache_size` is the number of cached query plans.
+- `index_maintenance_workers` counts the index maintenance workers running on this member. The
+  `index_maintenance_processed_entries` and `index_maintenance_retried_conflicts` totals cover those workers.
+  `index_maintenance_last_run` is the most recent run time in milliseconds since the Unix epoch, or `0` when no worker
+  is running.
+- `vector_indexes` counts the vector graph indexes held in memory. `vector_bytes_used` is their total heap usage in
+  bytes.
 
 ## Behavior
 
@@ -121,6 +138,25 @@ max_memory:12884901888
 max_memory_human:12.0 GB
 gc_count:9
 gc_time_msec:9
+
+# Tasks
+task_count:4
+running_tasks:0
+
+# Volume
+volume_count:1
+volume0:name=bucket-shard-0,status=READWRITE,vacuum_active=0,appends=120,deletes=3,updates=8,gets=540,bytes_appended=65536,bytes_read=294912,segments_created=1
+
+# Bucket
+plan_cache_size:6
+index_maintenance_workers:0
+index_maintenance_processed_entries:0
+index_maintenance_retried_conflicts:0
+index_maintenance_last_run:0
+
+# Vector
+vector_indexes:1
+vector_bytes_used:12288
 ```
 
 ```kronotop

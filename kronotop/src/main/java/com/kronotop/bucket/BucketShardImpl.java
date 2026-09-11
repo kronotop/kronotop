@@ -17,6 +17,7 @@
 package com.kronotop.bucket;
 
 import com.kronotop.Context;
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceRoutineMetrics;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.impl.AbstractShard;
@@ -28,6 +29,7 @@ import com.kronotop.volume.VolumeConfigGenerator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -73,6 +75,11 @@ public class BucketShardImpl extends AbstractShard implements BucketShard {
     @Override
     public boolean isClosed() {
         return closed;
+    }
+
+    @Override
+    public List<IndexMaintenanceRoutineMetrics> indexMaintenanceMetrics() {
+        return worker.metrics();
     }
 
     @Override

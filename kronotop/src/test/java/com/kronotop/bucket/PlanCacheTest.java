@@ -60,6 +60,20 @@ class PlanCacheTest {
     }
 
     @Test
+    void shouldReportSize() {
+        // Behavior: size counts every cached plan across namespaces and buckets, and drops to zero after clear
+        assertEquals(0, cache.size());
+
+        cache.put("production", BUCKET_1, 100L, createDummyPlan(1));
+        cache.put("production", BUCKET_2, 100L, createDummyPlan(2));
+        cache.put("staging", BUCKET_1, 200L, createDummyPlan(3));
+        assertEquals(3, cache.size());
+
+        cache.clear();
+        assertEquals(0, cache.size());
+    }
+
+    @Test
     void shouldReturnNullForMissingEntry() {
         assertNull(cache.get("production", BUCKET_1, 1L));
     }

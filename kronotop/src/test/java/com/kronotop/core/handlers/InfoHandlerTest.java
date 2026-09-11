@@ -75,6 +75,13 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(info.contains("\r\n\r\n# Kronotop\r\n"));
         assertTrue(info.contains("\r\n\r\n# Clients\r\n"));
         assertTrue(info.contains("\r\n\r\n# Memory\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Tasks\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Volume\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Bucket\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Vector\r\n"));
+        assertTrue(info.indexOf("# Tasks") < info.indexOf("# Volume"));
+        assertTrue(info.indexOf("# Volume") < info.indexOf("# Bucket"));
+        assertTrue(info.indexOf("# Bucket") < info.indexOf("# Vector"));
         assertTrue(info.contains("kronotop_version:"));
         assertTrue(info.contains("os:"));
     }
@@ -245,6 +252,61 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(longField(info, "gc_time_msec") >= 0);
         assertFalse(fieldValue(info, "used_memory_human").isBlank());
         assertFalse(fieldValue(info, "max_memory_human").isBlank());
+    }
+
+    @Test
+    void shouldReportTasksFields() {
+        // Behavior: the Tasks section counts registered tasks and the ones running right now
+        String info = runInfo(getChannel(), "tasks");
+
+        int total = intField(info, "task_count");
+        int running = intField(info, "running_tasks");
+        assertTrue(total >= 0);
+        assertTrue(running >= 0);
+        assertTrue(running <= total);
+    }
+
+    @Test
+    void shouldReportVolumeFields() {
+        // Behavior: the Volume section lists every open volume with its status, vacuum state
+        // and operation counters; a fresh instance has no vacuum running
+        String info = runInfo(getChannel(), "volume");
+
+        int count = intField(info, "volume_count");
+        int bucketShards = context.getShardRegistry().getShardIds(ShardKind.BUCKET).size();
+        assertTrue(count >= bucketShards);
+
+        String line = fieldValue(info, "volume0");
+        assertNotNull(line);
+        assertTrue(line.startsWith("name="));
+        assertTrue(line.contains(",status=READWRITE,"));
+        assertTrue(line.contains(",vacuum_active=0,"));
+        for (String key : new String[]{"appends", "deletes", "updates", "gets",
+                "bytes_appended", "bytes_read", "segments_created"}) {
+            assertTrue(line.contains("," + key + "="), key);
+        }
+        assertNull(fieldValue(info, "volume" + count));
+    }
+
+    @Test
+    void shouldReportBucketFields() {
+        // Behavior: the Bucket section reports the plan cache size and index maintenance totals
+        String info = runInfo(getChannel(), "bucket");
+
+        assertTrue(intField(info, "plan_cache_size") >= 0);
+        assertTrue(intField(info, "index_maintenance_workers") >= 0);
+        assertTrue(longField(info, "index_maintenance_processed_entries") >= 0);
+        assertTrue(longField(info, "index_maintenance_retried_conflicts") >= 0);
+        assertTrue(longField(info, "index_maintenance_last_run") >= 0);
+    }
+
+    @Test
+    void shouldReportVectorFields() {
+        // Behavior: the Vector section reports the open on-heap graph indexes and their heap usage
+        String info = runInfo(getChannel(), "vector");
+
+        assertTrue(intField(info, "vector_indexes") >= 0);
+        assertTrue(longField(info, "vector_bytes_used") >= 0);
     }
 
     private static String fieldValue(String info, String key) {

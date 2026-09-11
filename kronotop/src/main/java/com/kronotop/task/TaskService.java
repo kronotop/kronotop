@@ -19,6 +19,8 @@ package com.kronotop.task;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
+import com.kronotop.core.InfoCollector;
+import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.server.ServerKind;
 import com.kronotop.task.handlers.TaskAdminHandler;
@@ -110,6 +112,20 @@ public class TaskService extends CommandHandlerService implements KronotopServic
         return result;
     }
 
+    @Override
+    public void collectInfo(InfoCollector collector) {
+        int running = 0;
+        int total = 0;
+        for (TaskRunner runner : tasks.values()) {
+            total++;
+            if (runner.task.stats().isRunning()) {
+                running++;
+            }
+        }
+        collector.put(InfoHandler.TASKS_SECTION, "task_count", total);
+        collector.put(InfoHandler.TASKS_SECTION, "running_tasks", running);
+    }
+
     /**
      * Retrieves the {@link Task} associated with the specified name.
      * If no task with the given name exists, a {@link TaskNotFoundException} is thrown.
@@ -141,16 +157,6 @@ public class TaskService extends CommandHandlerService implements KronotopServic
         }
         runner.task.shutdown();
         tasks.remove(name, runner);
-    }
-
-    /**
-     * Checks whether a task with the specified name exists in the task collection.
-     *
-     * @param name the name of the task to check; must not be null
-     * @return true if a task with the given name exists, false otherwise
-     */
-    public boolean hasTask(@Nonnull String name) {
-        return tasks.containsKey(name);
     }
 
     @Override

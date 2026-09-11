@@ -31,12 +31,15 @@ import com.kronotop.bucket.handlers.*;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.bucket.index.VectorIndexDefinition;
+import com.kronotop.bucket.index.maintenance.IndexMaintenanceRoutineMetrics;
 import com.kronotop.bucket.vector.*;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.core.InfoCollector;
+import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.server.ServerKind;
 import org.slf4j.Logger;
@@ -123,6 +126,41 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     public PlanCache getPlanCache() {
         return planCache;
+    }
+
+    @Override
+    public void collectInfo(InfoCollector collector) {
+        int workers = 0;
+        long processed = 0;
+        long retried = 0;
+        long lastRun = 0;
+        for (BucketShard shard : getServiceContext().shards().values()) {
+            if (shard.isClosed()) {
+                continue;
+            }
+            for (IndexMaintenanceRoutineMetrics metrics : shard.indexMaintenanceMetrics()) {
+                workers++;
+                processed += metrics.getProcessedEntries();
+                retried += metrics.getRetriedCommitConflicts();
+                lastRun = Math.max(lastRun, metrics.getLatestExecution());
+            }
+        }
+        collector.put(InfoHandler.BUCKET_SECTION, "plan_cache_size", planCache.size());
+        collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_workers", workers);
+        collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_processed_entries", processed);
+        collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_retried_conflicts", retried);
+        collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_last_run", lastRun);
+
+        int[] indexes = new int[1];
+        long[] bytes = new long[1];
+        vectorGraphRegistry.forEachGroup(group -> {
+            for (OnHeapVectorGraphIndex index : group.getOnHeapIndexes()) {
+                indexes[0]++;
+                bytes[0] += index.ramBytesUsed();
+            }
+        });
+        collector.put(InfoHandler.VECTOR_SECTION, "vector_indexes", indexes[0]);
+        collector.put(InfoHandler.VECTOR_SECTION, "vector_bytes_used", bytes[0]);
     }
 
     public Route findRoute(int shardId) {

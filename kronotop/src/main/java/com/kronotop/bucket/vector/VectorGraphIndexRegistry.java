@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -135,6 +136,19 @@ public class VectorGraphIndexRegistry {
         }
         subMap.clear();
         return bucketIds;
+    }
+
+    /**
+     * Applies the action to every registered index group.
+     */
+    public void forEachGroup(Consumer<VectorGraphIndexGroup> action) {
+        for (ConcurrentHashMap<String, ConcurrentHashMap<Long, VectorGraphIndexGroup>> buckets : registry.values()) {
+            for (ConcurrentHashMap<Long, VectorGraphIndexGroup> indexes : buckets.values()) {
+                for (VectorGraphIndexGroup group : indexes.values()) {
+                    action.accept(group);
+                }
+            }
+        }
     }
 
     /**

@@ -158,6 +158,19 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
+     * Returns the runtime metrics of every active worker.
+     *
+     * @return one metrics object per active worker
+     */
+    public List<IndexMaintenanceRoutineMetrics> metrics() {
+        List<IndexMaintenanceRoutineMetrics> result = new ArrayList<>(workers.size());
+        for (WorkerHandle handle : workers.values()) {
+            result.add(handle.getWorker().getMetrics());
+        }
+        return result;
+    }
+
+    /**
      * Cleans up stale workers that have been inactive beyond the maximum stale period.
      *
      * <p>Stale workers are first collected and shut down inside the synchronized
