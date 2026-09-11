@@ -37,6 +37,9 @@ Section filtering is not yet implemented. All sections are returned regardless o
 
 This command does not require the cluster to be initialized.
 
+`redis_mode` is always `standalone` and `cluster_enabled` is always `0`. Kronotop does not use slot-based routing at the
+protocol level, so clients must connect in standalone mode.
+
 ## Errors
 
 No command-specific errors.
@@ -47,9 +50,9 @@ No command-specific errors.
 127.0.0.1:5484> INFO
 # Server
 kronotop_version:0.13
-redis_mode:cluster
+redis_mode:standalone
 os:Linux 5.15.0 amd64
 
 # Cluster
-cluster_enabled:1
+cluster_enabled:0
 ```

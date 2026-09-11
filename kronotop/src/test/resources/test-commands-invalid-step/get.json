@@ -1,0 +1,15 @@
+{
+  "GET": {
+    "summary": "Range step is zero",
+    "group": "string",
+    "since": "2026.06-1",
+    "arity": 2,
+    "key_specs": [
+      {
+        "flags": ["RO"],
+        "begin_search": {"index": {"pos": 1}},
+        "find_keys": {"range": {"lastkey": 0, "step": 0, "limit": 0}}
+      }
+    ]
+  }
+}

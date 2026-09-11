@@ -1,0 +1,9 @@
+{
+  "PING": {
+    "summary": "ACL category is not in the fixed list",
+    "group": "connection",
+    "since": "2026.06-1",
+    "arity": -1,
+    "acl_categories": ["MISC"]
+  }
+}

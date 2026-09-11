@@ -13,72 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.kronotop.commands;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-
-import java.util.ArrayList;
 import java.util.List;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({
-        "notes",
-        "flags",
-        "begin_search",
-        "find_keys"
-})
-public class KeySpec {
-
-    @JsonProperty("notes")
-    private String notes;
-    @JsonProperty("flags")
-    private List<String> flags = new ArrayList<String>();
-    @JsonProperty("begin_search")
-    private BeginSearch beginSearch;
-    @JsonProperty("find_keys")
-    private FindKeys findKeys;
-
-    @JsonProperty("notes")
-    public String getNotes() {
-        return notes;
+/**
+ * Describes where the keys of a command are found in its arguments.
+ */
+public record KeySpec(
+        String notes,
+        List<KeySpecFlag> flags,
+        BeginSearch beginSearch,
+        FindKeys findKeys
+) {
+    public KeySpec {
+        if (beginSearch == null || findKeys == null) {
+            throw new IllegalArgumentException("key spec requires begin_search and find_keys");
+        }
+        flags = flags == null ? List.of() : List.copyOf(flags);
     }
 
-    @JsonProperty("notes")
-    public void setNotes(String notes) {
-        this.notes = notes;
+    /**
+     * True when the spec has both an index begin_search and a range find_keys.
+     */
+    public boolean isIndexRange() {
+        return beginSearch.type() == BeginSearch.Type.INDEX && findKeys.type() == FindKeys.Type.RANGE;
     }
-
-    @JsonProperty("flags")
-    public List<String> getFlags() {
-        return flags;
-    }
-
-    @JsonProperty("flags")
-    public void setFlags(List<String> flags) {
-        this.flags = flags;
-    }
-
-    @JsonProperty("begin_search")
-    public BeginSearch getBeginSearch() {
-        return beginSearch;
-    }
-
-    @JsonProperty("begin_search")
-    public void setBeginSearch(BeginSearch beginSearch) {
-        this.beginSearch = beginSearch;
-    }
-
-    @JsonProperty("find_keys")
-    public FindKeys getFindKeys() {
-        return findKeys;
-    }
-
-    @JsonProperty("find_keys")
-    public void setFindKeys(FindKeys findKeys) {
-        this.findKeys = findKeys;
-    }
-
 }

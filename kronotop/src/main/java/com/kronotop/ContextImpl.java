@@ -23,6 +23,7 @@ import com.kronotop.cluster.Member;
 import com.kronotop.cluster.ShardRegistry;
 import com.kronotop.cluster.client.InternalClientPool;
 import com.kronotop.commands.CommandMetadata;
+import com.kronotop.commands.CommandMetadataLoader;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.KronotopDirectoryLayer;
 import com.kronotop.journal.Journal;
@@ -62,8 +63,7 @@ public class ContextImpl implements Context {
     private final String clusterName;
     private final Journal journal;
     private final WorkerRegistry workerRegistry;
-    private final ConcurrentHashMap<String, CommandMetadata> commandMetadata = new ConcurrentHashMap<>();
-    private final Map<String, CommandMetadata> unmodifiableCommandMetadata = Collections.unmodifiableMap(commandMetadata);
+    private final Map<String, CommandMetadata> commandMetadata = CommandMetadataLoader.load();
     private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
     private final Path dataDir;
     private final String defaultNamespace;
@@ -193,13 +193,8 @@ public class ContextImpl implements Context {
     }
 
     @Override
-    public void registerCommandMetadata(String command, CommandMetadata metadata) {
-        commandMetadata.put(command, metadata);
-    }
-
-    @Override
     public Map<String, CommandMetadata> getCommandMetadata() {
-        return unmodifiableCommandMetadata;
+        return commandMetadata;
     }
 
     @Override

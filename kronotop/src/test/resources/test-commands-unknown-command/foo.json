@@ -1,0 +1,8 @@
+{
+  "FOO": {
+    "summary": "Not a Kronotop command",
+    "group": "generic",
+    "since": "2026.06-1",
+    "arity": 1
+  }
+}

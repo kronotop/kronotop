@@ -13,30 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.kronotop.commands;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({
-        "range"
-})
-public class FindKeys {
-
-    @JsonProperty("range")
-    private Range range;
-
-    @JsonProperty("range")
-    public Range getRange() {
-        return range;
+/**
+ * How keys are found after begin_search. Exactly one of range or keynum is set.
+ * When both are null the spec type is unknown.
+ */
+@JsonIgnoreProperties({"unknown"})
+public record FindKeys(Range range, KeyNum keynum) {
+    public FindKeys(Range range) {
+        this(range, null);
     }
 
-    @JsonProperty("range")
-    public void setRange(Range range) {
-        this.range = range;
+    public FindKeys(KeyNum keynum) {
+        this(null, keynum);
     }
 
+    public Type type() {
+        if (range != null) {
+            return Type.RANGE;
+        }
+        if (keynum != null) {
+            return Type.KEYNUM;
+        }
+        return Type.UNKNOWN;
+    }
+
+    public enum Type {
+        RANGE, KEYNUM, UNKNOWN;
+
+        public String replyName() {
+            return name().toLowerCase();
+        }
+    }
 }

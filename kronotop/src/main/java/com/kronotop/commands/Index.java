@@ -16,27 +16,13 @@
 
 package com.kronotop.commands;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({
-        "pos"
-})
-public class Index {
-
-    @JsonProperty("pos")
-    private int pos;
-
-    @JsonProperty("pos")
-    public int getPos() {
-        return pos;
+/**
+ * Argument index where the key search starts.
+ */
+public record Index(int pos) {
+    public Index {
+        if (pos < 1) {
+            throw new IllegalArgumentException("key spec index pos must be >= 1");
+        }
     }
-
-    @JsonProperty("pos")
-    public void setPos(int pos) {
-        this.pos = pos;
-    }
-
 }

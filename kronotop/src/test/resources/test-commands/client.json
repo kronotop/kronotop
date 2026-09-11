@@ -1,0 +1,9 @@
+{
+  "CLIENT": {
+    "summary": "A container for client connection commands",
+    "complexity": "Depends on subcommand.",
+    "group": "connection",
+    "since": "2026.06-1",
+    "arity": -2
+  }
+}

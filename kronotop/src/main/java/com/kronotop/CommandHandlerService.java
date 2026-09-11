@@ -16,21 +16,14 @@
 
 package com.kronotop;
 
-import com.kronotop.commands.CommandMetadata;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.Commands;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
 
 /**
- * Base class that handles command handler registration and command definitions from JSON files.
+ * Base class that handles command handler registration.
  */
 public class CommandHandlerService extends BaseKronotopService {
 
@@ -80,7 +73,6 @@ public class CommandHandlerService extends BaseKronotopService {
         int maxParams = extractMaximumParameterCount(handler);
 
         registry.register(commandType, handler, minParams, maxParams);
-        loadDefinition(upperCommand);
     }
 
     /**
@@ -101,29 +93,6 @@ public class CommandHandlerService extends BaseKronotopService {
                 Command command = handler.getClass().getAnnotation(Command.class);
                 registerHandler(registry, command.value(), handler);
             }
-        }
-    }
-
-    /**
-     * Loads the definition of a command from a JSON file and registers it in the context.
-     *
-     * @param command the name of the command
-     */
-    private void loadDefinition(String command) {
-        ClassLoader classLoader = getClass().getClassLoader();
-        try (InputStream inputStream = classLoader.getResourceAsStream(String.format("commands/%s.json", command.toLowerCase()))) {
-            if (inputStream == null) {
-                return;
-            }
-            byte[] jsonData = inputStream.readAllBytes();
-            ObjectMapper objectMapper = new ObjectMapper();
-            HashMap<String, CommandMetadata> data = objectMapper.readValue(jsonData, new TypeReference<>() {
-            });
-            for (String cmd : data.keySet()) {
-                context.registerCommandMetadata(cmd.toUpperCase(), data.get(cmd));
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 }

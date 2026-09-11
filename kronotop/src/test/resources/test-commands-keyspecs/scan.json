@@ -1,0 +1,41 @@
+{
+  "SCAN": {
+    "summary": "Keyword and keynum key specs",
+    "group": "generic",
+    "since": "2026.06-1",
+    "arity": -6,
+    "key_specs": [
+      {
+        "flags": ["RW", "ACCESS", "DELETE", "INCOMPLETE"],
+        "begin_search": {
+          "keyword": {
+            "keyword": "KEYS",
+            "startfrom": -2
+          }
+        },
+        "find_keys": {
+          "range": {
+            "lastkey": -1,
+            "step": 1,
+            "limit": 0
+          }
+        }
+      },
+      {
+        "flags": ["RO", "ACCESS"],
+        "begin_search": {
+          "index": {
+            "pos": 2
+          }
+        },
+        "find_keys": {
+          "keynum": {
+            "keynumidx": 0,
+            "firstkey": 1,
+            "step": 1
+          }
+        }
+      }
+    ]
+  }
+}

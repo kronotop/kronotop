@@ -1,0 +1,9 @@
+{
+  "BAR": {
+    "summary": "Subcommand of a container that does not exist",
+    "group": "generic",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "NOPE"
+  }
+}

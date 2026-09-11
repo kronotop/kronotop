@@ -1,0 +1,9 @@
+{
+  "PING": {
+    "summary": "Has a misspelled field",
+    "group": "connection",
+    "since": "2026.06-1",
+    "arity": -1,
+    "sumary": "typo"
+  }
+}

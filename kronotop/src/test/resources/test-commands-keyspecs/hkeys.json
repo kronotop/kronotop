@@ -1,0 +1,19 @@
+{
+  "HKEYS": {
+    "summary": "Unknown key spec",
+    "group": "generic",
+    "since": "2026.06-1",
+    "arity": -2,
+    "key_specs": [
+      {
+        "flags": ["RO", "ACCESS"],
+        "begin_search": {
+          "unknown": null
+        },
+        "find_keys": {
+          "unknown": null
+        }
+      }
+    ]
+  }
+}

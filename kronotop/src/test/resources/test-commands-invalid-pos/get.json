@@ -1,0 +1,15 @@
+{
+  "GET": {
+    "summary": "Index pos is zero",
+    "group": "string",
+    "since": "2026.06-1",
+    "arity": 2,
+    "key_specs": [
+      {
+        "flags": ["RO"],
+        "begin_search": {"index": {"pos": 0}},
+        "find_keys": {"range": {"lastkey": 0, "step": 1, "limit": 0}}
+      }
+    ]
+  }
+}

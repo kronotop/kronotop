@@ -13,19 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.kronotop.commands;
 
 /**
- * Key range relative to the search start position.
+ * Keyword-based begin_search spec. The search for the keyword starts at startfrom.
+ * A negative startfrom counts from the end and searches backwards.
  */
-public record Range(int lastkey, int step, int limit) {
-    public Range {
-        if (step < 1) {
-            throw new IllegalArgumentException("key spec range step must be >= 1");
-        }
-        if (limit < 0) {
-            throw new IllegalArgumentException("key spec range limit must be >= 0");
+public record Keyword(String keyword, int startfrom) {
+    public Keyword {
+        if (keyword == null || keyword.isEmpty()) {
+            throw new IllegalArgumentException("key spec keyword must not be empty");
         }
     }
 }

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.kronotop.core.handlers.server.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
@@ -22,13 +21,14 @@ import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CommandMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "COMMAND";
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
     private final Request request;
     private CommandArgumentKey argument;
+    private final List<String> commands = new ArrayList<>();
 
     public CommandMessage(Request request) {
         this.request = request;
@@ -41,6 +41,14 @@ public class CommandMessage implements ProtocolMessage<Void> {
         }
         String raw = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
         argument = valueOfArgument(raw);
+        int argc = request.getParams().size() + 1;
+        if ((argument.arity > 0 && argument.arity != argc) || argc < -argument.arity) {
+            throw new IllegalCommandArgumentException(
+                    String.format("wrong number of arguments for 'command|%s' command", argument.name().toLowerCase()));
+        }
+        for (int i = 1; i < request.getParams().size(); i++) {
+            commands.add(ProtocolMessageUtil.readAsString(request.getParams().get(i)));
+        }
     }
 
     public boolean hasArgument() {
@@ -49,6 +57,13 @@ public class CommandMessage implements ProtocolMessage<Void> {
 
     public CommandArgumentKey getArgument() {
         return argument;
+    }
+
+    /**
+     * Arguments given after the subcommand, as sent by the client.
+     */
+    public List<String> getCommands() {
+        return commands;
     }
 
     @Override
@@ -71,12 +86,22 @@ public class CommandMessage implements ProtocolMessage<Void> {
         throw new IllegalCommandArgumentException(String.format("unknown subcommand '%s'. Try COMMAND HELP.", raw));
     }
 
+    /**
+     * Subcommands with their arity. The arity counts COMMAND itself, negative means "at least".
+     */
     public enum CommandArgumentKey {
-        COUNT,
-        DOCS,
-        GETKEYS,
-        GETKEYSANDFLAGS,
-        INFO,
-        LIST
+        COUNT(2),
+        DOCS(-2),
+        GETKEYS(-3),
+        GETKEYSANDFLAGS(-3),
+        HELP(2),
+        INFO(-2),
+        LIST(-2);
+
+        private final int arity;
+
+        CommandArgumentKey(int arity) {
+            this.arity = arity;
+        }
     }
 }

@@ -1,0 +1,18 @@
+{
+  "PING": {
+    "summary": "Returns the server's liveliness response",
+    "complexity": "O(1)",
+    "group": "connection",
+    "since": "2026.06-1",
+    "arity": -1,
+    "command_flags": ["FAST"],
+    "acl_categories": ["CONNECTION"],
+    "arguments": [
+      {
+        "name": "message",
+        "type": "string",
+        "optional": true
+      }
+    ]
+  }
+}

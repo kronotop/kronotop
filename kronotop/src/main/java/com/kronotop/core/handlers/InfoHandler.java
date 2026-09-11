@@ -43,7 +43,7 @@ public class InfoHandler implements Handler {
         InfoResponse infoResponse = new InfoResponse();
         infoResponse.append("# Server");
         infoResponse.append(String.format("kronotop_version:%s", getClass().getPackage().getImplementationVersion()));
-        infoResponse.append("redis_mode:cluster");
+        infoResponse.append("redis_mode:standalone");
         infoResponse.append(String.format("os:%s %s %s",
                 System.getProperty("os.name"),
                 System.getProperty("os.version"),
@@ -51,7 +51,7 @@ public class InfoHandler implements Handler {
         ));
 
         infoResponse.append("# Cluster");
-        infoResponse.append("cluster_enabled:1");
+        infoResponse.append("cluster_enabled:0");
         FullBulkStringRedisMessage fb = new FullBulkStringRedisMessage(
                 Unpooled.buffer().writeBytes(infoResponse.toString().getBytes())
         );

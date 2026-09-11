@@ -1,0 +1,125 @@
+{
+  "BUCKET.QUERY": {
+    "summary": "Queries documents from a bucket using a filter expression.",
+    "complexity": "Depends on the query plan. O(N) where N is the number of documents the plan scans.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": -3,
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "A cursor ID and the matching documents. The document encoding follows the session's reply_type attribute.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cursor_id": {
+          "description": "The cursor ID for BUCKET.ADVANCE. -1 means the LIMIT was reached and the cursor no longer exists.",
+          "type": "integer"
+        },
+        "entries": {
+          "description": "The matching documents. Each document includes its _id field.",
+          "type": "array",
+          "items": {
+            "description": "A document encoded as BSON bytes or a JSON string.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "bucket",
+        "type": "string"
+      },
+      {
+        "name": "query",
+        "type": "string"
+      },
+      {
+        "name": "sortby",
+        "type": "block",
+        "token": "SORTBY",
+        "optional": true,
+        "arguments": [
+          {
+            "name": "field",
+            "type": "string"
+          },
+          {
+            "name": "direction",
+            "type": "oneof",
+            "arguments": [
+              {
+                "name": "asc",
+                "type": "pure-token",
+                "token": "ASC"
+              },
+              {
+                "name": "desc",
+                "type": "pure-token",
+                "token": "DESC"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "resultsort",
+        "type": "block",
+        "token": "RESULTSORT",
+        "optional": true,
+        "arguments": [
+          {
+            "name": "field",
+            "type": "string"
+          },
+          {
+            "name": "direction",
+            "type": "oneof",
+            "arguments": [
+              {
+                "name": "asc",
+                "type": "pure-token",
+                "token": "ASC"
+              },
+              {
+                "name": "desc",
+                "type": "pure-token",
+                "token": "DESC"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "projection",
+        "type": "string",
+        "token": "PROJECTION",
+        "optional": true
+      },
+      {
+        "name": "batch",
+        "type": "integer",
+        "token": "BATCH",
+        "optional": true
+      },
+      {
+        "name": "limit",
+        "type": "integer",
+        "token": "LIMIT",
+        "optional": true
+      },
+      {
+        "name": "collation",
+        "type": "string",
+        "token": "COLLATION",
+        "optional": true
+      }
+    ]
+  }
+}

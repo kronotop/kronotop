@@ -1,0 +1,14 @@
+{
+  "GET": {
+    "summary": "find_keys is missing",
+    "group": "string",
+    "since": "2026.06-1",
+    "arity": 2,
+    "key_specs": [
+      {
+        "flags": ["RO"],
+        "begin_search": {"index": {"pos": 1}}
+      }
+    ]
+  }
+}

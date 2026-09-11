@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.kronotop.commands;
 
 /**
- * Key range relative to the search start position.
+ * Keynum based find_keys spec. The argument at keynumidx holds the number of keys.
  */
-public record Range(int lastkey, int step, int limit) {
-    public Range {
+public record KeyNum(int keynumidx, int firstkey, int step) {
+    public KeyNum {
         if (step < 1) {
-            throw new IllegalArgumentException("key spec range step must be >= 1");
+            throw new IllegalArgumentException("key spec keynum step must be >= 1");
         }
-        if (limit < 0) {
-            throw new IllegalArgumentException("key spec range limit must be >= 0");
+        if (keynumidx < 0 || firstkey < 0) {
+            throw new IllegalArgumentException("key spec keynum keynumidx and firstkey must be >= 0");
         }
     }
 }

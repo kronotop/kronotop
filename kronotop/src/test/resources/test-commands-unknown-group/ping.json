@@ -1,0 +1,8 @@
+{
+  "PING": {
+    "summary": "Group value is not in the fixed list",
+    "group": "misc",
+    "since": "2026.06-1",
+    "arity": -1
+  }
+}

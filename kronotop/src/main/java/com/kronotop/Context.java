@@ -159,19 +159,8 @@ public interface Context {
     Journal getJournal();
 
     /**
-     * Registers the metadata of a command in the context.
-     *
-     * @param command  the name of the command
-     * @param metadata the metadata of the command to register
-     */
-    void registerCommandMetadata(String command, CommandMetadata metadata);
-
-    /**
-     * Retrieves the metadata of commands.
-     *
-     * @return A map containing the metadata of commands. The keys are the names of the commands,
-     * and the values are {@link CommandMetadata} objects containing the metadata of the
-     * commands.
+     * Returns the metadata of all commands loaded from the command definition files.
+     * Keys are uppercase command names.
      */
     Map<String, CommandMetadata> getCommandMetadata();
 

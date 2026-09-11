@@ -1,0 +1,25 @@
+{
+  "GET": {
+    "summary": "Key spec flag is not in the fixed list",
+    "group": "string",
+    "since": "2026.06-1",
+    "arity": 2,
+    "key_specs": [
+      {
+        "flags": ["READ"],
+        "begin_search": {
+          "index": {
+            "pos": 1
+          }
+        },
+        "find_keys": {
+          "range": {
+            "lastkey": 0,
+            "step": 1,
+            "limit": 0
+          }
+        }
+      }
+    ]
+  }
+}

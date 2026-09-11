@@ -13,28 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.kronotop.commands;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
-@JsonPropertyOrder({
-        "index"
-})
-public class BeginSearch {
-    @JsonProperty("index")
-    private Index index;
-
-    @JsonProperty("index")
-    public Index getIndex() {
-        return index;
+/**
+ * Where the search for keys begins. Exactly one of index or keyword is set.
+ * When both are null the spec type is unknown.
+ */
+@JsonIgnoreProperties({"unknown"})
+public record BeginSearch(Index index, Keyword keyword) {
+    public BeginSearch(Index index) {
+        this(index, null);
     }
 
-    @JsonProperty("index")
-    public void setIndex(Index index) {
-        this.index = index;
+    public BeginSearch(Keyword keyword) {
+        this(null, keyword);
+    }
+
+    public Type type() {
+        if (index != null) {
+            return Type.INDEX;
+        }
+        if (keyword != null) {
+            return Type.KEYWORD;
+        }
+        return Type.UNKNOWN;
+    }
+
+    public enum Type {
+        INDEX, KEYWORD, UNKNOWN;
+
+        public String replyName() {
+            return name().toLowerCase();
+        }
     }
 }
