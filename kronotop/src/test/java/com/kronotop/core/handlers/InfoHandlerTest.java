@@ -17,6 +17,10 @@
 package com.kronotop.core.handlers;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.network.Address;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -24,14 +28,20 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class InfoHandlerTest extends BaseHandlerTest {
 
-    private String runInfo(EmbeddedChannel channel) {
+    private String runInfo(EmbeddedChannel channel, String... sections) {
+        StringBuilder sb = new StringBuilder();
+        sb.append('*').append(1 + sections.length).append("\r\n$4\r\nINFO\r\n");
+        for (String section : sections) {
+            sb.append('$').append(section.length()).append("\r\n").append(section).append("\r\n");
+        }
         ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes("*1\r\n$4\r\nINFO\r\n".getBytes(StandardCharsets.US_ASCII));
+        buf.writeBytes(sb.toString().getBytes(StandardCharsets.US_ASCII));
 
         Object response = runCommand(channel, buf);
         assertInstanceOf(FullBulkStringRedisMessage.class, response);
@@ -40,23 +50,168 @@ class InfoHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReportStandaloneMode() {
-        // Behavior: INFO reports redis_mode:standalone and cluster_enabled:0 so
+        // Behavior: INFO reports server_mode:standalone and cluster_enabled:0 so
         // clients do not switch to slot-based cluster routing
         String info = runInfo(getChannel());
 
-        assertTrue(info.contains("redis_mode:standalone\r\n"));
+        assertTrue(info.contains("server_mode:standalone\r\n"));
         assertTrue(info.contains("cluster_enabled:0\r\n"));
-        assertFalse(info.contains("redis_mode:cluster"));
+        assertFalse(info.contains("redis_mode:"));
     }
 
     @Test
     void shouldReturnServerAndClusterSections() {
-        // Behavior: INFO returns the Server and Cluster section headers
+        // Behavior: INFO without arguments returns the Server, Cluster and Kronotop
+        // sections separated by an empty line
         String info = runInfo(getChannel());
+
+        assertTrue(info.startsWith("# Server\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Cluster\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Kronotop\r\n"));
+        assertTrue(info.contains("kronotop_version:"));
+        assertTrue(info.contains("os:"));
+    }
+
+    @Test
+    void shouldReadBuildInfoFromApplicationProperties() {
+        // Behavior: version, git commit and build time come from application.properties;
+        // a missing or unresolved value is reported as unknown, never null
+        String info = runInfo(getChannel(), "server");
+
+        for (String key : new String[]{"kronotop_version", "kronotop_git_sha1", "kronotop_build_time"}) {
+            String value = fieldValue(info, key);
+            assertNotNull(value, key);
+            assertFalse(value.isBlank(), key);
+            assertNotEquals("null", value, key);
+            assertFalse(value.startsWith("${"), key);
+        }
+    }
+
+    @Test
+    void shouldReportServerFields() {
+        // Behavior: the Server section carries JVM, process and config facts
+        String info = runInfo(getChannel(), "server");
+
+        Member member = context.getMember();
+        assertTrue(info.contains("server_name:kronotop\r\n"));
+        assertTrue(info.contains("server_mode:standalone\r\n"));
+        assertTrue(info.contains("java_version:" + System.getProperty("java.version") + "\r\n"));
+        assertTrue(info.contains("arch_bits:" + System.getProperty("sun.arch.data.model") + "\r\n"));
+        assertTrue(info.contains("process_id:" + ProcessHandle.current().pid() + "\r\n"));
+        assertTrue(info.contains("run_id:" + VersionstampUtil.base32HexEncode(member.getProcessId()) + "\r\n"));
+        assertTrue(info.contains("tcp_port:" + member.getExternalAddress().getPort() + "\r\n"));
+        assertTrue(info.contains("fdb_api_version:" + context.getConfig().getInt("foundationdb.apiversion") + "\r\n"));
+        assertTrue(info.contains("server_time_usec:"));
+    }
+
+    @Test
+    void shouldReportListeners() {
+        // Behavior: listener0 is the external listener and listener1 the internal one.
+        // Each line carries the bind address, the bound port and every advertised
+        // address of the running member, not the raw config
+        String info = runInfo(getChannel(), "server");
+
+        Member member = context.getMember();
+        assertEquals(expectedListener("external", member.getExternalAddress(), member.getExternalAdvertise()),
+                fieldValue(info, "listener0"));
+        assertEquals(expectedListener("internal", member.getInternalAddress(), member.getInternalAdvertise()),
+                fieldValue(info, "listener1"));
+        assertFalse(member.getExternalAdvertise().isEmpty());
+        assertTrue(fieldValue(info, "listener0").contains(",advertise="));
+    }
+
+    private static String expectedListener(String name, Address bind, List<Address> advertise) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("name=").append(name).append(",bind=").append(bind.getHost()).append(",port=").append(bind.getPort());
+        for (Address address : advertise) {
+            sb.append(",advertise=").append(address);
+        }
+        return sb.toString();
+    }
+
+    @Test
+    void shouldReportRealBoundPortWhenConfigPortIsZero() {
+        // Behavior: the test config binds port 0; INFO reports the port that was
+        // actually bound, not 0
+        String info = runInfo(getChannel(), "server");
+
+        assertEquals(0, context.getConfig().getInt("network.external.port"));
+        assertNotEquals("0", fieldValue(info, "tcp_port"));
+    }
+
+    private static String fieldValue(String info, String key) {
+        for (String line : info.split("\r\n")) {
+            if (line.startsWith(key + ":")) {
+                return line.substring(key.length() + 1);
+            }
+        }
+        return null;
+    }
+
+    @Test
+    void shouldKeepClusterSectionMinimal() {
+        // Behavior: the Cluster section holds only cluster_enabled, the same shape
+        // clients expect from a standalone server
+        String info = runInfo(getChannel(), "cluster");
+
+        assertEquals("# Cluster\r\ncluster_enabled:0\r\n", info);
+    }
+
+    @Test
+    void shouldReportKronotopFields() {
+        // Behavior: the Kronotop section reports this member, membership counts and
+        // shard counts for a single-member cluster
+        String info = runInfo(getChannel(), "kronotop");
+
+        int bucketShards = context.getShardRegistry().getShardIds(ShardKind.BUCKET).size();
+        int stashShards = context.getShardRegistry().getShardIds(ShardKind.STASH).size();
+        assertTrue(info.contains("cluster_name:" + context.getClusterName() + "\r\n"));
+        assertTrue(info.contains("member_id:" + context.getMember().getId() + "\r\n"));
+        assertTrue(info.contains("member_status:RUNNING\r\n"));
+        assertTrue(info.contains("known_members:1\r\n"));
+        assertTrue(info.contains("alive_members:1\r\n"));
+        assertTrue(info.contains("bucket_shards:" + bucketShards + "\r\n"));
+        assertTrue(info.contains("stash_shards:" + stashShards + "\r\n"));
+        assertTrue(info.contains("primary_shards:" + (bucketShards + stashShards) + "\r\n"));
+        assertTrue(info.contains("standby_shards:0\r\n"));
+    }
+
+    @Test
+    void shouldFilterBySection() {
+        // Behavior: INFO with a section name returns only that section, matched
+        // without regard to case
+        String info = runInfo(getChannel(), "SERVER");
+
+        assertTrue(info.startsWith("# Server\r\n"));
+        assertFalse(info.contains("# Cluster"));
+    }
+
+    @Test
+    void shouldReturnMultipleRequestedSections() {
+        // Behavior: several section names return each matching section
+        String info = runInfo(getChannel(), "cluster", "server");
 
         assertTrue(info.contains("# Server\r\n"));
         assertTrue(info.contains("# Cluster\r\n"));
-        assertTrue(info.contains("kronotop_version:"));
-        assertTrue(info.contains("os:"));
+        assertFalse(info.contains("# Kronotop"));
+    }
+
+    @Test
+    void shouldReturnEmptyForUnknownSection() {
+        // Behavior: an unknown section name returns an empty bulk string
+        String info = runInfo(getChannel(), "nope");
+
+        assertEquals("", info);
+    }
+
+    @Test
+    void shouldReturnAllForAllKeyword() {
+        // Behavior: all, default and everything return every section even when
+        // combined with an unknown name
+        for (String keyword : new String[]{"all", "default", "everything"}) {
+            String info = runInfo(getChannel(), "nope", keyword);
+            assertTrue(info.contains("# Server\r\n"), keyword);
+            assertTrue(info.contains("# Cluster\r\n"), keyword);
+        }
     }
 }

@@ -52,7 +52,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * VolumeService is a service class that handles the management of volumes within the Kronotop database system.
+ * VolumeService is a service class that handles the management of volumes within the Kronotop instance.
  * It extends CommandHandlerService and implements the KronotopService interface, providing methods to create, find,
  * close, and list volumes. The service ensures thread safety using a ReentrantReadWriteLock.
  */

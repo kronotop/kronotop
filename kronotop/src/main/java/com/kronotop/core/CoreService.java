@@ -43,7 +43,7 @@ public class CoreService extends CommandHandlerService implements KronotopServic
         handlerMethod(ServerKind.EXTERNAL, new AuthHandler(context));
         handlerMethod(ServerKind.EXTERNAL, new HelloHandler(context));
         handlerMethod(ServerKind.EXTERNAL, new ClientHandler());
-        handlerMethod(ServerKind.EXTERNAL, new InfoHandler());
+        handlerMethod(ServerKind.EXTERNAL, new InfoHandler(context));
         handlerMethod(ServerKind.EXTERNAL, new CommandHandler(context));
         handlerMethod(ServerKind.EXTERNAL, new TimeHandler());
         handlerMethod(ServerKind.EXTERNAL, new SessionAttributeHandler());
@@ -62,7 +62,7 @@ public class CoreService extends CommandHandlerService implements KronotopServic
         handlerMethod(ServerKind.INTERNAL, new EchoHandler());
         handlerMethod(ServerKind.INTERNAL, new HelloHandler(context));
         handlerMethod(ServerKind.INTERNAL, new ClientHandler());
-        handlerMethod(ServerKind.INTERNAL, new InfoHandler());
+        handlerMethod(ServerKind.INTERNAL, new InfoHandler(context));
         handlerMethod(ServerKind.INTERNAL, new CommandHandler(context));
         handlerMethod(ServerKind.INTERNAL, new SessionAttributeHandler());
         handlerMethod(ServerKind.INTERNAL, new SessionCloseHandler(context));

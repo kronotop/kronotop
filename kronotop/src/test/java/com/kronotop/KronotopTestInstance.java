@@ -262,17 +262,23 @@ public class KronotopTestInstance extends KronotopInstance {
             return clusterInitialized.get() != null && clusterInitialized.get();
         });
 
-        setPrimaryOwnersOfShards(cmd, ShardKind.STASH);
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(StashService.NAME));
+        boolean stashEnabled = context.getShardRegistry().getShardKinds().contains(ShardKind.STASH);
+
+        if (stashEnabled) {
+            setPrimaryOwnersOfShards(cmd, ShardKind.STASH);
+            await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(ShardKind.STASH, StashService.NAME));
+        }
 
         setPrimaryOwnersOfShards(cmd, ShardKind.BUCKET);
-        await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(BucketService.NAME));
+        await().atMost(5, TimeUnit.SECONDS).until(() -> areAllOwnedShardsOperable(ShardKind.BUCKET, BucketService.NAME));
 
-        setShardsReadWrite(cmd, ShardKind.STASH);
-        await().atMost(5, TimeUnit.SECONDS).until(() -> {
-            List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.STASH);
-            return areAllShardsWritable(ShardKind.STASH, shardIds);
-        });
+        if (stashEnabled) {
+            setShardsReadWrite(cmd, ShardKind.STASH);
+            await().atMost(5, TimeUnit.SECONDS).until(() -> {
+                List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.STASH);
+                return areAllShardsWritable(ShardKind.STASH, shardIds);
+            });
+        }
 
         setShardsReadWrite(cmd, ShardKind.BUCKET);
         await().atMost(5, TimeUnit.SECONDS).until(() -> {
@@ -306,16 +312,16 @@ public class KronotopTestInstance extends KronotopInstance {
      * Checks if all shards owned by the current member for a specified service are operable.
      * A shard is considered operable if it is assigned to the current member and is in a valid operational state.
      *
+     * @param shardKind   the kind of shards owned by the service.
      * @param serviceName the name of the service whose owned shard operability status is to be checked.
      * @return {@code true} if all owned shards are operable; {@code false} otherwise.
      */
-    private boolean areAllOwnedShardsOperable(String serviceName) {
+    private boolean areAllOwnedShardsOperable(ShardKind shardKind, String serviceName) {
         RoutingService routing = context.getService(RoutingService.NAME);
         ShardOwnerService<Shard> service = context.getService(serviceName);
         assert service != null;
-        int shards = context.getConfig().getInt("stash.shards");
-        for (int shardId = 0; shardId < shards; shardId++) {
-            Route route = routing.findRoute(ShardKind.STASH, shardId);
+        for (int shardId : context.getShardRegistry().getShardIds(shardKind)) {
+            Route route = routing.findRoute(shardKind, shardId);
             if (route == null) {
                 return false;
             }

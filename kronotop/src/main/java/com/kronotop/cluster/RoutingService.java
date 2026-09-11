@@ -24,6 +24,8 @@ import com.kronotop.*;
 import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
+import com.kronotop.core.InfoCollector;
+import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.KeyWatcher;
@@ -91,7 +93,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
      * @param hook the callback to execute when the event occurs
      */
     public void registerHook(RoutingEventKind kind, RoutingEventHook hook) {
-        hooksByKind.compute(kind, (k, value) -> {
+        hooksByKind.compute(kind, (ignored, value) -> {
             if (value == null) {
                 value = new ArrayList<>();
             }
@@ -139,6 +141,28 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
      */
     public Route findRoute(ShardKind kind, int shardId) {
         return routingTable.get().get(kind, shardId);
+    }
+
+    @Override
+    public void collectInfo(InfoCollector collector) {
+        Member member = context.getMember();
+        int primary = 0;
+        int standby = 0;
+        for (ShardKind kind : context.getShardRegistry().getShardKinds()) {
+            for (int shardId : context.getShardRegistry().getShardIds(kind)) {
+                Route route = findRoute(kind, shardId);
+                if (route == null) {
+                    continue;
+                }
+                if (member.equals(route.primary())) {
+                    primary++;
+                } else if (route.standbys().contains(member)) {
+                    standby++;
+                }
+            }
+        }
+        collector.put(InfoHandler.KRONOTOP_SECTION, "primary_shards", primary);
+        collector.put(InfoHandler.KRONOTOP_SECTION, "standby_shards", standby);
     }
 
     /**

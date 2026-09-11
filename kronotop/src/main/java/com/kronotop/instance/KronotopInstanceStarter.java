@@ -100,7 +100,7 @@ public class KronotopInstanceStarter {
     /**
      * Returns the value, or "unknown" when it is missing or an unresolved build placeholder.
      */
-    static String resolveProperty(String value) {
+    public static String resolveProperty(String value) {
         if (value == null || value.isBlank() || value.startsWith("${")) {
             return "unknown";
         }

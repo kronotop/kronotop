@@ -25,6 +25,8 @@ import com.kronotop.BaseKronotopService;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
+import com.kronotop.core.InfoCollector;
+import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.ExecutorServiceUtil;
@@ -219,6 +221,13 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      */
     public Map<Member, MemberView> getKnownMembers() {
         return Collections.unmodifiableMap(knownMembers);
+    }
+
+    @Override
+    public void collectInfo(InfoCollector collector) {
+        long alive = knownMembers.values().stream().filter(MemberView::isAlive).count();
+        collector.put(InfoHandler.KRONOTOP_SECTION, "known_members", knownMembers.size());
+        collector.put(InfoHandler.KRONOTOP_SECTION, "alive_members", alive);
     }
 
     /**

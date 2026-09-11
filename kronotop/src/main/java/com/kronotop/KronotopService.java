@@ -16,8 +16,10 @@
 
 package com.kronotop;
 
+import com.kronotop.core.InfoCollector;
+
 /**
- * KronotopService is an interface that represents a service in the Kronotop database system.
+ * KronotopService is an interface that represents a service in the Kronotop instance.
  * It provides methods to get the service name, the global context, and to get shutdown the service.
  */
 public interface KronotopService {
@@ -39,4 +41,10 @@ public interface KronotopService {
      * Shuts down the Kronotop instance.
      */
     void shutdown();
+
+    /**
+     * Adds this service's INFO fields to the collector. The default adds nothing.
+     */
+    default void collectInfo(InfoCollector collector) {
+    }
 }
