@@ -67,9 +67,12 @@ COMMAND LIST [FILTERBY MODULE name | ACLCAT category | PATTERN pattern]
 
 | Filter    | Description                                                                                    |
 |-----------|------------------------------------------------------------------------------------------------|
-| `MODULE`  | Commands of a module. There are no modules, the result is empty                                |
+| `MODULE`  | Commands of a module. The result is always empty, see below                                    |
 | `ACLCAT`  | Commands in an ACL category, for example `read` or `bucket`. An unknown category gives nothing |
 | `PATTERN` | Commands whose name matches a glob pattern, without regard to case                             |
+
+Kronotop has no module system. The `MODULE` filter is accepted so that clients written for the standard command
+set keep working. Any module name gives an empty array, the same reply a server without that module would give.
 
 ### COMMAND GETKEYS
 
