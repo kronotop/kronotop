@@ -1,5 +1,5 @@
 {
-  "BUCKET.QUERY": {
+  "QUERY": {
     "summary": "Queries documents from a bucket using a filter expression.",
     "complexity": "Depends on the query plan. O(N) where N is the number of documents the plan scans.",
     "group": "bucket",
