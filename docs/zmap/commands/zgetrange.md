@@ -8,7 +8,7 @@ Retrieves an ordered range of key-value pairs from the ZMap ordered key-value st
 ## Syntax
 
 ```kronotop
-ZGETRANGE <begin> <end> [LIMIT count] [REVERSE] [BEGIN-KEY-SELECTOR selector] [END-KEY-SELECTOR selector]
+ZGETRANGE <begin> <end> [LIMIT limit] [REVERSE] [BEGIN-KEY-SELECTOR selector] [END-KEY-SELECTOR selector]
 ```
 
 ## Arguments
@@ -20,7 +20,7 @@ can appear at most once.
 |----------------------|---------|----------|-----------------------------------------------------------------------------------------------|
 | `begin`              | bytes   | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace). |
 | `end`                | bytes   | Yes      | The end key of the range. Use `*` for unbounded end (to the end of the subspace).             |
-| `LIMIT count`        | integer | No       | Maximum number of key-value pairs to return. Must be greater than zero. Default is `100`.     |
+| `LIMIT limit`        | integer | No       | Maximum number of key-value pairs to return. Must be greater than zero. Default is `100`.     |
 | `REVERSE`            | flag    | No       | When present, reverses the scan direction so results are returned in descending key order.    |
 | `BEGIN-KEY-SELECTOR` | string  | No       | Controls how the begin boundary is resolved. Default is `first_greater_or_equal`.             |
 | `END-KEY-SELECTOR`   | string  | No       | Controls how the end boundary is resolved. Default is `first_greater_than`.                   |
