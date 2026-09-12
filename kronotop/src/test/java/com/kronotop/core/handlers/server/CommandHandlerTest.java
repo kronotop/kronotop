@@ -22,7 +22,6 @@ import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -68,14 +67,13 @@ class CommandHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    @Disabled("TODO: re-enable when ZMap command schemas are bundled; needs a definition with key specs")
     void shouldReturnDocsForAllCommands() {
         // Behavior: COMMAND DOCS without names returns one entry per loaded command definition
         Map<String, RedisMessage> docs = docs(getChannel());
 
         assertEquals(instance.getContext().getCommandMetadata().size(), docs.size());
         assertTrue(docs.containsKey("bucket.query"));
-        assertTrue(docs.containsKey("set"));
+        assertTrue(docs.containsKey("zset"));
     }
 
     @Test
@@ -182,21 +180,21 @@ class CommandHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    @Disabled("TODO: re-enable when ZMap command schemas are bundled; needs a definition with key specs")
     void shouldReturnInfoForRequestedCommands() {
         // Behavior: COMMAND INFO with names returns entries in request order with arity and key range
         switchProtocol(RESPVersion.RESP3);
-        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO", "ping", "set"));
+        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO", "ping", "zset"));
 
         assertEquals(2, entries.size());
         List<RedisMessage> ping = ((ArrayRedisMessage) entries.get(0)).children();
         assertEquals("ping", text(ping.get(0)));
         assertEquals(-1, integer(ping.get(1)));
-        List<RedisMessage> set = ((ArrayRedisMessage) entries.get(1)).children();
-        assertEquals("set", text(set.get(0)));
-        assertEquals(1, integer(set.get(3)));
-        assertEquals(1, integer(set.get(4)));
-        assertEquals(1, integer(set.get(5)));
+        List<RedisMessage> zset = ((ArrayRedisMessage) entries.get(1)).children();
+        assertEquals("zset", text(zset.get(0)));
+        assertEquals(3, integer(zset.get(1)));
+        assertEquals(1, integer(zset.get(3)));
+        assertEquals(1, integer(zset.get(4)));
+        assertEquals(1, integer(zset.get(5)));
     }
 
     @Test
@@ -282,18 +280,22 @@ class CommandHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    @Disabled("TODO: re-enable when ZMap command schemas are bundled; needs a definition with key specs")
     void shouldListByAclCategory() {
         // Behavior: FILTERBY ACLCAT keeps the commands in that category, explicit or derived, unknown category gives nothing
         List<String> connection = names(run(getChannel(), "COMMAND", "LIST", "filterby", "aclcat", "connection"));
         assertTrue(connection.contains("auth"));
         assertTrue(connection.contains("ping"));
-        assertFalse(connection.contains("get"));
+        assertFalse(connection.contains("zget"));
 
         List<String> read = names(run(getChannel(), "COMMAND", "LIST", "FILTERBY", "ACLCAT", "read"));
-        assertTrue(read.contains("get"));
+        assertTrue(read.contains("zget"));
         assertTrue(read.contains("bucket.query"));
-        assertFalse(read.contains("set"));
+        assertFalse(read.contains("zset"));
+
+        List<String> zmap = names(run(getChannel(), "COMMAND", "LIST", "FILTERBY", "ACLCAT", "zmap"));
+        assertEquals(18, zmap.size());
+        assertTrue(zmap.contains("zgetrange"));
+        assertTrue(zmap.contains("zinc.i64"));
 
         assertTrue(names(run(getChannel(), "COMMAND", "LIST", "FILTERBY", "ACLCAT", "nope")).isEmpty());
     }
@@ -318,19 +320,17 @@ class CommandHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    @Disabled("TODO: re-enable when ZMap command schemas are bundled; needs a definition with key specs")
     void shouldReturnKeysForGetKeys() {
         // Behavior: COMMAND GETKEYS returns the key arguments as the client sent them
-        assertEquals(List.of("Foo"), names(run(getChannel(), "COMMAND", "GETKEYS", "set", "Foo", "bar")));
-        assertEquals(List.of("k"), names(run(getChannel(), "COMMAND", "GETKEYS", "GET", "k")));
+        assertEquals(List.of("Foo"), names(run(getChannel(), "COMMAND", "GETKEYS", "zset", "Foo", "bar")));
+        assertEquals(List.of("k"), names(run(getChannel(), "COMMAND", "GETKEYS", "ZGET", "k")));
     }
 
     @Test
-    @Disabled("TODO: re-enable when ZMap command schemas are bundled; needs a definition with key specs")
     void shouldReturnKeysAndFlagsForGetKeysAndFlags() {
         // Behavior: COMMAND GETKEYSANDFLAGS pairs each key with the flags of its key spec
         switchProtocol(RESPVersion.RESP3);
-        Object response = run(getChannel(), "COMMAND", "GETKEYSANDFLAGS", "get", "foo");
+        Object response = run(getChannel(), "COMMAND", "GETKEYSANDFLAGS", "zget", "foo");
 
         List<RedisMessage> entries = ((ArrayRedisMessage) response).children();
         assertEquals(1, entries.size());
@@ -361,10 +361,22 @@ class CommandHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    @Disabled("TODO: re-enable when ZMap command schemas are bundled; needs a definition with key specs")
+    void shouldRejectGetKeysForRangeCommands() {
+        // Behavior: the ZMap range commands take boundaries, not keys, so they carry no key specs
+        for (String[] args : new String[][]{
+                {"COMMAND", "GETKEYS", "zgetrange", "a", "b"},
+                {"COMMAND", "GETKEYS", "zdelrange", "a", "b"},
+                {"COMMAND", "GETKEYS", "zgetrangesize", "a", "b"}}) {
+            Object response = run(getChannel(), args);
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            assertEquals("ERR The command has no key arguments", ((ErrorRedisMessage) response).content());
+        }
+    }
+
+    @Test
     void shouldRejectGetKeysWithWrongArity() {
         // Behavior: an argument count that does not fit the command arity is rejected
-        Object response = run(getChannel(), "COMMAND", "GETKEYS", "get", "a", "b");
+        Object response = run(getChannel(), "COMMAND", "GETKEYS", "zget", "a", "b");
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals("ERR Invalid number of arguments specified for command", ((ErrorRedisMessage) response).content());
