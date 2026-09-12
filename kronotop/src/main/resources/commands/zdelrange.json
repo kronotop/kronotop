@@ -1,0 +1,31 @@
+{
+  "ZDELRANGE": {
+    "summary": "Deletes every key in a range from the ZMap ordered key-value store.",
+    "complexity": "O(N) where N is the number of keys in the range.",
+    "group": "zmap",
+    "since": "2026.06-1",
+    "arity": 3,
+    "command_flags": [
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "begin",
+        "type": "string",
+        "summary": "The start of the range, inclusive. Use * for an unbounded start."
+      },
+      {
+        "name": "end",
+        "type": "string",
+        "summary": "The end of the range, exclusive. Use * for an unbounded end."
+      }
+    ]
+  }
+}
