@@ -1,0 +1,85 @@
+{
+  "ZGETKEY": {
+    "summary": "Returns the key that a key selector resolves to, relative to a reference key.",
+    "complexity": "O(1)",
+    "group": "zmap",
+    "since": "2026.06-1",
+    "arity": -2,
+    "command_flags": [
+      "READONLY",
+      "FAST"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [
+      {
+        "flags": [
+          "RO",
+          "ACCESS"
+        ],
+        "begin_search": {
+          "index": {
+            "pos": 1
+          }
+        },
+        "find_keys": {
+          "range": {
+            "lastkey": 0,
+            "step": 1,
+            "limit": 0
+          }
+        }
+      }
+    ],
+    "reply_schema": {
+      "oneOf": [
+        {
+          "description": "The resolved key name.",
+          "type": "string"
+        },
+        {
+          "description": "No key matches the selector.",
+          "type": "null"
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key",
+        "key_spec_index": 0,
+        "summary": "The reference key of the selector lookup."
+      },
+      {
+        "name": "key-selector",
+        "type": "oneof",
+        "token": "KEY-SELECTOR",
+        "optional": true,
+        "summary": "The selector strategy. Defaults to first_greater_or_equal.",
+        "arguments": [
+          {
+            "name": "first-greater-or-equal",
+            "type": "pure-token",
+            "token": "first_greater_or_equal"
+          },
+          {
+            "name": "first-greater-than",
+            "type": "pure-token",
+            "token": "first_greater_than"
+          },
+          {
+            "name": "last-less-than",
+            "type": "pure-token",
+            "token": "last_less_than"
+          },
+          {
+            "name": "last-less-or-equal",
+            "type": "pure-token",
+            "token": "last_less_or_equal"
+          }
+        ]
+      }
+    ]
+  }
+}
