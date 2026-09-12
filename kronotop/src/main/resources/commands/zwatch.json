@@ -1,0 +1,49 @@
+{
+  "ZWATCH": {
+    "summary": "Blocks the connection until the value of a key changes.",
+    "complexity": "O(1)",
+    "group": "zmap",
+    "since": "2026.06-1",
+    "arity": 2,
+    "command_flags": [
+      "READONLY",
+      "BLOCKING",
+      "NOSCRIPT",
+      "NO_MULTI"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [
+      {
+        "flags": [
+          "RO",
+          "ACCESS"
+        ],
+        "begin_search": {
+          "index": {
+            "pos": 1
+          }
+        },
+        "find_keys": {
+          "range": {
+            "lastkey": 0,
+            "step": 1,
+            "limit": 0
+          }
+        }
+      }
+    ],
+    "reply_schema": {
+      "const": "OK",
+      "description": "The watch fired. The signal carries no value."
+    },
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key",
+        "key_spec_index": 0
+      }
+    ]
+  }
+}
