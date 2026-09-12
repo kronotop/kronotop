@@ -1,0 +1,55 @@
+{
+  "ZGET.F64": {
+    "summary": "Returns the value of a key as an IEEE-754 double-precision number.",
+    "complexity": "O(1)",
+    "group": "zmap",
+    "since": "2026.06-1",
+    "arity": 2,
+    "command_flags": [
+      "READONLY",
+      "FAST"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [
+      {
+        "flags": [
+          "RO",
+          "ACCESS"
+        ],
+        "begin_search": {
+          "index": {
+            "pos": 1
+          }
+        },
+        "find_keys": {
+          "range": {
+            "lastkey": 0,
+            "step": 1,
+            "limit": 0
+          }
+        }
+      }
+    ],
+    "reply_schema": {
+      "oneOf": [
+        {
+          "description": "The stored 8-byte little-endian value decoded as a double. RESP2 has no double type, so a RESP2 connection gets 8 bytes in IEEE-754 big-endian form instead.",
+          "type": "number"
+        },
+        {
+          "description": "The key does not exist.",
+          "type": "null"
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key",
+        "key_spec_index": 0
+      }
+    ]
+  }
+}
