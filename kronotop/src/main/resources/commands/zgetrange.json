@@ -1,0 +1,120 @@
+{
+  "ZGETRANGE": {
+    "summary": "Returns an ordered range of key-value pairs from the ZMap ordered key-value store.",
+    "complexity": "O(N) where N is the number of key-value pairs returned.",
+    "group": "zmap",
+    "since": "2026.06-1",
+    "arity": -3,
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The key-value pairs in the range, in key order.",
+      "type": "array",
+      "items": {
+        "description": "A key and its value.",
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": [
+          {
+            "description": "The key.",
+            "type": "string"
+          },
+          {
+            "description": "The value.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "arguments": [
+      {
+        "name": "begin",
+        "type": "string",
+        "summary": "The start of the range. Use * for an unbounded start."
+      },
+      {
+        "name": "end",
+        "type": "string",
+        "summary": "The end of the range. Use * for an unbounded end."
+      },
+      {
+        "name": "limit",
+        "type": "integer",
+        "token": "LIMIT",
+        "optional": true,
+        "summary": "The maximum number of pairs to return. Must be greater than zero. Defaults to 100."
+      },
+      {
+        "name": "reverse",
+        "type": "pure-token",
+        "token": "REVERSE",
+        "optional": true,
+        "summary": "Returns the pairs in descending key order."
+      },
+      {
+        "name": "begin-key-selector",
+        "type": "oneof",
+        "token": "BEGIN-KEY-SELECTOR",
+        "optional": true,
+        "summary": "How the begin boundary is resolved. Defaults to first_greater_or_equal.",
+        "arguments": [
+          {
+            "name": "first-greater-or-equal",
+            "type": "pure-token",
+            "token": "first_greater_or_equal"
+          },
+          {
+            "name": "first-greater-than",
+            "type": "pure-token",
+            "token": "first_greater_than"
+          },
+          {
+            "name": "last-less-than",
+            "type": "pure-token",
+            "token": "last_less_than"
+          },
+          {
+            "name": "last-less-or-equal",
+            "type": "pure-token",
+            "token": "last_less_or_equal"
+          }
+        ]
+      },
+      {
+        "name": "end-key-selector",
+        "type": "oneof",
+        "token": "END-KEY-SELECTOR",
+        "optional": true,
+        "summary": "How the end boundary is resolved. Defaults to first_greater_than.",
+        "arguments": [
+          {
+            "name": "first-greater-or-equal",
+            "type": "pure-token",
+            "token": "first_greater_or_equal"
+          },
+          {
+            "name": "first-greater-than",
+            "type": "pure-token",
+            "token": "first_greater_than"
+          },
+          {
+            "name": "last-less-than",
+            "type": "pure-token",
+            "token": "last_less_than"
+          },
+          {
+            "name": "last-less-or-equal",
+            "type": "pure-token",
+            "token": "last_less_or_equal"
+          }
+        ]
+      }
+    ]
+  }
+}
