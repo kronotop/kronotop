@@ -1,0 +1,50 @@
+{
+  "ZSET": {
+    "summary": "Sets the value of a key in the ZMap ordered key-value store.",
+    "complexity": "O(1)",
+    "group": "zmap",
+    "since": "2026.06-1",
+    "arity": 3,
+    "command_flags": [
+      "WRITE",
+      "FAST"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [
+      {
+        "flags": [
+          "OW",
+          "UPDATE"
+        ],
+        "begin_search": {
+          "index": {
+            "pos": 1
+          }
+        },
+        "find_keys": {
+          "range": {
+            "lastkey": 0,
+            "step": 1,
+            "limit": 0
+          }
+        }
+      }
+    ],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key",
+        "key_spec_index": 0
+      },
+      {
+        "name": "value",
+        "type": "string"
+      }
+    ]
+  }
+}
