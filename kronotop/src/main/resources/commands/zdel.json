@@ -3,7 +3,7 @@
     "summary": "Deletes a key from the ZMap ordered key-value store.",
     "complexity": "O(1)",
     "group": "zmap",
-    "since": "2026.08-1",
+    "since": "2026.06-1",
     "arity": 2,
     "command_flags": [
       "WRITE",
