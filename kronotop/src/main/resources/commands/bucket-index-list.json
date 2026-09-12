@@ -1,0 +1,32 @@
+{
+  "LIST": {
+    "summary": "Lists all indexes on a bucket.",
+    "complexity": "O(N) where N is the number of indexes on the bucket.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "BUCKET.INDEX",
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The index names on the bucket.",
+      "type": "array",
+      "items": {
+        "description": "An index name.",
+        "type": "string"
+      }
+    },
+    "arguments": [
+      {
+        "name": "bucket",
+        "type": "string",
+        "summary": "The name of the bucket to list the indexes of."
+      }
+    ]
+  }
+}
