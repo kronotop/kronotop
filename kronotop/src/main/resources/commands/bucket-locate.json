@@ -1,0 +1,39 @@
+{
+  "BUCKET.LOCATE": {
+    "summary": "Returns the routing information for a bucket: the member that owns each shard and the addresses of those members.",
+    "complexity": "O(N) where N is the number of shards the bucket uses.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": 2,
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The shard routes and the members named by those routes.",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": [
+        {
+          "description": "The routes as a flat list. Every shard adds three entries: the shard id, the id of the primary member and the list of standby member ids. A shard with no known route is left out.",
+          "type": "array"
+        },
+        {
+          "description": "The members as a flat list. Every member adds two entries: the member id and the list of its external addresses. A member is listed once, no matter how many shards it owns.",
+          "type": "array"
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "bucket",
+        "type": "string",
+        "summary": "The name of the bucket to locate."
+      }
+    ]
+  }
+}
