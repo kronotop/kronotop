@@ -104,7 +104,7 @@ java_version:26.0.2
 process_id:94884
 run_id:00006JKCN4LOA0000000xxxx
 tcp_port:5484
-server_time_usec:1789154622358000
+server_time_usec:1789154622358417
 fdb_api_version:630
 listener0:name=external,bind=127.0.0.1,port=5484,advertise=localhost:5484
 listener1:name=internal,bind=127.0.0.1,port=3320,advertise=localhost:3320
