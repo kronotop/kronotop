@@ -243,6 +243,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                             task.getBucket(),
                             holder.definition().id()
                     );
+                    setIndexTaskStatus(IndexTaskStatus.STOPPED);
                     stopped = true;
                     break;
                 }
