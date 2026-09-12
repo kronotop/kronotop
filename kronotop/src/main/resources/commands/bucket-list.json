@@ -1,0 +1,24 @@
+{
+  "BUCKET.LIST": {
+    "summary": "Returns the names of all buckets in the current namespace.",
+    "complexity": "O(N) where N is the number of buckets in the namespace.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": 1,
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The bucket names in the current namespace.",
+      "type": "array",
+      "items": {
+        "description": "A bucket name.",
+        "type": "string"
+      }
+    }
+  }
+}
