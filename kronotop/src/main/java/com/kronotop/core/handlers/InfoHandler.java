@@ -43,6 +43,7 @@ import java.io.InputStream;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
@@ -148,17 +149,27 @@ public class InfoHandler implements Handler {
                 System.getProperty("os.version"),
                 System.getProperty("os.arch")
         ));
-        collector.put(SERVER_SECTION, "arch_bits", System.getProperty("sun.arch.data.model"));
+        collector.put(SERVER_SECTION, "arch_bits", archBits());
         collector.put(SERVER_SECTION, "java_version", System.getProperty("java.version"));
         collector.put(SERVER_SECTION, "process_id", ProcessHandle.current().pid());
         collector.put(SERVER_SECTION, "run_id", VersionstampUtil.base32HexEncode(member.getProcessId()));
         collector.put(SERVER_SECTION, "tcp_port", member.getExternalAddress().getPort());
-        collector.put(SERVER_SECTION, "server_time_usec", context.now() * 1000);
+        collector.put(SERVER_SECTION, "server_time_usec", serverTimeUsec());
         collector.put(SERVER_SECTION, "fdb_api_version", context.getConfig().getInt("foundationdb.apiversion"));
         collector.put(SERVER_SECTION, "listener0",
                 listener("external", member.getExternalAddress(), member.getExternalAdvertise()));
         collector.put(SERVER_SECTION, "listener1",
                 listener("internal", member.getInternalAddress(), member.getInternalAdvertise()));
+    }
+
+    private static int archBits() {
+        String arch = System.getProperty("os.arch", "");
+        return arch.contains("64") ? 64 : 32;
+    }
+
+    private static long serverTimeUsec() {
+        Instant now = Instant.now();
+        return now.getEpochSecond() * 1_000_000L + now.getNano() / 1_000L;
     }
 
     private static String listener(String name, Address bind, List<Address> advertise) {
@@ -173,31 +184,32 @@ public class InfoHandler implements Handler {
     }
 
     private void collectClients(InfoCollector collector) {
-        int[] counters = new int[5];
+        ClientCounters counters = new ClientCounters();
         context.getSessionStore().forEach(session -> {
+            counters.connected++;
             if (Boolean.TRUE.equals(session.attr(SessionAttributes.BEGIN).get())) {
-                counters[0]++;
+                counters.inTransaction++;
             }
             if (Boolean.TRUE.equals(session.attr(SessionAttributes.MULTI).get())) {
-                counters[1]++;
+                counters.inMulti++;
             }
             if (TransactionUtil.isSnapshotRead(session)) {
-                counters[2]++;
+                counters.snapshotRead++;
             }
             if (session.getProtocolVersion() == RESPVersion.RESP3) {
-                counters[4]++;
+                counters.resp3++;
             } else {
-                counters[3]++;
+                counters.resp2++;
             }
         });
-        collector.put(CLIENTS_SECTION, "connected_clients", context.getSessionStore().size());
-        collector.put(CLIENTS_SECTION, "clients_in_transaction", counters[0]);
+        collector.put(CLIENTS_SECTION, "connected_clients", counters.connected);
+        collector.put(CLIENTS_SECTION, "clients_in_transaction", counters.inTransaction);
         if (context.getShardRegistry().getShardKinds().contains(ShardKind.STASH)) {
-            collector.put(CLIENTS_SECTION, "clients_in_multi", counters[1]);
+            collector.put(CLIENTS_SECTION, "clients_in_multi", counters.inMulti);
         }
-        collector.put(CLIENTS_SECTION, "snapshot_read_clients", counters[2]);
-        collector.put(CLIENTS_SECTION, "resp2_clients", counters[3]);
-        collector.put(CLIENTS_SECTION, "resp3_clients", counters[4]);
+        collector.put(CLIENTS_SECTION, "snapshot_read_clients", counters.snapshotRead);
+        collector.put(CLIENTS_SECTION, "resp2_clients", counters.resp2);
+        collector.put(CLIENTS_SECTION, "resp3_clients", counters.resp3);
     }
 
     private void collectMemory(InfoCollector collector) {
@@ -233,5 +245,14 @@ public class InfoHandler implements Handler {
         if (context.getShardRegistry().getShardKinds().contains(ShardKind.STASH)) {
             collector.put(KRONOTOP_SECTION, "stash_shards", context.getShardRegistry().getShardIds(ShardKind.STASH).size());
         }
+    }
+
+    private static final class ClientCounters {
+        int connected;
+        int inTransaction;
+        int inMulti;
+        int snapshotRead;
+        int resp2;
+        int resp3;
     }
 }

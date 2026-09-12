@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -110,7 +111,7 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(info.contains("server_name:kronotop\r\n"));
         assertTrue(info.contains("server_mode:standalone\r\n"));
         assertTrue(info.contains("java_version:" + System.getProperty("java.version") + "\r\n"));
-        assertTrue(info.contains("arch_bits:" + System.getProperty("sun.arch.data.model") + "\r\n"));
+        assertTrue(info.contains("arch_bits:64\r\n"));
         assertTrue(info.contains("process_id:" + ProcessHandle.current().pid() + "\r\n"));
         assertTrue(info.contains("run_id:" + VersionstampUtil.base32HexEncode(member.getProcessId()) + "\r\n"));
         assertTrue(info.contains("tcp_port:" + member.getExternalAddress().getPort() + "\r\n"));
@@ -131,7 +132,7 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertEquals(expectedListener("internal", member.getInternalAddress(), member.getInternalAdvertise()),
                 fieldValue(info, "listener1"));
         assertFalse(member.getExternalAdvertise().isEmpty());
-        assertTrue(fieldValue(info, "listener0").contains(",advertise="));
+        assertTrue(Objects.requireNonNull(fieldValue(info, "listener0")).contains(",advertise="));
     }
 
     private static String expectedListener(String name, Address bind, List<Address> advertise) {
@@ -250,8 +251,8 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(max >= used);
         assertTrue(longField(info, "gc_count") >= 0);
         assertTrue(longField(info, "gc_time_msec") >= 0);
-        assertFalse(fieldValue(info, "used_memory_human").isBlank());
-        assertFalse(fieldValue(info, "max_memory_human").isBlank());
+        assertFalse(Objects.requireNonNull(fieldValue(info, "used_memory_human")).isBlank());
+        assertFalse(Objects.requireNonNull(fieldValue(info, "max_memory_human")).isBlank());
     }
 
     @Test
