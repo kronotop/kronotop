@@ -1,0 +1,52 @@
+{
+  "ZINC.D128": {
+    "summary": "Adds an IEEE-754 decimal128 number to the value of a key.",
+    "complexity": "O(1)",
+    "group": "zmap",
+    "since": "2026.06-1",
+    "arity": 3,
+    "command_flags": [
+      "WRITE",
+      "FAST"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [
+      {
+        "flags": [
+          "RW",
+          "ACCESS",
+          "UPDATE"
+        ],
+        "begin_search": {
+          "index": {
+            "pos": 1
+          }
+        },
+        "find_keys": {
+          "range": {
+            "lastkey": 0,
+            "step": 1,
+            "limit": 0
+          }
+        }
+      }
+    ],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key",
+        "key_spec_index": 0
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "summary": "The amount to add, as a decimal string. A negative number decrements."
+      }
+    ]
+  }
+}
