@@ -275,8 +275,14 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldListByPattern() {
-        // Behavior: FILTERBY PATTERN keeps the names that match the glob pattern, without regard to case
-        assertEquals(List.of("bucket.query"), names(run(getChannel(), "COMMAND", "LIST", "FILTERBY", "PATTERN", "BUCKET.*")));
+        // Behavior: FILTERBY PATTERN keeps the names that match the glob pattern, subcommands included, without regard to case
+        List<String> names = names(run(getChannel(), "COMMAND", "LIST", "FILTERBY", "PATTERN", "BUCKET.*"));
+
+        assertEquals(21, names.size());
+        assertTrue(names.contains("bucket.query"));
+        assertTrue(names.contains("bucket.index"));
+        assertTrue(names.contains("bucket.index|create"));
+        assertFalse(names.contains("query"));
     }
 
     @Test

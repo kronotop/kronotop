@@ -16,10 +16,15 @@
 
 package com.kronotop.commands;
 
+import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
+import com.kronotop.server.CommandType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -224,5 +229,23 @@ class CommandMetadataLoaderTest {
         assertEquals(CommandGroup.ZMAP, zset.group());
         assertEquals(3, zset.arity());
         assertTrue(zset.keySpecs().getFirst().isIndexRange());
+    }
+
+    @Test
+    void shouldDefineMetadataForEveryBucketCommand() {
+        // Behavior: every bucket CommandType and every BUCKET.INDEX subcommand has a definition under commands/
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load();
+
+        List<String> missing = Stream.of(CommandType.values())
+                .map(CommandType::getCommandName)
+                .filter(name -> name.startsWith("BUCKET.") || name.equals("QUERY"))
+                .filter(name -> !commands.containsKey(name))
+                .toList();
+        assertEquals(List.of(), missing);
+
+        Set<String> subcommands = Stream.of(BucketIndexSubcommand.values())
+                .map(Enum::name)
+                .collect(Collectors.toSet());
+        assertEquals(subcommands, commands.get("BUCKET.INDEX").subcommands().keySet());
     }
 }
