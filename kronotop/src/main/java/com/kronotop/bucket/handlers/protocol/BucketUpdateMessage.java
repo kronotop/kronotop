@@ -27,7 +27,7 @@ import java.util.Set;
 public class BucketUpdateMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.UPDATE";
     public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 10;
+    public static final int MAXIMUM_PARAMETER_COUNT = 12;
     private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(
             QueryArgumentKey.SORTBY,
             QueryArgumentKey.BATCH,
