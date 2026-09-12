@@ -1,0 +1,32 @@
+{
+  "ZGETRANGESIZE": {
+    "summary": "Returns the estimated size in bytes of a key range.",
+    "complexity": "O(1). The returned size is an estimate, not an exact count.",
+    "group": "zmap",
+    "since": "2026.06-1",
+    "arity": 3,
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The estimated size of the range in bytes.",
+      "type": "integer"
+    },
+    "arguments": [
+      {
+        "name": "begin",
+        "type": "string",
+        "summary": "The start of the range. Use * for an unbounded start."
+      },
+      {
+        "name": "end",
+        "type": "string",
+        "summary": "The end of the range. Use * for an unbounded end."
+      }
+    ]
+  }
+}
