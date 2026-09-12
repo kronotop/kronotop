@@ -1,0 +1,46 @@
+{
+  "ZDEL": {
+    "summary": "Deletes a key from the ZMap ordered key-value store.",
+    "complexity": "O(1)",
+    "group": "zmap",
+    "since": "2026.08-1",
+    "arity": 2,
+    "command_flags": [
+      "WRITE",
+      "FAST"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [
+      {
+        "flags": [
+          "RM",
+          "DELETE"
+        ],
+        "begin_search": {
+          "index": {
+            "pos": 1
+          }
+        },
+        "find_keys": {
+          "range": {
+            "lastkey": 0,
+            "step": 1,
+            "limit": 0
+          }
+        }
+      }
+    ],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key",
+        "key_spec_index": 0
+      }
+    ]
+  }
+}
