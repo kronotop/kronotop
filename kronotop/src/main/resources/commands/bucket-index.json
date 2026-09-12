@@ -1,0 +1,12 @@
+{
+  "BUCKET.INDEX": {
+    "summary": "Manages indexes on bucket fields.",
+    "complexity": "Depends on the subcommand.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": -2,
+    "acl_categories": [
+      "BUCKET"
+    ]
+  }
+}
