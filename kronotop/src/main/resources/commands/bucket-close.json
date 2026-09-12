@@ -1,0 +1,48 @@
+{
+  "BUCKET.CLOSE": {
+    "summary": "Closes a cursor and releases its associated query context from the session.",
+    "complexity": "O(1)",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": 3,
+    "command_flags": [
+      "FAST"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "operation",
+        "type": "oneof",
+        "summary": "The operation the cursor belongs to.",
+        "arguments": [
+          {
+            "name": "query",
+            "type": "pure-token",
+            "token": "QUERY"
+          },
+          {
+            "name": "delete",
+            "type": "pure-token",
+            "token": "DELETE"
+          },
+          {
+            "name": "update",
+            "type": "pure-token",
+            "token": "UPDATE"
+          }
+        ]
+      },
+      {
+        "name": "cursor-id",
+        "type": "integer",
+        "summary": "The cursor id returned by the command that opened the cursor."
+      }
+    ]
+  }
+}
