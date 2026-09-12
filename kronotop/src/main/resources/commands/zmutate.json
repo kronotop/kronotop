@@ -1,0 +1,113 @@
+{
+  "ZMUTATE": {
+    "summary": "Applies an atomic mutation to the value of a key.",
+    "complexity": "O(1)",
+    "group": "zmap",
+    "since": "2026.06-1",
+    "arity": 4,
+    "command_flags": [
+      "WRITE",
+      "FAST"
+    ],
+    "acl_categories": [
+      "ZMAP"
+    ],
+    "key_specs": [
+      {
+        "flags": [
+          "RW",
+          "ACCESS",
+          "UPDATE"
+        ],
+        "begin_search": {
+          "index": {
+            "pos": 1
+          }
+        },
+        "find_keys": {
+          "range": {
+            "lastkey": 0,
+            "step": 1,
+            "limit": 0
+          }
+        }
+      }
+    ],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "key",
+        "type": "key",
+        "key_spec_index": 0
+      },
+      {
+        "name": "param",
+        "type": "string",
+        "summary": "The operand of the mutation, as raw bytes. How it is read depends on the mutation type."
+      },
+      {
+        "name": "mutation-type",
+        "type": "oneof",
+        "arguments": [
+          {
+            "name": "add",
+            "type": "pure-token",
+            "token": "ADD"
+          },
+          {
+            "name": "bit-and",
+            "type": "pure-token",
+            "token": "BIT_AND"
+          },
+          {
+            "name": "bit-or",
+            "type": "pure-token",
+            "token": "BIT_OR"
+          },
+          {
+            "name": "bit-xor",
+            "type": "pure-token",
+            "token": "BIT_XOR"
+          },
+          {
+            "name": "append-if-fits",
+            "type": "pure-token",
+            "token": "APPEND_IF_FITS"
+          },
+          {
+            "name": "max",
+            "type": "pure-token",
+            "token": "MAX"
+          },
+          {
+            "name": "min",
+            "type": "pure-token",
+            "token": "MIN"
+          },
+          {
+            "name": "set-versionstamped-value",
+            "type": "pure-token",
+            "token": "SET_VERSIONSTAMPED_VALUE"
+          },
+          {
+            "name": "byte-min",
+            "type": "pure-token",
+            "token": "BYTE_MIN"
+          },
+          {
+            "name": "byte-max",
+            "type": "pure-token",
+            "token": "BYTE_MAX"
+          },
+          {
+            "name": "compare-and-clear",
+            "type": "pure-token",
+            "token": "COMPARE_AND_CLEAR"
+          }
+        ]
+      }
+    ]
+  }
+}
