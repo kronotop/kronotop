@@ -16,7 +16,6 @@
 
 package com.kronotop.commands;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -209,9 +208,8 @@ class CommandMetadataLoaderTest {
     }
 
     @Test
-    @Disabled("TODO: re-enable when ZMap command schemas are bundled; needs a definition with key specs")
     void shouldLoadBundledDefinitions() {
-        // Behavior: the definitions shipped under commands/ parse and include BUCKET.QUERY
+        // Behavior: the definitions shipped under commands/ parse, include BUCKET.QUERY and ZSET with its key spec
         Map<String, CommandMetadata> commands = CommandMetadataLoader.load();
 
         CommandMetadata query = commands.get("BUCKET.QUERY");
@@ -220,6 +218,11 @@ class CommandMetadataLoaderTest {
         assertEquals(-3, query.arity());
         assertEquals(8, query.arguments().size());
         assertEquals("SORTBY", query.arguments().get(2).token());
-        assertTrue(commands.containsKey("SET"));
+
+        CommandMetadata zset = commands.get("ZSET");
+        assertNotNull(zset);
+        assertEquals(CommandGroup.ZMAP, zset.group());
+        assertEquals(3, zset.arity());
+        assertTrue(zset.keySpecs().getFirst().isIndexRange());
     }
 }
