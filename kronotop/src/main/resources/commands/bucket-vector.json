@@ -1,0 +1,94 @@
+{
+  "BUCKET.VECTOR": {
+    "summary": "Performs vector similarity search on a bucket using a vector index, with optional post-filtering to combine similarity ranking with structured query predicates.",
+    "complexity": "Depends on the size of the vector index and the search parameters.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": -4,
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The nearest documents, ordered by score.",
+      "type": "array",
+      "items": {
+        "description": "One search hit.",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "score": {
+            "description": "The similarity score of the document.",
+            "type": "number"
+          },
+          "entry": {
+            "description": "The document encoded as BSON bytes or a JSON string. The encoding follows the session's reply_type attribute.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "bucket",
+        "type": "string",
+        "summary": "The name of the bucket to search."
+      },
+      {
+        "name": "selector",
+        "type": "string",
+        "summary": "The field that holds the vector index."
+      },
+      {
+        "name": "vector",
+        "type": "string",
+        "summary": "The query vector. Its length must match the dimensions of the index."
+      },
+      {
+        "name": "expression",
+        "type": "string",
+        "token": "FILTER",
+        "optional": true,
+        "summary": "A filter expression applied to the hits after the similarity search."
+      },
+      {
+        "name": "json-spec",
+        "type": "string",
+        "token": "PROJECTION",
+        "optional": true,
+        "summary": "A projection spec that selects the fields to return."
+      },
+      {
+        "name": "count",
+        "type": "integer",
+        "token": "TOP",
+        "optional": true,
+        "summary": "The number of hits to return. Must not be negative. Defaults to 10."
+      },
+      {
+        "name": "threshold",
+        "type": "double",
+        "token": "THRESHOLD",
+        "optional": true,
+        "summary": "The lowest score a hit may have. Defaults to 0.0."
+      },
+      {
+        "name": "count",
+        "type": "integer",
+        "token": "MAX-SCAN-CANDIDATES",
+        "optional": true,
+        "summary": "The highest number of candidates the search may examine. Must be positive. Defaults to the server setting."
+      },
+      {
+        "name": "multiplier",
+        "type": "double",
+        "token": "OVERQUERY",
+        "optional": true,
+        "summary": "How many extra candidates the traversal examines beyond TOP, as a multiplier. Must be 1.0 or higher. Defaults to the server setting."
+      }
+    ]
+  }
+}
