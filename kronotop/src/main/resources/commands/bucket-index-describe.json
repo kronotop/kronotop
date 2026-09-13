@@ -1,0 +1,160 @@
+{
+  "DESCRIBE": {
+    "summary": "Returns detailed information about an index.",
+    "complexity": "O(1)",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "BUCKET.INDEX",
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The index description. The shape follows the index type.",
+      "oneOf": [
+        {
+          "description": "A single field index.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "index_type": {
+              "const": "single_field"
+            },
+            "id": {
+              "description": "The numeric id of the index.",
+              "type": "integer"
+            },
+            "selector": {
+              "description": "The indexed field.",
+              "type": "string"
+            },
+            "bson_type": {
+              "description": "The BSON type the index accepts.",
+              "type": "string"
+            },
+            "status": {
+              "description": "One of WAITING, BUILDING, READY, DROPPED or FAILED.",
+              "type": "string"
+            },
+            "unique": {
+              "description": "True when the index rejects duplicate values.",
+              "type": "boolean"
+            },
+            "collation": {
+              "description": "The collation of the index. An empty object means the index has no collation.",
+              "type": "object",
+              "additionalProperties": true
+            },
+            "statistics": {
+              "description": "The index statistics.",
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        {
+          "description": "A compound index.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "index_type": {
+              "const": "compound"
+            },
+            "id": {
+              "description": "The numeric id of the index.",
+              "type": "integer"
+            },
+            "fields": {
+              "description": "The indexed fields, in index order.",
+              "type": "array",
+              "items": {
+                "description": "One field of the compound index.",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "selector": {
+                    "description": "The indexed field.",
+                    "type": "string"
+                  },
+                  "bson_type": {
+                    "description": "The BSON type the field accepts.",
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "status": {
+              "description": "One of WAITING, BUILDING, READY, DROPPED or FAILED.",
+              "type": "string"
+            },
+            "unique": {
+              "description": "True when the index rejects duplicate values.",
+              "type": "boolean"
+            },
+            "collation": {
+              "description": "The collation of the index. An empty object means the index has no collation.",
+              "type": "object",
+              "additionalProperties": true
+            },
+            "statistics": {
+              "description": "The index statistics.",
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        {
+          "description": "A vector index.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "index_type": {
+              "const": "vector"
+            },
+            "id": {
+              "description": "The numeric id of the index.",
+              "type": "integer"
+            },
+            "selector": {
+              "description": "The indexed field.",
+              "type": "string"
+            },
+            "dimensions": {
+              "description": "The vector length the index accepts.",
+              "type": "integer"
+            },
+            "distance": {
+              "description": "The distance function of the index.",
+              "type": "string"
+            },
+            "status": {
+              "description": "One of WAITING, BUILDING, READY, DROPPED or FAILED.",
+              "type": "string"
+            },
+            "statistics": {
+              "description": "The index statistics.",
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "bucket",
+        "type": "string",
+        "summary": "The name of the bucket that owns the index."
+      },
+      {
+        "name": "index",
+        "type": "string",
+        "summary": "The name of the index to describe."
+      }
+    ]
+  }
+}
