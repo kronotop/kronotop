@@ -1,0 +1,84 @@
+{
+  "BUCKET.ADVANCE": {
+    "summary": "Advances a cursor to fetch or process the next batch of documents.",
+    "complexity": "Depends on the query plan of the cursor. O(N) where N is the number of documents the plan scans for this batch.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": 3,
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "oneOf": [
+        {
+          "description": "The next batch of a QUERY cursor.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cursor_id": {
+              "description": "The cursor ID for the next BUCKET.ADVANCE. -1 means the LIMIT was reached and the cursor no longer exists.",
+              "type": "integer"
+            },
+            "entries": {
+              "description": "The matching documents. Each document includes its _id field.",
+              "type": "array",
+              "items": {
+                "description": "A document encoded as BSON bytes or a JSON string. The encoding follows the session's reply_type attribute.",
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "description": "The next batch of a DELETE or UPDATE cursor.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cursor_id": {
+              "description": "The cursor ID for the next BUCKET.ADVANCE. -1 means the LIMIT was reached and the cursor no longer exists.",
+              "type": "integer"
+            },
+            "object_ids": {
+              "description": "The ids of the affected documents.",
+              "type": "array",
+              "items": {
+                "description": "A document id. The encoding follows the session's object_id_format attribute: 12 raw bytes or 24 hex characters.",
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "operation",
+        "type": "oneof",
+        "summary": "The operation the cursor belongs to.",
+        "arguments": [
+          {
+            "name": "query",
+            "type": "pure-token",
+            "token": "QUERY"
+          },
+          {
+            "name": "delete",
+            "type": "pure-token",
+            "token": "DELETE"
+          },
+          {
+            "name": "update",
+            "type": "pure-token",
+            "token": "UPDATE"
+          }
+        ]
+      },
+      {
+        "name": "cursor-id",
+        "type": "integer",
+        "summary": "The cursor id returned by the command that opened the cursor."
+      }
+    ]
+  }
+}
