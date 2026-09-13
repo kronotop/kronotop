@@ -1,0 +1,32 @@
+{
+  "CREATE": {
+    "summary": "Creates a new index on one or more fields.",
+    "complexity": "O(1) for the definition. The index is filled by a background task.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "BUCKET.INDEX",
+    "command_flags": [
+      "WRITE"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "bucket",
+        "type": "string",
+        "summary": "The name of the bucket to index."
+      },
+      {
+        "name": "schema",
+        "type": "string",
+        "summary": "The index definition, given as a JSON string."
+      }
+    ]
+  }
+}
