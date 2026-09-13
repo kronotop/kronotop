@@ -1,0 +1,53 @@
+{
+  "BUCKET.CURSORS": {
+    "summary": "Lists all active cursors for the current session.",
+    "complexity": "O(N) where N is the number of open cursors in the session.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": -1,
+    "command_flags": [
+      "FAST"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The open cursors, grouped by operation. Only the requested operation is listed when one is given.",
+      "type": "object",
+      "additionalProperties": {
+        "description": "The cursors of one operation, keyed by cursor id.",
+        "type": "object",
+        "additionalProperties": {
+          "description": "The filter expression of the cursor, as a JSON string.",
+          "type": "string"
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "operation",
+        "type": "oneof",
+        "optional": true,
+        "summary": "List the cursors of this operation only. All operations are listed when this is left out.",
+        "arguments": [
+          {
+            "name": "query",
+            "type": "pure-token",
+            "token": "QUERY"
+          },
+          {
+            "name": "delete",
+            "type": "pure-token",
+            "token": "DELETE"
+          },
+          {
+            "name": "update",
+            "type": "pure-token",
+            "token": "UPDATE"
+          }
+        ]
+      }
+    ]
+  }
+}
