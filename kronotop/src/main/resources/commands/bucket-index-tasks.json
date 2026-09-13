@@ -1,0 +1,64 @@
+{
+  "TASKS": {
+    "summary": "Lists background maintenance tasks for an index.",
+    "complexity": "O(N) where N is the number of shards the bucket uses.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "BUCKET.INDEX",
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The maintenance tasks of the index, keyed by task id.",
+      "type": "object",
+      "additionalProperties": {
+        "description": "One task. A BUILD task also reports its cursor and its range.",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "description": "One of BOUNDARY, BUILD, DROP or ANALYZE.",
+            "type": "string"
+          },
+          "cursor": {
+            "description": "How far the build has moved. BUILD tasks only.",
+            "type": "string"
+          },
+          "lower": {
+            "description": "The start of the range the build covers. BUILD tasks only.",
+            "type": "string"
+          },
+          "upper": {
+            "description": "The end of the range the build covers. BUILD tasks only.",
+            "type": "string"
+          },
+          "status": {
+            "description": "One of WAITING, RUNNING, COMPLETED, FAILED or STOPPED.",
+            "type": "string"
+          },
+          "error": {
+            "description": "The last error of the task. Empty when the task has not failed.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "bucket",
+        "type": "string",
+        "summary": "The name of the bucket that owns the index."
+      },
+      {
+        "name": "index",
+        "type": "string",
+        "summary": "The name of the index to report the tasks of."
+      }
+    ]
+  }
+}
