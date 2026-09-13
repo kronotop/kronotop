@@ -1,0 +1,68 @@
+{
+  "BUCKET.DELETE": {
+    "summary": "Deletes documents from a bucket that match a filter expression.",
+    "complexity": "Depends on the query plan. O(N) where N is the number of documents the plan scans.",
+    "group": "bucket",
+    "since": "2026.06-1",
+    "arity": -3,
+    "command_flags": [
+      "WRITE"
+    ],
+    "acl_categories": [
+      "BUCKET"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "A cursor ID and the ids of the deleted documents.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cursor_id": {
+          "description": "The cursor ID for BUCKET.ADVANCE. -1 means the LIMIT was reached and the cursor no longer exists.",
+          "type": "integer"
+        },
+        "object_ids": {
+          "description": "The ids of the deleted documents.",
+          "type": "array",
+          "items": {
+            "description": "A document id. The encoding follows the session's object_id_format attribute: 12 raw bytes or 24 hex characters.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "bucket",
+        "type": "string",
+        "summary": "The name of the bucket to delete from."
+      },
+      {
+        "name": "query",
+        "type": "string",
+        "summary": "The filter expression that selects the documents to delete."
+      },
+      {
+        "name": "count",
+        "type": "integer",
+        "token": "BATCH",
+        "optional": true,
+        "summary": "The number of documents processed per round trip. Defaults to the session batch size."
+      },
+      {
+        "name": "limit",
+        "type": "integer",
+        "token": "LIMIT",
+        "optional": true,
+        "summary": "The highest number of documents to delete. Zero means no limit."
+      },
+      {
+        "name": "json-spec",
+        "type": "string",
+        "token": "COLLATION",
+        "optional": true,
+        "summary": "A collation spec for locale aware string comparison in the filter."
+      }
+    ]
+  }
+}
