@@ -267,6 +267,34 @@ class CommandHandlerTest extends BaseHandlerTest {
     }
 
     @Test
+    void shouldReturnTransactionCommandDefinitions() {
+        // Behavior: COMMAND INFO lists all six transaction commands and COMMAND DOCS COMMIT exposes the optional RETURNING argument
+        switchProtocol(RESPVersion.RESP3);
+        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO",
+                "begin", "commit", "rollback", "snapshotread", "getreadversion", "getapproximatesize"));
+        assertEquals(6, entries.size());
+        for (RedisMessage entry : entries) {
+            assertInstanceOf(ArrayRedisMessage.class, entry);
+        }
+
+        List<RedisMessage> commit = ((ArrayRedisMessage) entries.get(1)).children();
+        assertEquals("commit", text(commit.getFirst()));
+        assertEquals(-1, integer(commit.get(1)));
+
+        Map<String, RedisMessage> docs = docs(getChannel(), "commit", "snapshotread");
+        Map<String, RedisMessage> commitDocs = asMap(docs.get("commit"));
+        assertEquals("transactions", text(commitDocs.get("group")));
+        List<RedisMessage> arguments = ((ArrayRedisMessage) commitDocs.get("arguments")).children();
+        assertEquals(1, arguments.size());
+        Map<String, RedisMessage> returning = asMap(arguments.getFirst());
+        assertEquals("RETURNING", text(returning.get("token")));
+        assertEquals(2, ((ArrayRedisMessage) returning.get("arguments")).children().size());
+
+        Map<String, RedisMessage> snapshotRead = asMap(docs.get("snapshotread"));
+        assertEquals(1, ((ArrayRedisMessage) snapshotRead.get("arguments")).children().size());
+    }
+
+    @Test
     void shouldReturnNullForPipeNameWithoutSubcommands() {
         // Behavior: "name|sub" for a command that has no such subcommand gives a null entry
         switchProtocol(RESPVersion.RESP3);
