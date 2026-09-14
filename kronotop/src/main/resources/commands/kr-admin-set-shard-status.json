@@ -1,0 +1,67 @@
+{
+  "SET-SHARD-STATUS": {
+    "summary": "Changes the operational status of a shard.",
+    "complexity": "O(1) for a single shard. O(S) for *, where S is the number of shards of the given kind.",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 5,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "shard-kind",
+        "type": "oneof",
+        "summary": "The kind of the shard. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "bucket",
+            "type": "pure-token",
+            "token": "BUCKET"
+          },
+          {
+            "name": "stash",
+            "type": "pure-token",
+            "token": "STASH"
+          }
+        ]
+      },
+      {
+        "name": "shard-id",
+        "type": "string",
+        "summary": "Zero-based shard index, or * to target all shards of the given kind atomically."
+      },
+      {
+        "name": "shard-status",
+        "type": "oneof",
+        "summary": "The target status. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "readwrite",
+            "type": "pure-token",
+            "token": "READWRITE"
+          },
+          {
+            "name": "readonly",
+            "type": "pure-token",
+            "token": "READONLY"
+          },
+          {
+            "name": "inoperable",
+            "type": "pure-token",
+            "token": "INOPERABLE"
+          }
+        ]
+      }
+    ]
+  }
+}
