@@ -102,14 +102,13 @@ rejects the request with a redirect to that node.
 
 Argument errors:
 
-| Error Code | Error message                                               | Cause                                          |
-|------------|-------------------------------------------------------------|------------------------------------------------|
-| `ERR`      | `'SORTBY' is an unsupported argument`                       | -                                              |
-| `ERR`      | `BATCH argument must be followed by a non-negative integer` | -                                              |
-| `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -                                              |
-| `ERR`      | `Unknown sort direction: '<value>'`                         | The `SORTBY` direction is not `ASC` or `DESC`. |
-| `ERR`      | `Unknown '<keyword>' argument`                              | -                                              |
-| `ERR`      | `Duplicate '<keyword>' argument`                            | -                                              |
+| Error Code | Error message                                               | Cause |
+|------------|-------------------------------------------------------------|-------|
+| `ERR`      | `'SORTBY' is an unsupported argument`                       | -     |
+| `ERR`      | `BATCH argument must be followed by a non-negative integer` | -     |
+| `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                              | -     |
+| `ERR`      | `Duplicate '<keyword>' argument`                            | -     |
 
 Namespace errors:
 
