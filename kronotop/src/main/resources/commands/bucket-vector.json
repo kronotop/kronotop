@@ -55,7 +55,7 @@
         "summary": "A filter expression applied to the hits after the similarity search."
       },
       {
-        "name": "json-spec",
+        "name": "spec",
         "type": "string",
         "token": "PROJECTION",
         "optional": true,

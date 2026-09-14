@@ -10,7 +10,7 @@ Returns the query execution plan for a given query without executing it.
 ## Syntax
 
 ```kronotop
-BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <json-spec>]
+BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>]
 ```
 
 ## Parameters

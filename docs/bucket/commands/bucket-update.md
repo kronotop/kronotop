@@ -10,7 +10,7 @@ Updates documents in a bucket that match a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <json-spec>]
+BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>]
 ```
 
 ## Parameters

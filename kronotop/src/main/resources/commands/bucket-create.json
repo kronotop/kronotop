@@ -37,7 +37,7 @@
         "summary": "An index schema that defines the indexes created together with the bucket."
       },
       {
-        "name": "json-spec",
+        "name": "spec",
         "type": "string",
         "token": "COLLATION",
         "optional": true,

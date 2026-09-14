@@ -10,7 +10,7 @@ Queries documents from a bucket using a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.QUERY <bucket> <query> [SORTBY <field> <ASC|DESC>] [RESULTSORT <field> <ASC|DESC>] [PROJECTION <spec>] [BATCH <n>] [LIMIT <n>] [COLLATION <json-spec>]
+BUCKET.QUERY <bucket> <query> [SORTBY <field> <ASC|DESC>] [RESULTSORT <field> <ASC|DESC>] [PROJECTION <spec>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>]
 ```
 
 ## Parameters

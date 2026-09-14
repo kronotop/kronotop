@@ -57,7 +57,7 @@
         "summary": "The highest number of documents to delete. Zero means no limit."
       },
       {
-        "name": "json-spec",
+        "name": "spec",
         "type": "string",
         "token": "COLLATION",
         "optional": true,

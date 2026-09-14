@@ -10,7 +10,7 @@ Deletes documents from a bucket that match a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.DELETE <bucket> <query> [BATCH <n>] [LIMIT <n>] [COLLATION <json-spec>]
+BUCKET.DELETE <bucket> <query> [BATCH <n>] [LIMIT <n>] [COLLATION <spec>]
 ```
 
 ## Parameters

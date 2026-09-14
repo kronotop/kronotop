@@ -101,7 +101,7 @@
         ]
       },
       {
-        "name": "json-spec",
+        "name": "spec",
         "type": "string",
         "token": "PROJECTION",
         "optional": true,
@@ -122,7 +122,7 @@
         "summary": "The highest number of documents to return. Zero means no limit."
       },
       {
-        "name": "json-spec",
+        "name": "spec",
         "type": "string",
         "token": "COLLATION",
         "optional": true,
