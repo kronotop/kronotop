@@ -1,0 +1,32 @@
+{
+  "MOVE": {
+    "summary": "Moves a namespace to a new hierarchical path.",
+    "complexity": "O(D) where D is the depth of the deeper of the two paths.",
+    "group": "namespace",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "NAMESPACE",
+    "command_flags": [
+      "WRITE"
+    ],
+    "acl_categories": [
+      "NAMESPACE"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "old-namespace",
+        "type": "string",
+        "summary": "Dot-separated hierarchical path of the source namespace, for example staging.orders."
+      },
+      {
+        "name": "new-namespace",
+        "type": "string",
+        "summary": "Dot-separated hierarchical path of the destination namespace, for example production.orders."
+      }
+    ]
+  }
+}
