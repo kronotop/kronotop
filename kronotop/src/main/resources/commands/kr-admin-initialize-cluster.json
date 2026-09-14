@@ -1,0 +1,21 @@
+{
+  "INITIALIZE-CLUSTER": {
+    "summary": "Initializes a new cluster.",
+    "complexity": "O(S) where S is the total number of shards.",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    }
+  }
+}
