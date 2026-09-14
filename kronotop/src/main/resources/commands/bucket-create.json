@@ -30,7 +30,7 @@
         "summary": "One or more shard ids to place the bucket on. A shard is picked automatically when this is left out."
       },
       {
-        "name": "json-schema",
+        "name": "schema",
         "type": "string",
         "token": "INDEXES",
         "optional": true,

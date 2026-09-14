@@ -78,14 +78,14 @@
         "type": "integer",
         "token": "BATCH",
         "optional": true,
-        "summary": "The number of documents read per round trip. Defaults to the session batch size."
+        "summary": "Plan for this many documents per round trip. Defaults to the session batch size."
       },
       {
         "name": "limit",
         "type": "integer",
         "token": "LIMIT",
         "optional": true,
-        "summary": "The highest number of documents to return. Zero means no limit."
+        "summary": "Plan for this many documents in total. Zero means no limit."
       },
       {
         "name": "spec",

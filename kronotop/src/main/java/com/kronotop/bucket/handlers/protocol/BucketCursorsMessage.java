@@ -35,11 +35,11 @@ public class BucketCursorsMessage extends AbstractBucketMessage implements Proto
 
     private void parse() {
         if (!request.getParams().isEmpty()) {
-            String rawAction = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+            String raw = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
             try {
-                operation = BucketOperation.valueOf(StringUtil.toUpperCaseAscii(rawAction));
+                operation = BucketOperation.valueOf(StringUtil.toUpperCaseAscii(raw));
             } catch (IllegalArgumentException e) {
-                throw new IllegalCommandArgumentException(String.format("Unknown '%s' action", rawAction));
+                throw new IllegalCommandArgumentException(String.format("Unknown '%s' operation", raw));
             }
         }
     }

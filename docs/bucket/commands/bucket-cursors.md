@@ -76,9 +76,9 @@ When no cursors exist for an operation type, the corresponding map or array is e
 
 Argument errors:
 
-| Error Code | Error message                  | Cause                                                     |
-|------------|--------------------------------|-----------------------------------------------------------|
-| `ERR`      | `Unknown '<operation>' action` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
+| Error Code | Error message                     | Cause                                                     |
+|------------|-----------------------------------|-----------------------------------------------------------|
+| `ERR`      | `Unknown '<operation>' operation` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
 
 ## Examples
 
@@ -91,7 +91,7 @@ Argument errors:
 
 > BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BATCH 5
 1# "cursor_id" => (integer) 2
-2# "entries" => ... (first 5 object_ids)
+2# "object_ids" => ... (first 5 object ids)
 
 > BUCKET.CURSORS
 1# "QUERY" =>
@@ -106,16 +106,16 @@ Argument errors:
 ```kronotop
 > BUCKET.CURSORS QUERY
 1# "QUERY" =>
-   1# (integer) 2 "{"age": {"$gt": 20}}"
+   1# (integer) 1 => "{"age": {"$gt": 20}}"
 ```
 
 **List cursors when none exist:**
 
 ```kronotop
 > BUCKET.CURSORS
-1) QUERY -> (empty map)
-2) UPDATE -> (empty map)
-3) DELETE -> (empty map)
+1# "QUERY" => (empty map)
+2# "UPDATE" => (empty map)
+3# "DELETE" => (empty map)
 ```
 
 **Verify cursor removal after close:**
@@ -127,7 +127,7 @@ Argument errors:
 
 > BUCKET.CURSORS QUERY
 1# "QUERY" =>
-   1# (integer) 2 => {}
+   1# (integer) 1 => {}
 
 > BUCKET.CLOSE QUERY 1
 OK

@@ -10,7 +10,7 @@ Creates a new bucket with optional shard assignment and index definitions.
 ## Syntax
 
 ```kronotop
-BUCKET.CREATE <bucket> [SHARDS <shard-id> [shard-id ...]] [INDEXES <json-schema>] [COLLATION <spec>] [IF-NOT-EXISTS]
+BUCKET.CREATE <bucket> [SHARDS <shard-id> [shard-id ...]] [INDEXES <schema>] [COLLATION <spec>] [IF-NOT-EXISTS]
 ```
 
 ## Parameters

@@ -1,6 +1,6 @@
 {
   "BUCKET.VECTOR": {
-    "summary": "Performs vector similarity search on a bucket using a vector index, with optional post-filtering to combine similarity ranking with structured query predicates.",
+    "summary": "Searches a bucket for the documents most similar to a query vector.",
     "complexity": "Depends on the size of the vector index and the search parameters.",
     "group": "bucket",
     "since": "2026.06-1",
@@ -87,7 +87,7 @@
         "type": "double",
         "token": "OVERQUERY",
         "optional": true,
-        "summary": "How many extra candidates the traversal examines beyond TOP, as a multiplier. Must be 1.0 or higher. Defaults to the server setting."
+        "summary": "A multiplier on TOP for the number of candidates the traversal examines. Must be 1.0 or higher. Defaults to the server setting."
       }
     ]
   }

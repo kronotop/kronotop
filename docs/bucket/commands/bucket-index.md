@@ -363,18 +363,44 @@ BUCKET.INDEX DESCRIBE <bucket> <index>
 
 ### Return Value
 
-Returns a map with the following fields:
+Returns a map. The fields depend on the index type.
 
-| Field        | Type    | Description                                                                                                                            |
-|--------------|---------|----------------------------------------------------------------------------------------------------------------------------------------|
-| `index_type` | string  | Kind of the index: `single_field`, `compound`, or `vector`.                                                                            |
-| `id`         | integer | Index identifier.                                                                                                                      |
-| `selector`   | string  | The field selector the index is built on.                                                                                              |
-| `bson_type`  | string  | The BSON type of indexed values.                                                                                                       |
-| `status`     | string  | Current index status. See [Index Lifecycle](#index-lifecycle).                                                                         |
-| `unique`     | boolean | Whether the index enforces value uniqueness. Only present for single-field and compound indexes.                                       |
-| `collation`  | map     | Collation configuration (see below). Empty when no collation is set. Only present for single-field and compound indexes.               |
-| `statistics` | map     | Index statistics including `cardinality`.                                                                                              |
+**Single-field index** (`index_type` is `single_field`):
+
+| Field        | Type    | Description                                                            |
+|--------------|---------|------------------------------------------------------------------------|
+| `index_type` | string  | `single_field`.                                                        |
+| `id`         | integer | Index identifier.                                                      |
+| `selector`   | string  | The field selector the index is built on.                              |
+| `bson_type`  | string  | The BSON type of indexed values.                                       |
+| `status`     | string  | Current index status. See [Index Lifecycle](#index-lifecycle).         |
+| `unique`     | boolean | Whether the index enforces value uniqueness.                           |
+| `collation`  | map     | Collation configuration (see below). Empty when no collation is set.   |
+| `statistics` | map     | Index statistics including `cardinality`.                              |
+
+**Compound index** (`index_type` is `compound`):
+
+| Field        | Type    | Description                                                                          |
+|--------------|---------|--------------------------------------------------------------------------------------|
+| `index_type` | string  | `compound`.                                                                          |
+| `id`         | integer | Index identifier.                                                                    |
+| `fields`     | array   | The indexed fields in index order. Each entry is a map with `selector` and `bson_type`. |
+| `status`     | string  | Current index status. See [Index Lifecycle](#index-lifecycle).                       |
+| `unique`     | boolean | Whether the index enforces value uniqueness.                                         |
+| `collation`  | map     | Collation configuration (see below). Empty when no collation is set.                 |
+| `statistics` | map     | Index statistics including `cardinality`.                                            |
+
+**Vector index** (`index_type` is `vector`):
+
+| Field        | Type    | Description                                                    |
+|--------------|---------|----------------------------------------------------------------|
+| `index_type` | string  | `vector`.                                                      |
+| `id`         | integer | Index identifier.                                              |
+| `selector`   | string  | The field selector the index is built on.                      |
+| `dimensions` | integer | The vector length the index accepts.                           |
+| `distance`   | string  | The distance function of the index.                            |
+| `status`     | string  | Current index status. See [Index Lifecycle](#index-lifecycle). |
+| `statistics` | map     | Index statistics including `cardinality`.                      |
 
 #### Collation sub-fields
 

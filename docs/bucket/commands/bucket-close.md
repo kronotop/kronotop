@@ -28,9 +28,9 @@ Returns `OK` on success.
 
 Argument errors:
 
-| Error Code | Error message                  | Cause                                                     |
-|------------|--------------------------------|-----------------------------------------------------------|
-| `ERR`      | `Unknown '<operation>' action` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
+| Error Code | Error message                     | Cause                                                     |
+|------------|-----------------------------------|-----------------------------------------------------------|
+| `ERR`      | `Unknown '<operation>' operation` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
 
 Bucket errors:
 
