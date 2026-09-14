@@ -1,0 +1,57 @@
+{
+  "DESCRIBE-MEMBER": {
+    "summary": "Returns metadata for the local cluster member.",
+    "complexity": "O(1)",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The properties of the local member.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "member_id": {
+          "description": "Id of this member.",
+          "type": "string"
+        },
+        "status": {
+          "description": "RUNNING, UNAVAILABLE, STOPPED or UNKNOWN.",
+          "type": "string"
+        },
+        "process_id": {
+          "description": "Base32-hex encoded Versionstamp, unique per process lifetime.",
+          "type": "string"
+        },
+        "external_advertise": {
+          "description": "Addresses clients connect to, host:port, preferred entry first.",
+          "type": "array",
+          "items": {
+            "description": "An address.",
+            "type": "string"
+          }
+        },
+        "internal_advertise": {
+          "description": "Addresses other cluster members connect to, host:port, preferred entry first.",
+          "type": "array",
+          "items": {
+            "description": "An address.",
+            "type": "string"
+          }
+        },
+        "latest_heartbeat": {
+          "description": "Monotonically increasing heartbeat counter. 0 if no heartbeat has been recorded yet.",
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
