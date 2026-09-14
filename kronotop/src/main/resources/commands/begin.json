@@ -1,0 +1,19 @@
+{
+  "BEGIN": {
+    "summary": "Opens a new transaction on the current session.",
+    "complexity": "O(1)",
+    "group": "transactions",
+    "since": "2026.06-1",
+    "arity": 1,
+    "command_flags": [
+      "FAST"
+    ],
+    "acl_categories": [
+      "TRANSACTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    }
+  }
+}
