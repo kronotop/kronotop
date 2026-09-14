@@ -1,0 +1,21 @@
+{
+  "GETAPPROXIMATESIZE": {
+    "summary": "Returns the approximate byte size of the current transaction.",
+    "complexity": "O(1)",
+    "group": "transactions",
+    "since": "2026.06-1",
+    "arity": 1,
+    "command_flags": [
+      "READONLY",
+      "FAST"
+    ],
+    "acl_categories": [
+      "TRANSACTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The approximate number of bytes of mutations performed on the active transaction. Requires an open transaction.",
+      "type": "integer"
+    }
+  }
+}
