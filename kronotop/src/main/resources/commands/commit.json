@@ -1,0 +1,55 @@
+{
+  "COMMIT": {
+    "summary": "Commits the current transaction and applies all changes.",
+    "complexity": "O(1)",
+    "group": "transactions",
+    "since": "2026.06-1",
+    "arity": -1,
+    "command_flags": [
+      "WRITE"
+    ],
+    "acl_categories": [
+      "TRANSACTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "oneOf": [
+        {
+          "description": "No RETURNING argument was given.",
+          "const": "OK"
+        },
+        {
+          "description": "RETURNING committed-version. The version at which the transaction was committed. -1 if the transaction contained no mutations.",
+          "type": "integer"
+        },
+        {
+          "description": "RETURNING versionstamp. The 10-byte versionstamp assigned to the transaction.",
+          "type": "string"
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "returning",
+        "type": "oneof",
+        "token": "RETURNING",
+        "optional": true,
+        "summary": "Requests a value from the committed transaction. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "committed-version",
+            "type": "pure-token",
+            "token": "COMMITTED-VERSION",
+            "summary": "Return the committed version as an integer."
+          },
+          {
+            "name": "versionstamp",
+            "type": "pure-token",
+            "token": "VERSIONSTAMP",
+            "summary": "Return the versionstamp as a bulk string. The transaction must have performed at least one mutation."
+          }
+        ]
+      }
+    ]
+  }
+}
