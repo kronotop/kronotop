@@ -20,12 +20,12 @@
       {
         "name": "begin",
         "type": "string",
-        "summary": "The start of the range. Use * for an unbounded start."
+        "summary": "The start of the range, inclusive. Use * for an unbounded start."
       },
       {
         "name": "end",
         "type": "string",
-        "summary": "The end of the range. Use * for an unbounded end."
+        "summary": "The end of the range, exclusive. Use * for an unbounded end."
       }
     ]
   }

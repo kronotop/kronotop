@@ -18,7 +18,7 @@ Both arguments are positional.
 | Argument | Type  | Required | Description                                                                                   |
 |----------|-------|----------|-----------------------------------------------------------------------------------------------|
 | `begin`  | bytes | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace). |
-| `end`    | bytes | Yes      | The end key of the range. Use `*` for unbounded end (to the end of the subspace).             |
+| `end`    | bytes | Yes      | The end key of the range (exclusive). Use `*` for unbounded end (to the end of the subspace). |
 
 ## Return Value
 
@@ -27,7 +27,8 @@ Integer: the estimated size in bytes of the key range.
 ## Behavior
 
 `ZGETRANGESIZE` returns the estimated byte size of a key range from the ZMap subspace of the session's current
-namespace, backed by FoundationDB's `getEstimatedRangeSizeBytes` API.
+namespace, backed by FoundationDB's `getEstimatedRangeSizeBytes` API. The range is the half-open interval [begin, end).
+The begin key is inclusive, and the end key is exclusive.
 
 The returned value is an **estimate**, not an exact count. It is useful for capacity planning and understanding data
 distribution without materializing the range.
