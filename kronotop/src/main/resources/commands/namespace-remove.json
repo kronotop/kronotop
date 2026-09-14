@@ -1,0 +1,27 @@
+{
+  "REMOVE": {
+    "summary": "Marks a namespace as removed. The data stays until NAMESPACE PURGE.",
+    "complexity": "O(D) where D is the namespace depth.",
+    "group": "namespace",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "NAMESPACE",
+    "command_flags": [
+      "WRITE"
+    ],
+    "acl_categories": [
+      "NAMESPACE"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "namespace",
+        "type": "string",
+        "summary": "Dot-separated hierarchical path of the namespace to remove, for example staging.orders."
+      }
+    ]
+  }
+}
