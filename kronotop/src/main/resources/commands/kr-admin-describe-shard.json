@@ -1,0 +1,73 @@
+{
+  "DESCRIBE-SHARD": {
+    "summary": "Returns detailed metadata for a single shard.",
+    "complexity": "O(1)",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The details of the shard.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "description": "Member id of the primary route, or an empty string if unassigned.",
+          "type": "string"
+        },
+        "standbys": {
+          "description": "Member ids of the standby routes.",
+          "type": "array",
+          "items": {
+            "description": "A member id.",
+            "type": "string"
+          }
+        },
+        "status": {
+          "description": "READWRITE, READONLY or INOPERABLE.",
+          "type": "string"
+        },
+        "linked_volumes": {
+          "description": "Volume names in the format <kind>-shard-<id>.",
+          "type": "array",
+          "items": {
+            "description": "A volume name.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "shard-kind",
+        "type": "oneof",
+        "summary": "The kind of the shard. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "bucket",
+            "type": "pure-token",
+            "token": "BUCKET"
+          },
+          {
+            "name": "stash",
+            "type": "pure-token",
+            "token": "STASH"
+          }
+        ]
+      },
+      {
+        "name": "shard-id",
+        "type": "integer",
+        "summary": "Zero-based shard index."
+      }
+    ]
+  }
+}
