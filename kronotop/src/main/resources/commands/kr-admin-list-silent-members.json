@@ -1,0 +1,26 @@
+{
+  "LIST-SILENT-MEMBERS": {
+    "summary": "Lists cluster members suspected to be unresponsive.",
+    "complexity": "O(M) where M is the number of members.",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The ids of the silent members. Empty when all known members are alive.",
+      "type": "array",
+      "items": {
+        "description": "A member id.",
+        "type": "string"
+      }
+    }
+  }
+}
