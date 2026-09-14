@@ -245,6 +245,28 @@ class CommandHandlerTest extends BaseHandlerTest {
     }
 
     @Test
+    void shouldReturnKrAdminSubcommands() {
+        // Behavior: COMMAND INFO KR.ADMIN nests twelve subcommands and COMMAND DOCS KR.ADMIN|ROUTE lists five arguments
+        switchProtocol(RESPVersion.RESP3);
+        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO", "kr.admin"));
+
+        List<RedisMessage> krAdmin = ((ArrayRedisMessage) entries.getFirst()).children();
+        assertEquals(-2, integer(krAdmin.get(1)));
+        assertInstanceOf(ArrayRedisMessage.class, krAdmin.get(9));
+        List<String> subcommands = ((ArrayRedisMessage) krAdmin.get(9)).children().stream()
+                .map(sub -> text(((ArrayRedisMessage) sub).children().getFirst()))
+                .toList();
+        assertEquals(12, subcommands.size());
+        assertTrue(subcommands.contains("kr.admin|initialize-cluster"));
+        assertTrue(subcommands.contains("kr.admin|drop-cluster"));
+
+        Map<String, RedisMessage> docs = docs(getChannel(), "kr.admin|route");
+        Map<String, RedisMessage> route = asMap(docs.get("kr.admin|route"));
+        assertEquals("cluster", text(route.get("group")));
+        assertEquals(5, ((ArrayRedisMessage) route.get("arguments")).children().size());
+    }
+
+    @Test
     void shouldReturnNullForPipeNameWithoutSubcommands() {
         // Behavior: "name|sub" for a command that has no such subcommand gives a null entry
         switchProtocol(RESPVersion.RESP3);
