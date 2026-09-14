@@ -1,0 +1,103 @@
+{
+  "DESCRIBE-CLUSTER": {
+    "summary": "Returns the full cluster topology including cluster name, metadata version, and per-shard details.",
+    "complexity": "O(S) where S is the total number of shards.",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The cluster topology.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metadata_version": {
+          "description": "Cluster metadata version.",
+          "type": "string"
+        },
+        "cluster_name": {
+          "description": "Name of the cluster.",
+          "type": "string"
+        },
+        "bucket": {
+          "description": "Per-shard details for all bucket shards, keyed by shard id.",
+          "type": "object",
+          "additionalProperties": {
+            "description": "The details of one shard.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "primary": {
+                "description": "Member id of the primary route, or an empty string if unassigned.",
+                "type": "string"
+              },
+              "standbys": {
+                "description": "Member ids of the standby routes.",
+                "type": "array",
+                "items": {
+                  "description": "A member id.",
+                  "type": "string"
+                }
+              },
+              "status": {
+                "description": "READWRITE, READONLY or INOPERABLE.",
+                "type": "string"
+              },
+              "linked_volumes": {
+                "description": "Volume names in the format <kind>-shard-<id>.",
+                "type": "array",
+                "items": {
+                  "description": "A volume name.",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "stash": {
+          "description": "Per-shard details for all stash shards, keyed by shard id. Present only when stash is enabled.",
+          "type": "object",
+          "additionalProperties": {
+            "description": "The details of one shard.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "primary": {
+                "description": "Member id of the primary route, or an empty string if unassigned.",
+                "type": "string"
+              },
+              "standbys": {
+                "description": "Member ids of the standby routes.",
+                "type": "array",
+                "items": {
+                  "description": "A member id.",
+                  "type": "string"
+                }
+              },
+              "status": {
+                "description": "READWRITE, READONLY or INOPERABLE.",
+                "type": "string"
+              },
+              "linked_volumes": {
+                "description": "Volume names in the format <kind>-shard-<id>.",
+                "type": "array",
+                "items": {
+                  "description": "A volume name.",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
