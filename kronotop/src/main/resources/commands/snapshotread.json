@@ -1,0 +1,40 @@
+{
+  "SNAPSHOTREAD": {
+    "summary": "Enables or disables snapshot read mode for the current session.",
+    "complexity": "O(1)",
+    "group": "transactions",
+    "since": "2026.06-1",
+    "arity": 2,
+    "command_flags": [
+      "FAST"
+    ],
+    "acl_categories": [
+      "TRANSACTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "option",
+        "type": "oneof",
+        "summary": "The target mode. Case-insensitive. The setting is session-scoped and persists until changed or the session ends.",
+        "arguments": [
+          {
+            "name": "on",
+            "type": "pure-token",
+            "token": "ON",
+            "summary": "Subsequent reads use snapshot isolation and do not add read conflict ranges."
+          },
+          {
+            "name": "off",
+            "type": "pure-token",
+            "token": "OFF",
+            "summary": "Subsequent reads use serializable isolation."
+          }
+        ]
+      }
+    ]
+  }
+}
