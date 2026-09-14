@@ -1,0 +1,55 @@
+{
+  "SET-MEMBER-STATUS": {
+    "summary": "Overrides the status of a cluster member.",
+    "complexity": "O(1) for a full member id. O(M) for a prefix, where M is the number of members.",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "member-id",
+        "type": "string",
+        "summary": "Full 40-character hex member id or a 4-character prefix. A prefix is resolved against currently registered members."
+      },
+      {
+        "name": "status",
+        "type": "oneof",
+        "summary": "The target status. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "running",
+            "type": "pure-token",
+            "token": "RUNNING"
+          },
+          {
+            "name": "unavailable",
+            "type": "pure-token",
+            "token": "UNAVAILABLE"
+          },
+          {
+            "name": "stopped",
+            "type": "pure-token",
+            "token": "STOPPED"
+          },
+          {
+            "name": "unknown",
+            "type": "pure-token",
+            "token": "UNKNOWN"
+          }
+        ]
+      }
+    ]
+  }
+}
