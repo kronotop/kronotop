@@ -1,0 +1,28 @@
+{
+  "REMOVE-MEMBER": {
+    "summary": "Removes a member from the cluster.",
+    "complexity": "O(1) for a full member id. O(M) for a prefix, where M is the number of members.",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "member-id",
+        "type": "string",
+        "summary": "Exactly 40 characters for a full member id, or exactly 4 characters for a prefix. A prefix is resolved against currently registered members."
+      }
+    ]
+  }
+}
