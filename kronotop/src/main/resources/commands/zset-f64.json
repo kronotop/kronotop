@@ -39,11 +39,13 @@
       {
         "name": "key",
         "type": "key",
-        "key_spec_index": 0
+        "key_spec_index": 0,
+        "summary": "The key to set."
       },
       {
         "name": "value",
-        "type": "double"
+        "type": "double",
+        "summary": "A finite IEEE-754 double-precision value. NaN and Infinity are rejected."
       }
     ]
   }

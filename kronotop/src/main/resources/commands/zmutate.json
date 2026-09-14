@@ -40,7 +40,8 @@
       {
         "name": "key",
         "type": "key",
-        "key_spec_index": 0
+        "key_spec_index": 0,
+        "summary": "The key to mutate."
       },
       {
         "name": "param",
@@ -50,6 +51,7 @@
       {
         "name": "mutation-type",
         "type": "oneof",
+        "summary": "The mutation operation to apply. Names are not case-sensitive.",
         "arguments": [
           {
             "name": "add",

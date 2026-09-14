@@ -42,7 +42,8 @@
       {
         "name": "key",
         "type": "key",
-        "key_spec_index": 0
+        "key_spec_index": 0,
+        "summary": "The key to watch."
       }
     ]
   }

@@ -39,11 +39,13 @@
       {
         "name": "key",
         "type": "key",
-        "key_spec_index": 0
+        "key_spec_index": 0,
+        "summary": "The key to set."
       },
       {
         "name": "value",
-        "type": "string"
+        "type": "string",
+        "summary": "The value to store under the key."
       }
     ]
   }
