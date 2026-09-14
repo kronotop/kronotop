@@ -1,0 +1,33 @@
+{
+  "LIST": {
+    "summary": "Lists the immediate child namespaces of a namespace, or the root namespaces when no path is given.",
+    "complexity": "O(N) where N is the number of immediate child namespaces.",
+    "group": "namespace",
+    "since": "2026.06-1",
+    "arity": -2,
+    "container": "NAMESPACE",
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "NAMESPACE"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The names of the child namespaces. Empty when there are none.",
+      "type": "array",
+      "items": {
+        "description": "A namespace name.",
+        "type": "string"
+      }
+    },
+    "arguments": [
+      {
+        "name": "namespace",
+        "type": "string",
+        "optional": true,
+        "summary": "Dot-separated hierarchical path of the namespace to list the child namespaces of, for example staging.orders. When omitted, the root namespaces are listed."
+      }
+    ]
+  }
+}
