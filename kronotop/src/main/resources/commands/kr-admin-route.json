@@ -1,0 +1,84 @@
+{
+  "ROUTE": {
+    "summary": "Manages shard-to-member routing for primary and standby assignments.",
+    "complexity": "O(1) for a single shard. O(S) for *, where S is the number of shards of the given kind.",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 7,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "operation-kind",
+        "type": "oneof",
+        "summary": "Whether to assign or clear the route. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "set",
+            "type": "pure-token",
+            "token": "SET"
+          },
+          {
+            "name": "unset",
+            "type": "pure-token",
+            "token": "UNSET"
+          }
+        ]
+      },
+      {
+        "name": "route-kind",
+        "type": "oneof",
+        "summary": "The kind of the route. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "primary",
+            "type": "pure-token",
+            "token": "PRIMARY"
+          },
+          {
+            "name": "standby",
+            "type": "pure-token",
+            "token": "STANDBY"
+          }
+        ]
+      },
+      {
+        "name": "shard-kind",
+        "type": "oneof",
+        "summary": "The kind of the shard. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "bucket",
+            "type": "pure-token",
+            "token": "BUCKET"
+          },
+          {
+            "name": "stash",
+            "type": "pure-token",
+            "token": "STASH"
+          }
+        ]
+      },
+      {
+        "name": "shard-id",
+        "type": "string",
+        "summary": "Zero-based shard index, or * to target all shards of the given kind atomically."
+      },
+      {
+        "name": "member-id",
+        "type": "string",
+        "summary": "Full 40-character hex member id or a 4-character prefix. A prefix is resolved against currently registered members."
+      }
+    ]
+  }
+}
