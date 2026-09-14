@@ -1,0 +1,57 @@
+{
+  "LIST-MEMBERS": {
+    "summary": "Lists all members in the cluster with their metadata.",
+    "complexity": "O(M) where M is the number of members.",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The members of the cluster, keyed by member id.",
+      "type": "object",
+      "additionalProperties": {
+        "description": "The properties of one member.",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "description": "RUNNING, UNAVAILABLE, STOPPED or UNKNOWN.",
+            "type": "string"
+          },
+          "process_id": {
+            "description": "Base32-hex encoded Versionstamp, unique per process lifetime.",
+            "type": "string"
+          },
+          "external_advertise": {
+            "description": "Addresses clients connect to, host:port, preferred entry first.",
+            "type": "array",
+            "items": {
+              "description": "An address.",
+              "type": "string"
+            }
+          },
+          "internal_advertise": {
+            "description": "Addresses other cluster members connect to, host:port, preferred entry first.",
+            "type": "array",
+            "items": {
+              "description": "An address.",
+              "type": "string"
+            }
+          },
+          "latest_heartbeat": {
+            "description": "Monotonically increasing heartbeat counter. 0 if no heartbeat has been recorded yet.",
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}
