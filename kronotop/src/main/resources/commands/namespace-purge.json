@@ -1,0 +1,27 @@
+{
+  "PURGE": {
+    "summary": "Permanently deletes a namespace that was marked as removed, together with its nested namespaces.",
+    "complexity": "O(N) where N is the number of nested namespaces and buckets under the namespace. Waits up to 5 seconds for all members to observe the removal.",
+    "group": "namespace",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "NAMESPACE",
+    "command_flags": [
+      "WRITE"
+    ],
+    "acl_categories": [
+      "NAMESPACE"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "namespace",
+        "type": "string",
+        "summary": "Dot-separated hierarchical path of the namespace to purge, for example staging.orders. The namespace must be marked as removed first with NAMESPACE REMOVE."
+      }
+    ]
+  }
+}
