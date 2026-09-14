@@ -1,0 +1,12 @@
+{
+  "KR.ADMIN": {
+    "summary": "Manages cluster membership, shard routing and shard status.",
+    "complexity": "Depends on the subcommand.",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": -2,
+    "acl_categories": [
+      "ADMIN"
+    ]
+  }
+}
