@@ -17,6 +17,7 @@
 package com.kronotop.commands;
 
 import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
+import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.CommandType;
 import org.junit.jupiter.api.Test;
 
@@ -247,5 +248,21 @@ class CommandMetadataLoaderTest {
                 .map(Enum::name)
                 .collect(Collectors.toSet());
         assertEquals(subcommands, commands.get("BUCKET.INDEX").subcommands().keySet());
+    }
+
+    @Test
+    void shouldDefineMetadataForEveryNamespaceSubcommand() {
+        // Behavior: NAMESPACE and every NamespaceSubcommand have a definition under commands/
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load();
+
+        CommandMetadata namespace = commands.get("NAMESPACE");
+        assertNotNull(namespace);
+        assertEquals(CommandGroup.NAMESPACE, namespace.group());
+        assertEquals(-2, namespace.arity());
+
+        Set<String> subcommands = Stream.of(NamespaceSubcommand.values())
+                .map(Enum::name)
+                .collect(Collectors.toSet());
+        assertEquals(subcommands, namespace.subcommands().keySet());
     }
 }
