@@ -1,0 +1,27 @@
+{
+  "USE": {
+    "summary": "Switches the current session to the given namespace.",
+    "complexity": "O(D) where D is the namespace depth.",
+    "group": "namespace",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "NAMESPACE",
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "NAMESPACE"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "namespace",
+        "type": "string",
+        "summary": "Dot-separated hierarchical path of the namespace, for example staging.orders."
+      }
+    ]
+  }
+}
