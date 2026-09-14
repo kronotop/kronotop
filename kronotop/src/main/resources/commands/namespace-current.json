@@ -1,0 +1,21 @@
+{
+  "CURRENT": {
+    "summary": "Returns the current namespace of the session.",
+    "complexity": "O(1)",
+    "group": "namespace",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "NAMESPACE",
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "NAMESPACE"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The dot-separated hierarchical path of the current namespace.",
+      "type": "string"
+    }
+  }
+}
