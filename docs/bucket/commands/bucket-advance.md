@@ -115,6 +115,12 @@ The cursor ID must match the operation type. For example, a cursor created by `B
 
 ## Errors
 
+Argument errors:
+
+| Error Code | Error message                     | Cause                                                     |
+|------------|-----------------------------------|-----------------------------------------------------------|
+| `ERR`      | `Unknown '<operation>' operation` | The operation type is not `QUERY`, `DELETE`, or `UPDATE`. |
+
 Bucket errors:
 
 | Error Code           | Error message                                                                          | Cause                                                                                |
@@ -128,15 +134,15 @@ Bucket errors:
 
 ```kronotop
 > BUCKET.QUERY users '{}' BATCH 100
-1# "cursor_id" => (integer) 34
+1# "cursor_id" => (integer) 1
 2# "entries" => [...] (first 100 documents)
 
 > BUCKET.ADVANCE QUERY 1
-1# "cursor_id" => (integer) 34
+1# "cursor_id" => (integer) 1
 2# "entries" => [...] (next 100 documents)
 
 > BUCKET.ADVANCE QUERY 1
-1# "cursor_id" => (integer) 34
+1# "cursor_id" => (integer) 1
 2# "entries" => [] (empty)
 ```
 
