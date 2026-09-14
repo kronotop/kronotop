@@ -1,0 +1,43 @@
+{
+  "DROP-CLUSTER": {
+    "summary": "Removes an entire cluster's metadata from FoundationDB.",
+    "complexity": "O(1)",
+    "group": "cluster",
+    "since": "2026.06-1",
+    "arity": -3,
+    "container": "KR.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "oneOf": [
+        {
+          "description": "Without a token: a confirmation token valid for 60 seconds.",
+          "type": "string"
+        },
+        {
+          "description": "With a valid token: the cluster metadata was removed.",
+          "const": "OK"
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "cluster-name",
+        "type": "string",
+        "summary": "Name of the cluster to drop. Must match the cluster name in the running node's configuration."
+      },
+      {
+        "name": "token",
+        "type": "string",
+        "optional": true,
+        "summary": "Confirmation token returned by the first call. Required to execute the actual deletion."
+      }
+    ]
+  }
+}
