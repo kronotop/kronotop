@@ -1,0 +1,20 @@
+{
+  "GETREADVERSION": {
+    "summary": "Returns the read version of the current transaction.",
+    "complexity": "O(1)",
+    "group": "transactions",
+    "since": "2026.06-1",
+    "arity": 1,
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "TRANSACTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The read version of the active transaction. Requires an open transaction.",
+      "type": "integer"
+    }
+  }
+}
