@@ -18,7 +18,9 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.client.protocol.InternalCommandBuilder;
+import com.kronotop.cluster.client.protocol.ReplicationCommandType;
 import com.kronotop.server.resp3.ArrayRedisMessage;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import com.kronotop.volume.VolumeSession;
@@ -122,5 +124,16 @@ class SegmentTailPointerHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertEquals(0, nextPosition.value());
         assertEquals(-1, sequenceNumber.value());
+    }
+
+    @Test
+    void shouldRejectExtraArguments() {
+        // Behavior: SEGMENT.TAILPOINTER accepts only the volume name and segment id;
+        // extra arguments are rejected with the standard wrong number of arguments error.
+        Object response = runRaw(kronotopInstance.getChannel(), ReplicationCommandType.SEGMENTTAILPOINTER,
+                List.of(volumeConfig.name(), "1", "2", "3"));
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals("ERR wrong number of arguments for 'SEGMENT.TAILPOINTER' command", ((ErrorRedisMessage) response).content());
     }
 }

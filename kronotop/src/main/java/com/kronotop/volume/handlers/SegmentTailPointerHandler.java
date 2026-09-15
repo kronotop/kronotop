@@ -23,6 +23,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
+import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -44,6 +45,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 // Returns 0 if the segment contains no data.
 
 @Command(SegmentTailPointerMessage.COMMAND)
+@MaximumParameterCount(SegmentTailPointerMessage.MAXIMUM_PARAMETER_COUNT)
 @MinimumParameterCount(SegmentTailPointerMessage.MINIMUM_PARAMETER_COUNT)
 public class SegmentTailPointerHandler extends BaseVolumeHandler implements Handler {
 
