@@ -1,0 +1,45 @@
+{
+  "SEGMENT.TAILPOINTER": {
+    "summary": "Returns the tail pointer of a segment in a volume.",
+    "complexity": "O(S + K) where S is the number of segments in the volume and K is the number of changelog entries at the tail position.",
+    "group": "segment",
+    "since": "2026.06-1",
+    "arity": 3,
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "SEGMENT"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The tail pointer of the segment.",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": [
+        {
+          "description": "Byte offset of the next write in the segment. 0 if no entry was written to the segment.",
+          "type": "integer"
+        },
+        {
+          "description": "Changelog sequence number of the last write. -1 if the segment is not the active segment, no entry was written to it, or its changelog entry was pruned.",
+          "type": "integer"
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume."
+      },
+      {
+        "name": "segment-id",
+        "type": "integer",
+        "summary": "The id of the segment."
+      }
+    ]
+  }
+}

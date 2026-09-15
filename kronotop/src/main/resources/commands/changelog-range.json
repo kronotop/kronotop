@@ -1,0 +1,145 @@
+{
+  "CHANGELOG.RANGE": {
+    "summary": "Returns changelog entries of a volume in a sequence number range.",
+    "complexity": "O(N) where N is the number of entries read. N is at most the limit.",
+    "group": "changelog",
+    "since": "2026.06-1",
+    "arity": -5,
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "CHANGELOG"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The changelog entries in ascending sequence number order, or in descending order with REVERSE.",
+      "type": "array",
+      "items": {
+        "description": "A changelog entry.",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "versionstamp": {
+            "description": "Base32-hex encoded Versionstamp of the volume entry that the operation applies to.",
+            "type": "string"
+          },
+          "kind": {
+            "description": "The operation kind.",
+            "type": "string",
+            "enum": [
+              "APPEND",
+              "DELETE",
+              "UPDATE",
+              "INSERT"
+            ]
+          },
+          "prefix": {
+            "description": "The prefix of the entry.",
+            "type": "integer"
+          },
+          "before": {
+            "description": "Segment location before the operation. Present only for DELETE and UPDATE.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sequence_number": {
+                "description": "Sequence number of this changelog entry.",
+                "type": "integer"
+              },
+              "segment_id": {
+                "description": "Id of the segment.",
+                "type": "integer"
+              },
+              "position": {
+                "description": "Byte offset in the segment.",
+                "type": "integer"
+              },
+              "length": {
+                "description": "Length in bytes.",
+                "type": "integer"
+              }
+            }
+          },
+          "after": {
+            "description": "Segment location after the operation. Present only for APPEND, INSERT and UPDATE.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sequence_number": {
+                "description": "Sequence number of this changelog entry.",
+                "type": "integer"
+              },
+              "segment_id": {
+                "description": "Id of the segment.",
+                "type": "integer"
+              },
+              "position": {
+                "description": "Byte offset in the segment.",
+                "type": "integer"
+              },
+              "length": {
+                "description": "Length in bytes.",
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume."
+      },
+      {
+        "name": "parent-operation-kind",
+        "type": "oneof",
+        "summary": "Filters entries by parent operation kind. LIFECYCLE matches APPEND, INSERT and UPDATE. FINALIZATION matches DELETE. Use * for all kinds.",
+        "arguments": [
+          {
+            "name": "lifecycle",
+            "type": "pure-token",
+            "token": "LIFECYCLE"
+          },
+          {
+            "name": "finalization",
+            "type": "pure-token",
+            "token": "FINALIZATION"
+          },
+          {
+            "name": "all",
+            "type": "pure-token",
+            "token": "*"
+          }
+        ]
+      },
+      {
+        "name": "start",
+        "type": "string",
+        "summary": "The start of the range. Use [N for an inclusive start or (N for an exclusive start."
+      },
+      {
+        "name": "end",
+        "type": "string",
+        "summary": "The end of the range. Use N] for an inclusive end or N) for an exclusive end. Must be greater than start."
+      },
+      {
+        "name": "limit",
+        "type": "integer",
+        "token": "LIMIT",
+        "optional": true,
+        "summary": "The maximum number of entries to read. The parent operation kind filter is applied after this limit, so fewer entries can be returned. Defaults to 1000. A value less than 1 uses the default."
+      },
+      {
+        "name": "reverse",
+        "type": "pure-token",
+        "token": "REVERSE",
+        "optional": true,
+        "summary": "Returns the entries in descending sequence number order."
+      }
+    ]
+  }
+}

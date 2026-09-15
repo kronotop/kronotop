@@ -1,0 +1,34 @@
+{
+  "CHANGELOG.WATCH": {
+    "summary": "Blocks the connection until the changelog of a volume has committed entries after a sequence number.",
+    "complexity": "O(1)",
+    "group": "changelog",
+    "since": "2026.06-1",
+    "arity": 3,
+    "command_flags": [
+      "ADMIN",
+      "READONLY",
+      "BLOCKING"
+    ],
+    "acl_categories": [
+      "CHANGELOG"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "All changelog entries up to this sequence number are committed. It is greater than the given sequence number.",
+      "type": "integer"
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume."
+      },
+      {
+        "name": "sequence-number",
+        "type": "integer",
+        "summary": "The last sequence number the caller has seen. Must not be greater than the latest sequence number of the volume."
+      }
+    ]
+  }
+}

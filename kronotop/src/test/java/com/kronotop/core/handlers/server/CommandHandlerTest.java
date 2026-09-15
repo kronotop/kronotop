@@ -304,6 +304,31 @@ class CommandHandlerTest extends BaseHandlerTest {
     }
 
     @Test
+    void shouldReturnSegmentAndChangeLogCommandDefinitions() {
+        // Behavior: COMMAND INFO lists the five segment and changelog commands with their arity, and COMMAND DOCS exposes their groups and arguments
+        switchProtocol(RESPVersion.RESP3);
+        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO",
+                "segment.insert", "segment.range", "segment.tailpointer", "changelog.range", "changelog.watch"));
+        assertEquals(5, entries.size());
+
+        List<Long> arities = entries.stream()
+                .map(entry -> integer(((ArrayRedisMessage) entry).children().get(1)))
+                .toList();
+        assertEquals(List.of(-5L, -5L, 3L, -5L, 3L), arities);
+
+        Map<String, RedisMessage> docs = docs(getChannel(), "segment.range", "changelog.range");
+        Map<String, RedisMessage> segmentRange = asMap(docs.get("segment.range"));
+        assertEquals("segment", text(segmentRange.get("group")));
+        List<RedisMessage> rangeArguments = ((ArrayRedisMessage) segmentRange.get("arguments")).children();
+        assertEquals(3, rangeArguments.size());
+        assertEquals(2, ((ArrayRedisMessage) asMap(rangeArguments.get(2)).get("arguments")).children().size());
+
+        Map<String, RedisMessage> changeLogRange = asMap(docs.get("changelog.range"));
+        assertEquals("changelog", text(changeLogRange.get("group")));
+        assertEquals(6, ((ArrayRedisMessage) changeLogRange.get("arguments")).children().size());
+    }
+
+    @Test
     void shouldReturnTransactionCommandDefinitions() {
         // Behavior: COMMAND INFO lists all six transaction commands and COMMAND DOCS COMMIT exposes the optional RETURNING argument
         switchProtocol(RESPVersion.RESP3);

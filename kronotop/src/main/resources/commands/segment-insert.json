@@ -1,0 +1,51 @@
+{
+  "SEGMENT.INSERT": {
+    "summary": "Writes entries to a segment of a volume at the given positions.",
+    "complexity": "O(N) where N is the number of entries.",
+    "group": "segment",
+    "since": "2026.06-1",
+    "arity": -5,
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "SEGMENT"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK",
+      "description": "All entries are written."
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume."
+      },
+      {
+        "name": "segment-id",
+        "type": "integer",
+        "summary": "The id of the segment to write to."
+      },
+      {
+        "name": "entry",
+        "type": "block",
+        "multiple": true,
+        "summary": "One or more entries to write.",
+        "arguments": [
+          {
+            "name": "position",
+            "type": "integer",
+            "summary": "Byte offset of the entry in the segment."
+          },
+          {
+            "name": "data",
+            "type": "string",
+            "summary": "The entry bytes."
+          }
+        ]
+      }
+    ]
+  }
+}

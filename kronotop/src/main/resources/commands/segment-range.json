@@ -1,0 +1,55 @@
+{
+  "SEGMENT.RANGE": {
+    "summary": "Reads byte ranges from a segment of a volume.",
+    "complexity": "O(N) where N is the number of ranges.",
+    "group": "segment",
+    "since": "2026.06-1",
+    "arity": -5,
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "SEGMENT"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The bytes of each range, in request order.",
+      "type": "array",
+      "items": {
+        "description": "The bytes of one range.",
+        "type": "string"
+      }
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume."
+      },
+      {
+        "name": "segment-id",
+        "type": "integer",
+        "summary": "The id of the segment to read from."
+      },
+      {
+        "name": "range",
+        "type": "block",
+        "multiple": true,
+        "summary": "One or more ranges to read.",
+        "arguments": [
+          {
+            "name": "position",
+            "type": "integer",
+            "summary": "Byte offset of the range in the segment."
+          },
+          {
+            "name": "length",
+            "type": "integer",
+            "summary": "Number of bytes to read."
+          }
+        ]
+      }
+    ]
+  }
+}
