@@ -270,7 +270,7 @@ public class RespReader {
             return readStreamedSet();
         }
         int count = Integer.parseInt(line);
-        Set<RespValue> values = new HashSet<>(count);
+        Set<RespValue> values = new LinkedHashSet<>(count);
         for (int i = 0; i < count; i++) {
             values.add(read());
         }
@@ -278,7 +278,7 @@ public class RespReader {
     }
 
     private RespValue.RespSet readStreamedSet() throws IOException {
-        Set<RespValue> values = new HashSet<>();
+        Set<RespValue> values = new LinkedHashSet<>();
         while (true) {
             input.mark(1);
             int typeChar = input.read();

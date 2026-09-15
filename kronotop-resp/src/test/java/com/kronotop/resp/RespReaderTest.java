@@ -22,6 +22,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -252,6 +254,19 @@ class RespReaderTest {
         assertInstanceOf(RespValue.RespSet.class, value);
         RespValue.RespSet set = (RespValue.RespSet) value;
         assertEquals(3, set.values().size());
+    }
+
+    @Test
+    void shouldReadSetInWireOrder() throws IOException {
+        // Behavior: set elements keep the order they arrive on the wire
+        RespReader reader = readerFor("~3\r\n+c\r\n+a\r\n+b\r\n");
+        RespValue.RespSet set = (RespValue.RespSet) reader.read();
+
+        assertEquals(List.of(
+                new RespValue.SimpleString("c"),
+                new RespValue.SimpleString("a"),
+                new RespValue.SimpleString("b")
+        ), new ArrayList<>(set.values()));
     }
 
     @Test
