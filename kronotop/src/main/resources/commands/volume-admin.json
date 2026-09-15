@@ -1,0 +1,13 @@
+{
+  "VOLUME.ADMIN": {
+    "summary": "Manages volumes opened by the connected member.",
+    "complexity": "Depends on the subcommand.",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": -2,
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ]
+  }
+}

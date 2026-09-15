@@ -1,0 +1,87 @@
+{
+  "MARK-STALE-PREFIXES": {
+    "summary": "Starts, stops, removes or locates the stale-prefix scanning task.",
+    "complexity": "O(1)",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "VOLUME.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "oneOf": [
+        {
+          "description": "START, STOP or REMOVE: the operation completed.",
+          "const": "OK"
+        },
+        {
+          "description": "LOCATE: the member that runs the task.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "member_id": {
+              "description": "Id of the member that runs the task.",
+              "type": "string"
+            },
+            "process_id": {
+              "description": "Base32-hex encoded Versionstamp of the process that runs the task.",
+              "type": "string"
+            },
+            "external_advertise": {
+              "description": "Client addresses of the member, host:port. Empty if the member is not registered.",
+              "type": "array",
+              "items": {
+                "description": "An address.",
+                "type": "string"
+              }
+            },
+            "internal_advertise": {
+              "description": "Internal addresses of the member, host:port. Empty if the member is not registered.",
+              "type": "array",
+              "items": {
+                "description": "An address.",
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "operation",
+        "type": "oneof",
+        "summary": "The operation to run. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "start",
+            "type": "pure-token",
+            "token": "START"
+          },
+          {
+            "name": "stop",
+            "type": "pure-token",
+            "token": "STOP"
+          },
+          {
+            "name": "remove",
+            "type": "pure-token",
+            "token": "REMOVE"
+          },
+          {
+            "name": "locate",
+            "type": "pure-token",
+            "token": "LOCATE"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "VACUUM": {
+    "summary": "Starts, stops, drops or reports garbage collection of stale segment data on a volume.",
+    "complexity": "O(1) for START, STOP and DROP. O(S) for STATUS, where S is the number of segments in the run. The vacuum itself runs as a background task.",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": -4,
+    "container": "VOLUME.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "oneOf": [
+        {
+          "description": "START, STOP or DROP: the operation completed.",
+          "const": "OK"
+        },
+        {
+          "description": "STATUS: the state of the vacuum on the volume.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "active": {
+              "description": "True if a vacuum task is running.",
+              "type": "boolean"
+            },
+            "metadata": {
+              "description": "Result of the last finished run. Absent while a run is active.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "started_at": {
+                  "description": "Start time in milliseconds since the epoch.",
+                  "type": "integer"
+                },
+                "completed_at": {
+                  "description": "Completion time in milliseconds since the epoch.",
+                  "type": "integer"
+                },
+                "result": {
+                  "description": "NO_WORK, COMPLETED or STOPPED.",
+                  "type": "string"
+                },
+                "segments_processed": {
+                  "description": "Number of segments processed so far.",
+                  "type": "integer"
+                }
+              }
+            },
+            "segments": {
+              "description": "Per-segment progress of the run.",
+              "type": "array",
+              "items": {
+                "description": "The progress of one segment.",
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "segment_id": {
+                    "description": "The segment id.",
+                    "type": "integer"
+                  },
+                  "status": {
+                    "description": "ANALYZE, EVACUATING, COMPLETED or STOPPED.",
+                    "type": "string"
+                  },
+                  "started_at": {
+                    "description": "Time the analysis of the segment began, in milliseconds since the epoch.",
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "arguments": [
+      {
+        "name": "operation",
+        "type": "oneof",
+        "summary": "The operation to run. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "start",
+            "type": "pure-token",
+            "token": "START"
+          },
+          {
+            "name": "stop",
+            "type": "pure-token",
+            "token": "STOP"
+          },
+          {
+            "name": "drop",
+            "type": "pure-token",
+            "token": "DROP"
+          },
+          {
+            "name": "status",
+            "type": "pure-token",
+            "token": "STATUS"
+          }
+        ]
+      },
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume, in the format <kind>-shard-<id>."
+      },
+      {
+        "name": "garbage-threshold",
+        "type": "double",
+        "optional": true,
+        "summary": "START only. Minimum garbage percentage a segment must reach to be vacuumed. Must be between 0 and 100, exclusive."
+      }
+    ]
+  }
+}

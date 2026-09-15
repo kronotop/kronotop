@@ -1,0 +1,51 @@
+{
+  "SET-STATUS": {
+    "summary": "Changes the operational status of a named volume.",
+    "complexity": "O(1)",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "VOLUME.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume."
+      },
+      {
+        "name": "status",
+        "type": "oneof",
+        "summary": "The new status. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "readwrite",
+            "type": "pure-token",
+            "token": "READWRITE"
+          },
+          {
+            "name": "readonly",
+            "type": "pure-token",
+            "token": "READONLY"
+          },
+          {
+            "name": "inoperable",
+            "type": "pure-token",
+            "token": "INOPERABLE"
+          }
+        ]
+      }
+    ]
+  }
+}

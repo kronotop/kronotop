@@ -1,0 +1,49 @@
+{
+  "CURSOR": {
+    "summary": "Returns the write cursor of the active segment of a volume.",
+    "complexity": "O(1)",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "VOLUME.INSPECT",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The write cursor of the active segment.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "active_segment_id": {
+          "description": "Id of the segment that receives new writes.",
+          "type": "integer"
+        },
+        "versionstamp": {
+          "description": "Base32-hex encoded Versionstamp of the last write, or an empty string if the volume has no data.",
+          "type": "string"
+        },
+        "next_position": {
+          "description": "Byte offset of the next write in the active segment.",
+          "type": "integer"
+        },
+        "sequence_number": {
+          "description": "Changelog sequence number of the last mutation. -1 if the volume is empty or the entry was pruned.",
+          "type": "integer"
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume, in the format <kind>-shard-<id>."
+      }
+    ]
+  }
+}

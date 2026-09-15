@@ -1,0 +1,27 @@
+{
+  "LIST": {
+    "summary": "Lists all volumes opened by the connected member.",
+    "complexity": "O(V) where V is the number of open volumes.",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "VOLUME.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The names of the open volumes.",
+      "type": "array",
+      "items": {
+        "description": "A volume name.",
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "REPLICATION": {
+    "summary": "Returns the replication state of a standby member for a volume.",
+    "complexity": "O(1)",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "VOLUME.INSPECT",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The replication state of the standby.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "description": "SEGMENT_REPLICATION or CHANGE_DATA_CAPTURE. Empty string if replication has not started.",
+          "type": "string"
+        },
+        "cursor": {
+          "description": "Segment and byte offset the standby is replicating.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "segment_id": {
+              "description": "The segment id.",
+              "type": "integer"
+            },
+            "position": {
+              "description": "Byte offset in the segment.",
+              "type": "integer"
+            }
+          }
+        },
+        "status": {
+          "description": "WAITING, RUNNING, DONE, STOPPED or FAILED. Empty string if replication has not started.",
+          "type": "string"
+        },
+        "error_message": {
+          "description": "Last error message, or an empty string if none.",
+          "type": "string"
+        },
+        "cdc_stage": {
+          "description": "Progress of the change data capture stage.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sequence_number": {
+              "description": "Last applied changelog sequence number.",
+              "type": "integer"
+            },
+            "position": {
+              "description": "Byte offset in the current change data capture segment.",
+              "type": "integer"
+            }
+          }
+        },
+        "segment_replication_stage": {
+          "description": "Progress of the segment replication stage.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tail_sequence_number": {
+              "description": "Sequence number of the segment tail.",
+              "type": "integer"
+            },
+            "tail_next_position": {
+              "description": "Next byte offset after the segment tail.",
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume, in the format <kind>-shard-<id>."
+      },
+      {
+        "name": "standby-id",
+        "type": "string",
+        "summary": "Full 40-character hex member id or a 4-character prefix of the standby."
+      }
+    ]
+  }
+}

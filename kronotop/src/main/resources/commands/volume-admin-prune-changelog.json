@@ -1,0 +1,34 @@
+{
+  "PRUNE-CHANGELOG": {
+    "summary": "Removes changelog entries older than the given retention period.",
+    "complexity": "O(S) where S is the number of segments. Entries are removed with range clears.",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "VOLUME.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume, in the format <kind>-shard-<id>."
+      },
+      {
+        "name": "retention-period",
+        "type": "integer",
+        "summary": "Retention period in hours. Must be greater than zero."
+      }
+    ]
+  }
+}

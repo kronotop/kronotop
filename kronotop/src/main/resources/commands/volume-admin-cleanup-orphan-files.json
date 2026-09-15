@@ -1,0 +1,34 @@
+{
+  "CLEANUP-ORPHAN-FILES": {
+    "summary": "Removes segment files that are no longer tracked in volume metadata.",
+    "complexity": "O(S + F) where S is the number of segments and F is the number of files in the data directory.",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "VOLUME.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "WRITE"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Paths of the deleted files.",
+      "type": "array",
+      "items": {
+        "description": "A file path.",
+        "type": "string"
+      }
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume."
+      }
+    ]
+  }
+}

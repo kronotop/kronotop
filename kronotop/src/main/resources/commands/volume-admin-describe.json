@@ -1,0 +1,80 @@
+{
+  "DESCRIBE": {
+    "summary": "Returns metadata and segment-level statistics for a named volume.",
+    "complexity": "O(S) where S is the number of segments in the volume.",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "VOLUME.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The details of the volume.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "The volume name.",
+          "type": "string"
+        },
+        "status": {
+          "description": "READWRITE, READONLY or INOPERABLE.",
+          "type": "string"
+        },
+        "data_dir": {
+          "description": "Absolute path of the data directory.",
+          "type": "string"
+        },
+        "segment_size": {
+          "description": "Configured segment size in bytes.",
+          "type": "integer"
+        },
+        "segments": {
+          "description": "Per-segment statistics, keyed by segment id.",
+          "type": "object",
+          "additionalProperties": {
+            "description": "The statistics of one segment.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "size": {
+                "description": "Segment size in bytes.",
+                "type": "integer"
+              },
+              "free_bytes": {
+                "description": "Unused bytes in the segment.",
+                "type": "integer"
+              },
+              "used_bytes": {
+                "description": "Bytes occupied by entries.",
+                "type": "integer"
+              },
+              "garbage_percentage": {
+                "description": "Percentage of the segment occupied by deleted or updated entries.",
+                "type": "number"
+              },
+              "cardinality": {
+                "description": "Number of live entries.",
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume."
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "LIST-SEGMENTS": {
+    "summary": "Returns the segment ids of a named volume.",
+    "complexity": "O(S) where S is the number of segments in the volume.",
+    "group": "volume",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "VOLUME.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "VOLUME"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The segment ids in ascending order.",
+      "type": "array",
+      "items": {
+        "description": "A segment id.",
+        "type": "integer"
+      }
+    },
+    "arguments": [
+      {
+        "name": "volume-name",
+        "type": "string",
+        "summary": "The name of the volume."
+      }
+    ]
+  }
+}
