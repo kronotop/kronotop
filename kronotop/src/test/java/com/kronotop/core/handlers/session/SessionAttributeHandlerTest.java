@@ -287,15 +287,21 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
                         "ERR Unknown session attribute: 'unknown_attr'"),
                 arguments("attribute name with a matching suffix",
                         List.of("SET", "xobject_id_format", "hex"),
-                        "ERR Unknown session attribute: 'xobject_id_format'")
+                        "ERR Unknown session attribute: 'xobject_id_format'"),
+                arguments("LIST with extra arguments",
+                        List.of("LIST", "extra"),
+                        "ERR invalid number of parameters"),
+                arguments("SET with a missing value",
+                        List.of("SET", "batch"),
+                        "ERR invalid number of parameters")
         );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: SESSION.ATTRIBUTE rejects an unknown subcommand and an unknown attribute name
-        // with an exact ERR reply. Attribute names must match exactly, not by suffix.
+        // Behavior: SESSION.ATTRIBUTE rejects an unknown subcommand, an unknown attribute name and a wrong
+        // argument count for LIST or SET with an exact ERR reply. Attribute names must match exactly, not by suffix.
         Object response = runRaw(channel, CommandType.SESSION_ATTRIBUTE, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);
