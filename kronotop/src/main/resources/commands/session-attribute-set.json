@@ -1,0 +1,58 @@
+{
+  "SET": {
+    "summary": "Sets a single session attribute to the given value.",
+    "complexity": "O(1)",
+    "group": "session",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "SESSION.ATTRIBUTE",
+    "command_flags": [
+      "FAST"
+    ],
+    "acl_categories": [
+      "SESSION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "attribute",
+        "type": "oneof",
+        "summary": "The attribute to set. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "reply_type",
+            "type": "pure-token",
+            "token": "reply_type",
+            "summary": "Data interchange format for responses. Valid values: bson, json."
+          },
+          {
+            "name": "input_type",
+            "type": "pure-token",
+            "token": "input_type",
+            "summary": "Data interchange format for inputs. Valid values: bson, json."
+          },
+          {
+            "name": "batch",
+            "type": "pure-token",
+            "token": "batch",
+            "summary": "Number of documents returned per batch. Must be greater than 0."
+          },
+          {
+            "name": "object_id_format",
+            "type": "pure-token",
+            "token": "object_id_format",
+            "summary": "Encoding of object id values in responses. Valid values: bytes, hex."
+          }
+        ]
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "summary": "The new value. Enum values are case-insensitive."
+      }
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "LIST": {
+    "summary": "Lists all background tasks registered on the connected member with their state.",
+    "complexity": "O(T) where T is the number of registered tasks.",
+    "group": "task",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "TASK.ADMIN",
+    "command_flags": [
+      "ADMIN",
+      "READONLY"
+    ],
+    "acl_categories": [
+      "ADMIN",
+      "TASK"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The registered tasks, keyed by task name.",
+      "type": "object",
+      "additionalProperties": {
+        "description": "The state of one task.",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "running": {
+            "description": "True if the task is executing right now.",
+            "type": "boolean"
+          },
+          "finished": {
+            "description": "True if the task has stopped and will not run again.",
+            "type": "boolean"
+          },
+          "started_at": {
+            "description": "Time the task was registered, in seconds since the epoch.",
+            "type": "integer"
+          },
+          "last_run": {
+            "description": "Time of the last completed run, in seconds since the epoch. 0 if the task has not run yet.",
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

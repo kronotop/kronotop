@@ -1,0 +1,25 @@
+{
+  "TIME": {
+    "summary": "Returns the current server time.",
+    "complexity": "O(1)",
+    "group": "server",
+    "since": "2026.06-1",
+    "arity": 1,
+    "command_flags": [
+      "FAST",
+      "LOADING",
+      "STALE"
+    ],
+    "acl_categories": [
+      "FAST"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Two bulk strings: the Unix timestamp in seconds and the microseconds already elapsed in the current second.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

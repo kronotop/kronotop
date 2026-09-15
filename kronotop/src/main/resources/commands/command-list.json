@@ -1,0 +1,54 @@
+{
+  "LIST": {
+    "summary": "Returns the names of all commands, subcommands included.",
+    "complexity": "O(N) where N is the total number of commands.",
+    "group": "server",
+    "since": "2026.06-1",
+    "arity": -2,
+    "container": "COMMAND",
+    "command_flags": [
+      "LOADING",
+      "STALE"
+    ],
+    "acl_categories": [
+      "SLOW"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Lowercase command names. Subcommands are named container|subcommand.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "arguments": [
+      {
+        "name": "filterby",
+        "type": "oneof",
+        "token": "FILTERBY",
+        "optional": true,
+        "summary": "Keeps only part of the list.",
+        "arguments": [
+          {
+            "name": "module-name",
+            "type": "string",
+            "token": "MODULE",
+            "summary": "Commands of a module. Kronotop has no module system, so the result is always empty."
+          },
+          {
+            "name": "category",
+            "type": "string",
+            "token": "ACLCAT",
+            "summary": "Commands in an ACL category, for example read or bucket. An unknown category gives an empty result."
+          },
+          {
+            "name": "pattern",
+            "type": "string",
+            "token": "PATTERN",
+            "summary": "Commands whose name matches a glob pattern. Case-insensitive."
+          }
+        ]
+      }
+    ]
+  }
+}

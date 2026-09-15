@@ -1,0 +1,25 @@
+{
+  "COMMAND": {
+    "summary": "Returns information about registered server commands.",
+    "complexity": "Depends on the subcommand.",
+    "group": "server",
+    "since": "2026.06-1",
+    "arity": -1,
+    "command_flags": [
+      "LOADING",
+      "STALE"
+    ],
+    "acl_categories": [
+      "SLOW"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Without a subcommand: one entry per command that has a definition, in the same shape as COMMAND INFO.",
+      "type": "array",
+      "items": {
+        "description": "Name, arity, flags, first key, last key, step, ACL categories, tips, key specifications and subcommands of one command.",
+        "type": "array"
+      }
+    }
+  }
+}

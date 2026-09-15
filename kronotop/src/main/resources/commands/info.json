@@ -1,0 +1,31 @@
+{
+  "INFO": {
+    "summary": "Returns server information and statistics.",
+    "complexity": "O(1)",
+    "group": "server",
+    "since": "2026.06-1",
+    "arity": -1,
+    "command_flags": [
+      "LOADING",
+      "STALE"
+    ],
+    "acl_categories": [
+      "SLOW",
+      "DANGEROUS"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Server information as key:value lines grouped under # Section headers. Sections are separated by an empty line.",
+      "type": "string"
+    },
+    "arguments": [
+      {
+        "name": "section",
+        "type": "string",
+        "optional": true,
+        "multiple": true,
+        "summary": "Section names to return: Server, Cluster, Kronotop, Clients, Memory, Tasks, Volume, Bucket, Vector. Case-insensitive. The names all, default and everything return every section. Unknown names are ignored. Without arguments every section is returned."
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "HELP": {
+    "summary": "Returns a short description of every subcommand.",
+    "complexity": "O(1)",
+    "group": "server",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "COMMAND",
+    "command_flags": [
+      "LOADING",
+      "STALE"
+    ],
+    "acl_categories": [
+      "SLOW"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Help lines, one per element.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

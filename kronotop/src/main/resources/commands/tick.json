@@ -1,0 +1,41 @@
+{
+  "TICK": {
+    "summary": "Returns a monotonically increasing 64-bit integer.",
+    "complexity": "O(1)",
+    "group": "transactions",
+    "since": "2026.06-1",
+    "arity": 2,
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "TRANSACTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The current value. It never decreases but the same value can be returned more than once. Does not require an active transaction.",
+      "type": "integer"
+    },
+    "arguments": [
+      {
+        "name": "mode",
+        "type": "oneof",
+        "summary": "How the value is obtained. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "fresh",
+            "type": "pure-token",
+            "token": "FRESH",
+            "summary": "Fetches the latest value from the cluster. One round trip per call."
+          },
+          {
+            "name": "cached",
+            "type": "pure-token",
+            "token": "CACHED",
+            "summary": "Serves the value from a node-local cache that may be up to one second behind. No cluster round trip."
+          }
+        ]
+      }
+    ]
+  }
+}

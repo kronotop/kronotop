@@ -1,0 +1,39 @@
+{
+  "LIST": {
+    "summary": "Returns all session attributes with their current values.",
+    "complexity": "O(1)",
+    "group": "session",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "SESSION.ATTRIBUTE",
+    "command_flags": [
+      "FAST"
+    ],
+    "acl_categories": [
+      "SESSION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The session attributes keyed by name. On RESP2 the map arrives as a flat array of alternating keys and values.",
+      "type": "object",
+      "properties": {
+        "reply_type": {
+          "description": "Data interchange format for responses: bson or json.",
+          "type": "string"
+        },
+        "input_type": {
+          "description": "Data interchange format for inputs: bson or json.",
+          "type": "string"
+        },
+        "batch": {
+          "description": "Number of documents returned per batch.",
+          "type": "integer"
+        },
+        "object_id_format": {
+          "description": "Encoding of object id values in responses: bytes or hex.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

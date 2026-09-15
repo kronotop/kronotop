@@ -1,0 +1,39 @@
+{
+  "GETKEYS": {
+    "summary": "Returns the key arguments of a full command.",
+    "complexity": "O(N) where N is the number of arguments of the given command.",
+    "group": "server",
+    "since": "2026.06-1",
+    "arity": -3,
+    "container": "COMMAND",
+    "command_flags": [
+      "LOADING",
+      "STALE"
+    ],
+    "acl_categories": [
+      "SLOW"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The key arguments, as sent. Empty when the command has no mandatory keys and none were found.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "arguments": [
+      {
+        "name": "command",
+        "type": "string",
+        "summary": "The command name."
+      },
+      {
+        "name": "arg",
+        "type": "string",
+        "optional": true,
+        "multiple": true,
+        "summary": "The arguments of the command, as they would be sent to the server."
+      }
+    ]
+  }
+}

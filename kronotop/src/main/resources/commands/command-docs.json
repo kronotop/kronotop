@@ -1,0 +1,35 @@
+{
+  "DOCS": {
+    "summary": "Returns documentation for commands.",
+    "complexity": "O(N) where N is the number of commands to look up.",
+    "group": "server",
+    "since": "2026.06-1",
+    "arity": -2,
+    "container": "COMMAND",
+    "command_flags": [
+      "LOADING",
+      "STALE"
+    ],
+    "acl_categories": [
+      "SLOW"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Documentation keyed by lowercase command name. Subcommands are named container|subcommand. Unknown names are skipped. Without names every documented command is returned. On RESP2 every map arrives as a flat array.",
+      "type": "object",
+      "additionalProperties": {
+        "description": "The documentation of one command: summary, since, group, complexity, doc_flags, history, reply_schema, arguments and subcommands. Empty fields are left out, group is always present.",
+        "type": "object"
+      }
+    },
+    "arguments": [
+      {
+        "name": "command-name",
+        "type": "string",
+        "optional": true,
+        "multiple": true,
+        "summary": "Command names to query. Case-insensitive."
+      }
+    ]
+  }
+}

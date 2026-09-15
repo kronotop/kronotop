@@ -1,0 +1,43 @@
+{
+  "INFO": {
+    "summary": "Returns information about one or more commands.",
+    "complexity": "O(N) where N is the number of commands to look up.",
+    "group": "server",
+    "since": "2026.06-1",
+    "arity": -2,
+    "container": "COMMAND",
+    "command_flags": [
+      "LOADING",
+      "STALE"
+    ],
+    "acl_categories": [
+      "SLOW"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "One entry per requested command, in request order. Without names every command that has a definition is returned.",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "description": "Name, arity, flags, first key, last key, step, ACL categories, tips, key specifications and subcommands of one command.",
+            "type": "array"
+          },
+          {
+            "description": "The name has no definition.",
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "arguments": [
+      {
+        "name": "command-name",
+        "type": "string",
+        "optional": true,
+        "multiple": true,
+        "summary": "Command names to query. Case-insensitive. Subcommands are named container|subcommand."
+      }
+    ]
+  }
+}

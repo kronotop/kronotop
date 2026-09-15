@@ -1,0 +1,12 @@
+{
+  "SESSION.ATTRIBUTE": {
+    "summary": "Views and modifies session-specific configuration attributes.",
+    "complexity": "Depends on the subcommand.",
+    "group": "session",
+    "since": "2026.06-1",
+    "arity": -2,
+    "acl_categories": [
+      "SESSION"
+    ]
+  }
+}

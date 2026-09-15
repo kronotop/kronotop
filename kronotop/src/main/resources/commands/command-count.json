@@ -1,0 +1,22 @@
+{
+  "COUNT": {
+    "summary": "Returns the number of commands that have a definition.",
+    "complexity": "O(1)",
+    "group": "server",
+    "since": "2026.06-1",
+    "arity": 2,
+    "container": "COMMAND",
+    "command_flags": [
+      "LOADING",
+      "STALE"
+    ],
+    "acl_categories": [
+      "SLOW"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Number of top-level commands that have a definition.",
+      "type": "integer"
+    }
+  }
+}

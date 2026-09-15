@@ -1,0 +1,27 @@
+{
+  "SETNAME": {
+    "summary": "Sets a human-readable name for the current connection.",
+    "complexity": "O(1)",
+    "group": "connection",
+    "since": "2026.06-1",
+    "arity": 3,
+    "container": "CLIENT",
+    "command_flags": [
+      "FAST"
+    ],
+    "acl_categories": [
+      "CONNECTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "connection-name",
+        "type": "string",
+        "summary": "Connection name. Stored for the lifetime of the connection."
+      }
+    ]
+  }
+}

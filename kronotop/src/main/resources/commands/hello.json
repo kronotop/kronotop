@@ -1,0 +1,79 @@
+{
+  "HELLO": {
+    "summary": "Negotiates the protocol version and optionally authenticates the connection.",
+    "complexity": "O(1)",
+    "group": "connection",
+    "since": "2026.06-1",
+    "arity": -1,
+    "command_flags": [
+      "NO_AUTH",
+      "FAST"
+    ],
+    "acl_categories": [
+      "CONNECTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "Connection metadata. On RESP2 the map arrives as a flat array of alternating keys and values.",
+      "type": "object",
+      "properties": {
+        "server": {
+          "description": "Server product name.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Server version.",
+          "type": "string"
+        },
+        "proto": {
+          "description": "Negotiated protocol version.",
+          "type": "integer"
+        },
+        "id": {
+          "description": "Client connection id.",
+          "type": "integer"
+        },
+        "mode": {
+          "description": "Server mode.",
+          "type": "string"
+        },
+        "role": {
+          "description": "Server role.",
+          "type": "string"
+        }
+      }
+    },
+    "arguments": [
+      {
+        "name": "protover",
+        "type": "integer",
+        "optional": true,
+        "summary": "Protocol version to use: 2 for RESP2, 3 for RESP3. Defaults to 3 when no argument is given. Required when any option follows."
+      },
+      {
+        "name": "auth",
+        "type": "block",
+        "token": "AUTH",
+        "optional": true,
+        "summary": "Authenticates the connection with the same rules as the AUTH command.",
+        "arguments": [
+          {
+            "name": "username",
+            "type": "string"
+          },
+          {
+            "name": "password",
+            "type": "string"
+          }
+        ]
+      },
+      {
+        "name": "clientname",
+        "type": "string",
+        "token": "SETNAME",
+        "optional": true,
+        "summary": "Sets the client connection name."
+      }
+    ]
+  }
+}

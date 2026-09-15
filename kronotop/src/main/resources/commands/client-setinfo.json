@@ -1,0 +1,46 @@
+{
+  "SETINFO": {
+    "summary": "Sets client library metadata on the current connection.",
+    "complexity": "O(1)",
+    "group": "connection",
+    "since": "2026.06-1",
+    "arity": 4,
+    "container": "CLIENT",
+    "command_flags": [
+      "FAST"
+    ],
+    "acl_categories": [
+      "CONNECTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "attribute",
+        "type": "oneof",
+        "summary": "The attribute to set. Case-insensitive.",
+        "arguments": [
+          {
+            "name": "lib-name",
+            "type": "pure-token",
+            "token": "lib-name",
+            "summary": "Name of the client library."
+          },
+          {
+            "name": "lib-ver",
+            "type": "pure-token",
+            "token": "lib-ver",
+            "summary": "Version of the client library."
+          }
+        ]
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "summary": "Attribute value. Stored for the lifetime of the connection."
+      }
+    ]
+  }
+}
