@@ -129,7 +129,7 @@ public class HelloHandler extends BaseConnectionHandler implements Handler {
     private void resp3Response(Response response) {
         // We want to keep the insertion order.
         Map<RedisMessage, RedisMessage> map = new LinkedHashMap<>();
-        map.put(makeFullBulkString("server"), makeFullBulkString(KronotopInstance.PRODUCT_NAME));
+        map.put(makeFullBulkString("server"), makeFullBulkString("kronotop"));
         map.put(makeFullBulkString("version"), getVersion3());
         map.put(makeFullBulkString("proto"), new IntegerRedisMessage(RESPVersion.RESP3.getValue()));
 
@@ -137,14 +137,14 @@ public class HelloHandler extends BaseConnectionHandler implements Handler {
         map.put(makeFullBulkString("id"), new IntegerRedisMessage(clientID.get()));
         map.put(makeFullBulkString("mode"), makeFullBulkString("cluster"));
         map.put(makeFullBulkString("role"), makeFullBulkString("master"));
-        map.put(makeFullBulkString("modules"), new ArrayRedisMessage(new ArrayList<>()));
+
         response.writeMap(map);
     }
 
     private void resp2Response(Response response) {
         List<RedisMessage> result = new ArrayList<>();
         result.add(new SimpleStringRedisMessage("server"));
-        result.add(new SimpleStringRedisMessage(KronotopInstance.PRODUCT_NAME));
+        result.add(new SimpleStringRedisMessage("kronotop"));
 
         result.add(new SimpleStringRedisMessage("version"));
         result.add(getVersion2());
@@ -164,9 +164,6 @@ public class HelloHandler extends BaseConnectionHandler implements Handler {
         result.add(new SimpleStringRedisMessage("role"));
         result.add(new SimpleStringRedisMessage("master"));
 
-        // Kronotop doesn't support a module system for now
-        result.add(new SimpleStringRedisMessage("modules"));
-        result.add(new ArrayRedisMessage(new ArrayList<>()));
         response.writeArray(result);
     }
 }

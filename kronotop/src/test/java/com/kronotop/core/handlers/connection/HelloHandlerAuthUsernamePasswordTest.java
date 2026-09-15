@@ -23,6 +23,7 @@ import com.kronotop.server.resp3.ErrorRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,11 +51,12 @@ public class HelloHandlerAuthUsernamePasswordTest extends BaseHandlerTest {
     public void testHELLO_AUTH_failure() {
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        char[] password = {'f'};
+        char[] password = {'g'};
         cmd.hello(2, "devuser", password, null).encode(buf);
 
         Object msg = runCommand(channel, buf);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        Assertions.assertNotNull(actualMessage);
         assertEquals("WRONGPASS invalid username-password pair or user is disabled.", actualMessage.content());
     }
 }

@@ -53,7 +53,7 @@ class HelloHandlerTest extends BaseHandlerTest {
                 switch (keyMessage.content()) {
                     case "server":
                         SimpleStringRedisMessage serverName = (SimpleStringRedisMessage) response.children().get(valueIndex);
-                        assertEquals(KronotopInstance.PRODUCT_NAME, serverName.content());
+                        assertEquals("kronotop", serverName.content());
                         continue;
                     case "version":
                         SimpleStringRedisMessage serverVersion = (SimpleStringRedisMessage) response.children().get(valueIndex);
