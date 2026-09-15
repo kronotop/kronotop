@@ -28,9 +28,12 @@ import java.util.Locale;
 
 /**
  * Completes command names and subcommand names from the COMMAND DOCS catalog.
- * Candidates are uppercase. The catalog can be set after the reader is built.
+ * After the "help" word, it also offers "@group" topics. Candidates are uppercase.
+ * The catalog can be set after the reader is built.
  */
 public class CommandCompleter implements Completer {
+
+    private static final String HELP = "help";
 
     private volatile CommandDocsCatalog catalog;
 
@@ -52,10 +55,22 @@ public class CommandCompleter implements Completer {
         if (current == null) {
             return;
         }
-        if (line.wordIndex() == 0) {
+        List<String> words = line.words();
+        int index = line.wordIndex();
+        boolean helpTopic = index > 0 && words.get(0).equalsIgnoreCase(HELP);
+        if (helpTopic) {
+            words = words.subList(1, words.size());
+            index--;
+        }
+        if (index == 0) {
             addAll(candidates, current.commandNames());
-        } else if (line.wordIndex() == 1) {
-            addAll(candidates, current.subcommandNames(line.words().get(0)));
+            if (helpTopic) {
+                for (String group : current.groupNames()) {
+                    candidates.add(new Candidate("@" + group));
+                }
+            }
+        } else if (index == 1) {
+            addAll(candidates, current.subcommandNames(words.get(0)));
         }
     }
 

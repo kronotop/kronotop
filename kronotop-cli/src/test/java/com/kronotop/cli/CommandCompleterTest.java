@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -49,9 +50,9 @@ class CommandCompleterTest {
 
     private static CommandDocsCatalog catalog() {
         return new CommandDocsCatalog(map(
-                "bucket.query", map("summary", str("q")),
-                "bucket.insert", map("summary", str("i")),
-                "client", map("subcommands", map(
+                "bucket.query", map("summary", str("q"), "group", str("bucket")),
+                "bucket.insert", map("summary", str("i"), "group", str("bucket")),
+                "client", map("group", str("connection"), "subcommands", map(
                         "client|setname", map("summary", str("s")),
                         "client|setinfo", map("summary", str("s"))))));
     }
@@ -99,6 +100,34 @@ class CommandCompleterTest {
         // Behavior: no catalog means no candidates and no exception
         CommandCompleter completer = new CommandCompleter();
         assertEquals(List.of(), complete(completer, "bucket.q"));
+    }
+
+    @Test
+    void shouldOfferCommandsAndGroupsAfterHelp() {
+        // Behavior: the word after "help" completes against command names and "@group" topics
+        CommandCompleter completer = new CommandCompleter();
+        completer.setCatalog(catalog());
+        List<String> values = complete(completer, "help ");
+        assertTrue(values.contains("BUCKET.QUERY"));
+        assertTrue(values.contains("CLIENT"));
+        assertTrue(values.contains("@bucket"));
+        assertTrue(values.contains("@connection"));
+    }
+
+    @Test
+    void shouldOfferSubcommandsAfterHelpAndContainer() {
+        // Behavior: "help <container> " completes against the container's subcommands
+        CommandCompleter completer = new CommandCompleter();
+        completer.setCatalog(catalog());
+        assertEquals(List.of("SETNAME", "SETINFO"), complete(completer, "help client "));
+    }
+
+    @Test
+    void shouldNotOfferGroupsForFirstWord() {
+        // Behavior: "@group" topics are help topics only, the first word never completes to them
+        CommandCompleter completer = new CommandCompleter();
+        completer.setCatalog(catalog());
+        assertFalse(complete(completer, "@").contains("@bucket"));
     }
 
     private static CmdLine cmdLine(List<String> words) {

@@ -197,16 +197,27 @@ class CommandDocsCatalogTest {
         assertEquals(List.of("[key...]"), catalog.usage("MGET"));
     }
 
+    private static List<String> names(List<CommandDocsCatalog.CommandDoc> docs) {
+        List<String> out = new ArrayList<>();
+        for (CommandDocsCatalog.CommandDoc doc : docs) {
+            out.add(doc.name());
+        }
+        return out;
+    }
+
     @Test
-    void shouldReturnDocForTopLevelCommand() {
-        // Behavior: doc returns the uppercase name, usage, summary, since and group of a top-level command
+    void shouldFindTopLevelCommandWithFields() {
+        // Behavior: find returns the uppercase name, words, usage, summary, since and group of a command
         CommandDocsCatalog catalog = new CommandDocsCatalog(map("bucket.query", map(
                 "summary", str("Queries documents."),
                 "since", str("2026.06-1"),
                 "group", str("bucket"),
                 "arguments", array(scalar("bucket")))));
-        CommandDocsCatalog.CommandDoc doc = catalog.doc(List.of("Bucket.Query"));
+        List<CommandDocsCatalog.CommandDoc> docs = catalog.find(List.of("Bucket.Query"));
+        assertEquals(1, docs.size());
+        CommandDocsCatalog.CommandDoc doc = docs.get(0);
         assertEquals("BUCKET.QUERY", doc.name());
+        assertEquals(List.of("bucket.query"), doc.words());
         assertEquals(List.of("bucket"), doc.usage());
         assertEquals("Queries documents.", doc.summary());
         assertEquals("2026.06-1", doc.since());
@@ -214,36 +225,60 @@ class CommandDocsCatalogTest {
     }
 
     @Test
-    void shouldReturnDocForSubcommand() {
-        // Behavior: the second word selects the subcommand, its name joins container and subcommand with a space
+    void shouldFindContainerAndItsSubcommandsByPrefix() {
+        // Behavior: a container name matches the container and every subcommand, in catalog order
         CommandDocsCatalog catalog = new CommandDocsCatalog(clientDocs());
-        CommandDocsCatalog.CommandDoc doc = catalog.doc(List.of("client", "setname"));
-        assertEquals("CLIENT SETNAME", doc.name());
-        assertEquals(List.of("connection-name"), doc.usage());
+        assertEquals(List.of("CLIENT", "CLIENT SETNAME", "CLIENT SETINFO"), names(catalog.find(List.of("client"))));
     }
 
     @Test
-    void shouldFallBackToContainerDocForUnknownSubcommand() {
-        // Behavior: an unknown second word returns the container's own entry
+    void shouldFindSingleSubcommandByTwoWords() {
+        // Behavior: two words select one subcommand, the match ignores case
         CommandDocsCatalog catalog = new CommandDocsCatalog(clientDocs());
-        CommandDocsCatalog.CommandDoc doc = catalog.doc(List.of("CLIENT", "nope"));
-        assertEquals("CLIENT", doc.name());
-        assertEquals("Container command.", doc.summary());
+        List<CommandDocsCatalog.CommandDoc> docs = catalog.find(List.of("CLIENT", "setname"));
+        assertEquals(List.of("CLIENT SETNAME"), names(docs));
+        assertEquals(List.of("client", "setname"), docs.get(0).words());
+        assertEquals(List.of("connection-name"), docs.get(0).usage());
     }
 
     @Test
-    void shouldReturnNullDocForUnknownCommand() {
-        // Behavior: an unknown command and an empty word list have no help entry
+    void shouldFindNothingForUnknownWords() {
+        // Behavior: an unknown command, an unknown subcommand and an empty word list find nothing
         CommandDocsCatalog catalog = new CommandDocsCatalog(clientDocs());
-        assertNull(catalog.doc(List.of("NOPE")));
-        assertNull(catalog.doc(List.of()));
+        assertTrue(catalog.find(List.of("NOPE")).isEmpty());
+        assertTrue(catalog.find(List.of("CLIENT", "nope")).isEmpty());
+        assertTrue(catalog.find(List.of()).isEmpty());
+    }
+
+    @Test
+    void shouldListCommandsByGroup() {
+        // Behavior: byGroup returns every entry with that group, the match ignores case
+        CommandDocsCatalog catalog = new CommandDocsCatalog(map(
+                "bucket.query", map("group", str("bucket")),
+                "client", map("group", str("connection"), "subcommands", map(
+                        "client|setname", map("group", str("connection")))),
+                "bucket.insert", map("group", str("bucket"))));
+        assertEquals(List.of("BUCKET.QUERY", "BUCKET.INSERT"), names(catalog.byGroup("Bucket")));
+        assertEquals(List.of("CLIENT", "CLIENT SETNAME"), names(catalog.byGroup("connection")));
+        assertTrue(catalog.byGroup("nope").isEmpty());
+    }
+
+    @Test
+    void shouldListDistinctGroupNamesSorted() {
+        // Behavior: groupNames returns each group once in sorted order and skips empty groups
+        CommandDocsCatalog catalog = new CommandDocsCatalog(map(
+                "zmap.get", map("group", str("zmap")),
+                "bucket.query", map("group", str("bucket")),
+                "ping", map(),
+                "bucket.insert", map("group", str("bucket"))));
+        assertEquals(List.of("bucket", "zmap"), catalog.groupNames());
     }
 
     @Test
     void shouldUseEmptyStringForMissingFields() {
         // Behavior: fields the server omits are empty strings, not null
         CommandDocsCatalog catalog = new CommandDocsCatalog(map("ping", map()));
-        CommandDocsCatalog.CommandDoc doc = catalog.doc(List.of("ping"));
+        CommandDocsCatalog.CommandDoc doc = catalog.find(List.of("ping")).get(0);
         assertEquals("", doc.summary());
         assertEquals("", doc.since());
         assertEquals("", doc.group());

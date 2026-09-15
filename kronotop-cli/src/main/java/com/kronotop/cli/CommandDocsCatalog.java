@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Turns a COMMAND DOCS reply into argument hints for the interactive prompt.
@@ -40,10 +41,11 @@ public class CommandDocsCatalog {
     private static final String NBSP = "\u00A0";
 
     /**
-     * Help entry of one command. The name is uppercase, a subcommand name has the form "CLIENT SETNAME".
-     * Missing fields are empty strings.
+     * Help entry of one command. Words are the lowercase name parts, such as ["client", "setname"].
+     * The name is uppercase, a subcommand name has the form "CLIENT SETNAME". Missing fields are empty strings.
      */
-    public record CommandDoc(String name, List<String> usage, String summary, String since, String group) {
+    public record CommandDoc(List<String> words, String name, List<String> usage, String summary, String since,
+                             String group) {
         /**
          * Returns the usage as a single line, or an empty string when the command takes no arguments.
          */
@@ -53,6 +55,7 @@ public class CommandDocsCatalog {
     }
 
     private final Map<String, CommandDoc> docs = new HashMap<>();
+    private final List<CommandDoc> entries = new ArrayList<>();
     private final Set<String> containers = new HashSet<>();
     private final List<String> commandNames = new ArrayList<>();
     private final Map<String, List<String>> subcommandNames = new HashMap<>();
@@ -115,22 +118,58 @@ public class CommandDocsCatalog {
     }
 
     /**
-     * Returns the help entry for the typed words, or null when the command is unknown.
-     * For a container command the second word selects the subcommand. An unknown
-     * second word falls back to the container itself.
+     * Returns every entry whose name starts with the given words, in catalog order.
+     * "client" matches CLIENT and all CLIENT subcommands. The match ignores case.
      */
-    public CommandDoc doc(List<String> words) {
+    public List<CommandDoc> find(List<String> words) {
+        List<CommandDoc> out = new ArrayList<>();
         if (words == null || words.isEmpty()) {
-            return null;
+            return out;
         }
-        String command = words.get(0).toLowerCase(Locale.ROOT);
-        if (words.size() >= 2 && containers.contains(command)) {
-            CommandDoc subDoc = docs.get(command + "|" + words.get(1).toLowerCase(Locale.ROOT));
-            if (subDoc != null) {
-                return subDoc;
+        for (CommandDoc doc : entries) {
+            if (startsWith(doc.words(), words)) {
+                out.add(doc);
             }
         }
-        return docs.get(command);
+        return out;
+    }
+
+    /**
+     * Returns every entry in the group, in catalog order. The match ignores case.
+     */
+    public List<CommandDoc> byGroup(String group) {
+        List<CommandDoc> out = new ArrayList<>();
+        for (CommandDoc doc : entries) {
+            if (doc.group().equalsIgnoreCase(group)) {
+                out.add(doc);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Returns the distinct group names in sorted order.
+     */
+    public List<String> groupNames() {
+        Set<String> groups = new TreeSet<>();
+        for (CommandDoc doc : entries) {
+            if (!doc.group().isEmpty()) {
+                groups.add(doc.group());
+            }
+        }
+        return new ArrayList<>(groups);
+    }
+
+    private static boolean startsWith(List<String> name, List<String> prefix) {
+        if (prefix.size() > name.size()) {
+            return false;
+        }
+        for (int i = 0; i < prefix.size(); i++) {
+            if (!name.get(i).equalsIgnoreCase(prefix.get(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     List<String> usage(String command) {
@@ -144,12 +183,15 @@ public class CommandDocsCatalog {
 
     private void addCommand(String name, RespValue value) {
         Map<String, RespValue> fields = asMap(value);
-        docs.put(name, new CommandDoc(
+        CommandDoc doc = new CommandDoc(
+                List.of(name.split("\\|")),
                 name.toUpperCase(Locale.ROOT).replace('|', ' '),
                 renderArguments(fields.get("arguments")),
                 asString(fields.get("summary")),
                 asString(fields.get("since")),
-                asString(fields.get("group"))));
+                asString(fields.get("group")));
+        docs.put(name, doc);
+        entries.add(doc);
         RespValue subcommands = fields.get("subcommands");
         if (subcommands != null) {
             containers.add(name);

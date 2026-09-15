@@ -166,6 +166,7 @@ public class KronotopCLI implements Callable<Integer> {
     private String connectionError;
     private CommandCompleter completer;
     private CommandDocsCatalog commandDocs;
+    private TailTipWidgets argumentHints;
 
     public static void main(String[] args) {
         int exitCode = new CommandLine(new KronotopCLI()).execute(args);
@@ -358,11 +359,13 @@ public class KronotopCLI implements Callable<Integer> {
     }
 
     /**
-     * Prints the help entry of a command. Runs locally, nothing is sent to the server.
+     * Prints help. Runs locally, nothing is sent to the server.
+     * Without arguments it prints the generic help. "@group" lists a group, any other
+     * words select every command whose name starts with them.
      */
     private void printHelp(List<String> args) {
         if (args.size() < 2) {
-            out.println("Usage: help <command> [<subcommand>]");
+            out.println(HelpFormatter.generic(versionLine()));
             return;
         }
         if (commandDocs == null) {
@@ -370,12 +373,43 @@ public class KronotopCLI implements Callable<Integer> {
             return;
         }
         List<String> words = args.subList(1, args.size());
-        CommandDocsCatalog.CommandDoc doc = commandDocs.doc(words);
-        if (doc == null) {
-            out.println("Unknown command: " + String.join(" ", words));
-            return;
+        Terminal colors = noColor ? null : terminal;
+        String topic = words.getFirst();
+        if (topic.startsWith("@")) {
+            for (CommandDocsCatalog.CommandDoc doc : commandDocs.byGroup(topic.substring(1))) {
+                out.print(HelpFormatter.format(doc, colors, false));
+            }
+        } else {
+            for (CommandDocsCatalog.CommandDoc doc : commandDocs.find(words)) {
+                out.print(HelpFormatter.format(doc, colors, true));
+            }
         }
-        out.println(HelpFormatter.format(doc, noColor ? null : terminal));
+        out.println();
+    }
+
+    private String versionLine() {
+        try {
+            return new VersionProvider().getVersion()[0];
+        } catch (Exception e) {
+            return "kronotop-cli";
+        }
+    }
+
+    /**
+     * Handles ":set hints" and ":set nohints". Returns false for any other value.
+     */
+    private boolean setPreference(List<String> args) {
+        if (args.size() != 2) {
+            return false;
+        }
+        switch (args.get(1).toLowerCase()) {
+            case "hints" -> argumentHints.enable();
+            case "nohints" -> argumentHints.disable();
+            default -> {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -400,9 +434,9 @@ public class KronotopCLI implements Callable<Integer> {
      * Shows argument hints after the cursor. Hints appear once the catalog is loaded.
      */
     private void enableArgumentHints(LineReader reader) {
-        TailTipWidgets widgets = new TailTipWidgets(reader, completer::lookup, 0, TailTipWidgets.TipType.TAIL_TIP);
-        widgets.setDescriptionCache(false);
-        widgets.enable();
+        argumentHints = new TailTipWidgets(reader, completer::lookup, 0, TailTipWidgets.TipType.TAIL_TIP);
+        argumentHints.setDescriptionCache(false);
+        argumentHints.enable();
     }
 
     private void disconnect() {
@@ -484,6 +518,10 @@ public class KronotopCLI implements Callable<Integer> {
                 if (!args.isEmpty()) {
                     if (args.getFirst().equalsIgnoreCase("help")) {
                         printHelp(args);
+                    } else if (args.getFirst().equalsIgnoreCase(":set")) {
+                        if (!setPreference(args)) {
+                            System.err.println("Usage: :set hints|nohints");
+                        }
                     } else if (executeDotCommand(args) == null) {
                         executeCommand(args, true);
                     }
