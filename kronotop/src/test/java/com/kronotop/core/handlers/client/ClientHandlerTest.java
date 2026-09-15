@@ -21,11 +21,15 @@ import com.kronotop.BaseTest;
 import com.kronotop.commands.redis.RedisCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.SessionAttributes;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.protocol.CommandType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -75,5 +79,23 @@ public class ClientHandlerTest extends BaseHandlerTest {
 
         String value = (String) channel.attr(SessionAttributes.CLIENT_ATTRIBUTES).get().get("name");
         assertEquals("kronotop", value);
+    }
+
+    @Test
+    void shouldRejectSetInfoWithoutValue() {
+        // Behavior: CLIENT SETINFO with an attribute but no value is rejected with the wrong-arity error
+        Object msg = BaseTest.runRaw(channel, CommandType.CLIENT, List.of("SETINFO", "lib-name"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR wrong number of arguments for 'CLIENT|SETINFO' command", ((ErrorRedisMessage) msg).content());
+    }
+
+    @Test
+    void shouldRejectSetNameWithExtraArgument() {
+        // Behavior: CLIENT SETNAME with more than one argument is rejected with the wrong-arity error
+        Object msg = BaseTest.runRaw(channel, CommandType.CLIENT, List.of("SETNAME", "a", "b"));
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR wrong number of arguments for 'CLIENT|SETNAME' command", ((ErrorRedisMessage) msg).content());
     }
 }

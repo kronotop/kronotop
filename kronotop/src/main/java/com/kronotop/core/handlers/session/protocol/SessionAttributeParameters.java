@@ -39,13 +39,14 @@ public class SessionAttributeParameters {
         subcommand = ProtocolMessageUtil.readEnum(SessionAttributeSubcommand.class, params.getFirst(), "subcommand");
 
         if (subcommand.equals(SessionAttributeSubcommand.LIST)) {
+            if (params.size() != 1) {
+                throw new InvalidNumberOfParametersException();
+            }
             return;
         }
 
-        if (subcommand.equals(SessionAttributeSubcommand.SET)) {
-            if (params.size() != 3) {
-                throw new InvalidNumberOfParametersException();
-            }
+        if (params.size() != 3) {
+            throw new InvalidNumberOfParametersException();
         }
 
         String rawSessionAttribute = ProtocolMessageUtil.readAsString(params.get(1));

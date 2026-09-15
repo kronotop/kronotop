@@ -267,6 +267,43 @@ class CommandHandlerTest extends BaseHandlerTest {
     }
 
     @Test
+    void shouldReturnVolumeCommandDefinitions() {
+        // Behavior: COMMAND INFO nests nine VOLUME.ADMIN and two VOLUME.INSPECT subcommands, and COMMAND DOCS exposes their arguments
+        switchProtocol(RESPVersion.RESP3);
+        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO", "volume.admin", "volume.inspect"));
+        assertEquals(2, entries.size());
+
+        List<RedisMessage> volumeAdmin = ((ArrayRedisMessage) entries.get(0)).children();
+        assertEquals(-2, integer(volumeAdmin.get(1)));
+        List<String> adminSubcommands = ((ArrayRedisMessage) volumeAdmin.get(9)).children().stream()
+                .map(sub -> text(((ArrayRedisMessage) sub).children().getFirst()))
+                .toList();
+        assertEquals(9, adminSubcommands.size());
+        assertTrue(adminSubcommands.contains("volume.admin|vacuum"));
+        assertTrue(adminSubcommands.contains("volume.admin|set-status"));
+
+        List<RedisMessage> volumeInspect = ((ArrayRedisMessage) entries.get(1)).children();
+        assertEquals(-2, integer(volumeInspect.get(1)));
+        List<String> inspectSubcommands = ((ArrayRedisMessage) volumeInspect.get(9)).children().stream()
+                .map(sub -> text(((ArrayRedisMessage) sub).children().getFirst()))
+                .toList();
+        assertEquals(2, inspectSubcommands.size());
+        assertTrue(inspectSubcommands.contains("volume.inspect|cursor"));
+        assertTrue(inspectSubcommands.contains("volume.inspect|replication"));
+
+        Map<String, RedisMessage> docs = docs(getChannel(), "volume.admin|vacuum", "volume.inspect|replication");
+        Map<String, RedisMessage> vacuum = asMap(docs.get("volume.admin|vacuum"));
+        assertEquals("volume", text(vacuum.get("group")));
+        List<RedisMessage> vacuumArguments = ((ArrayRedisMessage) vacuum.get("arguments")).children();
+        assertEquals(3, vacuumArguments.size());
+        assertEquals(4, ((ArrayRedisMessage) asMap(vacuumArguments.getFirst()).get("arguments")).children().size());
+
+        Map<String, RedisMessage> replication = asMap(docs.get("volume.inspect|replication"));
+        assertEquals("volume", text(replication.get("group")));
+        assertEquals(2, ((ArrayRedisMessage) replication.get("arguments")).children().size());
+    }
+
+    @Test
     void shouldReturnTransactionCommandDefinitions() {
         // Behavior: COMMAND INFO lists all six transaction commands and COMMAND DOCS COMMIT exposes the optional RETURNING argument
         switchProtocol(RESPVersion.RESP3);
@@ -292,6 +329,50 @@ class CommandHandlerTest extends BaseHandlerTest {
 
         Map<String, RedisMessage> snapshotRead = asMap(docs.get("snapshotread"));
         assertEquals(1, ((ArrayRedisMessage) snapshotRead.get("arguments")).children().size());
+    }
+
+    @Test
+    void shouldReturnSessionAndServerCommandDefinitions() {
+        // Behavior: COMMAND INFO lists the session, connection and server commands with their subcommands and COMMAND DOCS exposes their arguments
+        switchProtocol(RESPVersion.RESP3);
+        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO",
+                "session.attribute", "session.close", "hello", "client", "echo", "command", "info", "time", "tick"));
+        assertEquals(9, entries.size());
+        for (RedisMessage entry : entries) {
+            assertInstanceOf(ArrayRedisMessage.class, entry);
+        }
+
+        Map<String, Integer> arities = Map.of("session.attribute", -2, "client", -2, "command", -1);
+        Map<String, Integer> subcommandCounts = Map.of("session.attribute", 2, "client", 2, "command", 7);
+        for (RedisMessage entry : entries) {
+            List<RedisMessage> fields = ((ArrayRedisMessage) entry).children();
+            String name = text(fields.getFirst());
+            if (subcommandCounts.containsKey(name)) {
+                assertEquals(arities.get(name), (int) integer(fields.get(1)), name);
+                assertEquals(subcommandCounts.get(name), ((ArrayRedisMessage) fields.get(9)).children().size(), name);
+            }
+        }
+
+        Map<String, RedisMessage> docs = docs(getChannel(), "hello", "session.attribute|set", "command|list", "tick");
+        Map<String, RedisMessage> hello = asMap(docs.get("hello"));
+        assertEquals("connection", text(hello.get("group")));
+        assertEquals(3, ((ArrayRedisMessage) hello.get("arguments")).children().size());
+
+        Map<String, RedisMessage> set = asMap(docs.get("session.attribute|set"));
+        assertEquals("session", text(set.get("group")));
+        List<RedisMessage> setArguments = ((ArrayRedisMessage) set.get("arguments")).children();
+        assertEquals(2, setArguments.size());
+        assertEquals(4, ((ArrayRedisMessage) asMap(setArguments.getFirst()).get("arguments")).children().size());
+
+        Map<String, RedisMessage> list = asMap(docs.get("command|list"));
+        assertEquals("server", text(list.get("group")));
+        Map<String, RedisMessage> filterBy = asMap(((ArrayRedisMessage) list.get("arguments")).children().getFirst());
+        assertEquals("FILTERBY", text(filterBy.get("token")));
+        assertEquals(3, ((ArrayRedisMessage) filterBy.get("arguments")).children().size());
+
+        Map<String, RedisMessage> tick = asMap(docs.get("tick"));
+        assertEquals("transactions", text(tick.get("group")));
+        assertEquals(1, ((ArrayRedisMessage) tick.get("arguments")).children().size());
     }
 
     @Test

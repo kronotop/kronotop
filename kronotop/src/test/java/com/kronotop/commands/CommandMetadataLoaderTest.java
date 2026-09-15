@@ -19,6 +19,7 @@ package com.kronotop.commands;
 import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
 import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.CommandType;
+import com.kronotop.task.handlers.protocol.TaskAdminSubcommand;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -264,5 +265,26 @@ class CommandMetadataLoaderTest {
                 .map(Enum::name)
                 .collect(Collectors.toSet());
         assertEquals(subcommands, namespace.subcommands().keySet());
+    }
+
+    @Test
+    void shouldDefineMetadataForEveryTaskAdminSubcommand() {
+        // Behavior: TASK.ADMIN and every TaskAdminSubcommand have a definition under commands/
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load();
+
+        CommandMetadata taskAdmin = commands.get("TASK.ADMIN");
+        assertNotNull(taskAdmin);
+        assertEquals(CommandGroup.TASK, taskAdmin.group());
+        assertEquals(-2, taskAdmin.arity());
+
+        Set<String> subcommands = Stream.of(TaskAdminSubcommand.values())
+                .map(Enum::name)
+                .collect(Collectors.toSet());
+        assertEquals(subcommands, taskAdmin.subcommands().keySet());
+
+        CommandMetadata list = taskAdmin.subcommands().get("LIST");
+        assertEquals(2, list.arity());
+        assertTrue(list.commandFlags().contains(CommandFlag.READONLY));
+        assertEquals("object", list.replySchema().get("type"));
     }
 }

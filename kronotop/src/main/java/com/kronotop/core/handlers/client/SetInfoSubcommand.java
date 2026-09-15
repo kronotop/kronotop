@@ -30,7 +30,7 @@ public class SetInfoSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        if (request.getParams().size() < 2 || request.getParams().size() > 3) {
+        if (request.getParams().size() != 3) {
             ClientMessage clientMessage = request.attr(MessageTypes.CLIENT).get();
             // ERR wrong number of arguments for 'client|setinfo' command
             throw new WrongNumberOfArgumentsException(
