@@ -18,6 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.client.protocol.InternalCommandBuilder;
+import com.kronotop.cluster.client.protocol.ReplicationCommandType;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -188,5 +190,16 @@ class ChangeLogWatchHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR Volume: 'nonexistent-volume' is not open", errorMessage.content());
+    }
+
+    @Test
+    void shouldRejectExtraArguments() {
+        // Behavior: CHANGELOG.WATCH accepts only the volume name and sequence number;
+        // extra arguments are rejected with the standard wrong number of arguments error.
+        Object response = runRaw(channel, ReplicationCommandType.CHANGELOGWATCH,
+                List.of(volumeConfig.name(), "0", "1"));
+
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals("ERR wrong number of arguments for 'CHANGELOG.WATCH' command", ((ErrorRedisMessage) response).content());
     }
 }
