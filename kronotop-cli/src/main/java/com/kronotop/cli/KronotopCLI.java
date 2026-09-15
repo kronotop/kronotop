@@ -26,6 +26,7 @@ import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.history.DefaultHistory;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
+import org.jline.widget.TailTipWidgets;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -163,6 +164,8 @@ public class KronotopCLI implements Callable<Integer> {
     private boolean useRawOutput;
     private boolean connected;
     private String connectionError;
+    private CommandCompleter completer;
+    private CommandDocsCatalog commandDocs;
 
     public static void main(String[] args) {
         int exitCode = new CommandLine(new KronotopCLI()).execute(args);
@@ -331,6 +334,77 @@ public class KronotopCLI implements Callable<Integer> {
         }
     }
 
+    /**
+     * Fetches COMMAND DOCS and builds the catalog. Returns null when the server does not answer.
+     */
+    private CommandDocsCatalog fetchCommandDocs() throws IOException {
+        respWriter.writeCommand(List.of("COMMAND", "DOCS"));
+        RespValue reply = respReader.read();
+        if (!(reply instanceof RespValue.RespMap) && !(reply instanceof RespValue.Array)) {
+            return null;
+        }
+        return new CommandDocsCatalog(reply);
+    }
+
+    /**
+     * Loads the catalog into the completer. Runs after every successful connection in interactive mode.
+     */
+    private void loadCommandDocs() throws IOException {
+        if (completer == null) {
+            return;
+        }
+        commandDocs = fetchCommandDocs();
+        completer.setCatalog(commandDocs);
+    }
+
+    /**
+     * Prints the help entry of a command. Runs locally, nothing is sent to the server.
+     */
+    private void printHelp(List<String> args) {
+        if (args.size() < 2) {
+            out.println("Usage: help <command> [<subcommand>]");
+            return;
+        }
+        if (commandDocs == null) {
+            out.println("Command docs are not available. Connect to a server first.");
+            return;
+        }
+        List<String> words = args.subList(1, args.size());
+        CommandDocsCatalog.CommandDoc doc = commandDocs.doc(words);
+        if (doc == null) {
+            out.println("Unknown command: " + String.join(" ", words));
+            return;
+        }
+        out.println(HelpFormatter.format(doc, noColor ? null : terminal));
+    }
+
+    /**
+     * Replaces the JLine completion colors with the terminal default.
+     * JLine falls back to its own colors when a style resolves to the empty style,
+     * so "fg:default" and "bg:default" are used instead of an empty value.
+     */
+    private static void disableCompletionColors(LineReaderBuilder builder) {
+        for (String name : List.of(
+                LineReader.COMPLETION_STYLE_STARTING,
+                LineReader.COMPLETION_STYLE_LIST_STARTING,
+                LineReader.COMPLETION_STYLE_DESCRIPTION,
+                LineReader.COMPLETION_STYLE_LIST_DESCRIPTION,
+                LineReader.COMPLETION_STYLE_GROUP,
+                LineReader.COMPLETION_STYLE_LIST_GROUP)) {
+            builder.variable(name, "fg:default");
+        }
+        builder.variable(LineReader.COMPLETION_STYLE_LIST_BACKGROUND, "bg:default");
+    }
+
+    /**
+     * Shows argument hints after the cursor. Hints appear once the catalog is loaded.
+     */
+    private void enableArgumentHints(LineReader reader) {
+        TailTipWidgets widgets = new TailTipWidgets(reader, completer::lookup, 0, TailTipWidgets.TipType.TAIL_TIP);
+        widgets.setDescriptionCache(false);
+        widgets.enable();
+    }
+
     private void disconnect() {
         if (socket != null && !socket.isClosed()) {
             try {
@@ -359,23 +433,32 @@ public class KronotopCLI implements Callable<Integer> {
             }
 
             DefaultHistory history = new DefaultHistory();
+            completer = new CommandCompleter();
 
             LineReaderBuilder readerBuilder = LineReaderBuilder.builder()
                     .terminal(term)
-                    .parser(new MultiLineParser());
+                    .parser(new MultiLineParser())
+                    .completer(completer);
 
-            if (!noColor) {
+            if (noColor) {
+                disableCompletionColors(readerBuilder);
+            } else {
                 readerBuilder.highlighter(new CommandHighlighter());
             }
 
             LineReader reader = readerBuilder
                     .option(LineReader.Option.DISABLE_EVENT_EXPANSION, true)
+                    .option(LineReader.Option.CASE_INSENSITIVE, true)
                     .history(history)
                     .variable(LineReader.HISTORY_FILE, historyFile)
                     .variable(LineReader.SECONDARY_PROMPT_PATTERN, "...> ")
                     .build();
 
             history.attach(reader);
+            enableArgumentHints(reader);
+            if (connected) {
+                loadCommandDocs();
+            }
 
             while (true) {
                 String prompt = connected ? String.format("%s:%d> ", host, port) : "not connected> ";
@@ -399,7 +482,9 @@ public class KronotopCLI implements Callable<Integer> {
 
                 List<String> args = commandLineParser.parse(trimmedLine);
                 if (!args.isEmpty()) {
-                    if (executeDotCommand(args) == null) {
+                    if (args.getFirst().equalsIgnoreCase("help")) {
+                        printHelp(args);
+                    } else if (executeDotCommand(args) == null) {
                         executeCommand(args, true);
                     }
                 }
@@ -528,7 +613,9 @@ public class KronotopCLI implements Callable<Integer> {
                 }
                 setSessionAttributes();
                 initializeFormatter();
+                loadCommandDocs();
             } catch (IOException e) {
+                connected = false;
                 connectionError = String.format("Could not connect to Kronotop at %s:%d: %s", host, port, e.getMessage());
                 System.err.println(connectionError);
                 return null;

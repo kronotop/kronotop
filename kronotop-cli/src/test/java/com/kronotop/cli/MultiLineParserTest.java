@@ -178,4 +178,23 @@ class MultiLineParserTest {
         assertThrows(EOFError.class, () ->
                 parser.parse(input, input.length(), Parser.ParseContext.ACCEPT_LINE));
     }
+    // ==================== getCommand() ====================
+
+    @Test
+    void shouldReturnDottedCommandName() {
+        // Behavior: getCommand keeps the dot in the command name
+        assertEquals("BUCKET.QUERY", parser.getCommand("BUCKET.QUERY users '{}'"));
+    }
+
+    @Test
+    void shouldReturnCommandNameWithLeadingWhitespace() {
+        // Behavior: getCommand ignores leading whitespace
+        assertEquals("CLIENT", parser.getCommand("   CLIENT SETNAME app"));
+    }
+
+    @Test
+    void shouldReturnEmptyCommandForBlankLine() {
+        // Behavior: getCommand returns an empty string for a blank line
+        assertEquals("", parser.getCommand("   "));
+    }
 }

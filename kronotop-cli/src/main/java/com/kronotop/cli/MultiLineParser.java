@@ -55,9 +55,17 @@ public class MultiLineParser implements Parser {
         return defaultParser.validVariableName(name);
     }
 
+    /**
+     * Returns the first word of the line as the command name.
+     * The JLine default rejects names with a dot, such as BUCKET.QUERY.
+     */
     @Override
     public String getCommand(String line) {
-        return defaultParser.getCommand(line);
+        String trimmed = line.trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        return trimmed.split("\\s+")[0];
     }
 
     @Override
