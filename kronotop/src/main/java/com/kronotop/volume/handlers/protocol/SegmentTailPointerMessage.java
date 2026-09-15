@@ -36,11 +36,6 @@ public class SegmentTailPointerMessage extends BaseMessage implements ProtocolMe
 
 
     private void parse() {
-        if (request.getParams().size() % 2 > 0) {
-            throw new WrongNumberOfArgumentsException(
-                    String.format("wrong number of arguments for '%s' command", request.getCommand()));
-        }
-
         // segmenttailpointer <volume-name> <segment-id>
         volume = readString(0);
         segmentId = readLong(1);
