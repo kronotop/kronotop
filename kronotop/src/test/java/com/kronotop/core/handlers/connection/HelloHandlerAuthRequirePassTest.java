@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
-public class HelloHandlerAuthRequirePassTest extends BaseHandlerTest {
+class HelloHandlerAuthRequirePassTest extends BaseHandlerTest {
 
     @Override
     protected String getConfigFileName() {
@@ -36,7 +36,8 @@ public class HelloHandlerAuthRequirePassTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testHELLO_AUTH_success() {
+    void shouldAuthenticateDefaultUserWithCorrectPassword() {
+        // Behavior: with requirepass set, HELLO AUTH default <password> succeeds and returns the server info reply.
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         char[] password = {'d', 'e', 'v', 'p', 'a', 's', 's'};
@@ -47,13 +48,15 @@ public class HelloHandlerAuthRequirePassTest extends BaseHandlerTest {
     }
 
     @Test
-    public void testHELLO_AUTH_failure() {
+    void shouldRejectDefaultUserWithWrongPassword() {
+        // Behavior: with requirepass set, HELLO AUTH default <wrong password> is rejected with the WRONGPASS error.
         RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
         char[] password = {'f'};
         cmd.hello(2, "default", password, null).encode(buf);
 
         Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("WRONGPASS invalid username-password pair or user is disabled.", actualMessage.content());
     }
