@@ -39,10 +39,10 @@ import java.util.List;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
-// The SEGMENT.TAILPOINTER command attempts to determine:
-// * The exact sequence number for the active segment.
-// * The closest (greatest) sequence number for sealed segments.
-// Returns 0 if the segment contains no data.
+// The SEGMENT.TAILPOINTER command returns the next position and the sequence number of the last write:
+// * The next position is 0 if the segment contains no data.
+// * The sequence number is resolved only for the active segment.
+// * The sequence number is -1 for sealed and empty segments, or if the changelog entry was pruned.
 
 @Command(SegmentTailPointerMessage.COMMAND)
 @MaximumParameterCount(SegmentTailPointerMessage.MAXIMUM_PARAMETER_COUNT)
