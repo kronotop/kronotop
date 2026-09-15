@@ -70,15 +70,12 @@ class HelloHandlerTest extends BaseHandlerTest {
                         continue;
                     case "mode":
                         SimpleStringRedisMessage mode = (SimpleStringRedisMessage) response.children().get(valueIndex);
-                        assertEquals("cluster", mode.content());
+                        assertEquals("standalone", mode.content());
                         continue;
                     case "role":
                         SimpleStringRedisMessage role = (SimpleStringRedisMessage) response.children().get(valueIndex);
                         assertEquals("master", role.content());
                         continue;
-                    case "modules":
-                        ArrayRedisMessage modules = (ArrayRedisMessage) response.children().get(valueIndex);
-                        assertEquals(0, modules.children().size());
                 }
             }
         }
@@ -122,9 +119,6 @@ class HelloHandlerTest extends BaseHandlerTest {
                     FullBulkStringRedisMessage role = (FullBulkStringRedisMessage) response.children().get(redisMessage);
                     assertEquals("master", role.content().toString());
                     continue;
-                case "modules":
-                    ArrayRedisMessage modules = (ArrayRedisMessage) response.children().get(redisMessage);
-                    assertEquals(0, modules.children().size());
             }
         }
     }

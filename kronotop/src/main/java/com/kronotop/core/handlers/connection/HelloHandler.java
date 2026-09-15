@@ -135,7 +135,7 @@ public class HelloHandler extends BaseConnectionHandler implements Handler {
 
         Attribute<Long> clientID = response.getCtx().channel().attr(SessionAttributes.CLIENT_ID);
         map.put(makeFullBulkString("id"), new IntegerRedisMessage(clientID.get()));
-        map.put(makeFullBulkString("mode"), makeFullBulkString("cluster"));
+        map.put(makeFullBulkString("mode"), makeFullBulkString("standalone"));
         map.put(makeFullBulkString("role"), makeFullBulkString("master"));
 
         response.writeMap(map);
@@ -156,9 +156,9 @@ public class HelloHandler extends BaseConnectionHandler implements Handler {
         Attribute<Long> clientID = response.getCtx().channel().attr(SessionAttributes.CLIENT_ID);
         result.add(new IntegerRedisMessage(clientID.get()));
 
-        // The cluster mode is the default mode.
+        // From the redis client perspective, every cluster member is in standalone mode.
         result.add(new SimpleStringRedisMessage("mode"));
-        result.add(new SimpleStringRedisMessage("cluster"));
+        result.add(new SimpleStringRedisMessage("standalone"));
 
         // In our design, all members of the cluster is the master of some portion of the data.
         result.add(new SimpleStringRedisMessage("role"));
