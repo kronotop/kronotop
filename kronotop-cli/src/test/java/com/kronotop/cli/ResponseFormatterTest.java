@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -231,6 +232,26 @@ class ResponseFormatterTest {
     void shouldFormatEmptySet() {
         RespValue value = new RespValue.RespSet(Set.of());
         assertEquals("(empty set)", formatter.format(value));
+    }
+
+    @Test
+    void shouldFormatSetWithTildeMarker() {
+        // Behavior: set elements use the "~" marker, not the array ")" marker
+        RespValue value = new RespValue.RespSet(new LinkedHashSet<>(List.of(
+                new RespValue.SimpleString("optional")
+        )));
+        assertEquals("1~ optional", formatter.format(value));
+    }
+
+    @Test
+    void shouldFormatMapWithSetValue() {
+        // Behavior: a single element set inside a map stays inline with the "~" marker
+        Map<RespValue, RespValue> map = new LinkedHashMap<>();
+        map.put(new RespValue.SimpleString("flags"), new RespValue.RespSet(new LinkedHashSet<>(List.of(
+                new RespValue.SimpleString("optional")
+        ))));
+        RespValue value = new RespValue.RespMap(map);
+        assertEquals("1# flags => 1~ optional", formatter.format(value));
     }
 
     @Test

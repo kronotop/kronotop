@@ -222,7 +222,7 @@ public class ResponseFormatter {
             }
 
             RespValue v = values.get(i);
-            String prefix = padding + indexStr + ") ";
+            String prefix = padding + indexStr + "~ ";
 
             if (v instanceof RespValue.Array || v instanceof RespValue.RespMap || v instanceof RespValue.RespSet) {
                 String nestedIndent = indent + " ".repeat(prefix.length());
