@@ -4,10 +4,6 @@
     "complexity": "Depends on the subcommand.",
     "group": "task",
     "since": "2026.06-1",
-    "arity": -2,
-    "acl_categories": [
-      "ADMIN",
-      "TASK"
-    ]
+    "arity": -2
   }
 }

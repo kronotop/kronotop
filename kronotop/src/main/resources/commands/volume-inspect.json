@@ -4,10 +4,6 @@
     "complexity": "Depends on the subcommand.",
     "group": "volume",
     "since": "2026.06-1",
-    "arity": -2,
-    "acl_categories": [
-      "ADMIN",
-      "VOLUME"
-    ]
+    "arity": -2
   }
 }

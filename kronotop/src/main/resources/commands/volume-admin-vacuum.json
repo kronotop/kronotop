@@ -11,7 +11,6 @@
       "WRITE"
     ],
     "acl_categories": [
-      "ADMIN",
       "VOLUME"
     ],
     "key_specs": [],

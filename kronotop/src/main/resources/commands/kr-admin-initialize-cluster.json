@@ -10,9 +10,7 @@
       "ADMIN",
       "WRITE"
     ],
-    "acl_categories": [
-      "ADMIN"
-    ],
+    "acl_categories": [],
     "key_specs": [],
     "reply_schema": {
       "const": "OK"

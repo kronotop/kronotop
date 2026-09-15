@@ -10,9 +10,7 @@
       "ADMIN",
       "READONLY"
     ],
-    "acl_categories": [
-      "ADMIN"
-    ],
+    "acl_categories": [],
     "key_specs": [],
     "reply_schema": {
       "description": "The ids of the silent members. Empty when all known members are alive.",
