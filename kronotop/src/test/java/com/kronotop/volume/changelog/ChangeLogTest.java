@@ -1329,4 +1329,65 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         // Once all in-flight entries are cleaned up, the watermark advances past this point.
         awaitWatermarkGreaterThan(changeLog, watermarkBeforeTimeout, 15);
     }
+
+    @Test
+    void shouldReturnNegativeOne_whenTailAppendPrunedButDeleteRemains() {
+        // Behavior: When the tail entry of a segment is deleted, and prune removes its APPEND record
+        // but keeps the newer DELETE record, resolveTailSequenceNumber returns -1 (retention fallback).
+        //
+        // Bug: prune clears back pointers up to (segmentId, tailPosition, cutoffEnd), and this end key
+        // is exclusive. At the tail position, only back pointers older than cutoffEnd are removed, so the
+        // DELETE back pointer stays. reverseLookup returns the DELETE sequence number. A DELETE entry has
+        // no "after" coordinate, so getAfter().orElseThrow() throws NoSuchElementException instead of
+        // skipping the entry.
+        DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-tail-delete-after-prune");
+        ChangeLog changeLog = new ChangeLog(context, subspace);
+        Prefix prefix = new Prefix("test-prefix");
+
+        long segmentId = 1L;
+        long position = 50L;
+        long length = 50L;
+
+        EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            changeLog.appendOperation(tr, metadata, prefix, 0);
+            tr.commit().join();
+        }
+
+        // Retrieve the versionstamp of the APPEND entry
+        Versionstamp versionstamp;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
+            List<KeyValue> results = tr.getRange(range).asList().join();
+            Tuple keyTuple = subspace.unpack(results.getFirst().getKey());
+            versionstamp = keyTuple.getVersionstamp(4);
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            changeLog.deleteOperation(tr, metadata, prefix, versionstamp);
+            tr.commit().join();
+        }
+
+        long deleteSequenceNumber;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            deleteSequenceNumber = ChangeLog.getLatestSequenceNumber(tr, subspace);
+        }
+
+        // Prune the APPEND record and keep the DELETE record, using the tail position as the upper bound
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            changeLog.prune(tr, 0, deleteSequenceNumber - 1, Map.of(segmentId, position));
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // The DELETE back pointer survives the prune
+            List<Long> sequenceNumbers = ChangeLog.reverseLookup(tr, subspace, segmentId, position);
+            assertTrue(sequenceNumbers.contains(deleteSequenceNumber));
+
+            SegmentTailPointer pointer = new SegmentTailPointer(versionstamp, position, length);
+            long result = ChangeLog.resolveTailSequenceNumber(tr, subspace, segmentId, pointer);
+            assertEquals(-1, result);
+        }
+    }
 }

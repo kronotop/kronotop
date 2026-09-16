@@ -122,6 +122,7 @@ public class ChangeLog {
                     Builder().
                     begin(SequenceNumberSelector.firstGreaterOrEqual(sequenceNumber)).
                     end(SequenceNumberSelector.firstGreaterThan(sequenceNumber)).
+                    parentOperationKind(ParentOperationKind.LIFECYCLE).
                     build();
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace, options);
             for (ChangeLogEntry entry : iterable) {
