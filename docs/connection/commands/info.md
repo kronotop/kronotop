@@ -94,7 +94,7 @@ No command-specific errors.
 127.0.0.1:5484> INFO
 # Server
 server_name:kronotop
-kronotop_version:2026.08-1
+kronotop_version:2026.09-1
 kronotop_git_sha1:dd188c4
 kronotop_build_time:2026-09-11T22:23:20+03:00
 server_mode:standalone

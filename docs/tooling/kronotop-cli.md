@@ -21,7 +21,7 @@ so document replies are human-readable by default.
 Run the jar directly:
 
 ```bash
-java -jar kronotop-cli-2026.08-1.jar -h localhost -p 5484
+java -jar kronotop-cli-2026.09-1.jar -h localhost -p 5484
 ```
 
 Or use the Docker image:
