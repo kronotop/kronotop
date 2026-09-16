@@ -373,7 +373,7 @@ Returns a map. The fields depend on the index type.
 | `id`         | integer | Index identifier.                                                      |
 | `selector`   | string  | The field selector the index is built on.                              |
 | `bson_type`  | string  | The BSON type of indexed values.                                       |
-| `status`     | string  | Current index status. See [Index Lifecycle](#index-lifecycle).         |
+| `status`     | string  | Current index status. See [Index Lifecycle](../index.md#index-lifecycle).         |
 | `unique`     | boolean | Whether the index enforces value uniqueness.                           |
 | `collation`  | map     | Collation configuration (see below). Empty when no collation is set.   |
 | `statistics` | map     | Index statistics including `cardinality`.                              |
@@ -385,7 +385,7 @@ Returns a map. The fields depend on the index type.
 | `index_type` | string  | `compound`.                                                                          |
 | `id`         | integer | Index identifier.                                                                    |
 | `fields`     | array   | The indexed fields in index order. Each entry is a map with `selector` and `bson_type`. |
-| `status`     | string  | Current index status. See [Index Lifecycle](#index-lifecycle).                       |
+| `status`     | string  | Current index status. See [Index Lifecycle](../index.md#index-lifecycle).                       |
 | `unique`     | boolean | Whether the index enforces value uniqueness.                                         |
 | `collation`  | map     | Collation configuration (see below). Empty when no collation is set.                 |
 | `statistics` | map     | Index statistics including `cardinality`.                                            |
@@ -399,7 +399,7 @@ Returns a map. The fields depend on the index type.
 | `selector`   | string  | The field selector the index is built on.                      |
 | `dimensions` | integer | The vector length the index accepts.                           |
 | `distance`   | string  | The distance function of the index.                            |
-| `status`     | string  | Current index status. See [Index Lifecycle](#index-lifecycle). |
+| `status`     | string  | Current index status. See [Index Lifecycle](../index.md#index-lifecycle). |
 | `statistics` | map     | Index statistics including `cardinality`.                      |
 
 #### Collation sub-fields
