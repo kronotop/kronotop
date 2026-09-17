@@ -260,8 +260,7 @@ See the [namespace documentation](https://kronotop.com/docs/namespaces) for the 
 ## Bucket
 
 Bucket is Kronotop's document data model. It stores BSON documents and provides a query language with comparison,
-logical,
-and array operators. Bucket supports single field, compound, and vector indexes as secondary index.
+logical, and array operators. Bucket supports single field, compound, and vector indexes as secondary index.
 
 A bucket's life starts with the `BUCKET.CREATE` command:
 
@@ -396,15 +395,12 @@ created above is picked up by the planner:
 
 ### Vector Search
 
-Bucket supports approximate nearest neighbor (ANN) search on document vector fields, powered
-by [JVector](https://github.com/datastax/jvector). The graph
-index uses HNSW with automatic Product Quantization for memory efficiency and supports three distance functions:
-`cosine`,
-`euclidean`, and `dot_product`.
+Bucket supports approximate nearest neighbor (ANN) search on document vector fields, powered by [JVector](https://github.com/datastax/jvector). The graph 
+index uses HNSW with automatic Product Quantization for memory efficiency and supports three distance functions: `cosine`,`euclidean`, and `dot_product`.
 
 Results are ranked by similarity first, then filtered with BQL predicates (post-filtering). Search behavior is tunable
-via `TOP`, `THRESHOLD`, `OVERQUERY`, and `MAX-SCAN-CANDIDATES`. The graph index is updated asynchronously after commit,
-so vector search does not carry ACID guarantees.
+via `TOP`, `THRESHOLD`, `OVERQUERY`, and `MAX-SCAN-CANDIDATES`. The graph index is not part of the transaction. Kronotop
+updates it after the commit, then sends the reply. For this reason, vector search does not carry ACID guarantees.
 
 Create a bucket with a vector index:
 

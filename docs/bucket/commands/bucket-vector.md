@@ -9,9 +9,10 @@ Performs vector similarity search on a bucket using a vector index backed
 by [JVector](https://github.com/datastax/jvector), with optional post-filtering to combine similarity ranking with
 structured query predicates.
 
-> **Note:** `BUCKET.VECTOR` does not provide ACID transaction guarantees. The search operates on a graph index that is
-> updated asynchronously after a transaction commit, and matching documents are read directly from the storage engine
-> outside of a transaction. Newly inserted or deleted vectors may not immediately appear in search results.
+> **Note:** `BUCKET.VECTOR` does not provide ACID transaction guarantees. The graph index is not part of the
+> transaction. Kronotop updates it after the commit, then sends the reply. Matching documents are read directly from
+> the storage engine outside a transaction. A search from another connection can run between the commit and the
+> graph update. That search can miss new vectors or still return deleted ones.
 
 ## Syntax
 
@@ -181,7 +182,7 @@ BUCKET.INSERT products DOCS '{"label": "alpha", "embedding": [0.1, 0.2, 0.3]}' '
 ```
 
 Each `embedding` value must be an array with the same number of dimensions as the index. Vectors are added to the
-index asynchronously after the insert commits.
+index after the insert commits, before the command returns.
 
 **Basic vector search:**
 

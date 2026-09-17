@@ -56,7 +56,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * <h2>Vector-specific scope</h2>
  * A document write stores its vector index ENTRY synchronously in the same FDB transaction as the
  * document (writes select indexes with {@code WRITABLE}, which includes {@code WAITING}). The on-heap
- * HNSW graph, by contrast, is built asynchronously after commit. This test verifies ONLY the FDB
+ * HNSW graph, by contrast, is updated by post-commit hooks after the transaction commits. This test verifies ONLY the FDB
  * ENTRIES, which are the transactional source of truth: every stored document must have exactly one
  * vector ENTRIES key. Graph integrity is intentionally out of scope here; it is non-ACID by design
  * and is covered by the vector crash-recovery tests.

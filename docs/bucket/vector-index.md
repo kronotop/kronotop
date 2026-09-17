@@ -118,9 +118,10 @@ See [BUCKET.VECTOR](commands/bucket-vector.md) for the full command reference.
 
 ## Constraints
 
-- **No ACID transaction guarantees.** The searchable graph index is updated asynchronously after the transaction commit.
-  Matching documents are read directly from the storage engine outside of a transaction. Newly inserted or deleted
-  vectors may not immediately appear in or disappear from search results.
+- **No ACID transaction guarantees.** The graph index is not part of the transaction. Kronotop updates it after the
+  commit, then sends the reply. Matching documents are read directly from the storage engine outside a transaction.
+  A search from another connection can run between the commit and the graph update. That search can miss new vectors
+  or still return deleted ones.
 - **Single-shard buckets only.** Vector indexes cannot be created on buckets that span multiple shards.
 - **Dimensions must be >= 1.** The `dimensions` parameter must be a positive integer.
 - **Query vector must match index dimensions.** The vector passed to `BUCKET.VECTOR` must have exactly the same number
