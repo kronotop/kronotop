@@ -24,6 +24,8 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.collect.Iterables;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.VectorIndex;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
@@ -41,6 +43,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 
 /**
@@ -64,6 +68,7 @@ public class VectorGraphIndexGroup {
     private final ConcurrentHashMap<ObjectId, RetryEntry> failedAdds = new ConcurrentHashMap<>();
 
     private final Context context;
+    private final BucketService service;
     private final BucketMetadata metadata;
     private final VectorIndex vectorIndex;
     private volatile CompletableFuture<Void> bootstrapFuture;
@@ -73,6 +78,7 @@ public class VectorGraphIndexGroup {
      */
     public VectorGraphIndexGroup(Context context, BucketMetadata metadata, VectorIndex vectorIndex) {
         this.context = context;
+        this.service = context.getService(BucketService.NAME);
         this.metadata = metadata;
         this.vectorIndex = vectorIndex;
     }
@@ -88,9 +94,7 @@ public class VectorGraphIndexGroup {
             VectorIndex vectorIndex,
             CompletableFuture<Void> bootstrapFuture
     ) {
-        this.context = context;
-        this.metadata = metadata;
-        this.vectorIndex = vectorIndex;
+        this(context, metadata, vectorIndex);
         this.bootstrapFuture = bootstrapFuture;
     }
 
@@ -394,9 +398,50 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Tries again to add a failed vector node to the on-heap graph. Skips the entry if the bucket
+     * now has a different UUID. If the add fails again, the entry is recorded for a later retry.
+     */
+    public void retryFailedAdd(ObjectId objectId, RetryEntry retryEntry) {
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, retryEntry.namespace(), retryEntry.bucket());
+            if (!metadata.uuid().equals(retryEntry.bucketUuid())) {
+                return;
+            }
+            VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
+            writer.write(retryEntry.collectedVector(), retryEntry.versionstamp());
+        } catch (Exception e) {
+            recordFailedAdd(objectId, retryEntry);
+            LOGGER.warn("Failed to retry vector node add on on-heap graph, objectId={}, vectorIndexId={}, versionstamp={}, recorded the retry entry again: {}",
+                    objectId, retryEntry.collectedVector().vectorIndexId(), retryEntry.versionstamp(), e.toString());
+            LOGGER.debug("Stack trace for failed vector node add retry, objectId={}", objectId, e);
+        }
+    }
+
+    private void retryFailedAdds() {
+        failedAdds.forEach((objectId, retryEntry) -> {
+            if (failedAdds.remove(objectId, retryEntry)) {
+                retryFailedAdd(objectId, retryEntry);
+            }
+        });
+    }
+
+    /**
      * Flushes all unflushed, non-empty on-heap indexes to disk under the given data directory.
+     * Before the flush, failed vector node adds are retried up to 10 times. Entries that still fail
+     * stay recorded.
+     * <p>
+     * Flush is not a thread-safe method.
      */
     public void flush(Path bucketDataDir) {
+        int maxRetry = 10;
+        for (int retry = 0; retry < maxRetry; retry++){
+            retryFailedAdds();
+            if (failedAdds.isEmpty()) {
+                break;
+            }
+            // Still have some failed vector data, continue retry.
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
+        }
         for (OnHeapVectorGraphIndex index : onHeapIndexes) {
             if (index.isFlushed() || index.size() == 0) continue;
             flushSingle(bucketDataDir, index);
