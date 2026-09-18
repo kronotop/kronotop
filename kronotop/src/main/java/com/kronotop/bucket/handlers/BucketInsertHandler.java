@@ -22,7 +22,7 @@ import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketInsertMessage;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
-import com.kronotop.bucket.pipeline.VectorNodeAddHook;
+import com.kronotop.bucket.vector.VectorNodeAddHook;
 import com.kronotop.bucket.vector.CollectedVector;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;

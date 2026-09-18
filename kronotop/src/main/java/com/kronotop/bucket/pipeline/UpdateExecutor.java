@@ -29,6 +29,7 @@ import com.kronotop.bucket.bql.ast.BqlEq;
 import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.vector.CollectedVector;
+import com.kronotop.bucket.vector.VectorNodeAddHook;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;

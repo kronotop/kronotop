@@ -61,6 +61,7 @@ public class VectorGraphIndexGroup {
     private final List<OnHeapVectorGraphIndex> onHeapIndexes = new CopyOnWriteArrayList<>();
     private final List<OnDiskVectorGraphIndex> onDiskIndexes = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<ObjectId, Versionstamp> deleteTombstones = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<ObjectId, RetryEntry> failedAdds = new ConcurrentHashMap<>();
 
     private final Context context;
     private final BucketMetadata metadata;
@@ -91,6 +92,15 @@ public class VectorGraphIndexGroup {
         this.metadata = metadata;
         this.vectorIndex = vectorIndex;
         this.bootstrapFuture = bootstrapFuture;
+    }
+
+    /**
+     * Records a vector node that could not be added to the on-heap graph, so it can be retried later.
+     * If the object already has an entry, the one with the newer versionstamp is kept.
+     */
+    public void recordFailedAdd(ObjectId objectId, RetryEntry entry) {
+        failedAdds.merge(objectId, entry, (existing, incoming) ->
+                incoming.versionstamp().compareTo(existing.versionstamp()) >= 0 ? incoming : existing);
     }
 
     /**
