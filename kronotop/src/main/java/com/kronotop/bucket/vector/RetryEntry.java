@@ -18,5 +18,11 @@ package com.kronotop.bucket.vector;
 
 import com.apple.foundationdb.tuple.Versionstamp;
 
+/**
+ * A vector node that could not be added to the on-heap graph and is kept for a later retry.
+ *
+ * @param versionstamp    the versionstamp of the add operation
+ * @param collectedVector the vector and document metadata to add again
+ */
 public record RetryEntry(Versionstamp versionstamp, CollectedVector collectedVector) {
 }
