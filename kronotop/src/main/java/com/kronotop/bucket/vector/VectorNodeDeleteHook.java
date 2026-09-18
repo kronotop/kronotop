@@ -30,11 +30,27 @@ import java.util.concurrent.CompletableFuture;
  * hasn't been added to the graph yet, preventing ghost nodes from out-of-order
  * hook execution across concurrent sessions.
  */
-public record VectorNodeDeleteHook(
-        BucketService bucketService, BucketMetadata metadata,
-        long indexId, List<DeletedVector> deletedVectors,
-        CompletableFuture<byte[]> trVersionFuture
-) implements CommitHook {
+public final class VectorNodeDeleteHook implements CommitHook {
+    private final BucketService bucketService;
+    private final BucketMetadata metadata;
+    private final long indexId;
+    private final List<DeletedVector> deletedVectors;
+    private final CompletableFuture<byte[]> trVersionFuture;
+
+    public VectorNodeDeleteHook(
+            BucketService bucketService,
+            BucketMetadata metadata,
+            long indexId,
+            List<DeletedVector> deletedVectors,
+            CompletableFuture<byte[]> trVersionFuture
+    ) {
+        this.bucketService = bucketService;
+        this.metadata = metadata;
+        this.indexId = indexId;
+        this.deletedVectors = deletedVectors;
+        this.trVersionFuture = trVersionFuture;
+    }
+
     @Override
     public void run() {
         VectorGraphIndexGroup group = bucketService.getVectorGraphRegistry()
