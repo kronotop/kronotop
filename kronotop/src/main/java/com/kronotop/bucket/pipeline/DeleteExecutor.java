@@ -22,6 +22,8 @@ import com.kronotop.CommitHook;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketShard;
 import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.vector.DeletedVector;
+import com.kronotop.bucket.vector.VectorNodeDeleteHook;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
