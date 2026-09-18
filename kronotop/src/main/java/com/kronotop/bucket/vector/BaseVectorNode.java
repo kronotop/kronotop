@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.vector;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
@@ -41,11 +40,5 @@ class BaseVectorNode {
 
         group.awaitReady();
         return group;
-    }
-
-    void recordFailedAdd(Versionstamp addVs, CollectedVector cv) {
-        VectorGraphIndexGroup group = awaitReadyGroup(cv.vectorIndexId());
-        RetryEntry retryEntry = new RetryEntry(metadata.namespace(), metadata.name(), metadata.uuid(), addVs, cv);
-        group.recordFailedAdd(cv.objectId(), retryEntry);
     }
 }
