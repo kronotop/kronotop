@@ -417,6 +417,10 @@ public class VectorGraphIndexGroup {
         }
     }
 
+    /**
+     * Retries all recorded failed adds. An entry is retried only if a newer entry has not replaced it.
+     * Entries that fail again are recorded for a later retry.
+     */
     private void retryFailedAdds() {
         failedAdds.forEach((objectId, retryEntry) -> {
             if (failedAdds.remove(objectId, retryEntry)) {

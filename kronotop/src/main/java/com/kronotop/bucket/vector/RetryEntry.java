@@ -23,6 +23,9 @@ import java.util.UUID;
 /**
  * A vector node that could not be added to the on-heap graph and is kept for a later retry.
  *
+ * @param namespace       the namespace of the bucket
+ * @param bucket          the bucket name
+ * @param bucketUuid      the bucket UUID at the time of the add, used to skip the entry if the bucket UUID changes
  * @param versionstamp    the versionstamp of the add operation
  * @param collectedVector the vector and document metadata to add again
  */

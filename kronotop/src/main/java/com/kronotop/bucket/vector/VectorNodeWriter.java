@@ -19,10 +19,11 @@ package com.kronotop.bucket.vector;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.bucket.index.VectorIndex;
 import org.bson.types.ObjectId;
 
+/**
+ * Adds vector nodes to the on-heap vector graph index of a bucket.
+ */
 public final class VectorNodeWriter extends BaseVectorNode {
 
     public VectorNodeWriter(BucketService service, BucketMetadata metadata) {
@@ -34,6 +35,14 @@ public final class VectorNodeWriter extends BaseVectorNode {
         return deleteVs != null && deleteVs.compareTo(addVs) > 0;
     }
 
+    /**
+     * Adds the vector as a node to the active on-heap graph. If the same object has a newer delete,
+     * the node is not added or is marked as deleted. When the graph grows past the flush threshold,
+     * a new on-heap graph replaces it and the old one is flushed to disk in the background.
+     *
+     * @param cv    the vector and document metadata to add
+     * @param addVs the versionstamp of the add operation
+     */
     public void write(CollectedVector cv, Versionstamp addVs) {
         VectorGraphIndexGroup group = awaitReadyGroup(cv.vectorIndexId());
 
