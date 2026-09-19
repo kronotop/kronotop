@@ -44,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 
@@ -400,12 +401,13 @@ public class VectorGraphIndexGroup {
     /**
      * Tries again to add a failed vector node to the on-heap graph. Skips the entry if the bucket
      * now has a different UUID. If the add fails again, the entry is recorded for a later retry.
+     * Returns true only if the node was added.
      */
-    public void retryFailedAdd(ObjectId objectId, RetryEntry retryEntry) {
+    private boolean retryFailedAdd(ObjectId objectId, RetryEntry retryEntry) {
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, retryEntry.namespace(), retryEntry.bucket());
             if (!metadata.uuid().equals(retryEntry.bucketUuid())) {
-                return;
+                return false;
             }
             VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
             writer.write(retryEntry.collectedVector(), retryEntry.versionstamp());
@@ -414,19 +416,25 @@ public class VectorGraphIndexGroup {
             LOGGER.warn("Failed to retry vector node add on on-heap graph, objectId={}, vectorIndexId={}, versionstamp={}, recorded the retry entry again: {}",
                     objectId, retryEntry.collectedVector().vectorIndexId(), retryEntry.versionstamp(), e.toString());
             LOGGER.debug("Stack trace for failed vector node add retry, objectId={}", objectId, e);
+            return false;
         }
+        return true;
     }
 
     /**
      * Retries all recorded failed adds. An entry is retried only if a newer entry has not replaced it.
-     * Entries that fail again are recorded for a later retry.
+     * Entries that fail again are recorded for a later retry. Returns the number of nodes added.
      */
-    private void retryFailedAdds() {
+    public int retryFailedAdds() {
+        AtomicInteger retried = new AtomicInteger();
         failedAdds.forEach((objectId, retryEntry) -> {
             if (failedAdds.remove(objectId, retryEntry)) {
-                retryFailedAdd(objectId, retryEntry);
+                if (retryFailedAdd(objectId, retryEntry)) {
+                    retried.getAndIncrement();
+                }
             }
         });
+        return retried.get();
     }
 
     /**

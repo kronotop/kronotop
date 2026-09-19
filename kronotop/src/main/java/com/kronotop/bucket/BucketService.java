@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.stream.Stream;
@@ -79,6 +80,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final QueryExecutor queryExecutor;
     private final PlanCache planCache = new PlanCache();
     private final Planner planner;
+    private final FailedVectorNodeAddRetrier failedVectorNodeAddRetrier;
     private final long vectorFlushThresholdBytes;
     private final int pqTrainingThreshold;
     private final int pqSubspaceDivisor;
@@ -119,6 +121,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         routing.registerHook(RoutingEventKind.HAND_OVER_SHARD_OWNERSHIP, new HandOverShardOwnershipHook());
         routing.registerHook(RoutingEventKind.INITIALIZE_BUCKET_SHARD, new InitializeBucketShardHook());
 
+        this.failedVectorNodeAddRetrier = new FailedVectorNodeAddRetrier(context, Duration.ofSeconds(5));
         this.bucketEventsWatcher = new BucketEventsWatcher(context, planCache);
         this.planner = new Planner(planCache);
         this.queryExecutor = new QueryExecutor(this);
@@ -342,6 +345,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             initializeBucketShardsIfOwned(shardId);
         }
 
+        failedVectorNodeAddRetrier.start();
         executor.submit(bucketEventsWatcher);
         Runnable evictionWorker = context.getBucketMetadataCache().createEvictionWorker(context::now, 1000 * 5 * 60);
         scheduler.scheduleAtFixedRate(evictionWorker, 1, 1, TimeUnit.MINUTES);
@@ -351,6 +355,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     public void shutdown() {
         shuttingDown = true;
         try {
+            // Stop the retrier before vectorGraphExecutor shuts down. Otherwise, the two can race
+            // while re-adding failed vector nodes.
+            failedVectorNodeAddRetrier.shutdown();
             bucketEventsWatcher.shutdown();
 
             for (BucketShard shard : getServiceContext().shards().values()) {
