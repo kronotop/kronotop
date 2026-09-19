@@ -372,6 +372,20 @@ public class BucketMetadataUtil {
         return metadata;
     }
 
+    /**
+     * Returns the cached bucket metadata and refreshes its index statistics based on TTL.
+     *
+     * @return the cached metadata, or null if the bucket is not in the cache
+     */
+    private static BucketMetadata getCachedAndRefreshStatistics(Context context, String namespace, String bucket) {
+        BucketMetadata metadata = context.getBucketMetadataCache().get(namespace, bucket);
+        if (metadata == null) {
+            return null;
+        }
+        refreshIndexStatistics(context, metadata, INDEX_STATISTICS_TTL);
+        return metadata;
+    }
+
     private static BucketMetadata doOpen(
             Context context,
             ReadTransaction tr,
@@ -481,9 +495,8 @@ public class BucketMetadataUtil {
      * @return the bucket metadata
      */
     public static BucketMetadata open(Context context, ReadTransaction tr, String namespace, String bucket) {
-        BucketMetadata metadata = context.getBucketMetadataCache().get(namespace, bucket);
+        BucketMetadata metadata = getCachedAndRefreshStatistics(context, namespace, bucket);
         if (metadata != null) {
-            refreshIndexStatistics(context, metadata, INDEX_STATISTICS_TTL);
             return metadata;
         }
 
@@ -499,6 +512,25 @@ public class BucketMetadataUtil {
             return doOpen(context, tr, namespace, bucket, false);
         } finally {
             lock.unlock();
+        }
+    }
+
+    /**
+     * Opens bucket metadata without a caller-supplied transaction. Returns the cached metadata
+     * when available, otherwise creates a new transaction, and loads it from the FoundationDB.
+     *
+     * @param context   the context providing environment and services
+     * @param namespace the namespace containing the bucket
+     * @param bucket    the bucket name
+     * @return the bucket metadata
+     */
+    public static BucketMetadata open(Context context, String namespace, String bucket) {
+        BucketMetadata metadata = getCachedAndRefreshStatistics(context, namespace, bucket);
+        if (metadata != null) {
+            return metadata;
+        }
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return open(context , tr, namespace, bucket);
         }
     }
 

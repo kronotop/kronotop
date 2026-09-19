@@ -404,8 +404,8 @@ public class VectorGraphIndexGroup {
      * Returns true only if the node was added.
      */
     private boolean retryFailedAdd(ObjectId objectId, RetryEntry retryEntry) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, retryEntry.namespace(), retryEntry.bucket());
+        BucketMetadata metadata = BucketMetadataUtil.open(context, retryEntry.namespace(), retryEntry.bucket());
+        try {
             if (!metadata.uuid().equals(retryEntry.bucketUuid())) {
                 return false;
             }
@@ -446,7 +446,7 @@ public class VectorGraphIndexGroup {
      */
     public void flush(Path bucketDataDir) {
         int maxRetry = 10;
-        for (int retry = 0; retry < maxRetry; retry++){
+        for (int retry = 0; retry < maxRetry; retry++) {
             retryFailedAdds();
             if (failedAdds.isEmpty()) {
                 break;

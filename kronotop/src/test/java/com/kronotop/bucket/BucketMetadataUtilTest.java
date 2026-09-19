@@ -282,6 +282,32 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldOpenExistingBucketWithoutTransaction() {
+        // Behavior: open without a caller-supplied transaction returns the created bucket after cache eviction.
+        Session session = getSession();
+        String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
+
+        BucketMetadata expected = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
+        // This will flush all cached entries
+        Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context::now, 0);
+        cleanup.run();
+
+        BucketMetadata metadata = assertDoesNotThrow(() -> BucketMetadataUtil.open(context, namespace, TEST_BUCKET));
+        assertEquals(expected.uuid(), metadata.uuid());
+    }
+
+    @Test
+    void shouldNotOpenNotExistingBucketWithoutTransaction() {
+        // Behavior: open without a caller-supplied transaction throws NoSuchBucketException when the bucket does not exist.
+        Session session = getSession();
+        String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
+
+        NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () ->
+                BucketMetadataUtil.open(context, namespace, TEST_BUCKET));
+        assertEquals("No such bucket: 'test-bucket'", exception.getMessage());
+    }
+
+    @Test
     void shouldReadIndexStatisticsForIndexId() {
         // Behavior: readIndexStatistics for a specific index ID returns the cardinality after a mutation.
         Session session = getSession();
