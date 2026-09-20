@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.vector;
 
-import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.CommitHook;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
@@ -25,10 +24,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Post-commit hook that marks deleted nodes on the on-heap vector graph index.
- * Records a delete tombstone with the transaction versionstamp when the node
- * hasn't been added to the graph yet, preventing ghost nodes from out-of-order
- * hook execution across concurrent sessions.
+ * Post-commit hook that removes the deleted vectors of one transaction from the graph
+ * indexes. Waits for the transaction version, then hands the batch to {@link VectorNodeRemover}.
  */
 public final class VectorNodeDeleteHook extends BaseVectorNode implements CommitHook {
     private final long vectorIndexId;
@@ -36,13 +33,13 @@ public final class VectorNodeDeleteHook extends BaseVectorNode implements Commit
     private final CompletableFuture<byte[]> trVersionFuture;
 
     public VectorNodeDeleteHook(
-            BucketService bucketService,
+            BucketService service,
             BucketMetadata metadata,
             long vectorIndexId,
             List<DeletedVector> deletedVectors,
             CompletableFuture<byte[]> trVersionFuture
     ) {
-        super(bucketService, metadata);
+        super(service, metadata);
         this.vectorIndexId = vectorIndexId;
         this.deletedVectors = deletedVectors;
         this.trVersionFuture = trVersionFuture;
@@ -50,46 +47,11 @@ public final class VectorNodeDeleteHook extends BaseVectorNode implements Commit
 
     @Override
     public void run() {
-        VectorGraphIndexGroup group = awaitReadyGroup(vectorIndexId);
-
         byte[] trVersion = trVersionFuture.join();
-        Versionstamp maxVs = null;
-
-        for (DeletedVector dv : deletedVectors) {
-            Versionstamp deleteVs = Versionstamp.complete(trVersion, dv.userVersion());
-            if (maxVs == null || deleteVs.compareTo(maxVs) > 0) {
-                maxVs = deleteVs;
-            }
-
-            boolean found = false;
-            for (OnHeapVectorGraphIndex onHeap : group.getOnHeapIndexes()) {
-                int ordinal = onHeap.getMetadata().findOrdinal(dv.objectId());
-                if (ordinal >= 0) {
-                    onHeap.markNodeDeleted(dv.objectId(), ordinal);
-                    found = true;
-                }
-            }
-            for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-                int ordinal = onDisk.getMetadata().findOrdinal(dv.objectId());
-                if (ordinal >= 0) {
-                    onDisk.markNodeDeleted(ordinal);
-                    found = true;
-                }
-            }
-            if (!found) {
-                group.putDeleteTombstone(dv.objectId(), deleteVs);
-            }
+        VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
+        for (DeletedVector dv: deletedVectors) {
+            remover.remove(dv, trVersion);
         }
-
-        for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-            onDisk.flushMetadata();
-        }
-
-        if (maxVs != null) {
-            List<OnHeapVectorGraphIndex> onHeaps = group.getOnHeapIndexes();
-            if (!onHeaps.isEmpty()) {
-                onHeaps.getLast().advanceVersionstamp(maxVs);
-            }
-        }
+        remover.flush();
     }
 }
