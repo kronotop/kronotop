@@ -87,7 +87,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final int maxScanCandidates;
     private final float defaultOverquery;
     private final Path bucketDataDir;
-    private volatile boolean shuttingDown = false;
 
     public BucketService(Context context) {
         super(context, NAME);
@@ -223,10 +222,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         return bucketDataDir;
     }
 
-    public boolean isShuttingDown() {
-        return shuttingDown;
-    }
-
     /**
      * Retrieves the BucketShard instance associated with the specified shard ID.
      *
@@ -353,7 +348,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
     @Override
     public void shutdown() {
-        shuttingDown = true;
         try {
             // Stop the retrier before vectorGraphExecutor shuts down. Otherwise, the two can race
             // while re-adding failed vector nodes.

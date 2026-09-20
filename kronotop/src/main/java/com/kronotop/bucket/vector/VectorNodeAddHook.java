@@ -52,9 +52,6 @@ public final class VectorNodeAddHook extends BaseVectorNode implements CommitHoo
 
     @Override
     public void run() {
-        if (service.isShuttingDown()) {
-            return;
-        }
         byte[] trVersion = trVersionFuture.join();
         VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
         for (CollectedVector cv : collectedVectors) {
