@@ -356,9 +356,9 @@ public class KronotopTestInstance extends KronotopInstance {
     }
 
     public void shutdownWithoutCleanup() {
-        super.shutdown();
-        executor.shutdown();
         try {
+            super.shutdown();
+            executor.shutdown();
             executor.awaitTermination(15, TimeUnit.SECONDS);
         } catch (InterruptedException exp) {
             Thread.currentThread().interrupt();

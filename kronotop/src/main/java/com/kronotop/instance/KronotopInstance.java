@@ -351,7 +351,7 @@ public class KronotopInstance {
      * Shuts down the running services in reverse registration order and sets the
      * status to STOPPED. A service that fails to stop is logged and skipped.
      */
-    public synchronized void shutdown() {
+    public synchronized void shutdown() throws InterruptedException {
         if (context == null) {
             // Even context has not been set. Quit now. There is nothing to do. Possible error:
             // com.apple.foundationdb.FDBException: No cluster file found in the current directory or default location
@@ -359,6 +359,10 @@ public class KronotopInstance {
         }
 
         LOGGER.info("Shutting down Kronotop");
+
+        LOGGER.info("Waiting for {} in-flight operations to complete", context.getInFlight().count());
+        context.getInFlight().awaitCompletion();
+
         KronotopInstanceStatus status = getStatus();
         if (status.equals(KronotopInstanceStatus.STOPPED)) {
             // Kronotop instance is already stopped

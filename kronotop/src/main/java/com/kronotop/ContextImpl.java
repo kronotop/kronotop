@@ -74,6 +74,7 @@ public class ContextImpl implements Context {
     // Direct field access for minimal overhead on the hot path.
     // Initialized only once to avoid runtime lookup and casting costs.
     private BucketMetadataCache bucketMetadataCache;
+    private InFlight inFlight = new InFlight();
 
     /**
      * Creates a new context for a Kronotop instance.
@@ -251,5 +252,10 @@ public class ContextImpl implements Context {
     @Override
     public ShardRegistry getShardRegistry() {
         return shardRegistry;
+    }
+
+    @Override
+    public InFlight getInFlight() {
+        return inFlight;
     }
 }

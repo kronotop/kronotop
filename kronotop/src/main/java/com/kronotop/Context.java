@@ -235,4 +235,6 @@ public interface Context {
      * @return the {@link ShardRegistry} instance
      */
     ShardRegistry getShardRegistry();
+
+    InFlight getInFlight();
 }
