@@ -17,6 +17,7 @@
 package com.kronotop.bucket.vector;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
@@ -102,6 +103,10 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
     private EntryMetadata newEntryMetadata(long segment) {
         return new EntryMetadata(1L, new byte[8], 0L, segment, 1L);
+    }
+
+    private Versionstamp versionstamp(int userVersion) {
+        return Versionstamp.complete(new byte[10], userVersion);
     }
 
     private OnHeapVectorGraphIndex newIndex() {
@@ -929,5 +934,31 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         assertEquals(2, results.size());
         assertTrue(results.get(0).score() >= results.get(1).score());
         loaded.closeAll();
+    }
+
+    @Test
+    void shouldKeepNewerDeleteTombstoneWhenOlderIsPut() {
+        // Behavior: A delete tombstone with an older versionstamp does not overwrite a newer one.
+        ObjectId objectId = new ObjectId();
+        Versionstamp newer = versionstamp(2);
+        Versionstamp older = versionstamp(1);
+
+        group.putDeleteTombstone(objectId, newer);
+        group.putDeleteTombstone(objectId, older);
+
+        assertEquals(newer, group.removeDeleteTombstone(objectId));
+    }
+
+    @Test
+    void shouldReplaceDeleteTombstoneWhenNewerIsPut() {
+        // Behavior: A delete tombstone with a newer versionstamp replaces the older one.
+        ObjectId objectId = new ObjectId();
+        Versionstamp older = versionstamp(1);
+        Versionstamp newer = versionstamp(2);
+
+        group.putDeleteTombstone(objectId, older);
+        group.putDeleteTombstone(objectId, newer);
+
+        assertEquals(newer, group.removeDeleteTombstone(objectId));
     }
 }

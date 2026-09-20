@@ -483,9 +483,11 @@ public class VectorGraphIndexGroup {
 
     /**
      * Records a delete tombstone for an ObjectId whose graph node hasn't been added yet.
+     * An older versionstamp does not overwrite an existing newer tombstone.
      */
     public void putDeleteTombstone(ObjectId objectId, Versionstamp versionstamp) {
-        deleteTombstones.put(objectId, versionstamp);
+        deleteTombstones.merge(objectId, versionstamp, (existing, incoming) ->
+                incoming.compareTo(existing) >= 0 ? incoming : existing);
     }
 
     /**
