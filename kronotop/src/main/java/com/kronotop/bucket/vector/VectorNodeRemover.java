@@ -87,6 +87,11 @@ public class VectorNodeRemover extends BaseVectorNode {
                     found = true;
                 }
             }
+            // On-heap markNodeDeleted removes the ObjectId mapping. A retry of a delete operation that already
+            // marked the node then finds nothing and stores a tombstone for a node that is already gone.
+            // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,
+            // node is added) or older (skipping it is correct). If no add comes, the tombstone stays in
+            // the map. This is accepted.
             if (!found) {
                 group.putDeleteTombstone(objectId, deleteVs);
             }
