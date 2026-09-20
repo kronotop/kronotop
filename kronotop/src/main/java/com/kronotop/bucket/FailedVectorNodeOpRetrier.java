@@ -27,11 +27,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Retries the failed vector node adds on a fixed period. A single virtual thread walks all
- * vector graph index groups and re-adds the recorded failed nodes to the on-heap graph.
+ * Retries the failed vector node adds and deletes on a fixed period. A single virtual thread walks all
+ * vector graph index groups and applies the recorded failed operations to the graph indexes again.
  */
-public class FailedVectorNodeAddRetrier {
-    private static final Logger LOGGER = LoggerFactory.getLogger(FailedVectorNodeAddRetrier.class);
+public class FailedVectorNodeOpRetrier {
+    private static final Logger LOGGER = LoggerFactory.getLogger(FailedVectorNodeOpRetrier.class);
     private final Context context;
     private final ReentrantLock lock = new ReentrantLock();
     private final Duration period;
@@ -39,17 +39,17 @@ public class FailedVectorNodeAddRetrier {
     private volatile Thread worker;
     private volatile  boolean shutdown;
 
-    private void retryVectorNodeAdd() {
+    private void retryVectorNodeOps() {
         BucketService service = context.getService(BucketService.NAME);
         service.getVectorGraphRegistry().forEachGroup((group) -> {
-            int number = group.retryFailedAdds();
+            int number = group.retryFailedOps();
             if (number > 0) {
-                LOGGER.debug("Retried {} failed vector node adds, bucketId={}", number, group.getBucketId());
+                LOGGER.debug("Retried {} failed vector node ops, bucketId={}", number, group.getBucketId());
             }
         });
     }
 
-    public FailedVectorNodeAddRetrier(Context context, Duration period) {
+    public FailedVectorNodeOpRetrier(Context context, Duration period) {
         this.context = context;
         this.period = period;
     }
@@ -61,9 +61,9 @@ public class FailedVectorNodeAddRetrier {
      */
     public void start() {
         if (!started.compareAndSet(false, true)) {
-            throw new IllegalStateException("FailedVectorNodeAddRetrier is already started");
+            throw new IllegalStateException("FailedVectorNodeOpRetrier is already started");
         }
-        this.worker = Thread.ofVirtual().name("failed-vector-node-add-retrier").start(() -> periodicRetrier(period));
+        this.worker = Thread.ofVirtual().name("failed-vector-node-op-retrier").start(() -> periodicRetrier(period));
     }
 
     private void periodicRetrier(Duration period) {
@@ -82,7 +82,7 @@ public class FailedVectorNodeAddRetrier {
                 // exit while waiting for the lock on shutdown
                 lock.lockInterruptibly();
                 try {
-                    retryVectorNodeAdd();
+                    retryVectorNodeOps();
                 } finally {
                     lock.unlock();
                 }

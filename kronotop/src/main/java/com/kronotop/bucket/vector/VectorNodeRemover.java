@@ -19,6 +19,7 @@ package com.kronotop.bucket.vector;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
+import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,28 +56,45 @@ public class VectorNodeRemover extends BaseVectorNode {
      * @param trVersion the committed transaction version of the delete
      */
     public void remove(DeletedVector dv, byte[] trVersion) {
-        Versionstamp deleteVs = Versionstamp.complete(trVersion, dv.userVersion());
+        remove(dv.objectId(), Versionstamp.complete(trVersion, dv.userVersion()));
+    }
+
+    /**
+     * Marks the node of the given object as deleted in every on-heap and on-disk graph that holds it. If no graph
+     * holds the node yet, a delete tombstone is stored. If the delete fails, a retry entry is recorded.
+     *
+     * @param objectId the object id of the deleted vector
+     * @param deleteVs the versionstamp of the delete operation
+     */
+    public void remove(ObjectId objectId, Versionstamp deleteVs) {
         if (maxVs == null || deleteVs.compareTo(maxVs) > 0) {
             maxVs = deleteVs;
         }
 
-        boolean found = false;
-        for (OnHeapVectorGraphIndex onHeap : group.getOnHeapIndexes()) {
-            int ordinal = onHeap.getMetadata().findOrdinal(dv.objectId());
-            if (ordinal >= 0) {
-                onHeap.markNodeDeleted(dv.objectId(), ordinal);
-                found = true;
+        try {
+            boolean found = false;
+            for (OnHeapVectorGraphIndex onHeap : group.getOnHeapIndexes()) {
+                int ordinal = onHeap.getMetadata().findOrdinal(objectId);
+                if (ordinal >= 0) {
+                    onHeap.markNodeDeleted(objectId, ordinal);
+                    found = true;
+                }
             }
-        }
-        for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-            int ordinal = onDisk.getMetadata().findOrdinal(dv.objectId());
-            if (ordinal >= 0) {
-                onDisk.markNodeDeleted(ordinal);
-                found = true;
+            for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
+                int ordinal = onDisk.getMetadata().findOrdinal(objectId);
+                if (ordinal >= 0) {
+                    onDisk.markNodeDeleted(ordinal);
+                    found = true;
+                }
             }
-        }
-        if (!found) {
-            group.putDeleteTombstone(dv.objectId(), deleteVs);
+            if (!found) {
+                group.putDeleteTombstone(objectId, deleteVs);
+            }
+        } catch (Exception e) {
+            group.recordFailedOp(objectId, RetryEntry.delete(metadata, deleteVs, vectorIndexId, objectId));
+            LOGGER.warn("Failed to delete vector node from graph indexes, objectId={}, vectorIndexId={}, versionstamp={}, recorded a retry entry: {}",
+                    objectId, vectorIndexId, deleteVs, e.toString());
+            LOGGER.debug("Stack trace for failed vector node delete, objectId={}", objectId, e);
         }
     }
 
