@@ -292,4 +292,25 @@ class OnDiskVectorGraphIndexMetadataTest {
         }
     }
 
+    @Test
+    void shouldNotIncrementDeletedCountWhenMarkDeletedCalledTwice() throws IOException {
+        // Behavior: markDeleted on an already deleted ordinal does not change deletedCount, so a retried delete counts once.
+        OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
+        for (int i = 0; i < 3; i++) {
+            heapMeta.put(new ObjectId(), i, 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
+        }
+
+        Path path = writeAndOpen(heapMeta);
+        try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
+            diskMeta.markDeleted(0);
+            diskMeta.markDeleted(0);
+            assertEquals(1, diskMeta.getDeletedCount());
+            diskMeta.flush();
+        }
+
+        try (OnDiskVectorGraphIndexMetadata reopened = new OnDiskVectorGraphIndexMetadata(path)) {
+            assertEquals(1, reopened.getDeletedCount());
+        }
+    }
+
 }

@@ -190,9 +190,13 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
 
     /**
      * Marks the node at the given ordinal as deleted by setting its ALIVE byte to 0.
+     * A second call for the same ordinal has no effect, so a retried delete counts once.
      */
     public void markDeleted(int ordinal) {
         int offset = HEADER_SIZE + ordinal * ORDINAL_SLOT_SIZE;
+        if (mappedMemory.get(ValueLayout.JAVA_BYTE, offset + 44) == 0) {
+            return;
+        }
         mappedMemory.set(ValueLayout.JAVA_BYTE, offset + 44, (byte) 0);
         deletedCount.incrementAndGet();
         flushCounter.incrementAndGet();
