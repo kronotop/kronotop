@@ -65,6 +65,7 @@ import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /*
 It can scarcely be denied that the supreme goal of all theory is to make the irreducible basic elements as simple and as
@@ -82,6 +83,7 @@ Often quoted as ‘Everything should be made as simple as possible, but not simp
 public class KronotopInstance {
     public static final String PRODUCT_NAME = "Kronotop";
     private static final Logger LOGGER = LoggerFactory.getLogger(KronotopInstance.class);
+    private static final long IN_FLIGHT_SHUTDOWN_TIMEOUT_SECONDS = 60;
     protected final Config config;
     private final Database database;
     protected Context context;
@@ -360,15 +362,20 @@ public class KronotopInstance {
 
         LOGGER.info("Shutting down Kronotop");
 
-        LOGGER.info("Waiting for {} in-flight operations to complete", context.getInFlight().count());
-        context.getInFlight().awaitCompletion();
-
         KronotopInstanceStatus status = getStatus();
         if (status.equals(KronotopInstanceStatus.STOPPED)) {
             // Kronotop instance is already stopped
             return;
         }
         setStatus(KronotopInstanceStatus.STOPPED);
+
+        LOGGER.info("Waiting for {} in-flight operations to complete", context.getInFlight().count());
+        try {
+            context.getInFlight().awaitCompletion(IN_FLIGHT_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            LOGGER.warn("{} in-flight operations did not complete in {} seconds, continuing shutdown",
+                    context.getInFlight().count(), IN_FLIGHT_SHUTDOWN_TIMEOUT_SECONDS);
+        }
 
         // Previously submitted tasks are executed, but no new tasks will be accepted.
         context.getVirtualThreadPerTaskExecutor().shutdown();

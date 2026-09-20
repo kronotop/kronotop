@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -53,7 +54,7 @@ class InFlightTest {
     void shouldReturnImmediatelyWhenNoOperationInFlight() {
         // Behavior: awaitCompletion() returns without blocking when nothing is in flight.
         InFlight inFlight = new InFlight();
-        assertTimeoutPreemptively(Duration.ofSeconds(5), inFlight::awaitCompletion);
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> inFlight.awaitCompletion(10, TimeUnit.SECONDS));
     }
 
     @Test
@@ -77,10 +78,12 @@ class InFlightTest {
 
         Thread waiter = new Thread(() -> {
             try {
-                inFlight.awaitCompletion();
+                inFlight.awaitCompletion(10, TimeUnit.SECONDS);
                 completed.set(true);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+            } catch (TimeoutException e) {
+                throw new RuntimeException(e);
             }
         });
         waiter.start();
@@ -95,11 +98,20 @@ class InFlightTest {
     }
 
     @Test
-    void shouldRejectEnterAfterCompletion() throws InterruptedException {
+    void shouldRejectEnterAfterCompletion() throws InterruptedException, TimeoutException {
         // Behavior: enter() throws IllegalStateException once awaitCompletion() has finished.
         InFlight inFlight = new InFlight();
-        inFlight.awaitCompletion();
+        inFlight.awaitCompletion(10, TimeUnit.SECONDS);
         assertThrows(IllegalStateException.class, inFlight::enter);
+    }
+
+    @Test
+    void shouldThrowTimeoutWhenOperationsStayInFlight() {
+        // Behavior: awaitCompletion() throws TimeoutException when an operation is still in flight after the timeout.
+        InFlight inFlight = new InFlight();
+        inFlight.enter();
+        assertThrows(TimeoutException.class, () -> inFlight.awaitCompletion(100, TimeUnit.MILLISECONDS));
+        assertEquals(1, inFlight.count());
     }
 
     @Test
@@ -111,13 +123,13 @@ class InFlightTest {
 
         Thread waiter = new Thread(() -> {
             try {
-                inFlight.awaitCompletion();
-            } catch (InterruptedException e) {
+                inFlight.awaitCompletion(10, TimeUnit.SECONDS);
+            } catch (InterruptedException | TimeoutException e) {
                 thrown.set(e);
             }
         });
         waiter.start();
-        await().atMost(5, TimeUnit.SECONDS).until(() -> waiter.getState() == Thread.State.WAITING);
+        await().atMost(5, TimeUnit.SECONDS).until(() -> waiter.getState() == Thread.State.TIMED_WAITING);
 
         waiter.interrupt();
         waiter.join(TimeUnit.SECONDS.toMillis(5));

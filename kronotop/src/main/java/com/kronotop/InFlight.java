@@ -17,14 +17,18 @@
 package com.kronotop;
 
 import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Tracks operations that shutdown must wait for. An operation calls {@link #enter()} before it starts and
- * {@link #exit()} in a finally block when it ends. Shutdown calls {@link #awaitCompletion()} once and blocks
- * until every entered operation has exited. Operations are never interrupted or cancelled.
+ * {@link #exit()} in a finally block when it ends. Shutdown calls {@link #awaitCompletion(long, TimeUnit)} once
+ * and blocks until every entered operation has exited or the timeout passes. Operations are never interrupted
+ * or cancelled.
  */
 public class InFlight {
     private final Phaser phaser = new Phaser(1);
+    private volatile boolean awaiting;
 
     /**
      * Marks the start of an operation.
@@ -48,17 +52,22 @@ public class InFlight {
      * Returns the number of operations that entered and have not exited yet.
      */
     public int count() {
-        return phaser.getRegisteredParties() - 1;
+        int parties = phaser.getRegisteredParties();
+        return awaiting ? parties : parties - 1;
     }
 
     /**
-     * Blocks until every entered operation has exited. Returns at once when nothing is in flight.
-     * After it returns, {@link #enter()} is rejected.
+     * Blocks until every entered operation has exited or the timeout passes. Returns at once when nothing
+     * is in flight. After it returns normally, {@link #enter()} is rejected.
      *
+     * @param timeout the maximum time to wait
+     * @param unit    the time unit of the timeout argument
      * @throws InterruptedException if the calling thread is interrupted while waiting
+     * @throws TimeoutException     if operations are still in flight when the timeout passes
      */
-    public void awaitCompletion() throws InterruptedException {
+    public void awaitCompletion(long timeout, TimeUnit unit) throws InterruptedException, TimeoutException {
+        awaiting = true;
         int phase = phaser.arriveAndDeregister();
-        phaser.awaitAdvanceInterruptibly(phase);
+        phaser.awaitAdvanceInterruptibly(phase, timeout, unit);
     }
 }

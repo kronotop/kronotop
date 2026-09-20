@@ -451,6 +451,9 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         }
 
         try {
+            if (serverKind == ServerKind.EXTERNAL) {
+                context.getInFlight().enter();
+            }
             HandlerEntry entry = commands.get(request.getCommand());
             if (entry.handler().isRedisCompatible()) {
                 executeRedisCompatibleCommand(request, response, entry);
@@ -459,6 +462,10 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
             }
         } catch (Exception e) {
             exceptionToRespError(request, response, e);
+        } finally {
+            if (serverKind == ServerKind.EXTERNAL) {
+                context.getInFlight().exit();
+            }
         }
     }
 
