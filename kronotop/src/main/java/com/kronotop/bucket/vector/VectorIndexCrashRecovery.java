@@ -28,9 +28,11 @@ import com.kronotop.bucket.index.IndexEntry;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.MutationLogValue;
 import com.kronotop.bucket.index.VectorIndexValue;
+import com.kronotop.volume.EntryMetadata;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -49,7 +51,7 @@ public final class VectorIndexCrashRecovery {
      *
      * @return a recovered on-heap index, or null if the mutation log has no applicable entries
      */
-    public static OnHeapVectorGraphIndex recover(
+    public static RecoveredState recover(
             Database db,
             DirectorySubspace indexSubspace,
             VectorGraphIndexGroup group,
@@ -93,6 +95,8 @@ public final class VectorIndexCrashRecovery {
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
                 pqTrainingThreshold, pqSubspaceDivisor);
 
+        List<RecoveredState.FailedAdd> failedAdds = new ArrayList<>();
+        List<RecoveredState.FailedDelete> failedDeletes = new ArrayList<>();
         for (KeyValue kv : entries) {
             MutationLogValue logValue = MutationLogValue.decode(kv.getValue());
             ObjectId objectId = new ObjectId(logValue.objectIdBytes());
@@ -102,24 +106,44 @@ public final class VectorIndexCrashRecovery {
                 case INSERT, UPDATE -> {
                     VectorIndexValue payload = logValue.vectorPayload();
                     IndexEntry indexEntry = payload.indexEntry();
-                    onHeap.addGraphNode(
-                            objectId,
-                            indexEntry.shardId(),
-                            com.kronotop.volume.EntryMetadata.decode(indexEntry.entryMetadata()),
-                            payload.vector(),
-                            executor
-                    ).join();
+                    EntryMetadata metadata = EntryMetadata.decode(indexEntry.entryMetadata());
+                    try {
+                        onHeap.addGraphNode(
+                                objectId,
+                                indexEntry.shardId(),
+                                metadata,
+                                payload.vector(),
+                                executor
+                        ).join();
+                    } catch (Exception exp) {
+                        RecoveredState.FailedAdd failedAdd = new RecoveredState.FailedAdd(
+                                versionstamp,
+                                objectId,
+                                indexEntry.shardId(),
+                                metadata,
+                                payload.vector()
+                        );
+                        failedAdds.add(failedAdd);
+                    }
                 }
                 case DELETE -> {
-                    int ordinal = onHeap.getMetadata().findOrdinal(objectId);
-                    if (ordinal >= 0) {
-                        onHeap.markNodeDeleted(objectId, ordinal);
-                    }
-                    for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-                        int diskOrdinal = onDisk.getMetadata().findOrdinal(objectId);
-                        if (diskOrdinal >= 0) {
-                            onDisk.markNodeDeleted(diskOrdinal);
+                    try {
+                        int ordinal = onHeap.getMetadata().findOrdinal(objectId);
+                        if (ordinal >= 0) {
+                            onHeap.markNodeDeleted(objectId, ordinal);
                         }
+                        for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
+                            int diskOrdinal = onDisk.getMetadata().findOrdinal(objectId);
+                            if (diskOrdinal >= 0) {
+                                onDisk.markNodeDeleted(diskOrdinal);
+                            }
+                        }
+                    } catch (Exception exp) {
+                        RecoveredState.FailedDelete failedDelete = new RecoveredState.FailedDelete(
+                                objectId,
+                                versionstamp
+                        );
+                        failedDeletes.add(failedDelete);
                     }
                 }
             }
@@ -132,6 +156,6 @@ public final class VectorIndexCrashRecovery {
             onDisk.flushMetadata();
         }
 
-        return onHeap;
+        return new RecoveredState(onHeap, failedAdds, failedDeletes);
     }
 }

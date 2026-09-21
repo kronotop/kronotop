@@ -29,6 +29,7 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.*;
 import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.VolumeTestUtil;
+import io.github.jbellis.jvector.graph.OnHeapGraphIndex;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.AfterEach;
@@ -118,12 +119,13 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+        RecoveredState state = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(recovered);
+        assertNotNull(state);
+        OnHeapVectorGraphIndex recovered = state.recovered();
         assertEquals(2, recovered.size());
         assertTrue(recovered.getMetadata().findOrdinal(oid1) >= 0);
         assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
@@ -203,12 +205,13 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         // Recover — should only get oid2
-        OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+        RecoveredState state = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(recovered);
+        assertNotNull(state);
+        OnHeapVectorGraphIndex recovered = state.recovered();
         assertEquals(1, recovered.size());
         assertEquals(-1, recovered.getMetadata().findOrdinal(oid1));
         assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
@@ -245,12 +248,13 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+        RecoveredState state = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(recovered);
+        assertNotNull(state);
+        OnHeapVectorGraphIndex recovered = state.recovered();
         // The node was inserted then deleted — its mapping should be removed from metadata
         int ordinal = recovered.getMetadata().findOrdinal(oid);
         assertEquals(-1, ordinal);
@@ -267,12 +271,12 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+        RecoveredState state = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNull(recovered);
+        assertNull(state);
     }
 
     @Test
@@ -319,12 +323,13 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+        RecoveredState state = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(recovered);
+        assertNotNull(state);
+        OnHeapVectorGraphIndex recovered = state.recovered();
         // INSERT adds ordinal 0, DELETE marks it deleted; UPDATE adds ordinal 1
         assertEquals(2, recovered.size());
         // Only the updated node is active in metadata
@@ -377,12 +382,13 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Empty group — no on-disk files
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+        RecoveredState state = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(recovered);
+        assertNotNull(state);
+        OnHeapVectorGraphIndex recovered = state.recovered();
         assertEquals(3, recovered.size());
         assertTrue(recovered.getMetadata().findOrdinal(oid1) >= 0);
         assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
@@ -407,12 +413,13 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+        RecoveredState state = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 5, 1
         );
 
-        assertNotNull(recovered);
+        assertNotNull(state);
+        OnHeapVectorGraphIndex recovered = state.recovered();
         assertEquals(5, recovered.size());
         assertTrue(recovered.isPqTrained());
 
@@ -440,12 +447,13 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+        RecoveredState state = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 5, 1
         );
 
-        assertNotNull(recovered);
+        assertNotNull(state);
+        OnHeapVectorGraphIndex recovered = state.recovered();
         assertEquals(2, recovered.size());
         assertFalse(recovered.isPqTrained());
         recovered.close();
@@ -538,13 +546,14 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         // Run crash recovery
-        OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+        RecoveredState state = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
         // The recovered on-heap index should have the DELETE replayed
-        assertNotNull(recovered);
+        assertNotNull(state);
+        OnHeapVectorGraphIndex recovered = state.recovered();
 
         // On-disk metadata should now return null for the deleted ObjectId
         OnDiskVectorGraphIndex onDisk = group.getOnDiskIndexes().getFirst();

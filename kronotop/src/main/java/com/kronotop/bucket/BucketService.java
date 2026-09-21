@@ -253,6 +253,42 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         }
     }
 
+    private void recordFailedAdds(
+            RecoveredState state,
+            VectorGraphIndexGroup group,
+            BucketMetadata metadata,
+            VectorIndex vectorIndex
+    ) {
+        for (RecoveredState.FailedAdd failedAdd : state.failedAdds()) {
+            CollectedVector cv = new CollectedVector(
+                    failedAdd.objectId(),
+                    failedAdd.shardId(),
+                    failedAdd.metadata(),
+                    failedAdd.vector(),
+                    vectorIndex.definition().id(),
+                    vectorIndex.definition(),
+                    failedAdd.versionstamp().getUserVersion());
+            RetryEntry entry = RetryEntry.add(metadata, failedAdd.versionstamp(), cv);
+            group.recordFailedOp(failedAdd.objectId(), entry);
+        }
+    }
+
+    private void recordFailedDeletes(
+            RecoveredState state,
+            VectorGraphIndexGroup group,
+            BucketMetadata metadata,
+            VectorIndex vectorIndex) {
+        for (RecoveredState.FailedDelete failedDelete : state.failedDeletes()) {
+            RetryEntry entry = RetryEntry.delete(
+                    metadata,
+                    failedDelete.versionstamp(),
+                    vectorIndex.definition().id(),
+                    failedDelete.objectId()
+            );
+            group.recordFailedOp(failedDelete.objectId(), entry);
+        }
+    }
+
     /**
      * Loads a vector graph index group from the disk and replays mutation log entries for crash recovery.
      * If no disk data and no mutation log entries exist, returns an immediately ready group (fast-path).
@@ -281,7 +317,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                     group.addOnDisk(onDisk);
                 }
 
-                OnHeapVectorGraphIndex recovered = VectorIndexCrashRecovery.recover(
+                RecoveredState state = VectorIndexCrashRecovery.recover(
                         context.getFoundationDB(),
                         vectorIndex.subspace(),
                         group,
@@ -291,8 +327,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                         pqTrainingThreshold,
                         pqSubspaceDivisor
                 );
-                if (recovered != null) {
-                    group.addOnHeap(recovered);
+                if (state != null) {
+                    group.addOnHeap(state.recovered());
+                    recordFailedAdds(state, group, metadata, vectorIndex);
+                    recordFailedDeletes(state, group, metadata, vectorIndex);
                 }
 
                 group.markReady();
