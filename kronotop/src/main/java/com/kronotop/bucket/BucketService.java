@@ -254,12 +254,12 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     private void recordFailedAdds(
-            RecoveredState state,
+            List<RecoveredState.FailedAdd> failedAdds,
             VectorGraphIndexGroup group,
             BucketMetadata metadata,
             VectorIndex vectorIndex
     ) {
-        for (RecoveredState.FailedAdd failedAdd : state.failedAdds()) {
+        for (RecoveredState.FailedAdd failedAdd : failedAdds) {
             CollectedVector cv = new CollectedVector(
                     failedAdd.objectId(),
                     failedAdd.shardId(),
@@ -274,11 +274,11 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     private void recordFailedDeletes(
-            RecoveredState state,
+            List<RecoveredState.FailedDelete> failedDeletes,
             VectorGraphIndexGroup group,
             BucketMetadata metadata,
             VectorIndex vectorIndex) {
-        for (RecoveredState.FailedDelete failedDelete : state.failedDeletes()) {
+        for (RecoveredState.FailedDelete failedDelete : failedDeletes) {
             RetryEntry entry = RetryEntry.delete(
                     metadata,
                     failedDelete.versionstamp(),
@@ -329,8 +329,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 );
                 if (state != null) {
                     group.addOnHeap(state.recovered());
-                    recordFailedAdds(state, group, metadata, vectorIndex);
-                    recordFailedDeletes(state, group, metadata, vectorIndex);
+                    recordFailedAdds(state.failedAdds(), group, metadata, vectorIndex);
+                    recordFailedDeletes(state.failedDeletes(), group, metadata, vectorIndex);
                 }
 
                 group.markReady();
