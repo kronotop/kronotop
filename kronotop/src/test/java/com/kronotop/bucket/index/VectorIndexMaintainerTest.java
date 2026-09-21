@@ -22,7 +22,9 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
+import com.kronotop.TestUtil;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
@@ -433,6 +435,163 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(MutationLogMarker.DELETE, decoded.marker());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNull(decoded.vectorPayload());
+    }
+
+    private List<KeyValue> getFailedOpLogEntries(DirectorySubspace indexSubspace) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FAILED_OP_LOG.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return tr.getRange(begin, end).asList().join();
+        }
+    }
+
+    @Test
+    void shouldSetFailedOpLog() {
+        // Behavior: setFailedOpLog records an INSERT failed op log entry under the given versionstamp
+        // with the correct marker, objectIdBytes, and vector payload.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        AppendedEntry entry = entries[0];
+        ObjectId objectId = new ObjectId();
+        byte[] objectIdBytes = objectId.toByteArray();
+        byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
+            tr.commit().join();
+        }
+
+        List<KeyValue> logEntries = getFailedOpLogEntries(vectorIndex.subspace());
+        assertEquals(1, logEntries.size());
+        assertEquals(versionstamp, vectorIndex.subspace().unpack(logEntries.get(0).getKey()).getVersionstamp(1));
+
+        MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
+        assertEquals(MutationLogMarker.INSERT, decoded.marker());
+        assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
+        assertNotNull(decoded.vectorPayload());
+        assertArrayEquals(TEST_VECTOR, decoded.vectorPayload().vector());
+        assertEquals(SHARD_ID, decoded.vectorPayload().indexEntry().shardId());
+        assertArrayEquals(entry.metadataBytes(), decoded.vectorPayload().indexEntry().entryMetadata());
+    }
+
+    @Test
+    void shouldSetFailedOpLogWithUpdateMarker() {
+        // Behavior: setFailedOpLog records an UPDATE failed op log entry under the given versionstamp
+        // with the correct marker, objectIdBytes, and vector payload.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        AppendedEntry entry = entries[0];
+        ObjectId objectId = new ObjectId();
+        byte[] objectIdBytes = objectId.toByteArray();
+        byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.UPDATE, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
+            tr.commit().join();
+        }
+
+        List<KeyValue> logEntries = getFailedOpLogEntries(vectorIndex.subspace());
+        assertEquals(1, logEntries.size());
+        assertEquals(versionstamp, vectorIndex.subspace().unpack(logEntries.get(0).getKey()).getVersionstamp(1));
+
+        MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
+        assertEquals(MutationLogMarker.UPDATE, decoded.marker());
+        assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
+        assertNotNull(decoded.vectorPayload());
+        assertArrayEquals(TEST_VECTOR, decoded.vectorPayload().vector());
+        assertEquals(SHARD_ID, decoded.vectorPayload().indexEntry().shardId());
+        assertArrayEquals(entry.metadataBytes(), decoded.vectorPayload().indexEntry().entryMetadata());
+    }
+
+    @Test
+    void shouldDeleteFailedOpLog() {
+        // Behavior: deleteFailedOpLog records a DELETE failed op log entry under the given versionstamp
+        // with the correct marker, objectIdBytes, and no vector payload.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        AppendedEntry entry = entries[0];
+        ObjectId objectId = new ObjectId();
+        byte[] objectIdBytes = objectId.toByteArray();
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), versionstamp, objectIdBytes);
+            tr.commit().join();
+        }
+
+        List<KeyValue> logEntries = getFailedOpLogEntries(vectorIndex.subspace());
+        assertEquals(1, logEntries.size());
+        assertEquals(versionstamp, vectorIndex.subspace().unpack(logEntries.get(0).getKey()).getVersionstamp(1));
+
+        MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
+        assertEquals(MutationLogMarker.DELETE, decoded.marker());
+        assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
+        assertNull(decoded.vectorPayload());
+    }
+
+    @Test
+    void shouldOverwriteFailedOpLogWithSameVersionstamp() {
+        // Behavior: a failed op log entry is keyed by its versionstamp, so a later write with the same
+        // versionstamp replaces the earlier one instead of adding a second entry.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        AppendedEntry entry = entries[0];
+        ObjectId objectId = new ObjectId();
+        byte[] objectIdBytes = objectId.toByteArray();
+        byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), versionstamp, objectIdBytes);
+            tr.commit().join();
+        }
+
+        List<KeyValue> logEntries = getFailedOpLogEntries(vectorIndex.subspace());
+        assertEquals(1, logEntries.size());
+        assertEquals(versionstamp, vectorIndex.subspace().unpack(logEntries.get(0).getKey()).getVersionstamp(1));
+
+        MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
+        assertEquals(MutationLogMarker.DELETE, decoded.marker());
+        assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
+        assertNull(decoded.vectorPayload());
+    }
+
+    @Test
+    void shouldNotMixFailedOpLogWithMutationLog() {
+        // Behavior: failed op log entries live in their own subspace and never appear in the mutation log.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        AppendedEntry entry = entries[0];
+        ObjectId objectId = new ObjectId();
+        byte[] objectIdBytes = objectId.toByteArray();
+        byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
+            tr.commit().join();
+        }
+
+        assertTrue(getMutationLogEntries(vectorIndex.subspace()).isEmpty());
+        assertEquals(1, getFailedOpLogEntries(vectorIndex.subspace()).size());
     }
 
     @Test

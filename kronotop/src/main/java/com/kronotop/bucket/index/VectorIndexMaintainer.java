@@ -162,6 +162,45 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
+     * Records a failed insert or update on the vector graph in the failed op log.
+     * The log key is the given versionstamp, so a later write with the same versionstamp replaces the entry.
+     */
+    public static void setFailedOpLog(Transaction tr,
+                                      DirectorySubspace indexSubspace,
+                                      MutationLogMarker marker,
+                                      Versionstamp versionstamp,
+                                      byte[] objectId,
+                                      byte[] encodedIndexEntry,
+                                      float[] vector) {
+        Tuple tuple = Tuple.from(
+                IndexSubspaceMagic.FAILED_OP_LOG.getValue(),
+                versionstamp
+        );
+        byte[] key = indexSubspace.pack(tuple);
+        byte[] value = MutationLogValue.encode(marker, objectId, encodedIndexEntry, vector);
+        tr.set(key, value);
+    }
+
+    /**
+     * Records a failed delete on the vector graph in the failed op log.
+     * The log key is the given versionstamp, so a later write with the same versionstamp replaces the entry.
+     */
+    public static void deleteFailedOpLog(
+            Transaction tr,
+            DirectorySubspace indexSubspace,
+            Versionstamp versionstamp,
+            byte[] objectId
+    ) {
+        Tuple tuple = Tuple.from(
+                IndexSubspaceMagic.FAILED_OP_LOG.getValue(),
+                versionstamp
+        );
+        byte[] key = indexSubspace.pack(tuple);
+        byte[] value = MutationLogValue.encode(MutationLogMarker.DELETE, objectId);
+        tr.set(key, value);
+    }
+
+    /**
      * Appends an insert or update mutation to the mutation log for crash recovery.
      * The log key is versionstamped to preserve mutation ordering.
      */

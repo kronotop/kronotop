@@ -23,7 +23,8 @@ public enum IndexSubspaceMagic {
     VOLUME_POINTER_BACK_REF((byte) 0x04),
     STAT_HINTS((byte) 0x05),
     TASKS((byte) 0x06),
-    MUTATION_LOG((byte) 0x07);
+    MUTATION_LOG((byte) 0x07),
+    FAILED_OP_LOG((byte) 0x08);
 
     public final byte value;
 
