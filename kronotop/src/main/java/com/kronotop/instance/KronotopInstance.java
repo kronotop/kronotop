@@ -369,7 +369,10 @@ public class KronotopInstance {
         }
         setStatus(KronotopInstanceStatus.STOPPED);
 
-        LOGGER.info("Waiting for {} in-flight operations to complete", context.getInFlight().count());
+        int inFlightOps = context.getInFlight().count();
+        if (inFlightOps > 0) {
+            LOGGER.info("Waiting for {} in-flight operations to complete", inFlightOps);
+        }
         try {
             context.getInFlight().awaitCompletion(IN_FLIGHT_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
