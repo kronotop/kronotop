@@ -45,56 +45,23 @@ public final class VectorIndexCrashRecovery {
     private VectorIndexCrashRecovery() {
     }
 
+    private record FailedOps(List<RecoveredState.FailedAdd> adds,
+                             List<RecoveredState.FailedDelete> deletes) {
+    }
+
     /**
-     * Scans the mutation log for entries newer than the latest on-disk versionstamp and
-     * replays them into a fresh on-heap index with PQ configuration.
+     * Replays mutation log entries into the on-heap index. Deletes are also applied to the on-disk indexes
+     * of the group. An entry that fails to apply does not stop the replay. It is returned in {@link FailedOps}.
      *
-     * @return a recovered on-heap index, or null if the mutation log has no applicable entries
+     * @return the adds and deletes that failed to apply
      */
-    public static RecoveredState recover(
-            Database db,
-            DirectorySubspace indexSubspace,
+    private static FailedOps replayMutationLog(
             VectorGraphIndexGroup group,
-            int dimensions,
-            VectorSimilarityFunction similarityFunction,
-            ExecutorService executor,
-            int pqTrainingThreshold,
-            int pqSubspaceDivisor
+            OnHeapVectorGraphIndex onHeap,
+            List<KeyValue> entries,
+            DirectorySubspace indexSubspace,
+            ExecutorService executor
     ) {
-        // Find max versionstamp across all on-disk indexes
-        Versionstamp maxVersionstamp = null;
-        for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-            Versionstamp vs = onDisk.getLatestVersionstamp();
-            if (vs != null && (maxVersionstamp == null || vs.compareTo(maxVersionstamp) > 0)) {
-                maxVersionstamp = vs;
-            }
-        }
-
-        // Build range scan boundaries
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
-        KeySelector begin;
-        if (maxVersionstamp != null) {
-            byte[] startKey = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), maxVersionstamp));
-            begin = KeySelector.firstGreaterThan(startKey);
-        } else {
-            begin = KeySelector.firstGreaterOrEqual(prefix);
-        }
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-
-        // Read mutation log entries
-        List<KeyValue> entries;
-        try (Transaction tr = db.createTransaction()) {
-            entries = tr.getRange(begin, end).asList().join();
-        }
-
-        if (entries.isEmpty()) {
-            return null;
-        }
-
-        // Create a fresh on-heap index and replay entries
-        OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
-                pqTrainingThreshold, pqSubspaceDivisor);
-
         List<RecoveredState.FailedAdd> failedAdds = new ArrayList<>();
         List<RecoveredState.FailedDelete> failedDeletes = new ArrayList<>();
         for (KeyValue kv : entries) {
@@ -150,12 +117,66 @@ public final class VectorIndexCrashRecovery {
 
             onHeap.advanceVersionstamp(versionstamp);
         }
+        return new FailedOps(failedAdds, failedDeletes);
+    }
+
+    /**
+     * Scans the mutation log for entries newer than the latest on-disk versionstamp and
+     * replays them into a fresh on-heap index with PQ configuration.
+     *
+     * @return a recovered on-heap index, or null if the mutation log has no applicable entries
+     */
+    public static RecoveredState recover(
+            Database db,
+            DirectorySubspace indexSubspace,
+            VectorGraphIndexGroup group,
+            int dimensions,
+            VectorSimilarityFunction similarityFunction,
+            ExecutorService executor,
+            int pqTrainingThreshold,
+            int pqSubspaceDivisor
+    ) {
+        // Find max versionstamp across all on-disk indexes
+        Versionstamp maxVersionstamp = null;
+        for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
+            Versionstamp vs = onDisk.getLatestVersionstamp();
+            if (vs != null && (maxVersionstamp == null || vs.compareTo(maxVersionstamp) > 0)) {
+                maxVersionstamp = vs;
+            }
+        }
+
+        // Build range scan boundaries
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
+        KeySelector begin;
+        if (maxVersionstamp != null) {
+            byte[] startKey = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), maxVersionstamp));
+            begin = KeySelector.firstGreaterThan(startKey);
+        } else {
+            begin = KeySelector.firstGreaterOrEqual(prefix);
+        }
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        // Read mutation log entries
+        List<KeyValue> entries;
+        try (Transaction tr = db.createTransaction()) {
+            entries = tr.getRange(begin, end).asList().join();
+        }
+
+        if (entries.isEmpty()) {
+            return null;
+        }
+
+        // Create a fresh on-heap index and replay entries
+        OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
+                pqTrainingThreshold, pqSubspaceDivisor);
+
+        FailedOps failedOps = replayMutationLog(group, onHeap, entries, indexSubspace, executor);
 
         // Flush any on-disk metadata changes made during recovery
         for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
             onDisk.flushMetadata();
         }
 
-        return new RecoveredState(onHeap, failedAdds, failedDeletes);
+        return new RecoveredState(onHeap, failedOps.adds, failedOps.deletes);
     }
 }
