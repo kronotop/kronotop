@@ -45,17 +45,13 @@ public final class VectorIndexCrashRecovery {
     private VectorIndexCrashRecovery() {
     }
 
-    private record FailedOps(List<RecoveredState.FailedAdd> adds,
-                             List<RecoveredState.FailedDelete> deletes) {
-    }
-
     /**
      * Replays mutation log entries into the on-heap index. Deletes are also applied to the on-disk indexes
      * of the group. An entry that fails to apply does not stop the replay. It is returned in {@link FailedOps}.
      *
      * @return the adds and deletes that failed to apply
      */
-    private static FailedOps replayMutationLog(
+    static FailedOps replayMutationLog(
             VectorGraphIndexGroup group,
             OnHeapVectorGraphIndex onHeap,
             List<KeyValue> entries,
@@ -177,6 +173,6 @@ public final class VectorIndexCrashRecovery {
             onDisk.flushMetadata();
         }
 
-        return new RecoveredState(onHeap, failedOps.adds, failedOps.deletes);
+        return new RecoveredState(onHeap, failedOps.adds(), failedOps.deletes());
     }
 }
