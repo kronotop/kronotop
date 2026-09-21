@@ -26,8 +26,11 @@ import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.index.IndexEntry;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.bucket.index.MutationLogMarker;
 import com.kronotop.bucket.index.VectorIndex;
+import com.kronotop.bucket.index.VectorIndexMaintainer;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -458,10 +461,27 @@ public class VectorGraphIndexGroup {
         return retried.get();
     }
 
+    private void persistFailedOps() {
+        DirectorySubspace indexSubspace = vectorIndex.subspace();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            failedOps.forEach((objectId, entry) -> {
+                if (entry.isDelete()) {
+                    VectorIndexMaintainer.deleteFailedOpLog(tr, indexSubspace, entry.versionstamp(), objectId.toByteArray());
+                    return;
+                }
+                CollectedVector cv = entry.collectedVector();
+                byte[] encodedIndexEntry = new IndexEntry(cv.shardId(), cv.metadata().encode()).encode();
+                VectorIndexMaintainer.setFailedOpLog(tr, indexSubspace, MutationLogMarker.INSERT, entry.versionstamp(),
+                        objectId.toByteArray(), encodedIndexEntry, cv.vector());
+            });
+            tr.commit().join();
+        }
+    }
+
     /**
      * Flushes all unflushed, non-empty on-heap indexes to disk under the given data directory.
      * Before the flush, failed vector node operations are retried up to 10 times. Entries that still fail
-     * stay recorded.
+     * are written to the failed op log and stay recorded.
      * <p>
      * Flush is not a thread-safe method.
      */
@@ -474,6 +494,9 @@ public class VectorGraphIndexGroup {
             }
             // Still have some failed vector data, continue retry.
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(100));
+        }
+        if (!failedOps.isEmpty()) {
+            persistFailedOps();
         }
         for (OnHeapVectorGraphIndex index : onHeapIndexes) {
             if (index.isFlushed() || index.size() == 0) continue;

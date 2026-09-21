@@ -16,7 +16,12 @@
 
 package com.kronotop.bucket.vector;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.TransactionalContext;
@@ -960,5 +965,50 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group.putDeleteTombstone(objectId, newer);
 
         assertEquals(newer, group.removeDeleteTombstone(objectId));
+    }
+
+    private List<KeyValue> getFailedOpLogEntries(DirectorySubspace indexSubspace) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FAILED_OP_LOG.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            return tr.getRange(begin, end).asList().join();
+        }
+    }
+
+    @Test
+    void shouldWriteRemainingFailedAddToFailedOpLogOnFlush(@TempDir Path tempDir) {
+        // Behavior: An add that still fails after the retries in flush is written to the failed op log
+        // under its versionstamp with the INSERT marker, the object id and the vector payload.
+        ObjectId objectId = new ObjectId();
+        Versionstamp versionstamp = versionstamp(7);
+        EntryMetadata entryMetadata = newEntryMetadata(1);
+        float[] vector = new float[]{1.0f, 0.0f, 0.0f};
+        // An unknown vector index id makes every retry fail, so the entry stays recorded.
+        long unknownVectorIndexId = Long.MAX_VALUE;
+        CollectedVector cv = new CollectedVector(objectId, 0, entryMetadata, vector,
+                unknownVectorIndexId, vectorIndex.definition(), 7);
+        group.recordFailedOp(objectId, RetryEntry.add(metadata, versionstamp, cv));
+
+        group.flush(tempDir);
+
+        List<KeyValue> entries = getFailedOpLogEntries(vectorIndex.subspace());
+        assertEquals(1, entries.size());
+        KeyValue kv = entries.get(0);
+        assertEquals(versionstamp, vectorIndex.subspace().unpack(kv.getKey()).getVersionstamp(1));
+        MutationLogValue decoded = MutationLogValue.decode(kv.getValue());
+        assertEquals(MutationLogMarker.INSERT, decoded.marker());
+        assertArrayEquals(objectId.toByteArray(), decoded.objectIdBytes());
+        assertEquals(0, decoded.vectorPayload().indexEntry().shardId());
+        assertArrayEquals(entryMetadata.encode(), decoded.vectorPayload().indexEntry().entryMetadata());
+        assertArrayEquals(vector, decoded.vectorPayload().vector());
+    }
+
+    @Test
+    void shouldNotWriteFailedOpLogWhenNoFailedOps(@TempDir Path tempDir) {
+        // Behavior: A flush with no recorded failed operations leaves the failed op log empty.
+        group.flush(tempDir);
+
+        assertTrue(getFailedOpLogEntries(vectorIndex.subspace()).isEmpty());
     }
 }
