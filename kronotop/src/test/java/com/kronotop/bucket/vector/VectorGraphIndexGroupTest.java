@@ -43,6 +43,7 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -1043,5 +1044,101 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group.flush(tempDir);
 
         assertTrue(getFailedOpLogEntries(vectorIndex.subspace()).isEmpty());
+    }
+
+    private VectorGraphIndexGroup registryGroup() {
+        BucketService service = context.getService(BucketService.NAME);
+        VectorGraphIndexGroup registryGroup = service.getVectorGraphRegistry().computeIfAbsent(
+                metadata, vectorIndex, () -> service.bootstrapVectorGroup(metadata, vectorIndex));
+        registryGroup.awaitReady();
+        return registryGroup;
+    }
+
+    @Test
+    void shouldRetryFailedAddAndAddNodeToOnHeapGraph() {
+        // Behavior: A successful add retry adds the node to the on-heap graph and removes the entry,
+        // so a second retry pass has nothing to do.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        ObjectId objectId = new ObjectId();
+        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
+                vectorIndex.definition(), 7);
+        registryGroup.recordFailedOp(objectId, RetryEntry.add(metadata, versionstamp(7), cv));
+
+        assertEquals(1, registryGroup.retryFailedOps());
+
+        assertTrue(registryGroup.getOnHeapIndexes().getLast().getMetadata().findOrdinal(objectId) >= 0);
+        assertEquals(0, registryGroup.retryFailedOps());
+    }
+
+    @Test
+    void shouldRetryFailedDeleteAndMarkNodeDeleted() {
+        // Behavior: A successful delete retry marks the node as deleted in the on-heap graph and removes
+        // the entry, so a second retry pass has nothing to do.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        ObjectId objectId = new ObjectId();
+        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
+                vectorIndex.definition(), 1);
+        new VectorNodeWriter(service, metadata).write(cv, versionstamp(1));
+        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
+        assertTrue(onHeap.getMetadata().findOrdinal(objectId) >= 0);
+
+        registryGroup.recordFailedOp(objectId,
+                RetryEntry.delete(metadata, versionstamp(2), vectorIndex.definition().id(), objectId));
+
+        assertEquals(1, registryGroup.retryFailedOps());
+
+        assertEquals(-1, onHeap.getMetadata().findOrdinal(objectId));
+        assertEquals(0, registryGroup.retryFailedOps());
+    }
+
+    @Test
+    void shouldKeepNewerFailedOpWhenOlderIsRecorded(@TempDir Path tempDir) {
+        // Behavior: A failed op with an older versionstamp does not overwrite a newer one for the same
+        // object, so only the newer entry reaches the failed op log on flush.
+        ObjectId objectId = new ObjectId();
+        EntryMetadata entryMetadata = newEntryMetadata(1);
+        float[] vector = new float[]{1.0f, 0.0f, 0.0f};
+        // A definition with an unknown id makes every retry fail, so the entry stays recorded.
+        VectorIndexDefinition definition = vectorIndex.definition();
+        VectorIndexDefinition unknownDefinition = new VectorIndexDefinition(Long.MAX_VALUE, definition.name(),
+                definition.selector(), definition.dimensions(), definition.distance(), definition.status());
+        Versionstamp newer = versionstamp(2);
+        Versionstamp older = versionstamp(1);
+        group.recordFailedOp(objectId, RetryEntry.add(metadata, newer,
+                new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 2)));
+        group.recordFailedOp(objectId, RetryEntry.add(metadata, older,
+                new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 1)));
+
+        group.flush(tempDir);
+
+        List<KeyValue> entries = getFailedOpLogEntries(vectorIndex.subspace());
+        assertEquals(1, entries.size());
+        assertEquals(newer, vectorIndex.subspace().unpack(entries.get(0).getKey()).getVersionstamp(1));
+    }
+
+    @Test
+    void shouldDropFailedOpWhenBucketUuidDiffers(@TempDir Path tempDir) {
+        // Behavior: A retry entry whose bucket UUID differs from the current bucket is dropped without
+        // a retry, so it is neither applied to the graph nor written to the failed op log.
+        ObjectId objectId = new ObjectId();
+        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
+                vectorIndex.definition(), 7);
+        RetryEntry entry = new RetryEntry(metadata.namespace(), metadata.name(), UUID.randomUUID(), versionstamp(7),
+                RetryEntry.Kind.ADD, objectId, vectorIndex.definition().id(), cv);
+        group.recordFailedOp(objectId, entry);
+
+        assertEquals(0, group.retryFailedOps());
+
+        group.flush(tempDir);
+        assertTrue(getFailedOpLogEntries(vectorIndex.subspace()).isEmpty());
+        BucketService service = context.getService(BucketService.NAME);
+        VectorGraphIndexGroup registryGroup = service.getVectorGraphRegistry().get(
+                metadata.namespace(), metadata.name(), vectorIndex.definition().id());
+        if (registryGroup != null) {
+            for (OnHeapVectorGraphIndex onHeap : registryGroup.getOnHeapIndexes()) {
+                assertEquals(-1, onHeap.getMetadata().findOrdinal(objectId));
+            }
+        }
     }
 }
