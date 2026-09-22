@@ -38,6 +38,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -86,7 +87,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldRecoverInsertedEntries() throws IOException {
+    void shouldRecoverInsertedEntries() {
         // Behavior: Mutation log INSERT entries are replayed into a fresh on-heap index during recovery.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -118,17 +119,16 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        RecoveredState state = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(state);
-        OnHeapVectorGraphIndex recovered = state.recovered();
+        OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(2, recovered.size());
         assertTrue(recovered.getMetadata().findOrdinal(oid1) >= 0);
         assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
-        recovered.close();
+        group.closeAll();
     }
 
     @Test
@@ -204,23 +204,20 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         // Recover — should only get oid2
-        RecoveredState state = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(state);
-        OnHeapVectorGraphIndex recovered = state.recovered();
+        OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(1, recovered.size());
         assertEquals(-1, recovered.getMetadata().findOrdinal(oid1));
         assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
-
-        recovered.close();
         group.closeAll();
     }
 
     @Test
-    void shouldHandleDeleteDuringRecovery() throws IOException {
+    void shouldHandleDeleteDuringRecovery() {
         // Behavior: A DELETE mutation after an INSERT for the same ObjectId marks the node as deleted during recovery.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -247,39 +244,40 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        RecoveredState state = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(state);
-        OnHeapVectorGraphIndex recovered = state.recovered();
+        OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         // The node was inserted then deleted — its mapping should be removed from metadata
         int ordinal = recovered.getMetadata().findOrdinal(oid);
         assertEquals(-1, ordinal);
         // Search for a vector identical to TEST_VECTOR_1 — deleted node should not appear in results
         var result = recovered.search(TEST_VECTOR_1, 1);
         assertEquals(0, result.getNodes().length);
-        recovered.close();
+        group.closeAll();
     }
 
     @Test
-    void shouldReturnNullWhenNoMutationLogEntries() {
-        // Behavior: Recovery returns null when the mutation log is empty.
+    void shouldReturnEmptyFailedOpsWhenNoMutationLogEntries() {
+        // Behavior: Recovery returns empty failed ops when the mutation log is empty.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        RecoveredState state = VectorIndexCrashRecovery.recover(
+        FailedOps failedOps = VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNull(state);
+        assertTrue(failedOps.adds().isEmpty());
+        assertTrue(failedOps.deletes().isEmpty());
+        group.closeAll();
     }
 
     @Test
-    void shouldRecoverUpdateEntries() throws IOException {
+    void shouldRecoverUpdateEntries() {
         // Behavior: An UPDATE mutation replays the real UpdateExecutor sequence (INSERT, DELETE, UPDATE)
         // and produces a single active node with the updated vector.
         VectorIndex vectorIndex = createVectorIndex();
@@ -322,23 +320,22 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        RecoveredState state = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(state);
-        OnHeapVectorGraphIndex recovered = state.recovered();
+        OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         // INSERT adds ordinal 0, DELETE marks it deleted; UPDATE adds ordinal 1
         assertEquals(2, recovered.size());
         // Only the updated node is active in metadata
         int activeOrdinal = recovered.getMetadata().findOrdinal(oid);
         assertTrue(activeOrdinal > 0);
-        recovered.close();
+        group.closeAll();
     }
 
     @Test
-    void shouldRecoverWhenNoOnDiskFilesExist() throws IOException {
+    void shouldRecoverWhenNoOnDiskFilesExist() {
         // Behavior: When no on-disk files exist, recovery replays the entire mutation log.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -381,22 +378,21 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Empty group — no on-disk files
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        RecoveredState state = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
-        assertNotNull(state);
-        OnHeapVectorGraphIndex recovered = state.recovered();
+        OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(3, recovered.size());
         assertTrue(recovered.getMetadata().findOrdinal(oid1) >= 0);
         assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
         assertTrue(recovered.getMetadata().findOrdinal(oid3) >= 0);
-        recovered.close();
+        group.closeAll();
     }
 
     @Test
-    void shouldRecoverWithPQTrainingTriggered() throws IOException {
+    void shouldRecoverWithPQTrainingTriggered() {
         // Behavior: Recovery with enough mutation log entries triggers PQ training on the recovered index.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -412,23 +408,22 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        RecoveredState state = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 5, 1
         );
 
-        assertNotNull(state);
-        OnHeapVectorGraphIndex recovered = state.recovered();
+        OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(5, recovered.size());
         assertTrue(recovered.isPqTrained());
 
         var result = recovered.search(TEST_VECTOR_1, 1);
         assertEquals(1, result.getNodes().length);
-        recovered.close();
+        group.closeAll();
     }
 
     @Test
-    void shouldRecoverWithPQNotTriggeredBelowThreshold() throws IOException {
+    void shouldRecoverWithPQNotTriggeredBelowThreshold() {
         // Behavior: Recovery with fewer mutation log entries than the PQ threshold does not trigger PQ training.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -446,16 +441,15 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
-        RecoveredState state = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 5, 1
         );
 
-        assertNotNull(state);
-        OnHeapVectorGraphIndex recovered = state.recovered();
+        OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(2, recovered.size());
         assertFalse(recovered.isPqTrained());
-        recovered.close();
+        group.closeAll();
     }
 
     @Test
@@ -545,14 +539,10 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         }
 
         // Run crash recovery
-        RecoveredState state = VectorIndexCrashRecovery.recover(
+        VectorIndexCrashRecovery.recover(
                 context.getFoundationDB(), vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
-
-        // The recovered on-heap index should have the DELETE replayed
-        assertNotNull(state);
-        OnHeapVectorGraphIndex recovered = state.recovered();
 
         // On-disk metadata should now return null for the deleted ObjectId
         OnDiskVectorGraphIndex onDisk = group.getOnDiskIndexes().getFirst();
@@ -565,8 +555,6 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         assertTrue(ordinal3 >= 0);
         assertNotNull(onDisk.getMetadata().findDocumentLocation(ordinal1));
         assertNotNull(onDisk.getMetadata().findDocumentLocation(ordinal3));
-
-        recovered.close();
         group.closeAll();
     }
 
@@ -680,7 +668,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldTruncateMutationLogAfterFlushSingle(@TempDir Path tempDir) throws IOException {
+    void shouldTruncateMutationLogAfterFlushSingle(@TempDir Path tempDir) {
         // Behavior: flushSingle clears all mutation log entries up to the flushed index's latest versionstamp.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -727,7 +715,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldTruncateMutationLogUpToFlushedVersionstampOnly(@TempDir Path tempDir) throws IOException {
+    void shouldTruncateMutationLogUpToFlushedVersionstampOnly(@TempDir Path tempDir) {
         // Behavior: flushSingle only clears mutation log entries up to the flushed index's versionstamp,
         // preserving entries written after it.
         VectorIndex vectorIndex = createVectorIndex();
@@ -775,7 +763,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldTruncateMutationLogAfterBatchFlush(@TempDir Path tempDir) throws IOException {
+    void shouldTruncateMutationLogAfterBatchFlush(@TempDir Path tempDir) {
         // Behavior: flush (batch) clears mutation log entries up to the max versionstamp across all flushed indexes.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -822,7 +810,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldTruncateDeleteMutationLogWhenVersionstampAdvanced(@TempDir Path tempDir) throws IOException {
+    void shouldTruncateDeleteMutationLogWhenVersionstampAdvanced(@TempDir Path tempDir) {
         // Behavior: A DELETE mutation log entry is truncated during flush when the active on-heap's
         // versionstamp has been advanced past the DELETE entry (simulating VectorNodeDeleteHook behavior).
         VectorIndex vectorIndex = createVectorIndex();
@@ -884,6 +872,48 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         // The DELETE mutation log entry should now be truncated
         assertEquals(0, getMutationLogEntries(vectorIndex).size());
 
+        group.closeAll();
+    }
+
+    @Test
+    void shouldRecoverLogLargerThanOnePage() {
+        // Behavior: A mutation log larger than one page is replayed completely into a single on-heap index
+        // across several transactions.
+        VectorIndex vectorIndex = createVectorIndex();
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+
+        int total = VectorIndexCrashRecovery.PAGE_SIZE + 1;
+        List<ObjectId> oids = new ArrayList<>(total);
+        byte[] encoded = encodedIndexEntry();
+        byte[] trVersion;
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            for (int userVersion = 0; userVersion < total; userVersion++) {
+                ObjectId oid = new ObjectId();
+                oids.add(oid);
+                VectorIndexMaintainer.setMutationLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+                        oid.toByteArray(), encoded, TEST_VECTOR_1, userVersion);
+            }
+            var versionstampFuture = tr.getVersionstamp();
+            tr.commit().join();
+            trVersion = versionstampFuture.join();
+        }
+        int maxUserVersion = total - 1;
+        Versionstamp expected = Versionstamp.complete(trVersion, maxUserVersion);
+
+        VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
+        FailedOps failedOps = VectorIndexCrashRecovery.recover(
+                context.getFoundationDB(), vectorIndex.subspace(), group,
+                DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
+        );
+
+        assertTrue(failedOps.adds().isEmpty());
+        assertEquals(1, group.getOnHeapIndexes().size());
+        OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
+        assertEquals(total, recovered.size());
+        for (ObjectId oid : oids) {
+            assertTrue(recovered.getMetadata().findOrdinal(oid) >= 0);
+        }
+        assertEquals(expected, recovered.getLatestVersionstamp());
         group.closeAll();
     }
 }

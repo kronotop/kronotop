@@ -53,8 +53,8 @@ public final class ReplayFailedOpsLog {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        List<RecoveredState.FailedAdd> failedAdds = new ArrayList<>();
-        List<RecoveredState.FailedDelete> failedDeletes = new ArrayList<>();
+        List<FailedOps.Add> failedAdds = new ArrayList<>();
+        List<FailedOps.Delete> failedDeletes = new ArrayList<>();
         boolean replayed = false;
         while (true) {
             List<KeyValue> page;

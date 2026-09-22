@@ -117,6 +117,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
+        group.addOnHeap(onHeap);
 
         FailedOps failedOps = ReplayFailedOpsLog.replay(
                 context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
@@ -127,7 +128,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         assertTrue(onHeap.getMetadata().findOrdinal(oid1) >= 0);
         assertTrue(onHeap.getMetadata().findOrdinal(oid2) > 0);
         assertEquals(vs2, onHeap.getLatestVersionstamp());
-        onHeap.close();
+        group.closeAll();
     }
 
     @Test
@@ -141,6 +142,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
+        group.addOnHeap(onHeap);
         onHeap.addGraphNode(oid, SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
         assertTrue(onHeap.getMetadata().findOrdinal(oid) >= 0);
 
@@ -155,7 +157,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         assertTrue(failedOps.adds().isEmpty());
         assertTrue(failedOps.deletes().isEmpty());
         assertEquals(-1, onHeap.getMetadata().findOrdinal(oid));
-        onHeap.close();
+        group.closeAll();
     }
 
     @Test
@@ -166,6 +168,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
+        group.addOnHeap(onHeap);
 
         FailedOps failedOps = ReplayFailedOpsLog.replay(
                 context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
@@ -174,7 +177,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         assertTrue(failedOps.deletes().isEmpty());
         assertEquals(0, onHeap.size());
         assertNull(onHeap.getLatestVersionstamp());
-        onHeap.close();
+        group.closeAll();
     }
 
     @Test
@@ -194,11 +197,12 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
+        group.addOnHeap(onHeap);
         ReplayFailedOpsLog.replay(context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
 
         assertEquals(1, readFailedOpLog(vectorIndex).size());
         assertEquals(1, onHeap.size());
-        onHeap.close();
+        group.closeAll();
     }
 
     @Test
@@ -222,6 +226,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
+        group.addOnHeap(onHeap);
         FailedOps failedOps = ReplayFailedOpsLog.replay(
                 context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
 
@@ -231,6 +236,6 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
             assertTrue(onHeap.getMetadata().findOrdinal(oid) >= 0);
         }
         assertEquals(versionstamp(total), onHeap.getLatestVersionstamp());
-        onHeap.close();
+        group.closeAll();
     }
 }

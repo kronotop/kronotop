@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutorService;
  * after the last flushed on-disk snapshot.
  */
 public final class VectorIndexCrashRecovery {
+    static final int PAGE_SIZE = 1000;
 
     private VectorIndexCrashRecovery() {
     }
@@ -58,8 +59,8 @@ public final class VectorIndexCrashRecovery {
             DirectorySubspace indexSubspace,
             ExecutorService executor
     ) {
-        List<RecoveredState.FailedAdd> failedAdds = new ArrayList<>();
-        List<RecoveredState.FailedDelete> failedDeletes = new ArrayList<>();
+        List<FailedOps.Add> failedAdds = new ArrayList<>();
+        List<FailedOps.Delete> failedDeletes = new ArrayList<>();
         for (KeyValue kv : entries) {
             MutationLogValue logValue = MutationLogValue.decode(kv.getValue());
             ObjectId objectId = new ObjectId(logValue.objectIdBytes());
@@ -79,7 +80,7 @@ public final class VectorIndexCrashRecovery {
                                 executor
                         ).join();
                     } catch (Exception exp) {
-                        RecoveredState.FailedAdd failedAdd = new RecoveredState.FailedAdd(
+                        FailedOps.Add failedAdd = new FailedOps.Add(
                                 versionstamp,
                                 objectId,
                                 indexEntry.shardId(),
@@ -102,7 +103,7 @@ public final class VectorIndexCrashRecovery {
                             }
                         }
                     } catch (Exception exp) {
-                        RecoveredState.FailedDelete failedDelete = new RecoveredState.FailedDelete(
+                        FailedOps.Delete failedDelete = new FailedOps.Delete(
                                 objectId,
                                 versionstamp
                         );
@@ -120,9 +121,9 @@ public final class VectorIndexCrashRecovery {
      * Scans the mutation log for entries newer than the latest on-disk versionstamp and
      * replays them into a fresh on-heap index with PQ configuration.
      *
-     * @return a recovered on-heap index, or null if the mutation log has no applicable entries
+     * @return the adds and deletes that failed to apply
      */
-    public static RecoveredState recover(
+    public static FailedOps recover(
             Database db,
             DirectorySubspace indexSubspace,
             VectorGraphIndexGroup group,
@@ -153,26 +154,36 @@ public final class VectorIndexCrashRecovery {
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
         // Read mutation log entries
-        List<KeyValue> entries;
-        try (Transaction tr = db.createTransaction()) {
-            entries = tr.getRange(begin, end).asList().join();
+        List<FailedOps.Add> failedAdds = new ArrayList<>();
+        List<FailedOps.Delete> failedDeletes = new ArrayList<>();
+        while (true) {
+            List<KeyValue> page;
+            try (Transaction tr = db.createTransaction()) {
+                page = tr.getRange(begin, end, PAGE_SIZE).asList().join();
+            }
+
+            // Create a fresh on-heap index and replay entries
+            OnHeapVectorGraphIndex onHeap = group.getOrCreateOnHeap(
+                    dimensions,
+                    similarityFunction,
+                    pqTrainingThreshold,
+                    pqSubspaceDivisor
+            );
+            FailedOps failedOps = replayMutationLog(group, onHeap, page, indexSubspace, executor);
+            failedAdds.addAll(failedOps.adds());
+            failedDeletes.addAll(failedOps.deletes());
+
+            // Flush any on-disk metadata changes made during recovery
+            for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
+                onDisk.flushMetadata();
+            }
+
+            if (page.size() < PAGE_SIZE) {
+                break;
+            }
+            begin = KeySelector.firstGreaterThan(page.getLast().getKey());
         }
 
-        if (entries.isEmpty()) {
-            return null;
-        }
-
-        // Create a fresh on-heap index and replay entries
-        OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(dimensions, similarityFunction,
-                pqTrainingThreshold, pqSubspaceDivisor);
-
-        FailedOps failedOps = replayMutationLog(group, onHeap, entries, indexSubspace, executor);
-
-        // Flush any on-disk metadata changes made during recovery
-        for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-            onDisk.flushMetadata();
-        }
-
-        return new RecoveredState(onHeap, failedOps.adds(), failedOps.deletes());
+        return new FailedOps(failedAdds, failedDeletes);
     }
 }

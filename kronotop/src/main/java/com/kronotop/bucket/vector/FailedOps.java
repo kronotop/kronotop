@@ -16,8 +16,32 @@
 
 package com.kronotop.bucket.vector;
 
+import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.volume.EntryMetadata;
+import org.bson.types.ObjectId;
+
 import java.util.List;
 
-public record FailedOps(List<RecoveredState.FailedAdd> adds,
-                 List<RecoveredState.FailedDelete> deletes) {
+/**
+ * Adds and deletes that failed to apply to the on-heap vector index during a log replay.
+ */
+public record FailedOps(List<Add> adds, List<Delete> deletes) {
+
+    /**
+     * An insert or update that failed to apply. Holds everything needed to retry the add later.
+     */
+    public record Add(
+            Versionstamp versionstamp,
+            ObjectId objectId,
+            int shardId,
+            EntryMetadata metadata,
+            float[] vector
+    ) {
+    }
+
+    /**
+     * A delete that failed to apply. Holds the ObjectId and the versionstamp of the log entry.
+     */
+    public record Delete(ObjectId objectId, Versionstamp versionstamp) {
+    }
 }

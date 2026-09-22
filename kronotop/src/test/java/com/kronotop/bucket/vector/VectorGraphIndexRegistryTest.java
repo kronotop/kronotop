@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.vector;
 
+import com.kronotop.BaseStandaloneInstanceTest;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.index.DistanceFunction;
 import com.kronotop.bucket.index.IndexStatus;
@@ -32,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class VectorGraphIndexRegistryTest {
+class VectorGraphIndexRegistryTest extends BaseStandaloneInstanceTest {
 
     private VectorGraphIndexRegistry registry;
 
@@ -63,14 +64,14 @@ class VectorGraphIndexRegistryTest {
         BucketMetadata metadata = newMetadata(namespace, bucket);
         VectorIndex index = newVectorIndex(indexId);
         return registry.computeIfAbsent(metadata, index,
-                () -> new VectorGraphIndexGroup(null, metadata, index));
+                () -> new VectorGraphIndexGroup(context, metadata, index));
     }
 
     private void registerGroup(UUID uuid, String namespace, String bucket, long indexId) {
         BucketMetadata metadata = newMetadata(uuid, namespace, bucket);
         VectorIndex index = newVectorIndex(indexId);
         registry.computeIfAbsent(metadata, index,
-                () -> new VectorGraphIndexGroup(null, metadata, index));
+                () -> new VectorGraphIndexGroup(context, metadata, index));
     }
 
     // --- forEachGroup() ---
@@ -146,7 +147,7 @@ class VectorGraphIndexRegistryTest {
         VectorIndex index = newVectorIndex(1L);
         VectorGraphIndexGroup second = registry.computeIfAbsent(metadata, index, () -> {
             supplierCallCount.incrementAndGet();
-            return new VectorGraphIndexGroup(null, metadata, index);
+            return new VectorGraphIndexGroup(context, metadata, index);
         });
 
         assertEquals(0, supplierCallCount.get());

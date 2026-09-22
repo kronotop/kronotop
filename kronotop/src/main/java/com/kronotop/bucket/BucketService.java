@@ -254,12 +254,12 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     private void recordFailedAdds(
-            List<RecoveredState.FailedAdd> failedAdds,
+            List<FailedOps.Add> failedAdds,
             VectorGraphIndexGroup group,
             BucketMetadata metadata,
             VectorIndex vectorIndex
     ) {
-        for (RecoveredState.FailedAdd failedAdd : failedAdds) {
+        for (FailedOps.Add failedAdd : failedAdds) {
             CollectedVector cv = new CollectedVector(
                     failedAdd.objectId(),
                     failedAdd.shardId(),
@@ -273,11 +273,11 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     private void recordFailedDeletes(
-            List<RecoveredState.FailedDelete> failedDeletes,
+            List<FailedOps.Delete> failedDeletes,
             VectorGraphIndexGroup group,
             BucketMetadata metadata,
             VectorIndex vectorIndex) {
-        for (RecoveredState.FailedDelete failedDelete : failedDeletes) {
+        for (FailedOps.Delete failedDelete : failedDeletes) {
             RetryEntry entry = RetryEntry.delete(
                     metadata,
                     failedDelete.versionstamp(),
@@ -343,7 +343,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                     group.addOnDisk(onDisk);
                 }
 
-                RecoveredState state = VectorIndexCrashRecovery.recover(
+                FailedOps failedOps = VectorIndexCrashRecovery.recover(
                         context.getFoundationDB(),
                         vectorIndex.subspace(),
                         group,
@@ -353,11 +353,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                         pqTrainingThreshold,
                         pqSubspaceDivisor
                 );
-                if (state != null) {
-                    group.addOnHeap(state.recovered());
-                    recordFailedAdds(state.failedAdds(), group, metadata, vectorIndex);
-                    recordFailedDeletes(state.failedDeletes(), group, metadata, vectorIndex);
-                }
+                recordFailedAdds(failedOps.adds(), group, metadata, vectorIndex);
+                recordFailedDeletes(failedOps.deletes(), group, metadata, vectorIndex);
 
                 // Replay FAILED_OP_LOG
                 replayFailedOpLog(group, metadata, vectorIndex);
