@@ -265,7 +265,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                     failedAdd.shardId(),
                     failedAdd.metadata(),
                     failedAdd.vector(),
-                    vectorIndex.definition().id(),
                     vectorIndex.definition(),
                     failedAdd.versionstamp().getUserVersion());
             RetryEntry entry = RetryEntry.add(metadata, failedAdd.versionstamp(), cv);

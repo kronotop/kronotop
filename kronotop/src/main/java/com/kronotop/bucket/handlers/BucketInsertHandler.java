@@ -246,7 +246,6 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                         shardId,
                         appendedEntry.metadata(),
                         vector,
-                        vectorIndex.definition().id(),
                         vectorIndex.definition(),
                         appendedEntry.userVersion()
                 ));

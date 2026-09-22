@@ -50,7 +50,7 @@ public record RetryEntry(
      */
     public static RetryEntry add(BucketMetadata metadata, Versionstamp versionstamp, CollectedVector cv) {
         return new RetryEntry(metadata.namespace(), metadata.name(), metadata.uuid(), versionstamp,
-                Kind.ADD, cv.objectId(), cv.vectorIndexId(), cv);
+                Kind.ADD, cv.objectId(), cv.definition().id(), cv);
     }
 
     /**

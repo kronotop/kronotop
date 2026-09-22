@@ -551,7 +551,6 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                             container.getShardId(),
                             EntryMetadata.decode(container.getEntryMetadata()),
                             vector,
-                            vectorIndex.definition().id(),
                             vectorIndex.definition(),
                             userVersion
                     ));
@@ -676,7 +675,6 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     shard.id(),
                     appendedEntries[0].metadata(),
                     vector,
-                    vectorIndex.definition().id(),
                     vectorIndex.definition(),
                     appendedEntries[0].userVersion()
             ));

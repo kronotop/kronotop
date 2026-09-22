@@ -44,7 +44,7 @@ public final class VectorNodeWriter extends BaseVectorNode {
      * @param addVs the versionstamp of the add operation
      */
     public void write(CollectedVector cv, Versionstamp addVs) {
-        VectorGraphIndexGroup group = awaitReadyGroup(cv.vectorIndexId());
+        VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
 
         // Pre-check: skip the expensive graph add if a newer DELETE tombstone already exists.
         if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {

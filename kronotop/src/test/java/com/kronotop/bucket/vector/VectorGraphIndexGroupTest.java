@@ -984,10 +984,11 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         Versionstamp versionstamp = versionstamp(7);
         EntryMetadata entryMetadata = newEntryMetadata(1);
         float[] vector = new float[]{1.0f, 0.0f, 0.0f};
-        // An unknown vector index id makes every retry fail, so the entry stays recorded.
-        long unknownVectorIndexId = Long.MAX_VALUE;
-        CollectedVector cv = new CollectedVector(objectId, 0, entryMetadata, vector,
-                unknownVectorIndexId, vectorIndex.definition(), 7);
+        // A definition with an unknown id makes every retry fail, so the entry stays recorded.
+        VectorIndexDefinition definition = vectorIndex.definition();
+        VectorIndexDefinition unknownDefinition = new VectorIndexDefinition(Long.MAX_VALUE, definition.name(),
+                definition.selector(), definition.dimensions(), definition.distance(), definition.status());
+        CollectedVector cv = new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 7);
         group.recordFailedOp(objectId, RetryEntry.add(metadata, versionstamp, cv));
 
         group.flush(tempDir);

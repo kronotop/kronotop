@@ -23,6 +23,12 @@ import org.bson.types.ObjectId;
 /**
  * A collected vector with its associated document metadata, used for post-commit graph insertion.
  */
-public record CollectedVector(ObjectId objectId, int shardId, EntryMetadata metadata, float[] vector,
-                              long vectorIndexId, VectorIndexDefinition definition, int userVersion) {
+public record CollectedVector(
+        ObjectId objectId,
+        int shardId,
+        EntryMetadata metadata,
+        float[] vector,
+        VectorIndexDefinition definition,
+        int userVersion
+) {
 }
