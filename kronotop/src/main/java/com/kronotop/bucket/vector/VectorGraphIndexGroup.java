@@ -42,12 +42,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 
@@ -450,15 +450,19 @@ public class VectorGraphIndexGroup {
      * Entries that fail again are recorded for a later retry. Returns the number of operations that succeeded.
      */
     public int retryFailedOps() {
-        AtomicInteger retried = new AtomicInteger();
-        failedOps.forEach((objectId, retryEntry) -> {
+        int retried = 0;
+        // Iterate over a snapshot. A failed retry puts the same key back into the map, and a re-inserted
+        // node can be visited again by a live traversal, which never ends.
+        for (Map.Entry<ObjectId, RetryEntry> entry : List.copyOf(failedOps.entrySet())) {
+            ObjectId objectId = entry.getKey();
+            RetryEntry retryEntry = entry.getValue();
             if (failedOps.remove(objectId, retryEntry)) {
                 if (retryFailedOp(objectId, retryEntry)) {
-                    retried.getAndIncrement();
+                    retried++;
                 }
             }
-        });
-        return retried.get();
+        }
+        return retried;
     }
 
     private void persistFailedOps() {
