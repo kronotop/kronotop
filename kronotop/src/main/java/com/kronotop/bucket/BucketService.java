@@ -438,18 +438,20 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 LOGGER.warn("{} service cannot be stopped gracefully (scheduler)", NAME);
             }
 
+            // Flush before vectorGraphExecutor shuts down. Flush retries failed vector node adds on
+            // that executor, and a terminated executor rejects every retry.
+            try {
+                vectorGraphRegistry.flushAll(bucketDataDir);
+            } catch (Exception e) {
+                LOGGER.error("Failed to flush vector graph indexes on shutdown", e);
+            }
+
             vectorGraphExecutor.shutdown();
             if (!vectorGraphExecutor.awaitTermination(
                     ExecutorServiceUtil.DEFAULT_TIMEOUT,
                     ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
             )) {
                 LOGGER.warn("{} service cannot be stopped gracefully (vectorGraphPool)", NAME);
-            }
-
-            try {
-                vectorGraphRegistry.flushAll(bucketDataDir);
-            } catch (Exception e) {
-                LOGGER.error("Failed to flush vector graph indexes on shutdown", e);
             }
 
             vectorGraphRegistry.closeAll();
