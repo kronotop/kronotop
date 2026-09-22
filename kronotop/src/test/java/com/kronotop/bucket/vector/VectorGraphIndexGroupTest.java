@@ -1093,6 +1093,53 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldNotLetStaleAddRetryOverrideNewerVector() {
+        // Behavior: An add fails and is recorded for retry. Before the retry runs, the same document is
+        // updated: the delete stores a tombstone, and the new add consumes it and enters the graph.
+        // The retry of the old add must not add a second live node for the same object. The object
+        // stays bound to the new vector, search returns the new vector, and a later delete removes
+        // every node of the object.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        long vectorIndexId = vectorIndex.definition().id();
+        ObjectId objectId = new ObjectId();
+        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
+        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
+        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
+                vectorIndex.definition(), 1);
+        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
+                vectorIndex.definition(), 3);
+
+        // Step 1: the first add fails and waits for a retry.
+        registryGroup.recordFailedOp(objectId, RetryEntry.add(metadata, versionstamp(1), oldCv));
+
+        // Step 2: the document is updated before the retry runs.
+        VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
+        remover.remove(objectId, versionstamp(2));
+        remover.flush();
+        new VectorNodeWriter(service, metadata).write(newCv, versionstamp(3));
+        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
+        int newOrdinal = onHeap.getMetadata().findOrdinal(objectId);
+        assertTrue(newOrdinal >= 0);
+
+        // Step 3: the stale add is retried.
+        registryGroup.retryFailedOps();
+
+        assertEquals(newOrdinal, onHeap.getMetadata().findOrdinal(objectId));
+        List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
+        assertEquals(1, results.size());
+        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
+
+        // Step 4: a later delete must leave no live node for the object.
+        remover = new VectorNodeRemover(service, metadata, vectorIndexId);
+        remover.remove(objectId, versionstamp(4));
+        remover.flush();
+
+        assertEquals(-1, onHeap.getMetadata().findOrdinal(objectId));
+        assertTrue(registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f).isEmpty());
+    }
+
+    @Test
     void shouldKeepNewerFailedOpWhenOlderIsRecorded(@TempDir Path tempDir) {
         // Behavior: A failed op with an older versionstamp does not overwrite a newer one for the same
         // object, so only the newer entry reaches the failed op log on flush.

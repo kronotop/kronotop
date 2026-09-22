@@ -46,6 +46,10 @@ public final class VectorNodeWriter extends BaseVectorNode {
     public void write(CollectedVector cv, Versionstamp addVs) {
         VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
 
+        // This add carries the newest vector of the object. A pending add retry is stale and must not run.
+        // If this add fails, the caller records a new retry entry with this versionstamp.
+        group.discardFailedOp(cv.objectId(), RetryEntry.Kind.ADD);
+
         // Pre-check: skip the expensive graph add if a newer DELETE tombstone already exists.
         if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {
             return;

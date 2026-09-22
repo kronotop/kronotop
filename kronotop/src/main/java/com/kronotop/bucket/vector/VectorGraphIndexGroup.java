@@ -465,6 +465,15 @@ public class VectorGraphIndexGroup {
         return retried;
     }
 
+    /**
+     * Drops the recorded failed operation of the given object if it has the given kind. A newer add that
+     * reached the graph makes a pending add retry stale, and a stale retry must not bind the object to an
+     * old vector. A pending retry of another kind is kept.
+     */
+    public void discardFailedOp(ObjectId objectId, RetryEntry.Kind kind) {
+        failedOps.computeIfPresent(objectId, (ignored, entry) -> entry.kind() == kind ? null : entry);
+    }
+
     private void persistFailedOps() {
         DirectorySubspace indexSubspace = vectorIndex.subspace();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
