@@ -290,6 +290,33 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     }
 
     /**
+     * Replays the FAILED_OP_LOG of the vector index into the on-heap index of the group.
+     * Entries that fail again are recorded on the group for a later retry.
+     */
+    private void replayFailedOpLog(
+            VectorGraphIndexGroup group,
+            BucketMetadata metadata,
+            VectorIndex vectorIndex
+    ) {
+        OnHeapVectorGraphIndex onHeap = group.getOrCreateOnHeap(
+                vectorIndex.definition().dimensions(),
+                OnHeapVectorGraphIndex.toSimilarityFunction(vectorIndex.definition().distance()),
+                pqTrainingThreshold,
+                pqSubspaceDivisor
+        );
+        // Replay the FAILED_OP_LOG
+        FailedOps failedOps = ReplayFailedOpsLog.replay(
+                context.getFoundationDB(),
+                group,
+                onHeap,
+                vectorIndex.subspace(),
+                vectorGraphExecutor
+        );
+        recordFailedAdds(failedOps.adds(), group, metadata, vectorIndex);
+        recordFailedDeletes(failedOps.deletes(), group, metadata, vectorIndex);
+    }
+
+    /**
      * Loads a vector graph index group from the disk and replays mutation log entries for crash recovery.
      * If no disk data and no mutation log entries exist, returns an immediately ready group (fast-path).
      * Otherwise, returns a not-yet-ready group and runs bootstrap in the background (slow-path).
@@ -332,6 +359,9 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                     recordFailedAdds(state.failedAdds(), group, metadata, vectorIndex);
                     recordFailedDeletes(state.failedDeletes(), group, metadata, vectorIndex);
                 }
+
+                // Replay FAILED_OP_LOG
+                replayFailedOpLog(group, metadata, vectorIndex);
 
                 group.markReady();
             } catch (Exception e) {
