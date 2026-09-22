@@ -19,18 +19,18 @@ package com.kronotop.bucket.index;
 /**
  * Markers for mutation log entries that record vector index mutations for crash recovery.
  */
-public enum MutationLogMarker {
+public enum MutationLogKind {
     INSERT((byte) 0x01),
     UPDATE((byte) 0x02),
     DELETE((byte) 0x03);
 
     private final byte value;
 
-    MutationLogMarker(byte value) {
+    MutationLogKind(byte value) {
         this.value = value;
     }
 
-    public static MutationLogMarker fromValue(byte value) {
+    public static MutationLogKind fromValue(byte value) {
         return switch (value) {
             case 0x01 -> INSERT;
             case 0x02 -> UPDATE;

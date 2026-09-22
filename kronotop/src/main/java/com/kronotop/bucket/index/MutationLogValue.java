@@ -19,26 +19,26 @@ package com.kronotop.bucket.index;
 import java.nio.ByteBuffer;
 
 /**
- * Value stored in a mutation log entry. Combines a marker, document ObjectId, and an optional
+ * Value stored in a mutation log entry. Combines a kind, document ObjectId, and an optional
  * VectorIndexValue payload (present for INSERT/UPDATE, absent for DELETE).
  *
- * <p>Wire format: {@code [1B marker][12B objectId][VectorIndexValue bytes (optional)]}
+ * <p>Wire format: {@code [1B kind][12B objectId][VectorIndexValue bytes (optional)]}
  *
- * @param marker        the mutation type (INSERT, UPDATE, DELETE)
+ * @param kind        the mutation type (INSERT, UPDATE, DELETE)
  * @param objectIdBytes the 12-byte document ObjectId
  * @param vectorPayload the optional VectorIndexValue (null for DELETE)
  */
-public record MutationLogValue(MutationLogMarker marker, byte[] objectIdBytes, VectorIndexValue vectorPayload) {
+public record MutationLogValue(MutationLogKind kind, byte[] objectIdBytes, VectorIndexValue vectorPayload) {
 
     private static final int OBJECT_ID_LENGTH = 12;
 
     /**
      * Encodes a mutation log value for INSERT or UPDATE operations.
      */
-    public static byte[] encode(MutationLogMarker marker, byte[] objectIdBytes, byte[] encodedIndexEntry, float[] vector) {
+    public static byte[] encode(MutationLogKind kind, byte[] objectIdBytes, byte[] encodedIndexEntry, float[] vector) {
         byte[] vectorPayload = VectorIndexValue.encode(encodedIndexEntry, vector);
         ByteBuffer buf = ByteBuffer.allocate(1 + OBJECT_ID_LENGTH + vectorPayload.length);
-        buf.put(marker.getValue());
+        buf.put(kind.getValue());
         buf.put(objectIdBytes);
         buf.put(vectorPayload);
         return buf.array();
@@ -47,9 +47,9 @@ public record MutationLogValue(MutationLogMarker marker, byte[] objectIdBytes, V
     /**
      * Encodes a mutation log value for DELETE operations (no vector payload).
      */
-    public static byte[] encode(MutationLogMarker marker, byte[] objectIdBytes) {
+    public static byte[] encode(MutationLogKind kind, byte[] objectIdBytes) {
         ByteBuffer buf = ByteBuffer.allocate(1 + OBJECT_ID_LENGTH);
-        buf.put(marker.getValue());
+        buf.put(kind.getValue());
         buf.put(objectIdBytes);
         return buf.array();
     }
@@ -59,7 +59,7 @@ public record MutationLogValue(MutationLogMarker marker, byte[] objectIdBytes, V
      */
     public static MutationLogValue decode(byte[] value) {
         ByteBuffer buf = ByteBuffer.wrap(value);
-        MutationLogMarker marker = MutationLogMarker.fromValue(buf.get());
+        MutationLogKind kind = MutationLogKind.fromValue(buf.get());
         byte[] objectIdBytes = new byte[OBJECT_ID_LENGTH];
         buf.get(objectIdBytes);
 
@@ -70,6 +70,6 @@ public record MutationLogValue(MutationLogMarker marker, byte[] objectIdBytes, V
             vectorPayload = VectorIndexValue.decode(remaining);
         }
 
-        return new MutationLogValue(marker, objectIdBytes, vectorPayload);
+        return new MutationLogValue(kind, objectIdBytes, vectorPayload);
     }
 }

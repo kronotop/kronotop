@@ -828,7 +828,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
             VectorIndexMaintainer.setMutationLog(
                     tr,
                     vectorIndex.subspace(),
-                    MutationLogMarker.INSERT,
+                    MutationLogKind.INSERT,
                     oid.toByteArray(),
                     encodedEntry,
                     new float[]{0.1f, 0.2f, 0.3f},
@@ -979,7 +979,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldWriteRemainingFailedAddToFailedOpLogOnFlush(@TempDir Path tempDir) {
         // Behavior: An add that still fails after the retries in flush is written to the failed op log
-        // under its versionstamp with the INSERT marker, the object id and the vector payload.
+        // under its versionstamp with the INSERT kind, the object id and the vector payload.
         ObjectId objectId = new ObjectId();
         Versionstamp versionstamp = versionstamp(7);
         EntryMetadata entryMetadata = newEntryMetadata(1);
@@ -997,7 +997,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         KeyValue kv = entries.get(0);
         assertEquals(versionstamp, vectorIndex.subspace().unpack(kv.getKey()).getVersionstamp(1));
         MutationLogValue decoded = MutationLogValue.decode(kv.getValue());
-        assertEquals(MutationLogMarker.INSERT, decoded.marker());
+        assertEquals(MutationLogKind.INSERT, decoded.kind());
         assertArrayEquals(objectId.toByteArray(), decoded.objectIdBytes());
         assertEquals(0, decoded.vectorPayload().indexEntry().shardId());
         assertArrayEquals(entryMetadata.encode(), decoded.vectorPayload().indexEntry().entryMetadata());

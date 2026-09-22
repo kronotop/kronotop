@@ -65,7 +65,7 @@ public final class VectorIndexCrashRecovery {
             ObjectId objectId = new ObjectId(logValue.objectIdBytes());
             Versionstamp versionstamp = indexSubspace.unpack(kv.getKey()).getVersionstamp(1);
 
-            switch (logValue.marker()) {
+            switch (logValue.kind()) {
                 case INSERT, UPDATE -> {
                     VectorIndexValue payload = logValue.vectorPayload();
                     IndexEntry indexEntry = payload.indexEntry();

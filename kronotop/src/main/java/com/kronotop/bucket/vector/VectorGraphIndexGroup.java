@@ -28,7 +28,7 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.IndexEntry;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
-import com.kronotop.bucket.index.MutationLogMarker;
+import com.kronotop.bucket.index.MutationLogKind;
 import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.bucket.index.VectorIndexMaintainer;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
@@ -471,7 +471,7 @@ public class VectorGraphIndexGroup {
                 }
                 CollectedVector cv = entry.collectedVector();
                 byte[] encodedIndexEntry = new IndexEntry(cv.shardId(), cv.metadata().encode()).encode();
-                VectorIndexMaintainer.setFailedOpLog(tr, indexSubspace, MutationLogMarker.INSERT, entry.versionstamp(),
+                VectorIndexMaintainer.setFailedOpLog(tr, indexSubspace, MutationLogKind.INSERT, entry.versionstamp(),
                         objectId.toByteArray(), encodedIndexEntry, cv.vector());
             });
             tr.commit().join();

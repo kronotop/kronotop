@@ -353,7 +353,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldSetMutationLog() {
-        // Behavior: setMutationLog records an INSERT mutation log entry with the correct marker,
+        // Behavior: setMutationLog records an INSERT mutation log entry with the correct kind,
         // objectIdBytes, and vector payload.
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
@@ -365,7 +365,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setMutationLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
+            VectorIndexMaintainer.setMutationLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
             tr.commit().join();
         }
 
@@ -373,7 +373,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(1, logEntries.size());
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
-        assertEquals(MutationLogMarker.INSERT, decoded.marker());
+        assertEquals(MutationLogKind.INSERT, decoded.kind());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNotNull(decoded.vectorPayload());
         assertArrayEquals(TEST_VECTOR, decoded.vectorPayload().vector());
@@ -383,7 +383,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldUpdateMutationLog() {
-        // Behavior: updateMutationLog records an UPDATE mutation log entry with the correct marker,
+        // Behavior: updateMutationLog records an UPDATE mutation log entry with the correct kind,
         // objectIdBytes, and vector payload.
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
@@ -395,7 +395,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setMutationLog(tr, vectorIndex.subspace(), MutationLogMarker.UPDATE, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
+            VectorIndexMaintainer.setMutationLog(tr, vectorIndex.subspace(), MutationLogKind.UPDATE, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
             tr.commit().join();
         }
 
@@ -403,7 +403,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(1, logEntries.size());
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
-        assertEquals(MutationLogMarker.UPDATE, decoded.marker());
+        assertEquals(MutationLogKind.UPDATE, decoded.kind());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNotNull(decoded.vectorPayload());
         assertArrayEquals(TEST_VECTOR, decoded.vectorPayload().vector());
@@ -413,7 +413,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
 
     @Test
     void shouldDeleteMutationLog() {
-        // Behavior: deleteMutationLog records a DELETE mutation log entry with the correct marker,
+        // Behavior: deleteMutationLog records a DELETE mutation log entry with the correct kind,
         // objectIdBytes, and no vector payload.
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
@@ -432,7 +432,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(1, logEntries.size());
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
-        assertEquals(MutationLogMarker.DELETE, decoded.marker());
+        assertEquals(MutationLogKind.DELETE, decoded.kind());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNull(decoded.vectorPayload());
     }
@@ -449,7 +449,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldSetFailedOpLog() {
         // Behavior: setFailedOpLog records an INSERT failed op log entry under the given versionstamp
-        // with the correct marker, objectIdBytes, and vector payload.
+        // with the correct kind, objectIdBytes, and vector payload.
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
 
@@ -461,7 +461,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
 
@@ -470,7 +470,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(versionstamp, vectorIndex.subspace().unpack(logEntries.get(0).getKey()).getVersionstamp(1));
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
-        assertEquals(MutationLogMarker.INSERT, decoded.marker());
+        assertEquals(MutationLogKind.INSERT, decoded.kind());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNotNull(decoded.vectorPayload());
         assertArrayEquals(TEST_VECTOR, decoded.vectorPayload().vector());
@@ -481,7 +481,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldSetFailedOpLogWithUpdateMarker() {
         // Behavior: setFailedOpLog records an UPDATE failed op log entry under the given versionstamp
-        // with the correct marker, objectIdBytes, and vector payload.
+        // with the correct kind, objectIdBytes, and vector payload.
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
 
@@ -493,7 +493,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.UPDATE, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.UPDATE, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
 
@@ -502,7 +502,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(versionstamp, vectorIndex.subspace().unpack(logEntries.get(0).getKey()).getVersionstamp(1));
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
-        assertEquals(MutationLogMarker.UPDATE, decoded.marker());
+        assertEquals(MutationLogKind.UPDATE, decoded.kind());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNotNull(decoded.vectorPayload());
         assertArrayEquals(TEST_VECTOR, decoded.vectorPayload().vector());
@@ -513,7 +513,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     @Test
     void shouldDeleteFailedOpLog() {
         // Behavior: deleteFailedOpLog records a DELETE failed op log entry under the given versionstamp
-        // with the correct marker, objectIdBytes, and no vector payload.
+        // with the correct kind, objectIdBytes, and no vector payload.
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
 
@@ -533,7 +533,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(versionstamp, vectorIndex.subspace().unpack(logEntries.get(0).getKey()).getVersionstamp(1));
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
-        assertEquals(MutationLogMarker.DELETE, decoded.marker());
+        assertEquals(MutationLogKind.DELETE, decoded.kind());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNull(decoded.vectorPayload());
     }
@@ -553,7 +553,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
 
@@ -567,7 +567,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(versionstamp, vectorIndex.subspace().unpack(logEntries.get(0).getKey()).getVersionstamp(1));
 
         MutationLogValue decoded = MutationLogValue.decode(logEntries.get(0).getValue());
-        assertEquals(MutationLogMarker.DELETE, decoded.marker());
+        assertEquals(MutationLogKind.DELETE, decoded.kind());
         assertArrayEquals(objectIdBytes, decoded.objectIdBytes());
         assertNull(decoded.vectorPayload());
     }
@@ -586,7 +586,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
 

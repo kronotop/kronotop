@@ -316,7 +316,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
     @Test
     void shouldPreserveLastPrefixOnTakeover() {
         // Behavior: When a takeover occurs, the new task should resume from the last progress
-        // marker (LAST_PREFIX) and clean up remaining stale prefixes.
+        // kind (LAST_PREFIX) and clean up remaining stale prefixes.
         DirectorySubspace testSubspace = createOrOpenSubspaceUnderCluster("test-subspace");
         byte[] stalePointer = testSubspace.pack("stale-pointer");
         try (Transaction tr = context.getFoundationDB().createTransaction()) {

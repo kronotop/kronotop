@@ -108,9 +108,9 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         byte[] encoded = encodedIndexEntry();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, vs1,
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, vs1,
                     oid1.toByteArray(), encoded, TEST_VECTOR_1);
-            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, vs2,
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, vs2,
                     oid2.toByteArray(), encoded, TEST_VECTOR_2);
             tr.commit().join();
         }
@@ -187,7 +187,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         Versionstamp vs = versionstamp(1);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT, vs,
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, vs,
                     oid.toByteArray(), encodedIndexEntry(), TEST_VECTOR_1);
             tr.commit().join();
         }
@@ -214,7 +214,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
             for (int i = 1; i <= total; i++) {
                 ObjectId oid = new ObjectId();
                 oids.add(oid);
-                VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogMarker.INSERT,
+                VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
                         versionstamp(i), oid.toByteArray(), encoded, TEST_VECTOR_1);
             }
             tr.commit().join();

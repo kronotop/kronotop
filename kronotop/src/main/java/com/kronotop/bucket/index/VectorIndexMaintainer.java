@@ -167,7 +167,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
      */
     public static void setFailedOpLog(Transaction tr,
                                       DirectorySubspace indexSubspace,
-                                      MutationLogMarker marker,
+                                      MutationLogKind kind,
                                       Versionstamp versionstamp,
                                       byte[] objectId,
                                       byte[] encodedIndexEntry,
@@ -177,7 +177,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
                 versionstamp
         );
         byte[] key = indexSubspace.pack(tuple);
-        byte[] value = MutationLogValue.encode(marker, objectId, encodedIndexEntry, vector);
+        byte[] value = MutationLogValue.encode(kind, objectId, encodedIndexEntry, vector);
         tr.set(key, value);
     }
 
@@ -196,7 +196,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
                 versionstamp
         );
         byte[] key = indexSubspace.pack(tuple);
-        byte[] value = MutationLogValue.encode(MutationLogMarker.DELETE, objectId);
+        byte[] value = MutationLogValue.encode(MutationLogKind.DELETE, objectId);
         tr.set(key, value);
     }
 
@@ -207,7 +207,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     public static void setMutationLog(
             Transaction tr,
             DirectorySubspace indexSubspace,
-            MutationLogMarker marker,
+            MutationLogKind kind,
             byte[] objectId,
             byte[] encodedIndexEntry,
             float[] vector,
@@ -218,7 +218,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
                 Versionstamp.incomplete(userVersion)
         );
         byte[] key = indexSubspace.packWithVersionstamp(tuple);
-        byte[] value = MutationLogValue.encode(marker, objectId, encodedIndexEntry, vector);
+        byte[] value = MutationLogValue.encode(kind, objectId, encodedIndexEntry, vector);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
     }
 
@@ -237,7 +237,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
                 Versionstamp.incomplete(userVersion)
         );
         byte[] key = indexSubspace.packWithVersionstamp(tuple);
-        byte[] value = MutationLogValue.encode(MutationLogMarker.DELETE, objectId);
+        byte[] value = MutationLogValue.encode(MutationLogKind.DELETE, objectId);
         tr.mutate(MutationType.SET_VERSIONSTAMPED_KEY, key, value);
     }
 

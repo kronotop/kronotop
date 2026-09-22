@@ -234,7 +234,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                 VectorIndexMaintainer.setMutationLog(
                         tr,
                         vectorIndex.subspace(),
-                        MutationLogMarker.INSERT,
+                        MutationLogKind.INSERT,
                         objectIdBytes,
                         encodedIndexEntry,
                         vector,

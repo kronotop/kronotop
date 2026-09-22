@@ -2617,7 +2617,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             assertEquals(1, mutationLogEntries.size(), "Should have 1 mutation log entry after upsert");
 
             MutationLogValue decoded = MutationLogValue.decode(mutationLogEntries.getFirst().getValue());
-            assertEquals(MutationLogMarker.INSERT, decoded.marker());
+            assertEquals(MutationLogKind.INSERT, decoded.kind());
             assertEquals(3, decoded.vectorPayload().vector().length);
             assertEquals(0.1f, decoded.vectorPayload().vector()[0], 0.001f);
         }

@@ -538,7 +538,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     // Write mutation log entry for crash recovery
                     int userVersion = ctx.getAndIncrementUserVersion();
                     VectorIndexMaintainer.setMutationLog(
-                            tr, vectorIndex.subspace(), MutationLogMarker.UPDATE,
+                            tr, vectorIndex.subspace(), MutationLogKind.UPDATE,
                             objectIdBytes,
                             new IndexEntry(container.getShardId(), container.getEntryMetadata()).encode(),
                             vector,
@@ -752,7 +752,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
                     encodedIndexEntry, vector
             );
             VectorIndexMaintainer.setMutationLog(
-                    tr, vectorIndex.subspace(), MutationLogMarker.INSERT,
+                    tr, vectorIndex.subspace(), MutationLogKind.INSERT,
                     objectIdBytes, encodedIndexEntry, vector, userVersion
             );
         }
