@@ -464,6 +464,9 @@ public class VectorGraphIndexGroup {
     private void persistFailedOps() {
         DirectorySubspace indexSubspace = vectorIndex.subspace();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            // Truncate FAILED_OP_LOG first, everything should be written to an index.
+            // Remember that JVector-based vector integration is eventually consistent.
+            VectorIndexMaintainer.truncateFailedOpLog(tr, indexSubspace);
             failedOps.forEach((objectId, entry) -> {
                 if (entry.isDelete()) {
                     VectorIndexMaintainer.deleteFailedOpLog(tr, indexSubspace, entry.versionstamp(), objectId.toByteArray());

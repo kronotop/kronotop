@@ -1006,6 +1006,38 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldReplaceFailedOpLogOnFlush(@TempDir Path tempDir) {
+        // Behavior: Flush truncates the failed op log before writing, so an older entry in the log
+        // is replaced and only the operations that still fail remain.
+        ObjectId staleObjectId = new ObjectId();
+        EntryMetadata entryMetadata = newEntryMetadata(1);
+        float[] vector = new float[]{1.0f, 0.0f, 0.0f};
+        byte[] encodedIndexEntry = new IndexEntry(0, entryMetadata.encode()).encode();
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, versionstamp(3),
+                    staleObjectId.toByteArray(), encodedIndexEntry, vector);
+            tr.commit().join();
+        }
+        assertEquals(1, getFailedOpLogEntries(vectorIndex.subspace()).size());
+
+        ObjectId objectId = new ObjectId();
+        Versionstamp versionstamp = versionstamp(7);
+        VectorIndexDefinition definition = vectorIndex.definition();
+        VectorIndexDefinition unknownDefinition = new VectorIndexDefinition(Long.MAX_VALUE, definition.name(),
+                definition.selector(), definition.dimensions(), definition.distance(), definition.status());
+        CollectedVector cv = new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 7);
+        group.recordFailedOp(objectId, RetryEntry.add(metadata, versionstamp, cv));
+
+        group.flush(tempDir);
+
+        List<KeyValue> entries = getFailedOpLogEntries(vectorIndex.subspace());
+        assertEquals(1, entries.size());
+        KeyValue kv = entries.get(0);
+        assertEquals(versionstamp, vectorIndex.subspace().unpack(kv.getKey()).getVersionstamp(1));
+        assertArrayEquals(objectId.toByteArray(), MutationLogValue.decode(kv.getValue()).objectIdBytes());
+    }
+
+    @Test
     void shouldNotWriteFailedOpLogWhenNoFailedOps(@TempDir Path tempDir) {
         // Behavior: A flush with no recorded failed operations leaves the failed op log empty.
         group.flush(tempDir);

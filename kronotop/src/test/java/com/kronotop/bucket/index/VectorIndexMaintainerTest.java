@@ -595,6 +595,47 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     }
 
     @Test
+    void shouldTruncateFailedOpLog() {
+        // Behavior: truncateFailedOpLog removes every entry from the failed op log.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        AppendedEntry[] entries = getAppendedEntries();
+        AppendedEntry entry = entries[0];
+        byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
+                    TestUtil.generateVersionstamp(1), new ObjectId().toByteArray(), encodedIndexEntry, TEST_VECTOR);
+            VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(),
+                    TestUtil.generateVersionstamp(2), new ObjectId().toByteArray());
+            tr.commit().join();
+        }
+        assertEquals(2, getFailedOpLogEntries(vectorIndex.subspace()).size());
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.truncateFailedOpLog(tr, vectorIndex.subspace());
+            tr.commit().join();
+        }
+
+        assertTrue(getFailedOpLogEntries(vectorIndex.subspace()).isEmpty());
+    }
+
+    @Test
+    void shouldTruncateEmptyFailedOpLog() {
+        // Behavior: truncateFailedOpLog on an empty failed op log does not fail and the log stays empty.
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.truncateFailedOpLog(tr, vectorIndex.subspace());
+            tr.commit().join();
+        }
+
+        assertTrue(getFailedOpLogEntries(vectorIndex.subspace()).isEmpty());
+    }
+
+    @Test
     void shouldRejectVectorWithNaNComponent() {
         // Behavior: extractVector rejects a document whose vector component is NaN.
         String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);

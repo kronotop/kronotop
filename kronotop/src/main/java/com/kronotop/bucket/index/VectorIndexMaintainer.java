@@ -17,6 +17,7 @@
 package com.kronotop.bucket.index;
 
 import com.apple.foundationdb.MutationType;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Tuple;
@@ -179,6 +180,14 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
         byte[] key = indexSubspace.pack(tuple);
         byte[] value = MutationLogValue.encode(kind, objectId, encodedIndexEntry, vector);
         tr.set(key, value);
+    }
+
+    /**
+     * Removes every entry from the failed op log of the vector index.
+     */
+    public static void truncateFailedOpLog(Transaction tr, DirectorySubspace indexSubspace) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FAILED_OP_LOG.getValue()));
+        tr.clear(Range.startsWith(prefix));
     }
 
     /**
