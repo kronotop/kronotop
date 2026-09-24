@@ -314,6 +314,18 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldReturnErrorWhenListSilentMembersWithExtraParameters() {
+        // Behavior: LIST-SILENT-MEMBERS rejects extra parameters with "invalid number of parameters".
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$19\r\nLIST-SILENT-MEMBERS\r\n$5\r\nextra\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid number of parameters", actualMessage.content());
+    }
+
+    @Test
     void shouldReturnErrorWhenRemoveMemberWithRunningStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
