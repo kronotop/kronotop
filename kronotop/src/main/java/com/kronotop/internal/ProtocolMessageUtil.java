@@ -247,7 +247,8 @@ public class ProtocolMessageUtil {
      * @param shardKind  the shard kind to validate against
      * @param shardIdBuf buffer containing the shard ID as a numeric string
      * @return the validated shard ID
-     * @throws InvalidShardIdException if the value is not a valid integer or out of range
+     * @throws KronotopException       if the value is not a valid integer
+     * @throws InvalidShardIdException if the value is out of range for the shard kind
      */
     public static int readShardId(ShardRegistry registry, ShardKind shardKind, ByteBuf shardIdBuf) {
         String rawShardId = ProtocolMessageUtil.readAsString(shardIdBuf);
@@ -261,7 +262,8 @@ public class ProtocolMessageUtil {
      * @param shardKind  the shard kind to validate against
      * @param rawShardId the shard ID as a numeric string
      * @return the validated shard ID
-     * @throws InvalidShardIdException if the value is not a valid integer or out of range
+     * @throws KronotopException       if the value is not a valid integer
+     * @throws InvalidShardIdException if the value is out of range for the shard kind
      */
     public static int readShardId(ShardRegistry registry, ShardKind shardKind, String rawShardId) {
         try {
@@ -271,7 +273,7 @@ public class ProtocolMessageUtil {
             }
             return shardId;
         } catch (NumberFormatException e) {
-            throw new InvalidShardIdException();
+            throw new KronotopException("shard-id is not an integer or out of range");
         }
     }
 
