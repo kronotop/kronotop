@@ -477,6 +477,43 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldReturnErrorWhenDescribeShardWithNonIntegerShardId() {
+        // Behavior: DESCRIBE-SHARD rejects a shard id that is not an integer.
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*4\r\n$8\r\nKR.ADMIN\r\n$14\r\nDESCRIBE-SHARD\r\n$6\r\nBUCKET\r\n$3\r\nabc\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR shard-id is not an integer or out of range", actualMessage.content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenDescribeShardWithNonExistentShardId() {
+        // Behavior: DESCRIBE-SHARD rejects a shard id that is not registered for the shard kind.
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.describeShard("BUCKET", 1231253).encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid shard id", actualMessage.content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenDescribeShardWithInvalidNumberOfParameters() {
+        // Behavior: DESCRIBE-SHARD rejects a call without the shard id parameter.
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$14\r\nDESCRIBE-SHARD\r\n$6\r\nBUCKET\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid number of parameters", actualMessage.content());
+    }
+
+    @Test
     void shouldReturnTokenWhenDropClusterRequested() {
         // Behavior: Phase 1 returns a UUID token when called with a matching cluster name.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
