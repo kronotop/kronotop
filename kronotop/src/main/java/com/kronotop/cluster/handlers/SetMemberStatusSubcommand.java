@@ -18,7 +18,6 @@ package com.kronotop.cluster.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.AsyncCommandExecutor;
-import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberStatus;
 import com.kronotop.cluster.RoutingService;
@@ -57,7 +56,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
 
         private SetMemberStatusParameters(ArrayList<ByteBuf> params) {
             if (params.size() != 3) {
-                throw new KronotopException("Invalid number of parameters");
+                throw new InvalidNumberOfParametersException();
             }
             memberId = ProtocolMessageUtil.readMemberId(context, params.get(1));
             memberStatus = readMemberStatus(params.get(2));

@@ -34,7 +34,7 @@ Argument errors:
 
 | Error Code | Error message                      | Cause                                                                   |
 |------------|------------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `Invalid number of parameters`     | -                                                                       |
+| `ERR`      | `invalid number of parameters`     | -                                                                       |
 | `ERR`      | `Unknown member status: '<value>'` | -                                                                       |
 | `ERR`      | `Invalid memberId: <id>`           | The value is neither a 40-character member ID nor a 4-character prefix. |
 
