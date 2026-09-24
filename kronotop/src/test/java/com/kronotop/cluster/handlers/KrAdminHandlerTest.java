@@ -317,6 +317,44 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldReturnErrorWhenRemoveMemberWithInvalidNumberOfParameters() {
+        // Behavior: REMOVE-MEMBER rejects a call without the member id parameter.
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*2\r\n$8\r\nKR.ADMIN\r\n$13\r\nREMOVE-MEMBER\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid number of parameters", actualMessage.content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenRemoveMemberWithInvalidMemberId() {
+        // Behavior: REMOVE-MEMBER rejects a member id whose length is not a valid member id length.
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.removeMember("not-a-valid-member-id").encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR Invalid memberId: not-a-valid-member-id", actualMessage.content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenRemoveMemberWithUnknownPrefix() {
+        // Behavior: REMOVE-MEMBER rejects a 4-character prefix that matches no known member.
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.removeMember("zzzz").encode(buf);
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR no member found with prefix: zzzz", actualMessage.content());
+    }
+
+    @Test
     void shouldSetShardStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();

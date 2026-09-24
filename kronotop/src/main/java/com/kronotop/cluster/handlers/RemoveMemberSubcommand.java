@@ -50,6 +50,9 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
         private final String memberId;
 
         RemoveMemberParameters(ArrayList<ByteBuf> params) {
+            if (params.size() != 2) {
+                throw new InvalidNumberOfParametersException();
+            }
             memberId = ProtocolMessageUtil.readMemberId(context, params.get(1));
         }
     }
