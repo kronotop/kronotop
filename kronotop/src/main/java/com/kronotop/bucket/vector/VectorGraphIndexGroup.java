@@ -388,19 +388,21 @@ public class VectorGraphIndexGroup {
             return;
         }
 
-        onHeapIndexes.remove(index);
-        try {
-            index.close();
-        } catch (IOException e) {
-            LOGGER.error("Failed to close flushed vector graph index", e);
-        }
-
+        // Add the on-disk index before removing the on-heap index. Otherwise, a delete retry that runs
+        // in between finds the node in no list, stores a tombstone, and the delete is lost.
         if (indexPath != null) {
             try {
                 onDiskIndexes.add(new OnDiskVectorGraphIndex(indexPath, index.getSimilarityFunction()));
             } catch (IOException e) {
                 LOGGER.error("Failed to open flushed vector graph index from {}", indexPath, e);
             }
+        }
+
+        onHeapIndexes.remove(index);
+        try {
+            index.close();
+        } catch (IOException e) {
+            LOGGER.error("Failed to close flushed vector graph index", e);
         }
 
         if (firstVersionstamp == null || latestVersionstamp == null) {
