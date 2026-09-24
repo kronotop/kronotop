@@ -429,6 +429,19 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldReturnErrorWhenDescribeClusterWithExtraParameters() {
+        // Behavior: DESCRIBE-CLUSTER rejects extra parameters with "invalid number of parameters".
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$16\r\nDESCRIBE-CLUSTER\r\n$5\r\nextra\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
+        assertTrue(errorMessage.content().contains("invalid number of parameters"));
+    }
+
+    @Test
     void shouldDescribeShard() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 

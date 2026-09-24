@@ -41,6 +41,9 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
     @Override
     public void execute(Request request, Response response) {
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
+            if (request.getParams().size() != 1) {
+                throw new InvalidNumberOfParametersException();
+            }
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 String version = MetadataVersion.read(context, tr);
