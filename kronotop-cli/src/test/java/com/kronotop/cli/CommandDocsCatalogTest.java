@@ -102,7 +102,8 @@ class CommandDocsCatalogTest {
                 "summary", str("Container command."),
                 "subcommands", map(
                         "client|setname", map("arguments", array(scalar("connection-name"))),
-                        "client|setinfo", map("arguments", array(scalar("attribute"), scalar("value"))))));
+                        "client|setinfo", map("arguments", array(scalar("attribute"), scalar("value"))),
+                        "client|list", map("summary", str("No arguments.")))));
     }
 
     private static List<String> names(CmdDesc desc) {
@@ -147,10 +148,11 @@ class CommandDocsCatalogTest {
 
     @Test
     void shouldLookupCommandCaseInsensitively() {
-        // Behavior: the typed command name matches the lowercase catalog key
+        // Behavior: the typed command name matches the lowercase catalog key and the hint ends with an empty token
         CommandDocsCatalog catalog = new CommandDocsCatalog(bucketQueryDocs());
         CmdDesc desc = catalog.lookup(List.of("BUCKET.QUERY"));
         assertEquals("bucket", names(desc).get(0));
+        assertEquals("", names(desc).get(names(desc).size() - 1));
         assertTrue(desc.isCommand());
     }
 
@@ -163,20 +165,28 @@ class CommandDocsCatalogTest {
     }
 
     @Test
-    void shouldRenderSubcommandHintWithSubcommandToken() {
-        // Behavior: a container command with a typed subcommand shows the subcommand and its arguments
+    void shouldRenderSubcommandHintWithEmptyTokenForSubcommandWord() {
+        // Behavior: a container command with a typed subcommand shows an empty token for the subcommand word,
+        // then its arguments, then an empty token that clears the hint
         CommandDocsCatalog catalog = new CommandDocsCatalog(clientDocs());
         assertTrue(catalog.isContainer("CLIENT"));
-        assertEquals(List.of("SETNAME", "connection-name"), names(catalog.lookup(List.of("CLIENT", "setname"))));
-        assertEquals(List.of("SETINFO", "attribute", "value"), names(catalog.lookup(List.of("client", "SETINFO"))));
+        assertEquals(List.of("", "connection-name", ""), names(catalog.lookup(List.of("CLIENT", "setname"))));
+        assertEquals(List.of("", "attribute", "value", ""), names(catalog.lookup(List.of("client", "SETINFO"))));
+    }
+
+    @Test
+    void shouldRenderOnlyEmptyTokensForSubcommandWithoutArguments() {
+        // Behavior: a subcommand without arguments yields only the two empty tokens, so no hint is shown
+        CommandDocsCatalog catalog = new CommandDocsCatalog(clientDocs());
+        assertEquals(List.of("", ""), names(catalog.lookup(List.of("CLIENT", "list"))));
     }
 
     @Test
     void shouldShowSubcommandPlaceholderWhenSubcommandMissing() {
-        // Behavior: a container command without a known subcommand shows a placeholder
+        // Behavior: a container command without a known subcommand shows a placeholder followed by an empty token
         CommandDocsCatalog catalog = new CommandDocsCatalog(clientDocs());
-        assertEquals(List.of("subcommand"), names(catalog.lookup(List.of("CLIENT"))));
-        assertEquals(List.of("subcommand"), names(catalog.lookup(List.of("CLIENT", "nope"))));
+        assertEquals(List.of("subcommand", ""), names(catalog.lookup(List.of("CLIENT"))));
+        assertEquals(List.of("subcommand", ""), names(catalog.lookup(List.of("CLIENT", "nope"))));
     }
 
     @Test
@@ -228,7 +238,7 @@ class CommandDocsCatalogTest {
     void shouldFindContainerAndItsSubcommandsByPrefix() {
         // Behavior: a container name matches the container and every subcommand, in catalog order
         CommandDocsCatalog catalog = new CommandDocsCatalog(clientDocs());
-        assertEquals(List.of("CLIENT", "CLIENT SETNAME", "CLIENT SETINFO"), names(catalog.find(List.of("client"))));
+        assertEquals(List.of("CLIENT", "CLIENT SETNAME", "CLIENT SETINFO", "CLIENT LIST"), names(catalog.find(List.of("client"))));
     }
 
     @Test

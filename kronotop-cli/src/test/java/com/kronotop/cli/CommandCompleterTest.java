@@ -143,11 +143,12 @@ class CommandCompleterTest {
 
     @Test
     void shouldReturnHintAfterCatalogIsSet() {
-        // Behavior: lookup delegates to the catalog once it is loaded
+        // Behavior: lookup delegates to the catalog once it is loaded; the hint ends with an empty token
         CommandCompleter completer = new CommandCompleter();
         completer.setCatalog(catalog());
         CmdDesc desc = completer.lookup(cmdLine(List.of("CLIENT")));
-        assertEquals(1, desc.getArgsDesc().size());
+        assertEquals(2, desc.getArgsDesc().size());
         assertEquals("subcommand", desc.getArgsDesc().get(0).getName());
+        assertEquals("", desc.getArgsDesc().get(1).getName());
     }
 }

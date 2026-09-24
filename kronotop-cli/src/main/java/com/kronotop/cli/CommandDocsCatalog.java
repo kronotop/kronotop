@@ -38,6 +38,7 @@ import java.util.TreeSet;
 public class CommandDocsCatalog {
 
     private static final String SUBCOMMAND_PLACEHOLDER = "subcommand";
+    private static final String EMPTY_TOKEN = "";
     private static final String NBSP = "\u00A0";
 
     /**
@@ -92,6 +93,12 @@ public class CommandDocsCatalog {
         return lookup(line.getArgs());
     }
 
+    /**
+     * The hint list always ends with an empty token. JLine shows the token at the
+     * current word position, so the empty token clears the hint after the last argument.
+     * For a subcommand the list also starts with an empty token: it stands in for the
+     * subcommand word itself, so the following tokens line up with the typed words.
+     */
     CmdDesc lookup(List<String> words) {
         if (words == null || words.isEmpty()) {
             return null;
@@ -102,19 +109,26 @@ public class CommandDocsCatalog {
                 String sub = words.get(1).toLowerCase(Locale.ROOT);
                 CommandDoc subDoc = docs.get(command + "|" + sub);
                 if (subDoc != null) {
-                    List<String> names = new ArrayList<>(subDoc.usage().size() + 1);
-                    names.add(words.get(1).toUpperCase(Locale.ROOT));
+                    List<String> names = new ArrayList<>(subDoc.usage().size() + 2);
+                    names.add(EMPTY_TOKEN);
                     names.addAll(subDoc.usage());
-                    return new CmdDesc(ArgDesc.doArgNames(names));
+                    return hint(names);
                 }
             }
-            return new CmdDesc(ArgDesc.doArgNames(List.of(SUBCOMMAND_PLACEHOLDER)));
+            return hint(List.of(SUBCOMMAND_PLACEHOLDER));
         }
         CommandDoc doc = docs.get(command);
         if (doc == null) {
             return null;
         }
-        return new CmdDesc(ArgDesc.doArgNames(doc.usage()));
+        return hint(doc.usage());
+    }
+
+    private static CmdDesc hint(List<String> names) {
+        List<String> out = new ArrayList<>(names.size() + 1);
+        out.addAll(names);
+        out.add(EMPTY_TOKEN);
+        return new CmdDesc(ArgDesc.doArgNames(out));
     }
 
     /**
