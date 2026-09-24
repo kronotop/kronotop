@@ -43,12 +43,16 @@ class OnHeapVectorGraphIndexMetadataTest {
     }
 
     @Test
-    void shouldPutAndFindOrdinal() {
-        // Behavior: Putting an entry makes its ordinal retrievable by ObjectId.
+    void shouldPutAndFindNodeRef() {
+        // Behavior: Putting an entry makes its ordinal and add versionstamp retrievable by ObjectId.
         ObjectId objectId = new ObjectId();
-        metadata.put(objectId, 42, 0, newEntryMetadata(1L));
+        Versionstamp versionstamp = TestUtil.generateVersionstamp(1);
+        metadata.put(objectId, 42, versionstamp, 0, newEntryMetadata(1L));
 
-        assertEquals(42, metadata.findOrdinal(objectId));
+        GraphNodeRef ref = metadata.findNodeRef(objectId);
+        assertNotNull(ref);
+        assertEquals(42, ref.ordinal());
+        assertEquals(versionstamp, ref.versionstamp());
     }
 
     @Test
@@ -57,7 +61,7 @@ class OnHeapVectorGraphIndexMetadataTest {
         ObjectId objectId = new ObjectId();
         Versionstamp versionstamp = TestUtil.generateVersionstamp(1);
         EntryMetadata entryMetadata = newEntryMetadata(5L);
-        metadata.put(objectId, 7, 0, entryMetadata);
+        metadata.put(objectId, 7, versionstamp, 0, entryMetadata);
 
         DocumentLocation location = metadata.findDocumentLocation(7);
         assertNotNull(location);
@@ -67,10 +71,15 @@ class OnHeapVectorGraphIndexMetadataTest {
     }
 
     @Test
-    void shouldAddAndClearPendingDeletes() {
-        // Behavior: addPendingDelete records nodes for deletion, and clearPendingDeletes invokes the consumer for each and clears the set.
-        metadata.addPendingDelete(0);
-        metadata.addPendingDelete(3);
+    void shouldQueueAndClearPendingDeletes() {
+        // Behavior: removeMapping queues the removed ordinals for deletion, and clearPendingDeletes invokes the
+        // consumer for each and clears the set.
+        ObjectId first = new ObjectId();
+        ObjectId second = new ObjectId();
+        metadata.put(first, 0, makeVersionstamp(1, 0), 0, newEntryMetadata(1L));
+        metadata.put(second, 3, makeVersionstamp(1, 0), 0, newEntryMetadata(2L));
+        metadata.removeMapping(first, makeVersionstamp(2, 0));
+        metadata.removeMapping(second, makeVersionstamp(2, 0));
 
         List<Integer> deleted = new ArrayList<>();
         metadata.clearPendingDeletes(deleted::add);
@@ -86,33 +95,91 @@ class OnHeapVectorGraphIndexMetadataTest {
     }
 
     @Test
-    void shouldReturnMinusOneForUnknownObjectId() {
-        // Behavior: findOrdinal returns -1 when the ObjectId is not present in the metadata.
+    void shouldReturnNullForUnknownObjectId() {
+        // Behavior: findNodeRef returns null when the ObjectId is not present in the metadata.
         ObjectId unknownId = new ObjectId();
-        assertEquals(-1, metadata.findOrdinal(unknownId));
+        assertNull(metadata.findNodeRef(unknownId));
     }
 
     @Test
-    void shouldOverwriteOnDuplicateObjectId() {
-        // Behavior: Putting the same ObjectId twice overwrites the ordinal mapping with the latest value.
+    void shouldReturnMinusOneOnFirstPut() {
+        // Behavior: The first put for an ObjectId has no stale and returns -1.
+        assertEquals(-1, metadata.put(new ObjectId(), 3, makeVersionstamp(1, 0), 0, newEntryMetadata(1L)));
+    }
+
+    @Test
+    void shouldOverwriteWithNewerVersionstampAndReturnPreviousOrdinal() {
+        // Behavior: Putting the same ObjectId with a newer versionstamp replaces the mapping, even when the
+        // new ordinal is lower. The previous ordinal is returned as the stale, its location is dropped,
+        // and it is queued as a pending delete.
         ObjectId objectId = new ObjectId();
-        metadata.put(objectId, 0, 0, newEntryMetadata(1L));
-        metadata.put(objectId, 5, 0, newEntryMetadata(2L));
+        metadata.put(objectId, 5, makeVersionstamp(1, 0), 0, newEntryMetadata(1L));
+        int staleOrdinal = metadata.put(objectId, 0, makeVersionstamp(2, 0), 0, newEntryMetadata(2L));
 
-        assertEquals(5, metadata.findOrdinal(objectId));
+        assertEquals(5, staleOrdinal);
+        assertEquals(0, metadata.findNodeRef(objectId).ordinal());
+        assertEquals(makeVersionstamp(2, 0), metadata.findNodeRef(objectId).versionstamp());
+        assertNull(metadata.findDocumentLocation(5));
+        assertNotNull(metadata.findDocumentLocation(0));
+        List<Integer> pending = new ArrayList<>();
+        metadata.clearPendingDeletes(pending::add);
+        assertEquals(List.of(5), pending);
     }
 
     @Test
-    void shouldRejectStaleOverwriteWithLowerOrdinal() {
-        // Behavior: Putting the same ObjectId with a lower ordinal is a no-op; the higher ordinal is retained.
+    void shouldOverwriteWithEqualVersionstamp() {
+        // Behavior: Putting the same ObjectId with the same versionstamp replaces the mapping with the latest
+        // value and returns the previous ordinal as the loser.
+        ObjectId objectId = new ObjectId();
+        metadata.put(objectId, 0, makeVersionstamp(1, 0), 0, newEntryMetadata(1L));
+        int loser = metadata.put(objectId, 5, makeVersionstamp(1, 0), 0, newEntryMetadata(2L));
+
+        assertEquals(0, loser);
+        assertEquals(5, metadata.findNodeRef(objectId).ordinal());
+        assertNull(metadata.findDocumentLocation(0));
+    }
+
+    @Test
+    void shouldRejectStaleOverwriteAndReturnIncomingOrdinal() {
+        // Behavior: Putting the same ObjectId with an older versionstamp keeps the existing mapping and
+        // location, returns the incoming ordinal as the loser, and queues it as a pending delete.
         ObjectId objectId = new ObjectId();
         EntryMetadata original = newEntryMetadata(1L);
-        metadata.put(objectId, 5, 0, original);
-        metadata.put(objectId, 0, 0, newEntryMetadata(2L));
+        metadata.put(objectId, 0, makeVersionstamp(5, 0), 0, original);
+        int loser = metadata.put(objectId, 7, makeVersionstamp(2, 0), 0, newEntryMetadata(2L));
 
-        assertEquals(5, metadata.findOrdinal(objectId));
-        assertNotNull(metadata.findDocumentLocation(5));
-        assertNull(metadata.findDocumentLocation(0));
+        assertEquals(7, loser);
+        GraphNodeRef ref = metadata.findNodeRef(objectId);
+        assertEquals(0, ref.ordinal());
+        assertEquals(makeVersionstamp(5, 0), ref.versionstamp());
+        assertNotNull(metadata.findDocumentLocation(0));
+        assertNull(metadata.findDocumentLocation(7));
+        List<Integer> pending = new ArrayList<>();
+        metadata.clearPendingDeletes(pending::add);
+        assertEquals(List.of(7), pending);
+    }
+
+    @Test
+    void shouldRemoveMappingOnlyWithNewerDelete() {
+        // Behavior: removeMapping with an older or equal versionstamp returns -1 and keeps the mapping.
+        // A newer versionstamp removes the mapping and the location, queues the ordinal as a pending
+        // delete, and returns the ordinal.
+        ObjectId objectId = new ObjectId();
+        metadata.put(objectId, 4, makeVersionstamp(3, 0), 0, newEntryMetadata(1L));
+
+        assertEquals(-1, metadata.removeMapping(objectId, makeVersionstamp(2, 0)));
+        assertEquals(-1, metadata.removeMapping(objectId, makeVersionstamp(3, 0)));
+        assertNotNull(metadata.findNodeRef(objectId));
+        assertNotNull(metadata.findDocumentLocation(4));
+
+        assertEquals(4, metadata.removeMapping(objectId, makeVersionstamp(4, 0)));
+        assertNull(metadata.findNodeRef(objectId));
+        assertNull(metadata.findDocumentLocation(4));
+        List<Integer> pending = new ArrayList<>();
+        metadata.clearPendingDeletes(pending::add);
+        assertEquals(List.of(4), pending);
+
+        assertEquals(-1, metadata.removeMapping(new ObjectId(), makeVersionstamp(9, 0)));
     }
 
     private Versionstamp makeVersionstamp(int highByte, int userVersion) {

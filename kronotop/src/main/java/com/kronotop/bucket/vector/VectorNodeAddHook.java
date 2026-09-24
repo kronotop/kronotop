@@ -47,7 +47,7 @@ public final class VectorNodeAddHook extends BaseVectorNode implements CommitHoo
 
     private void recordFailedAdd(Versionstamp addVs, CollectedVector cv) {
         VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
-        group.recordFailedOp(cv.objectId(), RetryEntry.add(metadata, addVs, cv));
+        group.recordFailedOp(RetryEntry.add(metadata, addVs, cv));
     }
 
     @Override

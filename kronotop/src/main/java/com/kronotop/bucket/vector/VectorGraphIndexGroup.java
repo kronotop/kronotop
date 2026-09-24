@@ -69,7 +69,7 @@ public class VectorGraphIndexGroup {
     private final List<OnHeapVectorGraphIndex> onHeapIndexes = new CopyOnWriteArrayList<>();
     private final List<OnDiskVectorGraphIndex> onDiskIndexes = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<ObjectId, Versionstamp> deleteTombstones = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<ObjectId, RetryEntry> failedOps = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<FailedOpKey, RetryEntry> failedOps = new ConcurrentHashMap<>();
 
     private final Context context;
     private final BucketService service;
@@ -104,11 +104,21 @@ public class VectorGraphIndexGroup {
 
     /**
      * Records a vector node add or delete that failed on the graph indexes, so it can be retried later.
-     * If the object already has an entry, the one with the newer versionstamp is kept.
+     * Adds and deletes of the same object are kept apart. If the object already has an entry of the
+     * same kind, the one with the newer versionstamp is kept.
      */
-    public void recordFailedOp(ObjectId objectId, RetryEntry entry) {
-        failedOps.merge(objectId, entry, (existing, incoming) ->
+    public void recordFailedOp(RetryEntry entry) {
+        failedOps.merge(new FailedOpKey(entry.objectId(), entry.kind()), entry, (existing, incoming) ->
                 incoming.versionstamp().compareTo(existing.versionstamp()) >= 0 ? incoming : existing);
+    }
+
+    /**
+     * Drops a waiting add retry of the object if its versionstamp is older than the given add.
+     * A newer add is about to run, so the old retry must never add a node again.
+     */
+    public void discardStaleFailedAdd(ObjectId objectId, Versionstamp addVs) {
+        failedOps.computeIfPresent(new FailedOpKey(objectId, RetryEntry.Kind.ADD), (ignored, entry) ->
+                entry.versionstamp().compareTo(addVs) < 0 ? null : entry);
     }
 
     /**
@@ -402,15 +412,38 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Returns true when any graph of the group holds a node of the object with a newer versionstamp.
+     */
+    private boolean hasNewerNode(ObjectId objectId, Versionstamp addVs) {
+        for (OnHeapVectorGraphIndex onHeap : getOnHeapIndexes()) {
+            GraphNodeRef ref = onHeap.getMetadata().findNodeRef(objectId);
+            if (ref != null && ref.versionstamp().compareTo(addVs) > 0) {
+                return true;
+            }
+        }
+        for (OnDiskVectorGraphIndex onDisk : getOnDiskIndexes()) {
+            GraphNodeRef ref = onDisk.getMetadata().findNodeRef(objectId);
+            if (ref != null && ref.versionstamp().compareTo(addVs) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Tries again to add a failed vector node to the on-heap graph. If the add fails again, the entry
      * is recorded for a later retry. Returns true only if the node was added.
      */
     private boolean retryFailedAdd(BucketMetadata metadata, ObjectId objectId, RetryEntry retryEntry) {
+        // A stale add (retry of an older versionstamp) must not replace the current node.
+        if (hasNewerNode(objectId, retryEntry.versionstamp())) {
+            return false;
+        }
         try {
             VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
             writer.write(retryEntry.collectedVector(), retryEntry.versionstamp());
         } catch (Exception e) {
-            recordFailedOp(objectId, retryEntry);
+            recordFailedOp(retryEntry);
             LOGGER.warn("Failed to retry vector node add on on-heap graph, objectId={}, vectorIndexId={}, versionstamp={}, recorded the retry entry again: {}",
                     objectId, retryEntry.vectorIndexId(), retryEntry.versionstamp(), e.toString());
             LOGGER.debug("Stack trace for failed vector node add retry, objectId={}", objectId, e);
@@ -427,7 +460,7 @@ public class VectorGraphIndexGroup {
         VectorNodeRemover remover = new VectorNodeRemover(service, metadata, retryEntry.vectorIndexId());
         remover.remove(objectId, retryEntry.versionstamp());
         remover.flush();
-        return !failedOps.containsKey(objectId);
+        return !failedOps.containsKey(new FailedOpKey(objectId, RetryEntry.Kind.DELETE));
     }
 
     /**
@@ -439,9 +472,13 @@ public class VectorGraphIndexGroup {
         if (!metadata.uuid().equals(retryEntry.bucketUuid())) {
             return false;
         }
+
+        // DELETE
         if (retryEntry.isDelete()) {
             return retryFailedDelete(metadata, objectId, retryEntry);
         }
+
+        // ADD
         return retryFailedAdd(metadata, objectId, retryEntry);
     }
 
@@ -453,25 +490,16 @@ public class VectorGraphIndexGroup {
         int retried = 0;
         // Iterate over a snapshot. A failed retry puts the same key back into the map, and a re-inserted
         // node can be visited again by a live traversal, which never ends.
-        for (Map.Entry<ObjectId, RetryEntry> entry : List.copyOf(failedOps.entrySet())) {
-            ObjectId objectId = entry.getKey();
+        for (Map.Entry<FailedOpKey, RetryEntry> entry : List.copyOf(failedOps.entrySet())) {
+            FailedOpKey key = entry.getKey();
             RetryEntry retryEntry = entry.getValue();
-            if (failedOps.remove(objectId, retryEntry)) {
-                if (retryFailedOp(objectId, retryEntry)) {
+            if (failedOps.remove(key, retryEntry)) {
+                if (retryFailedOp(key.objectId(), retryEntry)) {
                     retried++;
                 }
             }
         }
         return retried;
-    }
-
-    /**
-     * Drops the recorded failed operation of the given object if it has the given kind. A newer add that
-     * reached the graph makes a pending add retry stale, and a stale retry must not bind the object to an
-     * old vector. A pending retry of another kind is kept.
-     */
-    public void discardFailedOp(ObjectId objectId, RetryEntry.Kind kind) {
-        failedOps.computeIfPresent(objectId, (ignored, entry) -> entry.kind() == kind ? null : entry);
     }
 
     private void persistFailedOps() {
@@ -480,15 +508,16 @@ public class VectorGraphIndexGroup {
             // Truncate FAILED_OP_LOG first, everything should be written to an index.
             // Remember that JVector-based vector integration is eventually consistent.
             VectorIndexMaintainer.truncateFailedOpLog(tr, indexSubspace);
-            failedOps.forEach((objectId, entry) -> {
+            failedOps.forEach((key, entry) -> {
+                byte[] objectId = key.objectId().toByteArray();
                 if (entry.isDelete()) {
-                    VectorIndexMaintainer.deleteFailedOpLog(tr, indexSubspace, entry.versionstamp(), objectId.toByteArray());
+                    VectorIndexMaintainer.deleteFailedOpLog(tr, indexSubspace, entry.versionstamp(), objectId);
                     return;
                 }
                 CollectedVector cv = entry.collectedVector();
                 byte[] encodedIndexEntry = new IndexEntry(cv.shardId(), cv.metadata().encode()).encode();
                 VectorIndexMaintainer.setFailedOpLog(tr, indexSubspace, MutationLogKind.INSERT, entry.versionstamp(),
-                        objectId.toByteArray(), encodedIndexEntry, cv.vector());
+                        objectId, encodedIndexEntry, cv.vector());
             });
             tr.commit().join();
         }
@@ -534,6 +563,12 @@ public class VectorGraphIndexGroup {
      */
     public Versionstamp removeDeleteTombstone(ObjectId objectId) {
         return deleteTombstones.remove(objectId);
+    }
+
+    /**
+     * Key of a recorded failed operation. An add and a delete of the same object are separate entries.
+     */
+    public record FailedOpKey(ObjectId objectId, RetryEntry.Kind kind) {
     }
 
     /**

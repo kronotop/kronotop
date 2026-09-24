@@ -58,7 +58,7 @@ class VectorNodeDeleteHookIntegrationTest extends BaseVectorHookIntegrationTest 
 
             // The deleted node's mapping should be removed from metadata
             ObjectId deletedId = deletedIds.getFirst();
-            assertEquals(-1, graph.getMetadata().findOrdinal(deletedId));
+            assertNull(graph.getMetadata().findNodeRef(deletedId));
 
             // The remaining document should still be searchable
             SearchResult remainingSearch = graph.search(vector2, 2);
@@ -70,7 +70,7 @@ class VectorNodeDeleteHookIntegrationTest extends BaseVectorHookIntegrationTest 
     void shouldMarkNodeDeletedOnHeapAfterUpdateVectorField() throws IOException {
         // Behavior: After updating the vector field of a document, the old vector node is marked
         // deleted on the on-heap graph. The VectorNodeAddHook then re-maps the objectId to a new
-        // ordinal for the updated vector, so findOrdinal returns the new ordinal (not -1).
+        // ordinal for the updated vector, so findNodeRef returns the new ordinal (not null).
         createBucketWithVectorIndex();
 
         float[] originalVector = {0.2f, 0.3f, 0.4f};
@@ -94,7 +94,7 @@ class VectorNodeDeleteHookIntegrationTest extends BaseVectorHookIntegrationTest 
             // After update: delete hook removes old mapping, add hook creates new mapping.
             // The objectId now maps to a new ordinal (the newly added node).
             try (OnHeapVectorGraphIndex graph = awaitVectorGraph(TEST_BUCKET, "embedding", 2)) {
-                int newOrdinal = graph.getMetadata().findOrdinal(updatedId);
+                int newOrdinal = graph.getMetadata().findNodeRef(updatedId).ordinal();
                 assertTrue(newOrdinal >= 0, "ObjectId should map to a new ordinal after vector update");
 
                 // The old ordinal's entry metadata should be removed by delete hook
@@ -130,7 +130,7 @@ class VectorNodeDeleteHookIntegrationTest extends BaseVectorHookIntegrationTest 
             assertEquals(1, graph.size());
 
             // The mapping should still exist
-            assertTrue(graph.getMetadata().findOrdinal(insertedId) >= 0);
+            assertNotNull(graph.getMetadata().findNodeRef(insertedId));
 
             // The vector should still be searchable
             SearchResult result = graph.search(vector, 1);

@@ -47,20 +47,26 @@ class OnDiskVectorGraphIndexMetadataTest {
     }
 
     @Test
-    void shouldLookupOrdinalByObjectId() throws IOException {
-        // Behavior: ObjectId-to-ordinal lookup returns the correct ordinal via binary search.
+    void shouldLookupNodeRefByObjectId() throws IOException {
+        // Behavior: ObjectId lookup returns the ordinal and the add versionstamp of the node via binary search.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         List<ObjectId> ids = new ArrayList<>();
+        List<Versionstamp> versionstamps = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             ObjectId oid = new ObjectId();
+            Versionstamp vs = TestUtil.generateVersionstamp(i);
             ids.add(oid);
-            heapMeta.put(oid, i, 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
+            versionstamps.add(vs);
+            heapMeta.put(oid, i, vs, 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
         }
 
         Path path = writeAndOpen(heapMeta);
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
             for (int i = 0; i < 10; i++) {
-                assertEquals(i, diskMeta.findOrdinal(ids.get(i)));
+                GraphNodeRef ref = diskMeta.findNodeRef(ids.get(i));
+                assertNotNull(ref);
+                assertEquals(i, ref.ordinal());
+                assertEquals(versionstamps.get(i), ref.versionstamp());
             }
         }
     }
@@ -71,7 +77,7 @@ class OnDiskVectorGraphIndexMetadataTest {
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         ObjectId oid = new ObjectId();
         EntryMetadata expected = newEntryMetadata(42L, 1024L, 256L, 9999L);
-        heapMeta.put(oid, 3, 0, expected);
+        heapMeta.put(oid, 3, TestUtil.zeroVersionstamp(), 0, expected);
 
         Path path = writeAndOpen(heapMeta);
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
@@ -92,8 +98,8 @@ class OnDiskVectorGraphIndexMetadataTest {
     void shouldReturnNullForDeletedOrdinalGap() throws IOException {
         // Behavior: Ordinals that have no entry (gaps) return null.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
-        heapMeta.put(new ObjectId(), 0, 0, newEntryMetadata(1L, 0L, 10L, 100L));
-        heapMeta.put(new ObjectId(), 5, 0, newEntryMetadata(2L, 0L, 10L, 200L));
+        heapMeta.put(new ObjectId(), 0, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1L, 0L, 10L, 100L));
+        heapMeta.put(new ObjectId(), 5, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2L, 0L, 10L, 200L));
 
         Path path = writeAndOpen(heapMeta);
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
@@ -107,14 +113,14 @@ class OnDiskVectorGraphIndexMetadataTest {
     }
 
     @Test
-    void shouldReturnMinusOneForMissingObjectId() throws IOException {
-        // Behavior: Looking up an ObjectId that was never inserted returns -1.
+    void shouldReturnNullForMissingObjectId() throws IOException {
+        // Behavior: Looking up an ObjectId that was never inserted returns null.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
-        heapMeta.put(new ObjectId(), 0, 0, newEntryMetadata(1L, 0L, 10L, 100L));
+        heapMeta.put(new ObjectId(), 0, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1L, 0L, 10L, 100L));
 
         Path path = writeAndOpen(heapMeta);
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
-            assertEquals(-1, diskMeta.findOrdinal(new ObjectId()));
+            assertNull(diskMeta.findNodeRef(new ObjectId()));
         }
     }
 
@@ -122,7 +128,7 @@ class OnDiskVectorGraphIndexMetadataTest {
     void shouldReturnNullForOutOfRangeOrdinal() throws IOException {
         // Behavior: Ordinals outside the valid range return null.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
-        heapMeta.put(new ObjectId(), 0, 0, newEntryMetadata(1L, 0L, 10L, 100L));
+        heapMeta.put(new ObjectId(), 0, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1L, 0L, 10L, 100L));
 
         Path path = writeAndOpen(heapMeta);
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
@@ -138,11 +144,11 @@ class OnDiskVectorGraphIndexMetadataTest {
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         ObjectId oid = new ObjectId();
         EntryMetadata em = newEntryMetadata(7L, 512L, 128L, 42L);
-        heapMeta.put(oid, 0, 0, em);
+        heapMeta.put(oid, 0, TestUtil.zeroVersionstamp(), 0, em);
 
         Path path = writeAndOpen(heapMeta);
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
-            assertEquals(0, diskMeta.findOrdinal(oid));
+            assertEquals(0, diskMeta.findNodeRef(oid).ordinal());
             DocumentLocation loc = diskMeta.findDocumentLocation(0);
             assertNotNull(loc);
             assertEquals(oid, loc.objectId());
@@ -159,14 +165,14 @@ class OnDiskVectorGraphIndexMetadataTest {
         for (int i = 0; i < 100; i++) {
             ObjectId oid = new ObjectId();
             ids.add(oid);
-            heapMeta.put(oid, i, 0, newEntryMetadata(i, i * 10L, 5L, i + 1L));
+            heapMeta.put(oid, i, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i, i * 10L, 5L, i + 1L));
         }
 
         Path path = writeAndOpen(heapMeta);
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
             // Verify all IDs are findable (covers first and last in sorted order)
             for (int i = 0; i < 100; i++) {
-                assertEquals(i, diskMeta.findOrdinal(ids.get(i)));
+                assertEquals(i, diskMeta.findNodeRef(ids.get(i)).ordinal());
             }
         }
     }
@@ -176,7 +182,7 @@ class OnDiskVectorGraphIndexMetadataTest {
         // Behavior: latestVersionstamp set on heap metadata is persisted to disk and read back correctly.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         ObjectId oid = new ObjectId();
-        heapMeta.put(oid, 0, 0, newEntryMetadata(1L, 0L, 10L, 100L));
+        heapMeta.put(oid, 0, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1L, 0L, 10L, 100L));
 
         Versionstamp expected = TestUtil.generateVersionstamp(42);
         heapMeta.advanceVersionstamp(expected);
@@ -194,7 +200,7 @@ class OnDiskVectorGraphIndexMetadataTest {
         // Behavior: markDeleted zeroes the ALIVE byte so findEntryMetadata returns null for that ordinal only.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         for (int i = 0; i < 3; i++) {
-            heapMeta.put(new ObjectId(), i, 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
+            heapMeta.put(new ObjectId(), i, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
         }
 
         Path path = writeAndOpen(heapMeta);
@@ -212,7 +218,7 @@ class OnDiskVectorGraphIndexMetadataTest {
         // Behavior: After markDeleted + flush, the deletion survives close/reopen from the same file.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         for (int i = 0; i < 2; i++) {
-            heapMeta.put(new ObjectId(), i, 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
+            heapMeta.put(new ObjectId(), i, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
         }
 
         Path path = writeAndOpen(heapMeta);
@@ -231,7 +237,7 @@ class OnDiskVectorGraphIndexMetadataTest {
     void shouldFlushNoOpWhenNoPendingChanges() throws IOException {
         // Behavior: Calling flush with no prior markDeleted does not throw and leaves data intact.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
-        heapMeta.put(new ObjectId(), 0, 0, newEntryMetadata(1L, 0L, 10L, 100L));
+        heapMeta.put(new ObjectId(), 0, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1L, 0L, 10L, 100L));
 
         Path path = writeAndOpen(heapMeta);
         try (OnDiskVectorGraphIndexMetadata diskMeta = new OnDiskVectorGraphIndexMetadata(path)) {
@@ -245,7 +251,7 @@ class OnDiskVectorGraphIndexMetadataTest {
         // Behavior: A freshly written metadata file has deletedCount of zero.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         for (int i = 0; i < 3; i++) {
-            heapMeta.put(new ObjectId(), i, 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
+            heapMeta.put(new ObjectId(), i, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
         }
 
         Path path = writeAndOpen(heapMeta);
@@ -259,7 +265,7 @@ class OnDiskVectorGraphIndexMetadataTest {
         // Behavior: Each markDeleted call increments deletedCount by one.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         for (int i = 0; i < 3; i++) {
-            heapMeta.put(new ObjectId(), i, 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
+            heapMeta.put(new ObjectId(), i, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
         }
 
         Path path = writeAndOpen(heapMeta);
@@ -276,7 +282,7 @@ class OnDiskVectorGraphIndexMetadataTest {
         // Behavior: deletedCount survives flush + close/reopen, and undeleted entries remain accessible.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         for (int i = 0; i < 3; i++) {
-            heapMeta.put(new ObjectId(), i, 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
+            heapMeta.put(new ObjectId(), i, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
         }
 
         Path path = writeAndOpen(heapMeta);
@@ -297,7 +303,7 @@ class OnDiskVectorGraphIndexMetadataTest {
         // Behavior: markDeleted on an already deleted ordinal does not change deletedCount, so a retried delete counts once.
         OnHeapVectorGraphIndexMetadata heapMeta = new OnHeapVectorGraphIndexMetadata();
         for (int i = 0; i < 3; i++) {
-            heapMeta.put(new ObjectId(), i, 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
+            heapMeta.put(new ObjectId(), i, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i, i * 100L, 50L, i + 1000L));
         }
 
         Path path = writeAndOpen(heapMeta);

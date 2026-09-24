@@ -36,9 +36,9 @@ public final class VectorNodeWriter extends BaseVectorNode {
     }
 
     /**
-     * Adds the vector as a node to the active on-heap graph. If the same object has a newer delete,
-     * the node is not added or is marked as deleted. When the graph grows past the flush threshold,
-     * a new on-heap graph replaces it and the old one is flushed to disk in the background.
+     * Adds the vector as a node to the active on-heap graph. If the same object has a newer delete or a
+     * newer node in any graph, the node is not added or is marked as deleted. When the graph grows past
+     * the flush threshold, a new on-heap graph replaces it and the old one is flushed to disk in the background.
      *
      * @param cv    the vector and document metadata to add
      * @param addVs the versionstamp of the add operation
@@ -46,9 +46,9 @@ public final class VectorNodeWriter extends BaseVectorNode {
     public void write(CollectedVector cv, Versionstamp addVs) {
         VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
 
-        // This add carries the newest vector of the object. A pending add retry is stale and must not run.
-        // If this add fails, the caller records a new retry entry with this versionstamp.
-        group.discardFailedOp(cv.objectId(), RetryEntry.Kind.ADD);
+        // An older add retry of this object must not run after this add. A later delete removes the
+        // mapping, and a stale retry would then add the node back for a deleted document.
+        group.discardStaleFailedAdd(cv.objectId(), addVs);
 
         // Pre-check: skip the expensive graph add if a newer DELETE tombstone already exists.
         if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {
@@ -61,14 +61,12 @@ public final class VectorNodeWriter extends BaseVectorNode {
                 service.getPqTrainingThreshold(),
                 service.getPqSubspaceDivisor()
         );
-        graph.addGraphNode(cv.objectId(), cv.shardId(), cv.metadata(), cv.vector(), service.getVectorGraphExecutor()).join();
+        graph.addGraphNode(cv.objectId(), addVs, cv.shardId(), cv.metadata(), cv.vector(), service.getVectorGraphExecutor()).join();
 
         // Post-check: catch tombstones set by a concurrent DELETE during addGraphNode.
-        if (consumeNewerDeleteTombstone(group, cv.objectId(), addVs)) {
-            int ordinal = graph.getMetadata().findOrdinal(cv.objectId());
-            if (ordinal >= 0) {
-                graph.markNodeDeleted(cv.objectId(), ordinal);
-            }
+        Versionstamp deleteVs = group.removeDeleteTombstone(cv.objectId());
+        if (deleteVs != null && deleteVs.compareTo(addVs) > 0) {
+            graph.markNodeDeleted(cv.objectId(), deleteVs);
             return;
         }
 

@@ -268,7 +268,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                     vectorIndex.definition(),
                     failedAdd.versionstamp().getUserVersion());
             RetryEntry entry = RetryEntry.add(metadata, failedAdd.versionstamp(), cv);
-            group.recordFailedOp(failedAdd.objectId(), entry);
+            group.recordFailedOp(entry);
         }
     }
 
@@ -284,7 +284,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                     vectorIndex.definition().id(),
                     failedDelete.objectId()
             );
-            group.recordFailedOp(failedDelete.objectId(), entry);
+            group.recordFailedOp(entry);
         }
     }
 

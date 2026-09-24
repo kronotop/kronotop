@@ -36,7 +36,7 @@ import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
 
 /**
  * Memory-mapped reader for on-disk vector graph index metadata files (*.vmeta).
- * Provides O(1) ordinal-to-metadata lookup and O(log N) ObjectId-to-ordinal lookup.
+ * Provides O(1) ordinal-to-metadata lookup and O(log N) ObjectId-to-node lookup.
  * Thread-safe: uses a shared Arena so any thread can read concurrently.
  *
  * <p>The on-disk format uses native byte order. Files are node-local (written and read on the
@@ -45,7 +45,10 @@ import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
  * <h2>File format</h2>
  *
  * <p>All multi-byte integers are in native byte order. Fields within each section are laid out
- * so that longs fall on 8-byte boundaries and ints on 4-byte boundaries.</p>
+ * so that longs fall on 8-byte boundaries and ints on 4-byte boundaries. The file is memory-mapped
+ * and read in place, so a misaligned field would need two memory accesses instead of one. Entry sizes
+ * (64 and 28 bytes) are multiples of 4 to keep every entry start aligned. There is no page-size
+ * alignment; a lookup touches one entry, and the OS page cache serves the rest.</p>
  *
  * <pre>{@code
  * HEADER (40 bytes)
@@ -73,11 +76,12 @@ import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
  *     45    12  objectId    (byte[12])
  *     57     7  reserved
  *
- * OBJECTID SECTION — count × 16 bytes, sorted by ObjectId (unsigned)
+ * OBJECTID SECTION — count × 28 bytes, sorted by ObjectId (unsigned)
  * ---------------------------------------
  * offset  size  field
- *      0    12  objectId    (byte[12])
- *     12     4  ordinal     (int)
+ *      0    12  objectId     (byte[12])
+ *     12     4  ordinal      (int)
+ *     16    12  versionstamp (byte[12], versionstamp of the add)
  * }</pre>
  */
 public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata, Closeable {
@@ -161,10 +165,10 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
     }
 
     /**
-     * Looks up the ordinal for a given ObjectId using binary search.
-     * Returns -1 if the ObjectId is not found.
+     * Looks up the node reference (ordinal and add versionstamp) for a given ObjectId using binary search.
+     * Returns null if the ObjectId is not found.
      */
-    public int findOrdinal(ObjectId objectId) {
+    public GraphNodeRef findNodeRef(ObjectId objectId) {
         byte[] target = objectId.toByteArray();
         int low = 0;
         int high = count - 1;
@@ -182,10 +186,14 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
             } else if (cmp > 0) {
                 high = mid - 1;
             } else {
-                return mappedMemory.get(ValueLayout.JAVA_INT, entryOffset + OBJECTID_SIZE);
+                int ordinal = mappedMemory.get(ValueLayout.JAVA_INT, entryOffset + OBJECTID_SIZE);
+                byte[] versionstampBytes = new byte[VERSIONSTAMP_SIZE];
+                MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, entryOffset + OBJECTID_SIZE + 4,
+                        versionstampBytes, 0, VERSIONSTAMP_SIZE);
+                return new GraphNodeRef(ordinal, Versionstamp.fromBytes(versionstampBytes));
             }
         }
-        return -1;
+        return null;
     }
 
     /**

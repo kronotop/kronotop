@@ -29,42 +29,54 @@ import java.util.function.Consumer;
 public class OnHeapVectorGraphIndexMetadata implements VectorGraphIndexMetadata {
     private final StampedLock lock = new StampedLock();
     private final HashSet<Integer> pendingDeletes = new HashSet<>();
-    private final Map<ObjectId, Integer> objectIds = new HashMap<>();
+    private final Map<ObjectId, GraphNodeRef> objectIds = new HashMap<>();
     private final Map<Integer, DocumentLocation> ordinals = new HashMap<>();
     private final AtomicReference<Versionstamp> firstVersionstamp = new AtomicReference<>();
     private final AtomicReference<Versionstamp> latestVersionstamp = new AtomicReference<>();
 
-    public void put(ObjectId objectId, int ordinal, int shardId, EntryMetadata metadata) {
+    /**
+     * Binds the object to the node with the given ordinal and add versionstamp. The node with the older
+     * versionstamp loses: its location is dropped and its ordinal is queued for deletion. Returns the
+     * ordinal of the stale node, or -1 when the object had no node before.
+     */
+    public int put(ObjectId objectId, int ordinal, Versionstamp versionstamp, int shardId, EntryMetadata metadata) {
         long stamp = lock.writeLock();
         try {
-            // Ordinals are monotonically increasing, so a higher ordinal always
-            // represents a more recent version. Skip the write if the existing
-            // ordinal is already newer to prevent stale data from overwriting it.
-            Integer existing = objectIds.get(objectId);
-            if (existing != null && existing > ordinal) {
-                return;
+            GraphNodeRef existing = objectIds.get(objectId);
+            if (existing != null && existing.versionstamp().compareTo(versionstamp) > 0) {
+                // Stale add: the existing node is newer, the incoming node loses.
+                pendingDeletes.add(ordinal);
+                return ordinal;
             }
-            objectIds.put(objectId, ordinal);
+            objectIds.put(objectId, new GraphNodeRef(ordinal, versionstamp));
             ordinals.put(ordinal, new DocumentLocation(objectId, shardId, metadata));
+            if (existing == null) {
+                return -1;
+            }
+            ordinals.remove(existing.ordinal());
+            pendingDeletes.add(existing.ordinal());
+            // Return the stale node's ordinal.
+            return existing.ordinal();
         } finally {
             lock.unlockWrite(stamp);
         }
     }
 
-    public void removeMapping(ObjectId objectId, int ordinal) {
+    /**
+     * Removes the mapping of the object if the delete is newer than the node. Returns the ordinal of the
+     * removed node, or -1 when the object has no node or the delete is stale.
+     */
+    public int removeMapping(ObjectId objectId, Versionstamp deleteVs) {
         long stamp = lock.writeLock();
         try {
+            GraphNodeRef ref = objectIds.get(objectId);
+            if (ref == null || deleteVs.compareTo(ref.versionstamp()) <= 0) {
+                return -1;
+            }
             objectIds.remove(objectId);
-            ordinals.remove(ordinal);
-        } finally {
-            lock.unlockWrite(stamp);
-        }
-    }
-
-    public void addPendingDelete(int node) {
-        long stamp = lock.writeLock();
-        try {
-            pendingDeletes.add(node);
+            ordinals.remove(ref.ordinal());
+            pendingDeletes.add(ref.ordinal());
+            return ref.ordinal();
         } finally {
             lock.unlockWrite(stamp);
         }
@@ -94,7 +106,7 @@ public class OnHeapVectorGraphIndexMetadata implements VectorGraphIndexMetadata 
         return entry;
     }
 
-    Map<ObjectId, Integer> getObjectIds() {
+    Map<ObjectId, GraphNodeRef> getObjectIds() {
         return Collections.unmodifiableMap(objectIds);
     }
 
@@ -120,18 +132,18 @@ public class OnHeapVectorGraphIndexMetadata implements VectorGraphIndexMetadata 
         return result;
     }
 
-    public int findOrdinal(ObjectId objectId) {
+    public GraphNodeRef findNodeRef(ObjectId objectId) {
         long stamp = lock.tryOptimisticRead();
-        int ordinal = objectIds.getOrDefault(objectId, -1);
+        GraphNodeRef ref = objectIds.get(objectId);
         if (!lock.validate(stamp)) {
             stamp = lock.readLock();
             try {
-                ordinal = objectIds.getOrDefault(objectId, -1);
+                ref = objectIds.get(objectId);
             } finally {
                 lock.unlockRead(stamp);
             }
         }
-        return ordinal;
+        return ref;
     }
 
     /**

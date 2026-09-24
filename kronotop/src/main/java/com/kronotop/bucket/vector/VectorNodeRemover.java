@@ -60,8 +60,9 @@ public class VectorNodeRemover extends BaseVectorNode {
     }
 
     /**
-     * Marks the node of the given object as deleted in every on-heap and on-disk graph that holds it. If no graph
-     * holds the node yet, a delete tombstone is stored. If the delete fails, a retry entry is recorded.
+     * Marks the node of the given object as deleted in every on-heap and on-disk graph that holds it, unless the
+     * node carries a newer versionstamp than the delete. If no graph holds the node yet, a delete tombstone is
+     * stored. If the delete fails, a retry entry is recorded.
      *
      * @param objectId the object id of the deleted vector
      * @param deleteVs the versionstamp of the delete operation
@@ -74,17 +75,20 @@ public class VectorNodeRemover extends BaseVectorNode {
         try {
             boolean found = false;
             for (OnHeapVectorGraphIndex onHeap : group.getOnHeapIndexes()) {
-                int ordinal = onHeap.getMetadata().findOrdinal(objectId);
-                if (ordinal >= 0) {
-                    onHeap.markNodeDeleted(objectId, ordinal);
+                if (onHeap.getMetadata().findNodeRef(objectId) != null) {
                     found = true;
+                    // The versionstamp compare runs under the metadata lock, so a concurrent newer add
+                    // cannot lose its mapping to this delete.
+                    onHeap.markNodeDeleted(objectId, deleteVs);
                 }
             }
             for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-                int ordinal = onDisk.getMetadata().findOrdinal(objectId);
-                if (ordinal >= 0) {
-                    onDisk.markNodeDeleted(ordinal);
+                GraphNodeRef ref = onDisk.getMetadata().findNodeRef(objectId);
+                if (ref != null) {
                     found = true;
+                    if (deleteVs.compareTo(ref.versionstamp()) > 0) {
+                        onDisk.markNodeDeleted(ref.ordinal());
+                    }
                 }
             }
             // On-heap markNodeDeleted removes the ObjectId mapping. A retry of a delete operation that already
@@ -96,7 +100,7 @@ public class VectorNodeRemover extends BaseVectorNode {
                 group.putDeleteTombstone(objectId, deleteVs);
             }
         } catch (Exception e) {
-            group.recordFailedOp(objectId, RetryEntry.delete(metadata, deleteVs, vectorIndexId, objectId));
+            group.recordFailedOp(RetryEntry.delete(metadata, deleteVs, vectorIndexId, objectId));
             LOGGER.warn("Failed to delete vector node from graph indexes, objectId={}, vectorIndexId={}, versionstamp={}, recorded a retry entry: {}",
                     objectId, vectorIndexId, deleteVs, e.toString());
             LOGGER.debug("Stack trace for failed vector node delete, objectId={}", objectId, e);

@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.vector;
 
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.pipeline.DocumentLocation;
 import com.kronotop.volume.EntryMetadata;
 import io.github.jbellis.jvector.graph.SearchResult;
@@ -69,9 +70,9 @@ class OnDiskVectorGraphIndexTest {
         // Behavior: An on-disk index loaded from a flushed graph returns the nearest neighbor for a query vector.
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
             try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
                 SearchResult result = diskIndex.search(new float[]{0.9f, 0.1f, 0.0f}, 1);
@@ -86,9 +87,9 @@ class OnDiskVectorGraphIndexTest {
         // Behavior: The on-disk index size matches the number of vectors that were flushed.
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
             try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
                 assertEquals(3, diskIndex.size());
@@ -101,9 +102,9 @@ class OnDiskVectorGraphIndexTest {
         // Behavior: Search result nodes have valid metadata accessible via getMetadata().findEntryMetadata().
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
             try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
                 SearchResult result = diskIndex.search(new float[]{1.0f, 0.0f, 0.0f}, 2);
@@ -123,12 +124,12 @@ class OnDiskVectorGraphIndexTest {
         // Behavior: Deleted nodes are excluded during the flush operation, so the on-disk index has reduced size and search still works.
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
             ObjectId oid1 = new ObjectId();
-            heapIndex.addGraphNode(oid1, 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            heapIndex.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
-            heapIndex.markNodeDeleted(oid1, 1);
+            heapIndex.markNodeDeleted(oid1, TestUtil.generateVersionstamp(1));
 
             try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
                 assertEquals(2, diskIndex.size());
@@ -145,9 +146,9 @@ class OnDiskVectorGraphIndexTest {
             OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(PQ_DIMENSIONS, VSF, PQ_THRESHOLD, PQ_DIVISOR);
             Random rng = new Random(42);
             float[] target = randomVector(rng);
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), target, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), target, executor).join();
             for (int i = 1; i < PQ_THRESHOLD; i++) {
-                heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(i + 1), randomVector(rng), executor).join();
+                heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i + 1), randomVector(rng), executor).join();
             }
             assertTrue(heapIndex.isPqTrained());
 
@@ -171,9 +172,9 @@ class OnDiskVectorGraphIndexTest {
             OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(PQ_DIMENSIONS, VSF, PQ_THRESHOLD, PQ_DIVISOR);
             Random rng = new Random(42);
             float[] target = randomVector(rng);
-            heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), target, executor).join();
+            heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), target, executor).join();
             for (int i = 1; i < PQ_THRESHOLD; i++) {
-                heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(i + 1), randomVector(rng), executor).join();
+                heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i + 1), randomVector(rng), executor).join();
             }
 
             try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
@@ -200,7 +201,7 @@ class OnDiskVectorGraphIndexTest {
             Random rng = new Random(42);
             int total = 60;
             for (int i = 0; i < total; i++) {
-                heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(i + 1), randomVector(rng), executor).join();
+                heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i + 1), randomVector(rng), executor).join();
             }
             assertTrue(heapIndex.isPqTrained());
 
@@ -220,19 +221,20 @@ class OnDiskVectorGraphIndexTest {
             ObjectId oid3 = new ObjectId();
 
             OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
-            heapIndex.addGraphNode(oid1, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(oid2, 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(oid3, 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            heapIndex.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(oid2, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(oid3, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
             try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
-                int ordinal = diskIndex.getMetadata().findOrdinal(oid2);
-                assertTrue(ordinal >= 0);
+                GraphNodeRef ref = diskIndex.getMetadata().findNodeRef(oid2);
+                assertNotNull(ref);
+                int ordinal = ref.ordinal();
 
                 diskIndex.markNodeDeleted(ordinal);
 
                 assertNull(diskIndex.getMetadata().findDocumentLocation(ordinal));
-                assertNotNull(diskIndex.getMetadata().findDocumentLocation(diskIndex.getMetadata().findOrdinal(oid1)));
-                assertNotNull(diskIndex.getMetadata().findDocumentLocation(diskIndex.getMetadata().findOrdinal(oid3)));
+                assertNotNull(diskIndex.getMetadata().findDocumentLocation(diskIndex.getMetadata().findNodeRef(oid1).ordinal()));
+                assertNotNull(diskIndex.getMetadata().findDocumentLocation(diskIndex.getMetadata().findNodeRef(oid3).ordinal()));
             }
         }
     }
@@ -247,9 +249,9 @@ class OnDiskVectorGraphIndexTest {
             ObjectId oid3 = new ObjectId();
 
             OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
-            heapIndex.addGraphNode(oid1, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(oid2, 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(oid3, 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            heapIndex.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(oid2, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            heapIndex.addGraphNode(oid3, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
             try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
                 // Before deletion: all search results have valid metadata
@@ -260,7 +262,7 @@ class OnDiskVectorGraphIndexTest {
                 }
 
                 // Delete oid1's node
-                int oid1Ordinal = diskIndex.getMetadata().findOrdinal(oid1);
+                int oid1Ordinal = diskIndex.getMetadata().findNodeRef(oid1).ordinal();
                 diskIndex.markNodeDeleted(oid1Ordinal);
 
                 // After deletion: metadata lookup returns null for the deleted ordinal

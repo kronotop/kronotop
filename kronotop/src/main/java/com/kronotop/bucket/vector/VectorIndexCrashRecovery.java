@@ -74,6 +74,7 @@ public final class VectorIndexCrashRecovery {
                     try {
                         onHeap.addGraphNode(
                                 objectId,
+                                versionstamp,
                                 indexEntry.shardId(),
                                 metadata,
                                 payload.vector(),
@@ -92,14 +93,11 @@ public final class VectorIndexCrashRecovery {
                 }
                 case DELETE -> {
                     try {
-                        int ordinal = onHeap.getMetadata().findOrdinal(objectId);
-                        if (ordinal >= 0) {
-                            onHeap.markNodeDeleted(objectId, ordinal);
-                        }
+                        onHeap.markNodeDeleted(objectId, versionstamp);
                         for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-                            int diskOrdinal = onDisk.getMetadata().findOrdinal(objectId);
-                            if (diskOrdinal >= 0) {
-                                onDisk.markNodeDeleted(diskOrdinal);
+                            GraphNodeRef diskRef = onDisk.getMetadata().findNodeRef(objectId);
+                            if (diskRef != null && versionstamp.compareTo(diskRef.versionstamp()) > 0) {
+                                onDisk.markNodeDeleted(diskRef.ordinal());
                             }
                         }
                     } catch (Exception exp) {

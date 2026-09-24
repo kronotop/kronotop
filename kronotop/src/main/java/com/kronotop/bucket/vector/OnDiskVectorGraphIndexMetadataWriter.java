@@ -43,7 +43,7 @@ public class OnDiskVectorGraphIndexMetadataWriter {
     static final int VERSION = 1;
     static final int HEADER_SIZE = 40;
     static final int ORDINAL_SLOT_SIZE = 64;
-    static final int OBJECTID_ENTRY_SIZE = 16;
+    static final int OBJECTID_ENTRY_SIZE = 28;
     private static final Logger logger = LoggerFactory.getLogger(OnDiskVectorGraphIndexMetadataWriter.class);
 
     private static void writeFully(FileChannel channel, ByteBuffer buffer) throws IOException {
@@ -59,7 +59,7 @@ public class OnDiskVectorGraphIndexMetadataWriter {
      * Writes the metadata to the disk in a single immutable file.
      */
     public static void write(Path path, OnHeapVectorGraphIndexMetadata metadata) throws IOException {
-        Map<ObjectId, Integer> objectIds = metadata.getObjectIds();
+        Map<ObjectId, GraphNodeRef> objectIds = metadata.getObjectIds();
         Map<Integer, DocumentLocation> ordinals = metadata.getOrdinals();
 
         int count = objectIds.size();
@@ -116,14 +116,16 @@ public class OnDiskVectorGraphIndexMetadataWriter {
             ordinalSection.flip();
             writeFully(channel, ordinalSection);
 
-            // Write ObjectId -> ordinal section (sorted by ObjectId bytes)
-            List<Map.Entry<ObjectId, Integer>> sortedEntries = new ArrayList<>(objectIds.entrySet());
-            sortedEntries.sort((a, b) -> Arrays.compareUnsigned(a.getKey().toByteArray(), b.getKey().toByteArray()));
+            // Write ObjectId -> (ordinal, versionstamp) section (sorted by ObjectId bytes)
+            List<Map.Entry<ObjectId, GraphNodeRef>> sortedEntries = new ArrayList<>(objectIds.entrySet());
+            sortedEntries.sort((a, b) ->
+                    Arrays.compareUnsigned(a.getKey().toByteArray(), b.getKey().toByteArray()));
 
             ByteBuffer objectIdSection = ByteBuffer.allocate(count * OBJECTID_ENTRY_SIZE).order(ByteOrder.nativeOrder());
-            for (Map.Entry<ObjectId, Integer> entry : sortedEntries) {
+            for (Map.Entry<ObjectId, GraphNodeRef> entry : sortedEntries) {
                 objectIdSection.put(entry.getKey().toByteArray());
-                objectIdSection.putInt(entry.getValue());
+                objectIdSection.putInt(entry.getValue().ordinal());
+                objectIdSection.put(entry.getValue().versionstamp().getBytes());
             }
             objectIdSection.flip();
             writeFully(channel, objectIdSection);

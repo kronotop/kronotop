@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.vector;
 
+import com.kronotop.TestUtil;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
@@ -150,9 +151,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldSearchSingleIndex() {
         // Behavior: searchAll with a single on-heap index returns the same results as searching that index directly.
         OnHeapVectorGraphIndex index = newIndex();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         group.addOnHeap(index);
 
         List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 2, 0.0f, 1.0f);
@@ -164,13 +165,13 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldMergeResultsFromMultipleIndexes() {
         // Behavior: searchAll merges results from two on-heap indexes and returns the global top-K by score.
         OnHeapVectorGraphIndex indexA = newIndex();
-        indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         group.addOnHeap(indexA);
 
         OnHeapVectorGraphIndex indexB = newIndex();
-        indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-        indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+        indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         group.addOnHeap(indexB);
 
         List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 2, 0.0f, 1.0f);
@@ -183,15 +184,15 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldRespectTopKLimit() {
         // Behavior: searchAll returns at most topK results even when more candidates exist across indexes.
         OnHeapVectorGraphIndex indexA = newIndex();
-        indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-        indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         group.addOnHeap(indexA);
 
         OnHeapVectorGraphIndex indexB = newIndex();
-        indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-        indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(5), new float[]{0.1f, 0.9f, 0.0f}, executor).join();
-        indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(6), new float[]{0.0f, 0.1f, 0.9f}, executor).join();
+        indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+        indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(5), new float[]{0.1f, 0.9f, 0.0f}, executor).join();
+        indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(6), new float[]{0.0f, 0.1f, 0.9f}, executor).join();
         group.addOnHeap(indexB);
 
         List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 3, 0.0f, 1.0f);
@@ -202,13 +203,13 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldReturnResultsInDescendingScoreOrder() {
         // Behavior: searchAll returns results sorted from highest to lowest similarity score.
         OnHeapVectorGraphIndex indexA = newIndex();
-        indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
+        indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
         group.addOnHeap(indexA);
 
         OnHeapVectorGraphIndex indexB = newIndex();
-        indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-        indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         group.addOnHeap(indexB);
 
         List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 4, 0.0f, 1.0f);
@@ -236,9 +237,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldSearchOnDiskIndexes(@TempDir Path tempDir) throws IOException {
         // Behavior: searchAll returns results from on-disk indexes when no on-heap indexes exist.
         OnHeapVectorGraphIndex heapIndex = newIndex();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
         OnDiskVectorGraphIndex diskIndex = flushToOnDisk(tempDir, heapIndex, "graph-a");
         group.addOnDisk(diskIndex);
@@ -252,15 +253,15 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldMergeOnHeapAndOnDiskResults(@TempDir Path tempDir) throws IOException {
         // Behavior: searchAll merges results from both on-heap and on-disk indexes into a single top-K list.
         OnHeapVectorGraphIndex heapForDisk = newIndex();
-        heapForDisk.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        heapForDisk.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        heapForDisk.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapForDisk.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
 
         OnDiskVectorGraphIndex diskIndex = flushToOnDisk(tempDir, heapForDisk, "graph-disk");
         group.addOnDisk(diskIndex);
 
         OnHeapVectorGraphIndex heapIndex = newIndex();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         group.addOnHeap(heapIndex);
 
         List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 3, 0.0f, 1.0f);
@@ -273,14 +274,14 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldSearchOnlyOnDiskWhenNoOnHeapIndexes(@TempDir Path tempDir) throws IOException {
         // Behavior: searchAll works correctly when only on-disk indexes are present in the group.
         OnHeapVectorGraphIndex heapA = newIndex();
-        heapA.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        heapA.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        heapA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         OnDiskVectorGraphIndex diskA = flushToOnDisk(tempDir, heapA, "graph-a");
         group.addOnDisk(diskA);
 
         OnHeapVectorGraphIndex heapB = newIndex();
-        heapB.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
-        heapB.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        heapB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
+        heapB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         OnDiskVectorGraphIndex diskB = flushToOnDisk(tempDir, heapB, "graph-b");
         group.addOnDisk(diskB);
 
@@ -296,8 +297,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
         OnHeapVectorGraphIndex index = newIndex();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         group.addOnHeap(index);
 
         group.flush(tempDir);
@@ -349,9 +350,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldLoadSingleOnDiskIndex() throws IOException {
         // Behavior: openOnDiskIndexes loads a single flushed index and search works on the loaded indexes.
         OnHeapVectorGraphIndex heapIndex = newIndex();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
         Path indexDir = VectorGraphIndexGroup.resolveVectorDir(context.getDataDir().resolve("bucket"))
                 .resolve(metadata.uuid().toString())
@@ -384,14 +385,14 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         Files.createDirectories(indexDir);
 
         OnHeapVectorGraphIndex heapA = newIndex();
-        heapA.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        heapA.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        heapA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         heapA.flush(indexDir);
         heapA.close();
 
         OnHeapVectorGraphIndex heapB = newIndex();
-        heapB.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
-        heapB.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        heapB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
+        heapB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         heapB.flush(indexDir);
         heapB.close();
 
@@ -514,8 +515,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
         OnHeapVectorGraphIndex flushedIndex = newIndex();
-        flushedIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        flushedIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        flushedIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        flushedIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         group.addOnHeap(flushedIndex);
 
         // Flush to mark it as flushed
@@ -525,7 +526,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
         // Add a live index
         OnHeapVectorGraphIndex activeIndex = newIndex();
-        activeIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+        activeIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
         group.addOnHeap(activeIndex);
 
         List<MergedNodeScore> results = group.searchAll(new float[]{1.0f, 0.0f, 0.0f}, 5, 0.0f, 1.0f);
@@ -539,9 +540,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
         OnHeapVectorGraphIndex index = newIndex();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         group.addOnHeap(index);
 
         // Verify search works before flush
@@ -568,8 +569,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
         // Step 1: Create an on-heap index with vectors and flush it to disk.
         OnHeapVectorGraphIndex firstIndex = newIndex();
-        firstIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        firstIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        firstIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        firstIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         group.addOnHeap(firstIndex);
 
         group.flush(tempDir);
@@ -580,8 +581,8 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
 
         // Step 2: Add a new on-heap index with different vectors.
         OnHeapVectorGraphIndex secondIndex = newIndex();
-        secondIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-        secondIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        secondIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+        secondIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         group.addOnHeap(secondIndex);
 
         // Step 3: Search across both sources.
@@ -603,12 +604,12 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
         OnHeapVectorGraphIndex target = newIndex();
-        target.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        target.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        target.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        target.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
         group.addOnHeap(target);
 
         OnHeapVectorGraphIndex active = newIndex();
-        active.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
+        active.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
         group.addOnHeap(active);
 
         group.flushSingle(tempDir, target);
@@ -630,7 +631,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
         OnHeapVectorGraphIndex index = newIndex();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         group.addOnHeap(index);
 
         group.flushSingle(tempDir, index);
@@ -660,15 +661,15 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldCreateSearchSessionFromMixedIndexes(@TempDir Path tempDir) throws IOException {
         // Behavior: createSearchSession builds a session that merges results from both on-heap and on-disk indexes.
         OnHeapVectorGraphIndex heapForDisk = newIndex();
-        heapForDisk.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        heapForDisk.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        heapForDisk.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapForDisk.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
 
         OnDiskVectorGraphIndex diskIndex = flushToOnDisk(tempDir, heapForDisk, "session-disk");
         group.addOnDisk(diskIndex);
 
         OnHeapVectorGraphIndex heapIndex = newIndex();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
         group.addOnHeap(heapIndex);
 
         try (VectorSearchSession session = group.createSearchSession(new float[]{1.0f, 0.0f, 0.0f})) {
@@ -698,7 +699,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
 
         OnHeapVectorGraphIndex index = newIndex();
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
         group.addOnHeap(index);
 
         // Add an empty index that won't be flushed
@@ -720,9 +721,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex index = newPqIndex();
         Random rng = new Random(42);
         float[] target = randomPqVector(rng);
-        index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), target, executor).join();
+        index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), target, executor).join();
         for (int i = 1; i < PQ_THRESHOLD; i++) {
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(i + 1), randomPqVector(rng), executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i + 1), randomPqVector(rng), executor).join();
         }
         assertTrue(index.isPqTrained());
         group.addOnHeap(index);
@@ -758,17 +759,17 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex pqHeap = newPqIndex();
         Random rng = new Random(42);
         float[] target = randomPqVector(rng);
-        pqHeap.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), target, executor).join();
+        pqHeap.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), target, executor).join();
         for (int i = 1; i < PQ_THRESHOLD; i++) {
-            pqHeap.addGraphNode(new ObjectId(), 0, newEntryMetadata(i + 1), randomPqVector(rng), executor).join();
+            pqHeap.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i + 1), randomPqVector(rng), executor).join();
         }
 
         OnDiskVectorGraphIndex diskIndex = flushToOnDisk(tempDir, pqHeap, "pq-disk");
         group.addOnDisk(diskIndex);
 
         OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(PQ_DIMENSIONS, VectorSimilarityFunction.COSINE);
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(100), randomPqVector(rng), executor).join();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(101), randomPqVector(rng), executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(100), randomPqVector(rng), executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(101), randomPqVector(rng), executor).join();
         group.addOnHeap(heapIndex);
 
         try (VectorSearchSession session = group.createSearchSession(target)) {
@@ -910,9 +911,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         // Behavior: End-to-end: flush produces .complete sentinel -> openOnDiskIndexes recognizes valid
         // index set -> search returns results from the loaded on-disk index.
         OnHeapVectorGraphIndex heapIndex = newIndex();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-        heapIndex.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
         Path indexDir = VectorGraphIndexGroup.resolveVectorDir(context.getDataDir().resolve("bucket"))
                 .resolve(metadata.uuid().toString())
@@ -990,7 +991,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         VectorIndexDefinition unknownDefinition = new VectorIndexDefinition(Long.MAX_VALUE, definition.name(),
                 definition.selector(), definition.dimensions(), definition.distance(), definition.status());
         CollectedVector cv = new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 7);
-        group.recordFailedOp(objectId, RetryEntry.add(metadata, versionstamp, cv));
+        group.recordFailedOp(RetryEntry.add(metadata, versionstamp, cv));
 
         group.flush(tempDir);
 
@@ -1027,7 +1028,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         VectorIndexDefinition unknownDefinition = new VectorIndexDefinition(Long.MAX_VALUE, definition.name(),
                 definition.selector(), definition.dimensions(), definition.distance(), definition.status());
         CollectedVector cv = new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 7);
-        group.recordFailedOp(objectId, RetryEntry.add(metadata, versionstamp, cv));
+        group.recordFailedOp(RetryEntry.add(metadata, versionstamp, cv));
 
         group.flush(tempDir);
 
@@ -1062,11 +1063,11 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         ObjectId objectId = new ObjectId();
         CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
                 vectorIndex.definition(), 7);
-        registryGroup.recordFailedOp(objectId, RetryEntry.add(metadata, versionstamp(7), cv));
+        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(7), cv));
 
         assertEquals(1, registryGroup.retryFailedOps());
 
-        assertTrue(registryGroup.getOnHeapIndexes().getLast().getMetadata().findOrdinal(objectId) >= 0);
+        assertTrue(registryGroup.getOnHeapIndexes().getLast().getMetadata().findNodeRef(objectId) != null);
         assertEquals(0, registryGroup.retryFailedOps());
     }
 
@@ -1081,14 +1082,13 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
                 vectorIndex.definition(), 1);
         new VectorNodeWriter(service, metadata).write(cv, versionstamp(1));
         OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
-        assertTrue(onHeap.getMetadata().findOrdinal(objectId) >= 0);
+        assertTrue(onHeap.getMetadata().findNodeRef(objectId) != null);
 
-        registryGroup.recordFailedOp(objectId,
-                RetryEntry.delete(metadata, versionstamp(2), vectorIndex.definition().id(), objectId));
+        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndex.definition().id(), objectId));
 
         assertEquals(1, registryGroup.retryFailedOps());
 
-        assertEquals(-1, onHeap.getMetadata().findOrdinal(objectId));
+        assertNull(onHeap.getMetadata().findNodeRef(objectId));
         assertEquals(0, registryGroup.retryFailedOps());
     }
 
@@ -1111,7 +1111,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
                 vectorIndex.definition(), 3);
 
         // Step 1: the first add fails and waits for a retry.
-        registryGroup.recordFailedOp(objectId, RetryEntry.add(metadata, versionstamp(1), oldCv));
+        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(1), oldCv));
 
         // Step 2: the document is updated before the retry runs.
         VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
@@ -1119,13 +1119,13 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         remover.flush();
         new VectorNodeWriter(service, metadata).write(newCv, versionstamp(3));
         OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
-        int newOrdinal = onHeap.getMetadata().findOrdinal(objectId);
+        int newOrdinal = onHeap.getMetadata().findNodeRef(objectId).ordinal();
         assertTrue(newOrdinal >= 0);
 
         // Step 3: the stale add is retried.
         registryGroup.retryFailedOps();
 
-        assertEquals(newOrdinal, onHeap.getMetadata().findOrdinal(objectId));
+        assertEquals(newOrdinal, onHeap.getMetadata().findNodeRef(objectId).ordinal());
         List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
         assertEquals(1, results.size());
         assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
@@ -1135,7 +1135,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         remover.remove(objectId, versionstamp(4));
         remover.flush();
 
-        assertEquals(-1, onHeap.getMetadata().findOrdinal(objectId));
+        assertNull(onHeap.getMetadata().findNodeRef(objectId));
         assertTrue(registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f).isEmpty());
     }
 
@@ -1152,9 +1152,9 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
                 definition.selector(), definition.dimensions(), definition.distance(), definition.status());
         Versionstamp newer = versionstamp(2);
         Versionstamp older = versionstamp(1);
-        group.recordFailedOp(objectId, RetryEntry.add(metadata, newer,
+        group.recordFailedOp(RetryEntry.add(metadata, newer,
                 new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 2)));
-        group.recordFailedOp(objectId, RetryEntry.add(metadata, older,
+        group.recordFailedOp(RetryEntry.add(metadata, older,
                 new CollectedVector(objectId, 0, entryMetadata, vector, unknownDefinition, 1)));
 
         group.flush(tempDir);
@@ -1173,7 +1173,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
                 vectorIndex.definition(), 7);
         RetryEntry entry = new RetryEntry(metadata.namespace(), metadata.name(), UUID.randomUUID(), versionstamp(7),
                 RetryEntry.Kind.ADD, objectId, vectorIndex.definition().id(), cv);
-        group.recordFailedOp(objectId, entry);
+        group.recordFailedOp(entry);
 
         assertEquals(0, group.retryFailedOps());
 
@@ -1184,7 +1184,330 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
                 metadata.namespace(), metadata.name(), vectorIndex.definition().id());
         if (registryGroup != null) {
             for (OnHeapVectorGraphIndex onHeap : registryGroup.getOnHeapIndexes()) {
-                assertEquals(-1, onHeap.getMetadata().findOrdinal(objectId));
+                assertNull(onHeap.getMetadata().findNodeRef(objectId));
+            }
+        }
+    }
+
+    @Test
+    void shouldTombstoneStaleAddWhenNewerNodeExists() {
+        // Behavior: An add with an older versionstamp than the node already in the graph enters the graph
+        // and is tombstoned at once. The graph counts the dead node until flush, the object stays bound to
+        // the newer vector, and search returns only the newer vector.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        ObjectId objectId = new ObjectId();
+        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
+        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
+        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
+                vectorIndex.definition(), 3);
+        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
+                vectorIndex.definition(), 1);
+
+        VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
+        writer.write(newCv, versionstamp(3));
+        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
+        GraphNodeRef newRef = onHeap.getMetadata().findNodeRef(objectId);
+        assertNotNull(newRef);
+
+        writer.write(oldCv, versionstamp(1));
+
+        assertEquals(newRef, onHeap.getMetadata().findNodeRef(objectId));
+        assertEquals(2, onHeap.size());
+        List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
+        assertEquals(1, results.size());
+        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
+    }
+
+    @Test
+    void shouldSkipStaleDeleteWhenNewerNodeExists() {
+        // Behavior: A delete with an older versionstamp than the node in the graph does not remove the node
+        // and stores no tombstone. A delete with a newer versionstamp removes the node.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        long vectorIndexId = vectorIndex.definition().id();
+        ObjectId objectId = new ObjectId();
+        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f},
+                vectorIndex.definition(), 3);
+        new VectorNodeWriter(service, metadata).write(cv, versionstamp(3));
+        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
+        GraphNodeRef ref = onHeap.getMetadata().findNodeRef(objectId);
+        assertNotNull(ref);
+
+        VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
+        remover.remove(objectId, versionstamp(2));
+        remover.flush();
+
+        assertEquals(ref, onHeap.getMetadata().findNodeRef(objectId));
+        assertNull(registryGroup.removeDeleteTombstone(objectId));
+
+        remover = new VectorNodeRemover(service, metadata, vectorIndexId);
+        remover.remove(objectId, versionstamp(4));
+        remover.flush();
+
+        assertNull(onHeap.getMetadata().findNodeRef(objectId));
+    }
+
+    @Test
+    void shouldNotResurrectDeletedDocumentFromStaleAddRetry() {
+        // Behavior: An add fails and waits for a retry. The document is then updated and deleted, so no
+        // graph holds a node or a tombstone for it. The newer add of the update must drop the waiting
+        // retry, otherwise the retry would add a live node for a deleted document.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        long vectorIndexId = vectorIndex.definition().id();
+        ObjectId objectId = new ObjectId();
+        float[] vector = new float[]{1.0f, 0.0f, 0.0f};
+        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), vector,
+                vectorIndex.definition(), 1);
+        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), vector,
+                vectorIndex.definition(), 3);
+
+        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(1), oldCv));
+
+        VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
+        remover.remove(objectId, versionstamp(2));
+        remover.flush();
+        new VectorNodeWriter(service, metadata).write(newCv, versionstamp(3));
+
+        remover = new VectorNodeRemover(service, metadata, vectorIndexId);
+        remover.remove(objectId, versionstamp(4));
+        remover.flush();
+
+        assertEquals(0, registryGroup.retryFailedOps());
+        assertTrue(registryGroup.searchAll(vector, 2, 0.0f, 1.0f).isEmpty());
+    }
+
+    @Test
+    void shouldKeepFailedAddRetryThatIsNewerThanLiveAdd() {
+        // Behavior: A waiting add retry is newer than a live add of the same object. The live add must
+        // keep the retry, and the retry then replaces the older vector.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        ObjectId objectId = new ObjectId();
+        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
+        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
+        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
+                vectorIndex.definition(), 1);
+        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
+                vectorIndex.definition(), 3);
+
+        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(3), newCv));
+        new VectorNodeWriter(service, metadata).write(oldCv, versionstamp(1));
+
+        assertEquals(1, registryGroup.retryFailedOps());
+
+        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
+        assertEquals(versionstamp(3), onHeap.getMetadata().findNodeRef(objectId).versionstamp());
+        List<MergedNodeScore> results = registryGroup.searchAll(newVector, 2, 0.0f, 1.0f);
+        assertEquals(1, results.size());
+        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
+    }
+
+    @Test
+    void shouldKeepFailedAddAndDeleteOfSameObjectApart() {
+        // Behavior: A failed DELETE and a failed ADD of the same ObjectId are both recorded and both
+        // retried. The delete is older than the add, so the object ends bound to the added vector.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        long vectorIndexId = vectorIndex.definition().id();
+        ObjectId objectId = new ObjectId();
+        CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f},
+                vectorIndex.definition(), 3);
+
+        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndexId, objectId));
+        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(3), cv));
+
+        assertEquals(2, registryGroup.retryFailedOps());
+        assertEquals(0, registryGroup.retryFailedOps());
+
+        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
+        GraphNodeRef ref = onHeap.getMetadata().findNodeRef(objectId);
+        assertNotNull(ref);
+        assertEquals(versionstamp(3), ref.versionstamp());
+    }
+
+    @Test
+    void shouldNotLetStaleDeleteRetryRemoveNewerNode() {
+        // Behavior: An update writes an old vector, then a delete and a new add for the same object. The
+        // delete fails and is retried after the new add reached the same graph. The new add already
+        // tombstoned the old node, and the stale delete retry leaves the new node alive.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        long vectorIndexId = vectorIndex.definition().id();
+        ObjectId objectId = new ObjectId();
+        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
+        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
+        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
+                vectorIndex.definition(), 1);
+        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
+                vectorIndex.definition(), 3);
+
+        VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
+        writer.write(oldCv, versionstamp(1));
+        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
+        int oldOrdinal = onHeap.getMetadata().findNodeRef(objectId).ordinal();
+
+        // The delete of the update fails and waits for a retry. The add of the update succeeds.
+        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndexId, objectId));
+        writer.write(newCv, versionstamp(3));
+        GraphNodeRef newRef = onHeap.getMetadata().findNodeRef(objectId);
+        assertNotEquals(oldOrdinal, newRef.ordinal());
+        assertNull(onHeap.getMetadata().findDocumentLocation(oldOrdinal));
+
+        assertEquals(1, registryGroup.retryFailedOps());
+
+        assertEquals(newRef, onHeap.getMetadata().findNodeRef(objectId));
+        List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
+        assertEquals(1, results.size());
+        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
+    }
+
+    @Test
+    void shouldRetryBothFailedDeleteAndAddOfUpdateAgainstLiveOldNode() {
+        // Behavior: An update writes an old vector, then its delete and its add both fail and are recorded.
+        // The retry runs both. In any retry order the old node is gone and the object is bound to the new
+        // vector, so search returns only the new vector.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        long vectorIndexId = vectorIndex.definition().id();
+        ObjectId objectId = new ObjectId();
+        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
+        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
+        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
+                vectorIndex.definition(), 1);
+        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
+                vectorIndex.definition(), 3);
+
+        new VectorNodeWriter(service, metadata).write(oldCv, versionstamp(1));
+        OnHeapVectorGraphIndex onHeap = registryGroup.getOnHeapIndexes().getLast();
+        int oldOrdinal = onHeap.getMetadata().findNodeRef(objectId).ordinal();
+
+        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndexId, objectId));
+        registryGroup.recordFailedOp(RetryEntry.add(metadata, versionstamp(3), newCv));
+
+        assertEquals(2, registryGroup.retryFailedOps());
+
+        GraphNodeRef ref = onHeap.getMetadata().findNodeRef(objectId);
+        assertNotNull(ref);
+        assertEquals(versionstamp(3), ref.versionstamp());
+        assertNull(onHeap.getMetadata().findDocumentLocation(oldOrdinal));
+        List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
+        assertEquals(1, results.size());
+        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
+    }
+
+    @Test
+    void shouldDeleteOldNodeOnDiskWhenDeleteRetryRunsAfterNewerAdd() {
+        // Behavior: The old node of an object lives in an on-disk graph. The delete of an update fails, the
+        // add of the update enters a new on-heap graph. The delete retry finds the old node on disk and
+        // marks it deleted, and leaves the newer on-heap node alive.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        long vectorIndexId = vectorIndex.definition().id();
+        ObjectId objectId = new ObjectId();
+        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
+        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
+        CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
+                vectorIndex.definition(), 1);
+        CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
+                vectorIndex.definition(), 3);
+
+        VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
+        writer.write(oldCv, versionstamp(1));
+        OnHeapVectorGraphIndex oldOnHeap = registryGroup.getOnHeapIndexes().getLast();
+        registryGroup.flushSingle(service.getBucketDataDir(), oldOnHeap);
+        OnDiskVectorGraphIndex onDisk = registryGroup.getOnDiskIndexes().getLast();
+        GraphNodeRef oldRef = onDisk.getMetadata().findNodeRef(objectId);
+        assertNotNull(oldRef);
+
+        registryGroup.recordFailedOp(RetryEntry.delete(metadata, versionstamp(2), vectorIndexId, objectId));
+        writer.write(newCv, versionstamp(3));
+        OnHeapVectorGraphIndex newOnHeap = registryGroup.getOnHeapIndexes().getLast();
+        GraphNodeRef newRef = newOnHeap.getMetadata().findNodeRef(objectId);
+        assertNotNull(newRef);
+
+        assertEquals(1, registryGroup.retryFailedOps());
+
+        assertNull(onDisk.getMetadata().findDocumentLocation(oldRef.ordinal()));
+        assertEquals(newRef, newOnHeap.getMetadata().findNodeRef(objectId));
+        List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 2, 0.0f, 1.0f);
+        assertEquals(1, results.size());
+        assertEquals(newCv.metadata(), results.getFirst().location().entryMetadata());
+    }
+
+    @Test
+    void shouldConvergeWhenLiveAddRacesWithStaleAdd() throws Exception {
+        // Behavior: A stale add (retry of an older versionstamp) and a live newer add of the same object run
+        // at the same time. In any order the object ends bound to the newer vector and the older vector is
+        // not searchable.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        float[] oldVector = new float[]{1.0f, 0.0f, 0.0f};
+        float[] newVector = new float[]{0.0f, 1.0f, 0.0f};
+        for (int i = 0; i < 50; i++) {
+            ObjectId objectId = new ObjectId();
+            CollectedVector oldCv = new CollectedVector(objectId, 0, newEntryMetadata(1), oldVector,
+                    vectorIndex.definition(), 1);
+            CollectedVector newCv = new CollectedVector(objectId, 0, newEntryMetadata(2), newVector,
+                    vectorIndex.definition(), 3);
+
+            Thread stale = Thread.ofVirtual().start(() -> new VectorNodeWriter(service, metadata).write(oldCv, versionstamp(1)));
+            Thread live = Thread.ofVirtual().start(() -> new VectorNodeWriter(service, metadata).write(newCv, versionstamp(3)));
+            stale.join();
+            live.join();
+
+            GraphNodeRef ref = null;
+            for (OnHeapVectorGraphIndex onHeap : registryGroup.getOnHeapIndexes()) {
+                GraphNodeRef candidate = onHeap.getMetadata().findNodeRef(objectId);
+                if (candidate != null) {
+                    assertNull(ref, "object must be bound in one graph only");
+                    ref = candidate;
+                }
+            }
+            assertNotNull(ref);
+            assertEquals(versionstamp(3), ref.versionstamp());
+
+            List<MergedNodeScore> results = registryGroup.searchAll(oldVector, 4, 0.0f, 1.0f);
+            for (MergedNodeScore result : results) {
+                if (result.location().objectId().equals(objectId)) {
+                    assertEquals(newCv.metadata(), result.location().entryMetadata());
+                }
+            }
+
+            VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndex.definition().id());
+            remover.remove(objectId, versionstamp(4));
+            remover.flush();
+        }
+    }
+
+    @Test
+    void shouldLeaveNoLiveNodeWhenAddRacesWithNewerDelete() throws Exception {
+        // Behavior: An add and a newer delete of the same object run at the same time. In any order no live
+        // node remains: the delete either marks the added node deleted or stores a tombstone that the add
+        // consumes.
+        VectorGraphIndexGroup registryGroup = registryGroup();
+        BucketService service = context.getService(BucketService.NAME);
+        long vectorIndexId = vectorIndex.definition().id();
+        float[] vector = new float[]{1.0f, 0.0f, 0.0f};
+        for (int i = 0; i < 50; i++) {
+            ObjectId objectId = new ObjectId();
+            CollectedVector cv = new CollectedVector(objectId, 0, newEntryMetadata(1), vector,
+                    vectorIndex.definition(), 1);
+
+            Thread add = Thread.ofVirtual().start(() -> new VectorNodeWriter(service, metadata).write(cv, versionstamp(1)));
+            Thread delete = Thread.ofVirtual().start(() -> {
+                VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
+                remover.remove(objectId, versionstamp(2));
+                remover.flush();
+            });
+            add.join();
+            delete.join();
+
+            for (OnHeapVectorGraphIndex onHeap : registryGroup.getOnHeapIndexes()) {
+                assertNull(onHeap.getMetadata().findNodeRef(objectId));
+            }
+            for (MergedNodeScore result : registryGroup.searchAll(vector, 4, 0.0f, 1.0f)) {
+                assertNotEquals(objectId, result.location().objectId());
             }
         }
     }

@@ -115,8 +115,17 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
         };
     }
 
+    /**
+     * Adds a vector to the graph on the given executor and binds it to the ObjectId with the
+     * versionstamp of the add. If the ObjectId already has a node, only the one with the newer
+     * versionstamp stays alive; the other node is tombstoned in the graph. On failure the vector
+     * is dropped and the future completes exceptionally.
+     *
+     * @throws IllegalStateException inside the future if the index was already flushed
+     */
     public CompletableFuture<Void> addGraphNode(
             ObjectId objectId,
+            Versionstamp versionstamp,
             int shardId,
             EntryMetadata entryMetadata,
             float[] vector,
@@ -143,13 +152,19 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
                 resetEntryPointIfNoLiveNodes();
                 builder.addGraphNode(ordinal, vectorFloat);
 
+                // Update the metadata and delete the stale ordinal if it does exist.
+                int staleOrdinal = metadata.put(objectId, ordinal, versionstamp, shardId, entryMetadata);
+                if (staleOrdinal >= 0) {
+                    builder.markNodeDeleted(staleOrdinal);
+                }
+
                 if (!pqTrained && pqTrainingThreshold > 0 && nextOrdinal.get() >= pqTrainingThreshold) {
                     trainPQ();
                 }
             } finally {
                 rwLock.readLock().unlock();
             }
-        }, executor).thenRun(() -> metadata.put(objectId, ordinalHolder[0], shardId, entryMetadata)).exceptionally((ex) -> {
+        }, executor).exceptionally((ex) -> {
             if (ordinalHolder[0] >= 0) {
                 VectorFloat<?> removed = vectors.remove(ordinalHolder[0]);
                 if (removed != null) {
@@ -237,12 +252,19 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
         }
     }
 
-    public void markNodeDeleted(ObjectId objectId, int node) {
+    /**
+     * Marks the node of the object as deleted if the delete is newer than the node. Returns true when a
+     * node was deleted.
+     */
+    public boolean markNodeDeleted(ObjectId objectId, Versionstamp deleteVs) {
         rwLock.readLock().lock();
         try {
-            builder.markNodeDeleted(node);
-            metadata.addPendingDelete(node);
-            metadata.removeMapping(objectId, node);
+            int ordinal = metadata.removeMapping(objectId, deleteVs);
+            if (ordinal < 0) {
+                return false;
+            }
+            builder.markNodeDeleted(ordinal);
+            return true;
         } finally {
             rwLock.readLock().unlock();
         }

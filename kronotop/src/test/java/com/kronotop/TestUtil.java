@@ -59,6 +59,13 @@ public class TestUtil {
         return Versionstamp.incomplete(userVersion);
     }
 
+    /**
+     * Returns the smallest complete versionstamp. Every real versionstamp is newer than this one.
+     */
+    public static Versionstamp zeroVersionstamp() {
+        return Versionstamp.complete(new byte[10], 0);
+    }
+
     public static Versionstamp findIndexMaintenanceTaskId(Context context, DirectorySubspace taskSubspace, IndexMaintenanceTaskKind kind) {
         AtomicReference<Versionstamp> taskId = new AtomicReference<>();
         await().atMost(15, TimeUnit.SECONDS).until(() -> {

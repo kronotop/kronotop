@@ -61,7 +61,7 @@ class VectorNodeAddHookIntegrationTest extends BaseVectorHookIntegrationTest {
             // anchor (alive) + old target (deleted) + new target (alive) = 3 nodes
             try (OnHeapVectorGraphIndex graph = awaitVectorGraph(TEST_BUCKET, "embedding", 3)) {
                 // VectorNodeAddHook re-maps the objectId to the new ordinal
-                int newOrdinal = graph.getMetadata().findOrdinal(targetId);
+                int newOrdinal = graph.getMetadata().findNodeRef(targetId).ordinal();
                 assertTrue(newOrdinal >= 0, "Updated objectId should map to a valid ordinal");
 
                 // The new vector should be searchable
@@ -128,9 +128,9 @@ class VectorNodeAddHookIntegrationTest extends BaseVectorHookIntegrationTest {
             // anchor (alive) + 2 old targets (deleted) + 2 new targets (alive) = 5 nodes
             try (OnHeapVectorGraphIndex graph = awaitVectorGraph(TEST_BUCKET, "embedding", 5)) {
                 // VectorNodeAddHook re-maps both objectIds to new ordinals
-                assertTrue(graph.getMetadata().findOrdinal(target1Id) >= 0,
+                assertTrue(graph.getMetadata().findNodeRef(target1Id) != null,
                         "First updated objectId should map to a valid ordinal");
-                assertTrue(graph.getMetadata().findOrdinal(target2Id) >= 0,
+                assertTrue(graph.getMetadata().findNodeRef(target2Id) != null,
                         "Second updated objectId should map to a valid ordinal");
 
                 // The new vector should be searchable

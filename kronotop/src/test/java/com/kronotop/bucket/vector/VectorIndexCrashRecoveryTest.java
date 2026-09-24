@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.vector;
 
+import com.kronotop.TestUtil;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
@@ -126,8 +127,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(2, recovered.size());
-        assertTrue(recovered.getMetadata().findOrdinal(oid1) >= 0);
-        assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
+        assertTrue(recovered.getMetadata().findNodeRef(oid1) != null);
+        assertTrue(recovered.getMetadata().findNodeRef(oid2) != null);
         group.closeAll();
     }
 
@@ -160,7 +161,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         group.addOnHeap(onHeap);
 
-        onHeap.addGraphNode(oid1, SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
+        onHeap.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
         // Use a versionstamp that matches what was written in the mutation log
         // Read the actual versionstamp from the mutation log
         Versionstamp flushVersionstamp;
@@ -211,8 +212,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(1, recovered.size());
-        assertEquals(-1, recovered.getMetadata().findOrdinal(oid1));
-        assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
+        assertNull(recovered.getMetadata().findNodeRef(oid1));
+        assertTrue(recovered.getMetadata().findNodeRef(oid2) != null);
         group.closeAll();
     }
 
@@ -251,8 +252,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         // The node was inserted then deleted — its mapping should be removed from metadata
-        int ordinal = recovered.getMetadata().findOrdinal(oid);
-        assertEquals(-1, ordinal);
+        assertNull(recovered.getMetadata().findNodeRef(oid));
         // Search for a vector identical to TEST_VECTOR_1 — deleted node should not appear in results
         var result = recovered.search(TEST_VECTOR_1, 1);
         assertEquals(0, result.getNodes().length);
@@ -329,7 +329,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         // INSERT adds ordinal 0, DELETE marks it deleted; UPDATE adds ordinal 1
         assertEquals(2, recovered.size());
         // Only the updated node is active in metadata
-        int activeOrdinal = recovered.getMetadata().findOrdinal(oid);
+        int activeOrdinal = recovered.getMetadata().findNodeRef(oid).ordinal();
         assertTrue(activeOrdinal > 0);
         group.closeAll();
     }
@@ -385,9 +385,9 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(3, recovered.size());
-        assertTrue(recovered.getMetadata().findOrdinal(oid1) >= 0);
-        assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
-        assertTrue(recovered.getMetadata().findOrdinal(oid3) >= 0);
+        assertTrue(recovered.getMetadata().findNodeRef(oid1) != null);
+        assertTrue(recovered.getMetadata().findNodeRef(oid2) != null);
+        assertTrue(recovered.getMetadata().findNodeRef(oid3) != null);
         group.closeAll();
     }
 
@@ -501,9 +501,9 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         group.addOnHeap(onHeap);
 
-        onHeap.addGraphNode(oid1, SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
-        onHeap.addGraphNode(oid2, SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
-        onHeap.addGraphNode(oid3, SHARD_ID, newEntryMetadata(), TEST_VECTOR_3, executor).join();
+        onHeap.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
+        onHeap.addGraphNode(oid2, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
+        onHeap.addGraphNode(oid3, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_3, executor).join();
 
         // Read the latest versionstamp from the mutation log
         Versionstamp flushVersionstamp;
@@ -546,11 +546,11 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // On-disk metadata should now return null for the deleted ObjectId
         OnDiskVectorGraphIndex onDisk = group.getOnDiskIndexes().getFirst();
-        assertNull(onDisk.getMetadata().findDocumentLocation(onDisk.getMetadata().findOrdinal(oid2)));
+        assertNull(onDisk.getMetadata().findDocumentLocation(onDisk.getMetadata().findNodeRef(oid2).ordinal()));
 
         // Other ObjectIds should still be accessible on disk
-        int ordinal1 = onDisk.getMetadata().findOrdinal(oid1);
-        int ordinal3 = onDisk.getMetadata().findOrdinal(oid3);
+        int ordinal1 = onDisk.getMetadata().findNodeRef(oid1).ordinal();
+        int ordinal3 = onDisk.getMetadata().findNodeRef(oid3).ordinal();
         assertTrue(ordinal1 >= 0);
         assertTrue(ordinal3 >= 0);
         assertNotNull(onDisk.getMetadata().findDocumentLocation(ordinal1));
@@ -604,8 +604,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getFirst();
         assertEquals(2, recovered.size());
-        assertTrue(recovered.getMetadata().findOrdinal(oid1) >= 0);
-        assertTrue(recovered.getMetadata().findOrdinal(oid2) >= 0);
+        assertTrue(recovered.getMetadata().findNodeRef(oid1) != null);
+        assertTrue(recovered.getMetadata().findNodeRef(oid2) != null);
 
         // Verify recovered vectors are searchable
         List<MergedNodeScore> results = group.searchAll(TEST_VECTOR_1, 2, 0.0f, 1.0f);
@@ -648,7 +648,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         assertTrue(group.isReady());
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getFirst();
         assertEquals(1, recovered.size());
-        assertTrue(recovered.getMetadata().findOrdinal(oid) >= 0);
+        assertTrue(recovered.getMetadata().findNodeRef(oid) != null);
 
         // Verify recovered vector is searchable with correct similarity
         List<MergedNodeScore> results = group.searchAll(TEST_VECTOR_3, 1, 0.0f, 1.0f);
@@ -697,11 +697,11 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         Versionstamp vs3 = vectorIndex.subspace().unpack(entries.get(2).getKey()).getVersionstamp(1);
 
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
-        onHeap.addGraphNode(oid1, SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
+        onHeap.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
         onHeap.advanceVersionstamp(vs1);
-        onHeap.addGraphNode(oid2, SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
+        onHeap.addGraphNode(oid2, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
         onHeap.advanceVersionstamp(vs2);
-        onHeap.addGraphNode(oid3, SHARD_ID, newEntryMetadata(), TEST_VECTOR_3, executor).join();
+        onHeap.addGraphNode(oid3, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_3, executor).join();
         onHeap.advanceVersionstamp(vs3);
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
@@ -743,9 +743,9 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         Versionstamp vs2 = vectorIndex.subspace().unpack(allEntries.get(1).getKey()).getVersionstamp(1);
 
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
-        onHeap.addGraphNode(oid1, SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
+        onHeap.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
         onHeap.advanceVersionstamp(vs1);
-        onHeap.addGraphNode(oid2, SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
+        onHeap.addGraphNode(oid2, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
         onHeap.advanceVersionstamp(vs2);
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
@@ -791,11 +791,11 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Build two on-heap indexes, one per entry
         OnHeapVectorGraphIndex heap1 = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
-        heap1.addGraphNode(oid1, SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
+        heap1.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
         heap1.advanceVersionstamp(vs1);
 
         OnHeapVectorGraphIndex heap2 = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
-        heap2.addGraphNode(oid2, SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
+        heap2.addGraphNode(oid2, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
         heap2.advanceVersionstamp(vs2);
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
@@ -835,9 +835,9 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         Versionstamp vs2 = vectorIndex.subspace().unpack(insertEntries.get(1).getKey()).getVersionstamp(1);
 
         OnHeapVectorGraphIndex firstHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
-        firstHeap.addGraphNode(oid1, SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
+        firstHeap.addGraphNode(oid1, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
         firstHeap.advanceVersionstamp(vs1);
-        firstHeap.addGraphNode(oid2, SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
+        firstHeap.addGraphNode(oid2, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_2, executor).join();
         firstHeap.advanceVersionstamp(vs2);
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
@@ -864,7 +864,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Add a node so the on-heap is non-empty and eligible for flush
         ObjectId oid3 = new ObjectId();
-        activeHeap.addGraphNode(oid3, SHARD_ID, newEntryMetadata(), TEST_VECTOR_3, executor).join();
+        activeHeap.addGraphNode(oid3, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_3, executor).join();
 
         group.addOnHeap(activeHeap);
         group.flushSingle(tempDir, activeHeap);
@@ -911,7 +911,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(total, recovered.size());
         for (ObjectId oid : oids) {
-            assertTrue(recovered.getMetadata().findOrdinal(oid) >= 0);
+            assertTrue(recovered.getMetadata().findNodeRef(oid) != null);
         }
         assertEquals(expected, recovered.getLatestVersionstamp());
         group.closeAll();

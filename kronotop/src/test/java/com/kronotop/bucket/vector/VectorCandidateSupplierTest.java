@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.vector;
 
+import com.kronotop.TestUtil;
 import com.kronotop.bucket.pipeline.DocumentLocation;
 import com.kronotop.volume.EntryMetadata;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
@@ -55,9 +56,9 @@ class VectorCandidateSupplierTest {
             ObjectId oid1 = new ObjectId();
             ObjectId oid2 = new ObjectId();
             ObjectId oid3 = new ObjectId();
-            index.addGraphNode(oid1, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            index.addGraphNode(oid2, 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            index.addGraphNode(oid3, 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            index.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            index.addGraphNode(oid2, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            index.addGraphNode(oid3, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
             SearchHandle handle = index.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
             VectorSearchSession session = new VectorSearchSession(List.of(handle));
@@ -78,10 +79,10 @@ class VectorCandidateSupplierTest {
     void shouldDeduplicateAcrossFetches() throws IOException {
         // Behavior: Two consecutive fetches never return the same ObjectId twice.
         try (OnHeapVectorGraphIndex index = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
             SearchHandle handle = index.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
             VectorSearchSession session = new VectorSearchSession(List.of(handle));
@@ -106,7 +107,7 @@ class VectorCandidateSupplierTest {
     void shouldBecomeExhaustedWhenFewerResultsThanBatchSize() throws IOException {
         // Behavior: When search returns fewer results than batchSize, subsequent fetches return empty.
         try (OnHeapVectorGraphIndex index = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
 
             SearchHandle handle = index.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
             VectorSearchSession session = new VectorSearchSession(List.of(handle));
@@ -129,7 +130,7 @@ class VectorCandidateSupplierTest {
         // even if the graph has more results available.
         try (OnHeapVectorGraphIndex index = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
             for (int i = 0; i < 10; i++) {
-                index.addGraphNode(new ObjectId(), 0, newEntryMetadata(i + 1),
+                index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(i + 1),
                         new float[]{0.1f * (i + 1), 0.2f * (i + 1), 0.3f * (i + 1)}, executor).join();
             }
 
@@ -153,7 +154,7 @@ class VectorCandidateSupplierTest {
     void shouldCloseUnderlyingSession() throws IOException {
         // Behavior: close() delegates to the underlying session without throwing.
         try (OnHeapVectorGraphIndex index = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
 
             SearchHandle handle = index.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
             VectorSearchSession session = new VectorSearchSession(List.of(handle));

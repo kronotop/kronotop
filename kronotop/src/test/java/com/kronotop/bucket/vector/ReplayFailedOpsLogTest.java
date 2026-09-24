@@ -16,6 +16,8 @@
 
 package com.kronotop.bucket.vector;
 
+import com.kronotop.TestUtil;
+import com.kronotop.bucket.BucketService;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
@@ -125,8 +127,8 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         assertTrue(failedOps.adds().isEmpty());
         assertTrue(failedOps.deletes().isEmpty());
         assertEquals(2, onHeap.size());
-        assertTrue(onHeap.getMetadata().findOrdinal(oid1) >= 0);
-        assertTrue(onHeap.getMetadata().findOrdinal(oid2) > 0);
+        assertTrue(onHeap.getMetadata().findNodeRef(oid1) != null);
+        assertTrue(onHeap.getMetadata().findNodeRef(oid2).ordinal() > 0);
         assertEquals(vs2, onHeap.getLatestVersionstamp());
         group.closeAll();
     }
@@ -143,8 +145,8 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         group.addOnHeap(onHeap);
-        onHeap.addGraphNode(oid, SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
-        assertTrue(onHeap.getMetadata().findOrdinal(oid) >= 0);
+        onHeap.addGraphNode(oid, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
+        assertTrue(onHeap.getMetadata().findNodeRef(oid) != null);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), vs, oid.toByteArray());
@@ -156,7 +158,48 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
 
         assertTrue(failedOps.adds().isEmpty());
         assertTrue(failedOps.deletes().isEmpty());
-        assertEquals(-1, onHeap.getMetadata().findOrdinal(oid));
+        assertNull(onHeap.getMetadata().findNodeRef(oid));
+        group.closeAll();
+    }
+
+    @Test
+    void shouldNotReplayStaleDeleteAgainstNewerOnDiskNode() throws IOException {
+        // Behavior: A DELETE entry in the FAILED_OP_LOG that is older than the on-disk node of the same object
+        // leaves the node alive. A newer DELETE entry marks the node deleted.
+        VectorIndex vectorIndex = createVectorIndex();
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+        BucketService service = context.getService(BucketService.NAME);
+
+        ObjectId oid = new ObjectId();
+        VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
+        OnHeapVectorGraphIndex flushed = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
+        group.addOnHeap(flushed);
+        flushed.addGraphNode(oid, versionstamp(3), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
+        group.flushSingle(service.getBucketDataDir(), flushed);
+        OnDiskVectorGraphIndex onDisk = group.getOnDiskIndexes().getLast();
+        GraphNodeRef ref = onDisk.getMetadata().findNodeRef(oid);
+        assertNotNull(ref);
+
+        OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
+        group.addOnHeap(onHeap);
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), versionstamp(2), oid.toByteArray());
+            tr.commit().join();
+        }
+        FailedOps failedOps = ReplayFailedOpsLog.replay(
+                context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
+        assertTrue(failedOps.deletes().isEmpty());
+        assertNotNull(onDisk.getMetadata().findDocumentLocation(ref.ordinal()));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), versionstamp(4), oid.toByteArray());
+            tr.commit().join();
+        }
+        failedOps = ReplayFailedOpsLog.replay(
+                context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
+        assertTrue(failedOps.deletes().isEmpty());
+        assertNull(onDisk.getMetadata().findDocumentLocation(ref.ordinal()));
         group.closeAll();
     }
 
@@ -233,7 +276,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         assertTrue(failedOps.adds().isEmpty());
         assertEquals(total, onHeap.size());
         for (ObjectId oid : oids) {
-            assertTrue(onHeap.getMetadata().findOrdinal(oid) >= 0);
+            assertTrue(onHeap.getMetadata().findNodeRef(oid) != null);
         }
         assertEquals(versionstamp(total), onHeap.getLatestVersionstamp());
         group.closeAll();

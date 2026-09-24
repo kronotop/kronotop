@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.vector;
 
+import com.kronotop.TestUtil;
 import com.kronotop.volume.EntryMetadata;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
@@ -60,11 +61,11 @@ class VectorSearchSessionTest {
     void shouldReturnTopKFromSingleIndex() throws IOException {
         // Behavior: A session with a single index returns the top-K results in descending score order.
         try (OnHeapVectorGraphIndex index = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(5), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(5), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
 
             SearchHandle handle = index.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
             try (VectorSearchSession session = new VectorSearchSession(List.of(handle))) {
@@ -82,12 +83,12 @@ class VectorSearchSessionTest {
     void shouldMergeResultsFromMultipleIndexes() throws IOException {
         // Behavior: A session with two indexes merges results into a single top-K list in descending order.
         try (OnHeapVectorGraphIndex indexA = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-            indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
 
             try (OnHeapVectorGraphIndex indexB = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-                indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-                indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+                indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+                indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
                 SearchHandle handleA = indexA.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
                 SearchHandle handleB = indexB.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
@@ -108,10 +109,10 @@ class VectorSearchSessionTest {
     void shouldResumeOnSubsequentCalls() throws IOException {
         // Behavior: The first call to search() performs a fresh search; the second call resumes without error.
         try (OnHeapVectorGraphIndex index = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(4), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(4), new float[]{0.5f, 0.5f, 0.0f}, executor).join();
 
             SearchHandle handle = index.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
             try (VectorSearchSession session = new VectorSearchSession(List.of(handle))) {
@@ -132,12 +133,12 @@ class VectorSearchSessionTest {
 
             ObjectId oid1 = new ObjectId();
             ObjectId oid2 = new ObjectId();
-            index.addGraphNode(oid1, 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            index.addGraphNode(oid2, 0, newEntryMetadata(2), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
-            index.addGraphNode(new ObjectId(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
+            index.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            index.addGraphNode(oid2, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.9f, 0.1f, 0.0f}, executor).join();
+            index.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
 
             // Remove metadata for oid1 (ordinal 0), simulating a delete
-            index.markNodeDeleted(oid1, 0);
+            index.markNodeDeleted(oid1, TestUtil.generateVersionstamp(1));
 
             SearchHandle handle = index.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
             try (VectorSearchSession session = new VectorSearchSession(List.of(handle))) {
@@ -154,10 +155,10 @@ class VectorSearchSessionTest {
     void shouldCloseAllSearchHandles() throws IOException {
         // Behavior: close() on the session closes all underlying search handles without throwing.
         try (OnHeapVectorGraphIndex indexA = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-            indexA.addGraphNode(new ObjectId(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+            indexA.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
 
             try (OnHeapVectorGraphIndex indexB = new OnHeapVectorGraphIndex(3, VectorSimilarityFunction.COSINE)) {
-                indexB.addGraphNode(new ObjectId(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+                indexB.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
 
                 SearchHandle handleA = indexA.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});
                 SearchHandle handleB = indexB.openSearchHandle(new float[]{1.0f, 0.0f, 0.0f});

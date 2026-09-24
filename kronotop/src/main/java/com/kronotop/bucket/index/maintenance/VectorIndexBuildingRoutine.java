@@ -140,7 +140,7 @@ public class VectorIndexBuildingRoutine extends AbstractBuildingRoutine {
                     service.getPqTrainingThreshold(), service.getPqSubspaceDivisor());
 
             EntryMetadata entryMetadata = EntryMetadata.decode(pair.metadata());
-            graph.addGraphNode(objectId, shardId, entryMetadata, vector, service.getVectorGraphExecutor()).join();
+            graph.addGraphNode(objectId, pair.key(), shardId, entryMetadata, vector, service.getVectorGraphExecutor()).join();
             graph.advanceVersionstamp(pair.key());
 
             // Flush to disk when the threshold exceeded, then continue with a fresh graph

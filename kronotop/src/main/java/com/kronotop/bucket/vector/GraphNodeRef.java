@@ -16,21 +16,11 @@
 
 package com.kronotop.bucket.vector;
 
-import com.kronotop.bucket.pipeline.DocumentLocation;
-import org.bson.types.ObjectId;
+import com.apple.foundationdb.tuple.Versionstamp;
 
 /**
- * Common lookup interface for vector graph index metadata, shared by on-heap and on-disk implementations.
+ * Points to a node in a vector graph index: the ordinal of the node and the versionstamp of the add that
+ * created it. The versionstamp decides whether a later add or delete for the same object is stale.
  */
-public interface VectorGraphIndexMetadata {
-
-    /**
-     * Returns the DocumentLocation (ObjectId + shard ID + EntryMetadata) for a given ordinal, or null if not found.
-     */
-    DocumentLocation findDocumentLocation(int ordinal);
-
-    /**
-     * Returns the node reference (ordinal and add versionstamp) for a given ObjectId, or null if not found.
-     */
-    GraphNodeRef findNodeRef(ObjectId objectId);
+public record GraphNodeRef(int ordinal, Versionstamp versionstamp) {
 }

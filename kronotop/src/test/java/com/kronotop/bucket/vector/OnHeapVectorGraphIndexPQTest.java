@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.vector;
 
+import com.kronotop.TestUtil;
 import com.kronotop.volume.EntryMetadata;
 import io.github.jbellis.jvector.graph.SearchResult;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
@@ -72,7 +73,7 @@ class OnHeapVectorGraphIndexPQTest {
         // Behavior: PQ training does not occur when the number of vectors is below the threshold.
         Random rng = new Random(42);
         for (int i = 0; i < PQ_THRESHOLD - 1; i++) {
-            graph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), randomVector(rng), executor).join();
+            graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), randomVector(rng), executor).join();
         }
 
         assertFalse(graph.isPqTrained());
@@ -85,7 +86,7 @@ class OnHeapVectorGraphIndexPQTest {
         // Behavior: PQ training occurs when the number of vectors reaches the threshold.
         Random rng = new Random(42);
         for (int i = 0; i < PQ_THRESHOLD; i++) {
-            graph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), randomVector(rng), executor).join();
+            graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), randomVector(rng), executor).join();
         }
 
         assertTrue(graph.isPqTrained());
@@ -99,7 +100,7 @@ class OnHeapVectorGraphIndexPQTest {
         Random rng = new Random(42);
         int total = PQ_THRESHOLD + 20;
         for (int i = 0; i < total; i++) {
-            graph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), randomVector(rng), executor).join();
+            graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), randomVector(rng), executor).join();
         }
 
         assertTrue(graph.isPqTrained());
@@ -112,11 +113,11 @@ class OnHeapVectorGraphIndexPQTest {
         Random rng = new Random(42);
         float[] target = randomVector(rng);
         ObjectId targetOid = new ObjectId();
-        graph.addGraphNode(targetOid, 0, newEntryMetadata(), target, executor).join();
+        graph.addGraphNode(targetOid, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), target, executor).join();
 
         // Fill up to the threshold with random vectors
         for (int i = 1; i < PQ_THRESHOLD + 10; i++) {
-            graph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), randomVector(rng), executor).join();
+            graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), randomVector(rng), executor).join();
         }
 
         assertTrue(graph.isPqTrained());
@@ -132,7 +133,7 @@ class OnHeapVectorGraphIndexPQTest {
         // Behavior: Flushing after PQ training produces .index, .vmeta, and .pqv files.
         Random rng = new Random(42);
         for (int i = 0; i < PQ_THRESHOLD; i++) {
-            graph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), randomVector(rng), executor).join();
+            graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), randomVector(rng), executor).join();
         }
 
         assertTrue(graph.isPqTrained());
@@ -154,7 +155,7 @@ class OnHeapVectorGraphIndexPQTest {
         // Behavior: Flushing before PQ training does not produce a .pqv file.
         Random rng = new Random(42);
         for (int i = 0; i < 5; i++) {
-            graph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), randomVector(rng), executor).join();
+            graph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), randomVector(rng), executor).join();
         }
 
         assertFalse(graph.isPqTrained());
@@ -173,7 +174,7 @@ class OnHeapVectorGraphIndexPQTest {
                 DIMENSIONS, VectorSimilarityFunction.COSINE, 0, PQ_DIVISOR)) {
             Random rng = new Random(42);
             for (int i = 0; i < 100; i++) {
-                noTrainGraph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), randomVector(rng), executor).join();
+                noTrainGraph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), randomVector(rng), executor).join();
             }
             assertFalse(noTrainGraph.isPqTrained());
         }
@@ -186,9 +187,9 @@ class OnHeapVectorGraphIndexPQTest {
                 DIMENSIONS, VectorSimilarityFunction.EUCLIDEAN, PQ_THRESHOLD, PQ_DIVISOR)) {
             Random rng = new Random(42);
             float[] target = randomVector(rng);
-            euclideanGraph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), target, executor).join();
+            euclideanGraph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), target, executor).join();
             for (int i = 1; i < PQ_THRESHOLD; i++) {
-                euclideanGraph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), randomVector(rng), executor).join();
+                euclideanGraph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), randomVector(rng), executor).join();
             }
             assertTrue(euclideanGraph.isPqTrained());
 
@@ -205,9 +206,9 @@ class OnHeapVectorGraphIndexPQTest {
                 DIMENSIONS, VectorSimilarityFunction.EUCLIDEAN, PQ_THRESHOLD, PQ_DIVISOR)) {
             Random rng = new Random(42);
             float[] target = randomVector(rng);
-            euclideanGraph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), target, executor).join();
+            euclideanGraph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), target, executor).join();
             for (int i = 1; i < PQ_THRESHOLD; i++) {
-                euclideanGraph.addGraphNode(new ObjectId(), 0, newEntryMetadata(), randomVector(rng), executor).join();
+                euclideanGraph.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(), randomVector(rng), executor).join();
             }
             assertTrue(euclideanGraph.isPqTrained());
             euclideanGraph.flush(tempDir);
