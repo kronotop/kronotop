@@ -56,6 +56,13 @@ operator must request a new token from Phase 1 to retry.
 
 ## Errors
 
+Argument errors:
+
+| Error Code | Error message                  | Cause |
+|------------|--------------------------------|-------|
+| `ERR`      | `cluster name is required`     | -     |
+| `ERR`      | `invalid number of parameters` | -     |
+
 Cluster errors:
 
 | Error Code | Error message                                    | Cause                                                           |

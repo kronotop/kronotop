@@ -33,6 +33,12 @@ Operators must explicitly set shard status and assign routes before the cluster 
 
 ## Errors
 
+Argument errors:
+
+| Error Code | Error message                  | Cause |
+|------------|--------------------------------|-------|
+| `ERR`      | `invalid number of parameters` | -     |
+
 Cluster errors:
 
 | Error Code | Error message                                          | Cause                                                                                                                 |

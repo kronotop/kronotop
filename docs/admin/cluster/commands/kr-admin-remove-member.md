@@ -36,9 +36,10 @@ decommission it.
 
 Argument errors:
 
-| Error Code | Error message            | Cause                                                                   |
-|------------|--------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `Invalid memberId: <id>` | The value is neither a 40-character member ID nor a 4-character prefix. |
+| Error Code | Error message                  | Cause                                                                   |
+|------------|--------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `invalid number of parameters` | -                                                                       |
+| `ERR`      | `Invalid memberId: <id>`       | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Cluster errors:
 

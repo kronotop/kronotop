@@ -35,6 +35,12 @@ Requires cluster initialization.
 
 ## Errors
 
+Argument errors:
+
+| Error Code | Error message                  | Cause |
+|------------|--------------------------------|-------|
+| `ERR`      | `invalid number of parameters` | -     |
+
 Cluster errors:
 
 | Error Code | Error message                          | Cause |
