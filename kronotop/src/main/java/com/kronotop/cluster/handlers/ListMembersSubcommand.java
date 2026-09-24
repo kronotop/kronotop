@@ -38,6 +38,9 @@ class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements Subc
 
     @Override
     public void execute(Request request, Response response) {
+        if (request.getParams().size() != 1) {
+            throw new InvalidNumberOfParametersException();
+        }
         supplyAsync(context, response, () -> {
             TreeSet<Member> sortedMembers = membership.listMembers();
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
