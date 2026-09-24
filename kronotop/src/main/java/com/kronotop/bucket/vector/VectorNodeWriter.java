@@ -66,7 +66,12 @@ public final class VectorNodeWriter extends BaseVectorNode {
         // Post-check: catch tombstones set by a concurrent DELETE during addGraphNode.
         Versionstamp deleteVs = group.removeDeleteTombstone(cv.objectId());
         if (deleteVs != null && deleteVs.compareTo(addVs) > 0) {
-            graph.markNodeDeleted(cv.objectId(), deleteVs);
+            try {
+                graph.markNodeDeleted(cv.objectId(), deleteVs);
+            } catch (IllegalStateException e) {
+                // The graph was flushed after addGraphNode. The node is on disk, the delete retry finds it there.
+                group.recordFailedOp(RetryEntry.delete(metadata, deleteVs, cv.definition().id(), cv.objectId()));
+            }
             return;
         }
 

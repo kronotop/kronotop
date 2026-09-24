@@ -78,7 +78,8 @@ public class VectorNodeRemover extends BaseVectorNode {
                 if (onHeap.getMetadata().findNodeRef(objectId) != null) {
                     found = true;
                     // The versionstamp compare runs under the metadata lock, so a concurrent newer add
-                    // cannot lose its mapping to this delete.
+                    // cannot lose its mapping to this delete. A graph flushed in the meantime throws, the
+                    // retry entry below finds the node on disk.
                     onHeap.markNodeDeleted(objectId, deleteVs);
                 }
             }

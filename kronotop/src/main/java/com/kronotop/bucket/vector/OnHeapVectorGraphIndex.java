@@ -255,10 +255,16 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
     /**
      * Marks the node of the object as deleted if the delete is newer than the node. Returns true when a
      * node was deleted.
+     *
+     * @throws IllegalStateException if the index was already flushed. The graph is on disk, a delete on
+     *                               the in-memory copy would be lost.
      */
     public boolean markNodeDeleted(ObjectId objectId, Versionstamp deleteVs) {
         rwLock.readLock().lock();
         try {
+            if (flushed) {
+                throw new IllegalStateException("Cannot delete nodes from a FLUSHED index");
+            }
             int ordinal = metadata.removeMapping(objectId, deleteVs);
             if (ordinal < 0) {
                 return false;

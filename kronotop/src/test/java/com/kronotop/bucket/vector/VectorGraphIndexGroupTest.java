@@ -658,6 +658,29 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldRejectDeleteOnFlushedOnHeapIndex(@TempDir Path tempDir) {
+        // Behavior: A delete on a flushed on-heap graph throws. The graph is already on disk, so a
+        // delete applied to the in-memory copy is lost.
+        group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
+        ObjectId objectId = new ObjectId();
+
+        OnHeapVectorGraphIndex onHeap = newIndex();
+        onHeap.addGraphNode(objectId, versionstamp(1), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        group.addOnHeap(onHeap);
+
+        group.flushSingle(tempDir, onHeap);
+        assertTrue(onHeap.isFlushed());
+
+        // The delete holds the reference it read before the flush.
+        assertThrows(IllegalStateException.class, () -> onHeap.markNodeDeleted(objectId, versionstamp(2)));
+
+        OnDiskVectorGraphIndex onDisk = group.getOnDiskIndexes().getFirst();
+        GraphNodeRef ref = onDisk.getMetadata().findNodeRef(objectId);
+        assertNotNull(ref);
+        assertNotNull(onDisk.getMetadata().findDocumentLocation(ref.ordinal()));
+    }
+
+    @Test
     void shouldCreateSearchSessionFromMixedIndexes(@TempDir Path tempDir) throws IOException {
         // Behavior: createSearchSession builds a session that merges results from both on-heap and on-disk indexes.
         OnHeapVectorGraphIndex heapForDisk = newIndex();
