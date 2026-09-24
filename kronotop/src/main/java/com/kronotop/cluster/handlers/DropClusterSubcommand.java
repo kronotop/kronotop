@@ -103,9 +103,12 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
             if (params.size() < 2) {
                 throw new KronotopException("cluster name is required");
             }
+            if (params.size() > 3) {
+                throw new InvalidNumberOfParametersException();
+            }
 
             clusterName = ProtocolMessageUtil.readAsString(params.get(1));
-            if (params.size() >= 3) {
+            if (params.size() == 3) {
                 token = ProtocolMessageUtil.readAsString(params.get(2));
             } else {
                 token = null;

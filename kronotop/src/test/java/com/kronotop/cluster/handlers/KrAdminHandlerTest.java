@@ -664,6 +664,30 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldReturnErrorWhenDropClusterWithoutClusterName() {
+        // Behavior: DROP-CLUSTER rejects a call without the cluster name parameter.
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*2\r\n$8\r\nKR.ADMIN\r\n$12\r\nDROP-CLUSTER\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR cluster name is required", actualMessage.content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenDropClusterWithExtraParameters() {
+        // Behavior: DROP-CLUSTER rejects more than two parameters with "invalid number of parameters".
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*5\r\n$8\r\nKR.ADMIN\r\n$12\r\nDROP-CLUSTER\r\n$4\r\nname\r\n$5\r\ntoken\r\n$5\r\nextra\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid number of parameters", actualMessage.content());
+    }
+
+    @Test
     void shouldReturnErrorWhenTokenIsInvalid() {
         // Behavior: Phase 2 returns an error when the token does not match.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
