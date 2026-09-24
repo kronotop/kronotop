@@ -55,6 +55,9 @@ class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements Subco
             if (params.size() < 2) {
                 throw new KronotopException("member id is required");
             }
+            if (params.size() > 2) {
+                throw new InvalidNumberOfParametersException();
+            }
             memberId = ProtocolMessageUtil.readMemberId(context, params.get(1));
         }
     }

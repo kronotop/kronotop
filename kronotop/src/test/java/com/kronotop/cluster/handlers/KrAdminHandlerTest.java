@@ -224,6 +224,30 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldReturnErrorWhenFindMemberWithoutMemberId() {
+        // Behavior: FIND-MEMBER rejects a call without the member id parameter.
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*2\r\n$8\r\nKR.ADMIN\r\n$11\r\nFIND-MEMBER\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR member id is required", actualMessage.content());
+    }
+
+    @Test
+    void shouldReturnErrorWhenFindMemberWithExtraParameters() {
+        // Behavior: FIND-MEMBER rejects extra parameters with "invalid number of parameters".
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*4\r\n$8\r\nKR.ADMIN\r\n$11\r\nFIND-MEMBER\r\n$4\r\nabcd\r\n$5\r\nextra\r\n".getBytes());
+
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
+        assertEquals("ERR invalid number of parameters", actualMessage.content());
+    }
+
+    @Test
     void shouldSetMemberStatus() {
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
