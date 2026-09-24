@@ -177,6 +177,9 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
 
     @Override
     public void execute(Request request, Response response) {
+        if (request.getParams().size() != 1) {
+            throw new InvalidNumberOfParametersException();
+        }
         runAsync(context, response, () -> {
             Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
             retry.executeRunnable(this::initializeCluster);
