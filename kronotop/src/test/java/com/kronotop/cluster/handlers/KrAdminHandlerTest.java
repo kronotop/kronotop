@@ -27,6 +27,7 @@ import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
+import com.kronotop.server.ServerKind;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import io.lettuce.core.codec.StringCodec;
@@ -40,6 +41,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -706,7 +708,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenTokenIsAlreadyConsumed() {
-        // Behavior: A token cannot be used twice — the second attempt fails.
+        // Behavior: A token cannot be used twice. The second attempt fails.
         KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
 
         ByteBuf buf1 = Unpooled.buffer();
@@ -739,6 +741,85 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR no pending drop-cluster token for this cluster", actualMessage.content());
+    }
+
+    private DropClusterSubcommand dropClusterSubcommand() {
+        KrAdminHandler handler = (KrAdminHandler) context.getHandlers(ServerKind.INTERNAL).get("KR.ADMIN").handler();
+        return (DropClusterSubcommand) handler.handlers.get(KrAdminSubcommand.DROP_CLUSTER);
+    }
+
+    private String requestDropClusterToken(KrAdminCommandBuilder<String, String> cmd) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.dropCluster(context.getClusterName()).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(FullBulkStringRedisMessage.class, msg);
+        return ((FullBulkStringRedisMessage) msg).content().toString(StandardCharsets.UTF_8);
+    }
+
+    private void putExpiredDropClusterToken(String token) {
+        long createdAtNanos = System.nanoTime() - TimeUnit.SECONDS.toNanos(DropClusterSubcommand.TOKEN_TTL_MILLIS * 2);
+        dropClusterSubcommand().pendingTokens.put(context.getClusterName(),
+                new DropClusterSubcommand.DropClusterToken(token, createdAtNanos));
+    }
+
+    @Test
+    void shouldReturnSameTokenWhenPhase1CalledTwice() {
+        // Behavior: Phase 1 returns the pending token again while it is still valid.
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        String first = requestDropClusterToken(cmd);
+        String second = requestDropClusterToken(cmd);
+        assertEquals(first, second);
+    }
+
+    @Test
+    void shouldKeepPendingTokenAfterInvalidToken() {
+        // Behavior: A mismatched token does not remove the pending token. The correct token still works.
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+
+        String token = requestDropClusterToken(cmd);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.dropCluster(context.getClusterName(), UUID.randomUUID().toString()).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+
+        ByteBuf buf2 = Unpooled.buffer();
+        cmd.dropCluster(context.getClusterName(), token).encode(buf2);
+        Object msg2 = runCommand(channel, buf2);
+        assertInstanceOf(SimpleStringRedisMessage.class, msg2);
+        assertEquals(Response.OK, ((SimpleStringRedisMessage) msg2).content());
+    }
+
+    @Test
+    void shouldReturnErrorAndRemoveTokenWhenExpired() {
+        // Behavior: Phase 2 rejects an expired token and removes it. The next attempt finds no pending token.
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        String token = UUID.randomUUID().toString();
+        putExpiredDropClusterToken(token);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.dropCluster(context.getClusterName(), token).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR drop-cluster token has expired", ((ErrorRedisMessage) msg).content());
+
+        ByteBuf buf2 = Unpooled.buffer();
+        cmd.dropCluster(context.getClusterName(), token).encode(buf2);
+        Object msg2 = runCommand(channel, buf2);
+        assertInstanceOf(ErrorRedisMessage.class, msg2);
+        assertEquals("ERR no pending drop-cluster token for this cluster", ((ErrorRedisMessage) msg2).content());
+    }
+
+    @Test
+    void shouldIssueNewTokenWhenPreviousExpired() {
+        // Behavior: Phase 1 ignores an expired pending token and issues a new one.
+        KrAdminCommandBuilder<String, String> cmd = new KrAdminCommandBuilder<>(StringCodec.ASCII);
+        String expired = UUID.randomUUID().toString();
+        putExpiredDropClusterToken(expired);
+
+        String fresh = requestDropClusterToken(cmd);
+        assertNotEquals(expired, fresh);
     }
 
     private void assertAdvertise(RedisMessage message, List<Address> expected) {

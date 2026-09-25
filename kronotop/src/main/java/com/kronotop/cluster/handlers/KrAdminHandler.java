@@ -31,7 +31,7 @@ import java.util.EnumMap;
 @MinimumParameterCount(KrAdminMessage.MINIMUM_PARAMETER_COUNT)
 public class KrAdminHandler implements Handler {
 
-    private final EnumMap<KrAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(KrAdminSubcommand.class);
+    final EnumMap<KrAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(KrAdminSubcommand.class);
     private final Context context;
 
     public KrAdminHandler(RoutingService service) {

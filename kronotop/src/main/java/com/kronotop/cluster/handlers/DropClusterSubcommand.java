@@ -32,13 +32,18 @@ import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
-    private static final long TOKEN_TTL_MILLIS = 60_000;
+    static final long TOKEN_TTL_MILLIS = 60_000;
 
     private final ReentrantLock lock = new ReentrantLock();
-    private final Map<String, DropClusterToken> pendingTokens = new HashMap<>();
+    final Map<String, DropClusterToken> pendingTokens = new HashMap<>();
 
     DropClusterSubcommand(RoutingService service) {
         super(service);
+    }
+
+    private boolean isTokenExpired(DropClusterToken token) {
+        long elapsedMillis = (System.nanoTime() - token.createdAtNanos) / 1_000_000;
+        return elapsedMillis > TOKEN_TTL_MILLIS;
     }
 
     @Override
@@ -53,7 +58,7 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
             lock.lock();
             try {
                 DropClusterToken existing = pendingTokens.get(parameters.clusterName);
-                if (existing != null) {
+                if (existing != null && !isTokenExpired(existing)) {
                     response.writeFullBulkString(bulkString(existing.token()));
                     return;
                 }
@@ -75,12 +80,12 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
                 }
 
                 DropClusterToken pending = pendingTokens.get(parameters.clusterName);
-                if (!pending.token.equals(parameters.token)) {
+                if (!pending.token().equals(parameters.token)) {
                     throw new KronotopException("invalid drop-cluster token");
                 }
 
-                long elapsedMillis = (System.nanoTime() - pending.createdAtNanos) / 1_000_000;
-                if (elapsedMillis > TOKEN_TTL_MILLIS) {
+                if (isTokenExpired(pending)) {
+                    pendingTokens.remove(parameters.clusterName);
                     throw new KronotopException("drop-cluster token has expired");
                 }
 
@@ -116,6 +121,6 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
         }
     }
 
-    private record DropClusterToken(String token, long createdAtNanos) {
+    record DropClusterToken(String token, long createdAtNanos) {
     }
 }

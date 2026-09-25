@@ -33,7 +33,8 @@ This is a two-phase command designed to prevent accidental deletion of an entire
 Calling `DROP-CLUSTER` with only the cluster name validates that the name matches the running node's configured cluster
 name and returns a single-use UUID token. The token expires after 60 seconds.
 
-Requesting a new token for the same cluster invalidates any previously issued token.
+If a valid token already exists for the cluster, Phase 1 returns that same token. If the existing token has expired,
+Phase 1 issues a new one.
 
 **Phase 2: Confirm deletion**
 
@@ -41,8 +42,8 @@ Calling `DROP-CLUSTER` with both the cluster name and the token validates the to
 the cluster's entire directory tree from the FoundationDB directory layer. This includes all shard metadata, member
 records, namespace directories, volume metadata, and any other data stored under the cluster's directory prefix.
 
-The token is consumed on any Phase 2 attempt, regardless of whether the token is valid, expired, or mismatched. The
-operator must request a new token from Phase 1 to retry.
+The token is removed after a successful deletion or when Phase 2 finds it expired. A mismatched token does not remove
+the pending token. After an expiry error, the operator must request a new token from Phase 1.
 
 **Important notes:**
 
@@ -71,7 +72,7 @@ Cluster errors:
 | `ERR`      | `cluster name does not match`                    | -                                                               |
 | `ERR`      | `no pending drop-cluster token for this cluster` | No token has been requested, or the token was already consumed. |
 | `ERR`      | `drop-cluster token has expired`                 | The token's 60-second TTL has elapsed.                          |
-| `ERR`      | `invalid drop-cluster token`                     | -                                                               |
+| `ERR`      | `invalid drop-cluster token`                     | The token does not match the pending one.                       |
 
 ## Examples
 
