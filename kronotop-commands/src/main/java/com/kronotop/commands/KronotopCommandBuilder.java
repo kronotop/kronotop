@@ -177,6 +177,24 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
     }
 
     /**
+     * Constructs a NAMESPACE CREATE command. When ifNotExists is true, the IF-NOT-EXISTS
+     * flag is appended and the server replies OK if the namespace already exists.
+     *
+     * @param namespace   the name of the namespace to be created; must not be null.
+     * @param ifNotExists append the IF-NOT-EXISTS flag.
+     * @return a {@link Command} instance representing the NAMESPACE CREATE operation.
+     */
+    public Command<K, V, String> namespaceCreate(K namespace, boolean ifNotExists) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(NamespaceKeywords.CREATE).
+                addKey(namespace);
+        if (ifNotExists) {
+            args.add("IF-NOT-EXISTS");
+        }
+        return createCommand(CommandType.NAMESPACE, new StatusOutput<>(codec), args);
+    }
+
+    /**
      * Constructs and executes a NAMESPACE MOVE command with the specified source and target namespaces.
      * This command is used to move data from one namespace to another.
      *

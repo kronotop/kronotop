@@ -30,6 +30,7 @@ import com.kronotop.server.WrongNumberOfArgumentsException;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 class BaseSubcommand {
@@ -47,12 +48,8 @@ class BaseSubcommand {
      * Reads a dotted namespace path from the buffer and splits it into segments.
      */
     List<String> readSubpath(ByteBuf buf) {
-        List<String> subpath = new ArrayList<>();
         String item = ProtocolMessageUtil.readAsString(buf);
-        for (String sb : StringUtil.split(item)) {
-            subpath.add(sb);
-        }
-        return subpath;
+        return new ArrayList<>(Arrays.asList(StringUtil.split(item)));
     }
 
     /**

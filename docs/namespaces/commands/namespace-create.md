@@ -8,14 +8,15 @@ Creates a new namespace with the given hierarchical path.
 ## Syntax
 
 ```kronotop
-NAMESPACE CREATE <namespace>
+NAMESPACE CREATE <namespace> [IF-NOT-EXISTS]
 ```
 
 ## Parameters
 
-| Parameter   | Type   | Required | Description                                                                  |
-|-------------|--------|----------|------------------------------------------------------------------------------|
-| `namespace` | string | Yes      | Dot-separated hierarchical path for the namespace (e.g. `production.users`). |
+| Parameter       | Type   | Required | Description                                                                                                                                 |
+|-----------------|--------|----------|---------------------------------------------------------------------------------------------------------------------------------------------|
+| `namespace`     | string | Yes      | Dot-separated hierarchical path for the namespace (e.g. `production.users`).                                                                |
+| `IF-NOT-EXISTS` | flag   | No       | When specified, the command returns `OK` instead of an error if the namespace already exists. It does not suppress `NAMESPACEBEINGREMOVED`. |
 
 ## Return Value
 
@@ -44,6 +45,7 @@ Argument errors:
 | Error Code | Error message                                              | Cause                                                         |
 |------------|------------------------------------------------------------|---------------------------------------------------------------|
 | `ERR`      | `wrong number of arguments for 'NAMESPACE CREATE' command` | -                                                             |
+| `ERR`      | `Unknown '<keyword>' argument`                             | The second argument is not `IF-NOT-EXISTS`.                   |
 | `ERR`      | `Namespace '<path>' is reserved for internal use`          | The namespace path contains the reserved `__internal__` name. |
 | `ERR`      | `Namespace depth exceeds maximum allowed depth of 10`      | -                                                             |
 
@@ -51,7 +53,7 @@ Namespace errors:
 
 | Error Code               | Error message                                                                | Cause                                                                                             |
 |--------------------------|------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
-| `NAMESPACEALREADYEXISTS` | `Namespace already exists: <path>`                                           | -                                                                                                 |
+| `NAMESPACEALREADYEXISTS` | `Namespace already exists: <path>`                                           | Suppressed when `IF-NOT-EXISTS` is given.                                                         |
 | `NAMESPACEBEINGREMOVED`  | `Namespace '<path>' is being removed`                                        | -                                                                                                 |
 | `BARRIERNOTSATISFIED`    | `Not all cluster members have observed the tombstone for namespace '<path>'` | The tombstone from a prior `NAMESPACE MOVE` is not yet visible on all members. Retry the command. |
 
@@ -72,6 +74,16 @@ OK
 
 > NAMESPACE CREATE production.users
 (error) NAMESPACEALREADYEXISTS Namespace already exists: production.users
+```
+
+**Idempotent creation:**
+
+```kronotop
+> NAMESPACE CREATE production.users IF-NOT-EXISTS
+OK
+
+> NAMESPACE CREATE production.users IF-NOT-EXISTS
+OK
 ```
 
 **Namespace being removed:**

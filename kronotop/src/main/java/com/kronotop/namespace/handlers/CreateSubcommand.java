@@ -18,22 +18,24 @@ package com.kronotop.namespace.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
+import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
+import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.namespace.TombstoneManager;
 import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.transaction.TransactionUtil;
-import io.netty.buffer.ByteBuf;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 class CreateSubcommand extends BaseSubcommand implements SubcommandHandler {
+    private static final String IF_NOT_EXISTS = "IF-NOT-EXISTS";
 
     CreateSubcommand(Context context) {
         super(context);
@@ -49,26 +51,34 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandHandler {
                 TombstoneManager.checkBarrier(context, tr, namespace);
                 // Commits the transaction itself.
                 NamespaceUtil.create(context, tr, parameters.subpath);
+            } catch (NamespaceAlreadyExistsException e) {
+                if (parameters.ifNotExists) {
+                    // Namespace exists and is not being removed, ready to use.
+                    return;
+                }
+                throw e;
             }
         }, response::writeOK);
     }
 
     private class CreateParameters {
-        private final List<String> subpath = new ArrayList<>();
+        private final List<String> subpath;
+        private boolean ifNotExists;
 
         private CreateParameters(Request request) {
-            ListIterator<ByteBuf> iterator = request.getParams().listIterator(1);
-            while (iterator.hasNext()) {
-                ByteBuf rawItem = iterator.next();
-                if (!subpath.isEmpty()) {
-                    throw wrongNumberOfArguments(request, NamespaceSubcommand.CREATE);
-                }
-                subpath.addAll(readSubpath(rawItem));
-                validateSubpath(subpath);
-            }
-
-            if (subpath.isEmpty()) {
+            int size = request.getParams().size();
+            if (size < 2 || size > 3) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.CREATE);
+            }
+            subpath = readSubpath(request.getParams().get(1));
+            validateSubpath(subpath);
+
+            if (size == 3) {
+                String raw = ProtocolMessageUtil.readAsString(request.getParams().get(2));
+                if (!StringUtil.toUpperCaseAscii(raw).equals(IF_NOT_EXISTS)) {
+                    throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+                }
+                ifNotExists = true;
             }
         }
     }

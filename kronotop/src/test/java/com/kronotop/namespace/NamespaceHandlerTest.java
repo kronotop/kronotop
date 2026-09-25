@@ -1454,8 +1454,96 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldRejectCreateWithExtraArgument() {
-        // Behavior: NAMESPACE CREATE with a second argument returns the wrong number of arguments error.
-        assertWrongNumberOfArguments(List.of("CREATE", "a", "b"), "ERR wrong number of arguments for 'NAMESPACE CREATE' command");
+        // Behavior: NAMESPACE CREATE with an argument after IF-NOT-EXISTS returns the wrong number of arguments error.
+        assertWrongNumberOfArguments(List.of("CREATE", "a", "IF-NOT-EXISTS", "c"), "ERR wrong number of arguments for 'NAMESPACE CREATE' command");
+    }
+
+    @Test
+    void shouldRejectUnknownCreateArgument() {
+        // Behavior: NAMESPACE CREATE rejects a second argument other than IF-NOT-EXISTS.
+        assertWrongNumberOfArguments(List.of("CREATE", "a", "b"), "ERR Unknown 'b' argument");
+    }
+
+    @Test
+    void shouldCreateNamespaceWithIfNotExists() {
+        // Behavior: NAMESPACE CREATE with IF-NOT-EXISTS creates a new namespace and returns OK.
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespace, true).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceExists(namespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(IntegerRedisMessage.class, response);
+            assertEquals(1, ((IntegerRedisMessage) response).value());
+        }
+    }
+
+    @Test
+    void shouldReturnOKWhenCreatingExistingNamespaceWithIfNotExists() {
+        // Behavior: NAMESPACE CREATE with IF-NOT-EXISTS returns OK when the namespace already exists.
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespace, true).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+            assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+        }
+    }
+
+    @Test
+    void shouldAcceptIfNotExistsInLowerCase() {
+        // Behavior: the IF-NOT-EXISTS keyword is not case-sensitive.
+        Object response = runRaw(getChannel(), CommandType.NAMESPACE, List.of("CREATE", namespace, "if-not-exists"));
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldFailWithIfNotExistsWhenNamespaceIsBeingRemoved() {
+        // Behavior: IF-NOT-EXISTS does not suppress NAMESPACEBEINGREMOVED.
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceRemove(namespace).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, response);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.namespaceCreate(namespace, true).encode(buf);
+
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(ErrorRedisMessage.class, response);
+            assertEquals(String.format("NAMESPACEBEINGREMOVED Namespace '%s' is being removed", namespace), ((ErrorRedisMessage) response).content());
+        }
     }
 
     @Test

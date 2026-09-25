@@ -4,7 +4,7 @@
     "complexity": "O(D) where D is the namespace depth.",
     "group": "namespace",
     "since": "2026.06-1",
-    "arity": 3,
+    "arity": -3,
     "container": "NAMESPACE",
     "command_flags": [
       "WRITE"
@@ -21,6 +21,13 @@
         "name": "namespace",
         "type": "string",
         "summary": "Dot-separated hierarchical path of the namespace, for example staging.orders."
+      },
+      {
+        "name": "if-not-exists",
+        "type": "pure-token",
+        "token": "IF-NOT-EXISTS",
+        "optional": true,
+        "summary": "Reply with OK instead of an error when the namespace already exists."
       }
     ]
   }
