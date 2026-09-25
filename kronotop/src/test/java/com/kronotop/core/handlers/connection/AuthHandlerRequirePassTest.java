@@ -19,7 +19,13 @@ package com.kronotop.core.handlers.connection;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.BaseTest;
 import com.kronotop.commands.redis.RedisCommandBuilder;
+import com.kronotop.server.KronotopChannelDuplexHandler;
 import com.kronotop.server.Response;
+import com.kronotop.server.ServerKind;
+import com.kronotop.server.resp3.RedisArrayAggregator;
+import com.kronotop.server.resp3.RedisBulkStringAggregator;
+import com.kronotop.server.resp3.RedisDecoder;
+import com.kronotop.server.resp3.RedisMapAggregator;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -37,6 +43,16 @@ public class AuthHandlerRequirePassTest extends BaseHandlerTest {
         return "auth-requirepass-test.conf";
     }
 
+    private EmbeddedChannel newInternalChannel() {
+        return new EmbeddedChannel(
+                new RedisDecoder(false),
+                new RedisBulkStringAggregator(),
+                new RedisArrayAggregator(),
+                new RedisMapAggregator(),
+                new KronotopChannelDuplexHandler(context, context.getHandlers(ServerKind.INTERNAL), ServerKind.INTERNAL)
+        );
+    }
+
     @Test
     public void test_AuthOnlyWithPass() {
         EmbeddedChannel noauthChannel = instance.newChannel();
@@ -45,6 +61,20 @@ public class AuthHandlerRequirePassTest extends BaseHandlerTest {
         cmd.auth("devpass").encode(buf);
 
         Object msg = BaseTest.runCommand(noauthChannel, buf);
+        assertInstanceOf(SimpleStringRedisMessage.class, msg);
+        SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
+        assertEquals(Response.OK, actualMessage.content());
+    }
+
+    @Test
+    void shouldAuthenticateWithAuthOnInternalListener() {
+        // Behavior: with requirepass set, AUTH <password> on the internal listener returns OK.
+        EmbeddedChannel internalChannel = newInternalChannel();
+        RedisCommandBuilder<String, String> cmd = new RedisCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.auth("devpass").encode(buf);
+
+        Object msg = runCommand(internalChannel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, msg);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
         assertEquals(Response.OK, actualMessage.content());

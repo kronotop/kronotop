@@ -26,6 +26,7 @@ import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.commands.KrAdminCommandBuilder;
 import com.kronotop.commands.redis.RedisCommandBuilder;
 import com.kronotop.core.handlers.client.protocol.ClientMessage;
+import com.kronotop.core.handlers.connection.protocol.AuthMessage;
 import com.kronotop.core.handlers.connection.protocol.EchoMessage;
 import com.kronotop.core.handlers.connection.protocol.HelloMessage;
 import com.kronotop.core.handlers.connection.protocol.PingMessage;
@@ -74,7 +75,8 @@ public class KronotopTestInstance extends KronotopInstance {
             HelloMessage.COMMAND,
             EchoMessage.COMMAND,
             SessionAttributeMessage.COMMAND,
-            SessionCloseMessage.COMMAND
+            SessionCloseMessage.COMMAND,
+            AuthMessage.COMMAND
     ));
     private final boolean initialize; // The default is true. It's useful for integration tests that test some failure conditions.
     private final boolean runWithTCPServer; // the default is false
