@@ -34,7 +34,7 @@ class CommandInfoReplyTest {
     private static CommandMetadata metadata(List<CommandFlag> flags, List<AclCategory> categories, List<String> tips,
                                             List<KeySpec> keySpecs, Map<String, CommandMetadata> subcommands) {
         return new CommandMetadata("Summary", "O(1)", CommandGroup.STRING, "2026.06-1", -3, null,
-                null, null, null, null, flags, categories, tips, keySpecs, null, null, subcommands);
+                null, null, null, null, null, flags, categories, tips, keySpecs, null, null, subcommands);
     }
 
     private static KeySpec keySpec(String notes, List<KeySpecFlag> flags, int pos, int lastkey, int step) {

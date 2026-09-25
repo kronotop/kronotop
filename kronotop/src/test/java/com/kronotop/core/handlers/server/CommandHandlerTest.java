@@ -17,7 +17,10 @@
 package com.kronotop.core.handlers.server;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.commands.CommandMetadata;
+import com.kronotop.server.KronotopChannelDuplexHandler;
 import com.kronotop.server.RESPVersion;
+import com.kronotop.server.ServerKind;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -28,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -55,6 +59,18 @@ class CommandHandlerTest extends BaseHandlerTest {
         return result;
     }
 
+    private EmbeddedChannel newInternalChannel() {
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new RedisDecoder(false),
+                new RedisBulkStringAggregator(),
+                new RedisArrayAggregator(),
+                new RedisMapAggregator(),
+                new KronotopChannelDuplexHandler(context, context.getHandlers(ServerKind.INTERNAL), ServerKind.INTERNAL)
+        );
+        run(channel, "HELLO", "3");
+        return channel;
+    }
+
     private Map<String, RedisMessage> docs(EmbeddedChannel channel, String... names) {
         switchProtocol(RESPVersion.RESP3);
         String[] args = new String[names.length + 2];
@@ -68,10 +84,10 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnDocsForAllCommands() {
-        // Behavior: COMMAND DOCS without names returns one entry per loaded command definition
+        // Behavior: COMMAND DOCS without names returns one entry per command definition of the external server
         Map<String, RedisMessage> docs = docs(getChannel());
 
-        assertEquals(instance.getContext().getCommandMetadata().size(), docs.size());
+        assertEquals(context.getCommandMetadata(ServerKind.EXTERNAL).size(), docs.size());
         assertTrue(docs.containsKey("bucket.query"));
         assertTrue(docs.containsKey("zset"));
     }
@@ -159,11 +175,11 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnInfoForAllCommandsWithoutSubcommand() {
-        // Behavior: COMMAND without a subcommand returns a ten-field entry per loaded definition
+        // Behavior: COMMAND without a subcommand returns a ten-field entry per definition of the external server
         switchProtocol(RESPVersion.RESP3);
         List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND"));
 
-        assertEquals(instance.getContext().getCommandMetadata().size(), entries.size());
+        assertEquals(context.getCommandMetadata(ServerKind.EXTERNAL).size(), entries.size());
         for (RedisMessage entry : entries) {
             assertEquals(10, ((ArrayRedisMessage) entry).children().size());
         }
@@ -210,10 +226,49 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnCommandCount() {
-        // Behavior: COMMAND COUNT returns the number of loaded command definitions
+        // Behavior: COMMAND COUNT returns the number of command definitions of the external server
         Object response = run(getChannel(), "COMMAND", "COUNT");
 
-        assertEquals(instance.getContext().getCommandMetadata().size(), integer((RedisMessage) response));
+        assertEquals(context.getCommandMetadata(ServerKind.EXTERNAL).size(), integer((RedisMessage) response));
+    }
+
+    @Test
+    void shouldCountOnlyInternalCommandsOnInternalServer() {
+        // Behavior: on the internal server COMMAND COUNT returns the number of definitions of the internal server
+        Object response = run(newInternalChannel(), "COMMAND", "COUNT");
+
+        assertEquals(context.getCommandMetadata(ServerKind.INTERNAL).size(), integer((RedisMessage) response));
+    }
+
+    @Test
+    void shouldReturnNullInfoForCommandNotOnServer() {
+        // Behavior: on the internal server COMMAND INFO gives a null entry for a command that only the external server exposes
+        List<RedisMessage> entries = infoEntries(run(newInternalChannel(), "COMMAND", "INFO", "bucket.query", "ping"));
+
+        assertEquals(2, entries.size());
+        assertInstanceOf(NullRedisMessage.class, entries.get(0));
+        assertEquals("ping", text(((ArrayRedisMessage) entries.get(1)).children().get(0)));
+    }
+
+    @Test
+    void shouldMatchRegisteredCommandsPerServer() {
+        // Behavior: for every server kind the definitions match the registered handlers: every definition has a handler, and every handler with a definition lists that server kind
+        for (ServerKind kind : ServerKind.values()) {
+            Map<String, CommandMetadata> definitions = context.getCommandMetadata(kind);
+            Set<String> registered = context.getHandlers(kind).getCommands();
+            for (String name : definitions.keySet()) {
+                assertTrue(registered.contains(name), kind + " has no handler for " + name);
+            }
+            for (String name : registered) {
+                boolean defined = false;
+                for (ServerKind other : ServerKind.values()) {
+                    defined |= context.getCommandMetadata(other).containsKey(name);
+                }
+                if (defined) {
+                    assertTrue(definitions.containsKey(name), name + " does not list " + kind);
+                }
+            }
+        }
     }
 
     @Test
@@ -246,9 +301,9 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnKrAdminSubcommands() {
-        // Behavior: COMMAND INFO KR.ADMIN nests twelve subcommands and COMMAND DOCS KR.ADMIN|ROUTE lists five arguments
-        switchProtocol(RESPVersion.RESP3);
-        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO", "kr.admin"));
+        // Behavior: on the internal server COMMAND INFO KR.ADMIN nests twelve subcommands and COMMAND DOCS KR.ADMIN|ROUTE lists five arguments
+        EmbeddedChannel internal = newInternalChannel();
+        List<RedisMessage> entries = infoEntries(run(internal, "COMMAND", "INFO", "kr.admin"));
 
         List<RedisMessage> krAdmin = ((ArrayRedisMessage) entries.getFirst()).children();
         assertEquals(-2, integer(krAdmin.get(1)));
@@ -260,7 +315,7 @@ class CommandHandlerTest extends BaseHandlerTest {
         assertTrue(subcommands.contains("kr.admin|initialize-cluster"));
         assertTrue(subcommands.contains("kr.admin|drop-cluster"));
 
-        Map<String, RedisMessage> docs = docs(getChannel(), "kr.admin|route");
+        Map<String, RedisMessage> docs = docs(internal, "kr.admin|route");
         Map<String, RedisMessage> route = asMap(docs.get("kr.admin|route"));
         assertEquals("cluster", text(route.get("group")));
         assertEquals(5, ((ArrayRedisMessage) route.get("arguments")).children().size());
@@ -268,9 +323,9 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnVolumeCommandDefinitions() {
-        // Behavior: COMMAND INFO nests nine VOLUME.ADMIN and two VOLUME.INSPECT subcommands, and COMMAND DOCS exposes their arguments
-        switchProtocol(RESPVersion.RESP3);
-        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO", "volume.admin", "volume.inspect"));
+        // Behavior: on the internal server COMMAND INFO nests nine VOLUME.ADMIN and two VOLUME.INSPECT subcommands, and COMMAND DOCS exposes their arguments
+        EmbeddedChannel internal = newInternalChannel();
+        List<RedisMessage> entries = infoEntries(run(internal, "COMMAND", "INFO", "volume.admin", "volume.inspect"));
         assertEquals(2, entries.size());
 
         List<RedisMessage> volumeAdmin = ((ArrayRedisMessage) entries.get(0)).children();
@@ -291,7 +346,7 @@ class CommandHandlerTest extends BaseHandlerTest {
         assertTrue(inspectSubcommands.contains("volume.inspect|cursor"));
         assertTrue(inspectSubcommands.contains("volume.inspect|replication"));
 
-        Map<String, RedisMessage> docs = docs(getChannel(), "volume.admin|vacuum", "volume.inspect|replication");
+        Map<String, RedisMessage> docs = docs(internal, "volume.admin|vacuum", "volume.inspect|replication");
         Map<String, RedisMessage> vacuum = asMap(docs.get("volume.admin|vacuum"));
         assertEquals("volume", text(vacuum.get("group")));
         List<RedisMessage> vacuumArguments = ((ArrayRedisMessage) vacuum.get("arguments")).children();
@@ -305,9 +360,9 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnSegmentAndChangeLogCommandDefinitions() {
-        // Behavior: COMMAND INFO lists the five segment and changelog commands with their arity, and COMMAND DOCS exposes their groups and arguments
-        switchProtocol(RESPVersion.RESP3);
-        List<RedisMessage> entries = infoEntries(run(getChannel(), "COMMAND", "INFO",
+        // Behavior: on the internal server COMMAND INFO lists the five segment and changelog commands with their arity, and COMMAND DOCS exposes their groups and arguments
+        EmbeddedChannel internal = newInternalChannel();
+        List<RedisMessage> entries = infoEntries(run(internal, "COMMAND", "INFO",
                 "segment.insert", "segment.range", "segment.tailpointer", "changelog.range", "changelog.watch"));
         assertEquals(5, entries.size());
 
@@ -316,7 +371,7 @@ class CommandHandlerTest extends BaseHandlerTest {
                 .toList();
         assertEquals(List.of(-5L, -5L, 3L, -5L, 3L), arities);
 
-        Map<String, RedisMessage> docs = docs(getChannel(), "segment.range", "changelog.range");
+        Map<String, RedisMessage> docs = docs(internal, "segment.range", "changelog.range");
         Map<String, RedisMessage> segmentRange = asMap(docs.get("segment.range"));
         assertEquals("segment", text(segmentRange.get("group")));
         List<RedisMessage> rangeArguments = ((ArrayRedisMessage) segmentRange.get("arguments")).children();
@@ -417,16 +472,28 @@ class CommandHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldListAllCommandNames() {
-        // Behavior: COMMAND LIST returns every command name, subcommands included, as lowercase bulk strings
+        // Behavior: COMMAND LIST returns every command name of the external server, subcommands included, as lowercase bulk strings
         List<String> names = names(run(getChannel(), "COMMAND", "LIST"));
 
         int expected = 0;
-        for (var metadata : instance.getContext().getCommandMetadata().values()) {
+        for (var metadata : context.getCommandMetadata(ServerKind.EXTERNAL).values()) {
             expected += 1 + metadata.subcommands().size();
         }
         assertEquals(expected, names.size());
         assertTrue(names.contains("bucket.query"));
         assertTrue(names.contains("ping"));
+        assertFalse(names.contains("kr.admin"));
+    }
+
+    @Test
+    void shouldListOnlyInternalCommandsOnInternalServer() {
+        // Behavior: on the internal server COMMAND LIST returns the commands of the internal server and skips external-only commands
+        List<String> names = names(run(newInternalChannel(), "COMMAND", "LIST"));
+
+        assertTrue(names.contains("kr.admin"));
+        assertTrue(names.contains("kr.admin|route"));
+        assertTrue(names.contains("ping"));
+        assertFalse(names.contains("bucket.query"));
     }
 
     @Test

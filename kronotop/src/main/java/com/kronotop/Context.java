@@ -159,10 +159,10 @@ public interface Context {
     Journal getJournal();
 
     /**
-     * Returns the metadata of all commands loaded from the command definition files.
+     * Returns the metadata of the commands exposed by the given server kind.
      * Keys are uppercase command names.
      */
-    Map<String, CommandMetadata> getCommandMetadata();
+    Map<String, CommandMetadata> getCommandMetadata(ServerKind kind);
 
     /**
      * Registers a service context in the Kronotop instance.

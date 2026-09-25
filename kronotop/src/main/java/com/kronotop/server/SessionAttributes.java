@@ -81,6 +81,4 @@ public class SessionAttributes {
     public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_DELETE_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_delete_query_contexts");
 
     public static final AttributeKey<Map<Integer, QueryContext>> BUCKET_UPDATE_QUERY_CONTEXTS = AttributeKey.valueOf("bucket_update_query_contexts");
-
-    public static final AttributeKey<ServerKind> SERVER_KIND = AttributeKey.valueOf("server_kind");
 }

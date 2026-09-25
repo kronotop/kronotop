@@ -4,6 +4,7 @@
     "complexity": "O(N) where N is the number of keys in the range.",
     "group": "zmap",
     "since": "2026.06-1",
+    "servers": ["EXTERNAL"],
     "arity": 3,
     "command_flags": [
       "WRITE"

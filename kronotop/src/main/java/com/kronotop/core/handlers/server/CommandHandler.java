@@ -27,6 +27,7 @@ import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.ServerKind;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.Unpooled;
@@ -60,10 +61,10 @@ public class CommandHandler implements Handler {
             "HELP",
             "    Print this help."
     );
-    private final Context context;
+    private final Map<String, CommandMetadata> commands;
 
-    public CommandHandler(Context context) {
-        this.context = context;
+    public CommandHandler(Context context, ServerKind kind) {
+        this.commands = context.getCommandMetadata(kind);
     }
 
     @Override
@@ -86,7 +87,7 @@ public class CommandHandler implements Handler {
         switch (message.getArgument()) {
             case DOCS -> response.writeMap(CommandDocsReply.build(selectCommands(message.getCommands())));
             case INFO -> response.writeArray(message.getCommands().isEmpty() ? infoForAll() : infoFor(message.getCommands()));
-            case COUNT -> response.writeInteger(context.getCommandMetadata().size());
+            case COUNT -> response.writeInteger(commands.size());
             case LIST -> response.writeArray(list(message.getCommands()));
             case GETKEYS -> response.writeArray(getKeys(message.getCommands(), false));
             case GETKEYSANDFLAGS -> response.writeArray(getKeys(message.getCommands(), true));
@@ -95,30 +96,27 @@ public class CommandHandler implements Handler {
     }
 
     private List<RedisMessage> infoForAll() {
-        Map<String, CommandMetadata> all = context.getCommandMetadata();
-        List<RedisMessage> entries = new ArrayList<>(all.size());
-        all.forEach((name, metadata) -> entries.add(CommandInfoReply.build(name, metadata)));
+        List<RedisMessage> entries = new ArrayList<>(commands.size());
+        commands.forEach((name, metadata) -> entries.add(CommandInfoReply.build(name, metadata)));
         return entries;
     }
 
     private List<RedisMessage> infoFor(List<String> names) {
-        Map<String, CommandMetadata> all = context.getCommandMetadata();
         List<RedisMessage> entries = new ArrayList<>(names.size());
         for (String name : names) {
-            CommandLookup.Match match = CommandLookup.find(all, name);
+            CommandLookup.Match match = CommandLookup.find(commands, name);
             entries.add(match == null ? NullRedisMessage.INSTANCE : CommandInfoReply.build(match.fullName(), match.metadata()));
         }
         return entries;
     }
 
     private Map<String, CommandMetadata> selectCommands(List<String> names) {
-        Map<String, CommandMetadata> all = context.getCommandMetadata();
         if (names.isEmpty()) {
-            return all;
+            return commands;
         }
         Map<String, CommandMetadata> selected = new LinkedHashMap<>();
         for (String name : names) {
-            CommandLookup.Match match = CommandLookup.find(all, name);
+            CommandLookup.Match match = CommandLookup.find(commands, name);
             if (match != null) {
                 selected.put(match.fullName(), match.metadata());
             }
@@ -153,7 +151,7 @@ public class CommandHandler implements Handler {
 
     private List<RedisMessage> listNames(BiPredicate<String, CommandMetadata> filter) {
         List<RedisMessage> names = new ArrayList<>();
-        context.getCommandMetadata().forEach((name, metadata) -> {
+        commands.forEach((name, metadata) -> {
             String fullName = name.toLowerCase();
             if (filter.test(fullName, metadata)) {
                 names.add(bulk(fullName));
@@ -200,7 +198,7 @@ public class CommandHandler implements Handler {
     }
 
     private CommandMetadata resolve(List<String> argv) {
-        CommandMetadata metadata = context.getCommandMetadata().get(argv.getFirst().toUpperCase());
+        CommandMetadata metadata = commands.get(argv.getFirst().toUpperCase());
         if (metadata == null || argv.size() == 1 || metadata.subcommands().isEmpty()) {
             return metadata;
         }

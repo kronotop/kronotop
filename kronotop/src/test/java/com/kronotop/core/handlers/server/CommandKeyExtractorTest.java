@@ -26,7 +26,7 @@ class CommandKeyExtractorTest {
 
     private static CommandMetadata metadata(int arity, List<KeySpec> keySpecs) {
         return new CommandMetadata("Summary", null, CommandGroup.STRING, "2026.06-1", arity, null,
-                null, null, null, null, null, null, null, keySpecs, null, null, null);
+                null, null, null, null, null, null, null, null, keySpecs, null, null, null);
     }
 
     private static KeySpec range(List<KeySpecFlag> flags, int pos, int lastkey, int step, int limit) {

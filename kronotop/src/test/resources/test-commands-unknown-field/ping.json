@@ -3,6 +3,7 @@
     "summary": "Has a misspelled field",
     "group": "connection",
     "since": "2026.06-1",
+    "servers": ["EXTERNAL"],
     "arity": -1,
     "sumary": "typo"
   }

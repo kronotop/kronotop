@@ -3,6 +3,7 @@
     "summary": "Key spec flag is not in the fixed list",
     "group": "string",
     "since": "2026.06-1",
+    "servers": ["EXTERNAL"],
     "arity": 2,
     "key_specs": [
       {

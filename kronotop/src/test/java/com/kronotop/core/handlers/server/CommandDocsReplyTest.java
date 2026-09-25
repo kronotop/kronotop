@@ -34,7 +34,7 @@ class CommandDocsReplyTest {
     private static CommandMetadata metadata(List<Argument> arguments, List<List<String>> history,
                                             Map<String, CommandMetadata> subcommands) {
         return new CommandMetadata("Summary", "O(1)", CommandGroup.BUCKET, "2026.06-1", -3, null,
-                null, null, null, history, null, null, null, null, null, arguments, subcommands);
+                null, null, null, null, history, null, null, null, null, null, arguments, subcommands);
     }
 
     private static Argument argument(String name, String type, String display, Integer keySpecIndex, String token,
@@ -66,7 +66,7 @@ class CommandDocsReplyTest {
     void shouldOmitEmptyFieldsButKeepGroup() {
         // Behavior: null and empty fields are left out, group is always written
         CommandMetadata metadata = new CommandMetadata(null, null, CommandGroup.CONNECTION, null, -1, null,
-                null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null);
 
         Map<RedisMessage, RedisMessage> root = CommandDocsReply.build(Map.of("PING", metadata));
 
@@ -172,7 +172,7 @@ class CommandDocsReplyTest {
         schema.put("properties", properties);
         Argument bucket = argument("bucket", "string", null, null, null, false, false, false, List.of());
         CommandMetadata metadata = new CommandMetadata("Summary", null, CommandGroup.BUCKET, null, -3, null,
-                null, null, null, List.of(List.of("2026.06-1", "Initial version.")), null, null, null, null,
+                null, null, null, null, List.of(List.of("2026.06-1", "Initial version.")), null, null, null, null,
                 schema, List.of(bucket), null);
 
         Map<String, RedisMessage> command = asMap(CommandDocsReply.build(Map.of("BUCKET.QUERY", metadata)).values().iterator().next());
@@ -196,7 +196,7 @@ class CommandDocsReplyTest {
     void shouldOrderDocFlagsLikeRedis() {
         // Behavior: doc flags are written in the fixed Redis order as simple strings
         CommandMetadata metadata = new CommandMetadata("Summary", null, CommandGroup.BUCKET, null, -1, null,
-                List.of(DocFlag.SYSCMD, DocFlag.DEPRECATED), null, null, null, null, null, null, null, null, null, null);
+                null, List.of(DocFlag.SYSCMD, DocFlag.DEPRECATED), null, null, null, null, null, null, null, null, null, null);
 
         Map<String, RedisMessage> command = asMap(CommandDocsReply.build(Map.of("X", metadata)).values().iterator().next());
         assertEquals(List.of("deprecated", "syscmd"), flags(command.get("doc_flags")));

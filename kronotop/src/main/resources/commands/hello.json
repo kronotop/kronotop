@@ -4,6 +4,7 @@
     "complexity": "O(1)",
     "group": "connection",
     "since": "2026.06-1",
+    "servers": ["EXTERNAL", "INTERNAL"],
     "arity": -1,
     "command_flags": [
       "NO_AUTH",

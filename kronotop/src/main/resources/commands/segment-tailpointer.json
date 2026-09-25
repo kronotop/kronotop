@@ -4,6 +4,7 @@
     "complexity": "O(S + K) where S is the number of segments in the volume and K is the number of changelog entries at the tail position.",
     "group": "segment",
     "since": "2026.06-1",
+    "servers": ["INTERNAL"],
     "arity": 3,
     "command_flags": [
       "ADMIN",

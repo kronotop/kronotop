@@ -19,6 +19,7 @@ package com.kronotop.commands;
 import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
 import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.CommandType;
+import com.kronotop.server.ServerKind;
 import com.kronotop.task.handlers.protocol.TaskAdminSubcommand;
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +36,7 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldLoadTopLevelCommands() {
         // Behavior: every file under the directory is parsed and keyed by uppercase command name
-        Map<String, CommandMetadata> commands = CommandMetadataLoader.load("test-commands");
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load("test-commands").get(ServerKind.EXTERNAL);
 
         assertEquals(List.of("CLIENT", "PING", "SET"), List.copyOf(commands.keySet()));
 
@@ -55,7 +56,7 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldParseKeySpecsAndArgumentFlags() {
         // Behavior: key specs, display, multiple_token and nested arguments are read, function fields are ignored
-        CommandMetadata set = CommandMetadataLoader.load("test-commands").get("SET");
+        CommandMetadata set = CommandMetadataLoader.load("test-commands").get(ServerKind.EXTERNAL).get("SET");
 
         assertEquals(1, set.keySpecs().size());
         KeySpec keySpec = set.keySpecs().getFirst();
@@ -79,12 +80,12 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldLoadReplySchemaAsNestedMap() {
         // Behavior: reply_schema is read as a nested map in definition order; a command without one has an empty map
-        Map<String, CommandMetadata> commands = CommandMetadataLoader.load("test-commands");
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load("test-commands").get(ServerKind.EXTERNAL);
 
         assertEquals(Map.of("type", "string"), commands.get("SET").replySchema());
         assertTrue(commands.get("PING").replySchema().isEmpty());
 
-        Map<String, Object> query = CommandMetadataLoader.load().get("BUCKET.QUERY").replySchema();
+        Map<String, Object> query = CommandMetadataLoader.load().get(ServerKind.EXTERNAL).get("BUCKET.QUERY").replySchema();
         assertEquals("object", query.get("type"));
         assertEquals(Boolean.FALSE, query.get("additionalProperties"));
         @SuppressWarnings("unchecked")
@@ -95,7 +96,7 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldLinkSubcommandsToContainer() {
         // Behavior: a definition with a container field is attached to the parent command
-        Map<String, CommandMetadata> commands = CommandMetadataLoader.load("test-commands");
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load("test-commands").get(ServerKind.EXTERNAL);
 
         CommandMetadata client = commands.get("CLIENT");
         assertEquals(1, client.subcommands().size());
@@ -109,8 +110,38 @@ class CommandMetadataLoaderTest {
 
     @Test
     void shouldReturnEmptyMapForMissingDirectory() {
-        // Behavior: a directory that does not exist on the classpath yields no definitions
-        assertTrue(CommandMetadataLoader.load("test-commands-does-not-exist").isEmpty());
+        // Behavior: a directory that does not exist on the classpath yields no definitions for any server kind
+        Map<ServerKind, Map<String, CommandMetadata>> commands = CommandMetadataLoader.load("test-commands-does-not-exist");
+
+        assertTrue(commands.get(ServerKind.EXTERNAL).isEmpty());
+        assertTrue(commands.get(ServerKind.INTERNAL).isEmpty());
+    }
+
+    @Test
+    void shouldSplitCommandsByServer() {
+        // Behavior: a command is placed under every server kind it lists, and under no other
+        Map<ServerKind, Map<String, CommandMetadata>> commands = CommandMetadataLoader.load("test-commands");
+
+        assertEquals(List.of("CLIENT", "PING", "SET"), List.copyOf(commands.get(ServerKind.EXTERNAL).keySet()));
+        assertEquals(List.of("PING"), List.copyOf(commands.get(ServerKind.INTERNAL).keySet()));
+        assertSame(commands.get(ServerKind.EXTERNAL).get("PING"), commands.get(ServerKind.INTERNAL).get("PING"));
+        assertEquals(List.of(ServerKind.EXTERNAL, ServerKind.INTERNAL), commands.get(ServerKind.INTERNAL).get("PING").servers());
+    }
+
+    @Test
+    void shouldFailOnMissingServers() {
+        // Behavior: a top-level command without a servers list is rejected
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> CommandMetadataLoader.load("test-commands-missing-servers"));
+        assertTrue(e.getMessage().contains("missing servers for 'PING'"));
+    }
+
+    @Test
+    void shouldFailOnServersInSubcommand() {
+        // Behavior: a subcommand inherits servers from its container and may not list its own
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> CommandMetadataLoader.load("test-commands-servers-on-subcommand"));
+        assertTrue(e.getMessage().contains("servers is not allowed on subcommand 'SETNAME'"));
     }
 
     @Test
@@ -186,7 +217,7 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldLoadKeywordAndKeynumKeySpecs() {
         // Behavior: keyword begin_search and keynum find_keys are read with their fields
-        CommandMetadata scan = CommandMetadataLoader.load("test-commands-keyspecs").get("SCAN");
+        CommandMetadata scan = CommandMetadataLoader.load("test-commands-keyspecs").get(ServerKind.EXTERNAL).get("SCAN");
 
         assertEquals(2, scan.keySpecs().size());
         KeySpec keyword = scan.keySpecs().get(0);
@@ -207,7 +238,7 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldLoadUnknownKeySpec() {
         // Behavior: "unknown": null for begin_search or find_keys gives the unknown type
-        CommandMetadata hkeys = CommandMetadataLoader.load("test-commands-keyspecs").get("HKEYS");
+        CommandMetadata hkeys = CommandMetadataLoader.load("test-commands-keyspecs").get(ServerKind.EXTERNAL).get("HKEYS");
 
         KeySpec keySpec = hkeys.keySpecs().getFirst();
         assertEquals(BeginSearch.Type.UNKNOWN, keySpec.beginSearch().type());
@@ -217,7 +248,7 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldLoadBundledDefinitions() {
         // Behavior: the definitions shipped under commands/ parse, include BUCKET.QUERY and ZSET with its key spec
-        Map<String, CommandMetadata> commands = CommandMetadataLoader.load();
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load().get(ServerKind.EXTERNAL);
 
         CommandMetadata query = commands.get("BUCKET.QUERY");
         assertNotNull(query);
@@ -236,7 +267,7 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldDefineMetadataForEveryBucketCommand() {
         // Behavior: every bucket CommandType and every BUCKET.INDEX subcommand has a definition under commands/
-        Map<String, CommandMetadata> commands = CommandMetadataLoader.load();
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load().get(ServerKind.EXTERNAL);
 
         List<String> missing = Stream.of(CommandType.values())
                 .map(CommandType::getCommandName)
@@ -254,7 +285,7 @@ class CommandMetadataLoaderTest {
     @Test
     void shouldDefineMetadataForEveryNamespaceSubcommand() {
         // Behavior: NAMESPACE and every NamespaceSubcommand have a definition under commands/
-        Map<String, CommandMetadata> commands = CommandMetadataLoader.load();
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load().get(ServerKind.EXTERNAL);
 
         CommandMetadata namespace = commands.get("NAMESPACE");
         assertNotNull(namespace);
@@ -269,8 +300,8 @@ class CommandMetadataLoaderTest {
 
     @Test
     void shouldDefineMetadataForEveryTaskAdminSubcommand() {
-        // Behavior: TASK.ADMIN and every TaskAdminSubcommand have a definition under commands/
-        Map<String, CommandMetadata> commands = CommandMetadataLoader.load();
+        // Behavior: TASK.ADMIN and every TaskAdminSubcommand have a definition under commands/ on the internal server
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load().get(ServerKind.INTERNAL);
 
         CommandMetadata taskAdmin = commands.get("TASK.ADMIN");
         assertNotNull(taskAdmin);

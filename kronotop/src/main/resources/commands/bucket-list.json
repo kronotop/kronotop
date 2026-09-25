@@ -4,6 +4,7 @@
     "complexity": "O(N) where N is the number of buckets in the namespace.",
     "group": "bucket",
     "since": "2026.06-1",
+    "servers": ["EXTERNAL"],
     "arity": 1,
     "command_flags": [
       "READONLY"

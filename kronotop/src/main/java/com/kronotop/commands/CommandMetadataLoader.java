@@ -17,6 +17,7 @@
 package com.kronotop.commands;
 
 import com.kronotop.server.CommandType;
+import com.kronotop.server.ServerKind;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.PropertyNamingStrategies;
@@ -39,7 +40,8 @@ import java.util.stream.Stream;
  * Loads command definitions from JSON files on the classpath.
  * <p>
  * Every file maps a command name to its metadata. A definition with a container field is a
- * subcommand and is attached to its parent. Top-level names must exist in {@link CommandType}.
+ * subcommand and is attached to its parent. Top-level names must exist in {@link CommandType}
+ * and list the server kinds that expose them. The result holds one map per server kind.
  */
 public final class CommandMetadataLoader {
     public static final String DEFAULT_RESOURCE_DIR = "commands";
@@ -58,16 +60,16 @@ public final class CommandMetadataLoader {
     /**
      * Loads all definitions under the default resource directory.
      */
-    public static Map<String, CommandMetadata> load() {
+    public static EnumMap<ServerKind, Map<String, CommandMetadata>> load() {
         return load(DEFAULT_RESOURCE_DIR);
     }
 
     /**
-     * Loads all definitions under the given classpath directory.
+     * Loads all definitions under the given classpath directory and groups them by server kind.
      *
      * @throws IllegalStateException if a definition is invalid or cannot be linked
      */
-    public static Map<String, CommandMetadata> load(String resourceDir) {
+    public static EnumMap<ServerKind, Map<String, CommandMetadata>> load(String resourceDir) {
         ClassLoader classLoader = CommandMetadataLoader.class.getClassLoader();
         Map<String, CommandMetadata> commands = new LinkedHashMap<>();
         Map<String, Map<String, CommandMetadata>> pending = new LinkedHashMap<>();
@@ -80,10 +82,16 @@ public final class CommandMetadataLoader {
                     if (CommandType.parse(name) == null) {
                         throw new IllegalStateException(resource + ": unknown command '" + name + "'");
                     }
+                    if (metadata.servers().isEmpty()) {
+                        throw new IllegalStateException(resource + ": missing servers for '" + name + "'");
+                    }
                     if (commands.putIfAbsent(name, metadata) != null) {
                         throw new IllegalStateException(resource + ": duplicate command '" + name + "'");
                     }
                 } else {
+                    if (!metadata.servers().isEmpty()) {
+                        throw new IllegalStateException(resource + ": servers is not allowed on subcommand '" + name + "'");
+                    }
                     String container = metadata.container().toUpperCase();
                     Map<String, CommandMetadata> subcommands = pending.computeIfAbsent(container, ignored -> new LinkedHashMap<>());
                     if (subcommands.putIfAbsent(name, metadata) != null) {
@@ -100,7 +108,18 @@ public final class CommandMetadataLoader {
             }
             commands.put(entry.getKey(), parent.withSubcommands(entry.getValue()));
         }
-        return Collections.unmodifiableMap(commands);
+
+        EnumMap<ServerKind, Map<String, CommandMetadata>> byServer = new EnumMap<>(ServerKind.class);
+        for (ServerKind kind : ServerKind.values()) {
+            Map<String, CommandMetadata> selected = new LinkedHashMap<>();
+            commands.forEach((name, metadata) -> {
+                if (metadata.servers().contains(kind)) {
+                    selected.put(name, metadata);
+                }
+            });
+            byServer.put(kind, Collections.unmodifiableMap(selected));
+        }
+        return byServer;
     }
 
     private static Map<String, CommandMetadata> parse(ClassLoader classLoader, String resource) {

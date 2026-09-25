@@ -4,6 +4,7 @@
     "complexity": "Depends on the subcommand.",
     "group": "namespace",
     "since": "2026.06-1",
+    "servers": ["EXTERNAL"],
     "arity": -2,
     "acl_categories": [
       "NAMESPACE"

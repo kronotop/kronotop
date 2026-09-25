@@ -25,7 +25,7 @@ class CommandLookupTest {
 
     private static CommandMetadata metadata(Map<String, CommandMetadata> subcommands) {
         return new CommandMetadata("Summary", null, CommandGroup.CONNECTION, "2026.06-1", -2, null,
-                null, null, null, null, null, null, null, null, null, null, subcommands);
+                null, null, null, null, null, null, null, null, null, null, null, subcommands);
     }
 
     private static Map<String, CommandMetadata> commands() {

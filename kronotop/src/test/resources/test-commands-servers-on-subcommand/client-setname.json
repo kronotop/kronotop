@@ -1,0 +1,11 @@
+{
+  "SETNAME": {
+    "summary": "Sets the connection name",
+    "complexity": "O(1)",
+    "group": "connection",
+    "since": "2026.06-1",
+    "servers": ["EXTERNAL"],
+    "arity": 3,
+    "container": "CLIENT"
+  }
+}

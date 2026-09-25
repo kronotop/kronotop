@@ -4,6 +4,7 @@
     "complexity": "Depends on the subcommand.",
     "group": "cluster",
     "since": "2026.06-1",
+    "servers": ["INTERNAL"],
     "arity": -2
   }
 }

@@ -17,6 +17,7 @@
 package com.kronotop.commands;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.kronotop.server.ServerKind;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -26,7 +27,9 @@ import java.util.Map;
 /**
  * Metadata of a command or a subcommand, loaded from a JSON definition file.
  * A subcommand names its parent in the container field. The loader fills subcommands.
- * The reply schema is a JSON Schema object kept as a nested map in definition order.
+ * The servers field lists the server kinds that expose a top-level command. Subcommands
+ * inherit it from their container. The reply schema is a JSON Schema object kept as a
+ * nested map in definition order.
  */
 @JsonIgnoreProperties({"function", "get_keys_function"})
 public record CommandMetadata(
@@ -36,6 +39,7 @@ public record CommandMetadata(
         String since,
         int arity,
         String container,
+        List<ServerKind> servers,
         List<DocFlag> docFlags,
         String deprecatedSince,
         String replacedBy,
@@ -49,6 +53,7 @@ public record CommandMetadata(
         Map<String, CommandMetadata> subcommands
 ) {
     public CommandMetadata {
+        servers = servers == null ? List.of() : List.copyOf(servers);
         docFlags = docFlags == null ? List.of() : List.copyOf(docFlags);
         history = history == null ? List.of() : List.copyOf(history);
         commandFlags = commandFlags == null ? List.of() : List.copyOf(commandFlags);
@@ -64,7 +69,7 @@ public record CommandMetadata(
      * Returns a copy with the given subcommands attached.
      */
     public CommandMetadata withSubcommands(Map<String, CommandMetadata> subcommands) {
-        return new CommandMetadata(summary, complexity, group, since, arity, container, docFlags, deprecatedSince,
+        return new CommandMetadata(summary, complexity, group, since, arity, container, servers, docFlags, deprecatedSince,
                 replacedBy, history, commandFlags, aclCategories, commandTips, keySpecs, replySchema, arguments, subcommands);
     }
 }

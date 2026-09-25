@@ -3,6 +3,7 @@
     "summary": "find_keys is missing",
     "group": "string",
     "since": "2026.06-1",
+    "servers": ["EXTERNAL"],
     "arity": 2,
     "key_specs": [
       {

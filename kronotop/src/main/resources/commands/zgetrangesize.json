@@ -4,6 +4,7 @@
     "complexity": "O(1). The returned size is an estimate, not an exact count.",
     "group": "zmap",
     "since": "2026.06-1",
+    "servers": ["EXTERNAL"],
     "arity": 3,
     "command_flags": [
       "READONLY"

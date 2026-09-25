@@ -4,6 +4,7 @@
     "complexity": "O(N) where N is the number of entries.",
     "group": "segment",
     "since": "2026.06-1",
+    "servers": ["INTERNAL"],
     "arity": -5,
     "command_flags": [
       "ADMIN",

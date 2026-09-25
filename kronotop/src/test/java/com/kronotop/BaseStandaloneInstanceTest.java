@@ -74,7 +74,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
 
     protected Session getSession() {
         MockChannelHandlerContext ctx = new MockChannelHandlerContext(instance.getChannel());
-        Session.registerSession(context, ctx, ServerKind.EXTERNAL);
+        Session.registerSession(context, ctx);
         return Session.extractSessionFromChannel(ctx.channel());
     }
 

@@ -63,7 +63,7 @@ public class ContextImpl implements Context {
     private final String clusterName;
     private final Journal journal;
     private final WorkerRegistry workerRegistry;
-    private final Map<String, CommandMetadata> commandMetadata = CommandMetadataLoader.load();
+    private final EnumMap<ServerKind, Map<String, CommandMetadata>> commandMetadata = CommandMetadataLoader.load();
     private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
     private final Path dataDir;
     private final String defaultNamespace;
@@ -194,8 +194,8 @@ public class ContextImpl implements Context {
     }
 
     @Override
-    public Map<String, CommandMetadata> getCommandMetadata() {
-        return commandMetadata;
+    public Map<String, CommandMetadata> getCommandMetadata(ServerKind kind) {
+        return commandMetadata.get(kind);
     }
 
     @Override

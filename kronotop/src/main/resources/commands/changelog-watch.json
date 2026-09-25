@@ -4,6 +4,7 @@
     "complexity": "O(1)",
     "group": "changelog",
     "since": "2026.06-1",
+    "servers": ["INTERNAL"],
     "arity": 3,
     "command_flags": [
       "ADMIN",
