@@ -141,7 +141,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         // Session life-cycle starts here
-        Session.registerSession(context, ctx);
+        Session.registerSession(context, ctx, serverKind);
         super.channelRegistered(ctx);
     }
 

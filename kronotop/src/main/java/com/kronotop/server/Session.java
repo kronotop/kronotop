@@ -66,8 +66,9 @@ public class Session {
      * @param ctx     the {@link ChannelHandlerContext} used to manage the channel where the session
      *                will be associated. This context allows interaction with the underlying channel.
      */
-    public static void registerSession(Context context, ChannelHandlerContext ctx) {
+    public static void registerSession(Context context, ChannelHandlerContext ctx, ServerKind serverKind) {
         Session session = new Session(context, ctx);
+        session.attr(SessionAttributes.SERVER_KIND).set(serverKind);
         ctx.channel().attr(SessionAttributes.SESSION).set(session);
         context.getSessionStore().put(session.getClientId(), session);
     }
