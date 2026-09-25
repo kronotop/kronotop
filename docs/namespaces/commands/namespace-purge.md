@@ -65,9 +65,10 @@ retried.
 
 Argument errors:
 
-| Error Code | Error message                                     | Cause                                                         |
-|------------|---------------------------------------------------|---------------------------------------------------------------|
-| `ERR`      | `Namespace '<path>' is reserved for internal use` | The namespace path contains the reserved `__internal__` name. |
+| Error Code | Error message                                             | Cause                                                         |
+|------------|-----------------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'NAMESPACE PURGE' command` | -                                                             |
+| `ERR`      | `Namespace '<path>' is reserved for internal use`         | The namespace path contains the reserved `__internal__` name. |
 
 Namespace errors:
 

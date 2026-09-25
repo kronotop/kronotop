@@ -43,7 +43,7 @@ class ExistsSubcommand extends BaseSubcommand implements SubcommandHandler {
         private final List<String> subpath;
 
         private ExistsParameters(Request request) {
-            if (request.getParams().size() <= 1) {
+            if (request.getParams().size() != 2) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.EXISTS);
             }
             subpath = readSubpath(request.getParams().get(1));

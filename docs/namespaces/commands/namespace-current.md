@@ -28,6 +28,12 @@ active namespace can be changed with `NAMESPACE USE`.
 
 ## Errors
 
+Argument errors:
+
+| Error Code | Error message                                               | Cause |
+|------------|-------------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'NAMESPACE CURRENT' command` | -     |
+
 Namespace errors:
 
 | Error Code | Error message                               | Cause                                                                              |

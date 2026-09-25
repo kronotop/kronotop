@@ -54,9 +54,10 @@ A cluster-wide event is published to the journal. Every cluster member that cons
 
 Argument errors:
 
-| Error Code | Error message                                     | Cause                                                         |
-|------------|---------------------------------------------------|---------------------------------------------------------------|
-| `ERR`      | `Namespace '<path>' is reserved for internal use` | The namespace path contains the reserved `__internal__` name. |
+| Error Code | Error message                                              | Cause                                                         |
+|------------|------------------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'NAMESPACE REMOVE' command` | -                                                             |
+| `ERR`      | `Namespace '<path>' is reserved for internal use`          | The namespace path contains the reserved `__internal__` name. |
 
 Namespace errors:
 

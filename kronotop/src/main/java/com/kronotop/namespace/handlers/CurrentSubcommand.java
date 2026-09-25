@@ -17,10 +17,11 @@
 package com.kronotop.namespace.handlers;
 
 import com.kronotop.Context;
+import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.SessionAttributes;
+import com.kronotop.server.SubcommandHandler;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
@@ -33,6 +34,9 @@ class CurrentSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
+        if (request.getParams().size() != 1) {
+            throw wrongNumberOfArguments(request, NamespaceSubcommand.CURRENT);
+        }
         String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
         if (namespace == null || namespace.isBlank()) {
             response.writeError("current namespace is empty, blank or null");

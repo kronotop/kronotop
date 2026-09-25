@@ -36,9 +36,10 @@ If the cluster has not been initialized yet and no path is provided, an empty ar
 
 Argument errors:
 
-| Error Code | Error message                                     | Cause                                                         |
-|------------|---------------------------------------------------|---------------------------------------------------------------|
-| `ERR`      | `Namespace '<path>' is reserved for internal use` | The namespace path contains the reserved `__internal__` name. |
+| Error Code | Error message                                            | Cause                                                         |
+|------------|----------------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'NAMESPACE LIST' command` | -                                                             |
+| `ERR`      | `Namespace '<path>' is reserved for internal use`        | The namespace path contains the reserved `__internal__` name. |
 
 Namespace errors:
 

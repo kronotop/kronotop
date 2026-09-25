@@ -41,10 +41,11 @@ The `__internal__` name is reserved at any level of the hierarchy and cannot be 
 
 Argument errors:
 
-| Error Code | Error message                                         | Cause                                                         |
-|------------|-------------------------------------------------------|---------------------------------------------------------------|
-| `ERR`      | `Namespace '<path>' is reserved for internal use`     | The namespace path contains the reserved `__internal__` name. |
-| `ERR`      | `Namespace depth exceeds maximum allowed depth of 10` | -                                                             |
+| Error Code | Error message                                              | Cause                                                         |
+|------------|------------------------------------------------------------|---------------------------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'NAMESPACE CREATE' command` | -                                                             |
+| `ERR`      | `Namespace '<path>' is reserved for internal use`          | The namespace path contains the reserved `__internal__` name. |
+| `ERR`      | `Namespace depth exceeds maximum allowed depth of 10`      | -                                                             |
 
 Namespace errors:
 
@@ -97,5 +98,5 @@ OK
 
 ```kronotop
 > NAMESPACE CREATE old-namespace
-(error) ERR Not all cluster members have observed the tombstone for namespace 'old-namespace'
+(error) BARRIERNOTSATISFIED Not all cluster members have observed the tombstone for namespace 'old-namespace'
 ```

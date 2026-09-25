@@ -22,19 +22,18 @@ import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.namespace.NoSuchNamespaceException;
+import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.transaction.TransactionUtil;
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -62,7 +61,12 @@ class ListSubcommand extends BaseSubcommand implements SubcommandHandler {
                     if (namespace.equals(Namespace.INTERNAL_LEAF)) {
                         continue;
                     }
-                    children.add(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(namespace.getBytes(StandardCharsets.UTF_8))));
+                    children.add(
+                            new FullBulkStringRedisMessage(
+                                    Unpooled.wrappedBuffer(namespace.getBytes(StandardCharsets.UTF_8)
+                                    )
+                            )
+                    );
                 }
                 return children;
             } catch (CompletionException e) {
@@ -82,9 +86,11 @@ class ListSubcommand extends BaseSubcommand implements SubcommandHandler {
         private final List<String> subpath = new ArrayList<>();
 
         private ListParameters(Request request) {
-            ListIterator<ByteBuf> iterator = request.getParams().listIterator(1);
-            while (iterator.hasNext()) {
-                subpath.addAll(readSubpath(iterator.next()));
+            if (request.getParams().size() > 2) {
+                throw wrongNumberOfArguments(request, NamespaceSubcommand.LIST);
+            }
+            if (request.getParams().size() == 2) {
+                subpath.addAll(readSubpath(request.getParams().get(1)));
             }
             validateSubpath(subpath);
         }

@@ -1460,8 +1460,38 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldRejectMoveWithMissingArgument() {
-        // Behavior: NAMESPACE MOVE with a single path returns the wrong number of arguments error without the subcommand name.
-        assertWrongNumberOfArguments(List.of("MOVE", "a"), "ERR wrong number of arguments for 'NAMESPACE' command");
+        // Behavior: NAMESPACE MOVE with a single path returns the wrong number of arguments error.
+        assertWrongNumberOfArguments(List.of("MOVE", "a"), "ERR wrong number of arguments for 'NAMESPACE MOVE' command");
+    }
+
+    @Test
+    void shouldRejectMoveWithExtraArgument() {
+        // Behavior: NAMESPACE MOVE with a third path returns the wrong number of arguments error.
+        assertWrongNumberOfArguments(List.of("MOVE", "a", "b", "c"), "ERR wrong number of arguments for 'NAMESPACE MOVE' command");
+    }
+
+    @Test
+    void shouldRejectListWithExtraArgument() {
+        // Behavior: NAMESPACE LIST with a second path returns the wrong number of arguments error.
+        assertWrongNumberOfArguments(List.of("LIST", "a", "b"), "ERR wrong number of arguments for 'NAMESPACE LIST' command");
+    }
+
+    @Test
+    void shouldRejectCurrentWithExtraArgument() {
+        // Behavior: NAMESPACE CURRENT with an argument returns the wrong number of arguments error.
+        assertWrongNumberOfArguments(List.of("CURRENT", "a"), "ERR wrong number of arguments for 'NAMESPACE CURRENT' command");
+    }
+
+    @Test
+    void shouldRejectExistsWithExtraArgument() {
+        // Behavior: NAMESPACE EXISTS with a second argument returns the wrong number of arguments error.
+        assertWrongNumberOfArguments(List.of("EXISTS", "a", "b"), "ERR wrong number of arguments for 'NAMESPACE EXISTS' command");
+    }
+
+    @Test
+    void shouldRejectUseWithExtraArgument() {
+        // Behavior: NAMESPACE USE with a second argument returns the wrong number of arguments error.
+        assertWrongNumberOfArguments(List.of("USE", "a", "b"), "ERR wrong number of arguments for 'NAMESPACE USE' command");
     }
 
     @Test

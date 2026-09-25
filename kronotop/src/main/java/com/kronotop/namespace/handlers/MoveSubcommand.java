@@ -30,8 +30,8 @@ import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.namespace.TombstoneManager;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.transaction.TransactionUtil;
 
 import java.util.List;
@@ -81,8 +81,8 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandHandler {
         private final List<String> newPath;
 
         private MoveParameters(Request request) {
-            if (request.getParams().size() <= 2) {
-                throw new WrongNumberOfArgumentsException(String.format("wrong number of arguments for '%s' command", request.getCommand()));
+            if (request.getParams().size() != 3) {
+                throw wrongNumberOfArguments(request, NamespaceSubcommand.MOVE);
             }
             oldPath = readSubpath(request.getParams().get(1));
             newPath = readSubpath(request.getParams().get(2));

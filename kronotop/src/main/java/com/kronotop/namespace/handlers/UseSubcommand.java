@@ -51,7 +51,7 @@ class UseSubcommand extends BaseSubcommand implements SubcommandHandler {
         private final List<String> subpath;
 
         private UseParameters(Request request) {
-            if (request.getParams().size() <= 1) {
+            if (request.getParams().size() != 2) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.USE);
             }
             subpath = readSubpath(request.getParams().get(1));
