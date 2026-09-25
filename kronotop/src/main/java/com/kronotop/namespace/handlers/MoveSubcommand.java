@@ -1,17 +1,17 @@
 /*
  * Copyright (c) 2023-2026 Burak Sezer
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *  http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.kronotop.namespace.handlers;
@@ -28,16 +28,16 @@ import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.namespace.TombstoneManager;
-import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
-import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.transaction.TransactionUtil;
 
 import java.util.List;
 import java.util.concurrent.CompletionException;
 
-class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
+class MoveSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     MoveSubcommand(Context context) {
         super(context);
@@ -45,20 +45,18 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
 
     @Override
     public void execute(Request request, Response response) {
+        MoveParameters parameters = new MoveParameters(request);
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
-            NamespaceMessage.MoveMessage moveMessage = message.getMoveMessage();
-
-            List<String> oldPath = getNamespaceSubpath(moveMessage.getOldPath());
-            List<String> newPath = getNamespaceSubpath(moveMessage.getNewPath());
+            List<String> oldPath = getNamespaceSubpath(parameters.oldPath);
+            List<String> newPath = getNamespaceSubpath(parameters.newPath);
 
             // Move namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                checkNamespaceBeingRemoved(tr, moveMessage.getOldPath());
+                checkNamespaceBeingRemoved(tr, parameters.oldPath);
                 DirectorySubspace newSubspace = context.getDirectoryLayer().move(tr, oldPath, newPath).join();
-                NamespaceUtil.updateLeafAndParentPointer(context, tr, newSubspace, moveMessage.getNewPath());
+                NamespaceUtil.updateLeafAndParentPointer(context, tr, newSubspace, parameters.newPath);
 
-                String oldNamespace = String.join(".", moveMessage.getOldPath());
+                String oldNamespace = String.join(".", parameters.oldPath);
                 String token = TombstoneManager.setTombstone(context, tr, oldNamespace);
                 context.getJournal().getPublisher().publish(
                         tr,
@@ -69,12 +67,27 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandExecutor {
                 tr.commit().join();
             } catch (CompletionException e) {
                 if (e.getCause() instanceof NoSuchDirectoryException) {
-                    throw new NoSuchNamespaceException(String.join(".", moveMessage.getOldPath()));
+                    throw new NoSuchNamespaceException(String.join(".", parameters.oldPath));
                 } else if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                    throw new NamespaceAlreadyExistsException(dottedNamespace(moveMessage.getNewPath()));
+                    throw new NamespaceAlreadyExistsException(dottedNamespace(parameters.newPath));
                 }
                 throw new KronotopException(e.getCause());
             }
         }, response::writeOK);
+    }
+
+    private class MoveParameters {
+        private final List<String> oldPath;
+        private final List<String> newPath;
+
+        private MoveParameters(Request request) {
+            if (request.getParams().size() <= 2) {
+                throw new WrongNumberOfArgumentsException(String.format("wrong number of arguments for '%s' command", request.getCommand()));
+            }
+            oldPath = readSubpath(request.getParams().get(1));
+            newPath = readSubpath(request.getParams().get(2));
+            validateSubpath(oldPath);
+            validateSubpath(newPath);
+        }
     }
 }

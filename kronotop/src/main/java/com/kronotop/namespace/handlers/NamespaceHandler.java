@@ -28,7 +28,7 @@ import java.util.EnumMap;
 @Command(NamespaceMessage.COMMAND)
 @MinimumParameterCount(NamespaceMessage.MINIMUM_PARAMETER_COUNT)
 public class NamespaceHandler implements Handler {
-    private final EnumMap<NamespaceSubcommand, SubcommandExecutor> executors = new EnumMap<>(NamespaceSubcommand.class);
+    private final EnumMap<NamespaceSubcommand, SubcommandHandler> executors = new EnumMap<>(NamespaceSubcommand.class);
 
     public NamespaceHandler(NamespaceService service) {
         executors.put(NamespaceSubcommand.CREATE, new CreateSubcommand(service.getContext()));
@@ -55,7 +55,7 @@ public class NamespaceHandler implements Handler {
     public void execute(Request request, Response response) throws Exception {
         NamespaceMessage message = request.attr(MessageTypes.NAMESPACE).get();
 
-        SubcommandExecutor executor = executors.get(message.getSubcommand());
+        SubcommandHandler executor = executors.get(message.getSubcommand());
         if (executor == null) {
             throw new UnknownSubcommandException(message.getSubcommand().toString());
         }

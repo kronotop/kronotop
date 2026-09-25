@@ -19,12 +19,13 @@ package com.kronotop.namespace.handlers;
 import com.kronotop.Context;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.SessionAttributes;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
 
-class CurrentSubcommand extends BaseSubcommand implements SubcommandExecutor {
+class CurrentSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     CurrentSubcommand(Context context) {
         super(context);
