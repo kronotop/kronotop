@@ -48,9 +48,9 @@ public class BucketExplainHandler extends AbstractBucketHandler implements Handl
         request.attr(MessageTypes.BUCKETEXPLAIN).set(new BucketExplainMessage(request));
     }
 
-    private BucketMetadata openBucketMetadata(Request request, String bucket) {
+    private BucketMetadata openBucketMetadata(Request request, BucketExplainMessage message) {
         try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-            return BucketMetadataUtil.open(context, tr, request.getSession(), bucket);
+            return BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket(), message.getArguments());
         }
     }
 
@@ -59,7 +59,7 @@ public class BucketExplainHandler extends AbstractBucketHandler implements Handl
         supplyAsync(context, response, () -> {
             BucketExplainMessage message = request.attr(MessageTypes.BUCKETEXPLAIN).get();
 
-            BucketMetadata metadata = openBucketMetadata(request, message.getBucket());
+            BucketMetadata metadata = openBucketMetadata(request, message);
             BqlExpr bqlExpr = BqlParser.parse(message.getQuery());
             Collation queryCollation = message.getArguments().getCollation();
             long shapeHash = QueryShape.compute(bqlExpr, message.getArguments().getSortBy(), queryCollation);

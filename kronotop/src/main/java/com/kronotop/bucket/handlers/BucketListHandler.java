@@ -23,8 +23,10 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketListMessage;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Handler;
+import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.Session;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -50,15 +52,19 @@ public class BucketListHandler extends AbstractBucketHandler implements Handler 
 
     @Override
     public void beforeExecute(Request request) {
+        request.attr(MessageTypes.BUCKETLIST).set(new BucketListMessage(request));
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
+            BucketListMessage message = request.attr(MessageTypes.BUCKETLIST).get();
+            Session session = request.getSession();
+            String namespace = NamespaceUtil.resolve(session, message.getNamespace());
             List<RedisMessage> children = new ArrayList<>();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(
-                        context, tr, request.getSession(), DataStructureKind.BUCKET
+                        context, tr, session, namespace, DataStructureKind.BUCKET
                 );
                 List<String> names = subspace.list(tr).join();
                 for (String name : names) {

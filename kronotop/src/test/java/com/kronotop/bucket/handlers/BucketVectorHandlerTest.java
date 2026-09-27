@@ -98,6 +98,10 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
     }
 
     private void insertDocument(String label, String category, float[] vec) {
+        insertDocument(label, category, vec, null);
+    }
+
+    private void insertDocument(String label, String category, float[] vec, String namespace) {
         BsonDocument doc = new BsonDocument();
         doc.put("label", new BsonString(label));
         if (category != null) {
@@ -112,7 +116,7 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
         byte[] docBytes = BSONUtil.toBytes(doc);
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         ByteBuf buf = Unpooled.buffer();
-        cmd.insert(TEST_BUCKET, docBytes).encode(buf);
+        cmd.insert(TEST_BUCKET, namespace, List.of(docBytes)).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
     }
@@ -893,5 +897,41 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldSearchInGivenNamespace() {
+        // Behavior: NAMESPACE runs the vector search against the bucket in the given namespace.
+        // Without it, the bucket is looked up in the session's current namespace.
+        String otherNamespace = newNamespace();
+        assertOK(run(bucketCmd.create(TEST_BUCKET, BucketCreateArgs.Builder.indexes(
+                "{\"$vector\": {\"field\": \"embedding\", \"dimensions\": 3, \"distance\": \"cosine\"}}"
+        ).namespace(otherNamespace))));
+        insertDocument("alpha", null, new float[]{0.1f, 0.2f, 0.3f}, otherNamespace);
+        useRESP3();
+
+        float[] vector = new float[]{0.1f, 0.2f, 0.3f};
+        Object response = run(bucketCmd.vector(TEST_BUCKET, "embedding", vector, BucketVectorArgs.Builder.namespace(otherNamespace)));
+        assertEquals(List.of("alpha"), vectorResultLabels(response));
+
+        assertErrorReply("NOSUCHBUCKET No such bucket: 'test-bucket'", run(bucketCmd.vector(TEST_BUCKET, "embedding", vector)));
+    }
+
+    @Test
+    void shouldRejectSearchWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.vector(TEST_BUCKET, "embedding", new float[]{0.1f, 0.2f, 0.3f},
+                BucketVectorArgs.Builder.namespace(MISSING_NAMESPACE))));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.VECTOR rejects NAMESPACE without a value and a repeated NAMESPACE.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_VECTOR,
+                        List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "NAMESPACE")));
+        assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_VECTOR,
+                        List.of("test-bucket", "embedding", "[0.1,0.2,0.3]", "NAMESPACE", "a", "namespace", "b")));
     }
 }

@@ -29,7 +29,8 @@ public enum VectorArgumentKey {
     MAX_SCAN_CANDIDATES("MAX-SCAN-CANDIDATES"),
     OVERQUERY("OVERQUERY"),
     PROJECTION("PROJECTION"),
-    COLLATION("COLLATION");
+    COLLATION("COLLATION"),
+    NAMESPACE("NAMESPACE");
 
     private static final Map<String, VectorArgumentKey> LOOKUP = new HashMap<>();
 

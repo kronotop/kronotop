@@ -32,6 +32,7 @@ import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.protocol.Command;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonDocument;
@@ -46,6 +47,8 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BaseBucketHandlerTest extends BaseHandlerTest {
     protected final byte[] TEST_DOCUMENT = BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}");
     protected final Random rand = new Random(System.nanoTime());
+    protected static final String MISSING_NAMESPACE = "missing-namespace";
+    protected final BucketCommandBuilder<String, String> bucketCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
 
     /**
      * Creates a list of dummy documents with sequential key-value pairs.
@@ -333,6 +336,10 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
     }
 
     void createNamespaceWithBucket(String namespace, List<byte[]> documents) {
+        createNamespaceWithBucket(namespace, TEST_BUCKET, documents);
+    }
+
+    void createNamespaceWithBucket(String namespace, String bucket, List<byte[]> documents) {
         KronotopCommandBuilder<String, String> nsCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
         BucketCommandBuilder<byte[], byte[]> bucketCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
         {
@@ -347,17 +354,81 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         }
         {
             ByteBuf buf = Unpooled.buffer();
-            bucketCmd.create(TEST_BUCKET).encode(buf);
+            bucketCmd.create(bucket).encode(buf);
             assertInstanceOf(SimpleStringRedisMessage.class, runCommand(channel, buf));
         }
         if (!documents.isEmpty()) {
-            insertDocumentsIntoBucket(TEST_BUCKET, documents);
+            insertDocumentsIntoBucket(bucket, documents);
         }
         {
             ByteBuf buf = Unpooled.buffer();
             nsCmd.namespaceUse(TEST_NAMESPACE).encode(buf);
             assertInstanceOf(SimpleStringRedisMessage.class, runCommand(channel, buf));
         }
+    }
+
+    /**
+     * Creates a namespace with a random name and returns the name. The session's current namespace
+     * does not change.
+     */
+    protected String newNamespace() {
+        String namespace = UUID.randomUUID().toString();
+        KronotopCommandBuilder<String, String> nsCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        assertOK(run(nsCmd.namespaceCreate(namespace)));
+        return namespace;
+    }
+
+    /**
+     * Creates a namespace with a random name, creates the bucket in it and inserts the documents.
+     * Returns the namespace name. The session's current namespace is the same after the call.
+     */
+    protected String newNamespaceWithBucket(String bucket, List<byte[]> documents) {
+        String namespace = UUID.randomUUID().toString();
+        createNamespaceWithBucket(namespace, bucket, documents);
+        return namespace;
+    }
+
+    /**
+     * Encodes the command and runs it on the test channel.
+     */
+    protected Object run(Command<?, ?, ?> command) {
+        ByteBuf buf = Unpooled.buffer();
+        command.encode(buf);
+        return runCommand(channel, buf);
+    }
+
+    protected void useRESP3() {
+        switchProtocol(bucketCmd, RESPVersion.RESP3);
+    }
+
+    protected void assertOK(Object response) {
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+    }
+
+    protected void assertErrorReply(String expected, Object response) {
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(expected, ((ErrorRedisMessage) response).content());
+    }
+
+    /**
+     * Asserts that the reply is the NOSUCHNAMESPACE error for {@link #MISSING_NAMESPACE}.
+     */
+    protected void assertNoSuchNamespace(Object response) {
+        assertErrorReply(String.format("NOSUCHNAMESPACE No such namespace: '%s'", MISSING_NAMESPACE), response);
+    }
+
+    /**
+     * Reads an array reply of bulk strings into a list.
+     */
+    protected List<String> readBulkStrings(Object response) {
+        assertInstanceOf(ArrayRedisMessage.class, response);
+        List<String> result = new ArrayList<>();
+        for (RedisMessage child : ((ArrayRedisMessage) response).children()) {
+            assertInstanceOf(FullBulkStringRedisMessage.class, child);
+            result.add(((FullBulkStringRedisMessage) child).content().toString(StandardCharsets.UTF_8));
+        }
+        return result;
     }
 
     int countDocuments(BucketCommandBuilder<String, String> cmd) {

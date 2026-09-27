@@ -598,4 +598,33 @@ class BucketIndexDescribeSubcommandTest extends BaseIndexHandlerTest {
             assertEquals(0, ((IntegerRedisMessage) collation.get(flag)).value());
         }
     }
+
+    @Test
+    void shouldDescribeIndexInGivenNamespace() {
+        // Behavior: NAMESPACE describes the index of the bucket in the given namespace. Without it,
+        // the bucket is looked up in the session's current namespace.
+        String otherNamespace = newNamespaceWithBucket("only-in-other", List.of());
+        useRESP3();
+
+        assertInstanceOf(MapRedisMessage.class, run(bucketCmd.indexDescribe("only-in-other", "primary-index", otherNamespace)));
+        assertErrorReply("NOSUCHBUCKET No such bucket: 'only-in-other'",
+                run(bucketCmd.indexDescribe("only-in-other", "primary-index")));
+    }
+
+    @Test
+    void shouldRejectDescribeWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.indexDescribe(TEST_BUCKET, "primary-index", MISSING_NAMESPACE)));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.INDEX DESCRIBE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("DESCRIBE", "test-bucket", "primary-index", "NAMESPACE")));
+        assertErrorReply("ERR Unknown 'BOGUS' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("DESCRIBE", "test-bucket", "primary-index", "BOGUS")));
+        assertErrorReply("ERR wrong number of parameters",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("DESCRIBE", "test-bucket", "primary-index", "NAMESPACE", "ns", "EXTRA")));
+    }
 }

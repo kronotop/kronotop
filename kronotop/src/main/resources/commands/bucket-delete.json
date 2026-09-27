@@ -63,6 +63,13 @@
         "token": "COLLATION",
         "optional": true,
         "summary": "A collation spec for locale aware string comparison in the filter."
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

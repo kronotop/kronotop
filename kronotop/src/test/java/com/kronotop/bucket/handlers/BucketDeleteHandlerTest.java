@@ -1303,4 +1303,51 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
+
+    @Test
+    void shouldDeleteInGivenNamespace() {
+        // Behavior: NAMESPACE runs the delete in the given namespace. Documents in the session's
+        // current namespace stay untouched.
+        insertDocumentsIntoBucket(TEST_BUCKET, List.of(TEST_DOCUMENT));
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, List.of(TEST_DOCUMENT));
+        useRESP3();
+
+        BucketQueryArgs args = BucketQueryArgs.Builder.namespace(otherNamespace);
+        assertEquals(1, extractObjectIds(run(bucketCmd.delete(TEST_BUCKET, "{}", args))).size());
+
+        assertEquals(0, extractEntries(run(bucketCmd.query(TEST_BUCKET, "{}", args))).size());
+        assertEquals(1, countDocuments(bucketCmd));
+    }
+
+    @Test
+    void shouldAdvanceDeleteCursorInGivenNamespace() {
+        // Behavior: a delete cursor opened with NAMESPACE keeps that namespace for BUCKET.ADVANCE.
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, makeDummyDocument(2));
+        useRESP3();
+
+        Object response = run(bucketCmd.delete(TEST_BUCKET, "{}", BucketQueryArgs.Builder.namespace(otherNamespace).batch(1)));
+        assertEquals(1, extractObjectIds(response).size());
+
+        Object advanced = run(bucketCmd.advanceDelete(extractCursorId(response)));
+        assertEquals(1, extractObjectIds(advanced).size());
+
+        Object remaining = run(bucketCmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.namespace(otherNamespace)));
+        assertEquals(0, extractEntries(remaining).size());
+    }
+
+    @Test
+    void shouldRejectDeleteWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.delete(TEST_BUCKET, "{}", BucketQueryArgs.Builder.namespace(MISSING_NAMESPACE))));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.DELETE rejects NAMESPACE without a value and a repeated NAMESPACE.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE, List.of("test-bucket", "{}", "NAMESPACE")));
+        assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE,
+                        List.of("test-bucket", "{}", "NAMESPACE", "a", "NAMESPACE", "b")));
+    }
 }

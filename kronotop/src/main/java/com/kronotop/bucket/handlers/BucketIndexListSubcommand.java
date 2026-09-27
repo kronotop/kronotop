@@ -23,6 +23,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.IndexUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
@@ -53,7 +54,8 @@ class BucketIndexListSubcommand implements SubcommandHandler {
             Session session = request.getSession();
             List<RedisMessage> children = new ArrayList<>();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, parameters.bucket);
+                String namespace = NamespaceUtil.resolve(session, parameters.namespace);
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, parameters.bucket);
                 List<String> names = IndexUtil.list(tr, metadata.subspace());
                 for (String name : names) {
                     children.add(new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(name.getBytes(StandardCharsets.UTF_8))));
@@ -65,12 +67,14 @@ class BucketIndexListSubcommand implements SubcommandHandler {
 
     private static class ListParameters {
         private final String bucket;
+        private final String namespace;
 
         ListParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 2) {
+            if (params.size() < 2 || params.size() > 4) {
                 throw new KronotopException("wrong number of parameters");
             }
             bucket = ProtocolMessageUtil.readAsString(params.get(1));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 2);
         }
     }
 }

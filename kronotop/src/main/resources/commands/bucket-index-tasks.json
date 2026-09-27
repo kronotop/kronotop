@@ -4,7 +4,7 @@
     "complexity": "O(N) where N is the number of shards the bucket uses.",
     "group": "bucket",
     "since": "2026.06-1",
-    "arity": 4,
+    "arity": -4,
     "container": "BUCKET.INDEX",
     "command_flags": [
       "READONLY"
@@ -58,6 +58,13 @@
         "name": "index",
         "type": "string",
         "summary": "The name of the index to report the tasks of."
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

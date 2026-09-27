@@ -2,18 +2,22 @@
 title: "BUCKET.LIST"
 sidebar:
   order: 2
-description: "Returns the names of all buckets in the current namespace."
+description: "Returns the names of all buckets in a namespace."
 ---
 
-Returns the names of all buckets in the current namespace.
+Returns the names of all buckets in a namespace. Without `NAMESPACE`, it lists the session's current namespace.
 
 ## Syntax
 
 ```kronotop
-BUCKET.LIST
+BUCKET.LIST [NAMESPACE <path>]
 ```
 
-This command takes no parameters.
+## Parameters
+
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -24,6 +28,13 @@ Buckets that have been marked for removal with `BUCKET.REMOVE` but not yet purge
 in the result. Only after a successful `BUCKET.PURGE` does the bucket disappear from the list.
 
 ## Errors
+
+Argument errors:
+
+| Error Code | Error message                                        | Cause |
+|------------|------------------------------------------------------|-------|
+| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 
 Namespace errors:
 

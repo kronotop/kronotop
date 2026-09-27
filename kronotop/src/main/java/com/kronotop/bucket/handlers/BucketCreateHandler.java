@@ -23,6 +23,7 @@ import com.kronotop.bucket.*;
 import com.kronotop.bucket.handlers.protocol.BucketCreateMessage;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.cluster.Route;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -49,7 +50,7 @@ public class BucketCreateHandler extends AbstractBucketHandler implements Handle
     @Override
     public void execute(Request request, Response response) throws Exception {
         BucketCreateMessage message = request.attr(MessageTypes.BUCKETCREATE).get();
-        String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
+        String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
         runAsync(context, response, () -> {
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 List<Integer> shards = new ArrayList<>(message.getShards());
@@ -74,9 +75,9 @@ public class BucketCreateHandler extends AbstractBucketHandler implements Handle
 
                 BucketMetadata metadata;
                 try {
-                    metadata = BucketMetadataUtil.create(context, tr, request.getSession(), message.getBucket(), shards, collation);
+                    metadata = BucketMetadataUtil.create(context, tr, request.getSession(), namespace, message.getBucket(), shards, collation);
                 } catch (BucketAlreadyExistsException e) {
-                    metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
+                    metadata = BucketMetadataUtil.open(context, tr, namespace, message.getBucket());
                     if (metadata.removed()) {
                         // Bucket is being removed, raise BUCKETBEINGREMOVED.
                         throw new BucketBeingRemovedException(message.getBucket());

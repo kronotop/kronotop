@@ -27,6 +27,7 @@ import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.bucket.pipeline.*;
 import com.kronotop.bucket.vector.*;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -111,7 +112,8 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
             Session session = request.getSession();
 
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, message.getBucket());
+                String namespace = NamespaceUtil.resolve(session, message.getNamespace());
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, message.getBucket());
                 checkBucketOwnership(metadata);
 
                 VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(
@@ -124,7 +126,6 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
                 float[] vector = parseVector(message.getVector(), vectorIndex.definition().dimensions());
                 validateVector(vectorIndex, vector);
 
-                String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
                 VectorGraphIndexGroup group = service.getVectorGraphRegistry().get(
                         namespace,
                         message.getBucket(),

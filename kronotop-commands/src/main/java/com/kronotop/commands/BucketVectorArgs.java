@@ -25,6 +25,7 @@ public class BucketVectorArgs {
     private Integer maxScanCandidates;
     private Float overquery;
     private String projection;
+    private String namespace;
 
     public BucketVectorArgs top(int top) {
         this.top = top;
@@ -56,6 +57,17 @@ public class BucketVectorArgs {
         return this;
     }
 
+    /**
+     * Runs the command in the given namespace instead of the session's current one.
+     *
+     * @param namespace the namespace to run the command in
+     * @return this instance
+     */
+    public BucketVectorArgs namespace(String namespace) {
+        this.namespace = namespace;
+        return this;
+    }
+
     public <K, V> void build(CommandArgs<K, V> args) {
         if (top != null) {
             args.add("TOP");
@@ -80,6 +92,10 @@ public class BucketVectorArgs {
         if (projection != null) {
             args.add("PROJECTION");
             args.add(projection);
+        }
+        if (namespace != null) {
+            args.add("NAMESPACE");
+            args.add(namespace);
         }
     }
 
@@ -109,6 +125,10 @@ public class BucketVectorArgs {
 
         public static BucketVectorArgs projection(String projection) {
             return new BucketVectorArgs().projection(projection);
+        }
+
+        public static BucketVectorArgs namespace(String namespace) {
+            return new BucketVectorArgs().namespace(namespace);
         }
     }
 }

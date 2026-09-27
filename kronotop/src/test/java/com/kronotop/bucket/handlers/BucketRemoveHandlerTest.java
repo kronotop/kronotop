@@ -30,6 +30,8 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
@@ -120,5 +122,36 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
             ErrorRedisMessage actualMessage = (ErrorRedisMessage) response;
             assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", actualMessage.content());
         }
+    }
+
+    @Test
+    void shouldRemoveBucketInGivenNamespace() {
+        // Behavior: NAMESPACE removes the bucket in the given namespace. The bucket with the same
+        // name in the session's current namespace stays.
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, List.of());
+
+        assertOK(run(bucketCmd.remove(TEST_BUCKET, otherNamespace)));
+
+        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            assertTrue(BucketMetadataUtil.forceOpen(context, tr, otherNamespace, TEST_BUCKET).removed());
+            assertFalse(BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET).removed());
+        }
+    }
+
+    @Test
+    void shouldRejectRemoveWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.remove(TEST_BUCKET, MISSING_NAMESPACE)));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.REMOVE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_REMOVE, List.of("test-bucket", "NAMESPACE")));
+        assertErrorReply("ERR Unknown 'BOGUS' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_REMOVE, List.of("test-bucket", "BOGUS")));
+        assertErrorReply("ERR wrong number of arguments for 'BUCKET.REMOVE' command",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_REMOVE, List.of("test-bucket", "NAMESPACE", "ns", "EXTRA")));
     }
 }

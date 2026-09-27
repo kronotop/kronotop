@@ -151,4 +151,34 @@ class BucketLocateHandlerTest extends BaseBucketHandlerTest {
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) response;
         assertTrue(errorMessage.content().contains("No such bucket: 'non-existent-bucket'"));
     }
+
+    @Test
+    void shouldLocateBucketInGivenNamespace() {
+        // Behavior: NAMESPACE locates the bucket in the given namespace. Without it, the bucket is
+        // looked up in the session's current namespace.
+        String otherNamespace = newNamespaceWithBucket("only-in-other", List.of());
+
+        Object response = run(bucketCmd.locate("only-in-other", otherNamespace));
+        assertInstanceOf(ArrayRedisMessage.class, response);
+        assertEquals(2, ((ArrayRedisMessage) response).children().size());
+
+        assertErrorReply("NOSUCHBUCKET No such bucket: 'only-in-other'", locate("only-in-other"));
+    }
+
+    @Test
+    void shouldRejectLocateWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.locate(TEST_BUCKET, MISSING_NAMESPACE)));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.LOCATE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LOCATE, List.of("test-bucket", "NAMESPACE")));
+        assertErrorReply("ERR Unknown 'BOGUS' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LOCATE, List.of("test-bucket", "BOGUS")));
+        assertErrorReply("ERR wrong number of arguments for 'BUCKET.LOCATE' command",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LOCATE, List.of("test-bucket", "NAMESPACE", "ns", "EXTRA")));
+    }
 }

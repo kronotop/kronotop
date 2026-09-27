@@ -25,7 +25,8 @@ public enum CreateArgumentKey {
     SHARDS("shards"),
     INDEXES("indexes"),
     COLLATION("collation"),
-    IF_NOT_EXISTS("if-not-exists");
+    IF_NOT_EXISTS("if-not-exists"),
+    NAMESPACE("namespace");
 
     private static final Map<String, CreateArgumentKey> LOOKUP = new HashMap<>();
 

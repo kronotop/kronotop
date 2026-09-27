@@ -5,7 +5,7 @@
     "group": "bucket",
     "since": "2026.06-1",
     "servers": ["EXTERNAL"],
-    "arity": 2,
+    "arity": -2,
     "command_flags": [
       "READONLY"
     ],
@@ -34,6 +34,13 @@
         "name": "bucket",
         "type": "string",
         "summary": "The name of the bucket to locate."
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

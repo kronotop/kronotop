@@ -35,6 +35,7 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
     private byte[] collation;
     private String bucket;
     private boolean ifNotExists = false;
+    private String namespace;
 
     public BucketCreateMessage(Request request) {
         this.request = request;
@@ -96,6 +97,12 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
                     collation = ProtocolMessageUtil.readAsByteArray(value);
                     i++;
                 }
+                case NAMESPACE -> {
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, keyword, ProtocolMessageUtil.NAMESPACE_PATH);
+                    namespace = ProtocolMessageUtil.readAsString(value);
+                    i++;
+                }
             }
         }
     }
@@ -118,5 +125,12 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
 
     public boolean isIfNotExists() {
         return ifNotExists;
+    }
+
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
     }
 }

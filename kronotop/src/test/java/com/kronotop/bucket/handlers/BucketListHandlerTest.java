@@ -128,4 +128,32 @@ class BucketListHandlerTest extends BaseBucketHandlerTest {
             assertTrue(array.children().isEmpty());
         }
     }
+
+    @Test
+    void shouldListBucketsInGivenNamespace() {
+        // Behavior: NAMESPACE lists the buckets of the given namespace, not the ones in the
+        // session's current namespace.
+        createBucket("default-bucket");
+        String otherNamespace = newNamespaceWithBucket("other-bucket", List.of());
+
+        assertEquals(List.of("other-bucket"), readBulkStrings(run(bucketCmd.list(otherNamespace))));
+        assertEquals(List.of("default-bucket"), readBulkStrings(run(bucketCmd.list())));
+    }
+
+    @Test
+    void shouldRejectListWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.list(MISSING_NAMESPACE)));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.LIST rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LIST, List.of("NAMESPACE")));
+        assertErrorReply("ERR Unknown 'BOGUS' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LIST, List.of("BOGUS")));
+        assertErrorReply("ERR wrong number of arguments for 'BUCKET.LIST' command",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_LIST, List.of("NAMESPACE", "ns", "EXTRA")));
+    }
 }

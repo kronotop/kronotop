@@ -27,15 +27,16 @@ Creates one or more indexes on bucket fields.
 ### Syntax
 
 ```kronotop
-BUCKET.INDEX CREATE <bucket> <schema>
+BUCKET.INDEX CREATE <bucket> <schema> [NAMESPACE <path>]
 ```
 
 ### Parameters
 
-| Parameter | Type   | Required | Description                                               |
-|-----------|--------|----------|-----------------------------------------------------------|
-| `bucket`  | string | Yes      | Name of the target bucket. The bucket must already exist. |
-| `schema`  | JSON   | Yes      | Index schema defining the fields to index.                |
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string | Yes      | Name of the target bucket. The bucket must already exist.                                                                                                |
+| `schema`    | JSON   | Yes      | Index schema defining the fields to index.                                                                                                               |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ### Index Schema Format
 
@@ -311,14 +312,15 @@ Lists all indexes defined on a bucket.
 ### Syntax
 
 ```kronotop
-BUCKET.INDEX LIST <bucket>
+BUCKET.INDEX LIST <bucket> [NAMESPACE <path>]
 ```
 
 ### Parameters
 
-| Parameter | Type   | Required | Description         |
-|-----------|--------|----------|---------------------|
-| `bucket`  | string | Yes      | Name of the bucket. |
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ### Return Value
 
@@ -351,15 +353,16 @@ Gets detailed information about a specific index.
 ### Syntax
 
 ```kronotop
-BUCKET.INDEX DESCRIBE <bucket> <index>
+BUCKET.INDEX DESCRIBE <bucket> <index> [NAMESPACE <path>]
 ```
 
 ### Parameters
 
-| Parameter | Type   | Required | Description                    |
-|-----------|--------|----------|--------------------------------|
-| `bucket`  | string | Yes      | Name of the bucket.            |
-| `index`   | string | Yes      | Name of the index to describe. |
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
+| `index`     | string | Yes      | Name of the index to describe.                                                                                                                           |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ### Return Value
 
@@ -367,40 +370,40 @@ Returns a map. The fields depend on the index type.
 
 **Single-field index** (`index_type` is `single_field`):
 
-| Field        | Type    | Description                                                            |
-|--------------|---------|------------------------------------------------------------------------|
-| `index_type` | string  | `single_field`.                                                        |
-| `id`         | integer | Index identifier.                                                      |
-| `selector`   | string  | The field selector the index is built on.                              |
-| `bson_type`  | string  | The BSON type of indexed values.                                       |
-| `status`     | string  | Current index status. See [Index Lifecycle](../index.md#index-lifecycle).         |
-| `unique`     | boolean | Whether the index enforces value uniqueness.                           |
-| `collation`  | map     | Collation configuration (see below). Empty when no collation is set.   |
-| `statistics` | map     | Index statistics including `cardinality`.                              |
+| Field        | Type    | Description                                                               |
+|--------------|---------|---------------------------------------------------------------------------|
+| `index_type` | string  | `single_field`.                                                           |
+| `id`         | integer | Index identifier.                                                         |
+| `selector`   | string  | The field selector the index is built on.                                 |
+| `bson_type`  | string  | The BSON type of indexed values.                                          |
+| `status`     | string  | Current index status. See [Index Lifecycle](../index.md#index-lifecycle). |
+| `unique`     | boolean | Whether the index enforces value uniqueness.                              |
+| `collation`  | map     | Collation configuration (see below). Empty when no collation is set.      |
+| `statistics` | map     | Index statistics including `cardinality`.                                 |
 
 **Compound index** (`index_type` is `compound`):
 
-| Field        | Type    | Description                                                                          |
-|--------------|---------|--------------------------------------------------------------------------------------|
-| `index_type` | string  | `compound`.                                                                          |
-| `id`         | integer | Index identifier.                                                                    |
+| Field        | Type    | Description                                                                             |
+|--------------|---------|-----------------------------------------------------------------------------------------|
+| `index_type` | string  | `compound`.                                                                             |
+| `id`         | integer | Index identifier.                                                                       |
 | `fields`     | array   | The indexed fields in index order. Each entry is a map with `selector` and `bson_type`. |
-| `status`     | string  | Current index status. See [Index Lifecycle](../index.md#index-lifecycle).                       |
-| `unique`     | boolean | Whether the index enforces value uniqueness.                                         |
-| `collation`  | map     | Collation configuration (see below). Empty when no collation is set.                 |
-| `statistics` | map     | Index statistics including `cardinality`.                                            |
+| `status`     | string  | Current index status. See [Index Lifecycle](../index.md#index-lifecycle).               |
+| `unique`     | boolean | Whether the index enforces value uniqueness.                                            |
+| `collation`  | map     | Collation configuration (see below). Empty when no collation is set.                    |
+| `statistics` | map     | Index statistics including `cardinality`.                                               |
 
 **Vector index** (`index_type` is `vector`):
 
-| Field        | Type    | Description                                                    |
-|--------------|---------|----------------------------------------------------------------|
-| `index_type` | string  | `vector`.                                                      |
-| `id`         | integer | Index identifier.                                              |
-| `selector`   | string  | The field selector the index is built on.                      |
-| `dimensions` | integer | The vector length the index accepts.                           |
-| `distance`   | string  | The distance function of the index.                            |
+| Field        | Type    | Description                                                               |
+|--------------|---------|---------------------------------------------------------------------------|
+| `index_type` | string  | `vector`.                                                                 |
+| `id`         | integer | Index identifier.                                                         |
+| `selector`   | string  | The field selector the index is built on.                                 |
+| `dimensions` | integer | The vector length the index accepts.                                      |
+| `distance`   | string  | The distance function of the index.                                       |
 | `status`     | string  | Current index status. See [Index Lifecycle](../index.md#index-lifecycle). |
-| `statistics` | map     | Index statistics including `cardinality`.                      |
+| `statistics` | map     | Index statistics including `cardinality`.                                 |
 
 #### Collation sub-fields
 
@@ -481,15 +484,16 @@ Drops an existing index from a bucket.
 ### Syntax
 
 ```kronotop
-BUCKET.INDEX DROP <bucket> <index>
+BUCKET.INDEX DROP <bucket> <index> [NAMESPACE <path>]
 ```
 
 ### Parameters
 
-| Parameter | Type   | Required | Description                |
-|-----------|--------|----------|----------------------------|
-| `bucket`  | string | Yes      | Name of the bucket.        |
-| `index`   | string | Yes      | Name of the index to drop. |
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
+| `index`     | string | Yes      | Name of the index to drop.                                                                                                                               |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ### Return Value
 
@@ -536,15 +540,16 @@ Lists background maintenance tasks associated with an index.
 ### Syntax
 
 ```kronotop
-BUCKET.INDEX TASKS <bucket> <index>
+BUCKET.INDEX TASKS <bucket> <index> [NAMESPACE <path>]
 ```
 
 ### Parameters
 
-| Parameter | Type   | Required | Description         |
-|-----------|--------|----------|---------------------|
-| `bucket`  | string | Yes      | Name of the bucket. |
-| `index`   | string | Yes      | Name of the index.  |
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
+| `index`     | string | Yes      | Name of the index.                                                                                                                                       |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ### Return Value
 
@@ -639,15 +644,16 @@ Trigger index statistics analysis. Statistics help the query optimizer make bett
 ### Syntax
 
 ```kronotop
-BUCKET.INDEX ANALYZE <bucket> <index>
+BUCKET.INDEX ANALYZE <bucket> <index> [NAMESPACE <path>]
 ```
 
 ### Parameters
 
-| Parameter | Type   | Required | Description                   |
-|-----------|--------|----------|-------------------------------|
-| `bucket`  | string | Yes      | Name of the bucket.           |
-| `index`   | string | Yes      | Name of the index to analyze. |
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
+| `index`     | string | Yes      | Name of the index to analyze.                                                                                                                            |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ### Return Value
 
@@ -681,9 +687,18 @@ OK
 
 Argument errors:
 
-| Error Code | Error message                        | Cause |
-|------------|--------------------------------------|-------|
-| `ERR`      | `unknown subcommand: '<subcommand>'` | -     |
+| Error Code | Error message                                        | Cause |
+|------------|------------------------------------------------------|-------|
+| `ERR`      | `unknown subcommand: '<subcommand>'`                 | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 Indexes go through the following states:
 

@@ -461,4 +461,35 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
                 .anyMatch(p -> Arrays.equals(p, prefix.asBytes()));
         assertTrue(found, "Purged bucket's prefix should be published to DISUSED_PREFIXES journal");
     }
+
+    @Test
+    void shouldPurgeBucketInGivenNamespace() {
+        // Behavior: NAMESPACE purges the removed bucket in the given namespace. The bucket with the
+        // same name in the session's current namespace stays.
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, List.of());
+        assertOK(run(bucketCmd.remove(TEST_BUCKET, otherNamespace)));
+
+        await().atMost(15, TimeUnit.SECONDS).untilAsserted(() ->
+                assertOK(run(bucketCmd.purge(TEST_BUCKET, otherNamespace))));
+
+        assertTrue(readBulkStrings(run(bucketCmd.list(otherNamespace))).isEmpty());
+        assertEquals(List.of(TEST_BUCKET), readBulkStrings(run(bucketCmd.list())));
+    }
+
+    @Test
+    void shouldRejectPurgeWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.purge(TEST_BUCKET, MISSING_NAMESPACE)));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.PURGE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_PURGE, List.of("test-bucket", "NAMESPACE")));
+        assertErrorReply("ERR Unknown 'BOGUS' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_PURGE, List.of("test-bucket", "BOGUS")));
+        assertErrorReply("ERR wrong number of arguments for 'BUCKET.PURGE' command",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_PURGE, List.of("test-bucket", "NAMESPACE", "ns", "EXTRA")));
+    }
 }

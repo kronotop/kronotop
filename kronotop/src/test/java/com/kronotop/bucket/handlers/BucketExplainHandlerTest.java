@@ -771,4 +771,34 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         assertEquals("IndexScan", getStringValue(plan, "nodeType"));
         assertEquals("name", getStringValue(plan, "selector"));
     }
+
+    @Test
+    void shouldExplainInGivenNamespace() {
+        // Behavior: NAMESPACE plans the query against the bucket in the given namespace. Without it,
+        // the bucket is looked up in the session's current namespace.
+        String otherNamespace = newNamespaceWithBucket("only-in-other", List.of());
+        useRESP3();
+
+        Object response = run(bucketCmd.explain("only-in-other", "{}", BucketQueryArgs.Builder.namespace(otherNamespace)));
+        assertInstanceOf(MapRedisMessage.class, response);
+        assertTrue(hasKey((MapRedisMessage) response, "plan"));
+
+        assertErrorReply("NOSUCHBUCKET No such bucket: 'only-in-other'", run(bucketCmd.explain("only-in-other", "{}")));
+    }
+
+    @Test
+    void shouldRejectExplainWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.explain(TEST_BUCKET, "{}", BucketQueryArgs.Builder.namespace(MISSING_NAMESPACE))));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.EXPLAIN rejects NAMESPACE without a value and a repeated NAMESPACE.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_EXPLAIN, List.of("test-bucket", "{}", "NAMESPACE")));
+        assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_EXPLAIN,
+                        List.of("test-bucket", "{}", "NAMESPACE", "a", "NAMESPACE", "b")));
+    }
 }

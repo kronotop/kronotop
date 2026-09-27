@@ -22,10 +22,10 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketRemoveMessage;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -50,8 +50,8 @@ public class BucketRemoveHandler extends AbstractBucketHandler {
     public void execute(Request request, Response response) throws Exception {
         // Command hierarchy: remove -> purge
         runAsync(context, response, () -> {
-            String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
             BucketRemoveMessage message = request.attr(MessageTypes.BUCKETREMOVE).get();
+            String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, namespace, message.getBucket());
                 TransactionalContext tx = new TransactionalContext(context, tr);

@@ -16,10 +16,24 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
+import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.ProtocolMessage;
+import com.kronotop.server.Request;
 
 public class BucketListMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.LIST";
     public static final int MINIMUM_PARAMETER_COUNT = 0;
-    public static final int MAXIMUM_PARAMETER_COUNT = 0;
+    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    private final String namespace;
+
+    public BucketListMessage(Request request) {
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 0);
+    }
+
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
+    }
 }

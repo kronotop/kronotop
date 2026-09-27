@@ -4,7 +4,7 @@
     "complexity": "O(1) for the definition. The index data is removed by a background task.",
     "group": "bucket",
     "since": "2026.06-1",
-    "arity": 4,
+    "arity": -4,
     "container": "BUCKET.INDEX",
     "command_flags": [
       "WRITE"
@@ -26,6 +26,13 @@
         "name": "index",
         "type": "string",
         "summary": "The name of the index to drop."
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

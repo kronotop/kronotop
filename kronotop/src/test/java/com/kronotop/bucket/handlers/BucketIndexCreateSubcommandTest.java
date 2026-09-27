@@ -802,4 +802,33 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
             assertEquals("ERR A vector index on field 'embedding' already exists", errorMessage.content());
         }
     }
+
+    @Test
+    void shouldCreateIndexInGivenNamespace() {
+        // Behavior: NAMESPACE creates the index on the bucket in the given namespace. The bucket
+        // with the same name in the session's current namespace does not get the index.
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, List.of());
+
+        assertOK(run(bucketCmd.indexCreate(TEST_BUCKET, "{\"username\": {\"bson_type\": \"string\"}}", otherNamespace)));
+
+        assertTrue(readBulkStrings(run(bucketCmd.indexList(TEST_BUCKET, otherNamespace))).contains("selector:username.bsonType:STRING"));
+        assertEquals(List.of("primary-index"), readBulkStrings(run(bucketCmd.indexList(TEST_BUCKET))));
+    }
+
+    @Test
+    void shouldRejectCreateWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.indexCreate(TEST_BUCKET, "{\"username\": {\"bson_type\": \"string\"}}", MISSING_NAMESPACE)));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.INDEX CREATE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("CREATE", "test-bucket", "{\"username\": {\"bson_type\": \"string\"}}", "NAMESPACE")));
+        assertErrorReply("ERR Unknown 'BOGUS' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("CREATE", "test-bucket", "{\"username\": {\"bson_type\": \"string\"}}", "BOGUS")));
+        assertErrorReply("ERR wrong number of parameters",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("CREATE", "test-bucket", "{\"username\": {\"bson_type\": \"string\"}}", "NAMESPACE", "ns", "EXTRA")));
+    }
 }

@@ -23,6 +23,7 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketLocateMessage;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.Route;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
@@ -84,7 +85,8 @@ public class BucketLocateHandler extends AbstractBucketHandler implements Handle
             List<RedisMessage> routes = new ArrayList<>();
             Map<String, Member> members = new LinkedHashMap<>();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
+                String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, message.getBucket());
                 for (int shardId : metadata.shards()) {
                     Route route = service.findRoute(shardId);
                     if (route == null) {

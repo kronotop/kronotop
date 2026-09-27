@@ -26,10 +26,10 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketPurgeMessage;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.journal.JournalName;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumParameterCount;
 import com.kronotop.server.annotation.MinimumParameterCount;
@@ -56,8 +56,8 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
     @Override
     public void execute(Request request, Response response) throws Exception {
         runAsync(context, response, () -> {
-            String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
             BucketPurgeMessage message = request.attr(MessageTypes.BUCKETPURGE).get();
+            String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, namespace, message.getBucket());
                 if (!metadata.removed()) {

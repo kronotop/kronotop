@@ -25,6 +25,7 @@ public class BucketCreateArgs {
     private String indexes;
     private String collation;
     private boolean ifNotExists;
+    private String namespace;
 
     public BucketCreateArgs shards(List<Integer> shards) {
         this.shards = shards;
@@ -43,6 +44,17 @@ public class BucketCreateArgs {
 
     public BucketCreateArgs ifNotExists() {
         this.ifNotExists = true;
+        return this;
+    }
+
+    /**
+     * Runs the command in the given namespace instead of the session's current one.
+     *
+     * @param namespace the namespace to run the command in
+     * @return this instance
+     */
+    public BucketCreateArgs namespace(String namespace) {
+        this.namespace = namespace;
         return this;
     }
 
@@ -67,6 +79,11 @@ public class BucketCreateArgs {
         if (ifNotExists) {
             args.add("IF-NOT-EXISTS");
         }
+
+        if (namespace != null) {
+            args.add("NAMESPACE");
+            args.add(namespace);
+        }
     }
 
     public static class Builder {
@@ -87,6 +104,10 @@ public class BucketCreateArgs {
 
         public static BucketCreateArgs ifNotExists() {
             return new BucketCreateArgs().ifNotExists();
+        }
+
+        public static BucketCreateArgs namespace(String namespace) {
+            return new BucketCreateArgs().namespace(namespace);
         }
     }
 }

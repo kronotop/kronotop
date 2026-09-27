@@ -89,6 +89,13 @@
         "token": "OVERQUERY",
         "optional": true,
         "summary": "A multiplier on TOP for the number of candidates the traversal examines. Must be 1.0 or higher. Defaults to the server setting."
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

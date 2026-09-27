@@ -36,9 +36,9 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
@@ -72,7 +72,7 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
     public void execute(Request request, Response response) {
         AnalyzeParameters parameters = new AnalyzeParameters(request.getParams());
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
+            String namespace = NamespaceUtil.resolve(request.getSession(), parameters.namespace);
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, parameters.bucket, parameters.index);
@@ -96,13 +96,15 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
     private static class AnalyzeParameters {
         private final String bucket;
         private final String index;
+        private final String namespace;
 
         AnalyzeParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
+            if (params.size() < 3 || params.size() > 5) {
                 throw new KronotopException("wrong number of parameters");
             }
             bucket = ProtocolMessageUtil.readAsString(params.get(1));
             index = ProtocolMessageUtil.readAsString(params.get(2));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
         }
     }
 }

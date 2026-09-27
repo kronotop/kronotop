@@ -106,7 +106,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
                 if (msg instanceof ErrorRedisMessage errorMessage) {
                     assertFalse(errorMessage.content().startsWith("NOT_COMMITTED"),
                             "Transient FDB conflict, retrying");
-                    assertEquals("An analyze task has already exist", errorMessage.content());
+                    assertEquals("ERR An analyze task has already exist", errorMessage.content());
                 } else {
                     SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) msg;
                     assertNotNull(actualMessage);
@@ -180,5 +180,48 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
                     "Transient FDB conflict, retrying");
             assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
         });
+    }
+
+    @Test
+    void shouldAnalyzeIndexInGivenNamespace() {
+        // Behavior: NAMESPACE analyzes the index of the bucket in the given namespace. Without it,
+        // the index is looked up in the session's current namespace.
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, List.of());
+        assertOK(run(bucketCmd.indexCreate(TEST_BUCKET, "{\"username\": {\"name\": \"test-index\", \"bson_type\": \"string\"}}", otherNamespace)));
+
+        // Analyze only works with the indexes in READY status.
+        BucketMetadata metadata = reloadBucketMetadata(otherNamespace, TEST_BUCKET);
+        SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
+        waitForIndexReadiness(index.subspace());
+
+        assertErrorReply("NOSUCHINDEX No such index: 'test-index'", run(bucketCmd.indexAnalyze(TEST_BUCKET, "test-index")));
+
+        // Retry on transient FDB transaction conflicts.
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            Object response = run(bucketCmd.indexAnalyze(TEST_BUCKET, "test-index", otherNamespace));
+            // The background IndexBoundaryRoutine may have already scheduled an analyze task.
+            if (response instanceof ErrorRedisMessage error) {
+                assertEquals("ERR An analyze task has already exist", error.content());
+            } else {
+                assertOK(response);
+            }
+        });
+    }
+
+    @Test
+    void shouldRejectAnalyzeWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.indexAnalyze(TEST_BUCKET, "test-index", MISSING_NAMESPACE)));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.INDEX ANALYZE rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("ANALYZE", "test-bucket", "test-index", "NAMESPACE")));
+        assertErrorReply("ERR Unknown 'BOGUS' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("ANALYZE", "test-bucket", "test-index", "BOGUS")));
+        assertErrorReply("ERR wrong number of parameters",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("ANALYZE", "test-bucket", "test-index", "NAMESPACE", "ns", "EXTRA")));
     }
 }

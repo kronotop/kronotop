@@ -173,6 +173,7 @@ public class MessageTypes {
     public static final AttributeKey<BucketRemoveMessage> BUCKETREMOVE = AttributeKey.valueOf(BucketRemoveMessage.COMMAND);
     public static final AttributeKey<BucketPurgeMessage> BUCKETPURGE = AttributeKey.valueOf(BucketPurgeMessage.COMMAND);
     public static final AttributeKey<BucketLocateMessage> BUCKETLOCATE = AttributeKey.valueOf(BucketLocateMessage.COMMAND);
+    public static final AttributeKey<BucketListMessage> BUCKETLIST = AttributeKey.valueOf(BucketListMessage.COMMAND);
     public static final AttributeKey<BucketVectorMessage> BUCKETVECTOR = AttributeKey.valueOf(BucketVectorMessage.COMMAND);
 
     // Session management

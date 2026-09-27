@@ -574,7 +574,10 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
                         "ERR Duplicate 'INDEXES' argument"),
                 arguments("repeated IF-NOT-EXISTS in mixed case",
                         List.of("test-bucket", "if-not-exists", "IF-NOT-EXISTS"),
-                        "ERR Duplicate 'IF-NOT-EXISTS' argument")
+                        "ERR Duplicate 'IF-NOT-EXISTS' argument"),
+                arguments("repeated NAMESPACE",
+                        List.of("test-bucket", "NAMESPACE", "a", "NAMESPACE", "b"),
+                        "ERR Duplicate 'NAMESPACE' argument")
         );
     }
 
@@ -602,7 +605,10 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
                         "ERR INDEXES argument must be followed by an index specification"),
                 arguments("COLLATION as the last argument",
                         List.of("test-bucket", "SHARDS", "1", "COLLATION"),
-                        "ERR COLLATION argument must be followed by a collation specification")
+                        "ERR COLLATION argument must be followed by a collation specification"),
+                arguments("NAMESPACE as the last argument",
+                        List.of("test-bucket", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
         );
     }
 
@@ -625,5 +631,34 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldCreateBucketInGivenNamespace() {
+        // Behavior: NAMESPACE creates the bucket in the given namespace. The session's current
+        // namespace does not get the bucket.
+        String otherNamespace = newNamespace();
+
+        assertOK(run(bucketCmd.create("other-bucket", BucketCreateArgs.Builder.namespace(otherNamespace))));
+
+        assertEquals(List.of("other-bucket"), readBulkStrings(run(bucketCmd.list(otherNamespace))));
+        assertFalse(readBulkStrings(run(bucketCmd.list())).contains("other-bucket"));
+    }
+
+    @Test
+    void shouldAcceptNamespaceAfterShards() {
+        // Behavior: SHARDS stops reading shard ids at the NAMESPACE keyword.
+        String otherNamespace = newNamespace();
+
+        assertOK(runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_CREATE,
+                List.of("other-bucket", "SHARDS", String.valueOf(TEST_SHARD_ID), "NAMESPACE", otherNamespace)));
+
+        assertEquals(List.of("other-bucket"), readBulkStrings(run(bucketCmd.list(otherNamespace))));
+    }
+
+    @Test
+    void shouldRejectCreateWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.create("other-bucket", BucketCreateArgs.Builder.namespace(MISSING_NAMESPACE))));
     }
 }

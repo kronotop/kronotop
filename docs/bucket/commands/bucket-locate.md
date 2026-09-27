@@ -11,14 +11,15 @@ shard, and the addresses of those members.
 ## Syntax
 
 ```kronotop
-BUCKET.LOCATE <bucket>
+BUCKET.LOCATE <bucket> [NAMESPACE <path>]
 ```
 
 ## Parameters
 
-| Parameter | Type   | Required | Description                   |
-|-----------|--------|----------|-------------------------------|
-| `bucket`  | string | Yes      | Name of the bucket to locate. |
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string | Yes      | Name of the bucket to locate.                                                                                                                            |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -47,6 +48,20 @@ The member table lists each member once, even when that member owns several shar
 route table are left out. Clients can use the member ID as a cache key for connections.
 
 ## Errors
+
+Argument errors:
+
+| Error Code | Error message                                        | Cause |
+|------------|------------------------------------------------------|-------|
+| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 Bucket errors:
 

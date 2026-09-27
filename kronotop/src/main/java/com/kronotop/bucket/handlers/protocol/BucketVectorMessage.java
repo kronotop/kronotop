@@ -23,6 +23,7 @@ import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
+import io.netty.buffer.ByteBuf;
 
 public class BucketVectorMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.VECTOR";
@@ -38,6 +39,7 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
     private int maxScanCandidates;
     private float overquery = -1.0f;
     private byte[] projection;
+    private String namespace;
 
     public BucketVectorMessage(Request request) {
         this.request = request;
@@ -120,6 +122,12 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
                     collation = CollationHelper.deserializeAndValidate(data);
                     i++;
                 }
+                case NAMESPACE -> {
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, key.getValue(), ProtocolMessageUtil.NAMESPACE_PATH);
+                    namespace = ProtocolMessageUtil.readAsString(value);
+                    i++;
+                }
             }
         }
     }
@@ -162,5 +170,12 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
 
     public Collation getCollation() {
         return collation;
+    }
+
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
     }
 }

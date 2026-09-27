@@ -162,4 +162,37 @@ class BucketIndexTasksSubcommandTest extends BaseIndexHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
         assertTrue(((ArrayRedisMessage) msg).children().isEmpty(), "Primary index should have no tasks");
     }
+
+    @Test
+    void shouldReturnTasksInGivenNamespace() {
+        // Behavior: NAMESPACE returns the tasks of the index in the given namespace. The bucket with
+        // the same name in the session's current namespace does not have that index.
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, List.of());
+        useRESP3();
+        assertOK(run(bucketCmd.indexCreate(TEST_BUCKET, "{\"username\": {\"bson_type\": \"string\"}}", otherNamespace)));
+
+        Object otherTasks = run(bucketCmd.indexTasks(TEST_BUCKET, "selector:username.bsonType:STRING", otherNamespace));
+        assertInstanceOf(MapRedisMessage.class, otherTasks);
+        assertFalse(((MapRedisMessage) otherTasks).children().isEmpty());
+
+        assertErrorReply("NOSUCHINDEX No such index: 'selector:username.bsonType:STRING'",
+                run(bucketCmd.indexTasks(TEST_BUCKET, "selector:username.bsonType:STRING")));
+    }
+
+    @Test
+    void shouldRejectTasksWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.indexTasks(TEST_BUCKET, "primary-index", MISSING_NAMESPACE)));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.INDEX TASKS rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("TASKS", "test-bucket", "primary-index", "NAMESPACE")));
+        assertErrorReply("ERR Unknown 'BOGUS' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("TASKS", "test-bucket", "primary-index", "BOGUS")));
+        assertErrorReply("ERR wrong number of parameters",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("TASKS", "test-bucket", "primary-index", "NAMESPACE", "ns", "EXTRA")));
+    }
 }

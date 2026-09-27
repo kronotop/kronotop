@@ -62,7 +62,7 @@ public class BucketInsertMessage extends AbstractBucketMessage implements Protoc
                 break;
             }
             if (argument.equals(InsertArgumentKey.NAMESPACE)) {
-                ByteBuf value = ProtocolMessageUtil.requireValue(request.getParams(), i, argument.name(), "a namespace");
+                ByteBuf value = ProtocolMessageUtil.requireValue(request.getParams(), i, argument.name(), ProtocolMessageUtil.NAMESPACE_PATH);
                 namespace = ProtocolMessageUtil.readAsString(value);
                 i++;
             }

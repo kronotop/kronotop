@@ -31,6 +31,7 @@ import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
@@ -178,5 +179,40 @@ class BucketIndexDropSubcommandTest extends BaseIndexHandlerTest {
             ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
             assertEquals("BUCKETBEINGREMOVED Bucket 'test-bucket' is being removed", errorMessage.content());
         }
+    }
+
+    @Test
+    void shouldDropIndexInGivenNamespace() {
+        // Behavior: NAMESPACE drops the index of the bucket in the given namespace. Without it, the
+        // index is looked up in the session's current namespace.
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, List.of());
+        assertOK(run(bucketCmd.indexCreate(TEST_BUCKET, "{\"username\": {\"name\": \"test-index\", \"bson_type\": \"string\"}}", otherNamespace)));
+
+        assertErrorReply("NOSUCHINDEX No such index: 'test-index'", run(bucketCmd.indexDrop(TEST_BUCKET, "test-index")));
+
+        // INDEX DROP rejects while the build task is still active, so poll until it accepts.
+        await().atMost(Duration.ofSeconds(15)).until(() ->
+                run(bucketCmd.indexDrop(TEST_BUCKET, "test-index", otherNamespace)) instanceof SimpleStringRedisMessage);
+
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
+                assertErrorReply("NOSUCHINDEX No such index: 'test-index'",
+                        run(bucketCmd.indexDescribe(TEST_BUCKET, "test-index", otherNamespace))));
+    }
+
+    @Test
+    void shouldRejectDropWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.indexDrop(TEST_BUCKET, "test-index", MISSING_NAMESPACE)));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.INDEX DROP rejects NAMESPACE without a value, an unknown keyword and an argument after the namespace.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("DROP", "test-bucket", "test-index", "NAMESPACE")));
+        assertErrorReply("ERR Unknown 'BOGUS' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("DROP", "test-bucket", "test-index", "BOGUS")));
+        assertErrorReply("ERR wrong number of parameters",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("DROP", "test-bucket", "test-index", "NAMESPACE", "ns", "EXTRA")));
     }
 }

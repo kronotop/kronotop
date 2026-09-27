@@ -183,9 +183,10 @@ public class BucketMetadataUtil {
             Context context,
             Transaction tr,
             Session session,
+            String namespace,
             String bucket
     ) {
-        DirectorySubspace parent = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
+        DirectorySubspace parent = NamespaceUtil.openDataStructureSubspace(context, tr, session, namespace, DataStructureKind.BUCKET);
         return parent.createOrOpen(tr, List.of(bucket)).join();
     }
 
@@ -207,9 +208,35 @@ public class BucketMetadataUtil {
             List<Integer> shards,
             Collation collation
     ) {
+        String namespace = NamespaceUtil.resolve(session, null);
+        return create(context, tr, session, namespace, bucket, shards, collation);
+    }
+
+    /**
+     * Creates a bucket in the given namespace within the caller's transaction.
+     *
+     * @param context   the context providing environment and services
+     * @param tr        the transaction for database access
+     * @param session   the session that caches the opened namespaces
+     * @param namespace the namespace to create the bucket in
+     * @param bucket    the bucket name
+     * @param shards    the shard IDs to assign to the bucket
+     * @param collation the bucket collation, or null for the default
+     * @return the newly created bucket metadata
+     * @throws BucketAlreadyExistsException if the bucket already exists
+     */
+    public static BucketMetadata create(
+            Context context,
+            Transaction tr,
+            Session session,
+            String namespace,
+            String bucket,
+            List<Integer> shards,
+            Collation collation
+    ) {
         checkShardsList(shards);
 
-        DirectorySubspace pointerSubspace = createOrOpenPointerSubspace(context, tr, session, bucket);
+        DirectorySubspace pointerSubspace = createOrOpenPointerSubspace(context, tr, session, namespace, bucket);
         byte[] pointerKey = bucketPointerKey(pointerSubspace);
         byte[] existing = tr.get(pointerKey).join();
         if (existing != null) {
@@ -230,7 +257,6 @@ public class BucketMetadataUtil {
                 ).join();
 
         // This is required to resolve namespace name during vacuum & reclaim
-        String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
         DirectorySubspace parent = NamespaceUtil.open(tr, context, namespace);
         byte[] namespaceBindingKey = namespaceBindingKey(bucketSubspace);
         tr.set(namespaceBindingKey, parent.pack());

@@ -10,21 +10,22 @@ Returns the query execution plan for a given query without executing it.
 ## Syntax
 
 ```kronotop
-BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>]
+BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>]
 ```
 
 ## Parameters
 
 Keyword names are not case-sensitive, and each keyword can appear at most once.
 
-| Parameter   | Type               | Required | Description                                                                                         |
-|-------------|--------------------|----------|-----------------------------------------------------------------------------------------------------|
-| `bucket`    | string             | Yes      | Name of the bucket to explain the query against.                                                    |
-| `query`     | JSON or BSON       | Yes      | Filter expression to analyze. Use `{}` to match all documents.                                      |
-| `SORTBY`    | string + direction | No       | Sort specification. Requires field name followed by `ASC` or `DESC`.                                |
-| `BATCH`     | integer            | No       | Maximum number of documents per batch.                                                              |
-| `LIMIT`     | integer            | No       | Maximum total number of documents across all batches. `0` means no limit.                           |
-| `COLLATION` | JSON               | No       | Query-level collation spec. When provided, the plan reflects how collation affects index selection. |
+| Parameter   | Type               | Required | Description                                                                                                                                              |
+|-------------|--------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string             | Yes      | Name of the bucket to explain the query against.                                                                                                         |
+| `query`     | JSON or BSON       | Yes      | Filter expression to analyze. Use `{}` to match all documents.                                                                                           |
+| `SORTBY`    | string + direction | No       | Sort specification. Requires field name followed by `ASC` or `DESC`.                                                                                     |
+| `BATCH`     | integer            | No       | Maximum number of documents per batch.                                                                                                                   |
+| `LIMIT`     | integer            | No       | Maximum total number of documents across all batches. `0` means no limit.                                                                                |
+| `COLLATION` | JSON               | No       | Query-level collation spec. When provided, the plan reflects how collation affects index selection.                                                      |
+| `NAMESPACE` | string             | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 The parameters are identical to `BUCKET.QUERY`. The query is parsed and planned but never executed.
 
@@ -211,6 +212,7 @@ Argument errors:
 | `ERR`      | `Unknown sort direction: '<value>'`                         | The `SORTBY` direction is not `ASC` or `DESC`. |
 | `ERR`      | `Unknown '<keyword>' argument`                              | -                                              |
 | `ERR`      | `Duplicate '<keyword>' argument`                            | -                                              |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`        | -                                              |
 
 Namespace errors:
 

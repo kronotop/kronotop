@@ -26,20 +26,35 @@ purge. In most cases, a single retry is sufficient.
 ## Syntax
 
 ```kronotop
-BUCKET.PURGE <bucket>
+BUCKET.PURGE <bucket> [NAMESPACE <path>]
 ```
 
 ## Parameters
 
-| Parameter | Type   | Required | Description                                                                                                  |
-|-----------|--------|----------|--------------------------------------------------------------------------------------------------------------|
-| `bucket`  | string | Yes      | Name of the bucket to permanently delete. The bucket must be marked for removal first using `BUCKET.REMOVE`. |
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string | Yes      | Name of the bucket to permanently delete. The bucket must be marked for removal first using `BUCKET.REMOVE`.                                             |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
 Returns `OK` on success.
 
 ## Errors
+
+Argument errors:
+
+| Error Code | Error message                                        | Cause |
+|------------|------------------------------------------------------|-------|
+| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 Bucket errors:
 

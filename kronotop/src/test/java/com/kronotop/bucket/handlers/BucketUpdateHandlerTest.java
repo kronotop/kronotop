@@ -3060,4 +3060,61 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
+
+    @Test
+    void shouldUpdateInGivenNamespace() {
+        // Behavior: NAMESPACE runs the update in the given namespace. Documents in the session's
+        // current namespace stay untouched.
+        insertDocumentsIntoBucket(TEST_BUCKET, List.of(TEST_DOCUMENT));
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, List.of(TEST_DOCUMENT));
+        useRESP3();
+
+        BucketQueryArgs args = BucketQueryArgs.Builder.namespace(otherNamespace);
+        Object response = run(bucketCmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"touched\": true}}", args));
+        assertEquals(1, extractObjectIds(response).size());
+
+        List<BsonDocument> otherEntries = extractEntries(run(bucketCmd.query(TEST_BUCKET, "{}", args)));
+        assertEquals(1, otherEntries.size());
+        assertTrue(otherEntries.getFirst().containsKey("touched"));
+
+        List<BsonDocument> defaultEntries = extractEntries(run(bucketCmd.query(TEST_BUCKET, "{}")));
+        assertEquals(1, defaultEntries.size());
+        assertFalse(defaultEntries.getFirst().containsKey("touched"));
+    }
+
+    @Test
+    void shouldAdvanceUpdateCursorInGivenNamespace() {
+        // Behavior: an update cursor opened with NAMESPACE keeps that namespace for BUCKET.ADVANCE.
+        String otherNamespace = newNamespaceWithBucket(TEST_BUCKET, makeDummyDocument(2));
+        useRESP3();
+
+        Object response = run(bucketCmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"touched\": true}}",
+                BucketQueryArgs.Builder.namespace(otherNamespace).batch(1)));
+        assertEquals(1, extractObjectIds(response).size());
+
+        Object advanced = run(bucketCmd.advanceUpdate(extractCursorId(response)));
+        assertEquals(1, extractObjectIds(advanced).size());
+
+        Object touched = run(bucketCmd.query(TEST_BUCKET, "{\"touched\": {\"$eq\": true}}",
+                BucketQueryArgs.Builder.namespace(otherNamespace)));
+        assertEquals(2, extractEntries(touched).size());
+    }
+
+    @Test
+    void shouldRejectUpdateWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        assertNoSuchNamespace(run(bucketCmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"a\": 1}}",
+                BucketQueryArgs.Builder.namespace(MISSING_NAMESPACE))));
+    }
+
+    @Test
+    void shouldRejectInvalidNamespaceArgument() {
+        // Behavior: BUCKET.UPDATE rejects NAMESPACE without a value and a repeated NAMESPACE.
+        assertErrorReply("ERR NAMESPACE argument must be followed by a namespace",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
+                        List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "NAMESPACE")));
+        assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
+                runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
+                        List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "NAMESPACE", "a", "NAMESPACE", "b")));
+    }
 }

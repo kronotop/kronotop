@@ -24,9 +24,9 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.RetryMethods;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
@@ -80,7 +80,7 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
             retry.executeRunnable(() -> {
                 try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                     TransactionalContext tx = new TransactionalContext(context, tr);
-                    String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
+                    String namespace = NamespaceUtil.resolve(request.getSession(), parameters.getNamespace());
                     BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, namespace, parameters.getBucket());
                     IndexCreationHelper.createIndexes(tx, metadata, parameters.getPayload(), IndexStatus.WAITING);
                     tr.commit().join();
@@ -94,6 +94,7 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
 
         private String bucket;
         private IndexSchemaPayload payload;
+        private String namespace;
 
         CreateParameters(ArrayList<ByteBuf> params) {
             this.params = params;
@@ -101,11 +102,12 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
         }
 
         private void parse() {
-            if (params.size() != 3) {
+            if (params.size() < 3 || params.size() > 5) {
                 throw new IllegalArgumentException("wrong number of parameters");
             }
             bucket = ProtocolMessageUtil.readAsString(params.get(1));
             payload = IndexCreationHelper.deserializeAndValidate(ProtocolMessageUtil.readAsByteArray(params.get(2)));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
         }
 
         public IndexSchemaPayload getPayload() {
@@ -116,5 +118,8 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
             return bucket;
         }
 
+        public String getNamespace() {
+            return namespace;
+        }
     }
 }

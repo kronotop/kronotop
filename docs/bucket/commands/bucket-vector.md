@@ -17,7 +17,7 @@ structured query predicates.
 ## Syntax
 
 ```kronotop
-BUCKET.VECTOR <bucket> <selector> <vector> [FILTER <expression>] [PROJECTION <spec>] [TOP <n>] [THRESHOLD <n>] [MAX-SCAN-CANDIDATES <n>] [OVERQUERY <n>]
+BUCKET.VECTOR <bucket> <selector> <vector> [FILTER <expression>] [PROJECTION <spec>] [TOP <n>] [THRESHOLD <n>] [MAX-SCAN-CANDIDATES <n>] [OVERQUERY <n>] [NAMESPACE <path>]
 ```
 
 ## Parameters
@@ -35,6 +35,7 @@ Keyword names are not case-sensitive, and each keyword can appear at most once.
 | `THRESHOLD`           | number         | No       | Minimum similarity score. Results with a score below this value are excluded. Default: `0.0`.                                                                                                                                                              |
 | `MAX-SCAN-CANDIDATES` | integer        | No       | Maximum number of vector candidates to examine during filtered search. Must be a positive integer. Limits how far the search explores the vector graph. Default: the server setting.                                                                       |
 | `OVERQUERY`           | number         | No       | Multiplier that controls how many extra candidates the graph traversal examines beyond the requested TOP. Must be `>= 1.0`. Higher values may improve recall at the cost of latency. Default: the server setting.                                          |
+| `NAMESPACE`           | string         | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change.                                                                                                   |
 
 ## Binary Vector Format
 
@@ -131,6 +132,8 @@ Argument errors:
 | `ERR`      | `OVERQUERY argument must be >= 1.0`                                       | -     |
 | `ERR`      | `MAX-SCAN-CANDIDATES argument must be a positive integer`                 | -     |
 | `ERR`      | `Vector index '<index>' requires <n> dimensions but query vector has <m>` | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                                            | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`                      | -     |
 
 Namespace errors:
 

@@ -30,9 +30,9 @@ import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -147,7 +147,7 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
         TasksParameters parameters = new TasksParameters(request.getParams());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> parent = new LinkedHashMap<>();
-            String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();
+            String namespace = NamespaceUtil.resolve(request.getSession(), parameters.namespace);
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, parameters.bucket, parameters.index);
@@ -166,13 +166,15 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
     private static class TasksParameters {
         private final String bucket;
         private final String index;
+        private final String namespace;
 
         TasksParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
+            if (params.size() < 3 || params.size() > 5) {
                 throw new KronotopException("wrong number of parameters");
             }
             bucket = ProtocolMessageUtil.readAsString(params.get(1));
             index = ProtocolMessageUtil.readAsString(params.get(2));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
         }
     }
 }

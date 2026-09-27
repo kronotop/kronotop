@@ -25,12 +25,13 @@ import java.util.Set;
 
 public class BucketDeleteMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.DELETE";
-    public static final int MAXIMUM_PARAMETER_COUNT = 8;
+    public static final int MAXIMUM_PARAMETER_COUNT = 10;
     public static final int MINIMUM_PARAMETER_COUNT = 2;
     private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(
             QueryArgumentKey.BATCH,
             QueryArgumentKey.COLLATION,
-            QueryArgumentKey.LIMIT
+            QueryArgumentKey.LIMIT,
+            QueryArgumentKey.NAMESPACE
     );
     private final Request request;
     private byte[] query;

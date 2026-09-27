@@ -4,7 +4,7 @@
     "complexity": "O(N) where N is the number of indexes on the bucket.",
     "group": "bucket",
     "since": "2026.06-1",
-    "arity": 3,
+    "arity": -3,
     "container": "BUCKET.INDEX",
     "command_flags": [
       "READONLY"
@@ -26,6 +26,13 @@
         "name": "bucket",
         "type": "string",
         "summary": "The name of the bucket to list the indexes of."
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

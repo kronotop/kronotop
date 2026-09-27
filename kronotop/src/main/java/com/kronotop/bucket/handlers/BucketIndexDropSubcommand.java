@@ -24,6 +24,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.index.*;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
@@ -50,7 +51,8 @@ public class BucketIndexDropSubcommand implements SubcommandHandler {
             }
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), parameters.bucket);
+                String namespace = NamespaceUtil.resolve(request.getSession(), parameters.namespace);
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, parameters.bucket);
                 VectorIndex vectorIndex = metadata.vectorIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
                 if (vectorIndex != null) {
                     VectorIndexUtil.drop(tx, metadata, parameters.index);
@@ -70,13 +72,15 @@ public class BucketIndexDropSubcommand implements SubcommandHandler {
     private static class DropParameters {
         private final String bucket;
         private final String index;
+        private final String namespace;
 
         DropParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
+            if (params.size() < 3 || params.size() > 5) {
                 throw new KronotopException("wrong number of parameters");
             }
             bucket = ProtocolMessageUtil.readAsString(params.get(1));
             index = ProtocolMessageUtil.readAsString(params.get(2));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
         }
     }
 }

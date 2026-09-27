@@ -69,7 +69,7 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
             Session session = request.getSession();
 
             Transaction tr = TransactionUtil.getOrCreateTransaction(service.getContext(), session);
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, message.getBucket(), message.getArguments());
             checkBucketOwnership(metadata);
             if (!metadata.vectorIndexes().isEmpty()) {
                 checkVectorIndexRecoveryState(metadata);

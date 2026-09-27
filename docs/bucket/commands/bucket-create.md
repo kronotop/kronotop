@@ -10,7 +10,7 @@ Creates a new bucket with optional shard assignment and index definitions.
 ## Syntax
 
 ```kronotop
-BUCKET.CREATE <bucket> [SHARDS <shard-id> [shard-id ...]] [INDEXES <schema>] [COLLATION <spec>] [IF-NOT-EXISTS]
+BUCKET.CREATE <bucket> [SHARDS <shard-id> [shard-id ...]] [INDEXES <schema>] [COLLATION <spec>] [IF-NOT-EXISTS] [NAMESPACE <path>]
 ```
 
 ## Parameters
@@ -24,6 +24,7 @@ Keyword names are not case-sensitive, and each keyword can appear at most once. 
 | `INDEXES`       | JSON       | No       | Index schema defining secondary indexes to create alongside the bucket.                                                                                               |
 | `COLLATION`     | JSON       | No       | Bucket-level collation spec for locale-aware string ordering. See [Collation](../collation.md).                                                                       |
 | `IF-NOT-EXISTS` | flag       | No       | When specified, the command returns `OK` instead of an error if the bucket already exists. See [Removed buckets](#removed-buckets) for the case where it still fails. |
+| `NAMESPACE`     | string     | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change.              |
 
 ## Return Value
 
@@ -141,6 +142,14 @@ Argument errors:
 | `ERR`      | `SHARDS argument must be followed by one or more shard ids`        | -     |
 | `ERR`      | `INDEXES argument must be followed by an index specification`      | -     |
 | `ERR`      | `COLLATION argument must be followed by a collation specification` | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`               | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 Bucket errors:
 

@@ -10,7 +10,7 @@ Deletes documents from a bucket that match a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.DELETE <bucket> <query> [BATCH <n>] [LIMIT <n>] [COLLATION <spec>]
+BUCKET.DELETE <bucket> <query> [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>]
 ```
 
 ## Parameters
@@ -24,6 +24,7 @@ Keyword names are not case-sensitive, and each keyword can appear at most once.
 | `BATCH`     | integer      | No       | Maximum number of documents to delete per batch. Must be non-negative. It does not cap the total number of results, use `LIMIT` for that. Use `BUCKET.ADVANCE` to get the next batch.                                                                      |
 | `LIMIT`     | integer      | No       | Maximum total number of documents the cursor deletes across the first call and all `BUCKET.ADVANCE` calls. Must be non-negative. `0` means no limit (default). When the limit is reached, the response carries `cursor_id` `-1` and the cursor is removed. |
 | `COLLATION` | JSON         | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                                                   |
+| `NAMESPACE` | string       | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. A cursor opened this way stays in that namespace for `BUCKET.ADVANCE`.                            |
 
 Note: `SORTBY` is not supported for delete operations.
 
@@ -109,6 +110,7 @@ Argument errors:
 | `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -     |
 | `ERR`      | `Unknown '<keyword>' argument`                              | -     |
 | `ERR`      | `Duplicate '<keyword>' argument`                            | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`        | -     |
 
 Namespace errors:
 

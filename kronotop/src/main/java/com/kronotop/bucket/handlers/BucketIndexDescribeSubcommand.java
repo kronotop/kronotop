@@ -25,6 +25,7 @@ import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.index.*;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
@@ -132,7 +133,8 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, parameters.bucket);
+                String namespace = NamespaceUtil.resolve(session, parameters.namespace);
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, parameters.bucket);
 
                 VectorIndex vectorIndex = metadata.vectorIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
                 if (vectorIndex != null) {
@@ -159,13 +161,15 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
     private static class DescribeParameters {
         private final String bucket;
         private final String index;
+        private final String namespace;
 
         DescribeParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
+            if (params.size() < 3 || params.size() > 5) {
                 throw new KronotopException("wrong number of parameters");
             }
             bucket = ProtocolMessageUtil.readAsString(params.get(1));
             index = ProtocolMessageUtil.readAsString(params.get(2));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
         }
     }
 }

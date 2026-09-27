@@ -33,20 +33,28 @@ and you should retry the command.
 ## Syntax
 
 ```kronotop
-BUCKET.REMOVE <bucket>
+BUCKET.REMOVE <bucket> [NAMESPACE <path>]
 ```
 
 ## Parameters
 
-| Parameter | Type   | Required | Description                             |
-|-----------|--------|----------|-----------------------------------------|
-| `bucket`  | string | Yes      | Name of the bucket to mark for removal. |
+| Parameter   | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string | Yes      | Name of the bucket to mark for removal.                                                                                                                  |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
 Returns `OK` on success.
 
 ## Errors
+
+Argument errors:
+
+| Error Code | Error message                                        | Cause |
+|------------|------------------------------------------------------|-------|
+| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 
 Namespace errors:
 

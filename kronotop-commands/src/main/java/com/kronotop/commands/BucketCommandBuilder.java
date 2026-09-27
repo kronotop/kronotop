@@ -130,51 +130,128 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return new Command<>(HELLO, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
+    private static void addNamespace(CommandArgs<?, ?> args, String namespace) {
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
+    }
+
     public final Command<K, V, String> indexCreate(String bucket, String schemas) {
+        return indexCreate(bucket, schemas, null);
+    }
+
+    /**
+     * Same as {@code indexCreate} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param bucket    the bucket name
+     * @param schemas   the index definitions
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    public final Command<K, V, String> indexCreate(String bucket, String schemas, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(BucketIndex.CREATE).
                 add(bucket).
                 add(schemas);
+        addNamespace(args, namespace);
         return createCommand(CommandType.BUCKET_INDEX, new StatusOutput<>(codec), args);
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public Command<K, V, List<String>> indexList(String bucket) {
+        return indexList(bucket, null);
+    }
+
+    /**
+     * Same as {@code indexList} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param bucket    the bucket name
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Command<K, V, List<String>> indexList(String bucket, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(BucketIndex.LIST).
                 add(bucket);
+        addNamespace(args, namespace);
         return new Command(CommandType.BUCKET_INDEX, new StringListOutput<>(StringCodec.ASCII), args);
     }
 
     public Command<String, String, Map<String, Object>> indexDescribe(String bucket, String index) {
+        return indexDescribe(bucket, index, null);
+    }
+
+    /**
+     * Same as {@code indexDescribe} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param bucket    the bucket name
+     * @param index     the index name
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    public Command<String, String, Map<String, Object>> indexDescribe(String bucket, String index, String namespace) {
         CommandArgs<String, String> args = new CommandArgs<>(StringCodec.UTF8).
                 add(BucketIndex.DESCRIBE).
                 add(bucket).
                 add(index);
+        addNamespace(args, namespace);
         return new Command<>(CommandType.BUCKET_INDEX, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
     public Command<K, V, String> indexDrop(String bucket, String index) {
+        return indexDrop(bucket, index, null);
+    }
+
+    /**
+     * Same as {@code indexDrop} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param bucket    the bucket name
+     * @param index     the index name
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    public Command<K, V, String> indexDrop(String bucket, String index, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(BucketIndex.DROP).
                 add(bucket).
                 add(index);
+        addNamespace(args, namespace);
         return createCommand(CommandType.BUCKET_INDEX, new StatusOutput<>(codec), args);
     }
 
     public Command<K, V, String> indexAnalyze(String bucket, String index) {
+        return indexAnalyze(bucket, index, null);
+    }
+
+    /**
+     * Same as {@code indexAnalyze} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param bucket    the bucket name
+     * @param index     the index name
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    public Command<K, V, String> indexAnalyze(String bucket, String index, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 add(BucketIndex.ANALYZE).
                 add(bucket).
                 add(index);
+        addNamespace(args, namespace);
         return createCommand(CommandType.BUCKET_INDEX, new StatusOutput<>(codec), args);
     }
 
     public Command<String, String, Map<String, Object>> indexTasks(String bucket, String index) {
+        return indexTasks(bucket, index, null);
+    }
+
+    /**
+     * Same as {@code indexTasks} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param bucket    the bucket name
+     * @param index     the index name
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    public Command<String, String, Map<String, Object>> indexTasks(String bucket, String index, String namespace) {
         CommandArgs<String, String> args = new CommandArgs<>(StringCodec.UTF8).
                 add(BucketIndex.TASKS).
                 add(bucket).
                 add(index);
+        addNamespace(args, namespace);
         return new Command<>(CommandType.BUCKET_INDEX, new GenericMapOutput<>(StringCodec.ASCII), args);
     }
 
@@ -227,7 +304,18 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     public final Command<K, V, String> remove(String bucket) {
+        return remove(bucket, null);
+    }
+
+    /**
+     * Same as {@code remove} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param bucket    the bucket name
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    public final Command<K, V, String> remove(String bucket, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
+        addNamespace(args, namespace);
         return createCommand(CommandType.BUCKET_REMOVE, new StatusOutput<>(codec), args);
     }
 
@@ -243,17 +331,49 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     public final Command<K, V, String> purge(String bucket) {
+        return purge(bucket, null);
+    }
+
+    /**
+     * Same as {@code purge} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param bucket    the bucket name
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    public final Command<K, V, String> purge(String bucket, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
+        addNamespace(args, namespace);
         return createCommand(CommandType.BUCKET_PURGE, new StatusOutput<>(codec), args);
     }
 
     public final Command<K, V, List<Object>> locate(String bucket) {
+        return locate(bucket, null);
+    }
+
+    /**
+     * Same as {@code locate} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param bucket    the bucket name
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    public final Command<K, V, List<Object>> locate(String bucket, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
+        addNamespace(args, namespace);
         return createCommand(CommandType.BUCKET_LOCATE, new ArrayOutput<>(codec), args);
     }
 
     public final Command<K, V, List<Object>> list() {
+        return list(null);
+    }
+
+    /**
+     * Same as {@code list} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     */
+    public final Command<K, V, List<Object>> list(String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec);
+        addNamespace(args, namespace);
         return createCommand(CommandType.BUCKET_LIST, new ArrayOutput<>(codec), args);
     }
 

@@ -22,10 +22,11 @@ import com.kronotop.server.Request;
 
 public class BucketRemoveMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.REMOVE";
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_PARAMETER_COUNT = 3;
     public static final int MINIMUM_PARAMETER_COUNT = 1;
     private final Request request;
     private String bucket;
+    private String namespace;
 
     public BucketRemoveMessage(Request request) {
         this.request = request;
@@ -34,9 +35,17 @@ public class BucketRemoveMessage extends AbstractBucketMessage implements Protoc
 
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 1);
     }
 
     public String getBucket() {
         return bucket;
+    }
+
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
     }
 }
