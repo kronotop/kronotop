@@ -54,11 +54,6 @@ class ZWatchHandlerTest extends BaseHandlerTest {
         return service.getZWatcher();
     }
 
-    private void assertOK(Object response) {
-        assertInstanceOf(SimpleStringRedisMessage.class, response);
-        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
-    }
-
     private void zset(EmbeddedChannel channel, String key, String value) {
         ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();

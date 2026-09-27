@@ -55,6 +55,20 @@ public abstract class BaseZMapHandler implements Handler {
     }
 
     /**
+     * Opens the ZMap subspace of the given namespace, or of the session's current namespace
+     * when the namespace is null.
+     *
+     * @param tr        the transaction object for performing operations within the current transaction context
+     * @param session   the session object representing the user session and its associated metadata
+     * @param namespace the namespace given on the command, or null
+     * @return the DirectorySubspace object representing the ZMap subspace in the database
+     */
+    protected DirectorySubspace openZMapSubspace(Transaction tr, Session session, String namespace) {
+        String name = NamespaceUtil.resolve(session, namespace);
+        return NamespaceUtil.openDataStructureSubspace(context, tr, session, name, DataStructureKind.ZMAP);
+    }
+
+    /**
      * Resolves a user-supplied key range into a packed range inside the ZMap subspace.
      * An asterisk stands for the subspace boundary: the first key for the begin side,
      * and the end of the subspace for the end side.

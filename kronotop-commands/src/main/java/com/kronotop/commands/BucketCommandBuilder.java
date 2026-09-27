@@ -42,9 +42,18 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return buf.array();
     }
 
-    public final Command<K, V, List<String>> insert(String bucket, List<V> documents) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add("DOCS").addValues(documents);
+
+    public final Command<K, V, List<String>> insert(String bucket, String namespace, List<V> documents) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
+        args.add("DOCS").addValues(documents);
         return createCommand(CommandType.BUCKET_INSERT, new StringListOutput<>(codec), args);
+    }
+
+    public final Command<K, V, List<String>> insert(String bucket, List<V> documents) {
+        return insert(bucket, null, documents);
     }
 
     @SafeVarargs

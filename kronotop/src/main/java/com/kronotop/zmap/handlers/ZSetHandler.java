@@ -61,7 +61,7 @@ public class ZSetHandler extends BaseZMapHandler implements Handler {
 
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
 
             tr.set(subspace.pack(message.getKey()), message.getValue());
             TransactionUtil.commitIfAutoCommitEnabled(tr, session);

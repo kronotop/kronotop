@@ -5,7 +5,7 @@
     "group": "zmap",
     "since": "2026.06-1",
     "servers": ["EXTERNAL"],
-    "arity": 3,
+    "arity": -3,
     "command_flags": [
       "WRITE",
       "FAST"
@@ -47,6 +47,13 @@
         "name": "value",
         "type": "string",
         "summary": "The value to store under the key."
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

@@ -32,6 +32,7 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
     protected static final String COLLATION_SPECIFICATION = "a collation specification";
     private static final String FIELD_AND_DIRECTION = "a field name and direction (ASC or DESC)";
     private static final String SORT_DIRECTION = "sort direction";
+    private static final String NAMESPACE_PATH = "a namespace";
 
     @Override
     public Void getKey() {
@@ -126,6 +127,15 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                             request.getParams(), i, argument.name(), COLLATION_SPECIFICATION);
                     byte[] data = ProtocolMessageUtil.readAsByteArray(value);
                     arguments.setCollation(CollationHelper.deserializeAndValidate(data));
+                    i++;
+                }
+                case NAMESPACE -> {
+                    if (!supportedArguments.contains(QueryArgumentKey.NAMESPACE)) {
+                        throw new UnsupportedArgumentException(QueryArgumentKey.NAMESPACE);
+                    }
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.name(), NAMESPACE_PATH);
+                    arguments.setNamespace(ProtocolMessageUtil.readAsString(value));
                     i++;
                 }
             }

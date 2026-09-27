@@ -28,6 +28,7 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumParameterCount;
 import com.kronotop.server.resp3.RedisMessage;
+import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.AppendedEntry;
@@ -331,7 +332,8 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             Session session = request.getSession();
 
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, message.getBucket());
+            String namespace = NamespaceUtil.resolve(session, message.getNamespace());
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, message.getBucket());
 
             SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
             if (primaryIndex == null) {

@@ -10,15 +10,16 @@ Inserts one or more documents into a bucket.
 ## Syntax
 
 ```kronotop
-BUCKET.INSERT <bucket> DOCS <document> [document ...]
+BUCKET.INSERT <bucket> [NAMESPACE <path>] DOCS <document> [document ...]
 ```
 
 ## Parameters
 
-| Parameter | Type         | Required | Description                                                                                                             |
-|-----------|--------------|----------|-------------------------------------------------------------------------------------------------------------------------|
-| `bucket`  | string       | Yes      | Name of the target bucket. The bucket must already exist (see `BUCKET.CREATE`).                                         |
-| `DOCS`    | JSON or BSON | Yes      | One or more documents to insert. Documents can be in JSON or BSON format depending on the session's input type setting. |
+| Parameter   | Type         | Required | Description                                                                                                                                                                       |
+|-------------|--------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `bucket`    | string       | Yes      | Name of the target bucket. The bucket must already exist (see `BUCKET.CREATE`).                                                                                                   |
+| `NAMESPACE` | string       | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. Must come before `DOCS`. |
+| `DOCS`      | JSON or BSON | Yes      | One or more documents to insert. Documents can be in JSON or BSON format depending on the session's input type setting.                                                           |
 
 The `DOCS` keyword is not case-sensitive. Every argument after it is read as a document.
 
@@ -97,6 +98,8 @@ Argument errors:
 |------------|-----------------------------------------------------------|-------|
 | `ERR`      | `Unknown '<keyword>' argument`                            | -     |
 | `ERR`      | `DOCS argument must be followed by one or more documents` | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`      | -     |
+| `ERR`      | `Duplicate '<keyword>' argument`                          | -     |
 | `ERR`      | `_id field must be of type ObjectId`                      | -     |
 
 Namespace errors:

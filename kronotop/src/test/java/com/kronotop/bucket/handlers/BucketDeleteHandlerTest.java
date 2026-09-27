@@ -82,15 +82,6 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
     }
 
-    private void insertDocumentsIntoBucket(String bucketName, List<byte[]> documents) {
-        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
-        ByteBuf buf = Unpooled.buffer();
-        byte[][] docs = makeDocumentsArray(documents);
-        cmd.insert(bucketName, docs).encode(buf);
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(ArrayRedisMessage.class, msg);
-    }
-
     @Test
     void shouldDeleteWithRegexFilter() {
         // Behavior: BUCKET.DELETE with a $regex filter removes only the matching string documents and returns their ObjectIds.

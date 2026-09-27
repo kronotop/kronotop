@@ -27,6 +27,7 @@ public class BucketQueryArgs {
     private String resultSortDirection;
     private String projection;
     private String collation;
+    private String namespace;
 
     public BucketQueryArgs limit(int limit) {
         this.limit = limit;
@@ -57,6 +58,11 @@ public class BucketQueryArgs {
 
     public BucketQueryArgs collation(String collation) {
         this.collation = collation;
+        return this;
+    }
+
+    public BucketQueryArgs namespace(String namespace) {
+        this.namespace = namespace;
         return this;
     }
 
@@ -92,6 +98,11 @@ public class BucketQueryArgs {
             args.add("COLLATION");
             args.add(collation);
         }
+
+        if (namespace != null) {
+            args.add("NAMESPACE");
+            args.add(namespace);
+        }
     }
 
     public static class Builder {
@@ -120,6 +131,10 @@ public class BucketQueryArgs {
 
         public static BucketQueryArgs collation(String collation) {
             return new BucketQueryArgs().collation(collation);
+        }
+
+        public static BucketQueryArgs namespace(String namespace) {
+            return new BucketQueryArgs().namespace(namespace);
         }
     }
 }

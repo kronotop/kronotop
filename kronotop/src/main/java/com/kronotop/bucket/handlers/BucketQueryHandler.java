@@ -53,7 +53,7 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(service.getContext(), session);
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket());
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, session, message.getBucket(), message.getArguments());
 
             QueryContext ctx = buildQueryContext(request, metadata, message.getQuery(), message.getArguments());
             ctx.setSnapshotRead(TransactionUtil.isSnapshotRead(session));

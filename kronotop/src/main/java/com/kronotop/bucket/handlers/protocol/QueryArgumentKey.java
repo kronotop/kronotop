@@ -23,4 +23,5 @@ public enum QueryArgumentKey {
     RESULTSORT,
     PROJECTION,
     COLLATION,
+    NAMESPACE,
 }

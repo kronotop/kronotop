@@ -48,9 +48,24 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing the result as a string response from the server.
      */
     public Command<K, V, String> zset(K key, V value) {
+        return zset(key, value, null);
+    }
+
+    /**
+     * Constructs a ZSET command that runs in the given namespace instead of the session's current one.
+     *
+     * @param key       the key to set; must not be null.
+     * @param value     the value to set for the key; must not be null.
+     * @param namespace the namespace to run the command in.
+     * @return a {@link Command} instance representing the ZSET operation.
+     */
+    public Command<K, V, String> zset(K key, V value, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key).
                 addValue(value);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZSET, new StatusOutput<>(codec), args);
     }
 
@@ -66,6 +81,21 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
     public Command<K, V, V> zget(K key) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key);
+        return createCommand(CommandType.ZGET, new ValueOutput<>(codec), args);
+    }
+
+    /**
+     * Constructs a ZGET command that runs in the given namespace instead of the session's current one.
+     *
+     * @param key       the key to read; must not be null.
+     * @param namespace the namespace to run the command in; must not be null.
+     * @return a {@link Command} instance representing the ZGET operation.
+     */
+    public Command<K, V, V> zget(K key, String namespace) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                addKey(key).
+                add("NAMESPACE").
+                add(namespace);
         return createCommand(CommandType.ZGET, new ValueOutput<>(codec), args);
     }
 

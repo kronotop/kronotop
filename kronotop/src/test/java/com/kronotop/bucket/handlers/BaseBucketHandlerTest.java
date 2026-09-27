@@ -26,9 +26,12 @@ import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.index.SingleFieldIndexUtil;
 import com.kronotop.commands.BucketCommandBuilder;
+import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
+import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonDocument;
@@ -314,5 +317,54 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(selector, IndexSelectionPolicy.ALL);
             return SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
         }
+    }
+
+    void insertDocumentsIntoBucket(String bucketName, List<byte[]> documents) {
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        byte[][] docs = makeDocumentsArray(documents);
+        cmd.insert(bucketName, docs).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+    }
+
+    void createNamespaceWithBucket(String namespace) {
+        createNamespaceWithBucket(namespace, List.of());
+    }
+
+    void createNamespaceWithBucket(String namespace, List<byte[]> documents) {
+        KronotopCommandBuilder<String, String> nsCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        BucketCommandBuilder<byte[], byte[]> bucketCmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            nsCmd.namespaceCreate(namespace).encode(buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            nsCmd.namespaceUse(namespace).encode(buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            bucketCmd.create(TEST_BUCKET).encode(buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, runCommand(channel, buf));
+        }
+        if (!documents.isEmpty()) {
+            insertDocumentsIntoBucket(TEST_BUCKET, documents);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            nsCmd.namespaceUse(TEST_NAMESPACE).encode(buf);
+            assertInstanceOf(SimpleStringRedisMessage.class, runCommand(channel, buf));
+        }
+    }
+
+    int countDocuments(BucketCommandBuilder<String, String> cmd) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}").encode(buf);
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, response);
+        return extractEntries(response).size();
     }
 }

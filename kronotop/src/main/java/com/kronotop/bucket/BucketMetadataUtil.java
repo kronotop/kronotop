@@ -30,6 +30,7 @@ import com.kronotop.Context;
 import com.kronotop.DataStructureKind;
 import com.kronotop.KronotopException;
 import com.kronotop.TransactionalContext;
+import com.kronotop.bucket.handlers.protocol.QueryArguments;
 import com.kronotop.bucket.index.*;
 import com.kronotop.bucket.index.statistics.Histogram;
 import com.kronotop.bucket.index.statistics.HistogramCodec;
@@ -482,6 +483,23 @@ public class BucketMetadataUtil {
         }
 
         return open(context, tr, namespace, bucket);
+    }
+
+    /**
+     * Opens bucket metadata in the namespace given by the query arguments, or in the session's
+     * current namespace when the arguments carry none. Uses the cache when available.
+     *
+     * @param context   the context providing environment and services
+     * @param tr        the transaction for database access
+     * @param session   the session containing the current namespace
+     * @param bucket    the bucket name
+     * @param arguments the parsed query arguments that may carry a NAMESPACE override
+     * @return the bucket metadata
+     * @throws IllegalArgumentException if neither the arguments nor the session give a namespace
+     */
+    public static BucketMetadata open(Context context, ReadTransaction tr, Session session, String bucket, QueryArguments arguments) {
+        String namespace = NamespaceUtil.resolve(session, arguments.getNamespace());
+        return BucketMetadataUtil.open(context, tr, namespace, bucket);
     }
 
     /**

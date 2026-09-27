@@ -28,6 +28,7 @@ import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.server.MockChannelHandlerContext;
+import com.kronotop.server.Response;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.Session;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
@@ -46,6 +47,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class BaseStandaloneInstanceTest extends BaseTest {
@@ -70,6 +72,11 @@ public class BaseStandaloneInstanceTest extends BaseTest {
             tr.commit().join();
             return subspace;
         }
+    }
+
+    protected void assertOK(Object response) {
+        assertInstanceOf(SimpleStringRedisMessage.class, response);
+        assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
     }
 
     protected Session getSession() {

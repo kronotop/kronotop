@@ -1951,6 +1951,45 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                 "Returned document should have age = 42");
     }
 
+    @Test
+    void shouldInsertIntoGivenNamespace() {
+        // Behavior: NAMESPACE inserts into the given namespace and leaves the session's
+        // current namespace unchanged.
+        String otherNamespace = UUID.randomUUID().toString();
+        createNamespaceWithBucket(otherNamespace);
+
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.insert(TEST_BUCKET, otherNamespace, List.of(TEST_DOCUMENT)).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(ArrayRedisMessage.class, response);
+            assertEquals(1, ((ArrayRedisMessage) response).children().size());
+        }
+
+        BucketCommandBuilder<String, String> queryCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(queryCmd, RESPVersion.RESP3);
+        assertEquals(0, countDocuments(queryCmd));
+
+        KronotopCommandBuilder<String, String> nsCmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf useBuf = Unpooled.buffer();
+        nsCmd.namespaceUse(otherNamespace).encode(useBuf);
+        assertOK(runCommand(channel, useBuf));
+        assertEquals(1, countDocuments(queryCmd));
+    }
+
+    @Test
+    void shouldRejectInsertWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.insert(TEST_BUCKET, namespace, List.of(TEST_DOCUMENT)).encode(buf);
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("unknown keyword",
@@ -1958,15 +1997,21 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
                         "ERR Unknown 'BOGUS' argument"),
                 arguments("DOCS without documents",
                         List.of("test-bucket", "docs"),
-                        "ERR DOCS argument must be followed by one or more documents")
+                        "ERR DOCS argument must be followed by one or more documents"),
+                arguments("NAMESPACE without value",
+                        List.of("test-bucket", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace"),
+                arguments("duplicate NAMESPACE",
+                        List.of("test-bucket", "NAMESPACE", "a", "NAMESPACE", "b", "DOCS", "{}"),
+                        "ERR Duplicate 'NAMESPACE' argument")
         );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: BUCKET.INSERT rejects an unknown keyword and a DOCS keyword without documents
-        // with an exact ERR reply.
+        // Behavior: BUCKET.INSERT rejects an unknown keyword, a keyword without its value and a
+        // repeated keyword with an exact ERR reply.
         Object response = runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INSERT, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);

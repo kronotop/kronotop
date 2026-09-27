@@ -17,17 +17,22 @@
 package com.kronotop.zmap.handlers.protocol;
 
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.internal.StringUtil;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
+import io.netty.buffer.ByteBuf;
 
 import java.util.List;
 
 public class ZGetMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZGET";
+    private static final String NAMESPACE = "NAMESPACE";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_PARAMETER_COUNT = 3;
     private final Request request;
     private byte[] key;
+    private String namespace;
 
     public ZGetMessage(Request request) {
         this.request = request;
@@ -36,6 +41,15 @@ public class ZGetMessage implements ProtocolMessage<byte[]> {
 
     private void parse() {
         key = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
+        for (int i = 1; i < request.getParams().size(); i++) {
+            String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
+            if (!StringUtil.toUpperCaseAscii(raw).equals(NAMESPACE)) {
+                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+            }
+            ByteBuf value = ProtocolMessageUtil.requireValue(request.getParams(), i, NAMESPACE, "a namespace");
+            namespace = ProtocolMessageUtil.readAsString(value);
+            i++;
+        }
     }
 
     @Override
@@ -46,5 +60,12 @@ public class ZGetMessage implements ProtocolMessage<byte[]> {
     @Override
     public List<byte[]> getKeys() {
         return null;
+    }
+
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
     }
 }

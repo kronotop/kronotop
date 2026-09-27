@@ -60,7 +60,7 @@ public class ZGetHandler extends BaseZMapHandler implements Handler {
             Session session = request.getSession();
 
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
 
             CompletableFuture<byte[]> future = get(tr, subspace.pack(message.getKey()), TransactionUtil.isSnapshotRead(session));
             return future.join();

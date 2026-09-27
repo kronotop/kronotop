@@ -21,6 +21,7 @@ import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
+import io.netty.buffer.ByteBuf;
 
 public class BucketInsertMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.INSERT";
@@ -28,6 +29,7 @@ public class BucketInsertMessage extends AbstractBucketMessage implements Protoc
     private final Request request;
     private String bucket;
     private byte[][] documents;
+    private String namespace;
 
     public BucketInsertMessage(Request request) {
         this.request = request;
@@ -44,6 +46,7 @@ public class BucketInsertMessage extends AbstractBucketMessage implements Protoc
 
     private void parse() {
         bucket = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        long seen = 0;
         for (int i = 1; i < request.getParams().size(); i++) {
             String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
             InsertArgumentKey argument;
@@ -52,10 +55,16 @@ public class BucketInsertMessage extends AbstractBucketMessage implements Protoc
             } catch (IllegalArgumentException e) {
                 throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
             }
+            seen = ProtocolMessageUtil.markArgumentSeen(seen, argument, argument.name());
             if (argument.equals(InsertArgumentKey.DOCS)) {
                 ProtocolMessageUtil.requireValue(request.getParams(), i, argument.name(), "one or more documents");
                 readDocuments(i + 1);
                 break;
+            }
+            if (argument.equals(InsertArgumentKey.NAMESPACE)) {
+                ByteBuf value = ProtocolMessageUtil.requireValue(request.getParams(), i, argument.name(), "a namespace");
+                namespace = ProtocolMessageUtil.readAsString(value);
+                i++;
             }
         }
     }
@@ -70,5 +79,12 @@ public class BucketInsertMessage extends AbstractBucketMessage implements Protoc
 
     public String getBucket() {
         return bucket;
+    }
+
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
     }
 }

@@ -75,15 +75,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
     }
 
-    private void insertDocumentsIntoBucket(String bucketName, List<byte[]> documents) {
-        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
-        ByteBuf buf = Unpooled.buffer();
-        byte[][] docs = makeDocumentsArray(documents);
-        cmd.insert(bucketName, docs).encode(buf);
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(ArrayRedisMessage.class, msg);
-    }
-
     @Test
     void shouldReturnSameCachedPlanForSubsequentQueries() {
         // Insert a document to create the bucket
@@ -2150,6 +2141,65 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
 
+    @Test
+    void shouldQueryBucketInGivenNamespace() {
+        // Behavior: NAMESPACE runs the query in the given namespace and leaves the session's
+        // current namespace unchanged.
+        insertDocumentsIntoBucket(TEST_BUCKET, List.of(BSONUtil.jsonToDocumentThenBytes("{\"where\": \"default\"}")));
+        String otherNamespace = UUID.randomUUID().toString();
+        createNamespaceWithBucket(otherNamespace, List.of(BSONUtil.jsonToDocumentThenBytes("{\"where\": \"other\"}")));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf otherBuf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.namespace(otherNamespace)).encode(otherBuf);
+        List<BsonDocument> otherEntries = extractEntries(runCommand(channel, otherBuf));
+        assertEquals(1, otherEntries.size());
+        assertEquals("other", otherEntries.getFirst().getString("where").getValue());
+
+        ByteBuf defaultBuf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}").encode(defaultBuf);
+        List<BsonDocument> defaultEntries = extractEntries(runCommand(channel, defaultBuf));
+        assertEquals(1, defaultEntries.size());
+        assertEquals("default", defaultEntries.getFirst().getString("where").getValue());
+    }
+
+    @Test
+    void shouldAdvanceCursorInGivenNamespace() {
+        // Behavior: a cursor opened with NAMESPACE keeps that namespace for BUCKET.ADVANCE.
+        String otherNamespace = UUID.randomUUID().toString();
+        createNamespaceWithBucket(otherNamespace, List.of(
+                BSONUtil.jsonToDocumentThenBytes("{\"n\": 1}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"n\": 2}")
+        ));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.namespace(otherNamespace).batch(1)).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertEquals(1, extractEntries(msg).size());
+
+        ByteBuf advanceBuf = Unpooled.buffer();
+        cmd.advanceQuery(extractCursorId(msg)).encode(advanceBuf);
+        Object advanceMsg = runCommand(channel, advanceBuf);
+        assertEquals(1, extractEntries(advanceMsg).size());
+    }
+
+    @Test
+    void shouldRejectQueryWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.namespace(namespace)).encode(buf);
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("LIMIT without value",
@@ -2172,7 +2222,10 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
                         "ERR PROJECTION argument must be followed by a projection specification"),
                 arguments("unknown keyword",
                         List.of("test-bucket", "{}", "BOGUS"),
-                        "ERR Unknown 'BOGUS' argument")
+                        "ERR Unknown 'BOGUS' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("test-bucket", "{}", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
         );
     }
 

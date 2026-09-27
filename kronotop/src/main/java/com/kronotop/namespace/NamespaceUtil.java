@@ -116,11 +116,38 @@ public class NamespaceUtil {
      * @throws IllegalArgumentException if the namespace is not specified in the session.
      */
     public static DirectorySubspace openDataStructureSubspace(Context context, ReadTransaction tr, Session session, DataStructureKind kind) {
-        String name = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
+        return openDataStructureSubspace(context, tr, session, resolve(session, null), kind);
+    }
+
+    /**
+     * Returns the namespace a command should run in. A non-null override wins over the
+     * session's current namespace. The session is not changed.
+     *
+     * @param session  the session that carries the current namespace
+     * @param override the namespace given on the command, or null
+     * @return the namespace name
+     * @throws IllegalArgumentException if neither the override nor the session gives a namespace
+     */
+    public static String resolve(Session session, String override) {
+        String name = override != null ? override : session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
         if (name == null) {
             throw new IllegalArgumentException("namespace not specified");
         }
+        return name;
+    }
 
+    /**
+     * Opens a data structure subspace within the given namespace. The session's open namespace
+     * cache is used and filled, but the session's current namespace is not read or changed.
+     *
+     * @param context the Context object representing the operational environment.
+     * @param tr      the Transaction object used for operations within the FoundationDB environment.
+     * @param session the Session object whose open namespace cache is used.
+     * @param name    the namespace to open.
+     * @param kind    the kind of data structure to open or create.
+     * @return the DirectorySubspace object representing the opened or created data structure subspace.
+     */
+    public static DirectorySubspace openDataStructureSubspace(Context context, ReadTransaction tr, Session session, String name, DataStructureKind kind) {
         Map<String, Namespace> namespaces = session.attr(SessionAttributes.OPEN_NAMESPACES).get();
         Namespace namespace = namespaces.get(name);
         if (namespace == null) {

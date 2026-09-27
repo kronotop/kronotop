@@ -79,15 +79,6 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
     }
 
-    private void insertDocumentsIntoBucket(String bucketName, List<byte[]> documents) {
-        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
-        ByteBuf buf = Unpooled.buffer();
-        byte[][] docs = makeDocumentsArray(documents);
-        cmd.insert(bucketName, docs).encode(buf);
-        Object msg = runCommand(channel, buf);
-        assertInstanceOf(ArrayRedisMessage.class, msg);
-    }
-
     @Test
     void shouldUpdateWithRegexFilter() {
         // Behavior: BUCKET.UPDATE with a $regex filter applies the mutation only to matching string documents.
