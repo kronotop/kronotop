@@ -40,7 +40,7 @@ The command supports two transaction modes:
 `ZGET` also supports **snapshot reads**. When snapshot mode is enabled on the session, the read does not conflict with
 concurrent writes, allowing higher throughput for read-heavy workloads.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 

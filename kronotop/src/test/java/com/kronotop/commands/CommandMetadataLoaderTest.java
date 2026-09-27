@@ -254,13 +254,13 @@ class CommandMetadataLoaderTest {
         assertNotNull(query);
         assertEquals(CommandGroup.BUCKET, query.group());
         assertEquals(-3, query.arity());
-        assertEquals(8, query.arguments().size());
+        assertEquals(9, query.arguments().size());
         assertEquals("SORTBY", query.arguments().get(2).token());
 
         CommandMetadata zset = commands.get("ZSET");
         assertNotNull(zset);
         assertEquals(CommandGroup.ZMAP, zset.group());
-        assertEquals(3, zset.arity());
+        assertEquals(-3, zset.arity());
         assertTrue(zset.keySpecs().getFirst().isIndexRange());
     }
 

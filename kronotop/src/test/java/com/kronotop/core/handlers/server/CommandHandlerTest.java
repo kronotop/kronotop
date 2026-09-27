@@ -101,7 +101,7 @@ class CommandHandlerTest extends BaseHandlerTest {
         Map<String, RedisMessage> command = asMap(docs.get("bucket.query"));
         assertEquals("bucket", text(command.get("group")));
         List<RedisMessage> arguments = ((ArrayRedisMessage) command.get("arguments")).children();
-        assertEquals(8, arguments.size());
+        assertEquals(9, arguments.size());
         Map<String, RedisMessage> sortby = asMap(arguments.get(2));
         assertEquals("SORTBY", text(sortby.get("token")));
         SetRedisMessage flags = (SetRedisMessage) sortby.get("flags");
@@ -207,7 +207,7 @@ class CommandHandlerTest extends BaseHandlerTest {
         assertEquals(-1, integer(ping.get(1)));
         List<RedisMessage> zset = ((ArrayRedisMessage) entries.get(1)).children();
         assertEquals("zset", text(zset.get(0)));
-        assertEquals(3, integer(zset.get(1)));
+        assertEquals(-3, integer(zset.get(1)));
         assertEquals(1, integer(zset.get(3)));
         assertEquals(1, integer(zset.get(4)));
         assertEquals(1, integer(zset.get(5)));
@@ -605,7 +605,7 @@ class CommandHandlerTest extends BaseHandlerTest {
     @Test
     void shouldRejectGetKeysWithWrongArity() {
         // Behavior: an argument count that does not fit the command arity is rejected
-        Object response = run(getChannel(), "COMMAND", "GETKEYS", "zget", "a", "b");
+        Object response = run(getChannel(), "COMMAND", "GETKEYS", "zget");
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals("ERR Invalid number of arguments specified for command", ((ErrorRedisMessage) response).content());

@@ -104,7 +104,7 @@ class ZGetHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnNullTypeWhenProtocolIsRESP3() {
-        // Behavior: ZGET on a missing key reply with the RESP3 null type after HELLO 3.
+        // Behavior: ZGET on a missing key replies with the RESP3 null type after HELLO 3.
         switchProtocol(RESPVersion.RESP3);
 
         EmbeddedChannel channel = getChannel();
