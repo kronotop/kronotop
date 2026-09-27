@@ -79,9 +79,7 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing the retrieved value associated with the specified key.
      */
     public Command<K, V, V> zget(K key) {
-        CommandArgs<K, V> args = new CommandArgs<>(codec).
-                addKey(key);
-        return createCommand(CommandType.ZGET, new ValueOutput<>(codec), args);
+        return zget(key, null);
     }
 
     /**
@@ -93,9 +91,10 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      */
     public Command<K, V, V> zget(K key, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
-                addKey(key).
-                add("NAMESPACE").
-                add(namespace);
+                addKey(key);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZGET, new ValueOutput<>(codec), args);
     }
 
