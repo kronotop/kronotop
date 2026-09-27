@@ -21,6 +21,7 @@ import io.lettuce.core.protocol.CommandArgs;
 public class ZGetRangeSizeArgs {
     private byte[] begin;
     private byte[] end;
+    private String namespace;
 
     public ZGetRangeSizeArgs begin(byte[] begin) {
         this.begin = begin;
@@ -29,6 +30,17 @@ public class ZGetRangeSizeArgs {
 
     public ZGetRangeSizeArgs end(byte[] end) {
         this.end = end;
+        return this;
+    }
+
+    /**
+     * Runs the command in the given namespace instead of the session's current one.
+     *
+     * @param namespace the namespace to run the command in
+     * @return this instance
+     */
+    public ZGetRangeSizeArgs namespace(String namespace) {
+        this.namespace = namespace;
         return this;
     }
 
@@ -42,6 +54,10 @@ public class ZGetRangeSizeArgs {
             throw new IllegalArgumentException("end cannot be empty");
         }
         args.add(end);
+        if (namespace != null) {
+            args.add("NAMESPACE");
+            args.add(namespace);
+        }
     }
 
     public static class Builder {
@@ -54,6 +70,10 @@ public class ZGetRangeSizeArgs {
 
         public static ZGetRangeSizeArgs end(byte[] end) {
             return new ZGetRangeSizeArgs().end(end);
+        }
+
+        public static ZGetRangeSizeArgs namespace(String namespace) {
+            return new ZGetRangeSizeArgs().namespace(namespace);
         }
     }
 }

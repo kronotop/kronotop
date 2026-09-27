@@ -25,8 +25,9 @@ import java.util.List;
 public class ZDelRangeMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "ZDELRANGE";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MAXIMUM_PARAMETER_COUNT = 4;
     private final Request request;
+    private String namespace;
     private byte[] begin;
     private byte[] end;
 
@@ -38,6 +39,7 @@ public class ZDelRangeMessage implements ProtocolMessage<Void> {
     private void parse() {
         begin = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
         end = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 2);
     }
 
     public byte[] getBegin() {
@@ -56,5 +58,12 @@ public class ZDelRangeMessage implements ProtocolMessage<Void> {
     @Override
     public List<Void> getKeys() {
         return null;
+    }
+
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
     }
 }

@@ -8,16 +8,17 @@ Retrieves the value for a key from the ZMap ordered key-value store as a signed 
 ## Syntax
 
 ```kronotop
-ZGET.I64 <key>
+ZGET.I64 <key> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-The argument is positional.
+`key` is positional. `NAMESPACE` is a keyword argument and comes after it.
 
-| Argument | Type  | Required | Description         |
-|----------|-------|----------|---------------------|
-| `key`    | bytes | Yes      | The key to look up. |
+| Argument    | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`       | bytes  | Yes      | The key to look up.                                                                                                                                      |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -43,21 +44,30 @@ The command supports two transaction modes:
 `ZGET.I64` also supports **snapshot reads**. When snapshot mode is enabled on the session, the read does not conflict
 with concurrent writes, allowing higher throughput for read-heavy workloads.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 
 Argument errors:
 
-| Error Code | Error message                                      | Cause                     |
-|------------|----------------------------------------------------|---------------------------|
-| `ERR`      | `wrong number of arguments for 'ZGET.I64' command` | Not exactly one argument. |
+| Error Code | Error message                                        | Cause |
+|------------|------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZGET.I64' command`   | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 
 Stored value errors:
 
 | Error Code | Error message                                                  | Cause                                    |
 |------------|----------------------------------------------------------------|------------------------------------------|
 | `ERR`      | `Invalid stored value: expected 8-byte two's-complement int64` | The stored value is not exactly 8 bytes. |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

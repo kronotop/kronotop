@@ -8,18 +8,19 @@ Performs an atomic mutation on a key's value in the ZMap ordered key-value store
 ## Syntax
 
 ```kronotop
-ZMUTATE <key> <param> <mutation_type>
+ZMUTATE <key> <param> <mutation_type> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-All three arguments are positional.
+`key`, `param` and `mutation_type` are positional. `NAMESPACE` is a keyword argument and comes after them.
 
-| Argument        | Type   | Required | Description                                                                                                                    |
-|-----------------|--------|----------|--------------------------------------------------------------------------------------------------------------------------------|
-| `key`           | bytes  | Yes      | The key to mutate.                                                                                                             |
-| `param`         | bytes  | Yes      | The operand value for the mutation. Interpretation depends on the mutation type (e.g. a little-endian integer for `ADD`).      |
-| `mutation_type` | string | Yes      | The mutation operation to apply. Must be one of the types listed below.                                                        |
+| Argument        | Type   | Required | Description                                                                                                                                              |
+|-----------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`           | bytes  | Yes      | The key to mutate.                                                                                                                                       |
+| `param`         | bytes  | Yes      | The operand value for the mutation. Interpretation depends on the mutation type (e.g. a little-endian integer for `ADD`).                                |
+| `mutation_type` | string | Yes      | The mutation operation to apply. Must be one of the types listed below.                                                                                  |
+| `NAMESPACE`     | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 The `param` operand is raw bytes. Its length is not checked. For `ADD`, `param` is read as a little-endian integer of
 any length, and the stored value takes that length. See "Value Length Rules" below. For a 64-bit counter, send 8 bytes.
@@ -152,16 +153,18 @@ The command supports two transaction modes:
 
 `ZMUTATE` is a write operation and does not support snapshot reads.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 
 Argument errors:
 
-| Error Code | Error message                                     | Cause |
-|------------|---------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'ZMUTATE' command` | -     |
-| `ERR`      | `Unknown mutation type: '<value>'`                | -     |
+| Error Code | Error message                                        | Cause |
+|------------|------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZMUTATE' command`    | -     |
+| `ERR`      | `Unknown mutation type: '<value>'`                   | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 
 Transaction errors:
 
@@ -169,6 +172,13 @@ Transaction errors:
 |----------------------------|----------------------------------|--------------------------------------------------------------------------------------------------------------|
 | `CLIENT_INVALID_OPERATION` | `Invalid API call`               | `SET_VERSIONSTAMPED_VALUE` got a `param` shorter than 14 bytes, or an offset that puts the 10 reserved bytes out of range. |
 | `ACCESSED_UNREADABLE`      | `Read or wrote an unreadable key` | A key written by `SET_VERSIONSTAMPED_VALUE` was read in the same transaction, before `COMMIT`.              |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

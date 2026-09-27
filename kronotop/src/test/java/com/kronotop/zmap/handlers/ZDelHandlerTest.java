@@ -17,6 +17,7 @@
 package com.kronotop.zmap.handlers;
 
 import com.kronotop.BaseHandlerTest;
+import java.nio.charset.StandardCharsets;
 import com.kronotop.commands.CommandType;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.Response;
@@ -96,21 +97,78 @@ class ZDelHandlerTest extends BaseHandlerTest {
         assertEquals(Response.OK, actualMessage.content());
     }
 
+    @Test
+    void shouldDeleteKeyInGivenNamespace() {
+        // Behavior: NAMESPACE deletes the key in the given namespace only and leaves the session's
+        // current namespace unchanged.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        createNamespace(channel, namespace);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("key", "other", namespace).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("key", "default").encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zdel("key", namespace).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zget("key", namespace).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, response);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zget("key").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(FullBulkStringRedisMessage.class, response);
+            assertEquals("default", ((FullBulkStringRedisMessage) response).content().toString(StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    void shouldRejectDeleteWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zdel("key", namespace).encode(buf);
+        Object response = runCommand(getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("too few arguments",
                         List.of(),
                         "ERR wrong number of arguments for 'ZDEL' command"),
                 arguments("too many arguments",
+                        List.of("key", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZDEL' command"),
+                arguments("unknown keyword",
                         List.of("key", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZDEL' command")
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
         );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: ZDEL rejects a wrong argument count with an ERR reply.
+        // Behavior: ZDEL rejects a wrong argument count, an unknown keyword or a keyword without
+        // its value with an exact ERR reply.
         Object response = runRaw(getChannel(), CommandType.ZDEL, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);

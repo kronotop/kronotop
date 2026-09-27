@@ -214,21 +214,78 @@ class ZDelRangeHandlerTest extends BaseHandlerTest {
         }
     }
 
+    @Test
+    void shouldDeleteRangeInGivenNamespace() {
+        // Behavior: NAMESPACE deletes the range in the given namespace only and leaves the session's
+        // current namespace unchanged.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        createNamespace(channel, namespace);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("key-0", "other", namespace).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("key-0", "default").encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zdelrange(ZDelRangeArgs.Builder.begin("key-0".getBytes()).end("key-9".getBytes()).namespace(namespace)).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zget("key-0", namespace).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, response);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zget("key-0").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(FullBulkStringRedisMessage.class, response);
+            assertEquals("default", ((FullBulkStringRedisMessage) response).content().toString(StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    void shouldRejectDeleteRangeWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zdelrange(ZDelRangeArgs.Builder.begin("key-0".getBytes()).end("key-9".getBytes()).namespace(namespace)).encode(buf);
+        Object response = runCommand(getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("too few arguments",
                         List.of("key-0"),
                         "ERR wrong number of arguments for 'ZDELRANGE' command"),
                 arguments("too many arguments",
+                        List.of("key-0", "key-5", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZDELRANGE' command"),
+                arguments("unknown keyword",
                         List.of("key-0", "key-5", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZDELRANGE' command")
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key-0", "key-5", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
         );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: ZDELRANGE rejects a wrong argument count with an ERR reply.
+        // Behavior: ZDELRANGE rejects a wrong argument count, an unknown keyword or a keyword without
+        // its value with an exact ERR reply.
         Object response = runRaw(getChannel(), CommandType.ZDELRANGE, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);

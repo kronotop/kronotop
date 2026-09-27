@@ -8,17 +8,18 @@ Returns the estimated byte size of a key range in the ZMap ordered key-value sto
 ## Syntax
 
 ```kronotop
-ZGETRANGESIZE <begin> <end>
+ZGETRANGESIZE <begin> <end> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-Both arguments are positional.
+`begin` and `end` are positional. `NAMESPACE` is a keyword argument and comes after them.
 
-| Argument | Type  | Required | Description                                                                                   |
-|----------|-------|----------|-----------------------------------------------------------------------------------------------|
-| `begin`  | bytes | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace). |
-| `end`    | bytes | Yes      | The end key of the range (exclusive). Use `*` for unbounded end (to the end of the subspace). |
+| Argument    | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `begin`     | bytes  | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace).                                                            |
+| `end`       | bytes  | Yes      | The end key of the range (exclusive). Use `*` for unbounded end (to the end of the subspace).                                                            |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -47,21 +48,30 @@ The command supports two transaction modes:
 `ZGETRANGESIZE` also supports **snapshot reads**. When snapshot mode is enabled on the session, the read does not
 conflict with concurrent writes, allowing higher throughput for read-heavy workloads.
 
-All data is scoped to the session's active namespace. The same keys in different namespaces refer to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same keys in different namespaces refer to different entries.
 
 ## Errors
 
 Argument errors:
 
-| Error Code | Error message                                           | Cause                      |
-|------------|---------------------------------------------------------|----------------------------|
-| `ERR`      | `wrong number of arguments for 'ZGETRANGESIZE' command` | Not exactly two arguments. |
+| Error Code | Error message                                           | Cause |
+|------------|---------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZGETRANGESIZE' command` | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                          | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`    | -     |
 
 Transaction errors:
 
 | Error Code       | Error message                         | Cause                                     |
 |------------------|---------------------------------------|-------------------------------------------|
 | `INVERTED_RANGE` | `Range begin key larger than end key` | The begin key is larger than the end key. |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

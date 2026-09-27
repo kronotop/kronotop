@@ -8,17 +8,18 @@ Increments a 64-bit floating-point value in the ZMap ordered key-value store.
 ## Syntax
 
 ```kronotop
-ZINC.F64 <key> <value>
+ZINC.F64 <key> <value> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-Both arguments are positional.
+`key` and `value` are positional. `NAMESPACE` is a keyword argument and comes after them.
 
-| Argument | Type   | Required | Description                                                                               |
-|----------|--------|----------|-------------------------------------------------------------------------------------------|
-| `key`    | bytes  | Yes      | The key to increment.                                                                     |
-| `value`  | double | Yes      | A finite IEEE-754 double to add to the current value. Use a negative number to decrement. |
+| Argument    | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`       | bytes  | Yes      | The key to increment.                                                                                                                                    |
+| `value`     | double | Yes      | A finite IEEE-754 double to add to the current value. Use a negative number to decrement.                                                                |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -50,7 +51,7 @@ The command supports two transaction modes:
 
 `ZINC.F64` is a write operation and does not support snapshot reads.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 
@@ -58,9 +59,11 @@ Argument errors:
 
 | Error Code | Error message                                           | Cause                         |
 |------------|---------------------------------------------------------|-------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZINC.F64' command`      | Not exactly two arguments.    |
+| `ERR`      | `wrong number of arguments for 'ZINC.F64' command`      | -                             |
 | `ERR`      | `value is not a double or out of range`                 | The value is not a number.    |
 | `ERR`      | `Invalid delta: value must be a finite IEEE-754 double` | The value is NaN or Infinity. |
+| `ERR`      | `Unknown '<keyword>' argument`                          | -                             |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`    | -                             |
 
 Stored value and result errors:
 
@@ -68,6 +71,13 @@ Stored value and result errors:
 |------------|-----------------------------------------------------------------------------------|------------------------------------------|
 | `ERR`      | `Invalid stored value: expected 8-byte IEEE-754 double`                           | The stored value is not exactly 8 bytes. |
 | `ERR`      | `Resulting value is not a finite IEEE-754 double (overflow or invalid operation)` | The sum overflows to Infinity.           |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

@@ -525,6 +525,51 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         runTransactionCommand(channel, kronotopCmd.rollback());
     }
 
+    @Test
+    void shouldMutateKeyInGivenNamespace() {
+        // Behavior: NAMESPACE applies the mutation in the given namespace and leaves the session's
+        // current namespace unchanged.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        EmbeddedChannel channel = getChannel();
+        createNamespace(channel, namespace);
+        byte[] key = "ns-key".getBytes();
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset(key, longToLE(1), namespace).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zmutate(key, longToLE(1), ZMutateArgs.Builder.add().namespace(namespace)).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zget(key, namespace).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(FullBulkStringRedisMessage.class, response);
+            FullBulkStringRedisMessage msg = (FullBulkStringRedisMessage) response;
+            byte[] result = new byte[msg.content().readableBytes()];
+            msg.content().readBytes(result);
+            assertEquals(2, leToLong(result));
+        }
+        // The session still points at the default namespace, where the key does not exist.
+        assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, zgetRaw(channel, cmd, key));
+    }
+
+    @Test
+    void shouldRejectMutateWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        ZMapCommandBuilder<byte[], byte[]> cmd = new ZMapCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zmutate("key".getBytes(), longToLE(1), ZMutateArgs.Builder.add().namespace(namespace)).encode(buf);
+        Object response = runCommand(getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("unknown mutation type",
@@ -537,8 +582,14 @@ class ZMutateHandlerTest extends BaseHandlerTest {
                         List.of("some-key", "some-value"),
                         "ERR wrong number of arguments for 'ZMUTATE' command"),
                 arguments("too many arguments",
+                        List.of("some-key", "some-value", "ADD", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZMUTATE' command"),
+                arguments("unknown keyword",
                         List.of("some-key", "some-value", "ADD", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZMUTATE' command")
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("some-key", "some-value", "ADD", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
         );
     }
 

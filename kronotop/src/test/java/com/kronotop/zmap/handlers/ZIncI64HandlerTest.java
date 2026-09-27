@@ -22,6 +22,7 @@ import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
@@ -316,14 +317,62 @@ class ZIncI64HandlerTest extends BaseHandlerTest {
         }
     }
 
+    @Test
+    void shouldIncrementKeyInGivenNamespace() {
+        // Behavior: NAMESPACE increments the key in the given namespace and leaves the session's
+        // current namespace unchanged.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        createNamespace(channel, namespace);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zinci64("key", 42, namespace).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            // The session still points at the default namespace, where the key does not exist.
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgeti64("key").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, response);
+        }
+        useNamespace(channel, namespace);
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgeti64("key").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(IntegerRedisMessage.class, response);
+            assertEquals(42, ((IntegerRedisMessage) response).value());
+        }
+    }
+
+    @Test
+    void shouldRejectIncrementWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zinci64("key", 42, namespace).encode(buf);
+        Object response = runCommand(getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("too few arguments",
                         List.of("key"),
                         "ERR wrong number of arguments for 'ZINC.I64' command"),
                 arguments("too many arguments",
-                        List.of("key", "value", "EXTRA"),
+                        List.of("key", "1", "NAMESPACE", "ns", "EXTRA"),
                         "ERR wrong number of arguments for 'ZINC.I64' command"),
+                arguments("unknown keyword",
+                        List.of("key", "1", "EXTRA"),
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key", "1", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace"),
                 arguments("value is not a number",
                         List.of("key", "abc"),
                         "ERR value is not a long or out of range")
@@ -333,7 +382,8 @@ class ZIncI64HandlerTest extends BaseHandlerTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: ZINC.I64 rejects a wrong argument count or a value that is not a number with an ERR reply.
+        // Behavior: ZINC.I64 rejects a wrong argument count, an unknown keyword, a keyword without its
+        // value or a value that is not a number with an exact ERR reply.
         Object response = runRaw(getChannel(), CommandType.ZINC_I64, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);

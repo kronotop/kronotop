@@ -21,6 +21,7 @@ import io.lettuce.core.protocol.CommandArgs;
 public class ZDelRangeArgs {
     private byte[] begin;
     private byte[] end;
+    private String namespace;
 
     public ZDelRangeArgs begin(byte[] begin) {
         this.begin = begin;
@@ -29,6 +30,17 @@ public class ZDelRangeArgs {
 
     public ZDelRangeArgs end(byte[] end) {
         this.end = end;
+        return this;
+    }
+
+    /**
+     * Runs the command in the given namespace instead of the session's current one.
+     *
+     * @param namespace the namespace to run the command in
+     * @return this instance
+     */
+    public ZDelRangeArgs namespace(String namespace) {
+        this.namespace = namespace;
         return this;
     }
 
@@ -42,6 +54,10 @@ public class ZDelRangeArgs {
             throw new IllegalArgumentException("end cannot be empty");
         }
         args.add(end);
+        if (namespace != null) {
+            args.add("NAMESPACE");
+            args.add(namespace);
+        }
     }
 
     public static class Builder {
@@ -54,6 +70,10 @@ public class ZDelRangeArgs {
 
         public static ZDelRangeArgs end(byte[] end) {
             return new ZDelRangeArgs().end(end);
+        }
+
+        public static ZDelRangeArgs namespace(String namespace) {
+            return new ZDelRangeArgs().namespace(namespace);
         }
     }
 }

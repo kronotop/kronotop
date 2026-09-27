@@ -54,7 +54,7 @@ public class ZDelRangeHandler extends BaseZMapHandler implements Handler {
 
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
 
             Range range = resolveRange(subspace, message.getBegin(), message.getEnd());
             tr.clear(range);

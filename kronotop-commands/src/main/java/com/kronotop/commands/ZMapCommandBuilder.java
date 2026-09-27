@@ -108,8 +108,22 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing the result as a string response from the server.
      */
     public Command<K, V, String> zwatch(K key) {
+        return zwatch(key, null);
+    }
+
+    /**
+     * Same as {@code zwatch} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZWATCH operation
+     */
+    public Command<K, V, String> zwatch(K key, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZWATCH, new StatusOutput<>(codec), args);
     }
 
@@ -122,8 +136,22 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing the result as a string response from the server.
      */
     public Command<K, V, String> zdel(K key) {
+        return zdel(key, null);
+    }
+
+    /**
+     * Same as {@code zdel} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZDEL operation
+     */
+    public Command<K, V, String> zdel(K key, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZDEL, new StatusOutput<>(codec), args);
     }
 
@@ -217,9 +245,24 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing OK as the response
      */
     public Command<K, V, String> zinci64(K key, long value) {
+        return zinci64(key, value, null);
+    }
+
+    /**
+     * Same as {@code zinci64} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param value     the value
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZINC.I64 operation
+     */
+    public Command<K, V, String> zinci64(K key, long value, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key).
                 add(value);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZINC_I64, new StatusOutput<>(codec), args);
     }
 
@@ -232,8 +275,22 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing the value as a Long, or null if the key doesn't exist
      */
     public Command<K, V, Long> zgeti64(K key) {
+        return zgeti64(key, null);
+    }
+
+    /**
+     * Same as {@code zgeti64} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZGET.I64 operation
+     */
+    public Command<K, V, Long> zgeti64(K key, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZGET_I64, new IntegerOutput<>(codec), args);
     }
 
@@ -248,9 +305,24 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing OK as the response
      */
     public Command<K, V, String> zincf64(K key, double value) {
+        return zincf64(key, value, null);
+    }
+
+    /**
+     * Same as {@code zincf64} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param value     the value
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZINC.F64 operation
+     */
+    public Command<K, V, String> zincf64(K key, double value, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key).
                 add(value);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZINC_F64, new StatusOutput<>(codec), args);
     }
 
@@ -263,8 +335,22 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing the value as a Double, or null if the key doesn't exist
      */
     public Command<K, V, Double> zgetf64(K key) {
+        return zgetf64(key, null);
+    }
+
+    /**
+     * Same as {@code zgetf64} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZGET.F64 operation
+     */
+    public Command<K, V, Double> zgetf64(K key, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZGET_F64, new DoubleOutput<>(codec), args);
     }
 
@@ -279,9 +365,24 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing OK as the response
      */
     public Command<K, V, String> zincd128(K key, String value) {
+        return zincd128(key, value, null);
+    }
+
+    /**
+     * Same as {@code zincd128} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param value     the value
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZINC.D128 operation
+     */
+    public Command<K, V, String> zincd128(K key, String value, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key).
                 add(value);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZINC_D128, new StatusOutput<>(codec), args);
     }
 
@@ -294,8 +395,22 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * containing the value as a String, or null if the key doesn't exist
      */
     public Command<K, V, V> zgetd128(K key) {
+        return zgetd128(key, null);
+    }
+
+    /**
+     * Same as {@code zgetd128} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZGET.D128 operation
+     */
+    public Command<K, V, V> zgetd128(K key, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZGET_D128, new ValueOutput<>(codec), args);
     }
 
@@ -308,9 +423,24 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * @return a {@link Command} instance representing the ZSET.I64 operation
      */
     public Command<K, V, String> zseti64(K key, long value) {
+        return zseti64(key, value, null);
+    }
+
+    /**
+     * Same as {@code zseti64} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param value     the value
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZSET.I64 operation
+     */
+    public Command<K, V, String> zseti64(K key, long value, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key).
                 add(value);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZSET_I64, new StatusOutput<>(codec), args);
     }
 
@@ -323,9 +453,24 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * @return a {@link Command} instance representing the ZSET.F64 operation
      */
     public Command<K, V, String> zsetf64(K key, double value) {
+        return zsetf64(key, value, null);
+    }
+
+    /**
+     * Same as {@code zsetf64} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param value     the value
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZSET.F64 operation
+     */
+    public Command<K, V, String> zsetf64(K key, double value, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key).
                 add(value);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZSET_F64, new StatusOutput<>(codec), args);
     }
 
@@ -338,9 +483,24 @@ public class ZMapCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V> {
      * @return a {@link Command} instance representing the ZSET.D128 operation
      */
     public Command<K, V, String> zsetd128(K key, String value) {
+        return zsetd128(key, value, null);
+    }
+
+    /**
+     * Same as {@code zsetd128} but runs the command in the given namespace instead of the session's current one.
+     *
+     * @param key       the key
+     * @param value     the value
+     * @param namespace the namespace to run the command in, or null for the session's current one
+     * @return a {@link Command} instance representing the ZSET.D128 operation
+     */
+    public Command<K, V, String> zsetd128(K key, String value, String namespace) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).
                 addKey(key).
                 add(value);
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
         return createCommand(CommandType.ZSET_D128, new StatusOutput<>(codec), args);
     }
 }

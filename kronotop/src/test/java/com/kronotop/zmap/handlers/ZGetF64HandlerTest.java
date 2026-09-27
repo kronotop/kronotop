@@ -324,21 +324,69 @@ class ZGetF64HandlerTest extends BaseHandlerTest {
         }
     }
 
+    @Test
+    void shouldGetKeyFromGivenNamespace() {
+        // Behavior: NAMESPACE reads the key from the given namespace and leaves the session's
+        // current namespace unchanged.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        createNamespace(channel, namespace);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zincf64("key", 3.14, namespace).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgetf64("key", namespace).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(DoubleRedisMessage.class, response);
+            assertEquals(3.14, ((DoubleRedisMessage) response).value(), 0.0001);
+        }
+        {
+            // The session still points at the default namespace, where the key does not exist.
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgetf64("key").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(NullRedisMessage.class, response);
+        }
+    }
+
+    @Test
+    void shouldRejectGetWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zgetf64("key", namespace).encode(buf);
+        Object response = runCommand(getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("too few arguments",
                         List.of(),
                         "ERR wrong number of arguments for 'ZGET.F64' command"),
                 arguments("too many arguments",
+                        List.of("key", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZGET.F64' command"),
+                arguments("unknown keyword",
                         List.of("key", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZGET.F64' command")
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
         );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: ZGET.F64 rejects a wrong argument count with an ERR reply.
+        // Behavior: ZGET.F64 rejects a wrong argument count, an unknown keyword or a keyword without
+        // its value with an exact ERR reply.
         Object response = runRaw(getChannel(), CommandType.ZGET_F64, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);

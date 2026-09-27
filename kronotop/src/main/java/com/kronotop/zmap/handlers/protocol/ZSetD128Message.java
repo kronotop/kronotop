@@ -25,8 +25,9 @@ import java.util.List;
 public class ZSetD128Message implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZSET.D128";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MAXIMUM_PARAMETER_COUNT = 4;
     private final Request request;
+    private String namespace;
     private byte[] key;
     private String value;
 
@@ -38,6 +39,7 @@ public class ZSetD128Message implements ProtocolMessage<byte[]> {
     private void parse() {
         key = ProtocolMessageUtil.readAsByteArray(request.getParams().getFirst());
         value = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 2);
     }
 
     @Override
@@ -52,5 +54,12 @@ public class ZSetD128Message implements ProtocolMessage<byte[]> {
 
     public String getValue() {
         return value;
+    }
+
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
     }
 }

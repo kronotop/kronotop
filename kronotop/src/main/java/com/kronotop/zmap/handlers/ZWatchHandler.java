@@ -64,7 +64,7 @@ public class ZWatchHandler extends BaseZMapHandler implements Handler {
 
             byte[] packedKey;
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                DirectorySubspace subspace = openZMapSubspace(tr, session);
+                DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
                 packedKey = subspace.pack(message.getKey());
             }
 

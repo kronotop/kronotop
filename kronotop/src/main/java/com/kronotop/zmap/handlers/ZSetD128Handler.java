@@ -51,7 +51,7 @@ public class ZSetD128Handler extends BaseZMapHandler implements Handler {
             Decimal128 parsed = ZMapNumericValueCodec.parseDecimal128(message.getValue());
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
             byte[] key = subspace.pack(message.getKey());
             tr.set(key, ZMapNumericValueCodec.encodeD128(parsed));
             TransactionUtil.commitIfAutoCommitEnabled(tr, session);

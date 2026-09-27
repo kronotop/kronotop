@@ -8,16 +8,17 @@ Deletes a key from the ZMap ordered key-value store.
 ## Syntax
 
 ```kronotop
-ZDEL <key>
+ZDEL <key> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-The argument is positional.
+`key` is positional. `NAMESPACE` is a keyword argument and comes after it.
 
-| Argument | Type  | Required | Description        |
-|----------|-------|----------|--------------------|
-| `key`    | bytes | Yes      | The key to delete. |
+| Argument    | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`       | bytes  | Yes      | The key to delete.                                                                                                                                       |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -37,15 +38,24 @@ The command supports two transaction modes:
 - **Explicit transaction:** When a `BEGIN` has been issued, the delete is staged in the current transaction and only
   takes effect when `COMMIT` is called.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 
 Argument errors:
 
-| Error Code | Error message                                  | Cause |
-|------------|------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'ZDEL' command` | -     |
+| Error Code | Error message                                        | Cause |
+|------------|------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZDEL' command`       | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

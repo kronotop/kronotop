@@ -8,17 +8,18 @@ Sets a key to a signed 64-bit integer value in the ZMap ordered key-value store.
 ## Syntax
 
 ```kronotop
-ZSET.I64 <key> <value>
+ZSET.I64 <key> <value> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-Both arguments are positional.
+`key` and `value` are positional. `NAMESPACE` is a keyword argument and comes after them.
 
-| Argument | Type    | Required | Description                       |
-|----------|---------|----------|-----------------------------------|
-| `key`    | bytes   | Yes      | The key to set.                   |
-| `value`  | integer | Yes      | A signed 64-bit integer to store. |
+| Argument    | Type    | Required | Description                                                                                                                                              |
+|-------------|---------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`       | bytes   | Yes      | The key to set.                                                                                                                                          |
+| `value`     | integer | Yes      | A signed 64-bit integer to store.                                                                                                                        |
+| `NAMESPACE` | string  | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -41,16 +42,25 @@ The command supports two transaction modes:
 - **Explicit transaction:** When a `BEGIN` has been issued, the write is staged in the current transaction and only
   persists when `COMMIT` is called.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 
 Argument errors:
 
-| Error Code | Error message                                      | Cause                                     |
-|------------|----------------------------------------------------|-------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZSET.I64' command` | -                                         |
-| `ERR`      | `value is not a long or out of range`              | The value is not a signed 64-bit integer. |
+| Error Code | Error message                                        | Cause                                     |
+|------------|------------------------------------------------------|-------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZSET.I64' command`   | -                                         |
+| `ERR`      | `value is not a long or out of range`                | The value is not a signed 64-bit integer. |
+| `ERR`      | `Unknown '<keyword>' argument`                       | -                                         |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -                                         |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

@@ -8,17 +8,18 @@ Increments a 128-bit decimal value in the ZMap ordered key-value store.
 ## Syntax
 
 ```kronotop
-ZINC.D128 <key> <value>
+ZINC.D128 <key> <value> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-Both arguments are positional.
+`key` and `value` are positional. `NAMESPACE` is a keyword argument and comes after them.
 
-| Argument | Type   | Required | Description                                                                                                                                         |
-|----------|--------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `key`    | bytes  | Yes      | The key to increment.                                                                                                                               |
-| `value`  | string | Yes      | A decimal number to add to the current value. Accepts plain decimals and scientific notation (e.g., `1.5E+10`). Use a negative number to decrement. |
+| Argument    | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`       | bytes  | Yes      | The key to increment.                                                                                                                                    |
+| `value`     | string | Yes      | A decimal number to add to the current value. Accepts plain decimals and scientific notation (e.g., `1.5E+10`). Use a negative number to decrement.      |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -52,7 +53,7 @@ The command supports two transaction modes:
 
 `ZINC.D128` is a write operation and does not support snapshot reads.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 
@@ -60,9 +61,11 @@ Argument errors:
 
 | Error Code | Error message                                                 | Cause                                      |
 |------------|---------------------------------------------------------------|--------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZINC.D128' command`           | Not exactly two arguments.                 |
+| `ERR`      | `wrong number of arguments for 'ZINC.D128' command`           | -                                          |
 | `ERR`      | `invalid decimal`                                             | The value is not a decimal number.         |
 | `ERR`      | `Exponent is out of range for Decimal128 encoding of <value>` | The value is outside the Decimal128 range. |
+| `ERR`      | `Unknown '<keyword>' argument`                                | -                                          |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`          | -                                          |
 
 Stored value and result errors:
 
@@ -70,6 +73,13 @@ Stored value and result errors:
 |------------|--------------------------------------------------------------------|-------------------------------------------|
 | `ERR`      | `Invalid stored value: expected 16-byte Decimal128 (IEEE-754 BID)` | The stored value is not exactly 16 bytes. |
 | `ERR`      | `Exponent is out of range for Decimal128 encoding: <exponent>`     | The sum is outside the Decimal128 range.  |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

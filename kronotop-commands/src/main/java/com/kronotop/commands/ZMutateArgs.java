@@ -20,6 +20,7 @@ import io.lettuce.core.protocol.CommandArgs;
 
 public class ZMutateArgs {
     private String mutationType;
+    private String namespace;
 
     public ZMutateArgs add() {
         this.mutationType = ZMutationType.ADD.toString();
@@ -76,11 +77,26 @@ public class ZMutateArgs {
         return this;
     }
 
+    /**
+     * Runs the command in the given namespace instead of the session's current one.
+     *
+     * @param namespace the namespace to run the command in
+     * @return this instance
+     */
+    public ZMutateArgs namespace(String namespace) {
+        this.namespace = namespace;
+        return this;
+    }
+
     public <K, V> void build(CommandArgs<K, V> args) {
         if (mutationType == null) {
             throw new IllegalArgumentException("mutation type has to be set");
         }
         args.add(mutationType);
+        if (namespace != null) {
+            args.add("NAMESPACE");
+            args.add(namespace);
+        }
     }
 
     public static class Builder {
@@ -129,6 +145,10 @@ public class ZMutateArgs {
 
         public static ZMutateArgs compareAndClear() {
             return new ZMutateArgs().compareAndClear();
+        }
+
+        public static ZMutateArgs namespace(String namespace) {
+            return new ZMutateArgs().namespace(namespace);
         }
     }
 }

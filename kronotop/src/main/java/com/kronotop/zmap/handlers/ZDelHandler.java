@@ -61,7 +61,7 @@ public class ZDelHandler extends BaseZMapHandler implements Handler {
 
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
 
             tr.clear(subspace.pack(message.getKey()));
             TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());

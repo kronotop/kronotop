@@ -25,8 +25,9 @@ import java.util.List;
 public class ZDelMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZDEL";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_PARAMETER_COUNT = 3;
     private final Request request;
+    private String namespace;
     private byte[] key;
 
     public ZDelMessage(Request request) {
@@ -36,6 +37,7 @@ public class ZDelMessage implements ProtocolMessage<byte[]> {
 
     private void parse() {
         key = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 1);
     }
 
     @Override
@@ -46,5 +48,12 @@ public class ZDelMessage implements ProtocolMessage<byte[]> {
     @Override
     public List<byte[]> getKeys() {
         return null;
+    }
+
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
     }
 }

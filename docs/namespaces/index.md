@@ -44,6 +44,9 @@ A client session is always bound to exactly one namespace at a time. The `NAMESP
 namespace for the current session. All subsequent commands (queries, inserts, index operations) operate within the
 selected namespace until the session ends or another `NAMESPACE USE` is issued.
 
+Bucket and ZMap commands can also take a `NAMESPACE <path>` argument. It runs that single command in the given
+namespace and leaves the session's active namespace unchanged. The namespace must exist.
+
 ```kronotop
 > NAMESPACE USE production.orders
 OK

@@ -55,6 +55,16 @@ public class ProtocolMessageUtil {
      */
     public static final String NON_NEGATIVE_INTEGER = "a non-negative integer";
 
+    /**
+     * Expected value description for the NAMESPACE keyword.
+     */
+    public static final String NAMESPACE_PATH = "a namespace";
+
+    /**
+     * The keyword that selects the namespace a command runs in.
+     */
+    public static final String NAMESPACE_KEYWORD = "NAMESPACE";
+
     public static byte[] readAsByteArray(ByteBuf buf) {
         byte[] raw = new byte[buf.readableBytes()];
         buf.readBytes(raw);
@@ -330,6 +340,29 @@ public class ProtocolMessageUtil {
             throw illegalValue(keyword, expected);
         }
         return params.get(i + 1);
+    }
+
+    /**
+     * Reads an optional trailing {@code NAMESPACE <path>} argument that follows the positional
+     * arguments of a command. Any other keyword at or after {@code startIndex} is rejected.
+     *
+     * @param params     the command parameters
+     * @param startIndex the index of the first argument after the positional ones
+     * @return the namespace given on the command, or null if not specified
+     * @throws IllegalCommandArgumentException if an unknown keyword is found or the keyword has no value
+     */
+    public static String readTrailingNamespace(List<ByteBuf> params, int startIndex) {
+        String namespace = null;
+        for (int i = startIndex; i < params.size(); i++) {
+            String raw = readAsString(params.get(i));
+            if (!StringUtil.toUpperCaseAscii(raw).equals(NAMESPACE_KEYWORD)) {
+                throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
+            }
+            ByteBuf value = requireValue(params, i, NAMESPACE_KEYWORD, NAMESPACE_PATH);
+            namespace = readAsString(value);
+            i++;
+        }
+        return namespace;
     }
 
     /**

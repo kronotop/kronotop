@@ -21,6 +21,7 @@ import io.lettuce.core.protocol.CommandArgs;
 public class ZGetKeyArgs {
     private byte[] key;
     private String keySelector;
+    private String namespace;
 
     public ZGetKeyArgs key(byte[] key) {
         this.key = key;
@@ -32,6 +33,17 @@ public class ZGetKeyArgs {
         return this;
     }
 
+    /**
+     * Runs the command in the given namespace instead of the session's current one.
+     *
+     * @param namespace the namespace to run the command in
+     * @return this instance
+     */
+    public ZGetKeyArgs namespace(String namespace) {
+        this.namespace = namespace;
+        return this;
+    }
+
     public <K, V> void build(CommandArgs<K, V> args) {
         args.add(key);
         if (keySelector != null) {
@@ -39,6 +51,10 @@ public class ZGetKeyArgs {
                 args.add(ZGetKeyKeywords.KEY_SELECTOR);
                 args.add(keySelector);
             }
+        }
+        if (namespace != null) {
+            args.add("NAMESPACE");
+            args.add(namespace);
         }
     }
 
@@ -52,6 +68,10 @@ public class ZGetKeyArgs {
 
         public static ZGetKeyArgs keySelector(String keySelector) {
             return new ZGetKeyArgs().keySelector(keySelector);
+        }
+
+        public static ZGetKeyArgs namespace(String namespace) {
+            return new ZGetKeyArgs().namespace(namespace);
         }
     }
 }

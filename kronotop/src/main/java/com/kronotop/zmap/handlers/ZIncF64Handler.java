@@ -51,7 +51,7 @@ public class ZIncF64Handler extends BaseZMapHandler implements Handler {
             ZMapNumericValueCodec.validateFiniteF64(delta, "Invalid delta: value must be a finite IEEE-754 double");
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
             byte[] key = subspace.pack(message.getKey());
             byte[] raw = tr.get(key).join();
 

@@ -338,6 +338,48 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
         assertEquals(-1, i);
     }
 
+    @Test
+    void shouldGetRangeFromGivenNamespace() {
+        // Behavior: NAMESPACE scans the range in the given namespace and leaves the session's
+        // current namespace unchanged.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        createNamespace(channel, namespace);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("key-0", "value-0", namespace).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgetrange(ZGetRangeArgs.Builder.begin("key-0".getBytes()).end("key-9".getBytes()).namespace(namespace)).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(ArrayRedisMessage.class, response);
+            assertEquals(1, ((ArrayRedisMessage) response).children().size());
+        }
+        {
+            // The session still points at the default namespace, which holds no keys.
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgetrange(ZGetRangeArgs.Builder.begin("key-0".getBytes()).end("key-9".getBytes())).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(ArrayRedisMessage.class, response);
+            assertEquals(0, ((ArrayRedisMessage) response).children().size());
+        }
+    }
+
+    @Test
+    void shouldRejectGetRangeWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zgetrange(ZGetRangeArgs.Builder.begin("key-0".getBytes()).end("key-9".getBytes()).namespace(namespace)).encode(buf);
+        Object response = runCommand(getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         String limitValue = "ERR LIMIT argument must be followed by a positive integer";
         return Stream.of(
@@ -383,7 +425,13 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
                         List.of("key-0", "key-5",
                                 "END-KEY-SELECTOR", "first_greater_than",
                                 "END-KEY-SELECTOR", "first_greater_or_equal"),
-                        "ERR Duplicate 'END-KEY-SELECTOR' argument")
+                        "ERR Duplicate 'END-KEY-SELECTOR' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key-0", "key-5", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace"),
+                arguments("duplicate namespace",
+                        List.of("key-0", "key-5", "NAMESPACE", "a", "NAMESPACE", "b"),
+                        "ERR Duplicate 'NAMESPACE' argument")
         );
     }
 
@@ -400,11 +448,12 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReturnErrorWhenArgumentCountExceedsMaximum() {
-        // Behavior: More than nine arguments is rejected before the handler runs.
+        // Behavior: More than eleven arguments is rejected before the handler runs.
         Object response = runRaw(getChannel(), CommandType.ZGETRANGE, List.of(
                 "key-0", "key-5", "LIMIT", "3", "REVERSE",
                 "BEGIN-KEY-SELECTOR", "first_greater_or_equal",
-                "END-KEY-SELECTOR", "first_greater_than", "EXTRA"));
+                "END-KEY-SELECTOR", "first_greater_than",
+                "NAMESPACE", "ns", "EXTRA"));
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertTrue(((ErrorRedisMessage) response).content().contains("wrong number of arguments"));

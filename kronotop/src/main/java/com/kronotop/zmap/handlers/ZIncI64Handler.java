@@ -50,7 +50,7 @@ public class ZIncI64Handler extends BaseZMapHandler implements Handler {
             ZIncI64Message message = request.attr(MessageTypes.ZINCI64).get();
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
             byte[] key = subspace.pack(message.getKey());
             byte[] value = ZMapNumericValueCodec.encodeI64(message.getValue());
             tr.mutate(MutationType.ADD, key, value);

@@ -66,6 +66,13 @@ class ZWatchHandlerTest extends BaseHandlerTest {
         return buf;
     }
 
+    private ByteBuf zwatchBuf(String key, String namespace) {
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zwatch(key, namespace).encode(buf);
+        return buf;
+    }
+
     @Test
     void shouldFireWhenKeyMutated() throws Exception {
         // Behavior: ZWATCH blocks until the watched key changes, then returns OK. The mutation
@@ -258,21 +265,63 @@ class ZWatchHandlerTest extends BaseHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
     }
 
+    @Test
+    void shouldWatchKeyInGivenNamespace() throws Exception {
+        // Behavior: ZWATCH with NAMESPACE observes the key in the given namespace. A mutation in
+        // the session's current namespace does not wake it, a mutation in the given namespace does.
+        createNamespace(channel, namespace);
+        EmbeddedChannel watcherChannel = newChannel();
+
+        CompletableFuture<Object> watchFuture = CompletableFuture.supplyAsync(
+                () -> runCommand(watcherChannel, zwatchBuf("shared", namespace)));
+        await().atMost(Duration.ofSeconds(5)).until(() -> zwatcher().watcherCount() == 1);
+
+        // Mutate the same raw key in the default namespace.
+        zset(channel, "shared", "from-default");
+        TimeUnit.MILLISECONDS.sleep(500);
+        assertFalse(watchFuture.isDone());
+
+        // Mutate the key in the watched namespace without switching the session.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zset("shared", "from-other", namespace).encode(buf);
+        assertOK(runCommand(channel, buf));
+
+        assertOK(watchFuture.get(5, TimeUnit.SECONDS));
+        await().atMost(Duration.ofSeconds(5)).until(() -> zwatcher().watcherCount() == 0);
+    }
+
+    @Test
+    void shouldRejectWatchWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        Object response = runCommand(getChannel(), zwatchBuf("key", namespace));
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("too few arguments",
                         List.of(),
                         "ERR wrong number of arguments for 'ZWATCH' command"),
                 arguments("too many arguments",
+                        List.of("key", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZWATCH' command"),
+                arguments("unknown keyword",
                         List.of("key", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZWATCH' command")
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
         );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: ZWATCH rejects a wrong argument count with an ERR reply.
+        // Behavior: ZWATCH rejects a wrong argument count, an unknown keyword or a keyword without
+        // its value with an exact ERR reply.
         Object response = runRaw(getChannel(), CommandType.ZWATCH, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);

@@ -5,7 +5,7 @@
     "group": "zmap",
     "since": "2026.06-1",
     "servers": ["EXTERNAL"],
-    "arity": 2,
+    "arity": -2,
     "command_flags": [
       "READONLY",
       "BLOCKING",
@@ -45,6 +45,13 @@
         "type": "key",
         "key_spec_index": 0,
         "summary": "The key to watch."
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

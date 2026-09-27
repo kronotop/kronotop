@@ -28,12 +28,13 @@ import java.util.List;
 public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZGETKEY";
     public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MAXIMUM_PARAMETER_COUNT = 5;
     public static final RangeKeySelector DEFAULT_KEY_SELECTOR = RangeKeySelector.FIRST_GREATER_OR_EQUAL;
 
     private final Request request;
     private byte[] key;
     private RangeKeySelector keySelector = DEFAULT_KEY_SELECTOR;
+    private String namespace;
 
     public ZGetKeyMessage(Request request) {
         this.request = request;
@@ -43,15 +44,24 @@ public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
     private void parse() {
         key = ProtocolMessageUtil.readAsByteArray(request.getParams().getFirst());
 
+        long seen = 0;
         for (int i = 1; i < request.getParams().size(); i++) {
             String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
             ZGetKeyArgumentKey argument = valueOfArgument(raw);
-
-            if (argument.equals(ZGetKeyArgumentKey.KEY_SELECTOR)) {
-                ByteBuf value = ProtocolMessageUtil.requireValue(
-                        request.getParams(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
-                keySelector = RangeKeySelector.getValue(ProtocolMessageUtil.readAsString(value));
-                i++;
+            seen = ProtocolMessageUtil.markArgumentSeen(seen, argument, argument.getValue());
+            switch (argument) {
+                case KEY_SELECTOR -> {
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
+                    keySelector = RangeKeySelector.getValue(ProtocolMessageUtil.readAsString(value));
+                    i++;
+                }
+                case NAMESPACE -> {
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.NAMESPACE_PATH);
+                    namespace = ProtocolMessageUtil.readAsString(value);
+                    i++;
+                }
             }
         }
     }
@@ -70,6 +80,13 @@ public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
         return keySelector;
     }
 
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
+    }
+
     private ZGetKeyArgumentKey valueOfArgument(String raw) {
         String upper = StringUtil.toUpperCaseAscii(raw);
         for (ZGetKeyArgumentKey key : ZGetKeyArgumentKey.values()) {
@@ -81,7 +98,8 @@ public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
     }
 
     enum ZGetKeyArgumentKey {
-        KEY_SELECTOR("KEY-SELECTOR");
+        KEY_SELECTOR("KEY-SELECTOR"),
+        NAMESPACE("NAMESPACE");
 
         private final String value;
 

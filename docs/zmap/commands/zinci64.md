@@ -8,17 +8,18 @@ Atomically increments a 64-bit integer value in the ZMap ordered key-value store
 ## Syntax
 
 ```kronotop
-ZINC.I64 <key> <value>
+ZINC.I64 <key> <value> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-Both arguments are positional.
+`key` and `value` are positional. `NAMESPACE` is a keyword argument and comes after them.
 
-| Argument | Type    | Required | Description                                                                              |
-|----------|---------|----------|------------------------------------------------------------------------------------------|
-| `key`    | bytes   | Yes      | The key to increment.                                                                    |
-| `value`  | integer | Yes      | A signed 64-bit integer to add to the current value. Use a negative number to decrement. |
+| Argument    | Type    | Required | Description                                                                                                                                              |
+|-------------|---------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`       | bytes   | Yes      | The key to increment.                                                                                                                                    |
+| `value`     | integer | Yes      | A signed 64-bit integer to add to the current value. Use a negative number to decrement.                                                                 |
+| `NAMESPACE` | string  | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -47,16 +48,25 @@ The command supports two transaction modes:
 
 `ZINC.I64` is a write operation and does not support snapshot reads.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 
 Argument errors:
 
-| Error Code | Error message                                      | Cause                                     |
-|------------|----------------------------------------------------|-------------------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZINC.I64' command` | -                                         |
-| `ERR`      | `value is not a long or out of range`              | The value is not a signed 64-bit integer. |
+| Error Code | Error message                                        | Cause                                     |
+|------------|------------------------------------------------------|-------------------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZINC.I64' command`   | -                                         |
+| `ERR`      | `value is not a long or out of range`                | The value is not a signed 64-bit integer. |
+| `ERR`      | `Unknown '<keyword>' argument`                       | -                                         |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -                                         |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

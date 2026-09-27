@@ -17,6 +17,7 @@
 package com.kronotop;
 
 import com.kronotop.commands.BucketCommandBuilder;
+import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -47,6 +48,20 @@ public class BaseHandlerTest extends BaseStandaloneInstanceTest {
         super.setup();
         channel = newChannel();
         namespace = UUID.randomUUID().toString();
+    }
+
+    protected void createNamespace(EmbeddedChannel channel, String name) {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.namespaceCreate(name).encode(buf);
+        assertOK(runCommand(channel, buf));
+    }
+
+    protected void useNamespace(EmbeddedChannel channel, String name) {
+        KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.namespaceUse(name).encode(buf);
+        assertOK(runCommand(channel, buf));
     }
 
     protected void switchProtocol(RESPVersion version) {

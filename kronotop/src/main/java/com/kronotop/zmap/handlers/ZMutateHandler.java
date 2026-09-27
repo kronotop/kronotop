@@ -61,7 +61,7 @@ public class ZMutateHandler extends BaseZMapHandler implements Handler {
 
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
 
             tr.mutate(message.getMutationType(), subspace.pack(message.getKey()), message.getParam());
             TransactionUtil.commitIfAutoCommitEnabled(tr, session);

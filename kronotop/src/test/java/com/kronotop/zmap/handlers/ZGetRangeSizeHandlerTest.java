@@ -22,6 +22,7 @@ import com.kronotop.commands.ZGetRangeSizeArgs;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
@@ -141,21 +142,68 @@ class ZGetRangeSizeHandlerTest extends BaseHandlerTest {
         assertInstanceOf(IntegerRedisMessage.class, response);
     }
 
+    @Test
+    void shouldGetRangeSizeFromGivenNamespace() {
+        // Behavior: NAMESPACE estimates the range size in the given namespace and leaves the session's
+        // current namespace unchanged.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        createNamespace(channel, namespace);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("key-0", "value-0", namespace).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgetrangesize(ZGetRangeSizeArgs.Builder.begin("key-0".getBytes()).end("key-9".getBytes()).namespace(namespace)).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(IntegerRedisMessage.class, response);
+            assertTrue(((IntegerRedisMessage) response).value() >= 0);
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zget("key-0").encode(buf);
+            Object response = runCommand(channel, buf);
+            assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, response);
+        }
+    }
+
+    @Test
+    void shouldRejectGetRangeSizeWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zgetrangesize(ZGetRangeSizeArgs.Builder.begin("key-0".getBytes()).end("key-9".getBytes()).namespace(namespace)).encode(buf);
+        Object response = runCommand(getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("too few arguments",
                         List.of("key-0"),
                         "ERR wrong number of arguments for 'ZGETRANGESIZE' command"),
                 arguments("too many arguments",
+                        List.of("key-0", "key-5", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZGETRANGESIZE' command"),
+                arguments("unknown keyword",
                         List.of("key-0", "key-5", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZGETRANGESIZE' command")
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key-0", "key-5", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
         );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
-        // Behavior: ZGETRANGESIZE rejects a wrong argument count with an ERR reply.
+        // Behavior: ZGETRANGESIZE rejects a wrong argument count, an unknown keyword or a keyword without
+        // its value with an exact ERR reply.
         Object response = runRaw(getChannel(), CommandType.ZGETRANGESIZE, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);

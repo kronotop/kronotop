@@ -28,7 +28,7 @@ import java.util.List;
 public class ZGetRangeMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "ZGETRANGE";
     public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 9;
+    public static final int MAXIMUM_PARAMETER_COUNT = 11;
 
     public static final int DEFAULT_LIMIT = 100;
     public static final boolean DEFAULT_REVERSE = false;
@@ -42,6 +42,7 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
     private boolean reverse = DEFAULT_REVERSE;
     private RangeKeySelector beginKeySelector = DEFAULT_BEGIN_KEY_SELECTOR;
     private RangeKeySelector endKeySelector = DEFAULT_END_KEY_SELECTOR;
+    private String namespace;
 
     public ZGetRangeMessage(Request request) {
         this.request = request;
@@ -81,6 +82,12 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
                     endKeySelector = RangeKeySelector.getValue(ProtocolMessageUtil.readAsString(value));
                     i++;
                 }
+                case NAMESPACE -> {
+                    ByteBuf value = ProtocolMessageUtil.requireValue(
+                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.NAMESPACE_PATH);
+                    namespace = ProtocolMessageUtil.readAsString(value);
+                    i++;
+                }
             }
         }
     }
@@ -109,6 +116,13 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
         return endKeySelector;
     }
 
+    /**
+     * Returns the namespace given on the command, or null if not specified.
+     */
+    public String getNamespace() {
+        return namespace;
+    }
+
     @Override
     public Void getKey() {
         return null;
@@ -133,7 +147,8 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
         LIMIT("LIMIT"),
         REVERSE("REVERSE"),
         BEGIN_KEY_SELECTOR("BEGIN-KEY-SELECTOR"),
-        END_KEY_SELECTOR("END-KEY-SELECTOR");
+        END_KEY_SELECTOR("END-KEY-SELECTOR"),
+        NAMESPACE("NAMESPACE");
 
         private final String value;
 

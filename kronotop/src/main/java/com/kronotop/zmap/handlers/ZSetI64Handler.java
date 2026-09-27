@@ -49,7 +49,7 @@ public class ZSetI64Handler extends BaseZMapHandler implements Handler {
             ZSetI64Message message = request.attr(MessageTypes.ZSETI64).get();
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
             byte[] key = subspace.pack(message.getKey());
             tr.set(key, ZMapNumericValueCodec.encodeI64(message.getValue()));
             TransactionUtil.commitIfAutoCommitEnabled(tr, session);

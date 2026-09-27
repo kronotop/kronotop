@@ -8,7 +8,7 @@ Retrieves an ordered range of key-value pairs from the ZMap ordered key-value st
 ## Syntax
 
 ```kronotop
-ZGETRANGE <begin> <end> [LIMIT limit] [REVERSE] [BEGIN-KEY-SELECTOR selector] [END-KEY-SELECTOR selector]
+ZGETRANGE <begin> <end> [LIMIT limit] [REVERSE] [BEGIN-KEY-SELECTOR selector] [END-KEY-SELECTOR selector] [NAMESPACE <path>]
 ```
 
 ## Arguments
@@ -16,14 +16,15 @@ ZGETRANGE <begin> <end> [LIMIT limit] [REVERSE] [BEGIN-KEY-SELECTOR selector] [E
 The first two arguments are positional. The rest are keywords. Keyword names are not case-sensitive, and each keyword
 can appear at most once.
 
-| Argument             | Type    | Required | Description                                                                                   |
-|----------------------|---------|----------|-----------------------------------------------------------------------------------------------|
-| `begin`              | bytes   | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace). |
-| `end`                | bytes   | Yes      | The end key of the range. Use `*` for unbounded end (to the end of the subspace).             |
-| `LIMIT limit`        | integer | No       | Maximum number of key-value pairs to return. Must be greater than zero. Default is `100`.     |
-| `REVERSE`            | flag    | No       | When present, reverses the scan direction so results are returned in descending key order.    |
-| `BEGIN-KEY-SELECTOR` | string  | No       | Controls how the begin boundary is resolved. Default is `first_greater_or_equal`.             |
-| `END-KEY-SELECTOR`   | string  | No       | Controls how the end boundary is resolved. Default is `first_greater_than`.                   |
+| Argument             | Type    | Required | Description                                                                                                                                              |
+|----------------------|---------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `begin`              | bytes   | Yes      | The start key of the range. Use `*` for unbounded start (from the beginning of the subspace).                                                            |
+| `end`                | bytes   | Yes      | The end key of the range. Use `*` for unbounded end (to the end of the subspace).                                                                        |
+| `LIMIT limit`        | integer | No       | Maximum number of key-value pairs to return. Must be greater than zero. Default is `100`.                                                                |
+| `REVERSE`            | flag    | No       | When present, reverses the scan direction so results are returned in descending key order.                                                               |
+| `BEGIN-KEY-SELECTOR` | string  | No       | Controls how the begin boundary is resolved. Default is `first_greater_or_equal`.                                                                        |
+| `END-KEY-SELECTOR`   | string  | No       | Controls how the end boundary is resolved. Default is `first_greater_than`.                                                                              |
+| `NAMESPACE`          | string  | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Key Selectors
 
@@ -79,7 +80,7 @@ The command supports two transaction modes:
 `ZGETRANGE` also supports **snapshot reads**. When snapshot mode is enabled on the session, the read does not conflict
 with concurrent writes, allowing higher throughput for read-heavy workloads.
 
-All data is scoped to the session's active namespace. The same keys in different namespaces refer to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same keys in different namespaces refer to different entries.
 
 ## Errors
 
@@ -94,6 +95,14 @@ Argument errors:
 | `ERR`      | `value is not an integer or out of range`                     | -     |
 | `ERR`      | `<keyword> argument must be followed by a valid key selector` | -     |
 | `ERR`      | `Unknown range key selector: '<value>'`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`          | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

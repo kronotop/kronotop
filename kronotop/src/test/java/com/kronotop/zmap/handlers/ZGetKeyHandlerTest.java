@@ -87,6 +87,53 @@ class ZGetKeyHandlerTest extends BaseHandlerTest {
         }
     }
 
+    @Test
+    void shouldGetKeyFromGivenNamespace() {
+        // Behavior: NAMESPACE resolves the key selector in the given namespace and leaves the session's
+        // current namespace unchanged.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+        createNamespace(channel, namespace);
+
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("other-key", "value", namespace).encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zset("default-key", "value").encode(buf);
+            assertOK(runCommand(channel, buf));
+        }
+        {
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgetkey(ZGetKeyArgs.Builder.key("a".getBytes()).namespace(namespace)).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(FullBulkStringRedisMessage.class, response);
+            assertEquals("other-key", ((FullBulkStringRedisMessage) response).content().toString(CharsetUtil.US_ASCII));
+        }
+        {
+            // The session still points at the default namespace.
+            ByteBuf buf = Unpooled.buffer();
+            cmd.zgetkey(ZGetKeyArgs.Builder.key("a".getBytes())).encode(buf);
+            Object response = runCommand(channel, buf);
+            assertInstanceOf(FullBulkStringRedisMessage.class, response);
+            assertEquals("default-key", ((FullBulkStringRedisMessage) response).content().toString(CharsetUtil.US_ASCII));
+        }
+    }
+
+    @Test
+    void shouldRejectGetKeyWhenNamespaceDoesNotExist() {
+        // Behavior: NAMESPACE with an unknown namespace returns NOSUCHNAMESPACE.
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zgetkey(ZGetKeyArgs.Builder.key("key-0".getBytes()).namespace(namespace)).encode(buf);
+        Object response = runCommand(getChannel(), buf);
+        assertInstanceOf(ErrorRedisMessage.class, response);
+        assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
+                ((ErrorRedisMessage) response).content());
+    }
+
     static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 arguments("unknown keyword",
@@ -98,10 +145,16 @@ class ZGetKeyHandlerTest extends BaseHandlerTest {
                 arguments("invalid key selector",
                         List.of("key-0", "KEY-SELECTOR", "bogus"),
                         "ERR Unknown range key selector: 'bogus'"),
-                arguments("repeated key selector exceeds the argument limit",
+                arguments("duplicate key selector",
                         List.of("key-0",
                                 "KEY-SELECTOR", "first_greater_than",
                                 "KEY-SELECTOR", "first_greater_or_equal"),
+                        "ERR Duplicate 'KEY-SELECTOR' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key-0", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace"),
+                arguments("too many arguments",
+                        List.of("key-0", "KEY-SELECTOR", "first_greater_than", "NAMESPACE", "ns", "EXTRA"),
                         "ERR wrong number of arguments for 'ZGETKEY' command")
         );
     }

@@ -62,7 +62,7 @@ public class ZGetKeyHandler extends BaseZMapHandler implements Handler {
 
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
 
             KeySelector keySelector = RangeKeySelector.getKeySelector(
                     message.getKeySelector(),

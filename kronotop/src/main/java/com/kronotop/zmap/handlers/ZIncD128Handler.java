@@ -55,7 +55,7 @@ public class ZIncD128Handler extends BaseZMapHandler implements Handler {
 
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
             byte[] key = subspace.pack(message.getKey());
             byte[] raw = tr.get(key).join();
 

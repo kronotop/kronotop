@@ -5,7 +5,7 @@
     "group": "zmap",
     "since": "2026.06-1",
     "servers": ["EXTERNAL"],
-    "arity": 3,
+    "arity": -3,
     "command_flags": [
       "READONLY"
     ],
@@ -27,6 +27,13 @@
         "name": "end",
         "type": "string",
         "summary": "The end of the range, exclusive. Use * for an unbounded end."
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

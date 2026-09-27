@@ -50,7 +50,7 @@ public class ZSetF64Handler extends BaseZMapHandler implements Handler {
             ZMapNumericValueCodec.validateFiniteF64(message.getValue(), "Invalid value: must be a finite IEEE-754 double");
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
             byte[] key = subspace.pack(message.getKey());
             tr.set(key, ZMapNumericValueCodec.encodeF64(message.getValue()));
             TransactionUtil.commitIfAutoCommitEnabled(tr, session);

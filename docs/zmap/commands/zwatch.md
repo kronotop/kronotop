@@ -8,16 +8,17 @@ Blocks the connection until the value at a key changes, then wakes the caller.
 ## Syntax
 
 ```kronotop
-ZWATCH <key>
+ZWATCH <key> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-The argument is positional.
+`key` is positional. `NAMESPACE` is a keyword argument and comes after it.
 
-| Argument | Type  | Required | Description       |
-|----------|-------|----------|-------------------|
-| `key`    | bytes | Yes      | The key to watch. |
+| Argument    | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`       | bytes  | Yes      | The key to watch.                                                                                                                                        |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -41,7 +42,7 @@ waits for the signal or error before sending its next command on that connection
 
 When the connection closes while the command is blocked, the client stops waiting and its hold on the key is released.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries,
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries,
 so two sessions in different namespaces that watch the same key name watch different values.
 
 `ZWATCH` is an edge-triggered wakeup, not a change feed. It reports that the value differs from when the watch was registered,
@@ -95,15 +96,24 @@ are unaffected.
 
 Argument errors:
 
-| Error Code | Error message                                    | Cause |
-|------------|--------------------------------------------------|-------|
-| `ERR`      | `wrong number of arguments for 'ZWATCH' command` | -     |
+| Error Code | Error message                                        | Cause |
+|------------|------------------------------------------------------|-------|
+| `ERR`      | `wrong number of arguments for 'ZWATCH' command`     | -     |
+| `ERR`      | `Unknown '<keyword>' argument`                       | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -     |
 
 Transaction errors:
 
 | Error Code | Error message                                | Cause |
 |------------|----------------------------------------------|-------|
 | `ERR`      | `ZWATCH is not allowed within a transaction` | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

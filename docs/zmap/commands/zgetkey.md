@@ -9,17 +9,18 @@ store.
 ## Syntax
 
 ```kronotop
-ZGETKEY <key> [KEY-SELECTOR selector]
+ZGETKEY <key> [KEY-SELECTOR selector] [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-The first argument is positional. `KEY-SELECTOR` is a keyword. Keyword names are not case-sensitive.
+The first argument is positional. `KEY-SELECTOR` and `NAMESPACE` are keywords. Keyword names are not case-sensitive, and each keyword can appear at most once.
 
-| Argument       | Type   | Required | Description                                                      |
-|----------------|--------|----------|------------------------------------------------------------------|
-| `key`          | bytes  | Yes      | The reference key for the selector lookup.                       |
-| `KEY-SELECTOR` | string | No       | The key selector strategy. Defaults to `first_greater_or_equal`. |
+| Argument       | Type   | Required | Description                                                                                                                                              |
+|----------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`          | bytes  | Yes      | The reference key for the selector lookup.                                                                                                               |
+| `KEY-SELECTOR` | string | No       | The key selector strategy. Defaults to `first_greater_or_equal`.                                                                                         |
+| `NAMESPACE`    | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Key Selectors
 
@@ -56,7 +57,7 @@ The command supports two transaction modes:
 `ZGETKEY` also supports **snapshot reads**. When snapshot mode is enabled on the session, the read does not conflict
 with concurrent writes, allowing higher throughput for read-heavy workloads.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 
@@ -68,6 +69,15 @@ Argument errors:
 | `ERR`      | `Unknown '<keyword>' argument`                                   | -     |
 | `ERR`      | `KEY-SELECTOR argument must be followed by a valid key selector` | -     |
 | `ERR`      | `Unknown range key selector: '<value>'`                          | -     |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace`             | -     |
+| `ERR`      | `Duplicate '<keyword>' argument`                                 | -     |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 

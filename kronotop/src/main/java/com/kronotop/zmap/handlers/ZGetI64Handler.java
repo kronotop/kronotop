@@ -58,7 +58,7 @@ public class ZGetI64Handler extends BaseZMapHandler implements Handler {
             ZGetI64Message message = request.attr(MessageTypes.ZGETI64).get();
             Session session = request.getSession();
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
-            DirectorySubspace subspace = openZMapSubspace(tr, session);
+            DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
             byte[] key = subspace.pack(message.getKey());
             return get(tr, key, TransactionUtil.isSnapshotRead(session)).join();
         }, (value) -> {

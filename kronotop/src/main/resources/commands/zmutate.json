@@ -5,7 +5,7 @@
     "group": "zmap",
     "since": "2026.06-1",
     "servers": ["EXTERNAL"],
-    "arity": 4,
+    "arity": -4,
     "command_flags": [
       "WRITE",
       "FAST"
@@ -110,6 +110,13 @@
             "token": "COMPARE_AND_CLEAR"
           }
         ]
+      },
+      {
+        "name": "namespace",
+        "type": "string",
+        "token": "NAMESPACE",
+        "optional": true,
+        "summary": "The namespace to run the command in. Defaults to the session's current namespace."
       }
     ]
   }

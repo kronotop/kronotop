@@ -8,17 +8,18 @@ Sets a key to a double-precision floating-point value in the ZMap ordered key-va
 ## Syntax
 
 ```kronotop
-ZSET.F64 <key> <value>
+ZSET.F64 <key> <value> [NAMESPACE <path>]
 ```
 
 ## Arguments
 
-Both arguments are positional.
+`key` and `value` are positional. `NAMESPACE` is a keyword argument and comes after them.
 
-| Argument | Type   | Required | Description                               |
-|----------|--------|----------|-------------------------------------------|
-| `key`    | bytes  | Yes      | The key to set.                           |
-| `value`  | double | Yes      | A finite IEEE-754 double-precision value. |
+| Argument    | Type   | Required | Description                                                                                                                                              |
+|-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `key`       | bytes  | Yes      | The key to set.                                                                                                                                          |
+| `value`     | double | Yes      | A finite IEEE-754 double-precision value.                                                                                                                |
+| `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
 ## Return Value
 
@@ -41,17 +42,26 @@ The command supports two transaction modes:
 - **Explicit transaction:** When a `BEGIN` has been issued, the write is staged in the current transaction and only
   persists when `COMMIT` is called.
 
-All data is scoped to the session's active namespace. The same key in different namespaces refers to different entries.
+All data is scoped to a namespace: the session's active one, or the one given with `NAMESPACE`. The same key in different namespaces refers to different entries.
 
 ## Errors
 
 Argument errors:
 
-| Error Code | Error message                                      | Cause                         |
-|------------|----------------------------------------------------|-------------------------------|
-| `ERR`      | `wrong number of arguments for 'ZSET.F64' command` | -                             |
-| `ERR`      | `value is not a double or out of range`            | -                             |
-| `ERR`      | `Invalid value: must be a finite IEEE-754 double`  | The value is NaN or Infinity. |
+| Error Code | Error message                                        | Cause                         |
+|------------|------------------------------------------------------|-------------------------------|
+| `ERR`      | `wrong number of arguments for 'ZSET.F64' command`   | -                             |
+| `ERR`      | `value is not a double or out of range`              | -                             |
+| `ERR`      | `Invalid value: must be a finite IEEE-754 double`    | The value is NaN or Infinity. |
+| `ERR`      | `Unknown '<keyword>' argument`                       | -                             |
+| `ERR`      | `NAMESPACE argument must be followed by a namespace` | -                             |
+
+Namespace errors:
+
+| Error Code              | Error message                         | Cause |
+|-------------------------|---------------------------------------|-------|
+| `NOSUCHNAMESPACE`       | `No such namespace: '<path>'`         | -     |
+| `NAMESPACEBEINGREMOVED` | `Namespace '<path>' is being removed` | -     |
 
 ## Examples
 
