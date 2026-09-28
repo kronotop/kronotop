@@ -20,6 +20,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.handlers.protocol.VolumeStatsMessage;
@@ -34,6 +35,12 @@ class ResetStatsSubcommand extends BaseSubcommandHandler implements SubcommandHa
 
     @Override
     public void execute(Request request, Response response) {
+        if (request.getArguments().size() != 2) {
+            throw new WrongNumberOfArgumentsException(
+                    String.format("wrong number of arguments for '%s' command", VolumeStatsMessage.COMMAND)
+            );
+        }
+
         VolumeStatsMessage message = request.attr(MessageTypes.VOLUMESTATS).get();
 
         runAsync(context, response, () -> {

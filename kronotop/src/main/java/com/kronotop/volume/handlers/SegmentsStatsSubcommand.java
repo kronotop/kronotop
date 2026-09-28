@@ -20,6 +20,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.server.WrongNumberOfArgumentsException;
 import com.kronotop.server.resp3.DoubleRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
@@ -53,6 +54,12 @@ class SegmentsStatsSubcommand extends BaseSubcommandHandler implements Subcomman
 
     @Override
     public void execute(Request request, Response response) {
+        if (request.getArguments().size() != 2) {
+            throw new WrongNumberOfArgumentsException(
+                    String.format("wrong number of arguments for '%s' command", VolumeStatsMessage.COMMAND)
+            );
+        }
+
         VolumeStatsMessage message = request.attr(MessageTypes.VOLUMESTATS).get();
 
         supplyAsync(context, response, () -> {

@@ -233,8 +233,6 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(0L, counters.get("bytes_read"));
     }
 
-    // --- SEGMENTS subcommand tests ---
-
     @Test
     void shouldResetCounters() throws IOException {
         // Behavior: After reset, all counters return to zero.
@@ -449,7 +447,37 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(sizeBytes - freeBytes, usedBytes + garbageBytes);
     }
 
-    // --- OVERVIEW subcommand tests ---
+    private void assertExtraArgumentRejected(String subcommand) {
+        String command = String.format(
+                "*4\r\n$12\r\nVOLUME.STATS\r\n$14\r\nbucket-shard-0\r\n$%d\r\n%s\r\n$4\r\njunk\r\n",
+                subcommand.length(), subcommand
+        );
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes(command.getBytes(StandardCharsets.US_ASCII));
+
+        Object raw = BaseTest.runCommand(channel, buf);
+        assertInstanceOf(ErrorRedisMessage.class, raw);
+        ErrorRedisMessage errorMessage = (ErrorRedisMessage) raw;
+        assertEquals("ERR wrong number of arguments for 'VOLUME.STATS' command", errorMessage.content());
+    }
+
+    @Test
+    void shouldRejectExtraArgumentForOpcounters() {
+        // Behavior: OPCOUNTERS with an extra argument returns a wrong number of arguments error.
+        assertExtraArgumentRejected("OPCOUNTERS");
+    }
+
+    @Test
+    void shouldRejectExtraArgumentForSegments() {
+        // Behavior: SEGMENTS with an extra argument returns a wrong number of arguments error.
+        assertExtraArgumentRejected("SEGMENTS");
+    }
+
+    @Test
+    void shouldRejectExtraArgumentForReset() {
+        // Behavior: RESET with an extra argument returns a wrong number of arguments error.
+        assertExtraArgumentRejected("RESET");
+    }
 
     private Map<String, Object> executeOverview() {
         VolumeStatsCommandBuilder<String, String> cmd = new VolumeStatsCommandBuilder<>(StringCodec.ASCII);
