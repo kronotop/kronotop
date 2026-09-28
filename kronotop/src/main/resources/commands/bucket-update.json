@@ -19,7 +19,7 @@
       "additionalProperties": false,
       "properties": {
         "cursor_id": {
-          "description": "The cursor ID for BUCKET.ADVANCE. -1 means the LIMIT was reached and the cursor no longer exists.",
+          "description": "The cursor ID for BUCKET.ADVANCE. -1 means the cursor no longer exists, because the LIMIT was reached or the command was sent with CLOSE.",
           "type": "integer"
         },
         "object_ids": {
@@ -104,6 +104,13 @@
         "token": "NAMESPACE",
         "optional": true,
         "summary": "The namespace to run the command in. Defaults to the session's current namespace."
+      },
+      {
+        "name": "close",
+        "type": "pure-token",
+        "token": "CLOSE",
+        "optional": true,
+        "summary": "Close the cursor when the command returns."
       }
     ]
   }

@@ -34,6 +34,7 @@ import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
+import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import io.lettuce.core.codec.ByteArrayCodec;
@@ -3023,6 +3024,51 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         List<BsonDocument> all = queryAll(cmd);
         assertEquals(20, all.size());
         assertEquals(5, idsWithStatus(all).size());
+    }
+
+    @Test
+    void shouldCloseUpdateCursorWhenCloseArgumentIsGiven() {
+        // Behavior: With CLOSE, BUCKET.UPDATE updates the first batch, returns cursor_id -1, leaves
+        // no cursor in the session, and does not touch the remaining documents.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(20));
+
+        Object msg = updateWithArgs(cmd, "{}", "{\"$set\": {\"status\": \"updated\"}}",
+                BucketQueryArgs.Builder.batch(5).close());
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(5, extractObjectIds(msg).size());
+
+        ByteBuf cursorsBuf = Unpooled.buffer();
+        cmd.cursors("UPDATE").encode(cursorsBuf);
+        Object cursors = runCommand(channel, cursorsBuf);
+        assertInstanceOf(MapRedisMessage.class, cursors);
+        MapRedisMessage updateCursors = (MapRedisMessage) findInMapMessage((MapRedisMessage) cursors, "UPDATE");
+        assertTrue(updateCursors.children().isEmpty());
+
+        List<BsonDocument> all = queryAll(cmd);
+        assertEquals(20, all.size());
+        assertEquals(5, idsWithStatus(all).size());
+    }
+
+    @Test
+    void shouldCloseUpdateCursorWhenCloseArgumentIsGiven_RESP2() {
+        // Behavior: With CLOSE, BUCKET.UPDATE in RESP2 mode returns cursor_id -1 and the updated ids.
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP2);
+
+        insertDocumentsAndGetObjectIds(identicalDocuments(20));
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.update(TEST_BUCKET, "{}", "{\"$set\": {\"status\": \"updated\"}}",
+                BucketQueryArgs.Builder.batch(5).close()).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+
+        ArrayRedisMessage response = (ArrayRedisMessage) msg;
+        assertEquals(-1, ((IntegerRedisMessage) response.children().get(0)).value());
+        assertEquals(5, ((ArrayRedisMessage) response.children().get(1)).children().size());
     }
 
     @Test

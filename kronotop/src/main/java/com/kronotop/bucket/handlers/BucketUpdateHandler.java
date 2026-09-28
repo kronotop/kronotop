@@ -101,7 +101,7 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
                 objectIds = List.of(ctx.upsertResult().getObjectId());
             }
 
-            if (closeCursorIfLimitReached(ctx, session, cursorId, BucketOperation.UPDATE)) {
+            if (closeCursorIfDone(ctx, session, cursorId, BucketOperation.UPDATE, message.getArguments().isClose())) {
                 cursorId = -1;
             }
             return new BucketObjectIdArrayResponse(cursorId, objectIds);

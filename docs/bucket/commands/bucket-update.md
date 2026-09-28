@@ -10,7 +10,7 @@ Updates documents in a bucket that match a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>]
+BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>] [CLOSE]
 ```
 
 ## Parameters
@@ -27,6 +27,7 @@ Keyword names are not case-sensitive, and each keyword can appear at most once.
 | `LIMIT`     | integer            | No       | Maximum total number of documents the cursor updates across the first call and all `BUCKET.ADVANCE` calls. Must be non-negative. `0` means no limit (default). When the limit is reached, the response carries `cursor_id` `-1` and the cursor is removed. An upsert counts as one document. |
 | `COLLATION` | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                                                                                     |
 | `NAMESPACE` | string             | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. A cursor opened this way stays in that namespace for `BUCKET.ADVANCE`.                                                              |
+| `CLOSE`     | flag               | No       | Close the cursor when the command returns. The command updates the first batch and the response carries `cursor_id` `-1`. Takes no value.                                                                                                                                                    |
 
 ## Return Value
 
@@ -135,6 +136,9 @@ Each call updates the next batch of documents up to the batch size.
 remaining `LIMIT`. The call that reaches the limit returns `cursor_id` `-1` and removes the cursor from the session.
 There is no need to call `BUCKET.CLOSE` on it. A document inserted by `upsert` counts as one toward the limit.
 
+When one batch is enough, send the command with `CLOSE`. The command updates the first batch, returns `cursor_id`
+`-1`, and leaves no cursor in the session.
+
 ## Routing
 
 The command must be sent to a node that owns at least one shard assigned to the bucket. If the bucket's shards are all
@@ -230,6 +234,14 @@ BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BAT
 
 Updates at most 120 documents in total. The first two calls update 50 each, the third updates 20 and returns
 `cursor_id` `-1`.
+
+**Update that closes its cursor:**
+
+```kronotop
+> BUCKET.UPDATE users '{"status": "pending"}' '{"$set": {"status": "active"}}' BATCH 50 CLOSE
+1# "cursor_id" => (integer) -1
+2# "object_ids" => ... (first 50 updated)
+```
 
 **Update with collation:**
 
