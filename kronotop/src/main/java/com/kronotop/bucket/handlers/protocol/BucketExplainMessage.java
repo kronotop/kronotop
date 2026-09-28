@@ -23,5 +23,9 @@ public class BucketExplainMessage extends BucketQueryMessage {
 
     public BucketExplainMessage(Request request) {
         super(request);
+        if (getArguments().isClose()) {
+            // BUCKET.EXPLAIN never opens a cursor.
+            throw new UnsupportedArgumentException(QueryArgumentKey.CLOSE);
+        }
     }
 }

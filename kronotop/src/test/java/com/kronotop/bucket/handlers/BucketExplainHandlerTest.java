@@ -68,6 +68,22 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldRejectCloseArgument() {
+        // Behavior: BUCKET.EXPLAIN rejects CLOSE because it never opens a cursor.
+        insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.explain(TEST_BUCKET, "{}", BucketQueryArgs.Builder.close()).encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertEquals("ERR 'CLOSE' is an unsupported argument", ((ErrorRedisMessage) msg).content());
+    }
+
+    @Test
     void shouldReturnIsCachedTrueWhenPlanIsCached() {
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
 
