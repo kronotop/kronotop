@@ -35,8 +35,8 @@ public class CommandHandlerRegistry {
     /**
      * Registers a handler for the given command type with argument constraints.
      *
-     * @param commandType           the command type
-     * @param handler               the handler instance
+     * @param commandType          the command type
+     * @param handler              the handler instance
      * @param minimumArgumentCount minimum required arguments (-1 = no constraint)
      * @param maximumArgumentCount maximum allowed arguments (-1 = no constraint)
      * @throws CommandAlreadyRegisteredException if the command is already registered

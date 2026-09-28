@@ -71,10 +71,10 @@ public class ContextImpl implements Context {
     private final InternalClientPool internalClientPool;
     private final ShardRegistry shardRegistry;
     private final SessionStore sessionStore = new SessionStore();
+    private final InFlight inFlight = new InFlight();
     // Direct field access for minimal overhead on the hot path.
     // Initialized only once to avoid runtime lookup and casting costs.
     private BucketMetadataCache bucketMetadataCache;
-    private final InFlight inFlight = new InFlight();
 
     /**
      * Creates a new context for a Kronotop instance.
@@ -82,7 +82,7 @@ public class ContextImpl implements Context {
      * @param config   the application configuration (must contain "default_namespace" and "cluster.name")
      * @param member   the cluster member this context belongs to
      * @param database the FoundationDB database connection
-     * @throws ConfigException   if required configuration keys are missing
+     * @throws ConfigException          if required configuration keys are missing
      * @throws IllegalArgumentException if default namespace is empty or blank
      */
     public ContextImpl(Config config, Member member, Database database) {

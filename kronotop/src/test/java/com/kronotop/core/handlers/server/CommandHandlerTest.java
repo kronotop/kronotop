@@ -37,16 +37,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CommandHandlerTest extends BaseHandlerTest {
 
-    private Object run(EmbeddedChannel channel, String... args) {
-        StringBuilder resp = new StringBuilder("*").append(args.length).append("\r\n");
-        for (String arg : args) {
-            resp.append("$").append(arg.length()).append("\r\n").append(arg).append("\r\n");
-        }
-        ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes(resp.toString().getBytes(StandardCharsets.US_ASCII));
-        return runCommand(channel, buf);
-    }
-
     private static String text(RedisMessage message) {
         assertInstanceOf(FullBulkStringRedisMessage.class, message);
         return ((FullBulkStringRedisMessage) message).content().toString(StandardCharsets.UTF_8);
@@ -57,6 +47,21 @@ class CommandHandlerTest extends BaseHandlerTest {
         Map<String, RedisMessage> result = new LinkedHashMap<>();
         ((MapRedisMessage) message).children().forEach((key, value) -> result.put(text(key), value));
         return result;
+    }
+
+    private static long integer(RedisMessage message) {
+        assertInstanceOf(IntegerRedisMessage.class, message);
+        return ((IntegerRedisMessage) message).value();
+    }
+
+    private Object run(EmbeddedChannel channel, String... args) {
+        StringBuilder resp = new StringBuilder("*").append(args.length).append("\r\n");
+        for (String arg : args) {
+            resp.append("$").append(arg.length()).append("\r\n").append(arg).append("\r\n");
+        }
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes(resp.toString().getBytes(StandardCharsets.US_ASCII));
+        return runCommand(channel, buf);
     }
 
     private EmbeddedChannel newInternalChannel() {
@@ -166,11 +171,6 @@ class CommandHandlerTest extends BaseHandlerTest {
     private List<RedisMessage> infoEntries(Object response) {
         assertInstanceOf(ArrayRedisMessage.class, response);
         return ((ArrayRedisMessage) response).children();
-    }
-
-    private static long integer(RedisMessage message) {
-        assertInstanceOf(IntegerRedisMessage.class, message);
-        return ((IntegerRedisMessage) message).value();
     }
 
     @Test

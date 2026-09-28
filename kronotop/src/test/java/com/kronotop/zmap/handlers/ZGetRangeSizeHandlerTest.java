@@ -42,6 +42,23 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZGetRangeSizeHandlerTest extends BaseHandlerTest {
 
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("too few arguments",
+                        List.of("key-0"),
+                        "ERR wrong number of arguments for 'ZGETRANGESIZE' command"),
+                arguments("too many arguments",
+                        List.of("key-0", "key-5", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZGETRANGESIZE' command"),
+                arguments("unknown keyword",
+                        List.of("key-0", "key-5", "EXTRA"),
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key-0", "key-5", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
+        );
+    }
+
     @Test
     void shouldGetRangeSize() {
         ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
@@ -180,23 +197,6 @@ class ZGetRangeSizeHandlerTest extends BaseHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
                 ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("too few arguments",
-                        List.of("key-0"),
-                        "ERR wrong number of arguments for 'ZGETRANGESIZE' command"),
-                arguments("too many arguments",
-                        List.of("key-0", "key-5", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZGETRANGESIZE' command"),
-                arguments("unknown keyword",
-                        List.of("key-0", "key-5", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
-                arguments("NAMESPACE without value",
-                        List.of("key-0", "key-5", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

@@ -21,8 +21,8 @@ import com.kronotop.BaseHandlerTest;
 import com.kronotop.KronotopException;
 import com.kronotop.TestUtil;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.index.SingleFieldIndexUtil;
 import com.kronotop.commands.BucketCommandBuilder;
@@ -45,10 +45,19 @@ import java.util.concurrent.CountDownLatch;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BaseBucketHandlerTest extends BaseHandlerTest {
+    protected static final String MISSING_NAMESPACE = "missing-namespace";
     protected final byte[] TEST_DOCUMENT = BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}");
     protected final Random rand = new Random(System.nanoTime());
-    protected static final String MISSING_NAMESPACE = "missing-namespace";
     protected final BucketCommandBuilder<String, String> bucketCmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+
+    /**
+     * Asserts that a command reply is a DUPLICATEKEY error.
+     */
+    protected static void assertDuplicateKey(Object msg) {
+        assertInstanceOf(ErrorRedisMessage.class, msg);
+        assertTrue(((ErrorRedisMessage) msg).content().startsWith("DUPLICATEKEY"),
+                "Should return a DUPLICATEKEY error, got: " + msg);
+    }
 
     /**
      * Creates a list of dummy documents with sequential key-value pairs.
@@ -169,15 +178,6 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         }
         cmd.insert(bucket, docs).encode(buf);
         return runCommand(channel, buf);
-    }
-
-    /**
-     * Asserts that a command reply is a DUPLICATEKEY error.
-     */
-    protected static void assertDuplicateKey(Object msg) {
-        assertInstanceOf(ErrorRedisMessage.class, msg);
-        assertTrue(((ErrorRedisMessage) msg).content().startsWith("DUPLICATEKEY"),
-                "Should return a DUPLICATEKEY error, got: " + msg);
     }
 
     /**

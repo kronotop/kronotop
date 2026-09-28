@@ -49,7 +49,7 @@ public final class VectorNodeDeleteHook extends BaseVectorNode implements Commit
     public void run() {
         byte[] trVersion = trVersionFuture.join();
         VectorNodeRemover remover = new VectorNodeRemover(service, metadata, vectorIndexId);
-        for (DeletedVector dv: deletedVectors) {
+        for (DeletedVector dv : deletedVectors) {
             remover.remove(dv, trVersion);
         }
         remover.flush();

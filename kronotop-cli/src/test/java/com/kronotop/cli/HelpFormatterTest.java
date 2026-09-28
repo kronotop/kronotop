@@ -21,9 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class HelpFormatterTest {
 
@@ -33,7 +31,7 @@ class HelpFormatterTest {
         CommandDoc doc = new CommandDoc(List.of("bucket.query"), "BUCKET.QUERY",
                 List.of("bucket", "query", "[LIMIT", "limit]"), "Queries documents.", "2026.06-1", "bucket");
         String expected = """
-
+                
                   BUCKET.QUERY bucket query [LIMIT limit]
                   summary: Queries documents.
                   since: 2026.06-1
@@ -47,7 +45,7 @@ class HelpFormatterTest {
         // Behavior: a group listing hides the group line of each entry
         CommandDoc doc = new CommandDoc(List.of("ping"), "PING", List.of(), "Pings the server.", "1.0", "connection");
         String expected = """
-
+                
                   PING
                   summary: Pings the server.
                   since: 1.0
@@ -60,7 +58,7 @@ class HelpFormatterTest {
         // Behavior: a command without arguments shows only its name, empty fields are not printed
         CommandDoc doc = new CommandDoc(List.of("ping"), "PING", List.of(), "Pings the server.", "", "");
         String expected = """
-
+                
                   PING
                   summary: Pings the server.
                 """;

@@ -16,8 +16,8 @@
 
 package com.kronotop.bucket.handlers.protocol;
 
-import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
 

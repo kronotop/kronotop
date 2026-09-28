@@ -37,6 +37,12 @@ public class CommandCompleter implements Completer {
 
     private volatile CommandDocsCatalog catalog;
 
+    private static void addAll(List<Candidate> candidates, List<String> names) {
+        for (String name : names) {
+            candidates.add(new Candidate(name.toUpperCase(Locale.ROOT)));
+        }
+    }
+
     public void setCatalog(CommandDocsCatalog catalog) {
         this.catalog = catalog;
     }
@@ -71,12 +77,6 @@ public class CommandCompleter implements Completer {
             }
         } else if (index == 1) {
             addAll(candidates, current.subcommandNames(words.get(0)));
-        }
-    }
-
-    private static void addAll(List<Candidate> candidates, List<String> names) {
-        for (String name : names) {
-            candidates.add(new Candidate(name.toUpperCase(Locale.ROOT)));
         }
     }
 }

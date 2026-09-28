@@ -27,8 +27,8 @@ import java.util.List;
 public class CommandMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "COMMAND";
     private final Request request;
-    private CommandArgumentKey argument;
     private final List<String> commands = new ArrayList<>();
+    private CommandArgumentKey argument;
 
     public CommandMessage(Request request) {
         this.request = request;

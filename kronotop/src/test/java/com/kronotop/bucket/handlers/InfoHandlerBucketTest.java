@@ -39,16 +39,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class InfoHandlerBucketTest extends BaseBucketHandlerTest {
 
-    private String runInfo(String section) {
-        String raw = "*2\r\n$4\r\nINFO\r\n$" + section.length() + "\r\n" + section + "\r\n";
-        ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes(raw.getBytes(StandardCharsets.US_ASCII));
-
-        Object response = runCommand(channel, buf);
-        assertInstanceOf(FullBulkStringRedisMessage.class, response);
-        return ((FullBulkStringRedisMessage) response).content().toString(StandardCharsets.US_ASCII);
-    }
-
     private static String fieldValue(String info, String key) {
         for (String line : info.split("\r\n")) {
             if (line.startsWith(key + ":")) {
@@ -65,6 +55,16 @@ class InfoHandlerBucketTest extends BaseBucketHandlerTest {
             }
         }
         throw new AssertionError("Attribute not found: " + key);
+    }
+
+    private String runInfo(String section) {
+        String raw = "*2\r\n$4\r\nINFO\r\n$" + section.length() + "\r\n" + section + "\r\n";
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes(raw.getBytes(StandardCharsets.US_ASCII));
+
+        Object response = runCommand(channel, buf);
+        assertInstanceOf(FullBulkStringRedisMessage.class, response);
+        return ((FullBulkStringRedisMessage) response).content().toString(StandardCharsets.US_ASCII);
     }
 
     private long bucketVolumeAppends() {

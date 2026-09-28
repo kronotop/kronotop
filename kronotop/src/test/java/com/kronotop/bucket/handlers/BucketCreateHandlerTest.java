@@ -17,7 +17,6 @@
 package com.kronotop.bucket.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.bucket.BucketBeingRemovedException;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.Collation;
@@ -33,17 +32,54 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.bson.BsonType;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.List;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class BucketCreateHandlerTest extends BaseBucketHandlerTest {
+
+    static Stream<Arguments> duplicateArguments() {
+        return Stream.of(
+                arguments("repeated SHARDS",
+                        List.of("test-bucket", "SHARDS", "1", "SHARDS", "2"),
+                        "ERR Duplicate 'SHARDS' argument"),
+                arguments("repeated INDEXES",
+                        List.of("test-bucket", "INDEXES", "{}", "INDEXES", "{}"),
+                        "ERR Duplicate 'INDEXES' argument"),
+                arguments("repeated IF-NOT-EXISTS in mixed case",
+                        List.of("test-bucket", "if-not-exists", "IF-NOT-EXISTS"),
+                        "ERR Duplicate 'IF-NOT-EXISTS' argument"),
+                arguments("repeated NAMESPACE",
+                        List.of("test-bucket", "NAMESPACE", "a", "NAMESPACE", "b"),
+                        "ERR Duplicate 'NAMESPACE' argument")
+        );
+    }
+
+    static Stream<Arguments> keywordsWithoutValue() {
+        return Stream.of(
+                arguments("SHARDS as the last argument",
+                        List.of("test-bucket", "SHARDS"),
+                        "ERR SHARDS argument must be followed by one or more shard ids"),
+                arguments("SHARDS followed by another keyword",
+                        List.of("test-bucket", "SHARDS", "INDEXES", "{}"),
+                        "ERR SHARDS argument must be followed by one or more shard ids"),
+                arguments("INDEXES as the last argument",
+                        List.of("test-bucket", "INDEXES"),
+                        "ERR INDEXES argument must be followed by an index specification"),
+                arguments("COLLATION as the last argument",
+                        List.of("test-bucket", "SHARDS", "1", "COLLATION"),
+                        "ERR COLLATION argument must be followed by a collation specification"),
+                arguments("NAMESPACE as the last argument",
+                        List.of("test-bucket", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
+        );
+    }
 
     @Test
     void shouldCreateBucketSuccessfully() {
@@ -564,23 +600,6 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
-    static Stream<Arguments> duplicateArguments() {
-        return Stream.of(
-                arguments("repeated SHARDS",
-                        List.of("test-bucket", "SHARDS", "1", "SHARDS", "2"),
-                        "ERR Duplicate 'SHARDS' argument"),
-                arguments("repeated INDEXES",
-                        List.of("test-bucket", "INDEXES", "{}", "INDEXES", "{}"),
-                        "ERR Duplicate 'INDEXES' argument"),
-                arguments("repeated IF-NOT-EXISTS in mixed case",
-                        List.of("test-bucket", "if-not-exists", "IF-NOT-EXISTS"),
-                        "ERR Duplicate 'IF-NOT-EXISTS' argument"),
-                arguments("repeated NAMESPACE",
-                        List.of("test-bucket", "NAMESPACE", "a", "NAMESPACE", "b"),
-                        "ERR Duplicate 'NAMESPACE' argument")
-        );
-    }
-
     @ParameterizedTest(name = "{0}")
     @MethodSource("duplicateArguments")
     void shouldRejectDuplicateArguments(String name, List<String> rawArgs, String expectedError) {
@@ -590,26 +609,6 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> keywordsWithoutValue() {
-        return Stream.of(
-                arguments("SHARDS as the last argument",
-                        List.of("test-bucket", "SHARDS"),
-                        "ERR SHARDS argument must be followed by one or more shard ids"),
-                arguments("SHARDS followed by another keyword",
-                        List.of("test-bucket", "SHARDS", "INDEXES", "{}"),
-                        "ERR SHARDS argument must be followed by one or more shard ids"),
-                arguments("INDEXES as the last argument",
-                        List.of("test-bucket", "INDEXES"),
-                        "ERR INDEXES argument must be followed by an index specification"),
-                arguments("COLLATION as the last argument",
-                        List.of("test-bucket", "SHARDS", "1", "COLLATION"),
-                        "ERR COLLATION argument must be followed by a collation specification"),
-                arguments("NAMESPACE as the last argument",
-                        List.of("test-bucket", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

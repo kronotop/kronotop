@@ -22,7 +22,10 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketShard;
-import com.kronotop.bucket.index.*;
+import com.kronotop.bucket.index.CompoundIndex;
+import com.kronotop.bucket.index.CompoundIndexMaintainer;
+import com.kronotop.bucket.index.IndexHolder;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
 import com.kronotop.bucket.index.statistics.IndexStatsBuilder;
 import com.kronotop.volume.VolumeEntry;
 

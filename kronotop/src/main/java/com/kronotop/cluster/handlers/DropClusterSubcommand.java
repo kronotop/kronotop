@@ -33,9 +33,8 @@ import static com.kronotop.AsyncCommandExecutor.runAsync;
 class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements SubcommandHandler {
 
     static final long TOKEN_TTL_MILLIS = 60_000;
-
-    private final ReentrantLock lock = new ReentrantLock();
     final Map<String, DropClusterToken> pendingTokens = new HashMap<>();
+    private final ReentrantLock lock = new ReentrantLock();
 
     DropClusterSubcommand(RoutingService service) {
         super(service);

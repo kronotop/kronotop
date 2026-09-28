@@ -20,8 +20,8 @@ package com.kronotop.server;
  * Immutable container for a command handler and its metadata.
  * Pre-cached argument constraints eliminate reflection overhead during request processing.
  *
- * @param handler               the handler instance
- * @param commandType           the command type enum constant
+ * @param handler              the handler instance
+ * @param commandType          the command type enum constant
  * @param minimumArgumentCount minimum required arguments (-1 = no constraint)
  * @param maximumArgumentCount maximum allowed arguments (-1 = no constraint)
  */

@@ -4,7 +4,10 @@
     "complexity": "O(1)",
     "group": "session",
     "since": "2026.06-1",
-    "servers": ["EXTERNAL", "INTERNAL"],
+    "servers": [
+      "EXTERNAL",
+      "INTERNAL"
+    ],
     "arity": 1,
     "command_flags": [
       "FAST"

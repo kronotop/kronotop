@@ -106,6 +106,20 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
         resumeMarkStalePrefixesTaskIfAny();
     }
 
+    private static @NonNull String prepareVolumeSection(Volume volume) {
+        VolumeStats stats = volume.getStats();
+        return "name=" + volume.getConfig().name() +
+                ",status=" + volume.getStatus() +
+                ",vacuum_active=" + (volume.isVacuumActive() ? 1 : 0) +
+                ",appends=" + stats.getAppends() +
+                ",deletes=" + stats.getDeletes() +
+                ",updates=" + stats.getUpdates() +
+                ",gets=" + stats.getGets() +
+                ",bytes_appended=" + stats.getBytesAppended() +
+                ",bytes_read=" + stats.getBytesRead() +
+                ",segments_created=" + stats.getSegmentsCreated();
+    }
+
     public MutationWatcher mutationWatcher() {
         return mutationWatcher;
     }
@@ -296,20 +310,6 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
             collector.put(InfoHandler.VOLUME_SECTION, "volume" + index, line);
             index++;
         }
-    }
-
-    private static @NonNull String prepareVolumeSection(Volume volume) {
-        VolumeStats stats = volume.getStats();
-        return "name=" + volume.getConfig().name() +
-                ",status=" + volume.getStatus() +
-                ",vacuum_active=" + (volume.isVacuumActive() ? 1 : 0) +
-                ",appends=" + stats.getAppends() +
-                ",deletes=" + stats.getDeletes() +
-                ",updates=" + stats.getUpdates() +
-                ",gets=" + stats.getGets() +
-                ",bytes_appended=" + stats.getBytesAppended() +
-                ",bytes_read=" + stats.getBytesRead() +
-                ",segments_created=" + stats.getSegmentsCreated();
     }
 
     public DirectorySubspace openSubspace(String volumeName) {

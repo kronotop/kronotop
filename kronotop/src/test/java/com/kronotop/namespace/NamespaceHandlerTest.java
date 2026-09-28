@@ -30,6 +30,7 @@ import com.kronotop.bucket.index.maintenance.IndexBuildingTask;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.commands.BucketCommandBuilder;
+import com.kronotop.commands.CommandType;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.internal.JSONUtil;
@@ -54,7 +55,6 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import com.kronotop.commands.CommandType;
 
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;

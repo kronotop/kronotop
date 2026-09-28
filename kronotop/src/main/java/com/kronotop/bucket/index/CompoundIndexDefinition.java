@@ -33,7 +33,8 @@ import java.util.UUID;
  * @param unique    if true, the combination of all field values must be unique across documents
  */
 public record CompoundIndexDefinition(long id, String name, List<CompoundIndexField> fields,
-                                      IndexStatus status, Collation collation, boolean unique) implements IndexDefinition {
+                                      IndexStatus status, Collation collation,
+                                      boolean unique) implements IndexDefinition {
 
     public CompoundIndexDefinition {
         fields = List.copyOf(fields);

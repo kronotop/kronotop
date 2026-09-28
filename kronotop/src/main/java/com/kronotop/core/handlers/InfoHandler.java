@@ -25,12 +25,7 @@ import com.kronotop.core.handlers.protocol.InfoMessage;
 import com.kronotop.instance.KronotopInstanceStarter;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
-import com.kronotop.server.Handler;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
-import com.kronotop.server.RESPVersion;
-import com.kronotop.server.SessionAttributes;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.transaction.TransactionUtil;
@@ -86,6 +81,27 @@ public class InfoHandler implements Handler {
             LOGGER.warn("Failed to load application.properties", e);
         }
         return props;
+    }
+
+    private static int archBits() {
+        String arch = System.getProperty("os.arch", "");
+        return arch.contains("64") ? 64 : 32;
+    }
+
+    private static long serverTimeUsec() {
+        Instant now = Instant.now();
+        return now.getEpochSecond() * 1_000_000L + now.getNano() / 1_000L;
+    }
+
+    private static String listener(String name, Address bind, List<Address> advertise) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("name=").append(name);
+        sb.append(",bind=").append(bind.getHost());
+        sb.append(",port=").append(bind.getPort());
+        for (Address address : advertise) {
+            sb.append(",advertise=").append(address);
+        }
+        return sb.toString();
     }
 
     @Override
@@ -160,27 +176,6 @@ public class InfoHandler implements Handler {
                 listener("external", member.getExternalAddress(), member.getExternalAdvertise()));
         collector.put(SERVER_SECTION, "listener1",
                 listener("internal", member.getInternalAddress(), member.getInternalAdvertise()));
-    }
-
-    private static int archBits() {
-        String arch = System.getProperty("os.arch", "");
-        return arch.contains("64") ? 64 : 32;
-    }
-
-    private static long serverTimeUsec() {
-        Instant now = Instant.now();
-        return now.getEpochSecond() * 1_000_000L + now.getNano() / 1_000L;
-    }
-
-    private static String listener(String name, Address bind, List<Address> advertise) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("name=").append(name);
-        sb.append(",bind=").append(bind.getHost());
-        sb.append(",port=").append(bind.getPort());
-        for (Address address : advertise) {
-            sb.append(",advertise=").append(address);
-        }
-        return sb.toString();
     }
 
     private void collectClients(InfoCollector collector) {

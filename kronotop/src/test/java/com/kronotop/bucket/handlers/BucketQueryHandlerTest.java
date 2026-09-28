@@ -24,8 +24,8 @@ import com.kronotop.bucket.bql.ParameterExtractor;
 import com.kronotop.bucket.bql.QueryShape;
 import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.bucket.bql.ast.BqlValue;
-import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.commands.*;
 import com.kronotop.server.RESPVersion;
@@ -41,23 +41,68 @@ import org.bson.*;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.time.Duration;
-import java.util.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import java.util.List;
+
+import java.time.Duration;
+import java.util.*;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
     private static final String COLLATION_BUCKET = "collation-bucket";
+
+    static Stream<Arguments> duplicateArguments() {
+        return Stream.of(
+                arguments("repeated LIMIT",
+                        List.of("test-bucket", "{}", "LIMIT", "10", "LIMIT", "10"),
+                        "ERR Duplicate 'LIMIT' argument"),
+                arguments("repeated BATCH",
+                        List.of("test-bucket", "{}", "BATCH", "5", "BATCH", "5"),
+                        "ERR Duplicate 'BATCH' argument"),
+                arguments("repeated SORTBY",
+                        List.of("test-bucket", "{}", "SORTBY", "a", "ASC", "SORTBY", "b", "ASC"),
+                        "ERR Duplicate 'SORTBY' argument"),
+                arguments("repeated PROJECTION",
+                        List.of("test-bucket", "{}", "PROJECTION", "{}", "PROJECTION", "{}"),
+                        "ERR Duplicate 'PROJECTION' argument")
+        );
+    }
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("LIMIT without value",
+                        List.of("test-bucket", "{}", "LIMIT"),
+                        "ERR LIMIT argument must be followed by a non-negative integer"),
+                arguments("negative LIMIT",
+                        List.of("test-bucket", "{}", "LIMIT", "-1"),
+                        "ERR LIMIT argument must be followed by a non-negative integer"),
+                arguments("BATCH without value",
+                        List.of("test-bucket", "{}", "BATCH"),
+                        "ERR BATCH argument must be followed by a non-negative integer"),
+                arguments("SORTBY without direction",
+                        List.of("test-bucket", "{}", "SORTBY", "a"),
+                        "ERR SORTBY argument must be followed by a field name and direction (ASC or DESC)"),
+                arguments("unknown sort direction",
+                        List.of("test-bucket", "{}", "SORTBY", "a", "UP"),
+                        "ERR Unknown sort direction: 'UP'"),
+                arguments("PROJECTION without value",
+                        List.of("test-bucket", "{}", "PROJECTION"),
+                        "ERR PROJECTION argument must be followed by a projection specification"),
+                arguments("unknown keyword",
+                        List.of("test-bucket", "{}", "BOGUS"),
+                        "ERR Unknown 'BOGUS' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("test-bucket", "{}", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
+        );
+    }
 
     @BeforeEach
     void setUp() {
@@ -387,6 +432,11 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
+    // ========================================================================
+    // FULL SCAN INTEGRATION TESTS
+    // Tests for non-indexed field queries that require full bucket scans
+    // ========================================================================
+
     @Test
     void shouldDoPhysicalIndexScanWithSingleOperator_DefaultIDIndex_LT() {
         Map<ObjectId, byte[]> expectedDocument = insertDocumentsAndGetObjectIds(makeDummyDocument(10));
@@ -456,11 +506,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             index++;
         }
     }
-
-    // ========================================================================
-    // FULL SCAN INTEGRATION TESTS
-    // Tests for non-indexed field queries that require full bucket scans
-    // ========================================================================
 
     @Test
     void shouldDoFullScanWithStringFieldFilter_EQ() {
@@ -1020,6 +1065,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
+    // --- Projection tests ---
+
     @Test
     void shouldQueryCommittedDataWithSnapshotRead() {
         // Behavior: Enabling snapshot read via SNAPSHOTREAD ON within a transaction
@@ -1152,8 +1199,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             assertEquals(3, entries.size(), "Should still have 3 documents after move");
         }
     }
-
-    // --- Projection tests ---
 
     @Test
     void shouldProjectIncludedFieldsOnly() {
@@ -1386,6 +1431,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertFalse(doc.containsKey("age"), "Second page (via ADVANCE) should also not include 'age'");
     }
 
+    // --- Collation tests ---
+
     @Test
     void shouldSliceArrayWithProjection() {
         // Behavior: PROJECTION with {"items": {"$slice": [1, 2]}} returns the requested array slice end to end.
@@ -1435,8 +1482,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertTrue(doc.containsKey("age"));
         assertEquals(2, doc.getArray("items").size());
     }
-
-    // --- Collation tests ---
 
     @Test
     void shouldQueryWithTurkishCollation() {
@@ -2185,23 +2230,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertEquals(15, new HashSet<>(allAges).size(), "Documents must not be duplicated across rounds");
     }
 
-    static Stream<Arguments> duplicateArguments() {
-        return Stream.of(
-                arguments("repeated LIMIT",
-                        List.of("test-bucket", "{}", "LIMIT", "10", "LIMIT", "10"),
-                        "ERR Duplicate 'LIMIT' argument"),
-                arguments("repeated BATCH",
-                        List.of("test-bucket", "{}", "BATCH", "5", "BATCH", "5"),
-                        "ERR Duplicate 'BATCH' argument"),
-                arguments("repeated SORTBY",
-                        List.of("test-bucket", "{}", "SORTBY", "a", "ASC", "SORTBY", "b", "ASC"),
-                        "ERR Duplicate 'SORTBY' argument"),
-                arguments("repeated PROJECTION",
-                        List.of("test-bucket", "{}", "PROJECTION", "{}", "PROJECTION", "{}"),
-                        "ERR Duplicate 'PROJECTION' argument")
-        );
-    }
-
     @ParameterizedTest(name = "{0}")
     @MethodSource("duplicateArguments")
     void shouldRejectDuplicateArguments(String name, List<String> rawArgs, String expectedError) {
@@ -2270,35 +2298,6 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
                 ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("LIMIT without value",
-                        List.of("test-bucket", "{}", "LIMIT"),
-                        "ERR LIMIT argument must be followed by a non-negative integer"),
-                arguments("negative LIMIT",
-                        List.of("test-bucket", "{}", "LIMIT", "-1"),
-                        "ERR LIMIT argument must be followed by a non-negative integer"),
-                arguments("BATCH without value",
-                        List.of("test-bucket", "{}", "BATCH"),
-                        "ERR BATCH argument must be followed by a non-negative integer"),
-                arguments("SORTBY without direction",
-                        List.of("test-bucket", "{}", "SORTBY", "a"),
-                        "ERR SORTBY argument must be followed by a field name and direction (ASC or DESC)"),
-                arguments("unknown sort direction",
-                        List.of("test-bucket", "{}", "SORTBY", "a", "UP"),
-                        "ERR Unknown sort direction: 'UP'"),
-                arguments("PROJECTION without value",
-                        List.of("test-bucket", "{}", "PROJECTION"),
-                        "ERR PROJECTION argument must be followed by a projection specification"),
-                arguments("unknown keyword",
-                        List.of("test-bucket", "{}", "BOGUS"),
-                        "ERR Unknown 'BOGUS' argument"),
-                arguments("NAMESPACE without value",
-                        List.of("test-bucket", "{}", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

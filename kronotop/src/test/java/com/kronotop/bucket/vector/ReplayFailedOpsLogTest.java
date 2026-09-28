@@ -16,16 +16,16 @@
 
 package com.kronotop.bucket.vector;
 
-import com.kronotop.TestUtil;
-import com.kronotop.bucket.BucketService;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.TestUtil;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BucketMetadata;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.*;
 import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.VolumeTestUtil;
@@ -53,6 +53,12 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
 
     private ExecutorService executor;
 
+    private static Versionstamp versionstamp(int txVersion) {
+        byte[] trVersion = new byte[10];
+        ByteBuffer.wrap(trVersion).putInt(6, txVersion);
+        return Versionstamp.complete(trVersion, 0);
+    }
+
     @BeforeEach
     void setUpExecutor() {
         executor = Executors.newVirtualThreadPerTaskExecutor();
@@ -61,12 +67,6 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
     @AfterEach
     void tearDownExecutor() {
         executor.close();
-    }
-
-    private static Versionstamp versionstamp(int txVersion) {
-        byte[] trVersion = new byte[10];
-        ByteBuffer.wrap(trVersion).putInt(6, txVersion);
-        return Versionstamp.complete(trVersion, 0);
     }
 
     private EntryMetadata newEntryMetadata() {

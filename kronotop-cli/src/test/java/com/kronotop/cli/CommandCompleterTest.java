@@ -29,10 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CommandCompleterTest {
 
@@ -66,6 +63,10 @@ class CommandCompleterTest {
             values.add(candidate.value());
         }
         return values;
+    }
+
+    private static CmdLine cmdLine(List<String> words) {
+        return new CmdLine(String.join(" ", words), "", "", words, CmdLine.DescriptionType.COMMAND);
     }
 
     @Test
@@ -128,10 +129,6 @@ class CommandCompleterTest {
         CommandCompleter completer = new CommandCompleter();
         completer.setCatalog(catalog());
         assertFalse(complete(completer, "@").contains("@bucket"));
-    }
-
-    private static CmdLine cmdLine(List<String> words) {
-        return new CmdLine(String.join(" ", words), "", "", words, CmdLine.DescriptionType.COMMAND);
     }
 
     @Test

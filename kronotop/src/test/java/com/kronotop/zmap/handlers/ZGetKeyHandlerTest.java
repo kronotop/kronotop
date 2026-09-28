@@ -42,6 +42,31 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZGetKeyHandlerTest extends BaseHandlerTest {
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("unknown keyword",
+                        List.of("key-0", "SELECTOR", "first_greater_than"),
+                        "ERR Unknown 'SELECTOR' argument"),
+                arguments("key selector without value",
+                        List.of("key-0", "KEY-SELECTOR"),
+                        "ERR KEY-SELECTOR argument must be followed by a valid key selector"),
+                arguments("invalid key selector",
+                        List.of("key-0", "KEY-SELECTOR", "bogus"),
+                        "ERR Unknown range key selector: 'bogus'"),
+                arguments("duplicate key selector",
+                        List.of("key-0",
+                                "KEY-SELECTOR", "first_greater_than",
+                                "KEY-SELECTOR", "first_greater_or_equal"),
+                        "ERR Duplicate 'KEY-SELECTOR' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key-0", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace"),
+                arguments("too many arguments",
+                        List.of("key-0", "KEY-SELECTOR", "first_greater_than", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZGETKEY' command")
+        );
+    }
+
     @Test
     void shouldGetKey() {
         ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
@@ -132,31 +157,6 @@ class ZGetKeyHandlerTest extends BaseHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
                 ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("unknown keyword",
-                        List.of("key-0", "SELECTOR", "first_greater_than"),
-                        "ERR Unknown 'SELECTOR' argument"),
-                arguments("key selector without value",
-                        List.of("key-0", "KEY-SELECTOR"),
-                        "ERR KEY-SELECTOR argument must be followed by a valid key selector"),
-                arguments("invalid key selector",
-                        List.of("key-0", "KEY-SELECTOR", "bogus"),
-                        "ERR Unknown range key selector: 'bogus'"),
-                arguments("duplicate key selector",
-                        List.of("key-0",
-                                "KEY-SELECTOR", "first_greater_than",
-                                "KEY-SELECTOR", "first_greater_or_equal"),
-                        "ERR Duplicate 'KEY-SELECTOR' argument"),
-                arguments("NAMESPACE without value",
-                        List.of("key-0", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace"),
-                arguments("too many arguments",
-                        List.of("key-0", "KEY-SELECTOR", "first_greater_than", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZGETKEY' command")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

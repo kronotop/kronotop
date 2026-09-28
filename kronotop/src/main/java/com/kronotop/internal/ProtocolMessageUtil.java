@@ -328,10 +328,10 @@ public class ProtocolMessageUtil {
     /**
      * Returns the value that follows a keyword at index {@code i}.
      *
-     * @param arguments   the command arguments
-     * @param i        the index of the keyword
-     * @param keyword  the keyword as it is written on the wire, used in the error message
-     * @param expected a short description of the accepted value, used in the error message
+     * @param arguments the command arguments
+     * @param i         the index of the keyword
+     * @param keyword   the keyword as it is written on the wire, used in the error message
+     * @param expected  a short description of the accepted value, used in the error message
      * @return the buffer holding the value
      * @throws IllegalCommandArgumentException if the keyword is the last argument
      */
@@ -346,7 +346,7 @@ public class ProtocolMessageUtil {
      * Reads an optional trailing {@code NAMESPACE <path>} argument that follows the positional
      * arguments of a command. Any other keyword at or after {@code startIndex} is rejected.
      *
-     * @param arguments     the command arguments
+     * @param arguments  the command arguments
      * @param startIndex the index of the first argument after the positional ones
      * @return the namespace given on the command, or null if not specified
      * @throws IllegalCommandArgumentException if an unknown keyword is found or the keyword has no value

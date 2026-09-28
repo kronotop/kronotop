@@ -173,6 +173,24 @@ public class KronotopCLI implements Callable<Integer> {
         System.exit(exitCode);
     }
 
+    /**
+     * Replaces the JLine completion colors with the terminal default.
+     * JLine falls back to its own colors when a style resolves to the empty style,
+     * so "fg:default" and "bg:default" are used instead of an empty value.
+     */
+    private static void disableCompletionColors(LineReaderBuilder builder) {
+        for (String name : List.of(
+                LineReader.COMPLETION_STYLE_STARTING,
+                LineReader.COMPLETION_STYLE_LIST_STARTING,
+                LineReader.COMPLETION_STYLE_DESCRIPTION,
+                LineReader.COMPLETION_STYLE_LIST_DESCRIPTION,
+                LineReader.COMPLETION_STYLE_GROUP,
+                LineReader.COMPLETION_STYLE_LIST_GROUP)) {
+            builder.variable(name, "fg:default");
+        }
+        builder.variable(LineReader.COMPLETION_STYLE_LIST_BACKGROUND, "bg:default");
+    }
+
     @Override
     public Integer call() {
         commandLineParser = new CommandLineParser(quotedInput);
@@ -410,24 +428,6 @@ public class KronotopCLI implements Callable<Integer> {
             }
         }
         return true;
-    }
-
-    /**
-     * Replaces the JLine completion colors with the terminal default.
-     * JLine falls back to its own colors when a style resolves to the empty style,
-     * so "fg:default" and "bg:default" are used instead of an empty value.
-     */
-    private static void disableCompletionColors(LineReaderBuilder builder) {
-        for (String name : List.of(
-                LineReader.COMPLETION_STYLE_STARTING,
-                LineReader.COMPLETION_STYLE_LIST_STARTING,
-                LineReader.COMPLETION_STYLE_DESCRIPTION,
-                LineReader.COMPLETION_STYLE_LIST_DESCRIPTION,
-                LineReader.COMPLETION_STYLE_GROUP,
-                LineReader.COMPLETION_STYLE_LIST_GROUP)) {
-            builder.variable(name, "fg:default");
-        }
-        builder.variable(LineReader.COMPLETION_STYLE_LIST_BACKGROUND, "bg:default");
     }
 
     /**

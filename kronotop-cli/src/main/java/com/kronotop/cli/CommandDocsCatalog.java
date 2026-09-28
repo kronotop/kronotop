@@ -21,15 +21,7 @@ import org.jline.console.ArgDesc;
 import org.jline.console.CmdDesc;
 import org.jline.console.CmdLine;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 /**
  * Turns a COMMAND DOCS reply into argument hints for the interactive prompt.
@@ -40,27 +32,11 @@ public class CommandDocsCatalog {
     private static final String SUBCOMMAND_PLACEHOLDER = "subcommand";
     private static final String EMPTY_TOKEN = "";
     private static final String NBSP = "\u00A0";
-
-    /**
-     * Help entry of one command. Words are the lowercase name parts, such as ["client", "setname"].
-     * The name is uppercase, a subcommand name has the form "CLIENT SETNAME". Missing fields are empty strings.
-     */
-    public record CommandDoc(List<String> words, String name, List<String> usage, String summary, String since,
-                             String group) {
-        /**
-         * Returns the usage as a single line, or an empty string when the command takes no arguments.
-         */
-        public String usageLine() {
-            return String.join(" ", usage).replace(NBSP.charAt(0), ' ');
-        }
-    }
-
     private final Map<String, CommandDoc> docs = new HashMap<>();
     private final List<CommandDoc> entries = new ArrayList<>();
     private final Set<String> containers = new HashSet<>();
     private final List<String> commandNames = new ArrayList<>();
     private final Map<String, List<String>> subcommandNames = new HashMap<>();
-
     public CommandDocsCatalog(RespValue reply) {
         Map<String, RespValue> commands = asMap(reply);
         commands.forEach((name, value) -> {
@@ -69,109 +45,11 @@ public class CommandDocsCatalog {
         });
     }
 
-    /**
-     * Returns all top-level command names in lowercase.
-     */
-    public List<String> commandNames() {
-        return commandNames;
-    }
-
-    /**
-     * Returns the subcommand names of a container command in lowercase, or an empty list.
-     */
-    public List<String> subcommandNames(String command) {
-        return subcommandNames.getOrDefault(command.toLowerCase(Locale.ROOT), List.of());
-    }
-
-    /**
-     * Returns the argument hint for the command line, or null when the command is unknown.
-     */
-    public CmdDesc lookup(CmdLine line) {
-        if (line.getDescriptionType() != CmdLine.DescriptionType.COMMAND) {
-            return null;
-        }
-        return lookup(line.getArgs());
-    }
-
-    /**
-     * The hint list always ends with an empty token. JLine shows the token at the
-     * current word position, so the empty token clears the hint after the last argument.
-     * For a subcommand the list also starts with an empty token: it stands in for the
-     * subcommand word itself, so the following tokens line up with the typed words.
-     */
-    CmdDesc lookup(List<String> words) {
-        if (words == null || words.isEmpty()) {
-            return null;
-        }
-        String command = words.get(0).toLowerCase(Locale.ROOT);
-        if (containers.contains(command)) {
-            if (words.size() >= 2) {
-                String sub = words.get(1).toLowerCase(Locale.ROOT);
-                CommandDoc subDoc = docs.get(command + "|" + sub);
-                if (subDoc != null) {
-                    List<String> names = new ArrayList<>(subDoc.usage().size() + 2);
-                    names.add(EMPTY_TOKEN);
-                    names.addAll(subDoc.usage());
-                    return hint(names);
-                }
-            }
-            return hint(List.of(SUBCOMMAND_PLACEHOLDER));
-        }
-        CommandDoc doc = docs.get(command);
-        if (doc == null) {
-            return null;
-        }
-        return hint(doc.usage());
-    }
-
     private static CmdDesc hint(List<String> names) {
         List<String> out = new ArrayList<>(names.size() + 1);
         out.addAll(names);
         out.add(EMPTY_TOKEN);
         return new CmdDesc(ArgDesc.doArgNames(out));
-    }
-
-    /**
-     * Returns every entry whose name starts with the given words, in catalog order.
-     * "client" matches CLIENT and all CLIENT subcommands. The match ignores case.
-     */
-    public List<CommandDoc> find(List<String> words) {
-        List<CommandDoc> out = new ArrayList<>();
-        if (words == null || words.isEmpty()) {
-            return out;
-        }
-        for (CommandDoc doc : entries) {
-            if (startsWith(doc.words(), words)) {
-                out.add(doc);
-            }
-        }
-        return out;
-    }
-
-    /**
-     * Returns every entry in the group, in catalog order. The match ignores case.
-     */
-    public List<CommandDoc> byGroup(String group) {
-        List<CommandDoc> out = new ArrayList<>();
-        for (CommandDoc doc : entries) {
-            if (doc.group().equalsIgnoreCase(group)) {
-                out.add(doc);
-            }
-        }
-        return out;
-    }
-
-    /**
-     * Returns the distinct group names in sorted order.
-     */
-    public List<String> groupNames() {
-        Set<String> groups = new TreeSet<>();
-        for (CommandDoc doc : entries) {
-            if (!doc.group().isEmpty()) {
-                groups.add(doc.group());
-            }
-        }
-        return new ArrayList<>(groups);
     }
 
     private static boolean startsWith(List<String> name, List<String> prefix) {
@@ -184,38 +62,6 @@ public class CommandDocsCatalog {
             }
         }
         return true;
-    }
-
-    List<String> usage(String command) {
-        CommandDoc doc = docs.get(command.toLowerCase(Locale.ROOT));
-        return doc == null ? null : doc.usage();
-    }
-
-    boolean isContainer(String command) {
-        return containers.contains(command.toLowerCase(Locale.ROOT));
-    }
-
-    private void addCommand(String name, RespValue value) {
-        Map<String, RespValue> fields = asMap(value);
-        CommandDoc doc = new CommandDoc(
-                List.of(name.split("\\|")),
-                name.toUpperCase(Locale.ROOT).replace('|', ' '),
-                renderArguments(fields.get("arguments")),
-                asString(fields.get("summary")),
-                asString(fields.get("since")),
-                asString(fields.get("group")));
-        docs.put(name, doc);
-        entries.add(doc);
-        RespValue subcommands = fields.get("subcommands");
-        if (subcommands != null) {
-            containers.add(name);
-            List<String> subs = new ArrayList<>();
-            asMap(subcommands).forEach((fullName, subValue) -> {
-                subs.add(fullName.substring(fullName.indexOf('|') + 1));
-                addCommand(fullName, subValue);
-            });
-            subcommandNames.put(name, subs);
-        }
     }
 
     /**
@@ -312,5 +158,149 @@ public class CommandDocsCatalog {
             case RespValue.VerbatimString(String ignored, String s) -> s;
             case null, default -> "";
         };
+    }
+
+    /**
+     * Returns all top-level command names in lowercase.
+     */
+    public List<String> commandNames() {
+        return commandNames;
+    }
+
+    /**
+     * Returns the subcommand names of a container command in lowercase, or an empty list.
+     */
+    public List<String> subcommandNames(String command) {
+        return subcommandNames.getOrDefault(command.toLowerCase(Locale.ROOT), List.of());
+    }
+
+    /**
+     * Returns the argument hint for the command line, or null when the command is unknown.
+     */
+    public CmdDesc lookup(CmdLine line) {
+        if (line.getDescriptionType() != CmdLine.DescriptionType.COMMAND) {
+            return null;
+        }
+        return lookup(line.getArgs());
+    }
+
+    /**
+     * The hint list always ends with an empty token. JLine shows the token at the
+     * current word position, so the empty token clears the hint after the last argument.
+     * For a subcommand the list also starts with an empty token: it stands in for the
+     * subcommand word itself, so the following tokens line up with the typed words.
+     */
+    CmdDesc lookup(List<String> words) {
+        if (words == null || words.isEmpty()) {
+            return null;
+        }
+        String command = words.get(0).toLowerCase(Locale.ROOT);
+        if (containers.contains(command)) {
+            if (words.size() >= 2) {
+                String sub = words.get(1).toLowerCase(Locale.ROOT);
+                CommandDoc subDoc = docs.get(command + "|" + sub);
+                if (subDoc != null) {
+                    List<String> names = new ArrayList<>(subDoc.usage().size() + 2);
+                    names.add(EMPTY_TOKEN);
+                    names.addAll(subDoc.usage());
+                    return hint(names);
+                }
+            }
+            return hint(List.of(SUBCOMMAND_PLACEHOLDER));
+        }
+        CommandDoc doc = docs.get(command);
+        if (doc == null) {
+            return null;
+        }
+        return hint(doc.usage());
+    }
+
+    /**
+     * Returns every entry whose name starts with the given words, in catalog order.
+     * "client" matches CLIENT and all CLIENT subcommands. The match ignores case.
+     */
+    public List<CommandDoc> find(List<String> words) {
+        List<CommandDoc> out = new ArrayList<>();
+        if (words == null || words.isEmpty()) {
+            return out;
+        }
+        for (CommandDoc doc : entries) {
+            if (startsWith(doc.words(), words)) {
+                out.add(doc);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Returns every entry in the group, in catalog order. The match ignores case.
+     */
+    public List<CommandDoc> byGroup(String group) {
+        List<CommandDoc> out = new ArrayList<>();
+        for (CommandDoc doc : entries) {
+            if (doc.group().equalsIgnoreCase(group)) {
+                out.add(doc);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Returns the distinct group names in sorted order.
+     */
+    public List<String> groupNames() {
+        Set<String> groups = new TreeSet<>();
+        for (CommandDoc doc : entries) {
+            if (!doc.group().isEmpty()) {
+                groups.add(doc.group());
+            }
+        }
+        return new ArrayList<>(groups);
+    }
+
+    List<String> usage(String command) {
+        CommandDoc doc = docs.get(command.toLowerCase(Locale.ROOT));
+        return doc == null ? null : doc.usage();
+    }
+
+    boolean isContainer(String command) {
+        return containers.contains(command.toLowerCase(Locale.ROOT));
+    }
+
+    private void addCommand(String name, RespValue value) {
+        Map<String, RespValue> fields = asMap(value);
+        CommandDoc doc = new CommandDoc(
+                List.of(name.split("\\|")),
+                name.toUpperCase(Locale.ROOT).replace('|', ' '),
+                renderArguments(fields.get("arguments")),
+                asString(fields.get("summary")),
+                asString(fields.get("since")),
+                asString(fields.get("group")));
+        docs.put(name, doc);
+        entries.add(doc);
+        RespValue subcommands = fields.get("subcommands");
+        if (subcommands != null) {
+            containers.add(name);
+            List<String> subs = new ArrayList<>();
+            asMap(subcommands).forEach((fullName, subValue) -> {
+                subs.add(fullName.substring(fullName.indexOf('|') + 1));
+                addCommand(fullName, subValue);
+            });
+            subcommandNames.put(name, subs);
+        }
+    }
+
+    /**
+     * Help entry of one command. Words are the lowercase name parts, such as ["client", "setname"].
+     * The name is uppercase, a subcommand name has the form "CLIENT SETNAME". Missing fields are empty strings.
+     */
+    public record CommandDoc(List<String> words, String name, List<String> usage, String summary, String since,
+                             String group) {
+        /**
+         * Returns the usage as a single line, or an empty string when the command takes no arguments.
+         */
+        public String usageLine() {
+            return String.join(" ", usage).replace(NBSP.charAt(0), ' ');
+        }
     }
 }

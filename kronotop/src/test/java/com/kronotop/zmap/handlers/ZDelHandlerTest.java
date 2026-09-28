@@ -17,7 +17,6 @@
 package com.kronotop.zmap.handlers;
 
 import com.kronotop.BaseHandlerTest;
-import java.nio.charset.StandardCharsets;
 import com.kronotop.commands.CommandType;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.Response;
@@ -33,6 +32,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -41,6 +41,23 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZDelHandlerTest extends BaseHandlerTest {
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("too few arguments",
+                        List.of(),
+                        "ERR wrong number of arguments for 'ZDEL' command"),
+                arguments("too many arguments",
+                        List.of("key", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZDEL' command"),
+                arguments("unknown keyword",
+                        List.of("key", "EXTRA"),
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
+        );
+    }
 
     @Test
     void shouldDeleteKey() {
@@ -80,7 +97,6 @@ class ZDelHandlerTest extends BaseHandlerTest {
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, actualMessage);
         }
     }
-
 
     @Test
     void shouldSucceedWhenDeletingNonExistentKey() {
@@ -145,23 +161,6 @@ class ZDelHandlerTest extends BaseHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
                 ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("too few arguments",
-                        List.of(),
-                        "ERR wrong number of arguments for 'ZDEL' command"),
-                arguments("too many arguments",
-                        List.of("key", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZDEL' command"),
-                arguments("unknown keyword",
-                        List.of("key", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
-                arguments("NAMESPACE without value",
-                        List.of("key", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

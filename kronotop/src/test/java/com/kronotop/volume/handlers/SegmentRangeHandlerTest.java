@@ -18,6 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.client.protocol.InternalCommandBuilder;
+import com.kronotop.cluster.client.protocol.ReplicationCommandType;
 import com.kronotop.cluster.client.protocol.SegmentRange;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -33,7 +34,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
-import com.kronotop.cluster.client.protocol.ReplicationCommandType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;

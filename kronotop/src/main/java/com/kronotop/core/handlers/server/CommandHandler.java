@@ -22,18 +22,16 @@ import com.kronotop.commands.CommandLookup;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.core.handlers.server.protocol.CommandMessage;
 import com.kronotop.internal.GlobMatcher;
-import com.kronotop.server.Handler;
-import com.kronotop.server.IllegalCommandArgumentException;
-import com.kronotop.server.MessageTypes;
-import com.kronotop.server.Request;
-import com.kronotop.server.Response;
-import com.kronotop.server.ServerKind;
+import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiPredicate;
 
 @Command(CommandMessage.COMMAND)
@@ -67,6 +65,10 @@ public class CommandHandler implements Handler {
         this.commands = context.getCommandMetadata(kind);
     }
 
+    private static RedisMessage bulk(String value) {
+        return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(value.getBytes(StandardCharsets.UTF_8)));
+    }
+
     @Override
     public boolean requiresClusterInitialization() {
         return false;
@@ -86,7 +88,8 @@ public class CommandHandler implements Handler {
         }
         switch (message.getArgument()) {
             case DOCS -> response.writeMap(CommandDocsReply.build(selectCommands(message.getCommands())));
-            case INFO -> response.writeArray(message.getCommands().isEmpty() ? infoForAll() : infoFor(message.getCommands()));
+            case INFO ->
+                    response.writeArray(message.getCommands().isEmpty() ? infoForAll() : infoFor(message.getCommands()));
             case COUNT -> response.writeInteger(commands.size());
             case LIST -> response.writeArray(list(message.getCommands()));
             case GETKEYS -> response.writeArray(getKeys(message.getCommands(), false));
@@ -211,9 +214,5 @@ public class CommandHandler implements Handler {
             lines.add(new SimpleStringRedisMessage(line));
         }
         return lines;
-    }
-
-    private static RedisMessage bulk(String value) {
-        return new FullBulkStringRedisMessage(Unpooled.wrappedBuffer(value.getBytes(StandardCharsets.UTF_8)));
     }
 }

@@ -17,6 +17,7 @@
 package com.kronotop.core.handlers.session;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.commands.CommandType;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.commands.SessionAttributeKeywords;
 import com.kronotop.server.Response;
@@ -25,19 +26,38 @@ import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import com.kronotop.commands.CommandType;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class SessionAttributeHandlerTest extends BaseHandlerTest {
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("unknown subcommand",
+                        List.of("BOGUS"),
+                        "ERR Unknown subcommand: 'BOGUS'"),
+                arguments("unknown attribute",
+                        List.of("SET", "unknown_attr", "value"),
+                        "ERR Unknown session attribute: 'unknown_attr'"),
+                arguments("attribute name with a matching suffix",
+                        List.of("SET", "xobject_id_format", "hex"),
+                        "ERR Unknown session attribute: 'xobject_id_format'"),
+                arguments("LIST with extra arguments",
+                        List.of("LIST", "extra"),
+                        "ERR invalid number of arguments"),
+                arguments("SET with a missing value",
+                        List.of("SET", "batch"),
+                        "ERR invalid number of arguments")
+        );
+    }
 
     @Test
     void shouldInitializeDefaultValues() {
@@ -275,26 +295,6 @@ class SessionAttributeHandlerTest extends BaseHandlerTest {
             }
         }
         fail("Attribute not found: " + attributeName);
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("unknown subcommand",
-                        List.of("BOGUS"),
-                        "ERR Unknown subcommand: 'BOGUS'"),
-                arguments("unknown attribute",
-                        List.of("SET", "unknown_attr", "value"),
-                        "ERR Unknown session attribute: 'unknown_attr'"),
-                arguments("attribute name with a matching suffix",
-                        List.of("SET", "xobject_id_format", "hex"),
-                        "ERR Unknown session attribute: 'xobject_id_format'"),
-                arguments("LIST with extra arguments",
-                        List.of("LIST", "extra"),
-                        "ERR invalid number of arguments"),
-                arguments("SET with a missing value",
-                        List.of("SET", "batch"),
-                        "ERR invalid number of arguments")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

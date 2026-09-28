@@ -21,6 +21,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.cluster.client.protocol.InternalCommandBuilder;
 import com.kronotop.cluster.client.protocol.PackedEntry;
+import com.kronotop.cluster.client.protocol.ReplicationCommandType;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
@@ -35,7 +36,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
-import com.kronotop.cluster.client.protocol.ReplicationCommandType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;

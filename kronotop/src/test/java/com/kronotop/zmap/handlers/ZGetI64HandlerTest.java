@@ -44,6 +44,23 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZGetI64HandlerTest extends BaseHandlerTest {
 
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("too few arguments",
+                        List.of(),
+                        "ERR wrong number of arguments for 'ZGET.I64' command"),
+                arguments("too many arguments",
+                        List.of("key", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZGET.I64' command"),
+                arguments("unknown keyword",
+                        List.of("key", "EXTRA"),
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
+        );
+    }
+
     @Test
     void shouldGetExistingValue() {
         ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
@@ -284,23 +301,6 @@ class ZGetI64HandlerTest extends BaseHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
                 ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("too few arguments",
-                        List.of(),
-                        "ERR wrong number of arguments for 'ZGET.I64' command"),
-                arguments("too many arguments",
-                        List.of("key", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZGET.I64' command"),
-                arguments("unknown keyword",
-                        List.of("key", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
-                arguments("NAMESPACE without value",
-                        List.of("key", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

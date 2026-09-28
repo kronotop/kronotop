@@ -21,16 +21,9 @@ import org.jline.console.ArgDesc;
 import org.jline.console.CmdDesc;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CommandDocsCatalogTest {
 
@@ -135,6 +128,14 @@ class CommandDocsCatalogTest {
         return value;
     }
 
+    private static List<String> names(List<CommandDocsCatalog.CommandDoc> docs) {
+        List<String> out = new ArrayList<>();
+        for (CommandDocsCatalog.CommandDoc doc : docs) {
+            out.add(doc.name());
+        }
+        return out;
+    }
+
     @Test
     void shouldRenderBucketQueryArguments() {
         // Behavior: tokens, optional blocks, and oneof choices render as one hint token per typed word
@@ -205,14 +206,6 @@ class CommandDocsCatalogTest {
                         "flags", flags("optional", "multiple")))));
         CommandDocsCatalog catalog = new CommandDocsCatalog(docs);
         assertEquals(List.of("[key...]"), catalog.usage("MGET"));
-    }
-
-    private static List<String> names(List<CommandDocsCatalog.CommandDoc> docs) {
-        List<String> out = new ArrayList<>();
-        for (CommandDocsCatalog.CommandDoc doc : docs) {
-            out.add(doc.name());
-        }
-        return out;
     }
 
     @Test

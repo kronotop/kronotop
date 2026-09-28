@@ -26,9 +26,9 @@ import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.lettuce.core.codec.StringCodec;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
@@ -39,6 +39,24 @@ import java.util.Objects;
 import static org.junit.jupiter.api.Assertions.*;
 
 class InfoHandlerTest extends BaseHandlerTest {
+
+    private static String expectedListener(String name, Address bind, List<Address> advertise) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("name=").append(name).append(",bind=").append(bind.getHost()).append(",port=").append(bind.getPort());
+        for (Address address : advertise) {
+            sb.append(",advertise=").append(address);
+        }
+        return sb.toString();
+    }
+
+    private static String fieldValue(String info, String key) {
+        for (String line : info.split("\r\n")) {
+            if (line.startsWith(key + ":")) {
+                return line.substring(key.length() + 1);
+            }
+        }
+        return null;
+    }
 
     private String runInfo(EmbeddedChannel channel, String... sections) {
         StringBuilder sb = new StringBuilder();
@@ -133,15 +151,6 @@ class InfoHandlerTest extends BaseHandlerTest {
                 fieldValue(info, "listener1"));
         assertFalse(member.getExternalAdvertise().isEmpty());
         assertTrue(Objects.requireNonNull(fieldValue(info, "listener0")).contains(",advertise="));
-    }
-
-    private static String expectedListener(String name, Address bind, List<Address> advertise) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("name=").append(name).append(",bind=").append(bind.getHost()).append(",port=").append(bind.getPort());
-        for (Address address : advertise) {
-            sb.append(",advertise=").append(address);
-        }
-        return sb.toString();
     }
 
     @Test
@@ -308,15 +317,6 @@ class InfoHandlerTest extends BaseHandlerTest {
 
         assertTrue(intField(info, "vector_indexes") >= 0);
         assertTrue(longField(info, "vector_bytes_used") >= 0);
-    }
-
-    private static String fieldValue(String info, String key) {
-        for (String line : info.split("\r\n")) {
-            if (line.startsWith(key + ":")) {
-                return line.substring(key.length() + 1);
-            }
-        }
-        return null;
     }
 
     @Test

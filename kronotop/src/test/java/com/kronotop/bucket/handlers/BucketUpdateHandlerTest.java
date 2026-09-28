@@ -32,11 +32,7 @@ import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.ErrorRedisMessage;
-import com.kronotop.server.resp3.IntegerRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -46,23 +42,30 @@ import org.bson.types.Decimal128;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.math.BigDecimal;
-import java.util.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import java.util.List;
+
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
 
     private static final String COLLATION_BUCKET = "collation-bucket";
     private static final String VECTOR_BUCKET = "vector-test-bucket";
     private static final String VECTOR_INDEX_JSON = "{\"$vector\": {\"field\": \"embedding\", \"dimensions\": 3, \"distance\": \"cosine\"}}";
+
+    static Stream<Arguments> duplicateArguments() {
+        return Stream.of(
+                arguments("repeated LIMIT",
+                        List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "LIMIT", "10", "LIMIT", "10"),
+                        "ERR Duplicate 'LIMIT' argument")
+        );
+    }
 
     @BeforeEach
     void setUp() {
@@ -1606,6 +1609,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
                 "Error message should mention the selector and actual type");
     }
 
+    // --- Numeric Widening Integration Tests ---
+
     @Test
     void shouldUpdateWithOrQueryBatchAndAdvance() {
         // Behavior: UPDATE with $or on two indexed fields and batch=1 triggers child rewind in
@@ -1704,8 +1709,6 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Set.of("N1", "N2"), unmodifiedNames, "Only N1 and N2 should be unmodified");
         }
     }
-
-    // --- Numeric Widening Integration Tests ---
 
     @Test
     void shouldUpdateWithOrQueryBatchTwoAndAdvance() {
@@ -2195,6 +2198,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
+    // --- Vector Index Tests ---
+
     @Test
     void shouldWidenInt32UpsertValueInInt64Index() {
         // Behavior: Upsert that creates a new document with INT32 value widens it
@@ -2232,8 +2237,6 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             assertEquals(30, BsonHelper.getInteger(entries.getFirst(), "age"));
         }
     }
-
-    // --- Vector Index Tests ---
 
     @Test
     void shouldUpdateAndReindexWithWidenedValuesEndToEnd() {
@@ -2583,6 +2586,8 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(0.3f, decoded.vector()[2], 0.001f);
     }
 
+    // --- Collation tests ---
+
     @Test
     void shouldWriteMutationLogOnUpsertWithVectorField() {
         // Behavior: Upsert with a vector field writes an INSERT mutation log entry for crash recovery.
@@ -2614,8 +2619,6 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
             assertEquals(0.1f, decoded.vectorPayload().vector()[0], 0.001f);
         }
     }
-
-    // --- Collation tests ---
 
     @Test
     void shouldUpdateWithTurkishCollation() {
@@ -3087,14 +3090,6 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, all.size());
         assertEquals("x", BsonHelper.getString(all.getFirst(), "name"));
         assertEquals(30, BsonHelper.getInteger(all.getFirst(), "age"));
-    }
-
-    static Stream<Arguments> duplicateArguments() {
-        return Stream.of(
-                arguments("repeated LIMIT",
-                        List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "LIMIT", "10", "LIMIT", "10"),
-                        "ERR Duplicate 'LIMIT' argument")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

@@ -78,6 +78,23 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         );
     }
 
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("unknown keyword",
+                        List.of("test-bucket", "BOGUS"),
+                        "ERR Unknown 'BOGUS' argument"),
+                arguments("DOCS without documents",
+                        List.of("test-bucket", "docs"),
+                        "ERR DOCS argument must be followed by one or more documents"),
+                arguments("NAMESPACE without value",
+                        List.of("test-bucket", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace"),
+                arguments("duplicate NAMESPACE",
+                        List.of("test-bucket", "NAMESPACE", "a", "NAMESPACE", "b", "DOCS", "{}"),
+                        "ERR Duplicate 'NAMESPACE' argument")
+        );
+    }
+
     @BeforeEach
     void setUp() {
         createBucket(TEST_BUCKET);
@@ -1160,6 +1177,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertNull(keyTuple.get(0), "Indexed value should be null");
     }
 
+    // --- Compound Index Tests ---
+
     @Test
     void shouldUpdateCardinalityCorrectlyForMultikeyIndexWithNulls() {
         // Behavior: Cardinality tracking should count null entries like other values.
@@ -1183,8 +1202,6 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(3L, stats.cardinality(), "Cardinality should be 3 (java, kotlin, null)");
         }
     }
-
-    // --- Compound Index Tests ---
 
     @Test
     void shouldInsertIntoMultipleShardsWithAutoCommit() {
@@ -1494,6 +1511,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertTrue(typeValues.contains("english"), "Should have 'english' entry");
     }
 
+    // --- Vector Index Tests ---
+
     @Test
     void shouldDeduplicateMultiKeyCompoundIndexEntries() {
         // Behavior: Duplicate values in a multi-key array field produce only one compound index entry
@@ -1521,8 +1540,6 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         List<KeyValue> entries = fetchAllIndexedEntries(compoundIndex.subspace());
         assertEquals(2, entries.size(), "Should have 2 entries (not 3) after deduplication");
     }
-
-    // --- Vector Index Tests ---
 
     @Test
     void shouldThrowIndexTypeMismatchForCompoundIndex() {
@@ -1652,6 +1669,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(3, entries.size(), "Should have 3 vector index entries");
     }
 
+    // --- Numeric Widening Integration Tests ---
+
     @Test
     void shouldUpdateVectorIndexCardinalityAfterInsertion() {
         // Behavior: Inserting documents with vector fields increments the vector index
@@ -1676,8 +1695,6 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
             assertEquals(3L, stats.cardinality(), "Vector index cardinality should be 3");
         }
     }
-
-    // --- Numeric Widening Integration Tests ---
 
     @Test
     void shouldWidenInt32ValueToInt64Index() {
@@ -1988,23 +2005,6 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
                 ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("unknown keyword",
-                        List.of("test-bucket", "BOGUS"),
-                        "ERR Unknown 'BOGUS' argument"),
-                arguments("DOCS without documents",
-                        List.of("test-bucket", "docs"),
-                        "ERR DOCS argument must be followed by one or more documents"),
-                arguments("NAMESPACE without value",
-                        List.of("test-bucket", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace"),
-                arguments("duplicate NAMESPACE",
-                        List.of("test-bucket", "NAMESPACE", "a", "NAMESPACE", "b", "DOCS", "{}"),
-                        "ERR Duplicate 'NAMESPACE' argument")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

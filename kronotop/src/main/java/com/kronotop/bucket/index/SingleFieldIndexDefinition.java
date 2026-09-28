@@ -54,7 +54,8 @@ import java.util.UUID;
  * @see IndexStatus
  */
 public record SingleFieldIndexDefinition(long id, String name, String selector, BsonType bsonType, boolean multiKey,
-                                         IndexStatus status, Collation collation, boolean unique) implements IndexDefinition {
+                                         IndexStatus status, Collation collation,
+                                         boolean unique) implements IndexDefinition {
 
     public SingleFieldIndexDefinition {
         // Uniqueness reads assume a document contributes at most one entry per value. A multi-key

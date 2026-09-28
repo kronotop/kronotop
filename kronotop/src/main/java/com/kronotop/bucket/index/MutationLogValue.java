@@ -24,7 +24,7 @@ import java.nio.ByteBuffer;
  *
  * <p>Wire format: {@code [1B kind][12B objectId][VectorIndexValue bytes (optional)]}
  *
- * @param kind        the mutation type (INSERT, UPDATE, DELETE)
+ * @param kind          the mutation type (INSERT, UPDATE, DELETE)
  * @param objectIdBytes the 12-byte document ObjectId
  * @param vectorPayload the optional VectorIndexValue (null for DELETE)
  */

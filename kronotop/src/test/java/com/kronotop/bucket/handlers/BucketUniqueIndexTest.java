@@ -16,7 +16,6 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.commands.BucketCommandBuilder;

@@ -4,22 +4,37 @@
     "complexity": "O(1)",
     "group": "string",
     "since": "2026.06-1",
-    "servers": ["EXTERNAL"],
+    "servers": [
+      "EXTERNAL"
+    ],
     "arity": -3,
     "function": "setCommand",
     "get_keys_function": "setGetKeys",
     "history": [
-      ["2026.06-1", "Initial version."]
+      [
+        "2026.06-1",
+        "Initial version."
+      ]
     ],
-    "command_flags": ["WRITE", "DENYOOM"],
-    "acl_categories": ["STRING"],
+    "command_flags": [
+      "WRITE",
+      "DENYOOM"
+    ],
+    "acl_categories": [
+      "STRING"
+    ],
     "reply_schema": {
       "type": "string"
     },
     "key_specs": [
       {
         "notes": "RW and ACCESS due to the optional GET argument",
-        "flags": ["RW", "ACCESS", "UPDATE", "VARIABLE_FLAGS"],
+        "flags": [
+          "RW",
+          "ACCESS",
+          "UPDATE",
+          "VARIABLE_FLAGS"
+        ],
         "begin_search": {
           "index": {
             "pos": 1

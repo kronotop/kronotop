@@ -216,6 +216,7 @@ public class BenchmarkRunner {
         connection.dispatch(asyncCommand);
         asyncCommand.get(30, TimeUnit.SECONDS);
     }
+
     @FunctionalInterface
     public interface ConnectionSetup<K, V> {
         void setup(StatefulRedisConnection<K, V> connection) throws Exception;

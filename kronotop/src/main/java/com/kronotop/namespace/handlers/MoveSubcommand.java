@@ -28,9 +28,9 @@ import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.namespace.TombstoneManager;
+import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
-import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.transaction.TransactionUtil;
 

@@ -242,16 +242,6 @@ public class Session {
     }
 
     /**
-     * Sets the protocol version for the session.
-     *
-     * @param version the {@link RESPVersion} to be set for the session. This determines the
-     *                version of the Redis Serialization Protocol (RESP) that the session will use.
-     */
-    public void setProtocolVersion(RESPVersion version) {
-        protocolVersion = version;
-    }
-
-    /**
      * Retrieves the protocol version being used by the session.
      *
      * @return the {@link RESPVersion} representing the version of the Redis Serialization Protocol (RESP)
@@ -259,6 +249,16 @@ public class Session {
      */
     public RESPVersion getProtocolVersion() {
         return protocolVersion;
+    }
+
+    /**
+     * Sets the protocol version for the session.
+     *
+     * @param version the {@link RESPVersion} to be set for the session. This determines the
+     *                version of the Redis Serialization Protocol (RESP) that the session will use.
+     */
+    public void setProtocolVersion(RESPVersion version) {
+        protocolVersion = version;
     }
 
     /**

@@ -46,6 +46,26 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZSetF64HandlerTest extends BaseHandlerTest {
 
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("too few arguments",
+                        List.of("key"),
+                        "ERR wrong number of arguments for 'ZSET.F64' command"),
+                arguments("too many arguments",
+                        List.of("key", "1", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZSET.F64' command"),
+                arguments("unknown keyword",
+                        List.of("key", "1", "EXTRA"),
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key", "1", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace"),
+                arguments("value is not a number",
+                        List.of("key", "abc"),
+                        "ERR value is not a double or out of range")
+        );
+    }
+
     @BeforeEach
     public void setup() throws UnknownHostException, InterruptedException {
         super.setup();
@@ -261,26 +281,6 @@ class ZSetF64HandlerTest extends BaseHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
                 ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("too few arguments",
-                        List.of("key"),
-                        "ERR wrong number of arguments for 'ZSET.F64' command"),
-                arguments("too many arguments",
-                        List.of("key", "1", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZSET.F64' command"),
-                arguments("unknown keyword",
-                        List.of("key", "1", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
-                arguments("NAMESPACE without value",
-                        List.of("key", "1", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace"),
-                arguments("value is not a number",
-                        List.of("key", "abc"),
-                        "ERR value is not a double or out of range")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

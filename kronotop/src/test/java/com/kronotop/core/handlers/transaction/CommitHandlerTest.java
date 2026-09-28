@@ -17,10 +17,7 @@
 package com.kronotop.core.handlers.transaction;
 
 import com.kronotop.BaseHandlerTest;
-import com.kronotop.commands.CommitArgs;
-import com.kronotop.commands.CommitKeyword;
-import com.kronotop.commands.KronotopCommandBuilder;
-import com.kronotop.commands.ZMapCommandBuilder;
+import com.kronotop.commands.*;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
@@ -31,10 +28,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
-import com.kronotop.commands.CommandType;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -42,6 +39,20 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class CommitHandlerTest extends BaseHandlerTest {
+
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("unknown keyword",
+                        List.of("BOGUS"),
+                        "ERR Unknown 'BOGUS' argument"),
+                arguments("RETURNING without value",
+                        List.of("RETURNING"),
+                        "ERR RETURNING argument must be followed by VERSIONSTAMP or COMMITTED_VERSION"),
+                arguments("unknown RETURNING argument",
+                        List.of("returning", "bogus"),
+                        "ERR Unknown RETURNING argument: 'bogus'")
+        );
+    }
 
     @Test
     void shouldCommitTransaction() {
@@ -159,20 +170,6 @@ class CommitHandlerTest extends BaseHandlerTest {
             assertTrue(errorMessage.content().contains("wrong number of arguments"),
                     "Should reject multiple RETURNING arguments");
         }
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("unknown keyword",
-                        List.of("BOGUS"),
-                        "ERR Unknown 'BOGUS' argument"),
-                arguments("RETURNING without value",
-                        List.of("RETURNING"),
-                        "ERR RETURNING argument must be followed by VERSIONSTAMP or COMMITTED_VERSION"),
-                arguments("unknown RETURNING argument",
-                        List.of("returning", "bogus"),
-                        "ERR Unknown RETURNING argument: 'bogus'")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

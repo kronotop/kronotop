@@ -4,7 +4,9 @@
     "complexity": "Depends on subcommand.",
     "group": "connection",
     "since": "2026.06-1",
-    "servers": ["EXTERNAL"],
+    "servers": [
+      "EXTERNAL"
+    ],
     "arity": -2
   }
 }

@@ -21,11 +21,7 @@ import com.kronotop.commands.CommandType;
 import com.kronotop.commands.ZGetRangeArgs;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.ErrorRedisMessage;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
-import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -39,12 +35,65 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZGetRangeHandlerTest extends BaseHandlerTest {
+
+    static Stream<Arguments> invalidArguments() {
+        String limitValue = "ERR LIMIT argument must be followed by a positive integer";
+        return Stream.of(
+                arguments("unknown keyword",
+                        List.of("key-0", "key-5", "LIMI", "3"),
+                        "ERR Unknown 'LIMI' argument"),
+                arguments("old underscore spelling",
+                        List.of("key-0", "key-5", "BEGIN_KEY_SELECTOR", "first_greater_than"),
+                        "ERR Unknown 'BEGIN_KEY_SELECTOR' argument"),
+                arguments("limit without value",
+                        List.of("key-0", "key-5", "LIMIT"),
+                        limitValue),
+                arguments("zero limit",
+                        List.of("key-0", "key-5", "LIMIT", "0"),
+                        limitValue),
+                arguments("negative limit",
+                        List.of("key-0", "key-5", "LIMIT", "-1"),
+                        limitValue),
+                arguments("non-numeric limit",
+                        List.of("key-0", "key-5", "LIMIT", "abc"),
+                        "ERR value is not an integer or out of range"),
+                arguments("begin selector without value",
+                        List.of("key-0", "key-5", "BEGIN-KEY-SELECTOR"),
+                        "ERR BEGIN-KEY-SELECTOR argument must be followed by a valid key selector"),
+                arguments("end selector without value",
+                        List.of("key-0", "key-5", "END-KEY-SELECTOR"),
+                        "ERR END-KEY-SELECTOR argument must be followed by a valid key selector"),
+                arguments("invalid key selector",
+                        List.of("key-0", "key-5", "BEGIN-KEY-SELECTOR", "bogus"),
+                        "ERR Unknown range key selector: 'bogus'"),
+                arguments("duplicate limit",
+                        List.of("key-0", "key-5", "LIMIT", "3", "LIMIT", "5"),
+                        "ERR Duplicate 'LIMIT' argument"),
+                arguments("duplicate reverse in mixed case",
+                        List.of("key-0", "key-5", "REVERSE", "reverse"),
+                        "ERR Duplicate 'REVERSE' argument"),
+                arguments("duplicate begin key selector",
+                        List.of("key-0", "key-5",
+                                "BEGIN-KEY-SELECTOR", "first_greater_than",
+                                "BEGIN-KEY-SELECTOR", "first_greater_or_equal"),
+                        "ERR Duplicate 'BEGIN-KEY-SELECTOR' argument"),
+                arguments("duplicate end key selector",
+                        List.of("key-0", "key-5",
+                                "END-KEY-SELECTOR", "first_greater_than",
+                                "END-KEY-SELECTOR", "first_greater_or_equal"),
+                        "ERR Duplicate 'END-KEY-SELECTOR' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("key-0", "key-5", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace"),
+                arguments("duplicate namespace",
+                        List.of("key-0", "key-5", "NAMESPACE", "a", "NAMESPACE", "b"),
+                        "ERR Duplicate 'NAMESPACE' argument")
+        );
+    }
 
     @Test
     void shouldGetRange() {
@@ -378,61 +427,6 @@ class ZGetRangeHandlerTest extends BaseHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
                 ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        String limitValue = "ERR LIMIT argument must be followed by a positive integer";
-        return Stream.of(
-                arguments("unknown keyword",
-                        List.of("key-0", "key-5", "LIMI", "3"),
-                        "ERR Unknown 'LIMI' argument"),
-                arguments("old underscore spelling",
-                        List.of("key-0", "key-5", "BEGIN_KEY_SELECTOR", "first_greater_than"),
-                        "ERR Unknown 'BEGIN_KEY_SELECTOR' argument"),
-                arguments("limit without value",
-                        List.of("key-0", "key-5", "LIMIT"),
-                        limitValue),
-                arguments("zero limit",
-                        List.of("key-0", "key-5", "LIMIT", "0"),
-                        limitValue),
-                arguments("negative limit",
-                        List.of("key-0", "key-5", "LIMIT", "-1"),
-                        limitValue),
-                arguments("non-numeric limit",
-                        List.of("key-0", "key-5", "LIMIT", "abc"),
-                        "ERR value is not an integer or out of range"),
-                arguments("begin selector without value",
-                        List.of("key-0", "key-5", "BEGIN-KEY-SELECTOR"),
-                        "ERR BEGIN-KEY-SELECTOR argument must be followed by a valid key selector"),
-                arguments("end selector without value",
-                        List.of("key-0", "key-5", "END-KEY-SELECTOR"),
-                        "ERR END-KEY-SELECTOR argument must be followed by a valid key selector"),
-                arguments("invalid key selector",
-                        List.of("key-0", "key-5", "BEGIN-KEY-SELECTOR", "bogus"),
-                        "ERR Unknown range key selector: 'bogus'"),
-                arguments("duplicate limit",
-                        List.of("key-0", "key-5", "LIMIT", "3", "LIMIT", "5"),
-                        "ERR Duplicate 'LIMIT' argument"),
-                arguments("duplicate reverse in mixed case",
-                        List.of("key-0", "key-5", "REVERSE", "reverse"),
-                        "ERR Duplicate 'REVERSE' argument"),
-                arguments("duplicate begin key selector",
-                        List.of("key-0", "key-5",
-                                "BEGIN-KEY-SELECTOR", "first_greater_than",
-                                "BEGIN-KEY-SELECTOR", "first_greater_or_equal"),
-                        "ERR Duplicate 'BEGIN-KEY-SELECTOR' argument"),
-                arguments("duplicate end key selector",
-                        List.of("key-0", "key-5",
-                                "END-KEY-SELECTOR", "first_greater_than",
-                                "END-KEY-SELECTOR", "first_greater_or_equal"),
-                        "ERR Duplicate 'END-KEY-SELECTOR' argument"),
-                arguments("NAMESPACE without value",
-                        List.of("key-0", "key-5", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace"),
-                arguments("duplicate namespace",
-                        List.of("key-0", "key-5", "NAMESPACE", "a", "NAMESPACE", "b"),
-                        "ERR Duplicate 'NAMESPACE' argument")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

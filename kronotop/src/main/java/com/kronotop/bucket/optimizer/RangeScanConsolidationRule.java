@@ -17,8 +17,8 @@
 package com.kronotop.bucket.optimizer;
 
 import com.kronotop.bucket.BucketMetadata;
-import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.SingleFieldIndexDefinition;
 import com.kronotop.bucket.planner.Operator;
 import com.kronotop.bucket.planner.physical.*;

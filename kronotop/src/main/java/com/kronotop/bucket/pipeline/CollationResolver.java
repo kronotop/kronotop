@@ -20,8 +20,8 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.index.CompoundIndex;
 import com.kronotop.bucket.index.CompoundIndexField;
-import com.kronotop.bucket.index.SingleFieldIndex;
 import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.SingleFieldIndex;
 import org.bson.BsonType;
 
 import java.util.Collection;

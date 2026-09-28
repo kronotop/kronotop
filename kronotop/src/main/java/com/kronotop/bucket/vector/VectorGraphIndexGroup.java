@@ -26,11 +26,7 @@ import com.kronotop.Context;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
-import com.kronotop.bucket.index.IndexEntry;
-import com.kronotop.bucket.index.IndexSubspaceMagic;
-import com.kronotop.bucket.index.MutationLogKind;
-import com.kronotop.bucket.index.VectorIndex;
-import com.kronotop.bucket.index.VectorIndexMaintainer;
+import com.kronotop.bucket.index.*;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -100,25 +96,6 @@ public class VectorGraphIndexGroup {
     ) {
         this(context, metadata, vectorIndex);
         this.bootstrapFuture = bootstrapFuture;
-    }
-
-    /**
-     * Records a vector node add or delete that failed on the graph indexes, so it can be retried later.
-     * Adds and deletes of the same object are kept apart. If the object already has an entry of the
-     * same kind, the one with the newer versionstamp is kept.
-     */
-    public void recordFailedOp(RetryEntry entry) {
-        failedOps.merge(new FailedOpKey(entry.objectId(), entry.kind()), entry, (existing, incoming) ->
-                incoming.versionstamp().compareTo(existing.versionstamp()) >= 0 ? incoming : existing);
-    }
-
-    /**
-     * Drops a waiting add retry of the object if its versionstamp is older than the given add.
-     * A newer add is about to run, so the old retry must never add a node again.
-     */
-    public void discardStaleFailedAdd(ObjectId objectId, Versionstamp addVs) {
-        failedOps.computeIfPresent(new FailedOpKey(objectId, RetryEntry.Kind.ADD), (ignored, entry) ->
-                entry.versionstamp().compareTo(addVs) < 0 ? null : entry);
     }
 
     /**
@@ -195,6 +172,25 @@ public class VectorGraphIndexGroup {
             throw e;
         }
         return opened;
+    }
+
+    /**
+     * Records a vector node add or delete that failed on the graph indexes, so it can be retried later.
+     * Adds and deletes of the same object are kept apart. If the object already has an entry of the
+     * same kind, the one with the newer versionstamp is kept.
+     */
+    public void recordFailedOp(RetryEntry entry) {
+        failedOps.merge(new FailedOpKey(entry.objectId(), entry.kind()), entry, (existing, incoming) ->
+                incoming.versionstamp().compareTo(existing.versionstamp()) >= 0 ? incoming : existing);
+    }
+
+    /**
+     * Drops a waiting add retry of the object if its versionstamp is older than the given add.
+     * A newer add is about to run, so the old retry must never add a node again.
+     */
+    public void discardStaleFailedAdd(ObjectId objectId, Versionstamp addVs) {
+        failedOps.computeIfPresent(new FailedOpKey(objectId, RetryEntry.Kind.ADD), (ignored, entry) ->
+                entry.versionstamp().compareTo(addVs) < 0 ? null : entry);
     }
 
     /**
@@ -568,12 +564,6 @@ public class VectorGraphIndexGroup {
     }
 
     /**
-     * Key of a recorded failed operation. An add and a delete of the same object are separate entries.
-     */
-    public record FailedOpKey(ObjectId objectId, RetryEntry.Kind kind) {
-    }
-
-    /**
      * Closes all indexes in both lists.
      */
     public void closeAll() {
@@ -591,5 +581,11 @@ public class VectorGraphIndexGroup {
         if (firstException != null) {
             throw new UncheckedIOException(firstException);
         }
+    }
+
+    /**
+     * Key of a recorded failed operation. An add and a delete of the same object are separate entries.
+     */
+    public record FailedOpKey(ObjectId objectId, RetryEntry.Kind kind) {
     }
 }

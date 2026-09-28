@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.cluster.client.protocol.ChangeLogRangeArgs;
 import com.kronotop.cluster.client.protocol.InternalCommandBuilder;
+import com.kronotop.cluster.client.protocol.ReplicationCommandType;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.*;
@@ -29,25 +30,41 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.Set;
-import com.kronotop.cluster.client.protocol.ReplicationCommandType;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     HybridLogicalClock hlc = new HybridLogicalClock();
+
+    static Stream<Arguments> invalidOptionalArguments() {
+        return Stream.of(
+                arguments("repeated LIMIT",
+                        List.of("LIMIT", "5", "LIMIT"),
+                        "ERR Duplicate 'LIMIT' argument"),
+                arguments("repeated REVERSE",
+                        List.of("REVERSE", "REVERSE"),
+                        "ERR Duplicate 'REVERSE' argument"),
+                arguments("unknown keyword",
+                        List.of("BOGUS"),
+                        "ERR Unknown 'BOGUS' argument"),
+                arguments("LIMIT without value",
+                        List.of("LIMIT"),
+                        "ERR LIMIT argument must be followed by an integer")
+        );
+    }
 
     @BeforeEach
     public void setup() {
@@ -686,23 +703,6 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertEquals(sequenceNumbers[2], firstSeq);
         assertEquals(sequenceNumbers[3], secondSeq);
-    }
-
-    static Stream<Arguments> invalidOptionalArguments() {
-        return Stream.of(
-                arguments("repeated LIMIT",
-                        List.of("LIMIT", "5", "LIMIT"),
-                        "ERR Duplicate 'LIMIT' argument"),
-                arguments("repeated REVERSE",
-                        List.of("REVERSE", "REVERSE"),
-                        "ERR Duplicate 'REVERSE' argument"),
-                arguments("unknown keyword",
-                        List.of("BOGUS"),
-                        "ERR Unknown 'BOGUS' argument"),
-                arguments("LIMIT without value",
-                        List.of("LIMIT"),
-                        "ERR LIMIT argument must be followed by an integer")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

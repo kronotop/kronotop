@@ -18,7 +18,6 @@ package com.kronotop.volume.handlers.protocol;
 
 import com.kronotop.server.ProtocolMessage;
 import com.kronotop.server.Request;
-import com.kronotop.server.WrongNumberOfArgumentsException;
 
 import java.util.List;
 

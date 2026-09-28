@@ -37,7 +37,12 @@ public class FailedVectorNodeOpRetrier {
     private final Duration period;
     private final AtomicBoolean started = new AtomicBoolean();
     private volatile Thread worker;
-    private volatile  boolean shutdown;
+    private volatile boolean shutdown;
+
+    public FailedVectorNodeOpRetrier(Context context, Duration period) {
+        this.context = context;
+        this.period = period;
+    }
 
     private void retryVectorNodeOps() {
         BucketService service = context.getService(BucketService.NAME);
@@ -47,11 +52,6 @@ public class FailedVectorNodeOpRetrier {
                 LOGGER.debug("Retried {} failed vector node ops, bucketId={}", number, group.getBucketId());
             }
         });
-    }
-
-    public FailedVectorNodeOpRetrier(Context context, Duration period) {
-        this.context = context;
-        this.period = period;
     }
 
     /**

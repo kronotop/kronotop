@@ -574,7 +574,7 @@ public class BucketMetadataUtil {
             return metadata;
         }
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            return open(context , tr, namespace, bucket);
+            return open(context, tr, namespace, bucket);
         }
     }
 

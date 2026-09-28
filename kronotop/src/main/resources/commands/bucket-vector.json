@@ -4,7 +4,9 @@
     "complexity": "Depends on the size of the vector index and the search arguments.",
     "group": "bucket",
     "since": "2026.06-1",
-    "servers": ["EXTERNAL"],
+    "servers": [
+      "EXTERNAL"
+    ],
     "arity": -4,
     "command_flags": [
       "READONLY"

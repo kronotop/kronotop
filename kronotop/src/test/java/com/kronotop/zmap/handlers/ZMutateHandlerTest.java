@@ -48,6 +48,29 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZMutateHandlerTest extends BaseHandlerTest {
 
+    static Stream<Arguments> invalidArguments() {
+        return Stream.of(
+                arguments("unknown mutation type",
+                        List.of("some-key", "some-value", "INVALID_TYPE"),
+                        "ERR Unknown mutation type: 'INVALID_TYPE'"),
+                arguments("empty mutation type",
+                        List.of("some-key", "some-value", ""),
+                        "ERR Unknown mutation type: ''"),
+                arguments("too few arguments",
+                        List.of("some-key", "some-value"),
+                        "ERR wrong number of arguments for 'ZMUTATE' command"),
+                arguments("too many arguments",
+                        List.of("some-key", "some-value", "ADD", "NAMESPACE", "ns", "EXTRA"),
+                        "ERR wrong number of arguments for 'ZMUTATE' command"),
+                arguments("unknown keyword",
+                        List.of("some-key", "some-value", "ADD", "EXTRA"),
+                        "ERR Unknown 'EXTRA' argument"),
+                arguments("NAMESPACE without value",
+                        List.of("some-key", "some-value", "ADD", "NAMESPACE"),
+                        "ERR NAMESPACE argument must be followed by a namespace")
+        );
+    }
+
     private byte[] longToLE(long value) {
         return ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(value).array();
     }
@@ -93,6 +116,8 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         return runCommand(channel, buf);
     }
 
+    // ADD
+
     private void runTransactionCommand(EmbeddedChannel channel, Command<String, String, String> command) {
         ByteBuf buf = Unpooled.buffer();
         command.encode(buf);
@@ -101,7 +126,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
     }
 
-    // ADD
+    // BIT_AND
 
     @Test
     void shouldMutateWithAddInteger() {
@@ -116,7 +141,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(2, leToLong(zget(channel, cmd, key)));
     }
 
-    // BIT_AND
+    // BIT_OR
 
     @Test
     void shouldMutateWithBitAnd() {
@@ -135,7 +160,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(expected, zget(channel, cmd, key));
     }
 
-    // BIT_OR
+    // BIT_XOR
 
     @Test
     void shouldMutateWithBitOr() {
@@ -154,7 +179,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(expected, zget(channel, cmd, key));
     }
 
-    // BIT_XOR
+    // MAX
 
     @Test
     void shouldMutateWithBitXor() {
@@ -173,8 +198,6 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(expected, zget(channel, cmd, key));
     }
 
-    // MAX
-
     @Test
     void shouldMutateWithMax_paramIsLarger() {
         // Behavior: MAX stores the larger of the existing value and param, both read as unsigned little-endian integers.
@@ -187,6 +210,8 @@ class ZMutateHandlerTest extends BaseHandlerTest {
 
         assertEquals(20, leToLong(zget(channel, cmd, key)));
     }
+
+    // MIN
 
     @Test
     void shouldMutateWithMax_existingIsLarger() {
@@ -201,8 +226,6 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(20, leToLong(zget(channel, cmd, key)));
     }
 
-    // MIN
-
     @Test
     void shouldMutateWithMin_paramIsSmaller() {
         // Behavior: MIN stores the smaller of the existing value and param, both read as unsigned little-endian integers.
@@ -215,6 +238,8 @@ class ZMutateHandlerTest extends BaseHandlerTest {
 
         assertEquals(10, leToLong(zget(channel, cmd, key)));
     }
+
+    // BYTE_MIN
 
     @Test
     void shouldMutateWithMin_existingIsSmaller() {
@@ -229,7 +254,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(10, leToLong(zget(channel, cmd, key)));
     }
 
-    // BYTE_MIN
+    // BYTE_MAX
 
     @Test
     void shouldMutateWithByteMin() {
@@ -247,7 +272,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(param, zget(channel, cmd, key));
     }
 
-    // BYTE_MAX
+    // APPEND_IF_FITS
 
     @Test
     void shouldMutateWithByteMax() {
@@ -265,7 +290,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(param, zget(channel, cmd, key));
     }
 
-    // APPEND_IF_FITS
+    // SET_VERSIONSTAMPED_VALUE
 
     @Test
     void shouldMutateWithAppendIfFits() {
@@ -301,7 +326,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         }
     }
 
-    // SET_VERSIONSTAMPED_VALUE
+    // COMPARE_AND_CLEAR
 
     @Test
     void shouldMutateWithSetVersionstampedValue() {
@@ -319,8 +344,6 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         byte[] result = zget(channel, cmd, key);
         assertEquals(10, result.length);
     }
-
-    // COMPARE_AND_CLEAR
 
     @Test
     void shouldMutateWithCompareAndClear() {
@@ -350,6 +373,8 @@ class ZMutateHandlerTest extends BaseHandlerTest {
             assertEquals(FullBulkStringRedisMessage.NULL_INSTANCE, response);
         }
     }
+
+    // Value length rules
 
     @Test
     void shouldMutateWithCompareAndClear_mismatch() {
@@ -384,8 +409,6 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         }
     }
 
-    // Value length rules
-
     @Test
     void shouldTruncateStoredValueWhenParamIsShorter() {
         // Behavior: ADD cuts the stored value down to the length of param when param is shorter.
@@ -414,6 +437,8 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertEquals(2, leToLong(result));
     }
 
+    // MAX vs BYTE_MAX
+
     @Test
     void shouldStoreParamWhenKeyIsMissing() {
         // Behavior: BIT_AND stores param as the new value when the key does not exist, instead of anding it with zero bytes.
@@ -427,7 +452,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(param, zget(channel, cmd, key));
     }
 
-    // MAX vs BYTE_MAX
+    // APPEND_IF_FITS size limit
 
     @Test
     void shouldReturnDifferentResultsForMaxAndByteMax() {
@@ -449,7 +474,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(param, zget(channel, cmd, byteMaxKey));
     }
 
-    // APPEND_IF_FITS size limit
+    // SET_VERSIONSTAMPED_VALUE layout
 
     @Test
     void shouldNotAppendWhenResultExceedsValueSizeLimit() {
@@ -467,7 +492,7 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(initial, zget(channel, cmd, key));
     }
 
-    // SET_VERSIONSTAMPED_VALUE layout
+    // Error cases
 
     @Test
     void shouldWriteVersionstampAtGivenOffset() {
@@ -489,8 +514,6 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertArrayEquals(prefix, Arrays.copyOf(result, prefix.length));
         assertFalse(Arrays.equals(new byte[10], Arrays.copyOfRange(result, prefix.length, result.length)));
     }
-
-    // Error cases
 
     @Test
     void shouldReturnErrorWhenVersionstampedValueParamIsTooShort() {
@@ -568,29 +591,6 @@ class ZMutateHandlerTest extends BaseHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(String.format("NOSUCHNAMESPACE No such namespace: '%s'", namespace),
                 ((ErrorRedisMessage) response).content());
-    }
-
-    static Stream<Arguments> invalidArguments() {
-        return Stream.of(
-                arguments("unknown mutation type",
-                        List.of("some-key", "some-value", "INVALID_TYPE"),
-                        "ERR Unknown mutation type: 'INVALID_TYPE'"),
-                arguments("empty mutation type",
-                        List.of("some-key", "some-value", ""),
-                        "ERR Unknown mutation type: ''"),
-                arguments("too few arguments",
-                        List.of("some-key", "some-value"),
-                        "ERR wrong number of arguments for 'ZMUTATE' command"),
-                arguments("too many arguments",
-                        List.of("some-key", "some-value", "ADD", "NAMESPACE", "ns", "EXTRA"),
-                        "ERR wrong number of arguments for 'ZMUTATE' command"),
-                arguments("unknown keyword",
-                        List.of("some-key", "some-value", "ADD", "EXTRA"),
-                        "ERR Unknown 'EXTRA' argument"),
-                arguments("NAMESPACE without value",
-                        List.of("some-key", "some-value", "ADD", "NAMESPACE"),
-                        "ERR NAMESPACE argument must be followed by a namespace")
-        );
     }
 
     @ParameterizedTest(name = "{0}")

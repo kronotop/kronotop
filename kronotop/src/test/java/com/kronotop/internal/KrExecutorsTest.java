@@ -41,7 +41,7 @@ class KrExecutorsTest {
 
             assertTrue(latch.await(5, TimeUnit.SECONDS));
             await().atMost(Duration.ofSeconds(5)).until(future::isDone);
-            await().atMost(Duration.ofSeconds(5)).until(()-> !future.isCancelled());
+            await().atMost(Duration.ofSeconds(5)).until(() -> !future.isCancelled());
         } finally {
             executor.shutdownNow();
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));

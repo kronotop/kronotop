@@ -3,11 +3,16 @@
     "summary": "Unknown key spec",
     "group": "generic",
     "since": "2026.06-1",
-    "servers": ["EXTERNAL"],
+    "servers": [
+      "EXTERNAL"
+    ],
     "arity": -2,
     "key_specs": [
       {
-        "flags": ["RO", "ACCESS"],
+        "flags": [
+          "RO",
+          "ACCESS"
+        ],
         "begin_search": {
           "unknown": null
         },

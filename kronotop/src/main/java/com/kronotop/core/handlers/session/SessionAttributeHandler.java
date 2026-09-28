@@ -17,8 +17,8 @@
 package com.kronotop.core.handlers.session;
 
 import com.kronotop.KronotopException;
-import com.kronotop.core.handlers.session.protocol.SessionAttributeMessage;
 import com.kronotop.core.handlers.session.protocol.SessionAttributeArguments;
+import com.kronotop.core.handlers.session.protocol.SessionAttributeMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumArgumentCount;

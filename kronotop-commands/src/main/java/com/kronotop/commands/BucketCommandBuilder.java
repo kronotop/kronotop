@@ -42,6 +42,11 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         return buf.array();
     }
 
+    private static void addNamespace(CommandArgs<?, ?> args, String namespace) {
+        if (namespace != null) {
+            args.add("NAMESPACE").add(namespace);
+        }
+    }
 
     public final Command<K, V, List<String>> insert(String bucket, String namespace, List<V> documents) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket);
@@ -128,12 +133,6 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     public Command<String, String, Map<String, Object>> hello(int protocolVersion) {
         CommandArgs<String, String> args = new CommandArgs<>(StringCodec.ASCII).add(protocolVersion);
         return new Command<>(HELLO, new GenericMapOutput<>(StringCodec.ASCII), args);
-    }
-
-    private static void addNamespace(CommandArgs<?, ?> args, String namespace) {
-        if (namespace != null) {
-            args.add("NAMESPACE").add(namespace);
-        }
     }
 
     public final Command<K, V, String> indexCreate(String bucket, String schemas) {

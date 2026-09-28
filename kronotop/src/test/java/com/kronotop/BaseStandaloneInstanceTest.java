@@ -29,7 +29,6 @@ import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.server.MockChannelHandlerContext;
 import com.kronotop.server.Response;
-import com.kronotop.server.ServerKind;
 import com.kronotop.server.Session;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
 import com.kronotop.transaction.TransactionUtil;

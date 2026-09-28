@@ -34,11 +34,7 @@ import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
-import com.kronotop.server.resp3.ArrayRedisMessage;
-import com.kronotop.server.resp3.ErrorRedisMessage;
-import com.kronotop.server.resp3.IntegerRedisMessage;
-import com.kronotop.server.resp3.MapRedisMessage;
-import com.kronotop.server.resp3.SimpleStringRedisMessage;
+import com.kronotop.server.resp3.*;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -49,23 +45,30 @@ import org.bson.BsonType;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.*;
-import java.util.stream.Collectors;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import java.util.List;
+
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
     private static final String COLLATION_BUCKET = "collation-bucket";
     private static final String VECTOR_BUCKET = "vector-test-bucket";
     private static final String VECTOR_INDEX_JSON = "{\"$vector\": {\"field\": \"embedding\", \"dimensions\": 3, \"distance\": \"cosine\"}}";
+
+    static Stream<Arguments> duplicateArguments() {
+        return Stream.of(
+                arguments("repeated LIMIT",
+                        List.of("test-bucket", "{}", "LIMIT", "10", "LIMIT", "10"),
+                        "ERR Duplicate 'LIMIT' argument")
+        );
+    }
 
     @BeforeEach
     void setUp() {
@@ -496,6 +499,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
+    // --- Numeric Widening Tests ---
+
     @Test
     void shouldThrowUnsupportedArgumentExceptionWhenUsingSortBy() {
         // Behavior: BUCKET.DELETE does not support SORTBY; using it throws an error.
@@ -510,8 +515,6 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
         assertEquals("ERR 'SORTBY' is an unsupported argument", errorMessage.content());
     }
-
-    // --- Numeric Widening Tests ---
 
     @Test
     void shouldThrowBucketBeingRemovedExceptionWhenDeletingFromRemovedBucket() {
@@ -903,6 +906,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
+    // --- Vector Index Tests ---
+
     @Test
     void shouldDeleteWidenedInt32DocumentViaInt64IndexRangeScan() {
         // Behavior: DELETE with INT32 range predicate on INT64 index uses IndexPredicateResolver
@@ -982,8 +987,6 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
             assertEquals(Set.of("Alice", "Bob"), remainingNames);
         }
     }
-
-    // --- Vector Index Tests ---
 
     @Test
     void shouldDeleteAllWidenedInt32DocumentsAndResetInt64IndexCardinalityToZero() {
@@ -1187,6 +1190,8 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         }
     }
 
+    // --- Collation tests ---
+
     @Test
     void shouldNotAffectVectorIndexWhenDeletedDocHasNoVectorField() {
         // Behavior: Deleting a document that has no vector field leaves the vector index entries intact.
@@ -1214,8 +1219,6 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
         assertEquals(1, fetchAllIndexedEntries(vectorIndex.subspace()).size(), "Vector index entry should still exist");
     }
-
-    // --- Collation tests ---
 
     @Test
     void shouldDeleteWithTurkishCollation() {
@@ -1326,14 +1329,6 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         List<BsonDocument> remaining = extractEntries(queryMsg);
         assertEquals(1, remaining.size());
         assertEquals("istanbul", BsonHelper.getString(remaining.getFirst(), "name"));
-    }
-
-    static Stream<Arguments> duplicateArguments() {
-        return Stream.of(
-                arguments("repeated LIMIT",
-                        List.of("test-bucket", "{}", "LIMIT", "10", "LIMIT", "10"),
-                        "ERR Duplicate 'LIMIT' argument")
-        );
     }
 
     @ParameterizedTest(name = "{0}")
