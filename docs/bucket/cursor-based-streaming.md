@@ -39,7 +39,8 @@ cursor remains valid indefinitely as long as the session is open and the cursor 
 first batch now, wait an hour, and call `BUCKET.ADVANCE` to pick up where you left off.
 
 **Closing** releases the cursor. Always call `BUCKET.CLOSE` when you are done paginating. A cursor created with
-`LIMIT` is removed automatically once the limit is reached (see [Limit](#limit)).
+`LIMIT` is removed automatically once the limit is reached (see [Limit](#limit)). A command sent with `CLOSE` closes
+its own cursor (see [Closing in the Same Call](#closing-in-the-same-call)).
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2
@@ -134,6 +135,21 @@ The cursor is gone:
 
 `LIMIT` works the same way for `BUCKET.DELETE` and `BUCKET.UPDATE`. For `BUCKET.UPDATE`, a document inserted by
 `upsert` counts as one toward the limit.
+
+## Closing in the Same Call
+
+When one batch is enough, add `CLOSE` to `BUCKET.QUERY`, `BUCKET.DELETE`, or `BUCKET.UPDATE`. The command returns the
+first batch with `cursor_id` `-1` and leaves no cursor in the session. This saves the extra `BUCKET.CLOSE` call.
+
+```kronotop
+127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2 CLOSE
+1# "cursor_id" => (integer) -1
+2# "entries" =>
+   1) {"_id": "69ce80c76597b10d87d134ff", "category": "books", "price": 19.99, "name": "The Disconnected"}
+   2) {"_id": "69ce80c76597b10d87d13500", "category": "electronics", "price": 499.99, "name": "Wireless Headphones"}
+```
+
+`CLOSE` takes no value. It can be combined with `LIMIT`. The cursor is closed after the first call in both cases.
 
 ## Checkpointing
 
@@ -246,6 +262,8 @@ disconnects, all its cursors are released automatically.
 
 - **Always close cursors.** Open cursors hold state in the session. Close them with `BUCKET.CLOSE` as soon as you are
   done paginating.
+- **Use `CLOSE` for single-batch commands.** When you do not plan to call `BUCKET.ADVANCE`, send the command with
+  `CLOSE`. See [Closing in the Same Call](#closing-in-the-same-call).
 - **Handle empty batches.** An empty batch does not always mean the result set is exhausted. Keep calling
   `BUCKET.ADVANCE` until empty batches come back consistently.
   See [Partial and Empty Batches](#partial-and-empty-batches).

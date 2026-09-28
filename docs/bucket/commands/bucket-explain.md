@@ -27,7 +27,8 @@ Keyword names are not case-sensitive, and each keyword can appear at most once.
 | `COLLATION` | JSON               | No       | Query-level collation spec. When provided, the plan reflects how collation affects index selection.                                                      |
 | `NAMESPACE` | string             | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
-The parameters are identical to `BUCKET.QUERY`. The query is parsed and planned but never executed.
+The parameters work as they do in `BUCKET.QUERY`, except `CLOSE`, which is rejected. The query is parsed and
+planned but never executed.
 
 ## Return Value
 
@@ -207,6 +208,7 @@ Argument errors:
 
 | Error Code | Error message                                               | Cause                                          |
 |------------|-------------------------------------------------------------|------------------------------------------------|
+| `ERR`      | `'CLOSE' is an unsupported argument`                        | `BUCKET.EXPLAIN` does not open a cursor.       |
 | `ERR`      | `BATCH argument must be followed by a non-negative integer` | -                                              |
 | `ERR`      | `LIMIT argument must be followed by a non-negative integer` | -                                              |
 | `ERR`      | `Unknown sort direction: '<value>'`                         | The `SORTBY` direction is not `ASC` or `DESC`. |

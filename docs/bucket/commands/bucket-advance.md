@@ -123,10 +123,10 @@ Argument errors:
 
 Bucket errors:
 
-| Error Code           | Error message                                                                          | Cause                                                                                |
-|----------------------|----------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
-| `ERR`                | `No previous query context found for '<operation>' operation with the given cursor id` | The cursor id is unknown, or the cursor was removed because its `LIMIT` was reached. |
-| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed`                                                   | -                                                                                    |
+| Error Code           | Error message                                                                          | Cause                                                                                                       |
+|----------------------|----------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| `ERR`                | `No previous query context found for '<operation>' operation with the given cursor id` | The cursor id is unknown, or the cursor was removed by `LIMIT`, by the `CLOSE` argument, or `BUCKET.CLOSE`. |
+| `BUCKETBEINGREMOVED` | `Bucket '<bucket>' is being removed`                                                   | -                                                                                                           |
 
 ## Examples
 

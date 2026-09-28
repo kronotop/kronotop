@@ -273,4 +273,11 @@ A closed cursor cannot be advanced:
 (error) ERR No previous query context found for 'query' operation with the given cursor id
 ```
 
+When one batch is enough, add `CLOSE` to the command. It returns the first batch with `cursor_id` `-1` and leaves no
+cursor in the session:
+
+```kronotop
+127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 2 CLOSE
+```
+
 See [BUCKET.CLOSE](commands/bucket-close.md) and [BUCKET.CURSORS](commands/bucket-cursors.md) for details.
