@@ -10,7 +10,7 @@ Deletes documents from a bucket that match a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.DELETE <bucket> <query> [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>]
+BUCKET.DELETE <bucket> <query> [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>] [CLOSE]
 ```
 
 ## Parameters
@@ -25,6 +25,7 @@ Keyword names are not case-sensitive, and each keyword can appear at most once.
 | `LIMIT`     | integer      | No       | Maximum total number of documents the cursor deletes across the first call and all `BUCKET.ADVANCE` calls. Must be non-negative. `0` means no limit (default). When the limit is reached, the response carries `cursor_id` `-1` and the cursor is removed. |
 | `COLLATION` | JSON         | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                                                   |
 | `NAMESPACE` | string       | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. A cursor opened this way stays in that namespace for `BUCKET.ADVANCE`.                            |
+| `CLOSE`     | flag         | No       | Close the cursor when the command returns. The command deletes the first batch and the response carries `cursor_id` `-1`. Takes no value.                                                                                                                  |
 
 Note: `SORTBY` is not supported for delete operations.
 
@@ -89,6 +90,9 @@ Each call deletes the next batch of documents up to the batch size.
 `BATCH` caps a single call, `LIMIT` caps the whole cursor. Each call deletes at most the smaller of `BATCH` and the
 remaining `LIMIT`. The call that reaches the limit returns `cursor_id` `-1` and removes the cursor from the session.
 There is no need to call `BUCKET.CLOSE` on it.
+
+When one batch is enough, send the command with `CLOSE`. The command deletes the first batch, returns `cursor_id`
+`-1`, and leaves no cursor in the session.
 
 ## Routing
 
@@ -161,6 +165,14 @@ BUCKET.DELETE users '{"age": {"$gt": 30}}' BATCH 50 LIMIT 120
 
 Deletes at most 120 documents in total. The first two calls delete 50 each, the third deletes 20 and returns
 `cursor_id` `-1`.
+
+**Delete that closes its cursor:**
+
+```kronotop
+> BUCKET.DELETE users '{"status": "inactive"}' BATCH 50 CLOSE
+1# "cursor_id" => (integer) -1
+2# "object_ids" => ... (first 50 deleted)
+```
 
 **Delete with collation:**
 

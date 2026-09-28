@@ -208,6 +208,81 @@ class AbstractBucketMessageTest {
     }
 
     @Test
+    void shouldParseCloseArgument() {
+        // Behavior: CLOSE takes no value and sets the close flag.
+        Request request = new TestRequest("bucket", "{}", "CLOSE");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.CLOSE);
+
+        QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
+
+        assertTrue(args.isClose());
+    }
+
+    @Test
+    void shouldParseCloseArgumentCaseInsensitive() {
+        // Behavior: CLOSE argument parsing is case-insensitive.
+        Request request = new TestRequest("bucket", "{}", "close");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.CLOSE);
+
+        QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
+
+        assertTrue(args.isClose());
+    }
+
+    @Test
+    void shouldNotSetCloseWhenCloseArgumentIsAbsent() {
+        // Behavior: The close flag is false when CLOSE is not given.
+        Request request = new TestRequest("bucket", "{}", "BATCH", "10");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH, QueryArgumentKey.CLOSE);
+
+        QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
+
+        assertFalse(args.isClose());
+    }
+
+    @Test
+    void shouldParseCloseBetweenOtherArguments() {
+        // Behavior: CLOSE does not consume the argument that follows it.
+        Request request = new TestRequest("bucket", "{}", "BATCH", "10", "CLOSE", "LIMIT", "5");
+        Set<QueryArgumentKey> supported = Set.of(
+                QueryArgumentKey.BATCH, QueryArgumentKey.LIMIT, QueryArgumentKey.CLOSE);
+
+        QueryArguments args = message.parseCommonQueryArguments(request, 2, supported);
+
+        assertTrue(args.isClose());
+        assertEquals(10, args.getBatch());
+        assertEquals(5, args.getLimit());
+    }
+
+    @Test
+    void shouldThrowWhenCloseIsGivenTwice() {
+        // Behavior: A repeated CLOSE throws IllegalCommandArgumentException.
+        Request request = new TestRequest("bucket", "{}", "CLOSE", "CLOSE");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.CLOSE);
+
+        IllegalCommandArgumentException ex = assertThrows(
+                IllegalCommandArgumentException.class,
+                () -> message.parseCommonQueryArguments(request, 2, supported)
+        );
+
+        assertEquals("Duplicate 'CLOSE' argument", ex.getMessage());
+    }
+
+    @Test
+    void shouldThrowWhenCloseNotSupported() {
+        // Behavior: Using CLOSE when not in the supported set throws UnsupportedArgumentException.
+        Request request = new TestRequest("bucket", "{}", "CLOSE");
+        Set<QueryArgumentKey> supported = Set.of(QueryArgumentKey.BATCH);
+
+        UnsupportedArgumentException ex = assertThrows(
+                UnsupportedArgumentException.class,
+                () -> message.parseCommonQueryArguments(request, 2, supported)
+        );
+
+        assertEquals("'CLOSE' is an unsupported argument", ex.getMessage());
+    }
+
+    @Test
     void shouldThrowOnUnknownArgument() {
         // Behavior: Unknown argument names throw IllegalCommandArgumentException.
         Request request = new TestRequest("bucket", "{}", "UNKNOWN");

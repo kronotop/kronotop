@@ -137,6 +137,12 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                     arguments.setNamespace(ProtocolMessageUtil.readAsString(value));
                     i++;
                 }
+                case CLOSE -> {
+                    if (!supportedArguments.contains(QueryArgumentKey.CLOSE)) {
+                        throw new UnsupportedArgumentException(QueryArgumentKey.CLOSE);
+                    }
+                    arguments.setClose(true);
+                }
             }
         }
         return arguments;

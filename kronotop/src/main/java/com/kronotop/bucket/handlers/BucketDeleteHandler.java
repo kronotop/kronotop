@@ -69,7 +69,7 @@ public class BucketDeleteHandler extends AbstractBucketHandler implements Handle
             List<ObjectId> objectIds = service.getQueryExecutor().delete(tr, ctx);
 
             TransactionUtil.commitIfAutoCommitEnabled(tr, request.getSession());
-            if (closeCursorIfLimitReached(ctx, session, cursorId, BucketOperation.DELETE)) {
+            if (closeCursorIfDone(ctx, session, cursorId, BucketOperation.DELETE, message.getArguments().isClose())) {
                 cursorId = -1;
             }
             return new BucketObjectIdArrayResponse(cursorId, objectIds);
