@@ -28,6 +28,7 @@ import com.kronotop.bucket.Collation;
  *   <li>LIMIT n - maximum documents to return in total</li>
  *   <li>SORTBY field ASC|DESC - sort field and direction</li>
  *   <li>NAMESPACE path - namespace to use instead of the session's current one</li>
+ *   <li>CLOSE - close the cursor when the command returns</li>
  * </ul>
  */
 public class QueryArguments {
@@ -40,6 +41,7 @@ public class QueryArguments {
     private byte[] projection;
     private Collation collation;
     private String namespace;
+    private boolean close;
 
     /**
      * Returns the batch size, or 0 if not specified.
@@ -135,5 +137,16 @@ public class QueryArguments {
 
     public void setNamespace(String namespace) {
         this.namespace = namespace;
+    }
+
+    /**
+     * Returns true if the cursor must be closed when the command returns.
+     */
+    public boolean isClose() {
+        return close;
+    }
+
+    public void setClose(boolean close) {
+        this.close = close;
     }
 }

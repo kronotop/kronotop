@@ -62,7 +62,7 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
 
             List<ByteBuffer> entries = service.getQueryExecutor().read(tr, ctx);
             entries = applyProjection(entries, ctx);
-            if (closeCursorIfLimitReached(ctx, session, cursorId, BucketOperation.QUERY)) {
+            if (closeCursorIfDone(ctx, session, cursorId, BucketOperation.QUERY, message.getArguments().isClose())) {
                 cursorId = -1;
             }
             return new BucketEntriesMapResponse(cursorId, entries);

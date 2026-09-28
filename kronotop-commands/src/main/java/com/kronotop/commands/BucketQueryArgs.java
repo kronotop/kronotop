@@ -28,6 +28,7 @@ public class BucketQueryArgs {
     private String projection;
     private String collation;
     private String namespace;
+    private boolean close;
 
     public BucketQueryArgs limit(int limit) {
         this.limit = limit;
@@ -63,6 +64,11 @@ public class BucketQueryArgs {
 
     public BucketQueryArgs namespace(String namespace) {
         this.namespace = namespace;
+        return this;
+    }
+
+    public BucketQueryArgs close() {
+        this.close = true;
         return this;
     }
 
@@ -103,6 +109,10 @@ public class BucketQueryArgs {
             args.add("NAMESPACE");
             args.add(namespace);
         }
+
+        if (close) {
+            args.add("CLOSE");
+        }
     }
 
     public static class Builder {
@@ -135,6 +145,10 @@ public class BucketQueryArgs {
 
         public static BucketQueryArgs namespace(String namespace) {
             return new BucketQueryArgs().namespace(namespace);
+        }
+
+        public static BucketQueryArgs close() {
+            return new BucketQueryArgs().close();
         }
     }
 }

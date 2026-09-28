@@ -2056,6 +2056,78 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldCloseCursorWhenCloseArgumentIsGiven() {
+        // Behavior: With CLOSE, BUCKET.QUERY returns the first batch and cursor_id -1, and leaves
+        // no cursor in the session even though more documents match.
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(5).close()).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(5, extractEntries(msg).size());
+
+        ByteBuf cursorsBuf = Unpooled.buffer();
+        cmd.cursors("QUERY").encode(cursorsBuf);
+        Object cursors = runCommand(channel, cursorsBuf);
+        assertInstanceOf(MapRedisMessage.class, cursors);
+        MapRedisMessage queryCursors = (MapRedisMessage) findInMapMessage((MapRedisMessage) cursors, "QUERY");
+        assertTrue(queryCursors.children().isEmpty());
+    }
+
+    @Test
+    void shouldCloseCursorWhenCloseArgumentIsGiven_RESP2() {
+        // Behavior: With CLOSE, BUCKET.QUERY in RESP2 mode returns cursor_id -1 and the first batch.
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP2);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(5).close()).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+
+        ArrayRedisMessage response = (ArrayRedisMessage) msg;
+        assertEquals(-1, ((IntegerRedisMessage) response.children().get(0)).value());
+        assertEquals(5, ((ArrayRedisMessage) response.children().get(1)).children().size());
+    }
+
+    @Test
+    void shouldCloseCursorWhenCloseAndLimitAreGivenTogether() {
+        // Behavior: CLOSE closes the cursor in the first call even when LIMIT is not reached yet.
+        List<byte[]> documents = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            documents.add(TEST_DOCUMENT);
+        }
+        insertDocumentsAndGetObjectIds(documents);
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(5).limit(12).close()).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+
+        assertEquals(-1, extractCursorId(msg));
+        assertEquals(5, extractEntries(msg).size());
+    }
+
+    @Test
     void shouldApplyLimitWithResultSort() {
         // Behavior: LIMIT caps the total documents across rounds. RESULTSORT sorts each round's
         // entries in memory before the effective batch is cut. The round that fills the LIMIT

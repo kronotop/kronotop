@@ -10,7 +10,7 @@ Queries documents from a bucket using a filter expression.
 ## Syntax
 
 ```kronotop
-BUCKET.QUERY <bucket> <query> [SORTBY <field> <ASC|DESC>] [RESULTSORT <field> <ASC|DESC>] [PROJECTION <spec>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>]
+BUCKET.QUERY <bucket> <query> [SORTBY <field> <ASC|DESC>] [RESULTSORT <field> <ASC|DESC>] [PROJECTION <spec>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>] [CLOSE]
 ```
 
 ## Parameters
@@ -28,6 +28,7 @@ Keyword names are not case-sensitive, and each keyword can appear at most once.
 | `LIMIT`      | integer            | No       | Maximum total number of documents the cursor returns across the first call and all `BUCKET.ADVANCE` calls. Must be non-negative. `0` means no limit (default). When the limit is reached, the response carries `cursor_id` `-1` and the cursor is removed.                                                             |
 | `COLLATION`  | JSON               | No       | Query-level collation spec for locale-aware string comparison. Overrides index collation for this query.                                                                                                                                                                                                               |
 | `NAMESPACE`  | string             | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. A cursor opened this way stays in that namespace for `BUCKET.ADVANCE`.                                                                                        |
+| `CLOSE`      | flag               | No       | Close the cursor when the command returns. The response carries the first batch and `cursor_id` `-1`. Takes no value.                                                                                                                                                                                                  |
 
 ## Return Value
 
@@ -75,7 +76,8 @@ The cursor ID is used to fetch more results with `BUCKET.ADVANCE`. Each query cr
 context in the session.
 The cursor tracks the position in the result set for pagination.
 
-A `cursor_id` of `-1` means the `LIMIT` was reached. The cursor no longer exists and cannot be advanced.
+A `cursor_id` of `-1` means the `LIMIT` was reached or the command was sent with `CLOSE`. The cursor no longer exists
+and cannot be advanced.
 
 ## Pagination
 
@@ -90,6 +92,9 @@ When there are no more results, the command returns an empty result set.
 `BATCH` caps a single call, `LIMIT` caps the whole cursor. Each call returns at most the smaller of `BATCH` and the
 remaining `LIMIT`. The call that reaches the limit returns `cursor_id` `-1` and removes the cursor from the session.
 There is no need to call `BUCKET.CLOSE` on it. Without `LIMIT`, the cursor stays open until you close it.
+
+When one batch is enough, send the command with `CLOSE`. The command returns the first batch with `cursor_id` `-1`
+and leaves no cursor in the session.
 
 The cursor maintains its state across calls:
 
@@ -189,6 +194,14 @@ BUCKET.QUERY users '{"status": "active"}' BATCH 10 LIMIT 25
 
 Returns at most 25 documents in total. The first two calls return 10 documents each, the third returns 5 with
 `cursor_id` `-1`.
+
+**Query that closes its cursor:**
+
+```kronotop
+> BUCKET.QUERY users '{"status": "active"}' BATCH 10 CLOSE
+1# "cursor_id" => (integer) -1
+2# "entries" => [...] (first 10 documents)
+```
 
 **Query with projection:**
 
