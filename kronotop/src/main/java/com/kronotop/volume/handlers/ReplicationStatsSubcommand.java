@@ -19,8 +19,8 @@ package com.kronotop.volume.handlers;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
-import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
@@ -60,10 +60,11 @@ class ReplicationStatsSubcommand extends BaseSubcommandHandler implements Subcom
         ReplicationArguments arguments = new ReplicationArguments(request.getArguments());
 
         supplyAsync(context, response, () -> {
+            String volumeName = request.attr(MessageTypes.VOLUMESTATS).get().getVolumeName();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                String volumeName = VolumeNames.format(arguments.shardKind, arguments.shardId);
+                VolumeNames.Parsed parsed = VolumeNames.parse(volumeName);
                 DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
-                        context, tr, arguments.shardKind, volumeName, arguments.standbyId
+                        context, tr, parsed.shardKind(), volumeName, arguments.standbyId
                 );
                 ReplicationStatusInfo info = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
 
@@ -81,18 +82,14 @@ class ReplicationStatsSubcommand extends BaseSubcommandHandler implements Subcom
     }
 
     private class ReplicationArguments {
-        private final ShardKind shardKind;
-        private final int shardId;
         private final String standbyId;
 
         private ReplicationArguments(ArrayList<ByteBuf> args) {
-            if (args.size() != 5) {
+            if (args.size() != 3) {
                 throw new InvalidNumberOfArgumentsException();
             }
 
-            shardKind = ProtocolMessageUtil.readShardKind(args.get(2));
-            shardId = ProtocolMessageUtil.readShardId(service.getContext().getShardRegistry(), shardKind, args.get(3));
-            standbyId = ProtocolMessageUtil.readMemberId(service.getContext(), args.get(4));
+            standbyId = ProtocolMessageUtil.readMemberId(service.getContext(), args.get(2));
         }
     }
 }

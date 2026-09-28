@@ -8,17 +8,15 @@ Returns replication state for a specific standby member on a named volume.
 ## Syntax
 
 ```kronotop
-VOLUME.STATS <volume-name> REPLICATION <shard-kind> <shard-id> <standby-id>
+VOLUME.STATS <volume-name> REPLICATION <standby-id>
 ```
 
 ## Arguments
 
-| Argument      | Type    | Description                                                               |
-|---------------|---------|---------------------------------------------------------------------------|
-| `volume-name` | string  | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
-| `shard-kind`  | string  | Shard kind (e.g. `BUCKET`, `STASH`)                                       |
-| `shard-id`    | integer | Numeric shard identifier                                                  |
-| `standby-id`  | string  | Member ID of the standby to inspect                                       |
+| Argument      | Type   | Description                                                               |
+|---------------|--------|---------------------------------------------------------------------------|
+| `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
+| `standby-id`  | string | Member ID of the standby to inspect                                       |
 
 ## Return Value
 
@@ -36,13 +34,12 @@ RESP3 map with the following fields:
 
 ## Behavior
 
-Reads the standby's replication status from FoundationDB. The volume name is derived from shard-kind and shard-id using
-the standard naming convention.
+Reads the replication status of the given standby for the named volume.
 
 Fields default to empty strings (for `stage`, `status`, `error_message`) or zero (for numeric fields) when replication
 has not started or the standby subspace has not been initialized.
 
-This command requires exactly 5 arguments total (volume name, subcommand, shard kind, shard ID, standby ID).
+This command requires exactly 3 arguments total (volume name, subcommand, standby ID).
 
 This command is available on the management port (default 3320).
 
@@ -50,19 +47,18 @@ This command is available on the management port (default 3320).
 
 Argument errors:
 
-| Error Code | Error message                   | Cause                                                                   |
-|------------|---------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of arguments`   | -                                                                       |
-| `ERR`      | `Unknown shard kind: '<value>'` | The shard kind must be `STASH` or `BUCKET`.                             |
-| `ERR`      | `invalid shard id`              | The shard ID is not a valid integer, or is out of the configured range. |
-| `ERR`      | `Invalid memberId: <id>`        | The value is neither a 40-character member ID nor a 4-character prefix. |
+| Error Code | Error message                 | Cause                                                                   |
+|------------|-------------------------------|-------------------------------------------------------------------------|
+| `ERR`      | `invalid number of arguments` | -                                                                       |
+| `ERR`      | `invalid volume name: <name>` | The name does not match the `<kind>-shard-<id>` format.                 |
+| `ERR`      | `Invalid memberId: <id>`      | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 ## Examples
 
 **Replication in segment replication stage:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION BUCKET 0 standby-member-1
+127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION standby-member-1
 1# "stage" => "SEGMENT_REPLICATION"
 2# "status" => "RUNNING"
 3# "error_message" => ""
@@ -75,7 +71,7 @@ Argument errors:
 **Replication in change data capture stage:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION BUCKET 0 standby-member-1
+127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION standby-member-1
 1# "stage" => "CHANGE_DATA_CAPTURE"
 2# "status" => "RUNNING"
 3# "error_message" => ""
@@ -88,7 +84,7 @@ Argument errors:
 **Replication not yet started:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION BUCKET 0 standby-member-1
+127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION standby-member-1
 1# "stage" => ""
 2# "status" => "WAITING"
 3# "error_message" => ""
@@ -101,7 +97,7 @@ Argument errors:
 **Failed replication:**
 
 ```kronotop
-127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION BUCKET 0 standby-member-1
+127.0.0.1:3320> VOLUME.STATS bucket-shard-0 REPLICATION standby-member-1
 1# "stage" => "SEGMENT_REPLICATION"
 2# "status" => "FAILED"
 3# "error_message" => "Connection refused"

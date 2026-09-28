@@ -75,7 +75,7 @@ class ReplicationStatsSubcommandTest extends BaseNetworkedVolumeIntegrationTest 
 
         VolumeStatsCommandBuilder<String, String> cmd = new VolumeStatsCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
-        cmd.replication(volumeName, SHARD_KIND.name(), SHARD_ID, standbyId).encode(buf);
+        cmd.replication(volumeName, standbyId).encode(buf);
 
         Object raw = BaseTest.runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, raw);

@@ -47,12 +47,10 @@ public class VolumeStatsCommandBuilder<K, V> extends BaseKronotopCommandBuilder<
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Command<K, V, Map<String, Object>> replication(String volumeName, String shardKind, int shardId, String standbyId) {
+    public Command<K, V, Map<String, Object>> replication(String volumeName, String standbyId) {
         CommandArgs<K, V> args = new CommandArgs<>(codec)
                 .add(volumeName)
                 .add(CommandKeyword.REPLICATION)
-                .add(shardKind)
-                .add(shardId)
                 .add(standbyId);
         return createCommand(CommandType.VOLUME_STATS, (MapOutput) new MapOutput<String, Object>((RedisCodec) codec), args);
     }
