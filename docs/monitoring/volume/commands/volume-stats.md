@@ -29,7 +29,7 @@ RESP3 map with the following fields:
 | `used_bytes`         | integer | Total bytes occupied by live entries across all segments                                            |
 | `free_bytes`         | integer | Total unallocated bytes across all segments                                                         |
 | `garbage_bytes`      | integer | Total reclaimable bytes across all segments                                                         |
-| `garbage_percentage` | double  | Fraction of total capacity occupied by garbage: `garbage_bytes / total_size_bytes`                  |
+| `garbage_percentage` | double  | Percentage of total capacity occupied by garbage: `100 * (garbage_bytes / total_size_bytes)`        |
 | `fill_ratio`         | double  | Fraction of total capacity that has been written: `(used_bytes + garbage_bytes) / total_size_bytes` |
 | `total_cardinality`  | integer | Total number of live entries across all segments                                                    |
 

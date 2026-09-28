@@ -73,7 +73,7 @@ class OverviewStatsSubcommand extends BaseSubcommandHandler implements Subcomman
             }
 
             long garbageBytes = (totalSize - freeBytes) - usedBytes;
-            double garbagePercentage = totalSize > 0 ? (double) garbageBytes / totalSize : 0.0;
+            double garbagePercentage = totalSize > 0 ? (100 * (double) garbageBytes / totalSize) : 0.0;
             double fillRatio = totalSize > 0 ? (double) (usedBytes + garbageBytes) / totalSize : 0.0;
 
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();

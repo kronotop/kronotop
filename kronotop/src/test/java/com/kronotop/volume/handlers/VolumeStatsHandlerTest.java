@@ -540,7 +540,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(30L, overview.get("used_bytes"));
         assertEquals(SEGMENT_SIZE - 50L, overview.get("free_bytes"));
         assertEquals(20L, overview.get("garbage_bytes"));
-        assertEquals(20.0 / SEGMENT_SIZE, (double) overview.get("garbage_percentage"), 0.0001);
+        assertEquals(100 * (20.0 / SEGMENT_SIZE), (double) overview.get("garbage_percentage"), 0.0001);
         assertEquals(50.0 / SEGMENT_SIZE, (double) overview.get("fill_ratio"), 0.0001);
         assertEquals(3L, overview.get("total_cardinality"));
     }
@@ -604,7 +604,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertEquals(50L, overview.get("used_bytes")); // 1*10 + 2*20
         assertEquals(SEGMENT_SIZE - 70L, overview.get("free_bytes")); // 30 initial + 40 update
         assertEquals(20L, overview.get("garbage_bytes")); // 2 old 10-byte entries
-        assertEquals(20.0 / SEGMENT_SIZE, (double) overview.get("garbage_percentage"), 0.0001);
+        assertEquals(100 * (20.0 / SEGMENT_SIZE), (double) overview.get("garbage_percentage"), 0.0001);
         assertEquals(70.0 / SEGMENT_SIZE, (double) overview.get("fill_ratio"), 0.0001);
         assertEquals(3L, overview.get("total_cardinality"));
 
