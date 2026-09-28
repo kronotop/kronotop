@@ -254,7 +254,7 @@ class CommandMetadataLoaderTest {
         assertNotNull(query);
         assertEquals(CommandGroup.BUCKET, query.group());
         assertEquals(-3, query.arity());
-        assertEquals(9, query.arguments().size());
+        assertEquals(10, query.arguments().size());
         assertEquals("SORTBY", query.arguments().get(2).token());
 
         CommandMetadata zset = commands.get("ZSET");
@@ -262,6 +262,20 @@ class CommandMetadataLoaderTest {
         assertEquals(CommandGroup.ZMAP, zset.group());
         assertEquals(-3, zset.arity());
         assertTrue(zset.keySpecs().getFirst().isIndexRange());
+    }
+
+    @Test
+    void shouldDefineCloseArgumentForCursorCommands() {
+        // Behavior: the commands that open a cursor list CLOSE as their last argument, BUCKET.EXPLAIN does not list it
+        Map<String, CommandMetadata> commands = CommandMetadataLoader.load().get(ServerKind.EXTERNAL);
+
+        for (String name : List.of("BUCKET.QUERY", "BUCKET.DELETE", "BUCKET.UPDATE", "QUERY")) {
+            assertEquals("CLOSE", commands.get(name).arguments().getLast().token(), name);
+        }
+
+        boolean explainHasClose = commands.get("BUCKET.EXPLAIN").arguments().stream()
+                .anyMatch(argument -> "CLOSE".equals(argument.token()));
+        assertFalse(explainHasClose);
     }
 
     @Test

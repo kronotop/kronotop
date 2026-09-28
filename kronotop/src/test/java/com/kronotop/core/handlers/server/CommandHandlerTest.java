@@ -101,7 +101,7 @@ class CommandHandlerTest extends BaseHandlerTest {
         Map<String, RedisMessage> command = asMap(docs.get("bucket.query"));
         assertEquals("bucket", text(command.get("group")));
         List<RedisMessage> arguments = ((ArrayRedisMessage) command.get("arguments")).children();
-        assertEquals(9, arguments.size());
+        assertEquals(10, arguments.size());
         Map<String, RedisMessage> sortby = asMap(arguments.get(2));
         assertEquals("SORTBY", text(sortby.get("token")));
         SetRedisMessage flags = (SetRedisMessage) sortby.get("flags");
