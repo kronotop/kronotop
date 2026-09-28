@@ -431,6 +431,37 @@ class BucketCursorsHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
+    void shouldNotListCursorWhenCommandIsSentWithClose() {
+        // Behavior: A command sent with CLOSE leaves no cursor in BUCKET.CURSORS output, while a
+        // cursor opened without CLOSE in the same session stays listed.
+        List<byte[]> testDocuments = Arrays.asList(
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Alice\", \"age\": 25}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"name\": \"Bob\", \"age\": 35}")
+        );
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+
+        insertDocumentsAndGetObjectIds(testDocuments);
+
+        ByteBuf openBuf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(1)).encode(openBuf);
+        runCommand(channel, openBuf);
+
+        ByteBuf closeBuf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}", BucketQueryArgs.Builder.batch(1).close()).encode(closeBuf);
+        runCommand(channel, closeBuf);
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.cursors("QUERY").encode(buf);
+        Object msg = runCommand(channel, buf);
+
+        assertInstanceOf(MapRedisMessage.class, msg);
+        MapRedisMessage queryCursors = (MapRedisMessage) findInMapMessage((MapRedisMessage) msg, "QUERY");
+        assertEquals(1, queryCursors.children().size());
+    }
+
+    @Test
     void shouldReturnEmptyCursorsWhenNoCursorsExist_RESP2() {
         // Behavior: BUCKET.CURSORS in RESP2 mode returns empty arrays for all operation types when no cursors exist.
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
