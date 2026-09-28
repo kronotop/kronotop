@@ -11,9 +11,9 @@ Starts or stops volume replication on a standby node.
 VOLUME.ADMIN REPLICATION <operation> <volume-name>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                                          |
+| Argument      | Type   | Description                                                                          |
 |---------------|--------|--------------------------------------------------------------------------------------|
 | `operation`   | string | One of `START` or `STOP` (case-insensitive)                                          |
 | `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
@@ -46,7 +46,7 @@ Argument errors:
 
 | Error Code | Error message                       | Cause                                                   |
 |------------|-------------------------------------|---------------------------------------------------------|
-| `ERR`      | `invalid number of parameters`      | -                                                       |
+| `ERR`      | `invalid number of arguments`       | -                                                       |
 | `ERR`      | `invalid volume name: <name>`       | The name does not match the `<kind>-shard-<id>` format. |
 | `ERR`      | `unknown subcommand: '<operation>'` | -                                                       |
 
@@ -80,9 +80,9 @@ OK
 (error) ERR This node is not a standby for bucket-shard-1
 ```
 
-**Missing parameters:**
+**Missing arguments:**
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN REPLICATION
-(error) ERR invalid number of parameters
+(error) ERR invalid number of arguments
 ```

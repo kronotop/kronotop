@@ -16,7 +16,7 @@
 
 package com.kronotop.volume.handlers;
 
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -59,11 +59,11 @@ class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHand
 
     @Override
     public void execute(Request request, Response response) {
-        DescribeParameters parameters = new DescribeParameters(request.getParams());
+        DescribeArguments arguments = new DescribeArguments(request.getArguments());
 
         supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-            Volume volume = service.findVolume(parameters.name);
+            Volume volume = service.findVolume(arguments.name);
             VolumeConfig config = volume.getConfig();
 
             result.put(wrapBytes(NAME_BYTES), bulkString(config.name()));
@@ -88,15 +88,15 @@ class DescribeSubcommand extends BaseSubcommandHandler implements SubcommandHand
         }, response::writeMap);
     }
 
-    private static class DescribeParameters {
+    private static class DescribeArguments {
         private final String name;
 
-        private DescribeParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 2) {
-                throw new InvalidNumberOfParametersException();
+        private DescribeArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 2) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            name = ProtocolMessageUtil.readAsString(params.get(1));
+            name = ProtocolMessageUtil.readAsString(args.get(1));
         }
     }
 }

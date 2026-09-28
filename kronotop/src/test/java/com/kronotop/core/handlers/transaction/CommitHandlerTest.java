@@ -135,8 +135,8 @@ class CommitHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldRejectMultipleReturningParameters() {
-        // Behavior: COMMIT RETURNING accepts only one parameter. Multiple parameters must be rejected.
+    void shouldRejectMultipleReturningArguments() {
+        // Behavior: COMMIT RETURNING accepts only one argument. Multiple arguments must be rejected.
         EmbeddedChannel channel = getChannel();
         KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
 
@@ -157,7 +157,7 @@ class CommitHandlerTest extends BaseHandlerTest {
             assertInstanceOf(ErrorRedisMessage.class, response);
             ErrorRedisMessage errorMessage = (ErrorRedisMessage) response;
             assertTrue(errorMessage.content().contains("wrong number of arguments"),
-                    "Should reject multiple RETURNING parameters");
+                    "Should reject multiple RETURNING arguments");
         }
     }
 
@@ -169,9 +169,9 @@ class CommitHandlerTest extends BaseHandlerTest {
                 arguments("RETURNING without value",
                         List.of("RETURNING"),
                         "ERR RETURNING argument must be followed by VERSIONSTAMP or COMMITTED_VERSION"),
-                arguments("unknown RETURNING parameter",
+                arguments("unknown RETURNING argument",
                         List.of("returning", "bogus"),
-                        "ERR Unknown RETURNING parameter: 'bogus'")
+                        "ERR Unknown RETURNING argument: 'bogus'")
         );
     }
 
@@ -179,7 +179,7 @@ class CommitHandlerTest extends BaseHandlerTest {
     @MethodSource("invalidArguments")
     void shouldRejectInvalidArguments(String name, List<String> rawArgs, String expectedError) {
         // Behavior: COMMIT rejects an unknown keyword, a RETURNING keyword without a value and an
-        // unknown RETURNING parameter with an exact ERR reply, before touching the transaction.
+        // unknown RETURNING argument with an exact ERR reply, before touching the transaction.
         Object response = runRaw(getChannel(), CommandType.COMMIT, rawArgs);
 
         assertInstanceOf(ErrorRedisMessage.class, response);

@@ -22,8 +22,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapService;
@@ -36,8 +36,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 @Command(ZGetKeyMessage.COMMAND)
-@MinimumParameterCount(ZGetKeyMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(ZGetKeyMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(ZGetKeyMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(ZGetKeyMessage.MAXIMUM_ARGUMENT_COUNT)
 public class ZGetKeyHandler extends BaseZMapHandler implements Handler {
     public ZGetKeyHandler(ZMapService service) {
         super(service);

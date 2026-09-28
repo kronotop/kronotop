@@ -25,8 +25,8 @@ import java.util.List;
 
 public class SetEXMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "SETEX";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 3;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 3;
     private final Request request;
     private String key;
     private long seconds;
@@ -38,13 +38,13 @@ public class SetEXMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        key = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
-        seconds = ProtocolMessageUtil.readAsLong(request.getParams().get(1));
+        key = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
+        seconds = ProtocolMessageUtil.readAsLong(request.getArguments().get(1));
         if (seconds <= 0) {
             throw new KronotopException("invalid expire time in 'setex' command");
         }
-        value = new byte[request.getParams().get(2).readableBytes()];
-        request.getParams().get(2).readBytes(value);
+        value = new byte[request.getArguments().get(2).readableBytes()];
+        request.getArguments().get(2).readBytes(value);
     }
 
     @Override

@@ -24,16 +24,16 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(TickMessage.COMMAND)
-@MaximumParameterCount(TickMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(TickMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(TickMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(TickMessage.MINIMUM_ARGUMENT_COUNT)
 public class TickHandler implements Handler {
     private static final long CACHE_TTL_MS = 1000;
     private final Context context;

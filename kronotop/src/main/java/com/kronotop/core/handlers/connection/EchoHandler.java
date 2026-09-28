@@ -22,8 +22,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -31,8 +31,8 @@ import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 
 @Command(EchoMessage.COMMAND)
-@MaximumParameterCount(EchoMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(EchoMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(EchoMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(EchoMessage.MINIMUM_ARGUMENT_COUNT)
 public class EchoHandler implements Handler {
 
     @Override

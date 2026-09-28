@@ -20,8 +20,8 @@ import com.kronotop.server.Request;
 
 public class HGetAllMessage extends KeyCommon {
     public static final String COMMAND = "HGETALL";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
 
     public HGetAllMessage(Request request) {
         super(request);

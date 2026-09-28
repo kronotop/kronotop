@@ -39,26 +39,26 @@ class FindMemberSubcommand extends BaseKrAdminSubcommandHandler implements Subco
 
     @Override
     public void execute(Request request, Response response) {
-        FindMemberParameters parameters = new FindMemberParameters(request.getParams());
+        FindMemberArguments arguments = new FindMemberArguments(request.getArguments());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
-            Member member = membership.findMember(parameters.memberId);
+            Member member = membership.findMember(arguments.memberId);
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
             memberToRedisMessage(member, result);
             return result;
         }, response::writeMap);
     }
 
-    private class FindMemberParameters {
+    private class FindMemberArguments {
         private final String memberId;
 
-        FindMemberParameters(ArrayList<ByteBuf> params) {
-            if (params.size() < 2) {
+        FindMemberArguments(ArrayList<ByteBuf> args) {
+            if (args.size() < 2) {
                 throw new KronotopException("member id is required");
             }
-            if (params.size() > 2) {
-                throw new InvalidNumberOfParametersException();
+            if (args.size() > 2) {
+                throw new InvalidNumberOfArgumentsException();
             }
-            memberId = ProtocolMessageUtil.readMemberId(context, params.get(1));
+            memberId = ProtocolMessageUtil.readMemberId(context, args.get(1));
         }
     }
 }

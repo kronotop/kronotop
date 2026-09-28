@@ -51,8 +51,8 @@ import java.util.regex.Pattern;
  */
 public class ChangeLogRangeMessage extends BaseMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "CHANGELOG.RANGE";
-    public static final int MINIMUM_PARAMETER_COUNT = 4;
-    public static final int MAXIMUM_PARAMETER_COUNT = 7;
+    public static final int MINIMUM_ARGUMENT_COUNT = 4;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 7;
     // Pattern for start: [100 or (100
     private static final Pattern START_PATTERN = Pattern.compile("^([(\\[])(\\d+)$");
     // Pattern for end: 200] or 200)
@@ -120,15 +120,15 @@ public class ChangeLogRangeMessage extends BaseMessage implements ProtocolMessag
         }
     }
 
-    private void parseOptionalParameters(int index) {
+    private void parseOptionalArguments(int index) {
         long seen = 0;
-        while (index < request.getParams().size()) {
+        while (index < request.getArguments().size()) {
             String raw = StringUtil.toUpperCaseAscii(readString(index));
             ChangeLogRangeArgumentKey key = valueOfArgument(raw);
             seen = ProtocolMessageUtil.markArgumentSeen(seen, key);
             switch (key) {
                 case LIMIT -> {
-                    ProtocolMessageUtil.requireValue(request.getParams(), index, key.name(), "an integer");
+                    ProtocolMessageUtil.requireValue(request.getArguments(), index, key.name(), "an integer");
                     limit = Math.toIntExact(readLong(index + 1));
                     index += 2;
                 }
@@ -157,8 +157,8 @@ public class ChangeLogRangeMessage extends BaseMessage implements ProtocolMessag
             );
         }
 
-        if (request.getParams().size() > 4) {
-            parseOptionalParameters(4);
+        if (request.getArguments().size() > 4) {
+            parseOptionalArguments(4);
         }
     }
 

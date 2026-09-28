@@ -11,9 +11,9 @@ Returns per-segment size, usage, and garbage statistics for a named volume.
 VOLUME.STATS <volume-name> SEGMENTS
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                               |
+| Argument      | Type   | Description                                                               |
 |---------------|--------|---------------------------------------------------------------------------|
 | `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
 

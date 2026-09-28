@@ -160,8 +160,8 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenDescribeVolumeWithInvalidNumberOfParameters() {
-        // Send command without volume name parameter
+    void shouldReturnErrorWhenDescribeVolumeWithInvalidNumberOfArguments() {
+        // Send command without volume name argument
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*2\r\n$12\r\nVOLUME.ADMIN\r\n$8\r\nDESCRIBE\r\n".getBytes());
 
@@ -169,7 +169,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid number of parameters"));
+        assertTrue(errorMessage.content().contains("invalid number of arguments"));
     }
 
     @Test
@@ -245,8 +245,8 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenSetStatusWithInvalidNumberOfParameters() {
-        // Send command without status parameter
+    void shouldReturnErrorWhenSetStatusWithInvalidNumberOfArguments() {
+        // Send command without status argument
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$10\r\nSET-STATUS\r\n$13\r\nstash-shard-1\r\n".getBytes());
 
@@ -254,7 +254,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid number of parameters"));
+        assertTrue(errorMessage.content().contains("invalid number of arguments"));
     }
 
     @Test
@@ -644,8 +644,8 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldFailStartReplicationWithInvalidNumberOfParameters() {
-        // Missing volume-name parameter
+    void shouldFailStartReplicationWithInvalidNumberOfArguments() {
+        // Missing volume-name argument
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$11\r\nREPLICATION\r\n$5\r\nSTART\r\n".getBytes());
 
@@ -653,7 +653,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -715,8 +715,8 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldFailStopReplicationWithInvalidNumberOfParameters() {
-        // Missing volume-name parameter
+    void shouldFailStopReplicationWithInvalidNumberOfArguments() {
+        // Missing volume-name argument
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$11\r\nREPLICATION\r\n$4\r\nSTOP\r\n".getBytes());
 
@@ -724,7 +724,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -780,7 +780,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenPruneChangelogWithInvalidNumberOfParameters() {
+    void shouldReturnErrorWhenPruneChangelogWithInvalidNumberOfArguments() {
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*2\r\n$12\r\nVOLUME.ADMIN\r\n$15\r\nPRUNE-CHANGELOG\r\n".getBytes());
 
@@ -788,7 +788,7 @@ class VolumeAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     private void assertAdvertise(RedisMessage message, List<Address> expected) {

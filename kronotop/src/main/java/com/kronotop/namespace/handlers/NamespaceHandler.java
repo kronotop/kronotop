@@ -21,12 +21,12 @@ import com.kronotop.namespace.handlers.protocol.NamespaceMessage;
 import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 
 import java.util.EnumMap;
 
 @Command(NamespaceMessage.COMMAND)
-@MinimumParameterCount(NamespaceMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(NamespaceMessage.MINIMUM_ARGUMENT_COUNT)
 public class NamespaceHandler implements Handler {
     private final EnumMap<NamespaceSubcommand, SubcommandHandler> executors = new EnumMap<>(NamespaceSubcommand.class);
 

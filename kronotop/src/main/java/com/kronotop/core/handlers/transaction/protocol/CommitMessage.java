@@ -28,10 +28,10 @@ import java.util.List;
 
 public class CommitMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "COMMIT";
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 2;
     private static final String RETURNING_ARGUMENT = "RETURNING";
     private final Request request;
-    private Parameter returning;
+    private ReturningArgument returning;
 
     public CommitMessage(Request request) {
         this.request = request;
@@ -39,18 +39,18 @@ public class CommitMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        if (!request.getParams().isEmpty()) {
-            String raw = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        if (!request.getArguments().isEmpty()) {
+            String raw = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
             if (!StringUtil.toUpperCaseAscii(raw).equals(RETURNING_ARGUMENT)) {
                 throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
             }
             ByteBuf value = ProtocolMessageUtil.requireValue(
-                    request.getParams(), 0, RETURNING_ARGUMENT, "VERSIONSTAMP or COMMITTED_VERSION");
-            this.returning = Parameter.fromByteBuf(value);
+                    request.getArguments(), 0, RETURNING_ARGUMENT, "VERSIONSTAMP or COMMITTED_VERSION");
+            this.returning = ReturningArgument.fromByteBuf(value);
         }
     }
 
-    public Parameter getReturning() {
+    public ReturningArgument getReturning() {
         return returning;
     }
 
@@ -64,14 +64,14 @@ public class CommitMessage implements ProtocolMessage<Void> {
         return null;
     }
 
-    public enum Parameter {
+    public enum ReturningArgument {
         COMMITTED_VERSION("committed-version"),
         VERSIONSTAMP("versionstamp");
 
         private final String value;
         private final byte[] bytes;
 
-        Parameter(String value) {
+        ReturningArgument(String value) {
             this.value = value;
             this.bytes = value.getBytes(StandardCharsets.US_ASCII);
         }
@@ -90,7 +90,7 @@ public class CommitMessage implements ProtocolMessage<Void> {
             return true;
         }
 
-        public static Parameter fromByteBuf(ByteBuf buf) {
+        public static ReturningArgument fromByteBuf(ByteBuf buf) {
             return switch (buf.readableBytes()) {
                 case 12 -> {
                     if (matches(buf, VERSIONSTAMP.bytes)) yield VERSIONSTAMP;
@@ -106,7 +106,7 @@ public class CommitMessage implements ProtocolMessage<Void> {
 
         private static IllegalCommandArgumentException illegalArgument(ByteBuf buf) {
             return new IllegalCommandArgumentException(
-                    String.format("Unknown RETURNING parameter: '%s'", buf.toString(StandardCharsets.US_ASCII)));
+                    String.format("Unknown RETURNING argument: '%s'", buf.toString(StandardCharsets.US_ASCII)));
         }
 
         public String getValue() {

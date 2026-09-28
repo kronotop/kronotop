@@ -26,8 +26,8 @@ import java.util.Set;
 
 public class BucketUpdateMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.UPDATE";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 14;
+    public static final int MINIMUM_ARGUMENT_COUNT = 3;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 14;
     private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(
             QueryArgumentKey.SORTBY,
             QueryArgumentKey.BATCH,
@@ -48,9 +48,9 @@ public class BucketUpdateMessage extends AbstractBucketMessage implements Protoc
     }
 
     private void parse() {
-        bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        query = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
-        update = ProtocolMessageUtil.readAsByteArray(request.getParams().get(2));
+        bucket = ProtocolMessageUtil.readAsString(request.getArguments().get(0));
+        query = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(1));
+        update = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(2));
         if (update.length == 0) {
             throw new IllegalCommandArgumentException("update argument cannot be empty");
         }

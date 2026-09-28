@@ -28,7 +28,7 @@ import java.util.List;
 
 public class BucketCreateMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.CREATE";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private final List<Integer> shards = new ArrayList<>();
     private byte[] indexes;
@@ -53,8 +53,8 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
      */
     private int readShards(int index, String keyword) {
         int last = index;
-        for (int i = index + 1; i < request.getParams().size(); i++) {
-            ByteBuf buf = request.getParams().get(i);
+        for (int i = index + 1; i < request.getArguments().size(); i++) {
+            ByteBuf buf = request.getArguments().get(i);
             buf.markReaderIndex();
             if (tryParseKey(ProtocolMessageUtil.readAsString(buf)) != null) {
                 buf.resetReaderIndex();
@@ -71,11 +71,11 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
     }
 
     private void parse() {
-        bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
+        bucket = ProtocolMessageUtil.readAsString(request.getArguments().get(0));
 
         long seen = 0;
-        for (int i = 1; i < request.getParams().size(); i++) {
-            String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
+        for (int i = 1; i < request.getArguments().size(); i++) {
+            String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(i));
             CreateArgumentKey key = tryParseKey(raw);
             if (key == null) {
                 throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
@@ -87,19 +87,19 @@ public class BucketCreateMessage extends AbstractBucketMessage implements Protoc
                 case SHARDS -> i = readShards(i, keyword);
                 case INDEXES -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, keyword, "an index specification");
+                            request.getArguments(), i, keyword, "an index specification");
                     indexes = ProtocolMessageUtil.readAsByteArray(value);
                     i++;
                 }
                 case COLLATION -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, keyword, COLLATION_SPECIFICATION);
+                            request.getArguments(), i, keyword, COLLATION_SPECIFICATION);
                     collation = ProtocolMessageUtil.readAsByteArray(value);
                     i++;
                 }
                 case NAMESPACE -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, keyword, ProtocolMessageUtil.NAMESPACE_PATH);
+                            request.getArguments(), i, keyword, ProtocolMessageUtil.NAMESPACE_PATH);
                     namespace = ProtocolMessageUtil.readAsString(value);
                     i++;
                 }

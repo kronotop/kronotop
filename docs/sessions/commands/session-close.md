@@ -11,7 +11,7 @@ Closes the current session and resets all session state while keeping the connec
 SESSION.CLOSE
 ```
 
-This command takes no parameters.
+This command takes no arguments.
 
 ## Return Value
 

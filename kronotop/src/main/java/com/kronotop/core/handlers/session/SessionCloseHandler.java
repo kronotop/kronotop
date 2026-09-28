@@ -20,8 +20,8 @@ import com.kronotop.Context;
 import com.kronotop.core.handlers.session.protocol.SessionCloseMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.watcher.Watcher;
 
 /**
@@ -42,8 +42,8 @@ import com.kronotop.watcher.Watcher;
  * the authentication flag, the readonly flag and the client attributes.
  */
 @Command(SessionCloseMessage.COMMAND)
-@MaximumParameterCount(SessionCloseMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(SessionCloseMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(SessionCloseMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(SessionCloseMessage.MINIMUM_ARGUMENT_COUNT)
 public class SessionCloseHandler implements Handler {
     private final Watcher watcher;
 

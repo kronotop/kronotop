@@ -11,7 +11,7 @@ Lists all members in the cluster with their metadata.
 KR.ADMIN LIST-MEMBERS
 ```
 
-## Parameters
+## Arguments
 
 None.
 
@@ -39,7 +39,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 
 Cluster errors:
 

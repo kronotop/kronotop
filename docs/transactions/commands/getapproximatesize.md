@@ -11,7 +11,7 @@ Returns the approximate byte size of the current transaction.
 GETAPPROXIMATESIZE
 ```
 
-This command takes no parameters.
+This command takes no arguments.
 
 ## Return Value
 

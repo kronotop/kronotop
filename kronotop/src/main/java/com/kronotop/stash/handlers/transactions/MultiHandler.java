@@ -18,16 +18,16 @@ package com.kronotop.stash.handlers.transactions;
 
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.transactions.protocol.MultiMessage;
 import io.netty.channel.Channel;
 import io.netty.util.Attribute;
 
 @Command(MultiMessage.COMMAND)
-@MaximumParameterCount(MultiMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(MultiMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(MultiMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(MultiMessage.MINIMUM_ARGUMENT_COUNT)
 public class MultiHandler implements Handler {
     private final StashService service;
 

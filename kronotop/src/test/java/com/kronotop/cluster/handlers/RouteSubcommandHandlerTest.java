@@ -281,8 +281,8 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenRouteWithInvalidNumberOfParameters() {
-        // Send raw command with missing parameters
+    void shouldReturnErrorWhenRouteWithInvalidNumberOfArguments() {
+        // Send raw command with missing arguments
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$5\r\nROUTE\r\n$3\r\nSET\r\n".getBytes());
 
@@ -290,7 +290,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid number of parameters"));
+        assertTrue(errorMessage.content().contains("invalid number of arguments"));
     }
 
     @Test

@@ -18,15 +18,15 @@ package com.kronotop.stash.handlers.transactions;
 
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.transactions.protocol.DiscardMessage;
 import io.netty.util.Attribute;
 
 @Command(DiscardMessage.COMMAND)
-@MaximumParameterCount(DiscardMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(DiscardMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(DiscardMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(DiscardMessage.MINIMUM_ARGUMENT_COUNT)
 public class DiscardHandler implements Handler {
     private final StashService service;
 

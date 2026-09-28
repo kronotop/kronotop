@@ -21,8 +21,8 @@ import com.kronotop.stash.handlers.string.protocol.GetMessage;
 
 public class TTLMessage extends GetMessage {
     public static final String COMMAND = "TTL";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
 
     public TTLMessage(Request request) {
         super(request);

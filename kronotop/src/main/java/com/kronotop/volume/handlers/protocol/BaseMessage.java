@@ -27,14 +27,14 @@ class BaseMessage {
     }
 
     protected byte[] readBytes(int index) {
-        return ProtocolMessageUtil.readAsByteArray(request.getParams().get(index));
+        return ProtocolMessageUtil.readAsByteArray(request.getArguments().get(index));
     }
 
     protected String readString(int index) {
-        return ProtocolMessageUtil.readAsString(request.getParams().get(index));
+        return ProtocolMessageUtil.readAsString(request.getArguments().get(index));
     }
 
     protected long readLong(int index) {
-        return ProtocolMessageUtil.readAsLong(request.getParams().get(index));
+        return ProtocolMessageUtil.readAsLong(request.getArguments().get(index));
     }
 }

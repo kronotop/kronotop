@@ -26,7 +26,7 @@ import java.util.List;
 
 public class DelMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "DEL";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private final List<String> keys = new ArrayList<>();
 
@@ -36,7 +36,7 @@ public class DelMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        for (ByteBuf buf : request.getParams()) {
+        for (ByteBuf buf : request.getArguments()) {
             keys.add(ProtocolMessageUtil.readAsString(buf));
         }
     }

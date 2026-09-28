@@ -11,9 +11,9 @@ Returns server information and statistics.
 INFO [section ...]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type   | Required | Description                                                    |
+| Argument  | Type   | Required | Description                                                    |
 |-----------|--------|----------|----------------------------------------------------------------|
 | `section` | string | No       | One or more section names to return. Case does not matter.     |
 

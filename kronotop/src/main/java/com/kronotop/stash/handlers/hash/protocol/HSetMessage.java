@@ -25,7 +25,7 @@ import java.util.List;
 
 public class HSetMessage extends SyncableHashMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "HSET";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
     private final Request request;
     private String key;
 
@@ -35,23 +35,23 @@ public class HSetMessage extends SyncableHashMessage implements ProtocolMessage<
     }
 
     private void parse() {
-        if ((request.getParams().size() - 1) % 2 != 0) {
+        if ((request.getArguments().size() - 1) % 2 != 0) {
             throw new WrongNumberOfArgumentsException(
                     String.format("wrong number of arguments for '%s' command", request.getCommand())
             );
         }
 
-        byte[] rawKey = new byte[request.getParams().getFirst().readableBytes()];
-        request.getParams().getFirst().readBytes(rawKey);
+        byte[] rawKey = new byte[request.getArguments().getFirst().readableBytes()];
+        request.getArguments().getFirst().readBytes(rawKey);
         key = new String(rawKey);
 
-        for (int i = 1; i < request.getParams().size(); i = i + 2) {
-            byte[] rawField = new byte[request.getParams().get(i).readableBytes()];
-            request.getParams().get(i).readBytes(rawField);
+        for (int i = 1; i < request.getArguments().size(); i = i + 2) {
+            byte[] rawField = new byte[request.getArguments().get(i).readableBytes()];
+            request.getArguments().get(i).readBytes(rawField);
             String field = new String(rawField);
 
-            byte[] value = new byte[request.getParams().get(i + 1).readableBytes()];
-            request.getParams().get(i + 1).readBytes(value);
+            byte[] value = new byte[request.getArguments().get(i + 1).readableBytes()];
+            request.getArguments().get(i + 1).readBytes(value);
 
             FieldValuePair fieldValuePair = new FieldValuePair(field, new HashFieldValue(value));
             getFieldValuePairs().add(fieldValuePair);

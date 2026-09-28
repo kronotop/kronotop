@@ -20,8 +20,8 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.hash.protocol.FieldValuePair;
 import com.kronotop.stash.handlers.hash.protocol.HIncrByFloatMessage;
@@ -39,8 +39,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import static com.kronotop.stash.StashService.checkStashValueKind;
 
 @Command(HIncrByFloatMessage.COMMAND)
-@MinimumParameterCount(HIncrByFloatMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(HIncrByFloatMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(HIncrByFloatMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(HIncrByFloatMessage.MAXIMUM_ARGUMENT_COUNT)
 public class HIncrByFloatHandler extends BaseHashHandler implements Handler {
     public HIncrByFloatHandler(StashService service) {
         super(service);

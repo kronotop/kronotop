@@ -11,7 +11,7 @@ Returns the read version of the current transaction.
 GETREADVERSION
 ```
 
-This command takes no parameters.
+This command takes no arguments.
 
 ## Return Value
 

@@ -40,7 +40,7 @@ import java.util.ListIterator;
 public class RESPRequest extends DefaultAttributeMap implements Request {
     private final RedisMessage message;
     private final Session session;
-    private ArrayList<ByteBuf> params;
+    private ArrayList<ByteBuf> arguments;
     private String command;
 
     public RESPRequest(Session session, Object message) {
@@ -73,30 +73,30 @@ public class RESPRequest extends DefaultAttributeMap implements Request {
     }
 
     /**
-     * Returns the parameters of the Redis command represented by this RespRequest.
+     * Returns the arguments of the Redis command represented by this RespRequest.
      *
-     * @return the parameters of the Redis command
+     * @return the arguments of the Redis command
      */
-    public ArrayList<ByteBuf> getParams() {
-        if (params != null) {
-            return params;
+    public ArrayList<ByteBuf> getArguments() {
+        if (arguments != null) {
+            return arguments;
         }
-        params = new ArrayList<>();
+        arguments = new ArrayList<>();
 
         Preconditions.checkNotNull(message, "RedisMessage cannot be null");
         if (message instanceof ArrayRedisMessage) {
-            List<RedisMessage> rawParams = ((ArrayRedisMessage) message).children();
-            ListIterator<RedisMessage> iterator = rawParams.listIterator(1);
+            List<RedisMessage> rawArguments = ((ArrayRedisMessage) message).children();
+            ListIterator<RedisMessage> iterator = rawArguments.listIterator(1);
 
             while (iterator.hasNext()) {
                 RedisMessage redisMessage = iterator.next();
                 if (redisMessage instanceof FullBulkStringRedisMessage) {
-                    ByteBuf param = ((FullBulkStringRedisMessage) redisMessage).content();
-                    params.add(param);
+                    ByteBuf argument = ((FullBulkStringRedisMessage) redisMessage).content();
+                    arguments.add(argument);
                 }
             }
         }
-        return params;
+        return arguments;
     }
 
     /**

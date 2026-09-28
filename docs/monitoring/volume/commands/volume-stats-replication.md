@@ -11,9 +11,9 @@ Returns replication state for a specific standby member on a named volume.
 VOLUME.STATS <volume-name> REPLICATION <shard-kind> <shard-id> <standby-id>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type    | Description                                                               |
+| Argument      | Type    | Description                                                               |
 |---------------|---------|---------------------------------------------------------------------------|
 | `volume-name` | string  | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
 | `shard-kind`  | string  | Shard kind (e.g. `BUCKET`, `STASH`)                                       |
@@ -42,7 +42,7 @@ the standard naming convention.
 Fields default to empty strings (for `stage`, `status`, `error_message`) or zero (for numeric fields) when replication
 has not started or the standby subspace has not been initialized.
 
-This command requires exactly 5 parameters total (volume name, subcommand, shard kind, shard ID, standby ID).
+This command requires exactly 5 arguments total (volume name, subcommand, shard kind, shard ID, standby ID).
 
 This command is available on the management port (default 3320).
 
@@ -52,7 +52,7 @@ Argument errors:
 
 | Error Code | Error message                   | Cause                                                                   |
 |------------|---------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of parameters`  | -                                                                       |
+| `ERR`      | `invalid number of arguments`   | -                                                                       |
 | `ERR`      | `Unknown shard kind: '<value>'` | The shard kind must be `STASH` or `BUCKET`.                             |
 | `ERR`      | `invalid shard id`              | The shard ID is not a valid integer, or is out of the configured range. |
 | `ERR`      | `Invalid memberId: <id>`        | The value is neither a 40-character member ID nor a 4-character prefix. |

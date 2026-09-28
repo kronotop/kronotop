@@ -11,9 +11,9 @@ Echoes back the given message.
 ECHO message
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type   | Required | Description              |
+| Argument  | Type   | Required | Description              |
 |-----------|--------|----------|--------------------------|
 | `message` | string | Yes      | The message to echo back |
 

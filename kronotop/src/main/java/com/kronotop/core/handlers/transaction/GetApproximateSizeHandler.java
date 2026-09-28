@@ -23,13 +23,13 @@ import com.kronotop.KronotopException;
 import com.kronotop.core.handlers.transaction.protocol.GetApproximateSizeMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
 import io.netty.util.Attribute;
 
 import java.util.concurrent.CompletableFuture;
 
 @Command(GetApproximateSizeMessage.COMMAND)
-@MaximumParameterCount(GetApproximateSizeMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(GetApproximateSizeMessage.MAXIMUM_ARGUMENT_COUNT)
 public class GetApproximateSizeHandler implements Handler {
     private final Context context;
 

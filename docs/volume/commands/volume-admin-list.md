@@ -11,7 +11,7 @@ Lists all volumes opened by the connected member.
 VOLUME.ADMIN LIST
 ```
 
-## Parameters
+## Arguments
 
 None.
 

@@ -146,7 +146,7 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
     /**
      * Constructs and executes a NAMESPACE LIST command with the optional specified namespace.
      * This command is used to retrieve a list of namespaces or information about a specific namespace
-     * if the namespace parameter is provided.
+     * if the namespace argument is provided.
      *
      * @param namespace the specific namespace to list information for; may be null to list all namespaces.
      * @return a {@link Command} instance representing the executed NAMESPACE LIST operation,

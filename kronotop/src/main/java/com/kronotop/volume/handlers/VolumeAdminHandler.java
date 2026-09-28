@@ -18,7 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.handlers.protocol.VolumeAdminMessage;
 import com.kronotop.volume.handlers.protocol.VolumeAdminSubcommand;
@@ -26,7 +26,7 @@ import com.kronotop.volume.handlers.protocol.VolumeAdminSubcommand;
 import java.util.EnumMap;
 
 @Command(VolumeAdminMessage.COMMAND)
-@MinimumParameterCount(VolumeAdminMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(VolumeAdminMessage.MINIMUM_ARGUMENT_COUNT)
 public class VolumeAdminHandler extends BaseSubcommandHandler implements Handler {
 
     private final EnumMap<VolumeAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(VolumeAdminSubcommand.class);

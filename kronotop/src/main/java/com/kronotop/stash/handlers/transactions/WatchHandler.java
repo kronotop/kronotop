@@ -18,7 +18,7 @@ package com.kronotop.stash.handlers.transactions;
 
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.transactions.protocol.WatchMessage;
 import io.netty.util.Attribute;
@@ -27,7 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 
 @Command(WatchMessage.COMMAND)
-@MinimumParameterCount(WatchMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(WatchMessage.MINIMUM_ARGUMENT_COUNT)
 public class WatchHandler implements Handler {
     private final StashService service;
 

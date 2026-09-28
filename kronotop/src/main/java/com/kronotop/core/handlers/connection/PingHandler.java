@@ -22,7 +22,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -30,7 +30,7 @@ import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 
 @Command(PingMessage.COMMAND)
-@MaximumParameterCount(PingMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(PingMessage.MAXIMUM_ARGUMENT_COUNT)
 public class PingHandler implements Handler {
     @Override
     public boolean requiresClusterInitialization() {

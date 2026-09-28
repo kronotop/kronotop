@@ -24,7 +24,7 @@ import java.util.List;
 
 public class HMGetMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "HMGET";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 3;
     private final Request request;
     private final List<String> fields = new ArrayList<>();
     private String key;
@@ -35,13 +35,13 @@ public class HMGetMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawKey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawKey);
+        byte[] rawKey = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawKey);
         key = new String(rawKey);
 
-        for (int i = 1; i < request.getParams().size(); i++) {
-            byte[] rawField = new byte[request.getParams().get(i).readableBytes()];
-            request.getParams().get(i).readBytes(rawField);
+        for (int i = 1; i < request.getArguments().size(); i++) {
+            byte[] rawField = new byte[request.getArguments().get(i).readableBytes()];
+            request.getArguments().get(i).readBytes(rawField);
             String field = new String(rawField);
             fields.add(field);
         }

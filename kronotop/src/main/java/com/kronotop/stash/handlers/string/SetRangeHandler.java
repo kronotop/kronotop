@@ -22,8 +22,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.SetRangeMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -37,8 +37,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(SetRangeMessage.COMMAND)
-@MaximumParameterCount(SetRangeMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(SetRangeMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(SetRangeMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(SetRangeMessage.MINIMUM_ARGUMENT_COUNT)
 public class SetRangeHandler extends BaseStringHandler implements Handler {
     public SetRangeHandler(StashService service) {
         super(service);

@@ -25,7 +25,7 @@ import java.util.List;
 
 public class SegmentInsertMessage extends BaseMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SEGMENT.INSERT";
-    public static final int MINIMUM_PARAMETER_COUNT = 4;
+    public static final int MINIMUM_ARGUMENT_COUNT = 4;
     private String volume;
     private long segmentId;
     private PackedEntry[] packedEntries;
@@ -36,7 +36,7 @@ public class SegmentInsertMessage extends BaseMessage implements ProtocolMessage
     }
 
     private void parse() {
-        if (request.getParams().size() % 2 > 0) {
+        if (request.getArguments().size() % 2 > 0) {
             throw new WrongNumberOfArgumentsException(
                     String.format("wrong number of arguments for '%s' command", request.getCommand()));
         }
@@ -46,8 +46,8 @@ public class SegmentInsertMessage extends BaseMessage implements ProtocolMessage
         segmentId = readLong(1);
 
         int index = 0;
-        packedEntries = new PackedEntry[(request.getParams().size() - 2) / 2];
-        for (int i = 2; i < request.getParams().size(); i = i + 2) {
+        packedEntries = new PackedEntry[(request.getArguments().size() - 2) / 2];
+        for (int i = 2; i < request.getArguments().size(); i = i + 2) {
             long position = readLong(i);
             byte[] data = readBytes(i + 1);
             PackedEntry packedEntry = new PackedEntry(position, data);

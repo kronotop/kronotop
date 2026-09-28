@@ -22,8 +22,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.GetDelMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -39,8 +39,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import static com.kronotop.stash.StashService.checkStashValueKind;
 
 @Command(GetDelMessage.COMMAND)
-@MaximumParameterCount(GetDelMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(GetDelMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(GetDelMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(GetDelMessage.MINIMUM_ARGUMENT_COUNT)
 public class GetDelHandler extends BaseStringHandler implements Handler {
     public GetDelHandler(StashService service) {
         super(service);

@@ -24,8 +24,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -45,8 +45,8 @@ import static com.kronotop.server.RESPUtil.bulkString;
 import static com.kronotop.server.RESPUtil.wrapBytes;
 
 @Command(ChangeLogRangeMessage.COMMAND)
-@MaximumParameterCount(ChangeLogRangeMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(ChangeLogRangeMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(ChangeLogRangeMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(ChangeLogRangeMessage.MINIMUM_ARGUMENT_COUNT)
 public class ChangeLogRangeHandler extends BaseVolumeHandler implements Handler {
     private static final int DEFAULT_LIMIT = 1000;
 

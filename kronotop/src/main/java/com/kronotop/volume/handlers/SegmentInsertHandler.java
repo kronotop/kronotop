@@ -22,7 +22,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.handlers.protocol.SegmentInsertMessage;
@@ -32,7 +32,7 @@ import java.io.IOException;
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 @Command(SegmentInsertMessage.COMMAND)
-@MinimumParameterCount(SegmentInsertMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(SegmentInsertMessage.MINIMUM_ARGUMENT_COUNT)
 public class SegmentInsertHandler extends BaseVolumeHandler implements Handler {
 
     public SegmentInsertHandler(VolumeService service) {

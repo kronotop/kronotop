@@ -25,7 +25,7 @@ import java.util.List;
 
 public class VolumeStatsMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "VOLUME.STATS";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private String volumeName;
     private VolumeStatsSubcommand subcommand;
@@ -36,10 +36,10 @@ public class VolumeStatsMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        volumeName = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        volumeName = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
 
-        if (request.getParams().size() > 1) {
-            String cmd = ProtocolMessageUtil.readAsString(request.getParams().get(1));
+        if (request.getArguments().size() > 1) {
+            String cmd = ProtocolMessageUtil.readAsString(request.getArguments().get(1));
             try {
                 subcommand = VolumeStatsSubcommand.valueOfSubcommand(cmd);
             } catch (IllegalArgumentException e) {

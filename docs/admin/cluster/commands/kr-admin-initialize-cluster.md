@@ -11,7 +11,7 @@ Initializes a new Kronotop cluster.
 KR.ADMIN INITIALIZE-CLUSTER
 ```
 
-## Parameters
+## Arguments
 
 None.
 
@@ -37,7 +37,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 
 Cluster errors:
 

@@ -4,7 +4,7 @@ description: "Projection controls which fields appear in documents returned by B
 ---
 
 Projection controls which fields appear in documents returned by `BUCKET.QUERY` and `BUCKET.VECTOR`. The `PROJECTION`
-parameter accepts a JSON specification that selects fields to include or exclude.
+argument accepts a JSON specification that selects fields to include or exclude.
 
 Projection is applied after query execution. It does not affect which documents match a filter or how vector similarity
 is ranked. It only shapes what each returned document contains.

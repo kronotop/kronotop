@@ -25,8 +25,8 @@ import java.util.List;
 
 public class ZMutateMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZMUTATE";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 5;
+    public static final int MINIMUM_ARGUMENT_COUNT = 3;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 5;
     private final Request request;
     private String namespace;
     private byte[] key;
@@ -39,12 +39,12 @@ public class ZMutateMessage implements ProtocolMessage<byte[]> {
     }
 
     private void parse() {
-        key = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
-        param = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
+        key = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(0));
+        param = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(1));
 
-        String raw = ProtocolMessageUtil.readAsString(request.getParams().get(2));
+        String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(2));
         mutationType = ZMutationType.getMutationType(ZMutationType.getValue(raw));
-        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 3);
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getArguments(), 3);
     }
 
     public byte[] getKey() {

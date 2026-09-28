@@ -22,8 +22,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.BaseHandler;
 import com.kronotop.stash.handlers.generic.protocol.RandomKeyMessage;
@@ -39,8 +39,8 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Command(RandomKeyMessage.COMMAND)
-@MaximumParameterCount(RandomKeyMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(RandomKeyMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(RandomKeyMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(RandomKeyMessage.MINIMUM_ARGUMENT_COUNT)
 public class RandomKeyHandler extends BaseHandler implements Handler {
     public RandomKeyHandler(StashService service) {
         super(service);

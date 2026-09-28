@@ -30,7 +30,7 @@ import com.kronotop.internal.JSONUtil;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import org.bson.BsonDocument;
 import org.bson.types.ObjectId;
@@ -47,7 +47,7 @@ import java.util.Map;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketVectorMessage.COMMAND)
-@MinimumParameterCount(BucketVectorMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(BucketVectorMessage.MINIMUM_ARGUMENT_COUNT)
 public class BucketVectorHandler extends AbstractBucketHandler implements Handler {
     private static final byte OPENING_BRACKET_ASCII_CODE = 0x5B; // '['
     private static final byte CLOSING_BRACKET_ASCII_CODE = 0x5D; // ']'

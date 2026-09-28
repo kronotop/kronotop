@@ -11,7 +11,7 @@ Returns metadata for the local cluster member.
 KR.ADMIN DESCRIBE-MEMBER
 ```
 
-## Parameters
+## Arguments
 
 None.
 
@@ -43,7 +43,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 
 Cluster errors:
 
@@ -67,9 +67,9 @@ Cluster errors:
 6# "latest_heartbeat" => (integer) 31404
 ```
 
-**Error: extra parameters**
+**Error: extra arguments**
 
 ```kronotop
 127.0.0.1:3320> KR.ADMIN DESCRIBE-MEMBER foo
-(error) ERR invalid number of parameters
+(error) ERR invalid number of arguments
 ```

@@ -42,7 +42,7 @@ Argument errors:
 | Error Code | Error message                         | Cause |
 |------------|---------------------------------------|-------|
 | `ERR`      | `Unknown subcommand: '<value>'`       | -     |
-| `ERR`      | `invalid number of parameters`        | -     |
+| `ERR`      | `invalid number of arguments`         | -     |
 | `ERR`      | `Unknown session attribute: '<name>'` | -     |
 | `ERR`      | `Unknown reply type: '<value>'`       | -     |
 | `ERR`      | `Unknown input type: '<value>'`       | -     |

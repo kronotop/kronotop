@@ -17,14 +17,14 @@
 package com.kronotop.stash.handlers.string;
 
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.SubstrMessage;
 
 @Command(SubstrMessage.COMMAND)
-@MaximumParameterCount(SubstrMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(SubstrMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(SubstrMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(SubstrMessage.MINIMUM_ARGUMENT_COUNT)
 public class SubstrHandler extends GetRangeHandler {
     public SubstrHandler(StashService service) {
         super(service);

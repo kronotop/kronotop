@@ -18,7 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -105,13 +105,13 @@ class InspectReplicationSubcommand extends BaseSubcommandHandler implements Subc
 
     @Override
     public void execute(Request request, Response response) {
-        ReplicationParameters parameters = new ReplicationParameters(request.getParams());
+        ReplicationArguments arguments = new ReplicationArguments(request.getArguments());
 
         supplyAsync(context, response, () -> {
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                VolumeNames.Parsed parsed = VolumeNames.parse(parameters.volumeName);
+                VolumeNames.Parsed parsed = VolumeNames.parse(arguments.volumeName);
                 DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
-                        context, tr, parsed.shardKind(), parameters.volumeName, parameters.standById
+                        context, tr, parsed.shardKind(), arguments.volumeName, arguments.standById
                 );
                 ReplicationStatusInfo info = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
                 return mapReplicationStatusInfo(info);
@@ -119,17 +119,17 @@ class InspectReplicationSubcommand extends BaseSubcommandHandler implements Subc
         }, response::writeMap);
     }
 
-    private class ReplicationParameters {
+    private class ReplicationArguments {
         private final String volumeName;
         private final String standById;
 
-        private ReplicationParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
-                throw new InvalidNumberOfParametersException();
+        private ReplicationArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 3) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            volumeName = ProtocolMessageUtil.readAsString(params.get(1));
-            standById = ProtocolMessageUtil.readMemberId(service.getContext(), params.get(2));
+            volumeName = ProtocolMessageUtil.readAsString(args.get(1));
+            standById = ProtocolMessageUtil.readMemberId(service.getContext(), args.get(2));
         }
     }
 }

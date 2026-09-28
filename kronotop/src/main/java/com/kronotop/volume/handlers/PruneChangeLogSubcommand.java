@@ -17,7 +17,7 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -41,15 +41,15 @@ class PruneChangeLogSubcommand extends BaseSubcommandHandler implements Subcomma
 
     @Override
     public void execute(Request request, Response response) {
-        PruneChangeLogParameters parameters = new PruneChangeLogParameters(request.getParams());
+        PruneChangeLogArguments arguments = new PruneChangeLogArguments(request.getArguments());
         runAsync(context, response, () -> {
-            if (parameters.retentionPeriod <= 0) {
+            if (arguments.retentionPeriod <= 0) {
                 throw new IllegalArgumentException("retention period must be greater than zero");
             }
 
-            DirectorySubspace subspace = service.openSubspace(parameters.volumeName);
+            DirectorySubspace subspace = service.openSubspace(arguments.volumeName);
             long cutoffStart = 0; // Start from the beginning
-            long cutoffEnd = ChangeLog.calculateCutoffEnd(context, parameters.retentionPeriod);
+            long cutoffEnd = ChangeLog.calculateCutoffEnd(context, arguments.retentionPeriod);
 
             ChangeLog changeLog = new ChangeLog(context, subspace);
             TransactionUtil.executeThenCommit(context, (tr) -> {
@@ -65,17 +65,17 @@ class PruneChangeLogSubcommand extends BaseSubcommandHandler implements Subcomma
         }, response::writeOK);
     }
 
-    private static class PruneChangeLogParameters {
+    private static class PruneChangeLogArguments {
         private final String volumeName;
         private final Long retentionPeriod;
 
-        private PruneChangeLogParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
-                throw new InvalidNumberOfParametersException();
+        private PruneChangeLogArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 3) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            volumeName = ProtocolMessageUtil.readAsString(params.get(1));
-            retentionPeriod = ProtocolMessageUtil.readAsLong(params.get(2));
+            volumeName = ProtocolMessageUtil.readAsString(args.get(1));
+            retentionPeriod = ProtocolMessageUtil.readAsLong(args.get(2));
         }
     }
 }

@@ -20,8 +20,8 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.hash.protocol.FieldValuePair;
 import com.kronotop.stash.handlers.hash.protocol.HIncrByMessage;
@@ -36,8 +36,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import static com.kronotop.stash.StashService.checkStashValueKind;
 
 @Command(HIncrByMessage.COMMAND)
-@MinimumParameterCount(HIncrByMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(HIncrByMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(HIncrByMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(HIncrByMessage.MAXIMUM_ARGUMENT_COUNT)
 public class HIncrByHandler extends BaseHashHandler implements Handler {
     public HIncrByHandler(StashService service) {
         super(service);

@@ -38,8 +38,8 @@ class ListMembersSubcommand extends BaseKrAdminSubcommandHandler implements Subc
 
     @Override
     public void execute(Request request, Response response) {
-        if (request.getParams().size() != 1) {
-            throw new InvalidNumberOfParametersException();
+        if (request.getArguments().size() != 1) {
+            throw new InvalidNumberOfArgumentsException();
         }
         supplyAsync(context, response, () -> {
             TreeSet<Member> sortedMembers = membership.listMembers();

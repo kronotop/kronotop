@@ -23,8 +23,8 @@ import java.util.List;
 
 public class AppendMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "APPEND";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 2;
     private final Request request;
     private String key;
     private byte[] value;
@@ -35,12 +35,12 @@ public class AppendMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawkey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawkey);
+        byte[] rawkey = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawkey);
         key = new String(rawkey);
 
-        value = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(value);
+        value = new byte[request.getArguments().get(1).readableBytes()];
+        request.getArguments().get(1).readBytes(value);
     }
 
     @Override

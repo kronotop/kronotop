@@ -54,8 +54,8 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
     protected QueryArguments parseCommonQueryArguments(Request request, int index, Set<QueryArgumentKey> supportedArguments) {
         QueryArguments arguments = new QueryArguments();
         long seen = 0;
-        for (int i = index; i < request.getParams().size(); i++) {
-            String raw = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getParams().get(i)));
+        for (int i = index; i < request.getArguments().size(); i++) {
+            String raw = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getArguments().get(i)));
             QueryArgumentKey argument = valueOfArgument(raw);
             seen = ProtocolMessageUtil.markArgumentSeen(seen, argument, argument.name());
             switch (argument) {
@@ -64,7 +64,7 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                         throw new UnsupportedArgumentException(QueryArgumentKey.BATCH);
                     }
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
+                            request.getArguments(), i, argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
                     int batch = ProtocolMessageUtil.readAsInteger(value);
                     if (batch < 0) {
                         throw ProtocolMessageUtil.illegalValue(argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
@@ -77,7 +77,7 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                         throw new UnsupportedArgumentException(QueryArgumentKey.LIMIT);
                     }
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
+                            request.getArguments(), i, argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
                     int limit = ProtocolMessageUtil.readAsInteger(value);
                     if (limit < 0) {
                         throw ProtocolMessageUtil.illegalValue(argument.name(), ProtocolMessageUtil.NON_NEGATIVE_INTEGER);
@@ -89,24 +89,24 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                     if (!supportedArguments.contains(QueryArgumentKey.SORTBY)) {
                         throw new UnsupportedArgumentException(QueryArgumentKey.SORTBY);
                     }
-                    if (request.getParams().size() <= i + 2) {
+                    if (request.getArguments().size() <= i + 2) {
                         throw ProtocolMessageUtil.illegalValue(argument.name(), FIELD_AND_DIRECTION);
                     }
-                    arguments.setSortBy(ProtocolMessageUtil.readAsString(request.getParams().get(i + 1)));
+                    arguments.setSortBy(ProtocolMessageUtil.readAsString(request.getArguments().get(i + 1)));
                     arguments.setSortDirection(ProtocolMessageUtil.readEnum(
-                            SortDirection.class, request.getParams().get(i + 2), SORT_DIRECTION));
+                            SortDirection.class, request.getArguments().get(i + 2), SORT_DIRECTION));
                     i += 2;
                 }
                 case RESULTSORT -> {
                     if (!supportedArguments.contains(QueryArgumentKey.RESULTSORT)) {
                         throw new UnsupportedArgumentException(QueryArgumentKey.RESULTSORT);
                     }
-                    if (request.getParams().size() <= i + 2) {
+                    if (request.getArguments().size() <= i + 2) {
                         throw ProtocolMessageUtil.illegalValue(argument.name(), FIELD_AND_DIRECTION);
                     }
-                    arguments.setResultSortBy(ProtocolMessageUtil.readAsString(request.getParams().get(i + 1)));
+                    arguments.setResultSortBy(ProtocolMessageUtil.readAsString(request.getArguments().get(i + 1)));
                     arguments.setResultSortDirection(ProtocolMessageUtil.readEnum(
-                            SortDirection.class, request.getParams().get(i + 2), SORT_DIRECTION));
+                            SortDirection.class, request.getArguments().get(i + 2), SORT_DIRECTION));
                     i += 2;
                 }
                 case PROJECTION -> {
@@ -114,7 +114,7 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                         throw new UnsupportedArgumentException(QueryArgumentKey.PROJECTION);
                     }
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.name(), "a projection specification");
+                            request.getArguments(), i, argument.name(), "a projection specification");
                     arguments.setProjection(ProtocolMessageUtil.readAsByteArray(value));
                     i++;
                 }
@@ -123,7 +123,7 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                         throw new UnsupportedArgumentException(QueryArgumentKey.COLLATION);
                     }
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.name(), COLLATION_SPECIFICATION);
+                            request.getArguments(), i, argument.name(), COLLATION_SPECIFICATION);
                     byte[] data = ProtocolMessageUtil.readAsByteArray(value);
                     arguments.setCollation(CollationHelper.deserializeAndValidate(data));
                     i++;
@@ -133,7 +133,7 @@ public abstract class AbstractBucketMessage implements ProtocolMessage<Void> {
                         throw new UnsupportedArgumentException(QueryArgumentKey.NAMESPACE);
                     }
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.name(), ProtocolMessageUtil.NAMESPACE_PATH);
+                            request.getArguments(), i, argument.name(), ProtocolMessageUtil.NAMESPACE_PATH);
                     arguments.setNamespace(ProtocolMessageUtil.readAsString(value));
                     i++;
                 }

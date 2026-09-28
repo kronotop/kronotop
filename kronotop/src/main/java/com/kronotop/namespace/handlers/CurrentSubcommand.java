@@ -34,7 +34,7 @@ class CurrentSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        if (request.getParams().size() != 1) {
+        if (request.getArguments().size() != 1) {
             throw wrongNumberOfArguments(request, NamespaceSubcommand.CURRENT);
         }
         String namespace = request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).get();

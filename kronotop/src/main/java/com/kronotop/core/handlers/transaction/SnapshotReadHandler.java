@@ -21,13 +21,13 @@ import com.kronotop.Context;
 import com.kronotop.core.handlers.transaction.protocol.SnapshotReadMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import io.netty.util.Attribute;
 
 @Command(SnapshotReadMessage.COMMAND)
-@MaximumParameterCount(SnapshotReadMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(SnapshotReadMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(SnapshotReadMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(SnapshotReadMessage.MINIMUM_ARGUMENT_COUNT)
 public class SnapshotReadHandler implements Handler {
     private final Context context;
 

@@ -67,15 +67,15 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenInitializeClusterWithExtraParameters() {
-        // Behavior: INITIALIZE-CLUSTER rejects extra parameters with "invalid number of parameters".
+    void shouldReturnErrorWhenInitializeClusterWithExtraArguments() {
+        // Behavior: INITIALIZE-CLUSTER rejects extra arguments with "invalid number of arguments".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$18\r\nINITIALIZE-CLUSTER\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -129,15 +129,15 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenListMembersWithExtraParameters() {
-        // Behavior: LIST-MEMBERS rejects extra parameters with "invalid number of parameters".
+    void shouldReturnErrorWhenListMembersWithExtraArguments() {
+        // Behavior: LIST-MEMBERS rejects extra arguments with "invalid number of arguments".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$12\r\nLIST-MEMBERS\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -227,7 +227,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenFindMemberWithoutMemberId() {
-        // Behavior: FIND-MEMBER rejects a call without the member id parameter.
+        // Behavior: FIND-MEMBER rejects a call without the member id argument.
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*2\r\n$8\r\nKR.ADMIN\r\n$11\r\nFIND-MEMBER\r\n".getBytes());
 
@@ -238,15 +238,15 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenFindMemberWithExtraParameters() {
-        // Behavior: FIND-MEMBER rejects extra parameters with "invalid number of parameters".
+    void shouldReturnErrorWhenFindMemberWithExtraArguments() {
+        // Behavior: FIND-MEMBER rejects extra arguments with "invalid number of arguments".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*4\r\n$8\r\nKR.ADMIN\r\n$11\r\nFIND-MEMBER\r\n$4\r\nabcd\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -352,15 +352,15 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenListSilentMembersWithExtraParameters() {
-        // Behavior: LIST-SILENT-MEMBERS rejects extra parameters with "invalid number of parameters".
+    void shouldReturnErrorWhenListSilentMembersWithExtraArguments() {
+        // Behavior: LIST-SILENT-MEMBERS rejects extra arguments with "invalid number of arguments".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$19\r\nLIST-SILENT-MEMBERS\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -379,15 +379,15 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenRemoveMemberWithInvalidNumberOfParameters() {
-        // Behavior: REMOVE-MEMBER rejects a call without the member id parameter.
+    void shouldReturnErrorWhenRemoveMemberWithInvalidNumberOfArguments() {
+        // Behavior: REMOVE-MEMBER rejects a call without the member id argument.
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*2\r\n$8\r\nKR.ADMIN\r\n$13\r\nREMOVE-MEMBER\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -529,8 +529,8 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenDescribeClusterWithExtraParameters() {
-        // Behavior: DESCRIBE-CLUSTER rejects extra parameters with "invalid number of parameters".
+    void shouldReturnErrorWhenDescribeClusterWithExtraArguments() {
+        // Behavior: DESCRIBE-CLUSTER rejects extra arguments with "invalid number of arguments".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$16\r\nDESCRIBE-CLUSTER\r\n$5\r\nextra\r\n".getBytes());
 
@@ -538,7 +538,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid number of parameters"));
+        assertTrue(errorMessage.content().contains("invalid number of arguments"));
     }
 
     @Test
@@ -602,15 +602,15 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenDescribeShardWithInvalidNumberOfParameters() {
-        // Behavior: DESCRIBE-SHARD rejects a call without the shard id parameter.
+    void shouldReturnErrorWhenDescribeShardWithInvalidNumberOfArguments() {
+        // Behavior: DESCRIBE-SHARD rejects a call without the shard id argument.
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$8\r\nKR.ADMIN\r\n$14\r\nDESCRIBE-SHARD\r\n$6\r\nBUCKET\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     @Test
@@ -667,7 +667,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
     @Test
     void shouldReturnErrorWhenDropClusterWithoutClusterName() {
-        // Behavior: DROP-CLUSTER rejects a call without the cluster name parameter.
+        // Behavior: DROP-CLUSTER rejects a call without the cluster name argument.
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*2\r\n$8\r\nKR.ADMIN\r\n$12\r\nDROP-CLUSTER\r\n".getBytes());
 
@@ -678,15 +678,15 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWhenDropClusterWithExtraParameters() {
-        // Behavior: DROP-CLUSTER rejects more than two parameters with "invalid number of parameters".
+    void shouldReturnErrorWhenDropClusterWithExtraArguments() {
+        // Behavior: DROP-CLUSTER rejects more than two arguments with "invalid number of arguments".
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*5\r\n$8\r\nKR.ADMIN\r\n$12\r\nDROP-CLUSTER\r\n$4\r\nname\r\n$5\r\ntoken\r\n$5\r\nextra\r\n".getBytes());
 
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage actualMessage = (ErrorRedisMessage) msg;
-        assertEquals("ERR invalid number of parameters", actualMessage.content());
+        assertEquals("ERR invalid number of arguments", actualMessage.content());
     }
 
     @Test

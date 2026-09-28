@@ -23,8 +23,8 @@ import java.util.List;
 
 public class SetRangeMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "SETRANGE";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 3;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 3;
     private final Request request;
     private String key;
     private int offset;
@@ -36,16 +36,16 @@ public class SetRangeMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawkey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawkey);
+        byte[] rawkey = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawkey);
         key = new String(rawkey);
 
-        byte[] rawoffset = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(rawoffset);
+        byte[] rawoffset = new byte[request.getArguments().get(1).readableBytes()];
+        request.getArguments().get(1).readBytes(rawoffset);
         offset = Integer.parseInt(new String(rawoffset));
 
-        value = new byte[request.getParams().get(2).readableBytes()];
-        request.getParams().get(2).readBytes(value);
+        value = new byte[request.getArguments().get(2).readableBytes()];
+        request.getArguments().get(2).readBytes(value);
     }
 
     @Override

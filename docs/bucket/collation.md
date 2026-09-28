@@ -158,7 +158,7 @@ Compound indexes require at least one `string` field for collation to apply.
 
 ### Query-level collation
 
-Override collation for a single operation using the `COLLATION` parameter. This takes the highest precedence and
+Override collation for a single operation using the `COLLATION` argument. This takes the highest precedence and
 overrides both index-level and bucket-level collation.
 
 Query:
@@ -197,7 +197,7 @@ writing (building index keys).
 When evaluating filter conditions in `BUCKET.QUERY`, `BUCKET.UPDATE`, and `BUCKET.DELETE`, the most specific collation
 wins:
 
-1. **Query-level** -- collation specified in the command (`COLLATION` parameter)
+1. **Query-level** -- collation specified in the command (`COLLATION` argument)
 2. **Index-level (single-field)** -- collation defined on a single-field index for this selector
 3. **Index-level (compound)** -- if all READY compound indexes containing the selector as a `string` field agree on the
    same collation, that collation is used; if any two indexes disagree, the entire compound step is skipped and
@@ -212,7 +212,7 @@ When no collation is specified at any level, strings are compared using binary c
 ### Write path (index key generation)
 
 When writing index entries during `BUCKET.INSERT` and the index-update phase of `BUCKET.UPDATE`, the query-level
-`COLLATION` parameter has no effect. Index keys are always built with the collation that was fixed at index creation
+`COLLATION` argument has no effect. Index keys are always built with the collation that was fixed at index creation
 time:
 
 1. **Index-level** -- collation defined on the index
@@ -222,7 +222,7 @@ time:
 This is intentional: an index is built with a single, stable collation so that its sort keys remain consistent across
 all writes. Accepting a different collation at write time would corrupt the sort order of existing entries.
 
-**Practical consequence for `BUCKET.UPDATE`**: the `COLLATION` parameter controls which documents the filter matches,
+**Practical consequence for `BUCKET.UPDATE`**: the `COLLATION` argument controls which documents the filter matches,
 but the index keys written for the updated document always use the index's own collation, regardless of what `COLLATION`
 was specified in the command.
 

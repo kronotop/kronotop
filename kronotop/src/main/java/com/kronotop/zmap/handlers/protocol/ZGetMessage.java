@@ -24,8 +24,8 @@ import java.util.List;
 
 public class ZGetMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZGET";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 3;
     private final Request request;
     private byte[] key;
     private String namespace;
@@ -36,8 +36,8 @@ public class ZGetMessage implements ProtocolMessage<byte[]> {
     }
 
     private void parse() {
-        key = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
-        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 1);
+        key = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(0));
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getArguments(), 1);
     }
 
     @Override

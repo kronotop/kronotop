@@ -27,8 +27,8 @@ import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import org.bson.types.ObjectId;
 
@@ -41,8 +41,8 @@ import java.util.Objects;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketAdvanceMessage.COMMAND)
-@MaximumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(BucketAdvanceMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(BucketAdvanceMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(BucketAdvanceMessage.MAXIMUM_ARGUMENT_COUNT)
 public class BucketAdvanceHandler extends AbstractBucketHandler {
     private final EnumMap<BucketOperation, SubcommandHandler> executors = new EnumMap<>(BucketOperation.class);
 

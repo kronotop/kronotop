@@ -22,12 +22,12 @@ import com.kronotop.KronotopException;
 import com.kronotop.core.handlers.transaction.protocol.BeginMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import io.netty.util.Attribute;
 
 @Command(BeginMessage.COMMAND)
-@MaximumParameterCount(BeginMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(BeginMessage.MAXIMUM_ARGUMENT_COUNT)
 public class BeginHandler implements Handler {
     private final Context context;
 

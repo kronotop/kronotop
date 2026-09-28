@@ -54,7 +54,7 @@ Every batch continues in strict ascending order.
 `SORTBY` ordering is determined by the collation used when the index was built. The index stores string values as ICU4J
 collation keys in FoundationDB, so the physical key order already encodes the locale-aware sort order.
 
-The query-level `COLLATION` parameter does **not** affect `SORTBY` ordering. It applies to filter predicate evaluation,
+The query-level `COLLATION` argument does **not** affect `SORTBY` ordering. It applies to filter predicate evaluation,
 but it cannot change the order in which the index returns documents. That order is fixed at index creation time.
 
 If the query specifies a collation that differs from the index's collation, the query is rejected at planning time:
@@ -243,7 +243,7 @@ stopped. The combined result of all batches is identical to sorting the full res
 
 ## RESULTSORT
 
-`RESULTSORT` is a separate parameter that provides in-memory per-batch sorting on any field, indexed or not. Unlike
+`RESULTSORT` is a separate argument that provides in-memory per-batch sorting on any field, indexed or not. Unlike
 `SORTBY`, it does not require an index and does not guarantee global ordering across batches.
 
 ```kronotop
@@ -263,7 +263,7 @@ while `RESULTSORT` provides per-batch ordering when an index is unavailable or u
 
 When string values are compared during `RESULTSORT`, the effective collation is resolved in this order:
 
-1. **Query-level collation**: set via the `COLLATION` parameter on the query.
+1. **Query-level collation**: set via the `COLLATION` argument on the query.
 2. **Index-level collation (single-field)**: the collation defined on a single-field index whose selector matches the
    `RESULTSORT` field.
 3. **Index-level collation (compound)**: if all READY compound indexes containing the `RESULTSORT` field as a `string`

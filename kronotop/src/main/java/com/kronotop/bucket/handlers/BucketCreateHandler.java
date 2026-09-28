@@ -26,7 +26,7 @@ import com.kronotop.cluster.Route;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ import java.util.List;
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 @Command(BucketCreateMessage.COMMAND)
-@MinimumParameterCount(BucketCreateMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(BucketCreateMessage.MINIMUM_ARGUMENT_COUNT)
 public class BucketCreateHandler extends AbstractBucketHandler implements Handler {
 
     public BucketCreateHandler(BucketService service) {

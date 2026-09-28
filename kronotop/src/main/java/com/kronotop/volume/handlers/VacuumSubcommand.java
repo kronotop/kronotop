@@ -18,7 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.kronotop.KronotopException;
 import com.kronotop.bucket.BucketEntryEvacuator;
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
 import com.kronotop.server.Request;
@@ -57,11 +57,11 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
 
     @Override
     public void execute(Request request, Response response) {
-        ArrayList<ByteBuf> params = request.getParams();
-        if (params.size() < 2) {
-            throw new InvalidNumberOfParametersException();
+        ArrayList<ByteBuf> args = request.getArguments();
+        if (args.size() < 2) {
+            throw new InvalidNumberOfArgumentsException();
         }
-        String operation = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(params.get(1)));
+        String operation = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(args.get(1)));
         switch (operation) {
             case "START" -> vacuumStart(request, response);
             case "STOP" -> vacuumStop(request, response);
@@ -72,35 +72,35 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
     }
 
     private void vacuumStart(Request request, Response response) {
-        StartParameters parameters = new StartParameters(request.getParams());
+        StartArguments arguments = new StartArguments(request.getArguments());
         runAsync(context, response, () -> {
-            Volume volume = service.findVolume(parameters.volumeName);
-            VolumeNames.Parsed parsed = VolumeNames.parse(parameters.volumeName);
+            Volume volume = service.findVolume(arguments.volumeName);
+            VolumeNames.Parsed parsed = VolumeNames.parse(arguments.volumeName);
             volume.vacuumStart(
-                    parameters.garbageThreshold,
+                    arguments.garbageThreshold,
                     () -> new BucketEntryEvacuator(volume, parsed.shardId())
             );
         }, response::writeOK);
     }
 
     private void vacuumStop(Request request, Response response) {
-        Parameters parameters = new Parameters(request.getParams());
+        Arguments arguments = new Arguments(request.getArguments());
         runAsync(context, response, () -> {
-            service.findVolume(parameters.volumeName).vacuumStop();
+            service.findVolume(arguments.volumeName).vacuumStop();
         }, response::writeOK);
     }
 
     private void vacuumDrop(Request request, Response response) {
-        Parameters parameters = new Parameters(request.getParams());
+        Arguments arguments = new Arguments(request.getArguments());
         runAsync(context, response, () -> {
-            service.findVolume(parameters.volumeName).vacuumDrop();
+            service.findVolume(arguments.volumeName).vacuumDrop();
         }, response::writeOK);
     }
 
     private void vacuumStatus(Request request, Response response) {
-        Parameters parameters = new Parameters(request.getParams());
+        Arguments arguments = new Arguments(request.getArguments());
         supplyAsync(context, response, () -> {
-            Volume volume = service.findVolume(parameters.volumeName);
+            Volume volume = service.findVolume(arguments.volumeName);
             VacuumStatusResult status = volume.vacuumStatus();
 
             List<RedisMessage> segmentList = new ArrayList<>();
@@ -130,29 +130,29 @@ class VacuumSubcommand extends BaseSubcommandHandler implements SubcommandHandle
         }, response::writeMap);
     }
 
-    private static class Parameters {
+    private static class Arguments {
         private final String volumeName;
 
-        private Parameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
-                throw new InvalidNumberOfParametersException();
+        private Arguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 3) {
+                throw new InvalidNumberOfArgumentsException();
             }
-            volumeName = ProtocolMessageUtil.readAsString(params.get(2));
+            volumeName = ProtocolMessageUtil.readAsString(args.get(2));
         }
     }
 
-    private static class StartParameters {
+    private static class StartArguments {
         private final String volumeName;
         private final float garbageThreshold;
 
-        private StartParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 4) {
-                throw new InvalidNumberOfParametersException();
+        private StartArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 4) {
+                throw new InvalidNumberOfArgumentsException();
             }
-            volumeName = ProtocolMessageUtil.readAsString(params.get(2));
+            volumeName = ProtocolMessageUtil.readAsString(args.get(2));
 
             try {
-                garbageThreshold = Float.parseFloat(ProtocolMessageUtil.readAsString(params.get(3)));
+                garbageThreshold = Float.parseFloat(ProtocolMessageUtil.readAsString(args.get(3)));
             } catch (NumberFormatException e) {
                 throw new KronotopException("garbage-threshold must be a number");
             }

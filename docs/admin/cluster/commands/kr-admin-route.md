@@ -11,9 +11,9 @@ Manages shard-to-member routing for primary and standby assignments.
 KR.ADMIN ROUTE <operation-kind> <route-kind> <shard-kind> <shard-id> <member-id>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter        | Type           | Description                                                                                                         |
+| Argument         | Type           | Description                                                                                                         |
 |------------------|----------------|---------------------------------------------------------------------------------------------------------------------|
 | `operation-kind` | string         | `SET` or `UNSET`. Case-insensitive.                                                                                 |
 | `route-kind`     | string         | `PRIMARY` or `STANDBY`. Case-insensitive.                                                                           |
@@ -75,7 +75,7 @@ Argument errors:
 
 | Error Code | Error message                       | Cause                                                                   |
 |------------|-------------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of parameters`      | -                                                                       |
+| `ERR`      | `invalid number of arguments`       | -                                                                       |
 | `ERR`      | `Unknown operation kind: '<value>'` | The operation kind must be `SET` or `UNSET`.                            |
 | `ERR`      | `Unknown route kind: '<value>'`     | The route kind must be `PRIMARY` or `STANDBY`.                          |
 | `ERR`      | `Unknown shard kind: '<value>'`     | The shard kind must be `STASH` or `BUCKET`.                             |

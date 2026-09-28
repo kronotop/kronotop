@@ -24,8 +24,8 @@ import java.util.List;
 
 public class GetMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "GET";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private String key;
 
@@ -35,7 +35,7 @@ public class GetMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        key = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        key = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
     }
 
     @Override

@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-package com.kronotop.server.annotation;
+package com.kronotop.cluster.handlers;
 
-import java.lang.annotation.*;
+import com.kronotop.KronotopException;
 
-/**
- * Custom annotation to specify the minimum number of parameters required for a class.
- */
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.TYPE)
-@Documented
-public @interface MinimumParameterCount {
-    int value();
+public class InvalidNumberOfArgumentsException extends KronotopException {
+    public InvalidNumberOfArgumentsException() {
+        super("invalid number of arguments");
+    }
 }

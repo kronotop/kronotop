@@ -13,9 +13,9 @@ Lists all active cursors for the current session.
 BUCKET.CURSORS [operation]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                       |
+| Argument    | Type   | Required | Description                                                                                                                                       |
 |-------------|--------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------|
 | `operation` | string | No       | Filter cursors by operation type. Must be `QUERY`, `DELETE`, or `UPDATE` (case-insensitive). If omitted, returns cursors for all operation types. |
 

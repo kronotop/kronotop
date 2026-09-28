@@ -21,8 +21,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.KronotopException;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
@@ -39,8 +39,8 @@ import java.util.concurrent.CompletableFuture;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(ZGetD128Message.COMMAND)
-@MaximumParameterCount(ZGetD128Message.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(ZGetD128Message.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(ZGetD128Message.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(ZGetD128Message.MINIMUM_ARGUMENT_COUNT)
 public class ZGetD128Handler extends BaseZMapHandler implements Handler {
     public ZGetD128Handler(ZMapService service) {
         super(service);

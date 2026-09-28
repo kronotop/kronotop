@@ -45,10 +45,10 @@ class ListSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        ListParameters parameters = new ListParameters(request);
+        ListArguments arguments = new ListArguments(request);
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                List<String> subpath = getNamespaceSubpath(parameters.subpath);
+                List<String> subpath = getNamespaceSubpath(arguments.subpath);
                 CompletableFuture<List<String>> future;
                 if (subpath.isEmpty()) {
                     future = context.getDirectoryLayer().list(tr);
@@ -71,26 +71,26 @@ class ListSubcommand extends BaseSubcommand implements SubcommandHandler {
                 return children;
             } catch (CompletionException e) {
                 if (e.getCause() instanceof NoSuchDirectoryException) {
-                    if (parameters.subpath.isEmpty()) {
+                    if (arguments.subpath.isEmpty()) {
                         // No namespaces directory, the cluster has not been initialized yet
                         return new ArrayList<>();
                     }
-                    throw new NoSuchNamespaceException(String.join(".", parameters.subpath));
+                    throw new NoSuchNamespaceException(String.join(".", arguments.subpath));
                 }
                 throw new KronotopException(e.getCause());
             }
         }, response::writeArray);
     }
 
-    private class ListParameters {
+    private class ListArguments {
         private final List<String> subpath = new ArrayList<>();
 
-        private ListParameters(Request request) {
-            if (request.getParams().size() > 2) {
+        private ListArguments(Request request) {
+            if (request.getArguments().size() > 2) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.LIST);
             }
-            if (request.getParams().size() == 2) {
-                subpath.addAll(readSubpath(request.getParams().get(1)));
+            if (request.getArguments().size() == 2) {
+                subpath.addAll(readSubpath(request.getArguments().get(1)));
             }
             validateSubpath(subpath);
         }

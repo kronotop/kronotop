@@ -21,8 +21,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.generic.protocol.ExpireMessage;
 
@@ -30,8 +30,8 @@ import java.util.Collections;
 import java.util.List;
 
 @Command(ExpireMessage.COMMAND)
-@MaximumParameterCount(ExpireMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(ExpireMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(ExpireMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(ExpireMessage.MINIMUM_ARGUMENT_COUNT)
 public class ExpireHandler extends BaseGenericHandler implements Handler {
     public ExpireHandler(StashService service) {
         super(service);

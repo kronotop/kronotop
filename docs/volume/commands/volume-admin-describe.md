@@ -11,9 +11,9 @@ Returns metadata and segment-level statistics for a named volume.
 VOLUME.ADMIN DESCRIBE <volume-name>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                                           |
+| Argument      | Type   | Description                                                                           |
 |---------------|--------|---------------------------------------------------------------------------------------|
 | `volume-name` | string | Name of the volume to describe, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
 
@@ -51,7 +51,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 
 Volume errors:
 

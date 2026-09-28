@@ -19,8 +19,8 @@ package com.kronotop;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.Commands;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 
 /**
  * Base class that handles command handler registration.
@@ -32,24 +32,24 @@ public class CommandHandlerService extends BaseKronotopService {
     }
 
     /**
-     * Extracts minimum parameter count from handler annotation.
+     * Extracts minimum argument count from handler annotation.
      *
      * @param handler the handler to inspect
-     * @return minimum parameter count or -1 if no constraint
+     * @return minimum argument count or -1 if no constraint
      */
-    private int extractMinimumParameterCount(Handler handler) {
-        MinimumParameterCount annotation = handler.getClass().getAnnotation(MinimumParameterCount.class);
+    private int extractMinimumArgumentCount(Handler handler) {
+        MinimumArgumentCount annotation = handler.getClass().getAnnotation(MinimumArgumentCount.class);
         return annotation != null ? annotation.value() : HandlerEntry.NO_CONSTRAINT;
     }
 
     /**
-     * Extracts maximum parameter count from handler annotation.
+     * Extracts maximum argument count from handler annotation.
      *
      * @param handler the handler to inspect
-     * @return maximum parameter count or -1 if no constraint
+     * @return maximum argument count or -1 if no constraint
      */
-    private int extractMaximumParameterCount(Handler handler) {
-        MaximumParameterCount annotation = handler.getClass().getAnnotation(MaximumParameterCount.class);
+    private int extractMaximumArgumentCount(Handler handler) {
+        MaximumArgumentCount annotation = handler.getClass().getAnnotation(MaximumArgumentCount.class);
         return annotation != null ? annotation.value() : HandlerEntry.NO_CONSTRAINT;
     }
 
@@ -69,10 +69,10 @@ public class CommandHandlerService extends BaseKronotopService {
             );
         }
 
-        int minParams = extractMinimumParameterCount(handler);
-        int maxParams = extractMaximumParameterCount(handler);
+        int minArguments = extractMinimumArgumentCount(handler);
+        int maxArguments = extractMaximumArgumentCount(handler);
 
-        registry.register(commandType, handler, minParams, maxParams);
+        registry.register(commandType, handler, minArguments, maxArguments);
     }
 
     /**

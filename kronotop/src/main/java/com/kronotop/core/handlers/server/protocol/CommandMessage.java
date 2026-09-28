@@ -36,18 +36,18 @@ public class CommandMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        if (request.getParams().isEmpty()) {
+        if (request.getArguments().isEmpty()) {
             return;
         }
-        String raw = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        String raw = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
         argument = valueOfArgument(raw);
-        int argc = request.getParams().size() + 1;
+        int argc = request.getArguments().size() + 1;
         if ((argument.arity > 0 && argument.arity != argc) || argc < -argument.arity) {
             throw new IllegalCommandArgumentException(
                     String.format("wrong number of arguments for 'command|%s' command", argument.name().toLowerCase()));
         }
-        for (int i = 1; i < request.getParams().size(); i++) {
-            commands.add(ProtocolMessageUtil.readAsString(request.getParams().get(i)));
+        for (int i = 1; i < request.getArguments().size(); i++) {
+            commands.add(ProtocolMessageUtil.readAsString(request.getArguments().get(i)));
         }
     }
 

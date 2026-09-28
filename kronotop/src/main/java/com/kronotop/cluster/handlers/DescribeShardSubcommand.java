@@ -37,25 +37,25 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
 
     @Override
     public void execute(Request request, Response response) {
-        DescribeShardParameters parameters = new DescribeShardParameters(request.getParams());
+        DescribeShardArguments arguments = new DescribeShardArguments(request.getArguments());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                return describeShard(tr, parameters.kind, parameters.shardId);
+                return describeShard(tr, arguments.kind, arguments.shardId);
             }
         }, response::writeMap);
     }
 
-    private class DescribeShardParameters {
+    private class DescribeShardArguments {
         private final ShardKind kind;
         private final int shardId;
 
-        private DescribeShardParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
-                throw new InvalidNumberOfParametersException();
+        private DescribeShardArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 3) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            kind = ProtocolMessageUtil.readShardKind(params.get(1));
-            shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), kind, params.get(2));
+            kind = ProtocolMessageUtil.readShardKind(args.get(1));
+            shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), kind, args.get(2));
         }
     }
 }

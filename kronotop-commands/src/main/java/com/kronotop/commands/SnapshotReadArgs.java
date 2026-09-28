@@ -26,23 +26,23 @@ import io.lettuce.core.protocol.CommandArgs;
  * during the execution of a corresponding operation.
  */
 public class SnapshotReadArgs {
-    private String parameter;
+    private String argument;
 
     public SnapshotReadArgs on() {
-        this.parameter = "ON";
+        this.argument = "ON";
         return this;
     }
 
     public SnapshotReadArgs off() {
-        this.parameter = "OFF";
+        this.argument = "OFF";
         return this;
     }
 
     public <K, V> void build(CommandArgs<K, V> args) {
-        if (parameter == null) {
-            throw new IllegalArgumentException("parameter has to be ON or OFF");
+        if (argument == null) {
+            throw new IllegalArgumentException("argument has to be ON or OFF");
         }
-        args.add(parameter);
+        args.add(argument);
     }
 
     public static class Builder {

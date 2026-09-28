@@ -18,14 +18,14 @@ package com.kronotop.stash.handlers.transactions;
 
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.handlers.transactions.protocol.ExecMessage;
 import io.netty.util.Attribute;
 
 @Command(ExecMessage.COMMAND)
-@MaximumParameterCount(ExecMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(ExecMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(ExecMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(ExecMessage.MINIMUM_ARGUMENT_COUNT)
 public class ExecHandler implements Handler {
 
     public ExecHandler() {

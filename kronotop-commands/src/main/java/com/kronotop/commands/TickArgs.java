@@ -25,23 +25,23 @@ import io.lettuce.core.protocol.CommandArgs;
  * which can be applied to command arguments during the execution of a corresponding operation.
  */
 public class TickArgs {
-    private String parameter;
+    private String argument;
 
     public TickArgs fresh() {
-        this.parameter = "FRESH";
+        this.argument = "FRESH";
         return this;
     }
 
     public TickArgs cached() {
-        this.parameter = "CACHED";
+        this.argument = "CACHED";
         return this;
     }
 
     public <K, V> void build(CommandArgs<K, V> args) {
-        if (parameter == null) {
-            throw new IllegalArgumentException("parameter has to be FRESH or CACHED");
+        if (argument == null) {
+            throw new IllegalArgumentException("argument has to be FRESH or CACHED");
         }
-        args.add(parameter);
+        args.add(argument);
     }
 
     public static class Builder {

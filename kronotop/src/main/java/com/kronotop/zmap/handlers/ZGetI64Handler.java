@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapNumericValueCodec;
@@ -33,8 +33,8 @@ import java.util.concurrent.CompletableFuture;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(ZGetI64Message.COMMAND)
-@MaximumParameterCount(ZGetI64Message.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(ZGetI64Message.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(ZGetI64Message.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(ZGetI64Message.MINIMUM_ARGUMENT_COUNT)
 public class ZGetI64Handler extends BaseZMapHandler implements Handler {
     public ZGetI64Handler(ZMapService service) {
         super(service);

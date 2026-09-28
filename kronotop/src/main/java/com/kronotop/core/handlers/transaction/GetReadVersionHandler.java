@@ -23,11 +23,11 @@ import com.kronotop.KronotopException;
 import com.kronotop.core.handlers.transaction.protocol.GetReadVersionMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
 import io.netty.util.Attribute;
 
 @Command(GetReadVersionMessage.COMMAND)
-@MaximumParameterCount(GetReadVersionMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(GetReadVersionMessage.MAXIMUM_ARGUMENT_COUNT)
 public class GetReadVersionHandler implements Handler {
     private final Context context;
 

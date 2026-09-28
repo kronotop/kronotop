@@ -25,7 +25,7 @@ import java.util.List;
 
 public class ScanMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SCAN";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private long cursor;
     private int count = 10;
@@ -38,29 +38,29 @@ public class ScanMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        byte[] rawcursor = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawcursor);
-        cursor = Long.parseLong(new String(rawcursor));
+        byte[] rawCursor = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawCursor);
+        cursor = Long.parseLong(new String(rawCursor));
 
-        if (request.getParams().size() > 1) {
-            for (int i = 1; i < request.getParams().size(); i = i + 2) {
-                byte[] rawParameter = new byte[request.getParams().get(i).readableBytes()];
-                request.getParams().get(i).readBytes(rawParameter);
-                String parameter = new String(rawParameter);
+        if (request.getArguments().size() > 1) {
+            for (int i = 1; i < request.getArguments().size(); i = i + 2) {
+                byte[] rawArgument = new byte[request.getArguments().get(i).readableBytes()];
+                request.getArguments().get(i).readBytes(rawArgument);
+                String argument = new String(rawArgument);
 
-                byte[] rawValue = new byte[request.getParams().get(i + 1).readableBytes()];
-                request.getParams().get(i + 1).readBytes(rawValue);
+                byte[] rawValue = new byte[request.getArguments().get(i + 1).readableBytes()];
+                request.getArguments().get(i + 1).readBytes(rawValue);
                 String value = new String(rawValue);
 
-                if (parameter.equalsIgnoreCase("COUNT")) {
+                if (argument.equalsIgnoreCase("COUNT")) {
                     try {
                         count = Integer.parseInt(value);
                     } catch (NumberFormatException e) {
                         throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER);
                     }
-                } else if (parameter.equalsIgnoreCase("MATCH")) {
+                } else if (argument.equalsIgnoreCase("MATCH")) {
                     match = value;
-                } else if (parameter.equalsIgnoreCase("TYPE")) {
+                } else if (argument.equalsIgnoreCase("TYPE")) {
                     type = value;
                 } else {
                     throw new KronotopException("syntax error");

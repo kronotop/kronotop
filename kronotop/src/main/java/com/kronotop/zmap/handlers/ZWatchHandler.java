@@ -21,8 +21,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.KronotopException;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapService;
 import com.kronotop.zmap.ZWatcher;
@@ -34,8 +34,8 @@ import java.util.concurrent.CompletableFuture;
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 @Command(ZWatchMessage.COMMAND)
-@MinimumParameterCount(ZWatchMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(ZWatchMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(ZWatchMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(ZWatchMessage.MAXIMUM_ARGUMENT_COUNT)
 public class ZWatchHandler extends BaseZMapHandler implements Handler {
     public ZWatchHandler(ZMapService service) {
         super(service);

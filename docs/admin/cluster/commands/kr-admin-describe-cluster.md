@@ -11,7 +11,7 @@ Returns the full cluster topology including cluster name, metadata version, and 
 KR.ADMIN DESCRIBE-CLUSTER
 ```
 
-## Parameters
+## Arguments
 
 None.
 
@@ -49,7 +49,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 
 Cluster errors:
 

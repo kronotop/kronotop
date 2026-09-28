@@ -33,15 +33,15 @@ public class CommandHandlerRegistry {
     }
 
     /**
-     * Registers a handler for the given command type with parameter constraints.
+     * Registers a handler for the given command type with argument constraints.
      *
      * @param commandType           the command type
      * @param handler               the handler instance
-     * @param minimumParameterCount minimum required parameters (-1 = no constraint)
-     * @param maximumParameterCount maximum allowed parameters (-1 = no constraint)
+     * @param minimumArgumentCount minimum required arguments (-1 = no constraint)
+     * @param maximumArgumentCount maximum allowed arguments (-1 = no constraint)
      * @throws CommandAlreadyRegisteredException if the command is already registered
      */
-    public void register(CommandType commandType, Handler handler, int minimumParameterCount, int maximumParameterCount)
+    public void register(CommandType commandType, Handler handler, int minimumArgumentCount, int maximumArgumentCount)
             throws CommandAlreadyRegisteredException {
         Preconditions.checkNotNull(handler, "handler cannot be null");
         Preconditions.checkNotNull(commandType, "commandType cannot be null");
@@ -55,8 +55,8 @@ public class CommandHandlerRegistry {
         handlers[commandType.ordinal()] = new HandlerEntry(
                 handler,
                 commandType,
-                minimumParameterCount,
-                maximumParameterCount
+                minimumArgumentCount,
+                maximumArgumentCount
         );
     }
 

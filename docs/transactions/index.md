@@ -48,7 +48,7 @@ OK
 `ROLLBACK` discards all uncommitted changes and returns the session to auto-commit mode. After either `COMMIT` or
 `ROLLBACK`, the session is back in auto-commit and ready for the next transaction.
 
-`COMMIT` accepts an optional `RETURNING` clause to retrieve metadata from the committed transaction. Two parameters
+`COMMIT` accepts an optional `RETURNING` clause to retrieve metadata from the committed transaction. Two arguments
 are supported:
 
 * `committed-version` returns the committed version as an integer.

@@ -21,8 +21,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapService;
@@ -32,8 +32,8 @@ import java.util.Collections;
 import java.util.List;
 
 @Command(ZSetMessage.COMMAND)
-@MinimumParameterCount(ZSetMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(ZSetMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(ZSetMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(ZSetMessage.MAXIMUM_ARGUMENT_COUNT)
 public class ZSetHandler extends BaseZMapHandler implements Handler {
     public ZSetHandler(ZMapService service) {
         super(service);

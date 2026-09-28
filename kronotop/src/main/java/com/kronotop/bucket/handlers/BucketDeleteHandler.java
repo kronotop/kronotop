@@ -27,8 +27,8 @@ import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import org.bson.types.ObjectId;
 
@@ -37,8 +37,8 @@ import java.util.List;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketDeleteMessage.COMMAND)
-@MaximumParameterCount(BucketDeleteMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(BucketDeleteMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(BucketDeleteMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(BucketDeleteMessage.MINIMUM_ARGUMENT_COUNT)
 public class BucketDeleteHandler extends AbstractBucketHandler implements Handler {
     public BucketDeleteHandler(BucketService service) {
         super(service);

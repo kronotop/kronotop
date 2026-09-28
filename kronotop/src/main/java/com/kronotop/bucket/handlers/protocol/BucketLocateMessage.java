@@ -22,8 +22,8 @@ import com.kronotop.server.Request;
 
 public class BucketLocateMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.LOCATE";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 3;
 
     private final Request request;
     private String bucket;
@@ -35,8 +35,8 @@ public class BucketLocateMessage extends AbstractBucketMessage implements Protoc
     }
 
     private void parse() {
-        bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 1);
+        bucket = ProtocolMessageUtil.readAsString(request.getArguments().get(0));
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getArguments(), 1);
     }
 
     public String getBucket() {

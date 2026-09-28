@@ -18,11 +18,11 @@ package com.kronotop.core.handlers.session;
 
 import com.kronotop.KronotopException;
 import com.kronotop.core.handlers.session.protocol.SessionAttributeMessage;
-import com.kronotop.core.handlers.session.protocol.SessionAttributeParameters;
+import com.kronotop.core.handlers.session.protocol.SessionAttributeArguments;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import io.netty.util.Attribute;
@@ -37,8 +37,8 @@ import static com.kronotop.server.RESPUtil.bulkString;
 import static com.kronotop.server.RESPUtil.wrapBytes;
 
 @Command(SessionAttributeMessage.COMMAND)
-@MaximumParameterCount(SessionAttributeMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(SessionAttributeMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(SessionAttributeMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(SessionAttributeMessage.MINIMUM_ARGUMENT_COUNT)
 public class SessionAttributeHandler implements Handler {
     private static final byte[] REPLY_TYPE_BYTES = "reply_type".getBytes(StandardCharsets.UTF_8);
     private static final byte[] INPUT_TYPE_BYTES = "input_type".getBytes(StandardCharsets.UTF_8);
@@ -108,29 +108,29 @@ public class SessionAttributeHandler implements Handler {
         }
     }
 
-    private void setSubcommand(Request request, Response response, SessionAttributeParameters parameters) {
-        switch (parameters.getAttribute()) {
-            case REPLY_TYPE -> request.getSession().attr(SessionAttributes.REPLY_TYPE).set(parameters.replyType());
-            case INPUT_TYPE -> request.getSession().attr(SessionAttributes.INPUT_TYPE).set(parameters.inputType());
+    private void setSubcommand(Request request, Response response, SessionAttributeArguments arguments) {
+        switch (arguments.getAttribute()) {
+            case REPLY_TYPE -> request.getSession().attr(SessionAttributes.REPLY_TYPE).set(arguments.replyType());
+            case INPUT_TYPE -> request.getSession().attr(SessionAttributes.INPUT_TYPE).set(arguments.inputType());
             case BATCH -> {
-                int bucketBatchSize = parameters.bucketBatchSize();
+                int bucketBatchSize = arguments.bucketBatchSize();
                 if (bucketBatchSize < 1) {
                     throw new KronotopException("'batch' must be greater than 0");
                 }
                 request.getSession().attr(SessionAttributes.BATCH).set(bucketBatchSize);
             }
             case OBJECT_ID_FORMAT ->
-                    request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).set(parameters.objectIdFormat());
+                    request.getSession().attr(SessionAttributes.OBJECT_ID_FORMAT).set(arguments.objectIdFormat());
         }
         response.writeOK();
     }
 
     @Override
     public void execute(Request request, Response response) throws Exception {
-        SessionAttributeParameters parameters = new SessionAttributeParameters(request.getParams());
-        if (parameters.getSubcommand().equals(SessionAttributeParameters.SessionAttributeSubcommand.SET)) {
-            setSubcommand(request, response, parameters);
-        } else if (parameters.getSubcommand().equals(SessionAttributeParameters.SessionAttributeSubcommand.LIST)) {
+        SessionAttributeArguments arguments = new SessionAttributeArguments(request.getArguments());
+        if (arguments.getSubcommand().equals(SessionAttributeArguments.SessionAttributeSubcommand.SET)) {
+            setSubcommand(request, response, arguments);
+        } else if (arguments.getSubcommand().equals(SessionAttributeArguments.SessionAttributeSubcommand.LIST)) {
             listSubcommand(request, response);
         }
     }

@@ -24,8 +24,8 @@ import com.kronotop.server.Request;
 
 public class BucketAdvanceMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.ADVANCE";
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
     private final Request request;
     private BucketOperation operation;
     private int cursorId;
@@ -36,13 +36,13 @@ public class BucketAdvanceMessage extends AbstractBucketMessage implements Proto
     }
 
     private void parse() {
-        String raw = ProtocolMessageUtil.readAsString(request.getParams().get(0));
+        String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(0));
         try {
             operation = BucketOperation.valueOf(StringUtil.toUpperCaseAscii(raw));
         } catch (IllegalArgumentException e) {
             throw new IllegalCommandArgumentException(String.format("Unknown '%s' operation", raw));
         }
-        cursorId = ProtocolMessageUtil.readAsInteger(request.getParams().get(1));
+        cursorId = ProtocolMessageUtil.readAsInteger(request.getArguments().get(1));
     }
 
     public BucketOperation getOperation() {

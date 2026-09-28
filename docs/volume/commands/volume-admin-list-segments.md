@@ -12,9 +12,9 @@ segment holds a range of appended data.
 VOLUME.ADMIN LIST-SEGMENTS <volume-name>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                               |
+| Argument      | Type   | Description                                                               |
 |---------------|--------|---------------------------------------------------------------------------|
 | `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
 
@@ -34,7 +34,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 
 Volume errors:
 

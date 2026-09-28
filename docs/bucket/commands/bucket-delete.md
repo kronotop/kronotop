@@ -13,11 +13,11 @@ Deletes documents from a bucket that match a filter expression.
 BUCKET.DELETE <bucket> <query> [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>] [CLOSE]
 ```
 
-## Parameters
+## Arguments
 
 Keyword names are not case-sensitive, and each keyword can appear at most once.
 
-| Parameter   | Type         | Required | Description                                                                                                                                                                                                                                                |
+| Argument    | Type         | Required | Description                                                                                                                                                                                                                                                |
 |-------------|--------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string       | Yes      | Name of the bucket to delete from.                                                                                                                                                                                                                         |
 | `query`     | JSON or BSON | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                                                                                                                     |

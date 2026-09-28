@@ -12,9 +12,9 @@ sequence number.
 VOLUME.INSPECT CURSOR <volume-name>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                                          |
+| Argument      | Type   | Description                                                                          |
 |---------------|--------|--------------------------------------------------------------------------------------|
 | `volume-name` | string | Name of the volume to inspect, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
 
@@ -42,7 +42,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause                                                   |
 |------------|--------------------------------|---------------------------------------------------------|
-| `ERR`      | `invalid number of parameters` | -                                                       |
+| `ERR`      | `invalid number of arguments`  | -                                                       |
 | `ERR`      | `invalid volume name: <name>`  | The name does not match the `<kind>-shard-<id>` format. |
 
 ## Examples

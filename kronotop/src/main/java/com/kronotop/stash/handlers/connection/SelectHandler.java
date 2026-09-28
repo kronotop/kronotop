@@ -21,14 +21,14 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.connection.protocol.SelectMessage;
 
 @Command(SelectMessage.COMMAND)
-@MaximumParameterCount(SelectMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(SelectMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(SelectMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(SelectMessage.MINIMUM_ARGUMENT_COUNT)
 public class SelectHandler implements Handler {
     private final StashService service;
 

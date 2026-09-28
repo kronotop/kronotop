@@ -42,17 +42,17 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandHandler {
     }
 
     public void execute(Request request, Response response) {
-        CreateParameters parameters = new CreateParameters(request);
+        CreateArguments arguments = new CreateArguments(request);
         runAsync(context, response, () -> {
-            String namespace = dottedNamespace(parameters.subpath);
+            String namespace = dottedNamespace(arguments.subpath);
 
             // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TombstoneManager.checkBarrier(context, tr, namespace);
                 // Commits the transaction itself.
-                NamespaceUtil.create(context, tr, parameters.subpath);
+                NamespaceUtil.create(context, tr, arguments.subpath);
             } catch (NamespaceAlreadyExistsException e) {
-                if (parameters.ifNotExists) {
+                if (arguments.ifNotExists) {
                     // Namespace exists and is not being removed, ready to use.
                     return;
                 }
@@ -61,20 +61,20 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandHandler {
         }, response::writeOK);
     }
 
-    private class CreateParameters {
+    private class CreateArguments {
         private final List<String> subpath;
         private boolean ifNotExists;
 
-        private CreateParameters(Request request) {
-            int size = request.getParams().size();
+        private CreateArguments(Request request) {
+            int size = request.getArguments().size();
             if (size < 2 || size > 3) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.CREATE);
             }
-            subpath = readSubpath(request.getParams().get(1));
+            subpath = readSubpath(request.getArguments().get(1));
             validateSubpath(subpath);
 
             if (size == 3) {
-                String raw = ProtocolMessageUtil.readAsString(request.getParams().get(2));
+                String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(2));
                 if (!StringUtil.toUpperCaseAscii(raw).equals(IF_NOT_EXISTS)) {
                     throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
                 }

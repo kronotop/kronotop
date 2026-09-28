@@ -18,7 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
@@ -57,13 +57,13 @@ class ReplicationStatsSubcommand extends BaseSubcommandHandler implements Subcom
 
     @Override
     public void execute(Request request, Response response) {
-        ReplicationParameters parameters = new ReplicationParameters(request.getParams());
+        ReplicationArguments arguments = new ReplicationArguments(request.getArguments());
 
         supplyAsync(context, response, () -> {
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                String volumeName = VolumeNames.format(parameters.shardKind, parameters.shardId);
+                String volumeName = VolumeNames.format(arguments.shardKind, arguments.shardId);
                 DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
-                        context, tr, parameters.shardKind, volumeName, parameters.standbyId
+                        context, tr, arguments.shardKind, volumeName, arguments.standbyId
                 );
                 ReplicationStatusInfo info = ReplicationUtil.readReplicationStatusInfo(tr, standbySubspace);
 
@@ -80,19 +80,19 @@ class ReplicationStatsSubcommand extends BaseSubcommandHandler implements Subcom
         }, response::writeMap);
     }
 
-    private class ReplicationParameters {
+    private class ReplicationArguments {
         private final ShardKind shardKind;
         private final int shardId;
         private final String standbyId;
 
-        private ReplicationParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 5) {
-                throw new InvalidNumberOfParametersException();
+        private ReplicationArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 5) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            shardKind = ProtocolMessageUtil.readShardKind(params.get(2));
-            shardId = ProtocolMessageUtil.readShardId(service.getContext().getShardRegistry(), shardKind, params.get(3));
-            standbyId = ProtocolMessageUtil.readMemberId(service.getContext(), params.get(4));
+            shardKind = ProtocolMessageUtil.readShardKind(args.get(2));
+            shardId = ProtocolMessageUtil.readShardId(service.getContext().getShardRegistry(), shardKind, args.get(3));
+            standbyId = ProtocolMessageUtil.readMemberId(service.getContext(), args.get(4));
         }
     }
 }

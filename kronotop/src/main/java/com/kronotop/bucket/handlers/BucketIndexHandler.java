@@ -21,12 +21,12 @@ import com.kronotop.bucket.handlers.protocol.BucketIndexMessage;
 import com.kronotop.bucket.handlers.protocol.BucketIndexSubcommand;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 
 import java.util.EnumMap;
 
 @Command(BucketIndexMessage.COMMAND)
-@MinimumParameterCount(BucketIndexMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(BucketIndexMessage.MINIMUM_ARGUMENT_COUNT)
 public class BucketIndexHandler extends AbstractBucketHandler implements Handler {
     private final EnumMap<BucketIndexSubcommand, SubcommandHandler> handlers = new EnumMap<>(BucketIndexSubcommand.class);
 

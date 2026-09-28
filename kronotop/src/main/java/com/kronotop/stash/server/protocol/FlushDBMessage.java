@@ -23,8 +23,8 @@ import java.util.List;
 
 public class FlushDBMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "FLUSHDB";
-    public static final int MINIMUM_PARAMETER_COUNT = 0;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 0;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
     public static final String ASYNC_OPERAND = "ASYNC";
     public static final String SYNC_OPERAND = "SYNC";
     private final Request request;
@@ -35,12 +35,12 @@ public class FlushDBMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        if (request.getParams().isEmpty()) {
+        if (request.getArguments().isEmpty()) {
             return;
         }
 
-        byte[] rawOperand = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawOperand);
+        byte[] rawOperand = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawOperand);
         String operand = new String(rawOperand);
 
         if (!(operand.equalsIgnoreCase(SYNC_OPERAND) || operand.equalsIgnoreCase(ASYNC_OPERAND))) {

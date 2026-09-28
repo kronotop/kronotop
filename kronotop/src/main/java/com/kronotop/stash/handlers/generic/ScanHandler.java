@@ -22,7 +22,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(ScanMessage.COMMAND)
-@MinimumParameterCount(ScanMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(ScanMessage.MINIMUM_ARGUMENT_COUNT)
 public class ScanHandler extends BaseHandler implements Handler {
     public ScanHandler(StashService service) {
         super(service);

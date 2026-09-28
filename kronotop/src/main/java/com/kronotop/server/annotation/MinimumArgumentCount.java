@@ -19,11 +19,11 @@ package com.kronotop.server.annotation;
 import java.lang.annotation.*;
 
 /**
- * Annotation that specifies the maximum number of parameters allowed for a class or interface.
+ * Custom annotation to specify the minimum number of arguments required for a class.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Documented
-public @interface MaximumParameterCount {
+public @interface MinimumArgumentCount {
     int value();
 }

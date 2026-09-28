@@ -18,7 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.kronotop.KronotopException;
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -62,12 +62,12 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
 
     @Override
     public void execute(Request request, Response response) {
-        CleanupOrphanFilesParameters parameters = new CleanupOrphanFilesParameters(request.getParams());
+        CleanupOrphanFilesArguments arguments = new CleanupOrphanFilesArguments(request.getArguments());
 
         supplyAsync(context, response, () -> {
             List<RedisMessage> deletedFiles = new ArrayList<>();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                Volume volume = service.findVolume(parameters.volumeName);
+                Volume volume = service.findVolume(arguments.volumeName);
                 List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
                 Set<String> assumedFiles = new HashSet<>();
                 segmentIds.forEach(segmentId -> {
@@ -97,15 +97,15 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
         }, response::writeArray);
     }
 
-    private static class CleanupOrphanFilesParameters {
+    private static class CleanupOrphanFilesArguments {
         private final String volumeName;
 
-        private CleanupOrphanFilesParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 2) {
-                throw new InvalidNumberOfParametersException();
+        private CleanupOrphanFilesArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 2) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            volumeName = ProtocolMessageUtil.readAsString(params.get(1));
+            volumeName = ProtocolMessageUtil.readAsString(args.get(1));
         }
     }
 }

@@ -192,7 +192,7 @@ class BucketIndexTasksSubcommandTest extends BaseIndexHandlerTest {
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("TASKS", "test-bucket", "primary-index", "NAMESPACE")));
         assertErrorReply("ERR Unknown 'BOGUS' argument",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("TASKS", "test-bucket", "primary-index", "BOGUS")));
-        assertErrorReply("ERR wrong number of parameters",
+        assertErrorReply("ERR wrong number of arguments",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("TASKS", "test-bucket", "primary-index", "NAMESPACE", "ns", "EXTRA")));
     }
 }

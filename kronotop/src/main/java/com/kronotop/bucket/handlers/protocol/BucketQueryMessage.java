@@ -25,7 +25,7 @@ import java.util.Set;
 
 public class BucketQueryMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.QUERY";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
     private static final Set<QueryArgumentKey> supportedArguments = EnumSet.of(
             QueryArgumentKey.SORTBY,
             QueryArgumentKey.RESULTSORT,
@@ -47,8 +47,8 @@ public class BucketQueryMessage extends AbstractBucketMessage implements Protoco
     }
 
     private void parse() {
-        bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        query = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
+        bucket = ProtocolMessageUtil.readAsString(request.getArguments().get(0));
+        query = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(1));
         arguments = parseCommonQueryArguments(request, 2, supportedArguments);
     }
 

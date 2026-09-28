@@ -107,8 +107,8 @@ public class KronotopTestInstance extends KronotopInstance {
                     mergedRegistry.register(
                             entry.commandType(),
                             entry.handler(),
-                            entry.minimumParameterCount(),
-                            entry.maximumParameterCount()
+                            entry.minimumArgumentCount(),
+                            entry.maximumArgumentCount()
                     );
                 } catch (CommandAlreadyRegisteredException e) {
                     if (!duplicatedCommands.contains(command)) {

@@ -23,8 +23,8 @@ import java.util.List;
 
 public class ChangeLogWatchMessage extends BaseMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "CHANGELOG.WATCH";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 2;
     private String volume;
     private long logSequenceNumber;
 

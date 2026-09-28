@@ -90,7 +90,7 @@ OK
 ```
 
 All subsequent queries in this session use 50 as the default batch size unless overridden by an explicit `BATCH`
-parameter.
+argument.
 
 ```kronotop
 127.0.0.1:5484> BUCKET.QUERY products '{}' BATCH 10
@@ -98,7 +98,7 @@ parameter.
 
 This query returns at most 10 documents per batch, regardless of the session default.
 
-See [BUCKET.QUERY](commands/bucket-query.md) for the full parameter reference.
+See [BUCKET.QUERY](commands/bucket-query.md) for the full argument reference.
 
 ## Limit
 

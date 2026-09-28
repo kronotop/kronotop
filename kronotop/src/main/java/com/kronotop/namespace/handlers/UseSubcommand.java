@@ -37,24 +37,24 @@ class UseSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        UseParameters parameters = new UseParameters(request);
+        UseArguments arguments = new UseArguments(request);
         runAsync(context, response, () -> {
-            String namespace = dottedNamespace(parameters.subpath);
-            if (!NamespaceUtil.exists(context, parameters.subpath)) {
+            String namespace = dottedNamespace(arguments.subpath);
+            if (!NamespaceUtil.exists(context, arguments.subpath)) {
                 throw new NoSuchNamespaceException(namespace);
             }
             request.getSession().attr(SessionAttributes.CURRENT_NAMESPACE).set(namespace);
         }, response::writeOK);
     }
 
-    private class UseParameters {
+    private class UseArguments {
         private final List<String> subpath;
 
-        private UseParameters(Request request) {
-            if (request.getParams().size() != 2) {
+        private UseArguments(Request request) {
+            if (request.getArguments().size() != 2) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.USE);
             }
-            subpath = readSubpath(request.getParams().get(1));
+            subpath = readSubpath(request.getArguments().get(1));
             validateSubpath(subpath);
         }
     }

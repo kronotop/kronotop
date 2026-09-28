@@ -24,8 +24,8 @@ import java.util.List;
 
 public class AuthMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "AUTH";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 2;
 
     private final Request request;
     private String username;
@@ -37,12 +37,12 @@ public class AuthMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        if (request.getParams().size() == 1) {
-            password = request.getParams().get(0).toString(CharsetUtil.UTF_8);
+        if (request.getArguments().size() == 1) {
+            password = request.getArguments().get(0).toString(CharsetUtil.UTF_8);
             return;
         }
-        username = request.getParams().get(0).toString(CharsetUtil.UTF_8);
-        password = request.getParams().get(1).toString(CharsetUtil.UTF_8);
+        username = request.getArguments().get(0).toString(CharsetUtil.UTF_8);
+        password = request.getArguments().get(1).toString(CharsetUtil.UTF_8);
     }
 
     public String getUsername() {

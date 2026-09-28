@@ -25,8 +25,8 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -42,8 +42,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Command(ZGetRangeMessage.COMMAND)
-@MinimumParameterCount(ZGetRangeMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(ZGetRangeMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(ZGetRangeMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(ZGetRangeMessage.MAXIMUM_ARGUMENT_COUNT)
 public class ZGetRangeHandler extends BaseZMapHandler implements Handler {
     public ZGetRangeHandler(ZMapService service) {
         super(service);

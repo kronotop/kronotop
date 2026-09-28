@@ -18,7 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.server.Request;
@@ -54,10 +54,10 @@ public class CursorSubcommand extends BaseSubcommandHandler implements Subcomman
 
     @Override
     public void execute(Request request, Response response) {
-        CursorParameters parameters = new CursorParameters(request.getParams());
+        CursorArguments arguments = new CursorArguments(request.getArguments());
 
         supplyAsync(context, response, () -> {
-            DirectorySubspace volumeSubspace = service.openSubspace(parameters.volumeName);
+            DirectorySubspace volumeSubspace = service.openSubspace(arguments.volumeName);
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 long activeSegmentId = SegmentSubspaceUtil.findActiveSegmentId(tr, volumeSubspace);
@@ -85,15 +85,15 @@ public class CursorSubcommand extends BaseSubcommandHandler implements Subcomman
         }, response::writeMap);
     }
 
-    private static class CursorParameters {
+    private static class CursorArguments {
         private final String volumeName;
 
-        private CursorParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 2) {
-                throw new InvalidNumberOfParametersException();
+        private CursorArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 2) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            volumeName = ProtocolMessageUtil.readAsString(params.get(1));
+            volumeName = ProtocolMessageUtil.readAsString(args.get(1));
         }
     }
 }

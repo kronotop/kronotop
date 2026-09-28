@@ -17,12 +17,12 @@
 package com.kronotop.stash.handlers.hash;
 
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.hash.protocol.HMSetMessage;
 
 @Command(HMSetMessage.COMMAND)
-@MinimumParameterCount(HMSetMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(HMSetMessage.MINIMUM_ARGUMENT_COUNT)
 public class HMSetHandler extends HSetHandler {
 
     public HMSetHandler(StashService service) {

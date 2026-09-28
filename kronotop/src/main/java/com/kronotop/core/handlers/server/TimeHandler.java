@@ -22,7 +22,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.resp3.RedisMessage;
 
 import java.time.Instant;
@@ -31,7 +31,7 @@ import java.util.List;
 import static com.kronotop.server.RESPUtil.bulkString;
 
 @Command(TimeMessage.COMMAND)
-@MaximumParameterCount(TimeMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(TimeMessage.MAXIMUM_ARGUMENT_COUNT)
 public class TimeHandler implements Handler {
 
     @Override

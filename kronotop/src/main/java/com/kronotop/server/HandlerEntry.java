@@ -18,29 +18,29 @@ package com.kronotop.server;
 
 /**
  * Immutable container for a command handler and its metadata.
- * Pre-cached parameter constraints eliminate reflection overhead during request processing.
+ * Pre-cached argument constraints eliminate reflection overhead during request processing.
  *
  * @param handler               the handler instance
  * @param commandType           the command type enum constant
- * @param minimumParameterCount minimum required parameters (-1 = no constraint)
- * @param maximumParameterCount maximum allowed parameters (-1 = no constraint)
+ * @param minimumArgumentCount minimum required arguments (-1 = no constraint)
+ * @param maximumArgumentCount maximum allowed arguments (-1 = no constraint)
  */
 public record HandlerEntry(
         Handler handler,
         CommandType commandType,
-        int minimumParameterCount,
-        int maximumParameterCount
+        int minimumArgumentCount,
+        int maximumArgumentCount
 ) {
     /**
-     * Constant indicating no parameter constraint is set.
+     * Constant indicating no argument constraint is set.
      */
     public static final int NO_CONSTRAINT = -1;
 
-    public boolean hasMinimumParameterCount() {
-        return minimumParameterCount != NO_CONSTRAINT;
+    public boolean hasMinimumArgumentCount() {
+        return minimumArgumentCount != NO_CONSTRAINT;
     }
 
-    public boolean hasMaximumParameterCount() {
-        return maximumParameterCount != NO_CONSTRAINT;
+    public boolean hasMaximumArgumentCount() {
+        return maximumArgumentCount != NO_CONSTRAINT;
     }
 }

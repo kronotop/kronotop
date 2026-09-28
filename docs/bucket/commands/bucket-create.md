@@ -13,11 +13,11 @@ Creates a new bucket with optional shard assignment and index definitions.
 BUCKET.CREATE <bucket> [SHARDS <shard-id> [shard-id ...]] [INDEXES <schema>] [COLLATION <spec>] [IF-NOT-EXISTS] [NAMESPACE <path>]
 ```
 
-## Parameters
+## Arguments
 
 Keyword names are not case-sensitive, and each keyword can appear at most once. `SHARDS` takes one or more values after a single keyword.
 
-| Parameter       | Type       | Required | Description                                                                                                                                                           |
+| Argument        | Type       | Required | Description                                                                                                                                                           |
 |-----------------|------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`        | string     | Yes      | Name of the bucket to create.                                                                                                                                         |
 | `SHARDS`        | integer(s) | No       | One or more shard IDs to assign the bucket to. If omitted, a shard is selected automatically.                                                                         |
@@ -32,7 +32,7 @@ Returns `OK` on success.
 
 ## Shard Assignment
 
-When the `SHARDS` parameter is omitted, Kronotop automatically assigns the bucket to a shard using round-robin selection
+When the `SHARDS` argument is omitted, Kronotop automatically assigns the bucket to a shard using round-robin selection
 across available shards. This ensures even distribution of buckets across the cluster. When multiple shard IDs are
 provided, the bucket is assigned to all specified shards.
 
@@ -51,7 +51,7 @@ Run `BUCKET.PURGE` first, then create the bucket again.
 
 ## Index Schema Format
 
-The `INDEXES` parameter accepts a JSON object that can contain single-field indexes, compound indexes, or both:
+The `INDEXES` argument accepts a JSON object that can contain single-field indexes, compound indexes, or both:
 
 ```
 {

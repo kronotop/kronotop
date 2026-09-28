@@ -30,9 +30,9 @@ Creates one or more indexes on bucket fields.
 BUCKET.INDEX CREATE <bucket> <schema> [NAMESPACE <path>]
 ```
 
-### Parameters
+### Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                              |
+| Argument    | Type   | Required | Description                                                                                                                                              |
 |-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string | Yes      | Name of the target bucket. The bucket must already exist.                                                                                                |
 | `schema`    | JSON   | Yes      | Index schema defining the fields to index.                                                                                                               |
@@ -315,9 +315,9 @@ Lists all indexes defined on a bucket.
 BUCKET.INDEX LIST <bucket> [NAMESPACE <path>]
 ```
 
-### Parameters
+### Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                              |
+| Argument    | Type   | Required | Description                                                                                                                                              |
 |-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
 | `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
@@ -356,9 +356,9 @@ Gets detailed information about a specific index.
 BUCKET.INDEX DESCRIBE <bucket> <index> [NAMESPACE <path>]
 ```
 
-### Parameters
+### Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                              |
+| Argument    | Type   | Required | Description                                                                                                                                              |
 |-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
 | `index`     | string | Yes      | Name of the index to describe.                                                                                                                           |
@@ -487,9 +487,9 @@ Drops an existing index from a bucket.
 BUCKET.INDEX DROP <bucket> <index> [NAMESPACE <path>]
 ```
 
-### Parameters
+### Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                              |
+| Argument    | Type   | Required | Description                                                                                                                                              |
 |-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
 | `index`     | string | Yes      | Name of the index to drop.                                                                                                                               |
@@ -543,9 +543,9 @@ Lists background maintenance tasks associated with an index.
 BUCKET.INDEX TASKS <bucket> <index> [NAMESPACE <path>]
 ```
 
-### Parameters
+### Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                              |
+| Argument    | Type   | Required | Description                                                                                                                                              |
 |-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
 | `index`     | string | Yes      | Name of the index.                                                                                                                                       |
@@ -647,9 +647,9 @@ Trigger index statistics analysis. Statistics help the query optimizer make bett
 BUCKET.INDEX ANALYZE <bucket> <index> [NAMESPACE <path>]
 ```
 
-### Parameters
+### Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                              |
+| Argument    | Type   | Required | Description                                                                                                                                              |
 |-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string | Yes      | Name of the bucket.                                                                                                                                      |
 | `index`     | string | Yes      | Name of the index to analyze.                                                                                                                            |

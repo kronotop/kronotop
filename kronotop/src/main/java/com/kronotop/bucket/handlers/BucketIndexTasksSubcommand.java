@@ -144,13 +144,13 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        TasksParameters parameters = new TasksParameters(request.getParams());
+        TasksArguments arguments = new TasksArguments(request.getArguments());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> parent = new LinkedHashMap<>();
-            String namespace = NamespaceUtil.resolve(request.getSession(), parameters.namespace);
+            String namespace = NamespaceUtil.resolve(request.getSession(), arguments.namespace);
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
-                List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, parameters.bucket, parameters.index);
+                List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, arguments.bucket, arguments.index);
                 for (Versionstamp taskId : taskIds) {
                     Map<RedisMessage, RedisMessage> child = scanTaskId(tr, taskId);
                     parent.put(
@@ -163,18 +163,18 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
         }, response::writeMap);
     }
 
-    private static class TasksParameters {
+    private static class TasksArguments {
         private final String bucket;
         private final String index;
         private final String namespace;
 
-        TasksParameters(ArrayList<ByteBuf> params) {
-            if (params.size() < 3 || params.size() > 5) {
-                throw new KronotopException("wrong number of parameters");
+        TasksArguments(ArrayList<ByteBuf> args) {
+            if (args.size() < 3 || args.size() > 5) {
+                throw new KronotopException("wrong number of arguments");
             }
-            bucket = ProtocolMessageUtil.readAsString(params.get(1));
-            index = ProtocolMessageUtil.readAsString(params.get(2));
-            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
+            bucket = ProtocolMessageUtil.readAsString(args.get(1));
+            index = ProtocolMessageUtil.readAsString(args.get(2));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(args, 3);
         }
     }
 }

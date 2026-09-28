@@ -22,8 +22,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.generic.protocol.PersistMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -33,8 +33,8 @@ import com.kronotop.stash.storage.StashValueKind;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(PersistMessage.COMMAND)
-@MaximumParameterCount(PersistMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(PersistMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(PersistMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(PersistMessage.MINIMUM_ARGUMENT_COUNT)
 public class PersistHandler extends BaseGenericHandler implements Handler {
     public PersistHandler(StashService service) {
         super(service);

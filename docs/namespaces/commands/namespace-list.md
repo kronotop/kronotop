@@ -11,9 +11,9 @@ Lists the child namespaces under a given path or lists root-level namespaces whe
 NAMESPACE LIST [namespace]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                    |
+| Argument    | Type   | Required | Description                                                                                                                    |
 |-------------|--------|----------|--------------------------------------------------------------------------------------------------------------------------------|
 | `namespace` | string | No       | Dot-separated hierarchical path to list children of (e.g. `production.users`). When omitted, root-level namespaces are listed. |
 

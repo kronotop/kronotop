@@ -24,8 +24,8 @@ import java.util.List;
 
 public class ZSetMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZSET";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 4;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 4;
     private final Request request;
     private byte[] key;
     private byte[] value;
@@ -37,9 +37,9 @@ public class ZSetMessage implements ProtocolMessage<byte[]> {
     }
 
     private void parse() {
-        key = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
-        value = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
-        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 2);
+        key = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(0));
+        value = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(1));
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getArguments(), 2);
     }
 
     @Override

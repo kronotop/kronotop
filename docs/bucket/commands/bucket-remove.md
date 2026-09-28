@@ -36,9 +36,9 @@ and you should retry the command.
 BUCKET.REMOVE <bucket> [NAMESPACE <path>]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                              |
+| Argument    | Type   | Required | Description                                                                                                                                              |
 |-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string | Yes      | Name of the bucket to mark for removal.                                                                                                                  |
 | `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |

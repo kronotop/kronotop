@@ -72,10 +72,10 @@ class ProtocolMessageUtilTest {
         // Behavior: requireValue returns the buffer right after the keyword index.
         ByteBuf keyword = Unpooled.copiedBuffer("LIMIT", StandardCharsets.US_ASCII);
         ByteBuf value = Unpooled.copiedBuffer("3", StandardCharsets.US_ASCII);
-        List<ByteBuf> params = List.of(keyword, value);
+        List<ByteBuf> arguments = List.of(keyword, value);
 
         ByteBuf actual = ProtocolMessageUtil.requireValue(
-                params, 0, "LIMIT", ProtocolMessageUtil.POSITIVE_INTEGER);
+                arguments, 0, "LIMIT", ProtocolMessageUtil.POSITIVE_INTEGER);
 
         assertSame(value, actual);
     }
@@ -83,12 +83,12 @@ class ProtocolMessageUtilTest {
     @Test
     void shouldRejectKeywordWithoutValue() {
         // Behavior: A keyword that is the last argument fails with the expected value in the message.
-        List<ByteBuf> params = List.of(Unpooled.copiedBuffer("LIMIT", StandardCharsets.US_ASCII));
+        List<ByteBuf> arguments = List.of(Unpooled.copiedBuffer("LIMIT", StandardCharsets.US_ASCII));
 
         IllegalCommandArgumentException exception = assertThrows(
                 IllegalCommandArgumentException.class,
                 () -> ProtocolMessageUtil.requireValue(
-                        params, 0, "LIMIT", ProtocolMessageUtil.POSITIVE_INTEGER)
+                        arguments, 0, "LIMIT", ProtocolMessageUtil.POSITIVE_INTEGER)
         );
         assertEquals("LIMIT argument must be followed by a positive integer", exception.getMessage());
     }

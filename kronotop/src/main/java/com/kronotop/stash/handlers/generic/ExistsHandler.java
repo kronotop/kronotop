@@ -22,7 +22,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.BaseHandler;
 import com.kronotop.stash.handlers.generic.protocol.ExistsMessage;
@@ -31,7 +31,7 @@ import com.kronotop.stash.storage.StashShard;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(ExistsMessage.COMMAND)
-@MinimumParameterCount(ExistsMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(ExistsMessage.MINIMUM_ARGUMENT_COUNT)
 public class ExistsHandler extends BaseHandler implements Handler {
     public ExistsHandler(StashService service) {
         super(service);

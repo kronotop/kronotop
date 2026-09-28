@@ -23,8 +23,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeService;
@@ -36,8 +36,8 @@ import java.util.concurrent.CompletableFuture;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(ChangeLogWatchMessage.COMMAND)
-@MaximumParameterCount(ChangeLogWatchMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(ChangeLogWatchMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(ChangeLogWatchMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(ChangeLogWatchMessage.MINIMUM_ARGUMENT_COUNT)
 public class ChangeLogWatchHandler extends BaseVolumeHandler implements Handler {
     public ChangeLogWatchHandler(VolumeService service) {
         super(service);

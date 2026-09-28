@@ -22,8 +22,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.BaseHandler;
 import com.kronotop.stash.handlers.hash.protocol.HLenMessage;
@@ -36,8 +36,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import static com.kronotop.stash.StashService.checkStashValueKind;
 
 @Command(HLenMessage.COMMAND)
-@MinimumParameterCount(HLenMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(HLenMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(HLenMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(HLenMessage.MAXIMUM_ARGUMENT_COUNT)
 public class HLenHandler extends BaseHandler implements Handler {
     public HLenHandler(StashService service) {
         super(service);

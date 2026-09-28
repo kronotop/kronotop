@@ -17,7 +17,7 @@
 package com.kronotop.volume.handlers;
 
 import com.apple.foundationdb.Transaction;
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -41,9 +41,9 @@ public class ListSegments extends BaseSubcommandHandler implements SubcommandHan
 
     @Override
     public void execute(Request request, Response response) {
-        ListSegmentsParameters parameters = new ListSegmentsParameters(request.getParams());
+        ListSegmentsArguments arguments = new ListSegmentsArguments(request.getArguments());
         supplyAsync(context, response, () -> {
-            Volume volume = service.findVolume(parameters.name);
+            Volume volume = service.findVolume(arguments.name);
             VolumeConfig config = volume.getConfig();
 
             List<RedisMessage> children = new ArrayList<>();
@@ -57,15 +57,15 @@ public class ListSegments extends BaseSubcommandHandler implements SubcommandHan
         }, response::writeArray);
     }
 
-    private static class ListSegmentsParameters {
+    private static class ListSegmentsArguments {
         private final String name;
 
-        private ListSegmentsParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 2) {
-                throw new InvalidNumberOfParametersException();
+        private ListSegmentsArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 2) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            name = ProtocolMessageUtil.readAsString(params.get(1));
+            name = ProtocolMessageUtil.readAsString(args.get(1));
         }
     }
 }

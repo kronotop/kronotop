@@ -13,9 +13,9 @@ Returns the names of all buckets in a namespace. Without `NAMESPACE`, it lists t
 BUCKET.LIST [NAMESPACE <path>]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                              |
+| Argument    | Type   | Required | Description                                                                                                                                              |
 |-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 

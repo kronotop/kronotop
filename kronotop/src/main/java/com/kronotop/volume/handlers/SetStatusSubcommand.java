@@ -16,7 +16,7 @@
 
 package com.kronotop.volume.handlers;
 
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
@@ -38,24 +38,24 @@ public class SetStatusSubcommand extends BaseSubcommandHandler implements Subcom
 
     @Override
     public void execute(Request request, Response response) {
-        SetStatusParameters parameters = new SetStatusParameters(request.getParams());
+        SetStatusArguments arguments = new SetStatusArguments(request.getArguments());
         runAsync(context, response, () -> {
-            Volume volume = service.findVolume(parameters.name);
-            volume.setStatus(parameters.status);
+            Volume volume = service.findVolume(arguments.name);
+            volume.setStatus(arguments.status);
         }, response::writeOK);
     }
 
-    private static class SetStatusParameters {
+    private static class SetStatusArguments {
         private final String name;
         private final VolumeStatus status;
 
-        private SetStatusParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
-                throw new InvalidNumberOfParametersException();
+        private SetStatusArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 3) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            name = ProtocolMessageUtil.readAsString(params.get(1));
-            status = ProtocolMessageUtil.readEnum(VolumeStatus.class, params.get(2), "volume status");
+            name = ProtocolMessageUtil.readAsString(args.get(1));
+            status = ProtocolMessageUtil.readEnum(VolumeStatus.class, args.get(2), "volume status");
         }
     }
 }

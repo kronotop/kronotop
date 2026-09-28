@@ -25,7 +25,7 @@ import java.util.List;
 
 public class TaskAdminMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "TASK.ADMIN";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private TaskAdminSubcommand subcommand;
 
@@ -35,7 +35,7 @@ public class TaskAdminMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        String cmd = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        String cmd = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
         try {
             subcommand = TaskAdminSubcommand.valueOfSubcommand(cmd);
         } catch (IllegalArgumentException e) {

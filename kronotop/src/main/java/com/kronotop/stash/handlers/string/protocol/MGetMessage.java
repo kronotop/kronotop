@@ -24,7 +24,7 @@ import java.util.List;
 
 public class MGetMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "MGET";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private final List<String> keys = new ArrayList<>();
 
@@ -34,9 +34,9 @@ public class MGetMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        for (int i = 0; i < request.getParams().size(); i++) {
-            byte[] key = new byte[request.getParams().get(i).readableBytes()];
-            request.getParams().get(i).readBytes(key);
+        for (int i = 0; i < request.getArguments().size(); i++) {
+            byte[] key = new byte[request.getArguments().get(i).readableBytes()];
+            request.getArguments().get(i).readBytes(key);
             keys.add(new String(key));
         }
     }

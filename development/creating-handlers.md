@@ -52,7 +52,7 @@ public static CommandType parse(String command) {
 
 ### Step 2: Create Protocol Message Class
 
-Create a message class that parses the command parameters. Place it in a `protocol` subpackage within your feature
+Create a message class that parses the command arguments. Place it in a `protocol` subpackage within your feature
 package.
 
 **Example: `MyCommandMessage.java`**
@@ -68,8 +68,8 @@ import java.util.List;
 
 public class MyCommandMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "MYCOMMAND";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 2;
 
     private final Request request;
     private String key;
@@ -131,12 +131,12 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 
 @Command(MyCommandMessage.COMMAND)
-@MinimumParameterCount(MyCommandMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(MyCommandMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(MyCommandMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(MyCommandMessage.MAXIMUM_ARGUMENT_COUNT)
 public class MyCommandHandler implements Handler {
 
     @Override
@@ -209,8 +209,8 @@ import java.util.List;
 
 public class ShoutMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SHOUT";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
 
     private String text;
 
@@ -256,12 +256,12 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 
 @Command(ShoutMessage.COMMAND)
-@MinimumParameterCount(ShoutMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(ShoutMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(ShoutMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(ShoutMessage.MAXIMUM_ARGUMENT_COUNT)
 public class ShoutHandler implements Handler {
 
     @Override
@@ -281,7 +281,7 @@ public class ShoutHandler implements Handler {
 
 | Method                            | Purpose                                                                               |
 |-----------------------------------|---------------------------------------------------------------------------------------|
-| `beforeExecute(Request)`          | Parse request parameters into a protocol message. Called before `execute()`.          |
+| `beforeExecute(Request)`          | Parse request arguments into a protocol message. Called before `execute()`.          |
 | `execute(Request, Response)`      | Process the command and write the response.                                           |
 | `requiresClusterInitialization()` | Return `false` if the command works before cluster init (e.g., PING). Default: `true` |
 | `isWatchable()`                   | Return `true` if the command can be used with WATCH transactions. Default: `false`    |
@@ -307,23 +307,23 @@ For handlers that process multiple commands, use `@Commands`:
 public class GetRangeHandler implements Handler { }
 ```
 
-### @MinimumParameterCount
+### @MinimumArgumentCount
 
-Specifies the minimum number of parameters required (excluding the command name).
-
-```java
-@MinimumParameterCount(1)  // At least 1 parameter required
-```
-
-### @MaximumParameterCount
-
-Specifies the maximum number of parameters allowed.
+Specifies the minimum number of arguments required (excluding the command name).
 
 ```java
-@MaximumParameterCount(2)  // At most 2 parameters allowed
+@MinimumArgumentCount(1)  // At least 1 argument required
 ```
 
-Omit this annotation for commands with unlimited parameters.
+### @MaximumArgumentCount
+
+Specifies the maximum number of arguments allowed.
+
+```java
+@MaximumArgumentCount(2)  // At most 2 arguments allowed
+```
+
+Omit this annotation for commands with unlimited arguments.
 
 ## Response Writing Methods
 

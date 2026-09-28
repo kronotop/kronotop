@@ -28,8 +28,8 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.Session;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.transaction.TransactionUtil;
@@ -42,8 +42,8 @@ import java.util.List;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketListMessage.COMMAND)
-@MinimumParameterCount(BucketListMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(BucketListMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(BucketListMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(BucketListMessage.MAXIMUM_ARGUMENT_COUNT)
 public class BucketListHandler extends AbstractBucketHandler implements Handler {
 
     public BucketListHandler(BucketService service) {

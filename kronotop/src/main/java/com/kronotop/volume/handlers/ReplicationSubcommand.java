@@ -19,7 +19,7 @@ package com.kronotop.volume.handlers;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
 import com.kronotop.server.Request;
@@ -42,11 +42,11 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
 
     @Override
     public void execute(Request request, Response response) {
-        ArrayList<ByteBuf> params = request.getParams();
-        if (params.size() < 2) {
-            throw new InvalidNumberOfParametersException();
+        ArrayList<ByteBuf> args = request.getArguments();
+        if (args.size() < 2) {
+            throw new InvalidNumberOfArgumentsException();
         }
-        String operation = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(params.get(1)));
+        String operation = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(args.get(1)));
         switch (operation) {
             case "START" -> startReplication(request, response);
             case "STOP" -> stopReplication(request, response);
@@ -55,21 +55,21 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
     }
 
     private void startReplication(Request request, Response response) {
-        Parameters parameters = new Parameters(request.getParams());
+        Arguments arguments = new Arguments(request.getArguments());
         RoutingService routing = service.getContext().getService(RoutingService.NAME);
         ReplicationService replications = service.getContext().getService(ReplicationService.NAME);
 
         runAsync(context, response, () -> {
-            VolumeNames.Parsed parsed = VolumeNames.parse(parameters.volumeName);
+            VolumeNames.Parsed parsed = VolumeNames.parse(arguments.volumeName);
             Route route = routing.findRoute(parsed.shardKind(), parsed.shardId());
             if (route == null) {
                 throw new KronotopException(
-                        String.format("No route found for %s", parameters.volumeName)
+                        String.format("No route found for %s", arguments.volumeName)
                 );
             }
             if (!route.standbys().contains(service.getContext().getMember())) {
                 throw new KronotopException(
-                        String.format("This node is not a standby for %s", parameters.volumeName)
+                        String.format("This node is not a standby for %s", arguments.volumeName)
                 );
             }
             replications.startReplication(parsed.shardKind(), parsed.shardId(), true);
@@ -77,36 +77,36 @@ class ReplicationSubcommand extends BaseSubcommandHandler implements SubcommandH
     }
 
     private void stopReplication(Request request, Response response) {
-        Parameters parameters = new Parameters(request.getParams());
+        Arguments arguments = new Arguments(request.getArguments());
         RoutingService routing = service.getContext().getService(RoutingService.NAME);
         ReplicationService replications = service.getContext().getService(ReplicationService.NAME);
 
         runAsync(context, response, () -> {
-            VolumeNames.Parsed parsed = VolumeNames.parse(parameters.volumeName);
+            VolumeNames.Parsed parsed = VolumeNames.parse(arguments.volumeName);
             Route route = routing.findRoute(parsed.shardKind(), parsed.shardId());
             if (route == null) {
                 throw new KronotopException(
-                        String.format("No route found for %s", parameters.volumeName)
+                        String.format("No route found for %s", arguments.volumeName)
                 );
             }
             if (!route.standbys().contains(service.getContext().getMember())) {
                 throw new KronotopException(
-                        String.format("This node is not a standby for %s", parameters.volumeName)
+                        String.format("This node is not a standby for %s", arguments.volumeName)
                 );
             }
             replications.stopReplication(parsed.shardKind(), parsed.shardId(), true);
         }, response::writeOK);
     }
 
-    private static class Parameters {
+    private static class Arguments {
         private final String volumeName;
 
-        private Parameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
-                throw new InvalidNumberOfParametersException();
+        private Arguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 3) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            volumeName = ProtocolMessageUtil.readAsString(params.get(2));
+            volumeName = ProtocolMessageUtil.readAsString(args.get(2));
         }
     }
 }

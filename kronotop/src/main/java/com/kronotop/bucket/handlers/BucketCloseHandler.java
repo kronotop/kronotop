@@ -23,14 +23,14 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 
 import java.util.Map;
 
 @Command(BucketCloseMessage.COMMAND)
-@MaximumParameterCount(BucketCloseMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(BucketCloseMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(BucketCloseMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(BucketCloseMessage.MAXIMUM_ARGUMENT_COUNT)
 public class BucketCloseHandler extends AbstractBucketHandler {
 
     public BucketCloseHandler(BucketService service) {

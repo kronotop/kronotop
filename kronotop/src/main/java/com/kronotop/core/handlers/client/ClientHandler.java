@@ -20,12 +20,12 @@ import com.kronotop.core.handlers.client.protocol.ClientMessage;
 import com.kronotop.core.handlers.client.protocol.ClientSubcommand;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 
 import java.util.EnumMap;
 
 @Command(ClientMessage.COMMAND)
-@MinimumParameterCount(ClientMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(ClientMessage.MINIMUM_ARGUMENT_COUNT)
 public class ClientHandler implements Handler {
     private final EnumMap<ClientSubcommand, SubcommandHandler> executors = new EnumMap<>(ClientSubcommand.class);
 

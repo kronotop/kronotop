@@ -40,12 +40,12 @@ public class HelloMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        if (request.getParams().isEmpty()) {
+        if (request.getArguments().isEmpty()) {
             protover = RESPVersion.RESP3.getValue();
             return;
         }
 
-        String rawProtover = request.getParams().getFirst().toString(StandardCharsets.US_ASCII);
+        String rawProtover = request.getArguments().getFirst().toString(StandardCharsets.US_ASCII);
         try {
             protover = Integer.parseInt(rawProtover);
         } catch (NumberFormatException e) {
@@ -56,27 +56,27 @@ public class HelloMessage implements ProtocolMessage<Void> {
             throw new NoProtoException();
         }
 
-        for (int i = 1; i < request.getParams().size(); i++) {
-            ByteBuf buf = request.getParams().get(i);
-            String parameter = ProtocolMessageUtil.readAsString(buf);
-            if (parameter.equalsIgnoreCase("AUTH")) {
+        for (int i = 1; i < request.getArguments().size(); i++) {
+            ByteBuf buf = request.getArguments().get(i);
+            String argument = ProtocolMessageUtil.readAsString(buf);
+            if (argument.equalsIgnoreCase("AUTH")) {
                 // HELLO $protover AUTH $username $password
-                if (request.getParams().size() - i < 2) {
-                    throw new KronotopException(String.format("Syntax error in %s option '%s'", COMMAND, parameter));
+                if (request.getArguments().size() - i < 2) {
+                    throw new KronotopException(String.format("Syntax error in %s option '%s'", COMMAND, argument));
                 }
-                username = request.getParams().get(i + 1).toString(StandardCharsets.US_ASCII);
-                password = request.getParams().get(i + 2).toString(StandardCharsets.US_ASCII);
+                username = request.getArguments().get(i + 1).toString(StandardCharsets.US_ASCII);
+                password = request.getArguments().get(i + 2).toString(StandardCharsets.US_ASCII);
                 auth = true;
                 i = i + 2;
             }
 
-            if (parameter.equalsIgnoreCase("SETNAME")) {
+            if (argument.equalsIgnoreCase("SETNAME")) {
                 // HELLO $protover AUTH $username $password SETNAME $client-name
                 // HELLO $protover SETNAME $client-name
-                if (request.getParams().size() - i < 1) {
-                    throw new KronotopException(String.format("Syntax error in %s option '%s'", COMMAND, parameter));
+                if (request.getArguments().size() - i < 1) {
+                    throw new KronotopException(String.format("Syntax error in %s option '%s'", COMMAND, argument));
                 }
-                clientName = request.getParams().get(i + 1).toString(StandardCharsets.US_ASCII);
+                clientName = request.getArguments().get(i + 1).toString(StandardCharsets.US_ASCII);
                 setName = true;
                 i++;
             }

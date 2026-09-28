@@ -35,11 +35,11 @@ public interface Request extends AttributeMap {
     String getCommand();
 
     /**
-     * Retrieves the list of parameters associated with the Request.
+     * Retrieves the list of arguments associated with the Request.
      *
-     * @return the list of parameters as an ArrayList of ByteBuf objects
+     * @return the list of arguments as an ArrayList of ByteBuf objects
      */
-    ArrayList<ByteBuf> getParams();
+    ArrayList<ByteBuf> getArguments();
 
     /**
      * Retrieves the Redis message associated with the Request.

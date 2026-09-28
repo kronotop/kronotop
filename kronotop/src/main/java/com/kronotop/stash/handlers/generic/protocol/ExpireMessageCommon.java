@@ -24,8 +24,8 @@ import com.kronotop.server.Request;
 import java.util.List;
 
 public class ExpireMessageCommon implements ProtocolMessage<String> {
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 3;
     private final Request request;
     private String key;
     private long numberValue;
@@ -37,14 +37,14 @@ public class ExpireMessageCommon implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        key = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
-        numberValue = ProtocolMessageUtil.readAsLong(request.getParams().get(1));
+        key = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
+        numberValue = ProtocolMessageUtil.readAsLong(request.getArguments().get(1));
         // TODO:
         if (numberValue <= 0) {
             throw new KronotopException("invalid expire time in 'expire' command");
         }
-        if (request.getParams().size() == 3) {
-            String stringOption = ProtocolMessageUtil.readAsString(request.getParams().get(2)).toUpperCase();
+        if (request.getArguments().size() == 3) {
+            String stringOption = ProtocolMessageUtil.readAsString(request.getArguments().get(2)).toUpperCase();
             try {
                 option = Option.valueOf(stringOption);
             } catch (IllegalArgumentException e) {

@@ -22,7 +22,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.volume.ClosedVolumeException;
@@ -41,7 +41,7 @@ import java.util.List;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(SegmentRangeMessage.COMMAND)
-@MinimumParameterCount(SegmentRangeMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(SegmentRangeMessage.MINIMUM_ARGUMENT_COUNT)
 public class SegmentRangeHandler extends BaseVolumeHandler implements Handler {
     public SegmentRangeHandler(VolumeService service) {
         super(service);

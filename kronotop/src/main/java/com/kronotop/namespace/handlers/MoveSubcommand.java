@@ -45,18 +45,18 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        MoveParameters parameters = new MoveParameters(request);
+        MoveArguments arguments = new MoveArguments(request);
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            List<String> oldPath = getNamespaceSubpath(parameters.oldPath);
-            List<String> newPath = getNamespaceSubpath(parameters.newPath);
+            List<String> oldPath = getNamespaceSubpath(arguments.oldPath);
+            List<String> newPath = getNamespaceSubpath(arguments.newPath);
 
             // Move namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                checkNamespaceBeingRemoved(tr, parameters.oldPath);
+                checkNamespaceBeingRemoved(tr, arguments.oldPath);
                 DirectorySubspace newSubspace = context.getDirectoryLayer().move(tr, oldPath, newPath).join();
-                NamespaceUtil.updateLeafAndParentPointer(context, tr, newSubspace, parameters.newPath);
+                NamespaceUtil.updateLeafAndParentPointer(context, tr, newSubspace, arguments.newPath);
 
-                String oldNamespace = String.join(".", parameters.oldPath);
+                String oldNamespace = String.join(".", arguments.oldPath);
                 String token = TombstoneManager.setTombstone(context, tr, oldNamespace);
                 context.getJournal().getPublisher().publish(
                         tr,
@@ -67,25 +67,25 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandHandler {
                 tr.commit().join();
             } catch (CompletionException e) {
                 if (e.getCause() instanceof NoSuchDirectoryException) {
-                    throw new NoSuchNamespaceException(String.join(".", parameters.oldPath));
+                    throw new NoSuchNamespaceException(String.join(".", arguments.oldPath));
                 } else if (e.getCause() instanceof DirectoryAlreadyExistsException) {
-                    throw new NamespaceAlreadyExistsException(dottedNamespace(parameters.newPath));
+                    throw new NamespaceAlreadyExistsException(dottedNamespace(arguments.newPath));
                 }
                 throw new KronotopException(e.getCause());
             }
         }, response::writeOK);
     }
 
-    private class MoveParameters {
+    private class MoveArguments {
         private final List<String> oldPath;
         private final List<String> newPath;
 
-        private MoveParameters(Request request) {
-            if (request.getParams().size() != 3) {
+        private MoveArguments(Request request) {
+            if (request.getArguments().size() != 3) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.MOVE);
             }
-            oldPath = readSubpath(request.getParams().get(1));
-            newPath = readSubpath(request.getParams().get(2));
+            oldPath = readSubpath(request.getArguments().get(1));
+            newPath = readSubpath(request.getArguments().get(2));
             validateSubpath(oldPath);
             validateSubpath(newPath);
         }

@@ -123,8 +123,8 @@ class TickHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldRejectMissingParameter() {
-        // Behavior: TICK without a mode parameter returns a wrong number of arguments error
+    void shouldRejectMissingArgument() {
+        // Behavior: TICK without a mode argument returns a wrong number of arguments error
         EmbeddedChannel channel = getChannel();
 
         ByteBuf buf = Unpooled.buffer();

@@ -25,7 +25,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.MemberNotRegisteredException;
 import com.kronotop.cluster.MembershipService;
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.ProtocolMessageUtil;
@@ -60,9 +60,9 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
 
     @Override
     public void execute(Request request, Response response) {
-        MarkStalePrefixesParameters parameters = new MarkStalePrefixesParameters(request.getParams());
+        MarkStalePrefixesArguments arguments = new MarkStalePrefixesArguments(request.getArguments());
 
-        if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.LOCATE)) {
+        if (arguments.operation.equals(MarkStalePrefixesArguments.Operation.LOCATE)) {
             supplyAsync(context, response, () -> {
                 KronotopDirectoryNode node = KronotopDirectory.kronotop()
                         .cluster(context.getClusterName()).metadata().tasks()
@@ -114,12 +114,12 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
         } else {
             runAsync(context, response, () -> {
                 TaskService taskService = context.getService(TaskService.NAME);
-                if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.START)) {
+                if (arguments.operation.equals(MarkStalePrefixesArguments.Operation.START)) {
                     MarkStalePrefixesTask task = new MarkStalePrefixesTask(context);
                     taskService.execute(task);
-                } else if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.STOP)) {
+                } else if (arguments.operation.equals(MarkStalePrefixesArguments.Operation.STOP)) {
                     taskService.shutdownAndRemoveTask(MarkStalePrefixesTask.NAME);
-                } else if (parameters.operation.equals(MarkStalePrefixesParameters.Operation.REMOVE)) {
+                } else if (arguments.operation.equals(MarkStalePrefixesArguments.Operation.REMOVE)) {
                     taskService.shutdownAndRemoveTask(MarkStalePrefixesTask.NAME);
                     MarkStalePrefixesTask.removeMetadata(context);
                 }
@@ -127,15 +127,15 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
         }
     }
 
-    private static class MarkStalePrefixesParameters {
+    private static class MarkStalePrefixesArguments {
         private final Operation operation;
 
-        private MarkStalePrefixesParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 2) {
-                throw new InvalidNumberOfParametersException();
+        private MarkStalePrefixesArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 2) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            operation = ProtocolMessageUtil.readEnum(Operation.class, params.get(1), "operation");
+            operation = ProtocolMessageUtil.readEnum(Operation.class, args.get(1), "operation");
         }
 
         enum Operation {

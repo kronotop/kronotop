@@ -11,9 +11,9 @@ Removes changelog entries older than a given retention period to reclaim storage
 VOLUME.ADMIN PRUNE-CHANGELOG <volume-name> <retention-period>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter          | Type    | Description                                                                |
+| Argument           | Type    | Description                                                                |
 |--------------------|---------|----------------------------------------------------------------------------|
 | `volume-name`      | string  | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`)  |
 | `retention-period` | integer | Number of hours of changelog history to retain. Must be greater than zero. |
@@ -35,7 +35,7 @@ Argument errors:
 
 | Error Code | Error message                                | Cause                                                   |
 |------------|----------------------------------------------|---------------------------------------------------------|
-| `ERR`      | `invalid number of parameters`               | -                                                       |
+| `ERR`      | `invalid number of arguments`                | -                                                       |
 | `ERR`      | `retention period must be greater than zero` | -                                                       |
 | `ERR`      | `invalid volume name: <name>`                | The name does not match the `<kind>-shard-<id>` format. |
 
@@ -62,9 +62,9 @@ OK
 (error) ERR invalid volume name: non-existent-volume
 ```
 
-**Missing parameters:**
+**Missing arguments:**
 
 ```kronotop
 127.0.0.1:3320> VOLUME.ADMIN PRUNE-CHANGELOG
-(error) ERR invalid number of parameters
+(error) ERR invalid number of arguments
 ```

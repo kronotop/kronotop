@@ -44,8 +44,8 @@ class CommandHandlerRegistryTest {
         assertNotNull(entry);
         assertSame(handler, entry.handler());
         assertEquals(CommandType.PING, entry.commandType());
-        assertEquals(0, entry.minimumParameterCount());
-        assertEquals(1, entry.maximumParameterCount());
+        assertEquals(0, entry.minimumArgumentCount());
+        assertEquals(1, entry.maximumArgumentCount());
     }
 
     // Behavior: Verifies that a handler can be retrieved by command string.
@@ -121,20 +121,20 @@ class CommandHandlerRegistryTest {
         registry.register(CommandType.DEL, new TestHandler(), 1, 10);
 
         HandlerEntry pingEntry = registry.get(CommandType.PING);
-        assertFalse(pingEntry.hasMinimumParameterCount());
-        assertFalse(pingEntry.hasMaximumParameterCount());
+        assertFalse(pingEntry.hasMinimumArgumentCount());
+        assertFalse(pingEntry.hasMaximumArgumentCount());
 
         HandlerEntry getEntry = registry.get(CommandType.GET);
-        assertTrue(getEntry.hasMinimumParameterCount());
-        assertFalse(getEntry.hasMaximumParameterCount());
+        assertTrue(getEntry.hasMinimumArgumentCount());
+        assertFalse(getEntry.hasMaximumArgumentCount());
 
         HandlerEntry setEntry = registry.get(CommandType.SET);
-        assertFalse(setEntry.hasMinimumParameterCount());
-        assertTrue(setEntry.hasMaximumParameterCount());
+        assertFalse(setEntry.hasMinimumArgumentCount());
+        assertTrue(setEntry.hasMaximumArgumentCount());
 
         HandlerEntry delEntry = registry.get(CommandType.DEL);
-        assertTrue(delEntry.hasMinimumParameterCount());
-        assertTrue(delEntry.hasMaximumParameterCount());
+        assertTrue(delEntry.hasMinimumArgumentCount());
+        assertTrue(delEntry.hasMaximumArgumentCount());
     }
 
     private static class TestHandler implements Handler {

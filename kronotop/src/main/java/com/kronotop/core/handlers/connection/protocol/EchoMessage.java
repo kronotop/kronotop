@@ -24,8 +24,8 @@ import java.util.List;
 
 public class EchoMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "ECHO";
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
 
     private final Request request;
     private String message;
@@ -36,7 +36,7 @@ public class EchoMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        message = request.getParams().getFirst().toString(CharsetUtil.UTF_8);
+        message = request.getArguments().getFirst().toString(CharsetUtil.UTF_8);
     }
 
     public String getMessage() {

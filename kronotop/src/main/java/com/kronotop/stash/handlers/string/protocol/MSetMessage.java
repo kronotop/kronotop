@@ -24,7 +24,7 @@ import java.util.List;
 
 public class MSetMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "MSET";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
     private final Request request;
     private final List<Pair> pairs = new ArrayList<>();
 
@@ -34,12 +34,12 @@ public class MSetMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        for (int i = 0; i < request.getParams().size(); i = i + 2) {
-            byte[] key = new byte[request.getParams().get(i).readableBytes()];
-            request.getParams().get(i).readBytes(key);
+        for (int i = 0; i < request.getArguments().size(); i = i + 2) {
+            byte[] key = new byte[request.getArguments().get(i).readableBytes()];
+            request.getArguments().get(i).readBytes(key);
 
-            byte[] value = new byte[request.getParams().get(i + 1).readableBytes()];
-            request.getParams().get(i + 1).readBytes(value);
+            byte[] value = new byte[request.getArguments().get(i + 1).readableBytes()];
+            request.getArguments().get(i + 1).readBytes(value);
 
             Pair keyValue = new Pair(new String(key), value);
             pairs.add(keyValue);

@@ -44,24 +44,24 @@ public class BucketIndexDropSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        DropParameters parameters = new DropParameters(request.getParams());
+        DropArguments arguments = new DropArguments(request.getArguments());
         runAsync(context, response, () -> {
-            if (parameters.index.equals(PrimaryIndex.NAME)) {
+            if (arguments.index.equals(PrimaryIndex.NAME)) {
                 throw new IllegalArgumentException("Cannot drop the primary index");
             }
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
-                String namespace = NamespaceUtil.resolve(request.getSession(), parameters.namespace);
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, parameters.bucket);
-                VectorIndex vectorIndex = metadata.vectorIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
+                String namespace = NamespaceUtil.resolve(request.getSession(), arguments.namespace);
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);
+                VectorIndex vectorIndex = metadata.vectorIndexes().getIndexByName(arguments.index, IndexSelectionPolicy.ALL);
                 if (vectorIndex != null) {
-                    VectorIndexUtil.drop(tx, metadata, parameters.index);
+                    VectorIndexUtil.drop(tx, metadata, arguments.index);
                 } else {
-                    CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
+                    CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(arguments.index, IndexSelectionPolicy.ALL);
                     if (compoundIndex != null) {
-                        CompoundIndexUtil.drop(tx, metadata, parameters.index);
+                        CompoundIndexUtil.drop(tx, metadata, arguments.index);
                     } else {
-                        SingleFieldIndexUtil.drop(tx, metadata, parameters.index);
+                        SingleFieldIndexUtil.drop(tx, metadata, arguments.index);
                     }
                 }
                 tr.commit().join();
@@ -69,18 +69,18 @@ public class BucketIndexDropSubcommand implements SubcommandHandler {
         }, response::writeOK);
     }
 
-    private static class DropParameters {
+    private static class DropArguments {
         private final String bucket;
         private final String index;
         private final String namespace;
 
-        DropParameters(ArrayList<ByteBuf> params) {
-            if (params.size() < 3 || params.size() > 5) {
-                throw new KronotopException("wrong number of parameters");
+        DropArguments(ArrayList<ByteBuf> args) {
+            if (args.size() < 3 || args.size() > 5) {
+                throw new KronotopException("wrong number of arguments");
             }
-            bucket = ProtocolMessageUtil.readAsString(params.get(1));
-            index = ProtocolMessageUtil.readAsString(params.get(2));
-            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
+            bucket = ProtocolMessageUtil.readAsString(args.get(1));
+            index = ProtocolMessageUtil.readAsString(args.get(2));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(args, 3);
         }
     }
 }

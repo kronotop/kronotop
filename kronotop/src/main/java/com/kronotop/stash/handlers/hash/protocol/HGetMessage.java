@@ -23,8 +23,8 @@ import java.util.List;
 
 public class HGetMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "HGET";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 2;
     private final Request request;
     private String key;
     private String field;
@@ -35,12 +35,12 @@ public class HGetMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawKey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawKey);
+        byte[] rawKey = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawKey);
         key = new String(rawKey);
 
-        byte[] rawField = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(rawField);
+        byte[] rawField = new byte[request.getArguments().get(1).readableBytes()];
+        request.getArguments().get(1).readBytes(rawField);
         field = new String(rawField);
     }
 

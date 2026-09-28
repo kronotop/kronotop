@@ -828,7 +828,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("CREATE", "test-bucket", "{\"username\": {\"bson_type\": \"string\"}}", "NAMESPACE")));
         assertErrorReply("ERR Unknown 'BOGUS' argument",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("CREATE", "test-bucket", "{\"username\": {\"bson_type\": \"string\"}}", "BOGUS")));
-        assertErrorReply("ERR wrong number of parameters",
+        assertErrorReply("ERR wrong number of arguments",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_INDEX, List.of("CREATE", "test-bucket", "{\"username\": {\"bson_type\": \"string\"}}", "NAMESPACE", "ns", "EXTRA")));
     }
 }

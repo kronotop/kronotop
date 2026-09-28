@@ -20,8 +20,8 @@ import com.kronotop.server.Request;
 
 public class HSetNXMessage extends HSetMessage {
     public static final String COMMAND = "HSETNX";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 3;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 3;
 
     public HSetNXMessage(Request request) {
         super(request);

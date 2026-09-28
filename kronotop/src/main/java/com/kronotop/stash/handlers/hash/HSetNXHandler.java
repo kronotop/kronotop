@@ -22,8 +22,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.hash.protocol.FieldValuePair;
 import com.kronotop.stash.handlers.hash.protocol.HSetNXMessage;
@@ -38,8 +38,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import static com.kronotop.stash.StashService.checkStashValueKind;
 
 @Command(HSetNXMessage.COMMAND)
-@MaximumParameterCount(HSetNXMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(HSetNXMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(HSetNXMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(HSetNXMessage.MINIMUM_ARGUMENT_COUNT)
 public class HSetNXHandler extends BaseHashHandler implements Handler {
     public HSetNXHandler(StashService service) {
         super(service);

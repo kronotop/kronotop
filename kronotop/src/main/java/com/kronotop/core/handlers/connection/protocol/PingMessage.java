@@ -24,7 +24,7 @@ import java.util.List;
 
 public class PingMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "PING";
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
 
     private final Request request;
     private String message;
@@ -35,8 +35,8 @@ public class PingMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        if (!request.getParams().isEmpty()) {
-            message = request.getParams().getFirst().toString(CharsetUtil.UTF_8);
+        if (!request.getArguments().isEmpty()) {
+            message = request.getArguments().getFirst().toString(CharsetUtil.UTF_8);
         }
     }
 

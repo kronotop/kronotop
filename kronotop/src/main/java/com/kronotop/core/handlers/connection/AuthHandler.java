@@ -20,16 +20,16 @@ import com.kronotop.Context;
 import com.kronotop.core.handlers.connection.protocol.AuthMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 
 import java.util.Objects;
 
 @Command(AuthMessage.COMMAND)
-@MinimumParameterCount(AuthMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(AuthMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(AuthMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(AuthMessage.MAXIMUM_ARGUMENT_COUNT)
 public class AuthHandler extends BaseConnectionHandler implements Handler {
     private final Context context;
 
@@ -70,7 +70,7 @@ public class AuthHandler extends BaseConnectionHandler implements Handler {
             return;
         }
 
-        if (request.getParams().size() == 1) {
+        if (request.getArguments().size() == 1) {
             response.writeError("AUTH <password> called without any password configured for the default user. Are you sure your configuration is correct?");
             return;
         }

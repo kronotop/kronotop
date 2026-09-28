@@ -11,9 +11,9 @@ Returns PONG or echoes back the given message.
 PING [message]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Type   | Required | Description                   |
+| Argument  | Type   | Required | Description                   |
 |-----------|--------|----------|-------------------------------|
 | `message` | string | No       | Optional message to echo back |
 

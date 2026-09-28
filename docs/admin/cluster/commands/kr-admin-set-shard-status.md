@@ -11,9 +11,9 @@ Changes the operational status of a shard.
 KR.ADMIN SET-SHARD-STATUS <shard-kind> <shard-id> <shard-status>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter      | Type           | Description                                                     |
+| Argument       | Type           | Description                                                     |
 |----------------|----------------|-----------------------------------------------------------------|
 | `shard-kind`   | string         | `STASH` or `BUCKET`. Case-insensitive.                          |
 | `shard-id`     | integer or `*` | Zero-based shard index, or `*` to target all shards atomically. |
@@ -52,7 +52,7 @@ Argument errors:
 
 | Error Code | Error message                     | Cause                                                                   |
 |------------|-----------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of parameters`    | -                                                                       |
+| `ERR`      | `invalid number of arguments`     | -                                                                       |
 | `ERR`      | `Unknown shard kind: '<value>'`   | The shard kind must be `STASH` or `BUCKET`.                             |
 | `ERR`      | `invalid shard id`                | The shard ID is not a valid integer, or is out of the configured range. |
 | `ERR`      | `Unknown shard status: '<value>'` | The status must be `READWRITE`, `READONLY`, or `INOPERABLE`.            |

@@ -23,11 +23,11 @@ import com.kronotop.KronotopException;
 import com.kronotop.core.handlers.transaction.protocol.RollbackMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
 import io.netty.util.Attribute;
 
 @Command(RollbackMessage.COMMAND)
-@MaximumParameterCount(RollbackMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(RollbackMessage.MAXIMUM_ARGUMENT_COUNT)
 public class RollbackHandler implements Handler {
     private final Context context;
 

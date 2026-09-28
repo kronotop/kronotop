@@ -25,8 +25,8 @@ import java.util.List;
 
 public class HRandFieldMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "HRANDFIELD";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 3;
     private final Request request;
     private String key;
     private Integer count;
@@ -38,22 +38,22 @@ public class HRandFieldMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawKey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawKey);
+        byte[] rawKey = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawKey);
         key = new String(rawKey);
 
-        if (request.getParams().size() >= 2) {
-            byte[] rawCount = new byte[request.getParams().get(1).readableBytes()];
-            request.getParams().get(1).readBytes(rawCount);
+        if (request.getArguments().size() >= 2) {
+            byte[] rawCount = new byte[request.getArguments().get(1).readableBytes()];
+            request.getArguments().get(1).readBytes(rawCount);
             try {
                 count = Integer.parseInt(new String(rawCount));
             } catch (NumberFormatException e) {
                 throw new KronotopException(RESPError.NUMBER_FORMAT_EXCEPTION_MESSAGE_INTEGER);
             }
 
-            if (request.getParams().size() == 3) {
-                byte[] rawOperand = new byte[request.getParams().get(2).readableBytes()];
-                request.getParams().get(2).readBytes(rawOperand);
+            if (request.getArguments().size() == 3) {
+                byte[] rawOperand = new byte[request.getArguments().get(2).readableBytes()];
+                request.getArguments().get(2).readBytes(rawOperand);
                 String operand = new String(rawOperand);
                 if (operand.equalsIgnoreCase("WITHVALUES")) {
                     withValues = true;

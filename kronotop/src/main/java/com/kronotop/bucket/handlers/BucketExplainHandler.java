@@ -26,7 +26,7 @@ import com.kronotop.bucket.pipeline.PipelineNode;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.TransactionUtil;
 
@@ -36,7 +36,7 @@ import java.util.Map;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketExplainMessage.COMMAND)
-@MinimumParameterCount(BucketExplainMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(BucketExplainMessage.MINIMUM_ARGUMENT_COUNT)
 public class BucketExplainHandler extends AbstractBucketHandler implements Handler {
 
     public BucketExplainHandler(BucketService service) {

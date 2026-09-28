@@ -11,7 +11,7 @@ Opens a new FoundationDB transaction on the current session.
 BEGIN
 ```
 
-This command takes no parameters.
+This command takes no arguments.
 
 ## Return Value
 

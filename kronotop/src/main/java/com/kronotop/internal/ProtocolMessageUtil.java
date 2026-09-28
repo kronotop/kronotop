@@ -328,37 +328,37 @@ public class ProtocolMessageUtil {
     /**
      * Returns the value that follows a keyword at index {@code i}.
      *
-     * @param params   the command parameters
+     * @param arguments   the command arguments
      * @param i        the index of the keyword
      * @param keyword  the keyword as it is written on the wire, used in the error message
      * @param expected a short description of the accepted value, used in the error message
      * @return the buffer holding the value
      * @throws IllegalCommandArgumentException if the keyword is the last argument
      */
-    public static ByteBuf requireValue(List<ByteBuf> params, int i, String keyword, String expected) {
-        if (params.size() <= i + 1) {
+    public static ByteBuf requireValue(List<ByteBuf> arguments, int i, String keyword, String expected) {
+        if (arguments.size() <= i + 1) {
             throw illegalValue(keyword, expected);
         }
-        return params.get(i + 1);
+        return arguments.get(i + 1);
     }
 
     /**
      * Reads an optional trailing {@code NAMESPACE <path>} argument that follows the positional
      * arguments of a command. Any other keyword at or after {@code startIndex} is rejected.
      *
-     * @param params     the command parameters
+     * @param arguments     the command arguments
      * @param startIndex the index of the first argument after the positional ones
      * @return the namespace given on the command, or null if not specified
      * @throws IllegalCommandArgumentException if an unknown keyword is found or the keyword has no value
      */
-    public static String readTrailingNamespace(List<ByteBuf> params, int startIndex) {
+    public static String readTrailingNamespace(List<ByteBuf> arguments, int startIndex) {
         String namespace = null;
-        for (int i = startIndex; i < params.size(); i++) {
-            String raw = readAsString(params.get(i));
+        for (int i = startIndex; i < arguments.size(); i++) {
+            String raw = readAsString(arguments.get(i));
             if (!StringUtil.toUpperCaseAscii(raw).equals(NAMESPACE_KEYWORD)) {
                 throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
             }
-            ByteBuf value = requireValue(params, i, NAMESPACE_KEYWORD, NAMESPACE_PATH);
+            ByteBuf value = requireValue(arguments, i, NAMESPACE_KEYWORD, NAMESPACE_PATH);
             namespace = readAsString(value);
             i++;
         }

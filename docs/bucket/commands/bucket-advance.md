@@ -13,9 +13,9 @@ Advances a cursor to fetch or process the next batch of documents.
 BUCKET.ADVANCE <operation> <cursor-id>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type    | Required | Description                                                                                          |
+| Argument    | Type    | Required | Description                                                                                          |
 |-------------|---------|----------|------------------------------------------------------------------------------------------------------|
 | `operation` | string  | Yes      | The operation type. Must be `QUERY`, `DELETE`, or `UPDATE`.                                          |
 | `cursor-id` | integer | Yes      | The cursor ID returned by the initial command (`BUCKET.QUERY`, `BUCKET.DELETE`, or `BUCKET.UPDATE`). |

@@ -11,9 +11,9 @@ Negotiates the protocol version and optionally authenticates the connection.
 HELLO protover [AUTH username password] [SETNAME clientname]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter                | Type           | Required | Description                                            |
+| Argument                 | Type           | Required | Description                                            |
 |--------------------------|----------------|----------|--------------------------------------------------------|
 | `protover`               | integer        | Yes      | Protocol version to use (`2` for RESP2, `3` for RESP3) |
 | `AUTH username password` | string, string | No       | Optional inline authentication                         |

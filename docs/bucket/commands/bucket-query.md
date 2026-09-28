@@ -13,11 +13,11 @@ Queries documents from a bucket using a filter expression.
 BUCKET.QUERY <bucket> <query> [SORTBY <field> <ASC|DESC>] [RESULTSORT <field> <ASC|DESC>] [PROJECTION <spec>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>] [CLOSE]
 ```
 
-## Parameters
+## Arguments
 
 Keyword names are not case-sensitive, and each keyword can appear at most once.
 
-| Parameter    | Type               | Required | Description                                                                                                                                                                                                                                                                                                            |
+| Argument     | Type               | Required | Description                                                                                                                                                                                                                                                                                                            |
 |--------------|--------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`     | string             | Yes      | Name of the bucket to query.                                                                                                                                                                                                                                                                                           |
 | `query`      | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                                                                                                                                                                                 |

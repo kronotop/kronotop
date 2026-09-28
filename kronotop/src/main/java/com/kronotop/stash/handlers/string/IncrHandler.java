@@ -20,8 +20,8 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.IncrMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(IncrMessage.COMMAND)
-@MaximumParameterCount(IncrMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(IncrMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(IncrMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(IncrMessage.MINIMUM_ARGUMENT_COUNT)
 public class IncrHandler extends BaseStringHandler implements Handler {
     public IncrHandler(StashService service) {
         super(service);

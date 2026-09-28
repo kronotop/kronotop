@@ -26,8 +26,8 @@ import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.bucket.pipeline.UpdateOptions;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import org.bson.BsonDocument;
 import org.bson.types.ObjectId;
@@ -37,8 +37,8 @@ import java.util.List;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketUpdateMessage.COMMAND)
-@MaximumParameterCount(BucketUpdateMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(BucketUpdateMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(BucketUpdateMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(BucketUpdateMessage.MINIMUM_ARGUMENT_COUNT)
 public class BucketUpdateHandler extends AbstractBucketHandler implements Handler {
     public BucketUpdateHandler(BucketService service) {
         super(service);

@@ -12,9 +12,9 @@ position, per-stage progress, and any error message.
 VOLUME.INSPECT REPLICATION <volume-name> <standby-id>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                                          |
+| Argument      | Type   | Description                                                                          |
 |---------------|--------|--------------------------------------------------------------------------------------|
 | `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
 | `standby-id`  | string | Full member ID of the standby, or a unique 4-character prefix                        |
@@ -66,7 +66,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause                                                                   |
 |------------|--------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of parameters` | -                                                                       |
+| `ERR`      | `invalid number of arguments`  | -                                                                       |
 | `ERR`      | `invalid volume name: <name>`  | The name does not match the `<kind>-shard-<id>` format.                 |
 | `ERR`      | `Invalid memberId: <id>`       | The value is neither a 40-character member ID nor a 4-character prefix. |
 

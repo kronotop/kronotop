@@ -39,16 +39,16 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
 
     @Override
     public void execute(Request request, Response response) {
-        SetShardStatusParameters parameters = new SetShardStatusParameters(request.getParams());
+        SetShardStatusArguments arguments = new SetShardStatusArguments(request.getArguments());
 
         AsyncCommandExecutor.runAsync(context, response, () -> {
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                if (parameters.allShards) {
-                    for (int shardId : getShardIds(parameters.shardKind)) {
-                        ShardUtil.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, shardId);
+                if (arguments.allShards) {
+                    for (int shardId : getShardIds(arguments.shardKind)) {
+                        ShardUtil.setShardStatus(context, tr, arguments.shardKind, arguments.shardStatus, shardId);
                     }
                 } else {
-                    ShardUtil.setShardStatus(context, tr, parameters.shardKind, parameters.shardStatus, parameters.shardId);
+                    ShardUtil.setShardStatus(context, tr, arguments.shardKind, arguments.shardStatus, arguments.shardId);
                 }
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
@@ -56,20 +56,20 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
         }, response::writeOK);
     }
 
-    private class SetShardStatusParameters {
+    private class SetShardStatusArguments {
         private final ShardKind shardKind;
         private final boolean allShards;
         private final int shardId;
         private final ShardStatus shardStatus;
 
-        private SetShardStatusParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 4) {
-                throw new InvalidNumberOfParametersException();
+        private SetShardStatusArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 4) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            shardKind = ProtocolMessageUtil.readShardKind(params.get(1));
+            shardKind = ProtocolMessageUtil.readShardKind(args.get(1));
 
-            String rawShardId = ProtocolMessageUtil.readAsString(params.get(2));
+            String rawShardId = ProtocolMessageUtil.readAsString(args.get(2));
             allShards = rawShardId.equals("*");
             if (!allShards) {
                 shardId = ProtocolMessageUtil.readShardId(context.getShardRegistry(), shardKind, rawShardId);
@@ -77,7 +77,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
                 shardId = -1; // dummy assignment due to final declaration
             }
 
-            shardStatus = readShardStatus(params.get(3));
+            shardStatus = readShardStatus(args.get(3));
         }
     }
 }

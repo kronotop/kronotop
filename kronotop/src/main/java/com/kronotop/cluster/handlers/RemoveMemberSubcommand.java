@@ -36,24 +36,24 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
 
     @Override
     public void execute(Request request, Response response) {
-        RemoveMemberParameters parameters = new RemoveMemberParameters(request.getParams());
+        RemoveMemberArguments arguments = new RemoveMemberArguments(request.getArguments());
         AsyncCommandExecutor.runAsync(context, response, () -> {
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                membership.removeMember(tr, parameters.memberId);
+                membership.removeMember(tr, arguments.memberId);
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
             }
         }, response::writeOK);
     }
 
-    private class RemoveMemberParameters {
+    private class RemoveMemberArguments {
         private final String memberId;
 
-        RemoveMemberParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 2) {
-                throw new InvalidNumberOfParametersException();
+        RemoveMemberArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 2) {
+                throw new InvalidNumberOfArgumentsException();
             }
-            memberId = ProtocolMessageUtil.readMemberId(context, params.get(1));
+            memberId = ProtocolMessageUtil.readMemberId(context, args.get(1));
         }
     }
 }

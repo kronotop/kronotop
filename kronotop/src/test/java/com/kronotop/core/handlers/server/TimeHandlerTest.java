@@ -85,8 +85,8 @@ class TimeHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldRejectExtraParameter() {
-        // Behavior: TIME with a parameter returns a wrong number of arguments error
+    void shouldRejectExtraArgument() {
+        // Behavior: TIME with a argument returns a wrong number of arguments error
         EmbeddedChannel channel = getChannel();
 
         ByteBuf buf = Unpooled.buffer();

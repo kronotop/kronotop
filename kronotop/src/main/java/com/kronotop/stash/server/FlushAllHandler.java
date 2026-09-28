@@ -21,8 +21,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.BaseHandler;
 import com.kronotop.stash.server.protocol.FlushAllMessage;
@@ -32,8 +32,8 @@ import com.kronotop.stash.server.protocol.FlushAllMessage;
  * and extends the BaseHandler class. It is responsible for executing the actual logic of the "FLUSHALL" command.
  */
 @Command(FlushAllMessage.COMMAND)
-@MaximumParameterCount(FlushAllMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(FlushAllMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(FlushAllMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(FlushAllMessage.MINIMUM_ARGUMENT_COUNT)
 public class FlushAllHandler extends BaseHandler implements Handler {
     public FlushAllHandler(StashService service) {
         super(service);

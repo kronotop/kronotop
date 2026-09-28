@@ -25,8 +25,8 @@ import java.util.List;
 
 public class SnapshotReadMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SNAPSHOTREAD";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private Option option;
 
@@ -36,7 +36,7 @@ public class SnapshotReadMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        ByteBuf buf = request.getParams().getFirst();
+        ByteBuf buf = request.getArguments().getFirst();
         option = ProtocolMessageUtil.readEnum(Option.class, buf, "option");
     }
 

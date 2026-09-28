@@ -25,7 +25,7 @@ public class SetNameSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        if (request.getParams().size() != 2) {
+        if (request.getArguments().size() != 2) {
             ClientMessage clientMessage = request.attr(MessageTypes.CLIENT).get();
             // ERR wrong number of arguments for 'client|setinfo' command
             throw new WrongNumberOfArgumentsException(
@@ -33,8 +33,8 @@ public class SetNameSubcommand implements SubcommandHandler {
             );
         }
 
-        byte[] rawName = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(rawName);
+        byte[] rawName = new byte[request.getArguments().get(1).readableBytes()];
+        request.getArguments().get(1).readBytes(rawName);
         String name = new String(rawName);
 
         HashMap<String, Object> channelAttributes = request.getSession().attr(SessionAttributes.CLIENT_ATTRIBUTES).get();

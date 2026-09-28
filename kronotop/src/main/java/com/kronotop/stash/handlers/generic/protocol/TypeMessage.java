@@ -23,7 +23,7 @@ import java.util.List;
 
 public class TypeMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "TYPE";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private String key;
 
@@ -33,8 +33,8 @@ public class TypeMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] tmp = new byte[request.getParams().getFirst().readableBytes()];
-        request.getParams().getFirst().readBytes(tmp);
+        byte[] tmp = new byte[request.getArguments().getFirst().readableBytes()];
+        request.getArguments().getFirst().readBytes(tmp);
         key = new String(tmp);
     }
 

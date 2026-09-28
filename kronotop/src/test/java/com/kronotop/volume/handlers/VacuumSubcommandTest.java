@@ -198,8 +198,8 @@ class VacuumSubcommandTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReturnErrorWithInvalidNumberOfParametersForStart() {
-        // Behavior: START without garbage threshold parameter is rejected.
+    void shouldReturnErrorWithInvalidNumberOfArgumentsForStart() {
+        // Behavior: START without garbage threshold argument is rejected.
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$6\r\nVACUUM\r\n$5\r\nSTART\r\n".getBytes());
 
@@ -207,12 +207,12 @@ class VacuumSubcommandTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid number of parameters"));
+        assertTrue(errorMessage.content().contains("invalid number of arguments"));
     }
 
     @Test
-    void shouldReturnErrorWithInvalidNumberOfParametersForStop() {
-        // Behavior: STOP without volume-name parameter is rejected.
+    void shouldReturnErrorWithInvalidNumberOfArgumentsForStop() {
+        // Behavior: STOP without volume-name argument is rejected.
         ByteBuf buf = Unpooled.buffer();
         buf.writeBytes("*3\r\n$12\r\nVOLUME.ADMIN\r\n$6\r\nVACUUM\r\n$4\r\nSTOP\r\n".getBytes());
 
@@ -220,6 +220,6 @@ class VacuumSubcommandTest extends BaseNetworkedVolumeIntegrationTest {
 
         assertInstanceOf(ErrorRedisMessage.class, msg);
         ErrorRedisMessage errorMessage = (ErrorRedisMessage) msg;
-        assertTrue(errorMessage.content().contains("invalid number of parameters"));
+        assertTrue(errorMessage.content().contains("invalid number of arguments"));
     }
 }

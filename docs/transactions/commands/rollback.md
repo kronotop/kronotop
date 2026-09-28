@@ -11,7 +11,7 @@ Aborts the current transaction and discards all uncommitted changes.
 ROLLBACK
 ```
 
-This command takes no parameters.
+This command takes no arguments.
 
 ## Return Value
 

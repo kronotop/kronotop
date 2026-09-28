@@ -26,7 +26,7 @@ import java.util.List;
 
 public class KrAdminMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "KR.ADMIN";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private KrAdminSubcommand subcommand;
 
@@ -36,7 +36,7 @@ public class KrAdminMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        String cmd = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        String cmd = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
         try {
             subcommand = KrAdminSubcommand.valueOfSubcommand(cmd);
         } catch (IllegalArgumentException e) {

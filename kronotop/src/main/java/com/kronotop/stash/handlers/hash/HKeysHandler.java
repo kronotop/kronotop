@@ -22,8 +22,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.stash.StashService;
@@ -44,8 +44,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import static com.kronotop.stash.StashService.checkStashValueKind;
 
 @Command(HKeysMessage.COMMAND)
-@MinimumParameterCount(HKeysMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(HKeysMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(HKeysMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(HKeysMessage.MAXIMUM_ARGUMENT_COUNT)
 public class HKeysHandler extends BaseHandler implements Handler {
     public HKeysHandler(StashService service) {
         super(service);

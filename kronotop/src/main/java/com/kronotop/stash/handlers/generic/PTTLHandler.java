@@ -20,15 +20,15 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.generic.protocol.PTTLMessage;
 
 
 @Command(PTTLMessage.COMMAND)
-@MaximumParameterCount(PTTLMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(PTTLMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(PTTLMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(PTTLMessage.MINIMUM_ARGUMENT_COUNT)
 public class PTTLHandler extends TTLHandler {
     public PTTLHandler(StashService service) {
         super(service);

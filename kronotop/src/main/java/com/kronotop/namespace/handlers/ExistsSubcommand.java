@@ -33,20 +33,20 @@ class ExistsSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        ExistsParameters parameters = new ExistsParameters(request);
+        ExistsArguments arguments = new ExistsArguments(request);
         AsyncCommandExecutor.supplyAsync(context, response,
-                () -> NamespaceUtil.exists(context, parameters.subpath),
+                () -> NamespaceUtil.exists(context, arguments.subpath),
                 response::writeBoolean);
     }
 
-    private class ExistsParameters {
+    private class ExistsArguments {
         private final List<String> subpath;
 
-        private ExistsParameters(Request request) {
-            if (request.getParams().size() != 2) {
+        private ExistsArguments(Request request) {
+            if (request.getArguments().size() != 2) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.EXISTS);
             }
-            subpath = readSubpath(request.getParams().get(1));
+            subpath = readSubpath(request.getArguments().get(1));
             validateSubpath(subpath);
         }
     }

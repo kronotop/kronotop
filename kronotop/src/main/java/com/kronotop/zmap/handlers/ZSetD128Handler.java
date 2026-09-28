@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapNumericValueCodec;
@@ -32,8 +32,8 @@ import org.bson.types.Decimal128;
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 @Command(ZSetD128Message.COMMAND)
-@MaximumParameterCount(ZSetD128Message.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(ZSetD128Message.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(ZSetD128Message.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(ZSetD128Message.MINIMUM_ARGUMENT_COUNT)
 public class ZSetD128Handler extends BaseZMapHandler implements Handler {
     public ZSetD128Handler(ZMapService service) {
         super(service);

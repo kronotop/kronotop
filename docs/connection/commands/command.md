@@ -31,7 +31,7 @@ name gives a null entry in its position.
 COMMAND INFO [command ...]
 ```
 
-| Parameter | Type   | Required | Description                        |
+| Argument  | Type   | Required | Description                        |
 |-----------|--------|----------|------------------------------------|
 | `command` | string | No       | One or more command names to query |
 
@@ -53,7 +53,7 @@ skipped.
 COMMAND DOCS [command ...]
 ```
 
-| Parameter | Type   | Required | Description                        |
+| Argument  | Type   | Required | Description                        |
 |-----------|--------|----------|------------------------------------|
 | `command` | string | No       | One or more command names to query |
 

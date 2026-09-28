@@ -24,7 +24,7 @@ import com.kronotop.server.Request;
 
 public class BucketCursorsMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.CURSORS";
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private BucketOperation operation;
 
@@ -34,8 +34,8 @@ public class BucketCursorsMessage extends AbstractBucketMessage implements Proto
     }
 
     private void parse() {
-        if (!request.getParams().isEmpty()) {
-            String raw = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        if (!request.getArguments().isEmpty()) {
+            String raw = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
             try {
                 operation = BucketOperation.valueOf(StringUtil.toUpperCaseAscii(raw));
             } catch (IllegalArgumentException e) {

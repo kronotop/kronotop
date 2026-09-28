@@ -11,9 +11,9 @@ Returns in-memory operation counters for a named volume.
 VOLUME.STATS <volume-name> OPCOUNTERS
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                               |
+| Argument      | Type   | Description                                                               |
 |---------------|--------|---------------------------------------------------------------------------|
 | `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
 

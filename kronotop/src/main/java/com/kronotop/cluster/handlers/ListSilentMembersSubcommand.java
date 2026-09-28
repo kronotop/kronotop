@@ -36,8 +36,8 @@ class ListSilentMembersSubcommand extends BaseKrAdminSubcommandHandler implement
 
     @Override
     public void execute(Request request, Response response) {
-        if (request.getParams().size() != 1) {
-            throw new InvalidNumberOfParametersException();
+        if (request.getArguments().size() != 1) {
+            throw new InvalidNumberOfArgumentsException();
         }
         List<RedisMessage> result = new ArrayList<>();
         Map<Member, MemberView> others = membership.getKnownMembers();

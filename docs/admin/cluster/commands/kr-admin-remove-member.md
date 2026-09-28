@@ -11,9 +11,9 @@ Removes a member from the cluster.
 KR.ADMIN REMOVE-MEMBER <member-id>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Description                                                                                                                                  |
+| Argument    | Type   | Description                                                                                                                                  |
 |-------------|--------|----------------------------------------------------------------------------------------------------------------------------------------------|
 | `member-id` | string | Exactly 40 characters for a full member ID, or exactly 4 characters for a prefix. A prefix is resolved against currently registered members. |
 
@@ -38,7 +38,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause                                                                   |
 |------------|--------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of parameters` | -                                                                       |
+| `ERR`      | `invalid number of arguments`  | -                                                                       |
 | `ERR`      | `Invalid memberId: <id>`       | The value is neither a 40-character member ID nor a 4-character prefix. |
 
 Cluster errors:

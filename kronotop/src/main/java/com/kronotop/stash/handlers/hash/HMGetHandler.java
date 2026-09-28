@@ -23,7 +23,7 @@ import com.kronotop.server.RESPUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.stash.StashService;
@@ -42,7 +42,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import static com.kronotop.stash.StashService.checkStashValueKind;
 
 @Command(HMGetMessage.COMMAND)
-@MinimumParameterCount(HMGetMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(HMGetMessage.MINIMUM_ARGUMENT_COUNT)
 public class HMGetHandler extends BaseHandler implements Handler {
     public HMGetHandler(StashService service) {
         super(service);

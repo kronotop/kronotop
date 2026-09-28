@@ -11,9 +11,9 @@ Authenticates the current connection.
 AUTH [username] password
 ```
 
-## Parameters
+## Arguments
 
-| Parameter  | Type   | Required | Description                            |
+| Argument   | Type   | Required | Description                            |
 |------------|--------|----------|----------------------------------------|
 | `username` | string | No       | Username for named-user authentication |
 | `password` | string | Yes      | Password to authenticate with          |
@@ -26,8 +26,8 @@ Simple string `OK` on successful authentication.
 
 Supports two authentication modes:
 
-- **Default user mode (1 parameter):** Checks the provided password against the `auth.requirepass` configuration value.
-- **Named user mode (2 parameters):** Checks the provided username and password against the `auth.users.<username>`
+- **Default user mode (1 argument):** Checks the provided password against the `auth.requirepass` configuration value.
+- **Named user mode (2 arguments):** Checks the provided username and password against the `auth.users.<username>`
   configuration.
 
 On successful authentication, the connection is marked as authenticated and stays that way until it is closed.

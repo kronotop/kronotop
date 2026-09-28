@@ -25,7 +25,7 @@ import io.netty.buffer.ByteBuf;
 
 public class BucketInsertMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.INSERT";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
     private final Request request;
     private String bucket;
     private byte[][] documents;
@@ -37,18 +37,18 @@ public class BucketInsertMessage extends AbstractBucketMessage implements Protoc
     }
 
     private void readDocuments(int startIndex) {
-        int count = request.getParams().size() - startIndex;
+        int count = request.getArguments().size() - startIndex;
         documents = new byte[count][];
         for (int i = 0; i < count; i++) {
-            documents[i] = ProtocolMessageUtil.readAsByteArray(request.getParams().get(startIndex + i));
+            documents[i] = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(startIndex + i));
         }
     }
 
     private void parse() {
-        bucket = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        bucket = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
         long seen = 0;
-        for (int i = 1; i < request.getParams().size(); i++) {
-            String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
+        for (int i = 1; i < request.getArguments().size(); i++) {
+            String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(i));
             InsertArgumentKey argument;
             try {
                 argument = InsertArgumentKey.valueOf(StringUtil.toUpperCaseAscii(raw));
@@ -57,12 +57,12 @@ public class BucketInsertMessage extends AbstractBucketMessage implements Protoc
             }
             seen = ProtocolMessageUtil.markArgumentSeen(seen, argument, argument.name());
             if (argument.equals(InsertArgumentKey.DOCS)) {
-                ProtocolMessageUtil.requireValue(request.getParams(), i, argument.name(), "one or more documents");
+                ProtocolMessageUtil.requireValue(request.getArguments(), i, argument.name(), "one or more documents");
                 readDocuments(i + 1);
                 break;
             }
             if (argument.equals(InsertArgumentKey.NAMESPACE)) {
-                ByteBuf value = ProtocolMessageUtil.requireValue(request.getParams(), i, argument.name(), ProtocolMessageUtil.NAMESPACE_PATH);
+                ByteBuf value = ProtocolMessageUtil.requireValue(request.getArguments(), i, argument.name(), ProtocolMessageUtil.NAMESPACE_PATH);
                 namespace = ProtocolMessageUtil.readAsString(value);
                 i++;
             }

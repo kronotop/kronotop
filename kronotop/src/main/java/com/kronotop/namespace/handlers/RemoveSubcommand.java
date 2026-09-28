@@ -70,24 +70,24 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        RemoveParameters parameters = new RemoveParameters(request);
+        RemoveArguments arguments = new RemoveArguments(request);
         runAsync(context, response, () -> {
-            String name = String.join(".", parameters.subpath);
+            String name = String.join(".", arguments.subpath);
             if (context.getConfig().getString("default_namespace").equals(name)) {
                 throw new KronotopException("Cannot remove the default namespace: '" + name + "'");
             }
-            remove(name, parameters.subpath);
+            remove(name, arguments.subpath);
         }, response::writeOK);
     }
 
-    private class RemoveParameters {
+    private class RemoveArguments {
         private final List<String> subpath;
 
-        private RemoveParameters(Request request) {
-            if (request.getParams().size() != 2) {
+        private RemoveArguments(Request request) {
+            if (request.getArguments().size() != 2) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.REMOVE);
             }
-            subpath = readSubpath(request.getParams().get(1));
+            subpath = readSubpath(request.getArguments().get(1));
             validateSubpath(subpath);
         }
     }

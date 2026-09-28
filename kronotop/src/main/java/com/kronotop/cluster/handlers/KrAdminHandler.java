@@ -22,13 +22,13 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.handlers.protocol.KrAdminMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import io.netty.util.Attribute;
 
 import java.util.EnumMap;
 
 @Command(KrAdminMessage.COMMAND)
-@MinimumParameterCount(KrAdminMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(KrAdminMessage.MINIMUM_ARGUMENT_COUNT)
 public class KrAdminHandler implements Handler {
 
     final EnumMap<KrAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(KrAdminSubcommand.class);

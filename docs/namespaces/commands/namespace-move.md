@@ -11,9 +11,9 @@ Renames a namespace by moving its FoundationDB directory from the old path to th
 NAMESPACE MOVE <old-namespace> <new-namespace>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter       | Type   | Required | Description                                                                               |
+| Argument        | Type   | Required | Description                                                                               |
 |-----------------|--------|----------|-------------------------------------------------------------------------------------------|
 | `old-namespace` | string | Yes      | Dot-separated hierarchical path of the source namespace (e.g. `staging.orders`).          |
 | `new-namespace` | string | Yes      | Dot-separated hierarchical path for the destination namespace (e.g. `production.orders`). |

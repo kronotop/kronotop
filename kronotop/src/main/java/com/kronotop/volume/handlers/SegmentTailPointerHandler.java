@@ -23,8 +23,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.transaction.TransactionUtil;
@@ -45,8 +45,8 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 // * The sequence number is -1 for sealed and empty segments, or if the changelog entry was pruned.
 
 @Command(SegmentTailPointerMessage.COMMAND)
-@MaximumParameterCount(SegmentTailPointerMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(SegmentTailPointerMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(SegmentTailPointerMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(SegmentTailPointerMessage.MINIMUM_ARGUMENT_COUNT)
 public class SegmentTailPointerHandler extends BaseVolumeHandler implements Handler {
 
     public SegmentTailPointerHandler(VolumeService service) {

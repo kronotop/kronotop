@@ -25,8 +25,8 @@ import java.util.List;
 
 public class TickMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "TICK";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private Mode mode;
 
@@ -36,7 +36,7 @@ public class TickMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        ByteBuf buf = request.getParams().getFirst();
+        ByteBuf buf = request.getArguments().getFirst();
         mode = ProtocolMessageUtil.readEnum(Mode.class, buf, "mode");
     }
 

@@ -22,8 +22,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.stash.StashService;
@@ -42,8 +42,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import static com.kronotop.stash.StashService.checkStashValueKind;
 
 @Command(HRandFieldMessage.COMMAND)
-@MinimumParameterCount(HRandFieldMessage.MINIMUM_PARAMETER_COUNT)
-@MaximumParameterCount(HRandFieldMessage.MAXIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(HRandFieldMessage.MINIMUM_ARGUMENT_COUNT)
+@MaximumArgumentCount(HRandFieldMessage.MAXIMUM_ARGUMENT_COUNT)
 public class HRandFieldHandler extends BaseHandler implements Handler {
     private final Random random;
 

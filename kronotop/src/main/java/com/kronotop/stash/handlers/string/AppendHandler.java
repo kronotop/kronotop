@@ -19,8 +19,8 @@ package com.kronotop.stash.handlers.string;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.AppendMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -34,8 +34,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(AppendMessage.COMMAND)
-@MaximumParameterCount(AppendMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(AppendMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(AppendMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(AppendMessage.MINIMUM_ARGUMENT_COUNT)
 public class AppendHandler extends BaseStringHandler implements Handler {
     public AppendHandler(StashService service) {
         super(service);

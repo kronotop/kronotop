@@ -38,11 +38,11 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
 
     @Override
     public void execute(Request request, Response response) {
-        SetMemberStatusParameters parameters = new SetMemberStatusParameters(request.getParams());
+        SetMemberStatusArguments arguments = new SetMemberStatusArguments(request.getArguments());
         AsyncCommandExecutor.runAsync(context, response, () -> {
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                Member member = membership.findMember(tr, parameters.memberId);
-                member.setStatus(parameters.memberStatus);
+                Member member = membership.findMember(tr, arguments.memberId);
+                member.setStatus(arguments.memberStatus);
                 membership.updateMember(tr, member);
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();
@@ -50,16 +50,16 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
         }, response::writeOK);
     }
 
-    private class SetMemberStatusParameters {
+    private class SetMemberStatusArguments {
         private final String memberId;
         private final MemberStatus memberStatus;
 
-        private SetMemberStatusParameters(ArrayList<ByteBuf> params) {
-            if (params.size() != 3) {
-                throw new InvalidNumberOfParametersException();
+        private SetMemberStatusArguments(ArrayList<ByteBuf> args) {
+            if (args.size() != 3) {
+                throw new InvalidNumberOfArgumentsException();
             }
-            memberId = ProtocolMessageUtil.readMemberId(context, params.get(1));
-            memberStatus = readMemberStatus(params.get(2));
+            memberId = ProtocolMessageUtil.readMemberId(context, args.get(1));
+            memberStatus = readMemberStatus(args.get(2));
         }
     }
 }

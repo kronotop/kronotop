@@ -22,7 +22,7 @@ import java.util.List;
 
 public class GetApproximateSizeMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "GETAPPROXIMATESIZE";
-    public static final int MAXIMUM_PARAMETER_COUNT = 0;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 0;
 
     @Override
     public Void getKey() {

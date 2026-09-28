@@ -22,7 +22,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.MSetNXMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(MSetNXMessage.COMMAND)
-@MinimumParameterCount(MSetNXMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(MSetNXMessage.MINIMUM_ARGUMENT_COUNT)
 public class MSetNXHandler extends BaseStringHandler implements Handler {
     public MSetNXHandler(StashService service) {
         super(service);

@@ -11,9 +11,9 @@ Overrides the status of a cluster member.
 KR.ADMIN SET-MEMBER-STATUS <member-id> <status>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Description                                                                                                         |
+| Argument    | Type   | Description                                                                                                         |
 |-------------|--------|---------------------------------------------------------------------------------------------------------------------|
 | `member-id` | string | Full 40-character hex member ID or a 4-character prefix. A prefix is resolved against currently registered members. |
 | `status`    | string | Target status. One of `RUNNING`, `UNAVAILABLE`, `STOPPED`, `UNKNOWN`. Case-insensitive.                             |
@@ -34,7 +34,7 @@ Argument errors:
 
 | Error Code | Error message                      | Cause                                                                   |
 |------------|------------------------------------|-------------------------------------------------------------------------|
-| `ERR`      | `invalid number of parameters`     | -                                                                       |
+| `ERR`      | `invalid number of arguments`      | -                                                                       |
 | `ERR`      | `Unknown member status: '<value>'` | -                                                                       |
 | `ERR`      | `Invalid memberId: <id>`           | The value is neither a 40-character member ID nor a 4-character prefix. |
 

@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-package com.kronotop.cluster.handlers;
+package com.kronotop.server.annotation;
 
-import com.kronotop.KronotopException;
+import java.lang.annotation.*;
 
-public class InvalidNumberOfParametersException extends KronotopException {
-    public InvalidNumberOfParametersException() {
-        super("invalid number of parameters");
-    }
+/**
+ * Annotation that specifies the maximum number of arguments allowed for a class or interface.
+ */
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+@Documented
+public @interface MaximumArgumentCount {
+    int value();
 }

@@ -23,8 +23,8 @@ import java.util.List;
 
 public class HValsMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "HVALS";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private String key;
 
@@ -34,8 +34,8 @@ public class HValsMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawKey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawKey);
+        byte[] rawKey = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawKey);
         key = new String(rawKey);
     }
 

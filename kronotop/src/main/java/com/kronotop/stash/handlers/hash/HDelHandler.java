@@ -22,7 +22,7 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.hash.protocol.FieldValuePair;
 import com.kronotop.stash.handlers.hash.protocol.HDelMessage;
@@ -37,7 +37,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import static com.kronotop.stash.StashService.checkStashValueKind;
 
 @Command(HDelMessage.COMMAND)
-@MinimumParameterCount(HDelMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(HDelMessage.MINIMUM_ARGUMENT_COUNT)
 public class HDelHandler extends BaseHashHandler implements Handler {
     public HDelHandler(StashService service) {
         super(service);

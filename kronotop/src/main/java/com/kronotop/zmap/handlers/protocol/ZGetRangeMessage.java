@@ -27,8 +27,8 @@ import java.util.List;
 
 public class ZGetRangeMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "ZGETRANGE";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 11;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 11;
 
     public static final int DEFAULT_LIMIT = 100;
     public static final boolean DEFAULT_REVERSE = false;
@@ -50,18 +50,18 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        begin = ProtocolMessageUtil.readAsByteArray(request.getParams().get(0));
-        end = ProtocolMessageUtil.readAsByteArray(request.getParams().get(1));
+        begin = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(0));
+        end = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(1));
 
         long seen = 0;
-        for (int i = 2; i < request.getParams().size(); i++) {
-            String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
+        for (int i = 2; i < request.getArguments().size(); i++) {
+            String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(i));
             ZGetRangeArgumentKey argument = valueOfArgument(raw);
             seen = ProtocolMessageUtil.markArgumentSeen(seen, argument, argument.getValue());
             switch (argument) {
                 case LIMIT -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.POSITIVE_INTEGER);
+                            request.getArguments(), i, argument.getValue(), ProtocolMessageUtil.POSITIVE_INTEGER);
                     limit = ProtocolMessageUtil.readAsInteger(value);
                     if (limit <= 0) {
                         throw ProtocolMessageUtil.illegalValue(
@@ -72,19 +72,19 @@ public class ZGetRangeMessage implements ProtocolMessage<Void> {
                 case REVERSE -> reverse = true;
                 case BEGIN_KEY_SELECTOR -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
+                            request.getArguments(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
                     beginKeySelector = RangeKeySelector.getValue(ProtocolMessageUtil.readAsString(value));
                     i++;
                 }
                 case END_KEY_SELECTOR -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
+                            request.getArguments(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
                     endKeySelector = RangeKeySelector.getValue(ProtocolMessageUtil.readAsString(value));
                     i++;
                 }
                 case NAMESPACE -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.NAMESPACE_PATH);
+                            request.getArguments(), i, argument.getValue(), ProtocolMessageUtil.NAMESPACE_PATH);
                     namespace = ProtocolMessageUtil.readAsString(value);
                     i++;
                 }

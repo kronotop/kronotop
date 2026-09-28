@@ -27,7 +27,7 @@ import io.netty.buffer.ByteBuf;
 
 public class BucketVectorMessage extends AbstractBucketMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "BUCKET.VECTOR";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 3;
     private final Request request;
     private String bucket;
     private String selector;
@@ -47,16 +47,16 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
     }
 
     private void parse() {
-        bucket = ProtocolMessageUtil.readAsString(request.getParams().get(0));
-        selector = ProtocolMessageUtil.readAsString(request.getParams().get(1));
-        vector = ProtocolMessageUtil.readAsByteArray(request.getParams().get(2));
+        bucket = ProtocolMessageUtil.readAsString(request.getArguments().get(0));
+        selector = ProtocolMessageUtil.readAsString(request.getArguments().get(1));
+        vector = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(2));
         parseOptionalArguments();
     }
 
     private void parseOptionalArguments() {
         long seen = 0;
-        for (int i = 3; i < request.getParams().size(); i++) {
-            String raw = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getParams().get(i)));
+        for (int i = 3; i < request.getArguments().size(); i++) {
+            String raw = StringUtil.toUpperCaseAscii(ProtocolMessageUtil.readAsString(request.getArguments().get(i)));
             VectorArgumentKey key = VectorArgumentKey.findByValue(raw);
             if (key == null) {
                 throw new IllegalCommandArgumentException(String.format("Unknown '%s' argument", raw));
@@ -64,67 +64,67 @@ public class BucketVectorMessage extends AbstractBucketMessage implements Protoc
             seen = ProtocolMessageUtil.markArgumentSeen(seen, key, key.getValue());
             switch (key) {
                 case FILTER -> {
-                    if (request.getParams().size() <= i + 1) {
+                    if (request.getArguments().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("FILTER argument must be followed by a BQL expression");
                     }
-                    filter = ProtocolMessageUtil.readAsByteArray(request.getParams().get(i + 1));
+                    filter = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(i + 1));
                     i++;
                 }
                 case TOP -> {
-                    if (request.getParams().size() <= i + 1) {
+                    if (request.getArguments().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("TOP argument must be followed by a positive integer");
                     }
-                    topK = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
+                    topK = ProtocolMessageUtil.readAsInteger(request.getArguments().get(i + 1));
                     if (topK < 0) {
                         throw new IllegalCommandArgumentException("TOP argument must be a non-negative integer");
                     }
                     i++;
                 }
                 case THRESHOLD -> {
-                    if (request.getParams().size() <= i + 1) {
+                    if (request.getArguments().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("THRESHOLD argument must be followed by a number");
                     }
-                    threshold = (float) ProtocolMessageUtil.readAsDouble(request.getParams().get(i + 1));
+                    threshold = (float) ProtocolMessageUtil.readAsDouble(request.getArguments().get(i + 1));
                     i++;
                 }
                 case MAX_SCAN_CANDIDATES -> {
-                    if (request.getParams().size() <= i + 1) {
+                    if (request.getArguments().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("MAX-SCAN-CANDIDATES argument must be followed by a positive integer");
                     }
-                    maxScanCandidates = ProtocolMessageUtil.readAsInteger(request.getParams().get(i + 1));
+                    maxScanCandidates = ProtocolMessageUtil.readAsInteger(request.getArguments().get(i + 1));
                     if (maxScanCandidates <= 0) {
                         throw new IllegalCommandArgumentException("MAX-SCAN-CANDIDATES argument must be a positive integer");
                     }
                     i++;
                 }
                 case OVERQUERY -> {
-                    if (request.getParams().size() <= i + 1) {
+                    if (request.getArguments().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("OVERQUERY argument must be followed by a number >= 1.0");
                     }
-                    overquery = (float) ProtocolMessageUtil.readAsDouble(request.getParams().get(i + 1));
+                    overquery = (float) ProtocolMessageUtil.readAsDouble(request.getArguments().get(i + 1));
                     if (overquery < 1.0f) {
                         throw new IllegalCommandArgumentException("OVERQUERY argument must be >= 1.0");
                     }
                     i++;
                 }
                 case PROJECTION -> {
-                    if (request.getParams().size() <= i + 1) {
+                    if (request.getArguments().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("PROJECTION argument must be followed by a projection specification");
                     }
-                    projection = ProtocolMessageUtil.readAsByteArray(request.getParams().get(i + 1));
+                    projection = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(i + 1));
                     i++;
                 }
                 case COLLATION -> {
-                    if (request.getParams().size() <= i + 1) {
+                    if (request.getArguments().size() <= i + 1) {
                         throw new IllegalCommandArgumentException("COLLATION argument must be followed by a collation specification");
                     }
-                    byte[] data = ProtocolMessageUtil.readAsByteArray(request.getParams().get(i + 1));
+                    byte[] data = ProtocolMessageUtil.readAsByteArray(request.getArguments().get(i + 1));
                     collation = CollationHelper.deserializeAndValidate(data);
                     i++;
                 }
                 case NAMESPACE -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, key.getValue(), ProtocolMessageUtil.NAMESPACE_PATH);
+                            request.getArguments(), i, key.getValue(), ProtocolMessageUtil.NAMESPACE_PATH);
                     namespace = ProtocolMessageUtil.readAsString(value);
                     i++;
                 }

@@ -25,8 +25,8 @@ import java.util.List;
 
 public class HIncrByFloatMessage extends SyncableHashMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "HINCRBYFLOAT";
-    public static final int MINIMUM_PARAMETER_COUNT = 3;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 3;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 3;
     private final Request request;
     private String key;
     private double increment;
@@ -37,17 +37,17 @@ public class HIncrByFloatMessage extends SyncableHashMessage implements Protocol
     }
 
     private void parse() {
-        byte[] rawKey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawKey);
+        byte[] rawKey = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawKey);
         key = new String(rawKey);
 
-        byte[] rawField = new byte[request.getParams().get(1).readableBytes()];
-        request.getParams().get(1).readBytes(rawField);
+        byte[] rawField = new byte[request.getArguments().get(1).readableBytes()];
+        request.getArguments().get(1).readBytes(rawField);
         String field = new String(rawField);
         getFieldValuePairs().add(new FieldValuePair(field, null));
 
-        byte[] rawIncrement = new byte[request.getParams().get(2).readableBytes()];
-        request.getParams().get(2).readBytes(rawIncrement);
+        byte[] rawIncrement = new byte[request.getArguments().get(2).readableBytes()];
+        request.getArguments().get(2).readBytes(rawIncrement);
         try {
             increment = Double.parseDouble(new String(rawIncrement));
         } catch (NumberFormatException e) {

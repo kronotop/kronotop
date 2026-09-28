@@ -11,9 +11,9 @@ Identifies and removes orphaned segment files from a volume's data directory tha
 VOLUME.ADMIN CLEANUP-ORPHAN-FILES <volume-name>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                            |
+| Argument      | Type   | Description                                            |
 |---------------|--------|--------------------------------------------------------|
 | `volume-name` | string | Name of the volume to clean up (e.g. `bucket-shard-0`) |
 
@@ -38,7 +38,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 
 Volume errors:
 

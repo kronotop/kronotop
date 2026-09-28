@@ -34,8 +34,8 @@ class DescribeMemberSubcommand extends BaseKrAdminSubcommandHandler implements S
 
     @Override
     public void execute(Request request, Response response) {
-        if (request.getParams().size() > 1) {
-            throw new InvalidNumberOfParametersException();
+        if (request.getArguments().size() > 1) {
+            throw new InvalidNumberOfArgumentsException();
         }
 
         Member member = context.getMember();

@@ -12,9 +12,9 @@ references valid data. Stale prefixes are cleared and published to a disused-pre
 VOLUME.ADMIN MARK-STALE-PREFIXES <operation>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Description                                                      |
+| Argument    | Type   | Description                                                      |
 |-------------|--------|------------------------------------------------------------------|
 | `operation` | string | One of `START`, `STOP`, `REMOVE`, or `LOCATE` (case-insensitive) |
 
@@ -65,7 +65,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 | `ERR`      | `Unknown operation: '<value>'` | -     |
 
 Volume errors:

@@ -24,7 +24,7 @@ import com.kronotop.bucket.handlers.protocol.BucketOperation;
 import com.kronotop.bucket.pipeline.QueryContext;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.resp3.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Command(BucketCursorsMessage.COMMAND)
-@MaximumParameterCount(BucketCursorsMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(BucketCursorsMessage.MAXIMUM_ARGUMENT_COUNT)
 public class BucketCursorsHandler extends AbstractBucketHandler {
     private final List<BucketOperation> operations = List.of(BucketOperation.QUERY, BucketOperation.UPDATE, BucketOperation.DELETE);
 

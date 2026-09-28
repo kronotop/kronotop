@@ -23,7 +23,7 @@ import java.util.List;
 
 public class HDelMessage extends SyncableHashMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "HDEL";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
     private final Request request;
     private String key;
 
@@ -33,13 +33,13 @@ public class HDelMessage extends SyncableHashMessage implements ProtocolMessage<
     }
 
     private void parse() {
-        byte[] rawKey = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawKey);
+        byte[] rawKey = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawKey);
         key = new String(rawKey);
 
-        for (int i = 1; i < request.getParams().size(); i++) {
-            byte[] rawField = new byte[request.getParams().get(i).readableBytes()];
-            request.getParams().get(i).readBytes(rawField);
+        for (int i = 1; i < request.getArguments().size(); i++) {
+            byte[] rawField = new byte[request.getArguments().get(i).readableBytes()];
+            request.getArguments().get(i).readBytes(rawField);
             getFieldValuePairs().add(new FieldValuePair(new String(rawField), null));
         }
     }

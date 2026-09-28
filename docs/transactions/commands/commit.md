@@ -11,9 +11,9 @@ Commits the current transaction and applies all changes.
 COMMIT [RETURNING committed-version | versionstamp]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Required | Description                                                                                           |
+| Argument    | Required | Description                                                                                           |
 |-------------|----------|-------------------------------------------------------------------------------------------------------|
 | `RETURNING` | No       | Requests a value from the committed transaction. Must be followed by exactly one of the values below. |
 
@@ -50,7 +50,7 @@ Argument errors:
 |------------|----------------------------------------------------------------------------|---------------------------------------------------------|
 | `ERR`      | `Unknown '<argument>' argument`                                            | -                                                       |
 | `ERR`      | `RETURNING argument must be followed by VERSIONSTAMP or COMMITTED_VERSION` | -                                                       |
-| `ERR`      | `Unknown RETURNING parameter: '<value>'`                                   | The value is not `committed-version` or `versionstamp`. |
+| `ERR`      | `Unknown RETURNING argument: '<value>'`                                    | The value is not `committed-version` or `versionstamp`. |
 
 Transaction errors:
 

@@ -13,11 +13,11 @@ Updates documents in a bucket that match a filter expression.
 BUCKET.UPDATE <bucket> <query> <update> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>] [CLOSE]
 ```
 
-## Parameters
+## Arguments
 
 Keyword names are not case-sensitive, and each keyword can appear at most once.
 
-| Parameter   | Type               | Required | Description                                                                                                                                                                                                                                                                                  |
+| Argument    | Type               | Required | Description                                                                                                                                                                                                                                                                                  |
 |-------------|--------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string             | Yes      | Name of the bucket to update.                                                                                                                                                                                                                                                                |
 | `query`     | JSON or BSON       | Yes      | Filter expression to match documents. Use `{}` to match all documents.                                                                                                                                                                                                                       |
@@ -82,7 +82,7 @@ The update is not committed until `COMMIT` is called. Use `ROLLBACK` to cancel t
 
 ## Update Operators
 
-The `update` parameter accepts a JSON or BSON document containing one or more of the following operators:
+The `update` argument accepts a JSON or BSON document containing one or more of the following operators:
 
 **`$set`**: Sets field values on matched documents.
 

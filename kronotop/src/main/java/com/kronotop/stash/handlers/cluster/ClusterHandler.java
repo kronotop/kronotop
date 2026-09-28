@@ -18,7 +18,7 @@ package com.kronotop.stash.handlers.cluster;
 
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.BaseHandler;
 import com.kronotop.stash.handlers.cluster.protocol.ClusterMessage;
@@ -27,7 +27,7 @@ import com.kronotop.stash.handlers.cluster.protocol.ClusterSubcommand;
 import java.util.EnumMap;
 
 @Command(ClusterMessage.COMMAND)
-@MinimumParameterCount(ClusterMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(ClusterMessage.MINIMUM_ARGUMENT_COUNT)
 public class ClusterHandler extends BaseHandler implements Handler {
     private final EnumMap<ClusterSubcommand, SubcommandHandler> handlers = new EnumMap<>(ClusterSubcommand.class);
 

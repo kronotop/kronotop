@@ -20,11 +20,11 @@ structured query predicates.
 BUCKET.VECTOR <bucket> <selector> <vector> [FILTER <expression>] [PROJECTION <spec>] [TOP <n>] [THRESHOLD <n>] [MAX-SCAN-CANDIDATES <n>] [OVERQUERY <n>] [NAMESPACE <path>]
 ```
 
-## Parameters
+## Arguments
 
 Keyword names are not case-sensitive, and each keyword can appear at most once.
 
-| Parameter             | Type           | Required | Description                                                                                                                                                                                                                                                |
+| Argument              | Type           | Required | Description                                                                                                                                                                                                                                                |
 |-----------------------|----------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`              | string         | Yes      | Name of the bucket to search.                                                                                                                                                                                                                              |
 | `selector`            | string         | Yes      | Field selector identifying the vector index to use. Supports dot notation for nested fields (e.g., `data.embedding`).                                                                                                                                      |
@@ -113,7 +113,7 @@ additional candidates from the vector graph in progressively larger batches unti
 - The `MAX-SCAN-CANDIDATES` limit is reached, or
 - The vector graph is exhausted.
 
-The `MAX-SCAN-CANDIDATES` parameter provides an upper bound on how many candidates are examined. This is useful for
+The `MAX-SCAN-CANDIDATES` argument provides an upper bound on how many candidates are examined. This is useful for
 controlling latency when the filter is highly selective and most candidates do not match.
 
 ## Routing

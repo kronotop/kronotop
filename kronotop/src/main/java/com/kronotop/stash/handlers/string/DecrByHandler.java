@@ -20,8 +20,8 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.DecrByMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(DecrByMessage.COMMAND)
-@MaximumParameterCount(DecrByMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(DecrByMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(DecrByMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(DecrByMessage.MINIMUM_ARGUMENT_COUNT)
 public class DecrByHandler extends BaseStringHandler implements Handler {
     public DecrByHandler(StashService service) {
         super(service);

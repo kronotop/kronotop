@@ -14,9 +14,9 @@ shard, and the addresses of those members.
 BUCKET.LOCATE <bucket> [NAMESPACE <path>]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Required | Description                                                                                                                                              |
+| Argument    | Type   | Required | Description                                                                                                                                              |
 |-------------|--------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string | Yes      | Name of the bucket to locate.                                                                                                                            |
 | `NAMESPACE` | string | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |

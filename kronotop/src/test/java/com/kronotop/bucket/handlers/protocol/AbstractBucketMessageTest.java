@@ -419,18 +419,18 @@ class AbstractBucketMessageTest {
      * Minimal Request implementation for testing.
      */
     private static class TestRequest extends DefaultAttributeMap implements Request {
-        private final ArrayList<ByteBuf> params;
+        private final ArrayList<ByteBuf> arguments;
 
         TestRequest(String... args) {
-            this.params = new ArrayList<>();
+            this.arguments = new ArrayList<>();
             for (String arg : args) {
-                params.add(Unpooled.copiedBuffer(arg, CharsetUtil.UTF_8));
+                arguments.add(Unpooled.copiedBuffer(arg, CharsetUtil.UTF_8));
             }
         }
 
         @Override
-        public ArrayList<ByteBuf> getParams() {
-            return params;
+        public ArrayList<ByteBuf> getArguments() {
+            return arguments;
         }
 
         @Override

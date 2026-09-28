@@ -21,15 +21,15 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.BaseHandler;
 import com.kronotop.stash.server.protocol.FlushDBMessage;
 
 @Command(FlushDBMessage.COMMAND)
-@MaximumParameterCount(FlushDBMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(FlushDBMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(FlushDBMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(FlushDBMessage.MINIMUM_ARGUMENT_COUNT)
 public class FlushDBHandler extends BaseHandler implements Handler {
     public FlushDBHandler(StashService service) {
         super(service);

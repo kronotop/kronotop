@@ -11,9 +11,9 @@ Resets operation counters to zero for a named volume.
 VOLUME.STATS <volume-name> RESET
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                               |
+| Argument      | Type   | Description                                                               |
 |---------------|--------|---------------------------------------------------------------------------|
 | `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
 

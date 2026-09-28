@@ -11,7 +11,7 @@ Lists cluster members suspected to be unresponsive.
 KR.ADMIN LIST-SILENT-MEMBERS
 ```
 
-## Parameters
+## Arguments
 
 None.
 
@@ -40,7 +40,7 @@ Argument errors:
 
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 
 Cluster errors:
 

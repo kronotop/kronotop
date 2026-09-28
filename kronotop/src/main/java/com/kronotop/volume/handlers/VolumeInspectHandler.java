@@ -18,7 +18,7 @@ package com.kronotop.volume.handlers;
 
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.handlers.protocol.VolumeInspectMessage;
 import com.kronotop.volume.handlers.protocol.VolumeInspectSubcommand;
@@ -26,7 +26,7 @@ import com.kronotop.volume.handlers.protocol.VolumeInspectSubcommand;
 import java.util.EnumMap;
 
 @Command(VolumeInspectMessage.COMMAND)
-@MinimumParameterCount(VolumeInspectMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(VolumeInspectMessage.MINIMUM_ARGUMENT_COUNT)
 public class VolumeInspectHandler extends BaseSubcommandHandler implements Handler {
 
     private final EnumMap<VolumeInspectSubcommand, SubcommandHandler> handlers = new EnumMap<>(VolumeInspectSubcommand.class);

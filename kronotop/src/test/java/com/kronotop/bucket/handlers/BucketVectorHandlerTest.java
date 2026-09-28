@@ -470,7 +470,7 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
     }
 
     @Test
-    void shouldAcceptOverqueryParameter() {
+    void shouldAcceptOverqueryArgument() {
         // Behavior: BUCKET.VECTOR with OVERQUERY >= 1.0 is accepted and returns results normally.
         createBucketWithVectorIndexOnly();
 

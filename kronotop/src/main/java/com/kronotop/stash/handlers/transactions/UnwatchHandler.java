@@ -21,14 +21,14 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.transactions.protocol.UnwatchMessage;
 
 @Command(UnwatchMessage.COMMAND)
-@MaximumParameterCount(UnwatchMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(UnwatchMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(UnwatchMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(UnwatchMessage.MINIMUM_ARGUMENT_COUNT)
 public class UnwatchHandler implements Handler {
     private final StashService service;
 

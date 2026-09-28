@@ -23,8 +23,8 @@ import java.util.List;
 
 public class SelectMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SELECT";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private String index;
 
@@ -48,8 +48,8 @@ public class SelectMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        byte[] indexBytes = new byte[request.getParams().getFirst().readableBytes()];
-        request.getParams().getFirst().readBytes(indexBytes);
+        byte[] indexBytes = new byte[request.getArguments().getFirst().readableBytes()];
+        request.getArguments().getFirst().readBytes(indexBytes);
         index = new String(indexBytes);
         if (!isNumeric(index)) {
             throw new IllegalArgumentException(String.format("index has to be a zero-based numeric: '%s'", index));

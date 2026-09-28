@@ -276,7 +276,7 @@ class ChangeLogRangeHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
-    void shouldRespectLimitParameter() throws IOException {
+    void shouldRespectLimitArgument() throws IOException {
         // Append entries to create changelog entries
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(5);
         try (Transaction tr = database.createTransaction()) {

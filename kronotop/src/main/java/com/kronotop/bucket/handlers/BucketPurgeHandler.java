@@ -31,8 +31,8 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.PrefixUtil;
 
@@ -41,8 +41,8 @@ import java.time.Duration;
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 @Command(BucketPurgeMessage.COMMAND)
-@MaximumParameterCount(BucketPurgeMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(BucketPurgeMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(BucketPurgeMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(BucketPurgeMessage.MINIMUM_ARGUMENT_COUNT)
 public class BucketPurgeHandler extends AbstractBucketHandler {
     public BucketPurgeHandler(BucketService service) {
         super(service);

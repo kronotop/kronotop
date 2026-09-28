@@ -24,8 +24,8 @@ import java.util.List;
 
 public class ZIncF64Message implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZINC.F64";
-    public static final int MINIMUM_PARAMETER_COUNT = 2;
-    public static final int MAXIMUM_PARAMETER_COUNT = 4;
+    public static final int MINIMUM_ARGUMENT_COUNT = 2;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 4;
     private final Request request;
     private String namespace;
     private byte[] key;
@@ -37,9 +37,9 @@ public class ZIncF64Message implements ProtocolMessage<byte[]> {
     }
 
     private void parse() {
-        key = ProtocolMessageUtil.readAsByteArray(request.getParams().getFirst());
-        value = ProtocolMessageUtil.readAsDouble(request.getParams().get(1));
-        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getParams(), 2);
+        key = ProtocolMessageUtil.readAsByteArray(request.getArguments().getFirst());
+        value = ProtocolMessageUtil.readAsDouble(request.getArguments().get(1));
+        namespace = ProtocolMessageUtil.readTrailingNamespace(request.getArguments(), 2);
     }
 
     @Override

@@ -16,7 +16,7 @@
 
 package com.kronotop.core.handlers.session.protocol;
 
-import com.kronotop.cluster.handlers.InvalidNumberOfParametersException;
+import com.kronotop.cluster.handlers.InvalidNumberOfArgumentsException;
 import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.internal.StringUtil;
 import com.kronotop.server.IllegalCommandArgumentException;
@@ -27,7 +27,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
 
-public class SessionAttributeParameters {
+public class SessionAttributeArguments {
     private final SessionAttributeSubcommand subcommand;
     private SessionAttribute attribute;
     private ReplyType replyType;
@@ -35,29 +35,29 @@ public class SessionAttributeParameters {
     private int bucketBatchSize;
     private ObjectIdFormat objectIdFormat;
 
-    public SessionAttributeParameters(ArrayList<ByteBuf> params) {
-        subcommand = ProtocolMessageUtil.readEnum(SessionAttributeSubcommand.class, params.getFirst(), "subcommand");
+    public SessionAttributeArguments(ArrayList<ByteBuf> args) {
+        subcommand = ProtocolMessageUtil.readEnum(SessionAttributeSubcommand.class, args.getFirst(), "subcommand");
 
         if (subcommand.equals(SessionAttributeSubcommand.LIST)) {
-            if (params.size() != 1) {
-                throw new InvalidNumberOfParametersException();
+            if (args.size() != 1) {
+                throw new InvalidNumberOfArgumentsException();
             }
             return;
         }
 
-        if (params.size() != 3) {
-            throw new InvalidNumberOfParametersException();
+        if (args.size() != 3) {
+            throw new InvalidNumberOfArgumentsException();
         }
 
-        String rawSessionAttribute = ProtocolMessageUtil.readAsString(params.get(1));
+        String rawSessionAttribute = ProtocolMessageUtil.readAsString(args.get(1));
         attribute = SessionAttribute.findByValue(rawSessionAttribute);
 
         switch (attribute) {
-            case INPUT_TYPE -> inputType = ProtocolMessageUtil.readEnum(InputType.class, params.get(2), "input type");
-            case REPLY_TYPE -> replyType = ProtocolMessageUtil.readEnum(ReplyType.class, params.get(2), "reply type");
-            case BATCH -> bucketBatchSize = ProtocolMessageUtil.readAsInteger(params.get(2));
+            case INPUT_TYPE -> inputType = ProtocolMessageUtil.readEnum(InputType.class, args.get(2), "input type");
+            case REPLY_TYPE -> replyType = ProtocolMessageUtil.readEnum(ReplyType.class, args.get(2), "reply type");
+            case BATCH -> bucketBatchSize = ProtocolMessageUtil.readAsInteger(args.get(2));
             case OBJECT_ID_FORMAT ->
-                    objectIdFormat = ProtocolMessageUtil.readEnum(ObjectIdFormat.class, params.get(2), "object id format");
+                    objectIdFormat = ProtocolMessageUtil.readEnum(ObjectIdFormat.class, args.get(2), "object id format");
         }
     }
 

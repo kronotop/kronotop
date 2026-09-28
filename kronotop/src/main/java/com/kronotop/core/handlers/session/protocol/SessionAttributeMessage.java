@@ -22,8 +22,8 @@ import java.util.List;
 
 public class SessionAttributeMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SESSION.ATTRIBUTE";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 3;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 3;
 
     @Override
     public Void getKey() {

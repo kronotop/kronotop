@@ -13,9 +13,9 @@ Inserts one or more documents into a bucket.
 BUCKET.INSERT <bucket> [NAMESPACE <path>] DOCS <document> [document ...]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type         | Required | Description                                                                                                                                                                       |
+| Argument    | Type         | Required | Description                                                                                                                                                                       |
 |-------------|--------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string       | Yes      | Name of the target bucket. The bucket must already exist (see `BUCKET.CREATE`).                                                                                                   |
 | `NAMESPACE` | string       | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. Must come before `DOCS`. |

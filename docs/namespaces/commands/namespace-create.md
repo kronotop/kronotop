@@ -11,9 +11,9 @@ Creates a new namespace with the given hierarchical path.
 NAMESPACE CREATE <namespace> [IF-NOT-EXISTS]
 ```
 
-## Parameters
+## Arguments
 
-| Parameter       | Type   | Required | Description                                                                                                                                 |
+| Argument        | Type   | Required | Description                                                                                                                                 |
 |-----------------|--------|----------|---------------------------------------------------------------------------------------------------------------------------------------------|
 | `namespace`     | string | Yes      | Dot-separated hierarchical path for the namespace (e.g. `production.users`).                                                                |
 | `IF-NOT-EXISTS` | flag   | No       | When specified, the command returns `OK` instead of an error if the namespace already exists. It does not suppress `NAMESPACEBEINGREMOVED`. |

@@ -11,9 +11,9 @@ Switches the current session to a namespace.
 NAMESPACE USE <namespace>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Required | Description                                                                  |
+| Argument    | Type   | Required | Description                                                                  |
 |-------------|--------|----------|------------------------------------------------------------------------------|
 | `namespace` | string | Yes      | Dot-separated hierarchical path for the namespace (e.g. `production.users`). |
 

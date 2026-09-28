@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Represents keywords that can be used with commit-related operations.
- * Each keyword corresponds to a specific parameter that can be passed
+ * Each keyword corresponds to a specific argument that can be passed
  * to the commit command in the Kronotop system.
  * <p>
  * Each keyword is backed by its string representation, converted into

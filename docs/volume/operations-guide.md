@@ -118,7 +118,7 @@ After stopping, run `DROP` to clear the metadata before starting a new vacuum.
 Only one vacuum can run on a given volume at a time. Vacuum runs in the background and does not compete with user-facing
 traffic.
 
-For full parameter details, error conditions, and status output format, see
+For full argument details, error conditions, and status output format, see
 [VOLUME.ADMIN VACUUM](commands/volume-admin-vacuum.md).
 
 ---

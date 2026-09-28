@@ -36,7 +36,7 @@ public class InfoMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        for (ByteBuf buf : request.getParams()) {
+        for (ByteBuf buf : request.getArguments()) {
             sections.add(ProtocolMessageUtil.readAsString(buf));
         }
     }

@@ -21,7 +21,7 @@ Sets client library metadata on the current connection.
 CLIENT SETINFO <attribute> <value>
 ```
 
-| Parameter   | Type   | Required | Description                             |
+| Argument    | Type   | Required | Description                             |
 |-------------|--------|----------|-----------------------------------------|
 | `attribute` | string | Yes      | Attribute name: `lib-name` or `lib-ver` |
 | `value`     | string | Yes      | Attribute value                         |
@@ -34,7 +34,7 @@ Sets a human-readable name for the current connection.
 CLIENT SETNAME <name>
 ```
 
-| Parameter | Type   | Required | Description     |
+| Argument  | Type   | Required | Description     |
 |-----------|--------|----------|-----------------|
 | `name`    | string | Yes      | Connection name |
 

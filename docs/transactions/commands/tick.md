@@ -11,14 +11,14 @@ Returns a monotonically increasing 64-bit integer.
 TICK <FRESH | CACHED>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Description                                                                                          |
+| Argument  | Description                                                                                          |
 |-----------|------------------------------------------------------------------------------------------------------|
 | `FRESH`   | Fetches the latest value from the cluster. One round trip per call.                                  |
 | `CACHED`  | Serves the value from a node-local cache that may be up to one second behind. No cluster round trip. |
 
-The mode parameter is mandatory and case-insensitive.
+The mode argument is mandatory and case-insensitive.
 
 ## Return Value
 

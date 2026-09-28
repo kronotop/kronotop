@@ -41,37 +41,37 @@ class PurgeSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        PurgeParameters parameters = new PurgeParameters(request);
+        PurgeArguments arguments = new PurgeArguments(request);
         runAsync(context, response, () -> {
-            String name = String.join(".", parameters.subpath);
+            String name = String.join(".", arguments.subpath);
             if (context.getConfig().getString("default_namespace").equals(name)) {
                 throw new KronotopException("Cannot purge the default namespace: '" + name + "'");
             }
 
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                DirectorySubspace subspace = NamespaceUtil.open(tr, context, parameters.subpath);
+                DirectorySubspace subspace = NamespaceUtil.open(tr, context, arguments.subpath);
                 NamespaceMetadata metadata = NamespaceUtil.readMetadata(tr, name, subspace);
                 if (!metadata.removed()) {
                     throw new KronotopException(
-                            String.format("Namespace '%s' must be logically removed before purge", dottedNamespace(parameters.subpath))
+                            String.format("Namespace '%s' must be logically removed before purge", dottedNamespace(arguments.subpath))
                     );
                 }
                 NamespaceVersionBarrier barrier = new NamespaceVersionBarrier(context, metadata);
                 barrier.await(metadata.version(), 20, Duration.ofMillis(250)); // 5000 milliseconds
             }
             // Done. Remove the namespace.
-            NamespaceUtil.remove(context, parameters.subpath);
+            NamespaceUtil.remove(context, arguments.subpath);
         }, response::writeOK);
     }
 
-    private class PurgeParameters {
+    private class PurgeArguments {
         private final List<String> subpath;
 
-        private PurgeParameters(Request request) {
-            if (request.getParams().size() != 2) {
+        private PurgeArguments(Request request) {
+            if (request.getArguments().size() != 2) {
                 throw wrongNumberOfArguments(request, NamespaceSubcommand.PURGE);
             }
-            subpath = readSubpath(request.getParams().get(1));
+            subpath = readSubpath(request.getArguments().get(1));
             validateSubpath(subpath);
         }
     }

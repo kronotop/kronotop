@@ -11,7 +11,7 @@ Returns the active namespace for the current session.
 NAMESPACE CURRENT
 ```
 
-## Parameters
+## Arguments
 
 None.
 

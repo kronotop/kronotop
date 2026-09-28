@@ -12,9 +12,9 @@ KR.ADMIN DROP-CLUSTER <cluster-name>
 KR.ADMIN DROP-CLUSTER <cluster-name> <token>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter      | Type   | Description                                                                                   |
+| Argument       | Type   | Description                                                                                   |
 |----------------|--------|-----------------------------------------------------------------------------------------------|
 | `cluster-name` | string | Name of the cluster to drop. Must match the cluster name in the running node's configuration. |
 | `token`        | string | Confirmation token returned by Phase 1. Required to execute the actual deletion (Phase 2).    |
@@ -62,7 +62,7 @@ Argument errors:
 | Error Code | Error message                  | Cause |
 |------------|--------------------------------|-------|
 | `ERR`      | `cluster name is required`     | -     |
-| `ERR`      | `invalid number of parameters` | -     |
+| `ERR`      | `invalid number of arguments`  | -     |
 
 Cluster errors:
 

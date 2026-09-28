@@ -70,41 +70,41 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        AnalyzeParameters parameters = new AnalyzeParameters(request.getParams());
+        AnalyzeArguments arguments = new AnalyzeArguments(request.getArguments());
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            String namespace = NamespaceUtil.resolve(request.getSession(), parameters.namespace);
+            String namespace = NamespaceUtil.resolve(request.getSession(), arguments.namespace);
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
-                List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, parameters.bucket, parameters.index);
+                List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, arguments.bucket, arguments.index);
                 for (Versionstamp taskId : taskIds) {
                     if (isAnalyzeTask(tr, taskId)) {
                         throw new KronotopException("An analyze task has already exist");
                     }
                 }
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, parameters.bucket);
-                CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);
+                CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(arguments.index, IndexSelectionPolicy.ALL);
                 if (compoundIndex != null) {
-                    CompoundIndexUtil.analyze(tx, metadata, parameters.index);
+                    CompoundIndexUtil.analyze(tx, metadata, arguments.index);
                 } else {
-                    SingleFieldIndexUtil.analyze(tx, metadata, parameters.index);
+                    SingleFieldIndexUtil.analyze(tx, metadata, arguments.index);
                 }
                 tr.commit().join();
             }
         }, response::writeOK);
     }
 
-    private static class AnalyzeParameters {
+    private static class AnalyzeArguments {
         private final String bucket;
         private final String index;
         private final String namespace;
 
-        AnalyzeParameters(ArrayList<ByteBuf> params) {
-            if (params.size() < 3 || params.size() > 5) {
-                throw new KronotopException("wrong number of parameters");
+        AnalyzeArguments(ArrayList<ByteBuf> args) {
+            if (args.size() < 3 || args.size() > 5) {
+                throw new KronotopException("wrong number of arguments");
             }
-            bucket = ProtocolMessageUtil.readAsString(params.get(1));
-            index = ProtocolMessageUtil.readAsString(params.get(2));
-            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
+            bucket = ProtocolMessageUtil.readAsString(args.get(1));
+            index = ProtocolMessageUtil.readAsString(args.get(2));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(args, 3);
         }
     }
 }

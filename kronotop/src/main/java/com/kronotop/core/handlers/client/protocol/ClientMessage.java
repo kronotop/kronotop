@@ -26,7 +26,7 @@ import java.util.List;
 
 public class ClientMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "CLIENT";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private ClientSubcommand subcommand;
 
@@ -36,7 +36,7 @@ public class ClientMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        String cmd = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        String cmd = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
         try {
             subcommand = ClientSubcommand.valueOf(StringUtil.toUpperCaseAscii(cmd));
         } catch (IllegalArgumentException e) {

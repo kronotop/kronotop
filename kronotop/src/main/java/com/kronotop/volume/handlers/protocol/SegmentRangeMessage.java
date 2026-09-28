@@ -25,7 +25,7 @@ import java.util.List;
 
 public class SegmentRangeMessage extends BaseMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "SEGMENT.RANGE";
-    public static final int MINIMUM_PARAMETER_COUNT = 4;
+    public static final int MINIMUM_ARGUMENT_COUNT = 4;
     private String volume;
     private long segmentId;
     private SegmentRange[] segmentRanges;
@@ -37,7 +37,7 @@ public class SegmentRangeMessage extends BaseMessage implements ProtocolMessage<
 
 
     private void parse() {
-        if (request.getParams().size() % 2 > 0) {
+        if (request.getArguments().size() % 2 > 0) {
             throw new WrongNumberOfArgumentsException(
                     String.format("wrong number of arguments for '%s' command", request.getCommand()));
         }
@@ -47,8 +47,8 @@ public class SegmentRangeMessage extends BaseMessage implements ProtocolMessage<
         segmentId = readLong(1);
 
         int index = 0;
-        segmentRanges = new SegmentRange[(request.getParams().size() - 2) / 2];
-        for (int i = 2; i < request.getParams().size(); i = i + 2) {
+        segmentRanges = new SegmentRange[(request.getArguments().size() - 2) / 2];
+        for (int i = 2; i < request.getArguments().size(); i = i + 2) {
             long position = readLong(i);
             long length = readLong(i + 1);
             SegmentRange segmentRange = new SegmentRange(position, length);

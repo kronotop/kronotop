@@ -20,8 +20,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapNumericValueCodec;
@@ -31,8 +31,8 @@ import com.kronotop.zmap.handlers.protocol.ZSetF64Message;
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 @Command(ZSetF64Message.COMMAND)
-@MaximumParameterCount(ZSetF64Message.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(ZSetF64Message.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(ZSetF64Message.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(ZSetF64Message.MINIMUM_ARGUMENT_COUNT)
 public class ZSetF64Handler extends BaseZMapHandler implements Handler {
     public ZSetF64Handler(ZMapService service) {
         super(service);

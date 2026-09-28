@@ -77,7 +77,7 @@ from all tiers by similarity score.
 
 ## Post-filtering
 
-Vector search can be combined with structured query predicates using the `FILTER` parameter on `BUCKET.VECTOR`.
+Vector search can be combined with structured query predicates using the `FILTER` argument on `BUCKET.VECTOR`.
 Filtering is applied after similarity ranking. The search first retrieves vector candidates ordered by similarity, then
 evaluates the filter expression against each candidate's document.
 
@@ -91,9 +91,9 @@ additional candidates by resuming the graph traversal in fixed-size batches unti
 `MAX-SCAN-CANDIDATES` provides a safety cap to control latency when the filter is highly selective and most candidates
 do not match.
 
-## Search parameters
+## Search arguments
 
-| Parameter             | Default | Description                                                                                      |
+| Argument              | Default | Description                                                                                      |
 |-----------------------|---------|--------------------------------------------------------------------------------------------------|
 | `TOP`                 | 10      | Maximum number of results to return.                                                             |
 | `THRESHOLD`           | 0.0     | Minimum similarity score. Results below this value are excluded.                                 |

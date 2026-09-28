@@ -39,9 +39,9 @@ Initiates a vacuum run on the specified volume.
 VOLUME.ADMIN VACUUM START <volume-name> <garbage-threshold>
 ```
 
-**Parameters**
+**Arguments**
 
-| Parameter           | Type   | Description                                                                                                 |
+| Argument            | Type   | Description                                                                                                 |
 |---------------------|--------|-------------------------------------------------------------------------------------------------------------|
 | `volume-name`       | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover volume names                 |
 | `garbage-threshold` | float  | Minimum garbage percentage required to vacuum a segment. Must be between 0 and 100 (exclusive on both ends) |
@@ -115,9 +115,9 @@ Gracefully stops an active vacuum run.
 VOLUME.ADMIN VACUUM STOP <volume-name>
 ```
 
-**Parameters**
+**Arguments**
 
-| Parameter     | Type   | Description                                                                          |
+| Argument      | Type   | Description                                                                          |
 |---------------|--------|--------------------------------------------------------------------------------------|
 | `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
 
@@ -169,9 +169,9 @@ Removes all vacuum metadata from the volume.
 VOLUME.ADMIN VACUUM DROP <volume-name>
 ```
 
-**Parameters**
+**Arguments**
 
-| Parameter     | Type   | Description                                                                          |
+| Argument      | Type   | Description                                                                          |
 |---------------|--------|--------------------------------------------------------------------------------------|
 | `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
 
@@ -222,9 +222,9 @@ Returns the current state and progress of a vacuum run.
 VOLUME.ADMIN VACUUM STATUS <volume-name>
 ```
 
-**Parameters**
+**Arguments**
 
-| Parameter     | Type   | Description                                                                          |
+| Argument      | Type   | Description                                                                          |
 |---------------|--------|--------------------------------------------------------------------------------------|
 | `volume-name` | string | Volume identifier (e.g. `bucket-shard-0`). Use `VOLUME.ADMIN LIST` to discover names |
 

@@ -22,7 +22,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.core.handlers.transaction.protocol.CommitMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
@@ -36,7 +36,7 @@ import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 
 @Command(CommitMessage.COMMAND)
-@MaximumParameterCount(CommitMessage.MAXIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(CommitMessage.MAXIMUM_ARGUMENT_COUNT)
 public class CommitHandler implements Handler {
     private final Context context;
 
@@ -69,10 +69,10 @@ public class CommitHandler implements Handler {
             Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
             Transaction tr = transactionAttr.get();
 
-            CommitMessage.Parameter returning = message.getReturning();
+            CommitMessage.ReturningArgument returning = message.getReturning();
 
             CompletableFuture<byte[]> versionstamp;
-            if (returning == CommitMessage.Parameter.VERSIONSTAMP) {
+            if (returning == CommitMessage.ReturningArgument.VERSIONSTAMP) {
                 versionstamp = tr.getVersionstamp();
             } else {
                 // Effectively final

@@ -26,7 +26,7 @@ import java.util.List;
 
 public class NamespaceMessage implements ProtocolMessage<Void> {
     public static final String COMMAND = "NAMESPACE";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private NamespaceSubcommand subcommand;
 
@@ -36,7 +36,7 @@ public class NamespaceMessage implements ProtocolMessage<Void> {
     }
 
     private void parse() {
-        String raw = ProtocolMessageUtil.readAsString(request.getParams().getFirst());
+        String raw = ProtocolMessageUtil.readAsString(request.getArguments().getFirst());
         try {
             subcommand = NamespaceSubcommand.valueOf(StringUtil.toUpperCaseAscii(raw));
         } catch (IllegalArgumentException e) {

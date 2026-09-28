@@ -27,7 +27,7 @@ import com.kronotop.bucket.vector.CollectedVector;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.AppendResult;
@@ -48,7 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import static com.kronotop.AsyncCommandExecutor.supplyAsync;
 
 @Command(BucketInsertMessage.COMMAND)
-@MinimumParameterCount(BucketInsertMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(BucketInsertMessage.MINIMUM_ARGUMENT_COUNT)
 public class BucketInsertHandler extends AbstractBucketHandler implements Handler {
     private static final int OBJECTID_BSON_OVERHEAD = 17; // 1 type + 4 name ("_id\0") + 12 value
     private final boolean strictTypes = context.getConfig().getBoolean("bucket.index.strict_types");

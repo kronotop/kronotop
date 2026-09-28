@@ -27,8 +27,8 @@ import java.util.List;
 
 public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
     public static final String COMMAND = "ZGETKEY";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
-    public static final int MAXIMUM_PARAMETER_COUNT = 5;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
+    public static final int MAXIMUM_ARGUMENT_COUNT = 5;
     public static final RangeKeySelector DEFAULT_KEY_SELECTOR = RangeKeySelector.FIRST_GREATER_OR_EQUAL;
 
     private final Request request;
@@ -42,23 +42,23 @@ public class ZGetKeyMessage implements ProtocolMessage<byte[]> {
     }
 
     private void parse() {
-        key = ProtocolMessageUtil.readAsByteArray(request.getParams().getFirst());
+        key = ProtocolMessageUtil.readAsByteArray(request.getArguments().getFirst());
 
         long seen = 0;
-        for (int i = 1; i < request.getParams().size(); i++) {
-            String raw = ProtocolMessageUtil.readAsString(request.getParams().get(i));
+        for (int i = 1; i < request.getArguments().size(); i++) {
+            String raw = ProtocolMessageUtil.readAsString(request.getArguments().get(i));
             ZGetKeyArgumentKey argument = valueOfArgument(raw);
             seen = ProtocolMessageUtil.markArgumentSeen(seen, argument, argument.getValue());
             switch (argument) {
                 case KEY_SELECTOR -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
+                            request.getArguments(), i, argument.getValue(), ProtocolMessageUtil.VALID_KEY_SELECTOR);
                     keySelector = RangeKeySelector.getValue(ProtocolMessageUtil.readAsString(value));
                     i++;
                 }
                 case NAMESPACE -> {
                     ByteBuf value = ProtocolMessageUtil.requireValue(
-                            request.getParams(), i, argument.getValue(), ProtocolMessageUtil.NAMESPACE_PATH);
+                            request.getArguments(), i, argument.getValue(), ProtocolMessageUtil.NAMESPACE_PATH);
                     namespace = ProtocolMessageUtil.readAsString(value);
                     i++;
                 }

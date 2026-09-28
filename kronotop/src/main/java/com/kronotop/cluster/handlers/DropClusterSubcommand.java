@@ -48,23 +48,23 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
 
     @Override
     public void execute(Request request, Response response) {
-        DropClusterParameters parameters = new DropClusterParameters(request.getParams());
+        DropClusterArguments arguments = new DropClusterArguments(request.getArguments());
 
-        if (!parameters.clusterName.equals(context.getClusterName())) {
+        if (!arguments.clusterName.equals(context.getClusterName())) {
             throw new KronotopException("cluster name does not match");
         }
 
-        if (parameters.token == null) {
+        if (arguments.token == null) {
             lock.lock();
             try {
-                DropClusterToken existing = pendingTokens.get(parameters.clusterName);
+                DropClusterToken existing = pendingTokens.get(arguments.clusterName);
                 if (existing != null && !isTokenExpired(existing)) {
                     response.writeFullBulkString(bulkString(existing.token()));
                     return;
                 }
 
                 String token = UUID.randomUUID().toString();
-                pendingTokens.put(parameters.clusterName, new DropClusterToken(token, System.nanoTime()));
+                pendingTokens.put(arguments.clusterName, new DropClusterToken(token, System.nanoTime()));
                 response.writeFullBulkString(bulkString(token));
                 return;
             } finally {
@@ -75,46 +75,46 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
         runAsync(context, response, () -> {
             lock.lock();
             try {
-                if (!pendingTokens.containsKey(parameters.clusterName)) {
+                if (!pendingTokens.containsKey(arguments.clusterName)) {
                     throw new KronotopException("no pending drop-cluster token for this cluster");
                 }
 
-                DropClusterToken pending = pendingTokens.get(parameters.clusterName);
-                if (!pending.token().equals(parameters.token)) {
+                DropClusterToken pending = pendingTokens.get(arguments.clusterName);
+                if (!pending.token().equals(arguments.token)) {
                     throw new KronotopException("invalid drop-cluster token");
                 }
 
                 if (isTokenExpired(pending)) {
-                    pendingTokens.remove(parameters.clusterName);
+                    pendingTokens.remove(arguments.clusterName);
                     throw new KronotopException("drop-cluster token has expired");
                 }
 
                 context.getFoundationDB().run(tr -> {
-                    List<String> subpath = KronotopDirectory.kronotop().cluster(parameters.clusterName).toList();
+                    List<String> subpath = KronotopDirectory.kronotop().cluster(arguments.clusterName).toList();
                     return context.getDirectoryLayer().removeIfExists(tr, subpath).join();
                 });
-                pendingTokens.remove(parameters.clusterName);
+                pendingTokens.remove(arguments.clusterName);
             } finally {
                 lock.unlock();
             }
         }, response::writeOK);
     }
 
-    private static class DropClusterParameters {
+    private static class DropClusterArguments {
         private final String clusterName;
         private final String token;
 
-        DropClusterParameters(ArrayList<ByteBuf> params) {
-            if (params.size() < 2) {
+        DropClusterArguments(ArrayList<ByteBuf> args) {
+            if (args.size() < 2) {
                 throw new KronotopException("cluster name is required");
             }
-            if (params.size() > 3) {
-                throw new InvalidNumberOfParametersException();
+            if (args.size() > 3) {
+                throw new InvalidNumberOfArgumentsException();
             }
 
-            clusterName = ProtocolMessageUtil.readAsString(params.get(1));
-            if (params.size() == 3) {
-                token = ProtocolMessageUtil.readAsString(params.get(2));
+            clusterName = ProtocolMessageUtil.readAsString(args.get(1));
+            if (args.size() == 3) {
+                token = ProtocolMessageUtil.readAsString(args.get(2));
             } else {
                 token = null;
             }

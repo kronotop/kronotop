@@ -18,7 +18,7 @@ package com.kronotop.task.handlers;
 
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.task.TaskService;
 import com.kronotop.task.handlers.protocol.TaskAdminMessage;
 import com.kronotop.task.handlers.protocol.TaskAdminSubcommand;
@@ -26,7 +26,7 @@ import com.kronotop.task.handlers.protocol.TaskAdminSubcommand;
 import java.util.EnumMap;
 
 @Command(TaskAdminMessage.COMMAND)
-@MinimumParameterCount(TaskAdminMessage.MINIMUM_PARAMETER_COUNT)
+@MinimumArgumentCount(TaskAdminMessage.MINIMUM_ARGUMENT_COUNT)
 public class TaskAdminHandler extends BaseHandler implements Handler {
     private final EnumMap<TaskAdminSubcommand, SubcommandHandler> handlers = new EnumMap<>(TaskAdminSubcommand.class);
 

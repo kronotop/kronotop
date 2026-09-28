@@ -24,7 +24,7 @@ import java.util.List;
 
 public class ClusterMessage implements ProtocolMessage<String> {
     public static final String COMMAND = "CLUSTER";
-    public static final int MINIMUM_PARAMETER_COUNT = 1;
+    public static final int MINIMUM_ARGUMENT_COUNT = 1;
     private final Request request;
     private ClusterSubcommand subcommand;
     private String key = null;
@@ -35,17 +35,17 @@ public class ClusterMessage implements ProtocolMessage<String> {
     }
 
     private void parse() {
-        byte[] rawSubcommand = new byte[request.getParams().get(0).readableBytes()];
-        request.getParams().get(0).readBytes(rawSubcommand);
+        byte[] rawSubcommand = new byte[request.getArguments().get(0).readableBytes()];
+        request.getArguments().get(0).readBytes(rawSubcommand);
         String cmd = new String(rawSubcommand);
         try {
             subcommand = ClusterSubcommand.valueOf(cmd.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new UnknownSubcommandException(cmd);
         }
-        if (request.getParams().size() > 1) {
-            byte[] rawKey = new byte[request.getParams().get(1).readableBytes()];
-            request.getParams().get(1).readBytes(rawKey);
+        if (request.getArguments().size() > 1) {
+            byte[] rawKey = new byte[request.getArguments().get(1).readableBytes()];
+            request.getArguments().get(1).readBytes(rawKey);
             key = new String(rawKey);
         }
     }

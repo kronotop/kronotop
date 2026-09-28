@@ -11,9 +11,9 @@ Returns a volume-wide overview including status, capacity, garbage percentage, a
 VOLUME.STATS <volume-name>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                               |
+| Argument      | Type   | Description                                                               |
 |---------------|--------|---------------------------------------------------------------------------|
 | `volume-name` | string | Name of the volume, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
 

@@ -11,9 +11,9 @@ Enables or disables snapshot read mode for the current session.
 SNAPSHOTREAD <ON | OFF>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter | Required     | Description                                 |
+| Argument  | Required     | Description                                 |
 |-----------|--------------|---------------------------------------------|
 | `ON`      | Yes (one of) | Enables snapshot read mode on the session.  |
 | `OFF`     | Yes (one of) | Disables snapshot read mode on the session. |

@@ -30,7 +30,7 @@ public class SetInfoSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        if (request.getParams().size() != 3) {
+        if (request.getArguments().size() != 3) {
             ClientMessage clientMessage = request.attr(MessageTypes.CLIENT).get();
             // ERR wrong number of arguments for 'client|setinfo' command
             throw new WrongNumberOfArgumentsException(
@@ -38,8 +38,8 @@ public class SetInfoSubcommand implements SubcommandHandler {
             );
         }
 
-        String attribute = ProtocolMessageUtil.readAsString(request.getParams().get(1));
-        String value = ProtocolMessageUtil.readAsString(request.getParams().get(2));
+        String attribute = ProtocolMessageUtil.readAsString(request.getArguments().get(1));
+        String value = ProtocolMessageUtil.readAsString(request.getArguments().get(2));
 
         HashMap<String, Object> channelAttributes = request.getSession().attr(SessionAttributes.CLIENT_ATTRIBUTES).get();
         if (attribute.equalsIgnoreCase(Attribute.LIBNAME.toString())) {

@@ -95,7 +95,7 @@ writes.
 `ROUTE SET PRIMARY` also accepts `*` for the shard ID to assign the same member as primary across all
 bucket shards atomically. If any shard fails a pre-condition, the whole operation rolls back.
 
-For full parameter and error details, see
+For full argument and error details, see
 [KR.ADMIN INITIALIZE-CLUSTER](commands/kr-admin-initialize-cluster.md),
 [KR.ADMIN ROUTE](commands/kr-admin-route.md), and
 [KR.ADMIN SET-SHARD-STATUS](commands/kr-admin-set-shard-status.md).

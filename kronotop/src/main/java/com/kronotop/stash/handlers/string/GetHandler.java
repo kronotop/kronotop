@@ -19,8 +19,8 @@ package com.kronotop.stash.handlers.string;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumParameterCount;
-import com.kronotop.server.annotation.MinimumParameterCount;
+import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.stash.StashService;
 import com.kronotop.stash.handlers.string.protocol.GetMessage;
 import com.kronotop.stash.storage.StashShard;
@@ -32,8 +32,8 @@ import io.netty.buffer.Unpooled;
 import java.util.concurrent.locks.ReadWriteLock;
 
 @Command(GetMessage.COMMAND)
-@MaximumParameterCount(GetMessage.MAXIMUM_PARAMETER_COUNT)
-@MinimumParameterCount(GetMessage.MINIMUM_PARAMETER_COUNT)
+@MaximumArgumentCount(GetMessage.MAXIMUM_ARGUMENT_COUNT)
+@MinimumArgumentCount(GetMessage.MINIMUM_ARGUMENT_COUNT)
 public class GetHandler extends BaseStringHandler implements Handler {
     public GetHandler(StashService service) {
         super(service);

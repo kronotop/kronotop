@@ -129,28 +129,28 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        DescribeParameters parameters = new DescribeParameters(request.getParams());
+        DescribeArguments arguments = new DescribeArguments(request.getArguments());
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                String namespace = NamespaceUtil.resolve(session, parameters.namespace);
-                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, parameters.bucket);
+                String namespace = NamespaceUtil.resolve(session, arguments.namespace);
+                BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);
 
-                VectorIndex vectorIndex = metadata.vectorIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
+                VectorIndex vectorIndex = metadata.vectorIndexes().getIndexByName(arguments.index, IndexSelectionPolicy.ALL);
                 if (vectorIndex != null) {
                     VectorIndexDefinition definition = VectorIndexUtil.loadIndexDefinition(tr, vectorIndex.subspace());
                     IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
                     return getVectorDescription(definition, statistics);
                 }
 
-                CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(parameters.index, IndexSelectionPolicy.ALL);
+                CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexByName(arguments.index, IndexSelectionPolicy.ALL);
                 if (compoundIndex != null) {
                     CompoundIndexDefinition definition = CompoundIndexUtil.loadIndexDefinition(tr, compoundIndex.subspace());
                     IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
                     return getCompoundDescription(definition, statistics);
                 }
 
-                DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), parameters.index);
+                DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), arguments.index);
                 SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, indexSubspace);
                 IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
                 return getSingleFieldDescription(definition, statistics);
@@ -158,18 +158,18 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         }, response::writeMap);
     }
 
-    private static class DescribeParameters {
+    private static class DescribeArguments {
         private final String bucket;
         private final String index;
         private final String namespace;
 
-        DescribeParameters(ArrayList<ByteBuf> params) {
-            if (params.size() < 3 || params.size() > 5) {
-                throw new KronotopException("wrong number of parameters");
+        DescribeArguments(ArrayList<ByteBuf> args) {
+            if (args.size() < 3 || args.size() > 5) {
+                throw new KronotopException("wrong number of arguments");
             }
-            bucket = ProtocolMessageUtil.readAsString(params.get(1));
-            index = ProtocolMessageUtil.readAsString(params.get(2));
-            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
+            bucket = ProtocolMessageUtil.readAsString(args.get(1));
+            index = ProtocolMessageUtil.readAsString(args.get(2));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(args, 3);
         }
     }
 }

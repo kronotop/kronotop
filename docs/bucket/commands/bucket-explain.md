@@ -13,11 +13,11 @@ Returns the query execution plan for a given query without executing it.
 BUCKET.EXPLAIN <bucket> <query> [SORTBY <field> <ASC|DESC>] [BATCH <n>] [LIMIT <n>] [COLLATION <spec>] [NAMESPACE <path>]
 ```
 
-## Parameters
+## Arguments
 
 Keyword names are not case-sensitive, and each keyword can appear at most once.
 
-| Parameter   | Type               | Required | Description                                                                                                                                              |
+| Argument    | Type               | Required | Description                                                                                                                                              |
 |-------------|--------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `bucket`    | string             | Yes      | Name of the bucket to explain the query against.                                                                                                         |
 | `query`     | JSON or BSON       | Yes      | Filter expression to analyze. Use `{}` to match all documents.                                                                                           |
@@ -27,7 +27,7 @@ Keyword names are not case-sensitive, and each keyword can appear at most once.
 | `COLLATION` | JSON               | No       | Query-level collation spec. When provided, the plan reflects how collation affects index selection.                                                      |
 | `NAMESPACE` | string             | No       | Run this command in the given namespace instead of the session's current one. The namespace must exist. The session's current namespace does not change. |
 
-The parameters work as they do in `BUCKET.QUERY`, except `CLOSE`, which is rejected. The query is parsed and
+The arguments work as they do in `BUCKET.QUERY`, except `CLOSE`, which is rejected. The query is parsed and
 planned but never executed.
 
 ## Return Value
@@ -79,7 +79,7 @@ The command returns a map containing the plan cache status and the execution pla
 ```
 
 The `query_collation` field reflects the effective collation used during planning. It is omitted when no `COLLATION`
-parameter is provided.
+argument is provided.
 
 ## Plan Cache
 

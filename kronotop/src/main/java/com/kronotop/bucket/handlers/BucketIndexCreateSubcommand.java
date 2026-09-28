@@ -73,41 +73,41 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
 
     @Override
     public void execute(Request request, Response response) {
-        CreateParameters parameters = new CreateParameters(request.getParams());
+        CreateArguments arguments = new CreateArguments(request.getArguments());
         runAsync(context, response, () -> {
 
             Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
             retry.executeRunnable(() -> {
                 try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                     TransactionalContext tx = new TransactionalContext(context, tr);
-                    String namespace = NamespaceUtil.resolve(request.getSession(), parameters.getNamespace());
-                    BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, namespace, parameters.getBucket());
-                    IndexCreationHelper.createIndexes(tx, metadata, parameters.getPayload(), IndexStatus.WAITING);
+                    String namespace = NamespaceUtil.resolve(request.getSession(), arguments.getNamespace());
+                    BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, namespace, arguments.getBucket());
+                    IndexCreationHelper.createIndexes(tx, metadata, arguments.getPayload(), IndexStatus.WAITING);
                     tr.commit().join();
                 }
             });
         }, response::writeOK);
     }
 
-    static class CreateParameters {
-        private final ArrayList<ByteBuf> params;
+    static class CreateArguments {
+        private final ArrayList<ByteBuf> args;
 
         private String bucket;
         private IndexSchemaPayload payload;
         private String namespace;
 
-        CreateParameters(ArrayList<ByteBuf> params) {
-            this.params = params;
+        CreateArguments(ArrayList<ByteBuf> args) {
+            this.args = args;
             parse();
         }
 
         private void parse() {
-            if (params.size() < 3 || params.size() > 5) {
-                throw new IllegalArgumentException("wrong number of parameters");
+            if (args.size() < 3 || args.size() > 5) {
+                throw new IllegalArgumentException("wrong number of arguments");
             }
-            bucket = ProtocolMessageUtil.readAsString(params.get(1));
-            payload = IndexCreationHelper.deserializeAndValidate(ProtocolMessageUtil.readAsByteArray(params.get(2)));
-            namespace = ProtocolMessageUtil.readTrailingNamespace(params, 3);
+            bucket = ProtocolMessageUtil.readAsString(args.get(1));
+            payload = IndexCreationHelper.deserializeAndValidate(ProtocolMessageUtil.readAsByteArray(args.get(2)));
+            namespace = ProtocolMessageUtil.readTrailingNamespace(args, 3);
         }
 
         public IndexSchemaPayload getPayload() {

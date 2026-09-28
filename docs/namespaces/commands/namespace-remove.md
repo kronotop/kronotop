@@ -12,9 +12,9 @@ subsequent `NAMESPACE PURGE`.
 NAMESPACE REMOVE <namespace>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter   | Type   | Required | Description                                                                         |
+| Argument    | Type   | Required | Description                                                                         |
 |-------------|--------|----------|-------------------------------------------------------------------------------------|
 | `namespace` | string | Yes      | Dot-separated hierarchical path of the namespace to remove (e.g. `staging.orders`). |
 

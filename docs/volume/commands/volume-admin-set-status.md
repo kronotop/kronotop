@@ -11,9 +11,9 @@ Changes the operational status of a named volume.
 VOLUME.ADMIN SET-STATUS <volume-name> <status>
 ```
 
-## Parameters
+## Arguments
 
-| Parameter     | Type   | Description                                                                         |
+| Argument      | Type   | Description                                                                         |
 |---------------|--------|-------------------------------------------------------------------------------------|
 | `volume-name` | string | Name of the volume to update, in `<kind>-shard-<id>` format (e.g. `bucket-shard-0`) |
 | `status`      | string | New operational status: `READWRITE`, `READONLY`, or `INOPERABLE` (case-insensitive) |
@@ -34,7 +34,7 @@ Argument errors:
 
 | Error Code | Error message                      | Cause |
 |------------|------------------------------------|-------|
-| `ERR`      | `invalid number of parameters`     | -     |
+| `ERR`      | `invalid number of arguments`      | -     |
 | `ERR`      | `Unknown volume status: '<value>'` | -     |
 
 Volume errors:

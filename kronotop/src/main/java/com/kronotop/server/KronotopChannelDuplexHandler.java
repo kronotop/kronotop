@@ -70,7 +70,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Key Features:
  * - Handles the life-cycle of network channels, such as registration and unregistration.
  * - Supports authentication if properly enabled in the configuration.
- * - Processes and executes Redis-like commands with parameter validation.
+ * - Processes and executes Redis-like commands with argument validation.
  * - Provides utility methods to assist in transaction handling with redis-like `MULTI`, `EXEC`,
  * and `DISCARD` commands.
  * - Monitors and handles watched keys during transactions.
@@ -118,9 +118,9 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         }
     }
 
-    private void checkMaximumParameterCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
-        if (entry.hasMaximumParameterCount()) {
-            if (request.getParams().size() > entry.maximumParameterCount()) {
+    private void checkMaximumArgumentCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
+        if (entry.hasMaximumArgumentCount()) {
+            if (request.getArguments().size() > entry.maximumArgumentCount()) {
                 throw new WrongNumberOfArgumentsException(
                         String.format("wrong number of arguments for '%s' command", request.getCommand())
                 );
@@ -128,9 +128,9 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         }
     }
 
-    private void checkMinimumParameterCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
-        if (entry.hasMinimumParameterCount()) {
-            if (request.getParams().size() < entry.minimumParameterCount()) {
+    private void checkMinimumArgumentCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
+        if (entry.hasMinimumArgumentCount()) {
+            if (request.getArguments().size() < entry.minimumArgumentCount()) {
                 throw new WrongNumberOfArgumentsException(
                         String.format("wrong number of arguments for '%s' command", request.getCommand())
                 );
@@ -195,11 +195,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
             default -> {
                 StringBuilder command = new StringBuilder();
                 command.append(request.getCommand()).append(" ");
-                for (ByteBuf buf : request.getParams()) {
-                    byte[] rawParam = ProtocolMessageUtil.readAsByteArray(buf);
+                for (ByteBuf buf : request.getArguments()) {
+                    byte[] rawArgument = ProtocolMessageUtil.readAsByteArray(buf);
                     buf.resetReaderIndex();
-                    String param = new String(rawParam);
-                    command.append(param).append(" ");
+                    String argument = new String(rawArgument);
+                    command.append(argument).append(" ");
                 }
                 LOGGER.debug("Unhandled error while serving command: {}: '{}'", command, exception.getMessage());
                 response.writeError(exception.getMessage());
@@ -208,14 +208,14 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     private void beforeExecute(HandlerEntry entry, Request request) {
-        checkMinimumParameterCount(entry, request);
-        checkMaximumParameterCount(entry, request);
+        checkMinimumArgumentCount(entry, request);
+        checkMaximumArgumentCount(entry, request);
         try {
             entry.handler().beforeExecute(request);
         } catch (Exception e) {
-            for (ByteBuf param : request.getParams()) {
+            for (ByteBuf argument : request.getArguments()) {
                 // Reset the reader index to re-construct the received command for debugging purposes.
-                param.resetReaderIndex();
+                argument.resetReaderIndex();
             }
             throw e;
         }
@@ -325,19 +325,19 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Reads the command and its parameters from the given {@link Request} object
+     * Reads the command and its arguments from the given {@link Request} object
      * and converts them into a single string representation, where the command
-     * and its parameters are separated by spaces.
+     * and its arguments are separated by spaces.
      *
-     * @param request the {@link Request} object containing the command and its parameters
-     * @return a single string representing the command and its parameters
+     * @param request the {@link Request} object containing the command and its arguments
+     * @return a single string representing the command and its arguments
      */
     private String readCommandAsString(Request request) {
         List<String> command = new ArrayList<>(List.of(request.getCommand()));
-        for (ByteBuf buf : request.getParams()) {
-            String parameter = ProtocolMessageUtil.readAsString(buf);
+        for (ByteBuf buf : request.getArguments()) {
+            String argument = ProtocolMessageUtil.readAsString(buf);
             buf.resetReaderIndex();
-            command.add(parameter);
+            command.add(argument);
         }
         return String.join(" ", command);
     }
@@ -348,7 +348,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      * ending the transaction, or throwing appropriate errors for invalid operations.
      *
      * @param session  the session associated with the current transaction
-     * @param request  the request object containing the command and its parameters
+     * @param request  the request object containing the command and its arguments
      * @param response the response object used to send results or errors back to the client
      * @return a boolean indicating whether the transaction is still ongoing (true)
      * or has been discarded (false)
@@ -384,7 +384,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      * and handling any potential resource cleanup. This method ensures thread-safe access
      * and releases resources if necessary, such as reference-counted messages.
      *
-     * @param request  the request object containing the command, its parameters, and context
+     * @param request  the request object containing the command, its arguments, and context
      * @param response the response object used to send back the result or error to the client
      * @param entry    the handler entry containing the handler and cached metadata
      */
@@ -402,7 +402,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      * Executes a Kronotop command by preparing the handler, processing the command,
      * and handling any exceptions that occur during execution.
      *
-     * @param request  the request object containing the command information and parameters
+     * @param request  the request object containing the command information and arguments
      * @param response the response object used to send the result or error back to the client
      * @param entry    the handler entry containing the handler and cached metadata
      */
