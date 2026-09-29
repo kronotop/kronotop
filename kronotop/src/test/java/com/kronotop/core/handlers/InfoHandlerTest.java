@@ -249,19 +249,33 @@ class InfoHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReportMemoryFields() {
-        // Behavior: the Memory section reports JVM heap usage and GC totals
+        // Behavior: the Memory section reports JVM heap and non-heap usage and GC totals;
+        // non-heap max and init may be -1 when the JVM leaves them undefined
         String info = runInfo(getChannel(), "memory");
 
-        long used = longField(info, "used_memory");
-        long committed = longField(info, "committed_memory");
-        long max = longField(info, "max_memory");
-        assertTrue(used > 0);
-        assertTrue(committed >= used);
-        assertTrue(max >= used);
+        long heapUsed = longField(info, "heap_used_memory");
+        long heapCommitted = longField(info, "heap_committed_memory");
+        long heapMax = longField(info, "heap_max_memory");
+        assertTrue(heapUsed > 0);
+        assertTrue(heapCommitted >= heapUsed);
+        assertTrue(heapMax >= heapUsed);
+        assertTrue(longField(info, "heap_init_memory") >= -1);
+
+        long nonHeapUsed = longField(info, "non_heap_used_memory");
+        long nonHeapCommitted = longField(info, "non_heap_committed_memory");
+        assertTrue(nonHeapUsed > 0);
+        assertTrue(nonHeapCommitted >= nonHeapUsed);
+        assertTrue(longField(info, "non_heap_max_memory") >= -1);
+        assertTrue(longField(info, "non_heap_init_memory") >= -1);
+
         assertTrue(longField(info, "gc_count") >= 0);
         assertTrue(longField(info, "gc_time_msec") >= 0);
-        assertFalse(Objects.requireNonNull(fieldValue(info, "used_memory_human")).isBlank());
-        assertFalse(Objects.requireNonNull(fieldValue(info, "max_memory_human")).isBlank());
+        for (String field : List.of(
+                "heap_used_memory_human", "heap_committed_memory_human", "heap_max_memory_human",
+                "heap_init_memory_human", "non_heap_used_memory_human", "non_heap_committed_memory_human",
+                "non_heap_max_memory_human", "non_heap_init_memory_human")) {
+            assertFalse(Objects.requireNonNull(fieldValue(info, field)).isBlank(), field);
+        }
     }
 
     @Test

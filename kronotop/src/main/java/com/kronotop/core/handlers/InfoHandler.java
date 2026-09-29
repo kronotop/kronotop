@@ -37,6 +37,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashSet;
@@ -208,10 +210,6 @@ public class InfoHandler implements Handler {
     }
 
     private void collectMemory(InfoCollector collector) {
-        Runtime runtime = Runtime.getRuntime();
-        long committed = runtime.totalMemory();
-        long used = committed - runtime.freeMemory();
-        long max = runtime.maxMemory();
         long gcCount = 0;
         long gcTime = 0;
         for (GarbageCollectorMXBean gc : ManagementFactory.getGarbageCollectorMXBeans()) {
@@ -222,11 +220,34 @@ public class InfoHandler implements Handler {
                 gcTime += gc.getCollectionTime();
             }
         }
-        collector.put(MEMORY_SECTION, "used_memory", used);
-        collector.put(MEMORY_SECTION, "used_memory_human", KronotopInstanceStarter.formatBytes(used));
-        collector.put(MEMORY_SECTION, "committed_memory", committed);
-        collector.put(MEMORY_SECTION, "max_memory", max);
-        collector.put(MEMORY_SECTION, "max_memory_human", KronotopInstanceStarter.formatBytes(max));
+        MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+
+        MemoryUsage heapMemoryUsage = memoryMXBean.getHeapMemoryUsage();
+        collector.put(MEMORY_SECTION, "heap_used_memory", heapMemoryUsage.getUsed());
+        collector.put(MEMORY_SECTION, "heap_used_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getUsed()));
+
+        collector.put(MEMORY_SECTION, "heap_committed_memory", heapMemoryUsage.getCommitted());
+        collector.put(MEMORY_SECTION, "heap_committed_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getCommitted()));
+
+        collector.put(MEMORY_SECTION, "heap_max_memory", heapMemoryUsage.getMax());
+        collector.put(MEMORY_SECTION, "heap_max_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getMax()));
+
+        collector.put(MEMORY_SECTION, "heap_init_memory", heapMemoryUsage.getInit());
+        collector.put(MEMORY_SECTION, "heap_init_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getInit()));
+
+        MemoryUsage nonHeapMemoryUsage = memoryMXBean.getNonHeapMemoryUsage();
+        collector.put(MEMORY_SECTION, "non_heap_used_memory", nonHeapMemoryUsage.getUsed());
+        collector.put(MEMORY_SECTION, "non_heap_used_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getUsed()));
+
+        collector.put(MEMORY_SECTION, "non_heap_committed_memory", nonHeapMemoryUsage.getCommitted());
+        collector.put(MEMORY_SECTION, "non_heap_committed_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getCommitted()));
+
+        collector.put(MEMORY_SECTION, "non_heap_max_memory", nonHeapMemoryUsage.getMax());
+        collector.put(MEMORY_SECTION, "non_heap_max_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getMax()));
+
+        collector.put(MEMORY_SECTION, "non_heap_init_memory", nonHeapMemoryUsage.getInit());
+        collector.put(MEMORY_SECTION, "non_heap_init_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getInit()));
+
         collector.put(MEMORY_SECTION, "gc_count", gcCount);
         collector.put(MEMORY_SECTION, "gc_time_msec", gcTime);
     }

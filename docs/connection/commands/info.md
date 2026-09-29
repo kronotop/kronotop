@@ -22,17 +22,17 @@ INFO [section ...]
 Bulk string containing server information formatted as `key:value` pairs grouped under `# Section` headers. Sections
 are separated by an empty line.
 
-| Section    | Fields                                                                                                                                                                                                                               |
-|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Server`   | `server_name`, `kronotop_version`, `kronotop_git_sha1`, `kronotop_build_time`, `server_mode`, `os`, `arch_bits`, `java_version`, `process_id`, `run_id`, `tcp_port`, `server_time_usec`, `fdb_api_version`, `listener0`, `listener1` |
-| `Cluster`  | `cluster_enabled`                                                                                                                                                                                                                    |
-| `Kronotop` | `cluster_name`, `member_id`, `member_status`, `bucket_shards`, `stash_shards`, `known_members`, `alive_members`, `primary_shards`, `standby_shards`                                                                                  |
-| `Clients`  | `connected_clients`, `clients_in_transaction`, `clients_in_multi`, `snapshot_read_clients`, `resp2_clients`, `resp3_clients`                                                                                                         |
-| `Memory`   | `used_memory`, `used_memory_human`, `committed_memory`, `max_memory`, `max_memory_human`, `gc_count`, `gc_time_msec`                                                                                                                 |
-| `Tasks`    | `task_count`, `running_tasks`                                                                                                                                                                                                        |
-| `Volume`   | `volume_count`, `volume0`, `volume1`, ...                                                                                                                                                                                            |
-| `Bucket`   | `plan_cache_size`, `index_maintenance_workers`, `index_maintenance_processed_entries`, `index_maintenance_retried_conflicts`, `index_maintenance_last_run`                                                                           |
-| `Vector`   | `vector_indexes`, `vector_bytes_used`                                                                                                                                                                                                |
+| Section    | Fields                                                                                                                                                                                                                                        |
+|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Server`   | `server_name`, `kronotop_version`, `kronotop_git_sha1`, `kronotop_build_time`, `server_mode`, `os`, `arch_bits`, `java_version`, `process_id`, `run_id`, `tcp_port`, `server_time_usec`, `fdb_api_version`, `listener0`, `listener1`          |
+| `Cluster`  | `cluster_enabled`                                                                                                                                                                                                                             |
+| `Kronotop` | `cluster_name`, `member_id`, `member_status`, `bucket_shards`, `stash_shards`, `known_members`, `alive_members`, `primary_shards`, `standby_shards`                                                                                           |
+| `Clients`  | `connected_clients`, `clients_in_transaction`, `clients_in_multi`, `snapshot_read_clients`, `resp2_clients`, `resp3_clients`                                                                                                                  |
+| `Memory`   | `heap_used_memory`, `heap_committed_memory`, `heap_max_memory`, `heap_init_memory`, `non_heap_used_memory`, `non_heap_committed_memory`, `non_heap_max_memory`, `non_heap_init_memory`, each with a `_human` pair, `gc_count`, `gc_time_msec` |
+| `Tasks`    | `task_count`, `running_tasks`                                                                                                                                                                                                                 |
+| `Volume`   | `volume_count`, `volume0`, `volume1`, ...                                                                                                                                                                                                     |
+| `Bucket`   | `plan_cache_size`, `index_maintenance_workers`, `index_maintenance_processed_entries`, `index_maintenance_retried_conflicts`, `index_maintenance_last_run`                                                                                    |
+| `Vector`   | `vector_indexes`, `vector_bytes_used`                                                                                                                                                                                                         |
 
 Field notes:
 
@@ -55,8 +55,13 @@ Field notes:
 - `clients_in_multi` counts sessions between `MULTI` and `EXEC` or `DISCARD`. Present only when `stash.enabled` is
   true.
 - `resp2_clients` and `resp3_clients` split `connected_clients` by the negotiated protocol version.
-- `used_memory` is the JVM heap in use, `committed_memory` the heap reserved from the operating system and
-  `max_memory` the heap limit. All three are in bytes. `gc_count` and `gc_time_msec` are totals since startup.
+- `heap_*` fields cover the JVM heap. `non_heap_*` fields cover JVM memory outside the heap, such as class metadata
+  and compiled code. Direct buffers are not included.
+- `*_used_memory` is the memory in use, `*_committed_memory` the memory reserved from the operating system,
+  `*_max_memory` the limit and `*_init_memory` the size requested at startup. All are in bytes. A value of `-1` means
+  the JVM does not define it. `non_heap_max_memory` is usually `-1`.
+- Each `_human` field repeats the value before it in a readable unit.
+- `gc_count` and `gc_time_msec` are totals since startup.
 - `task_count` counts the background tasks registered on this member. `running_tasks` counts the ones executing at
   the moment of the call.
 - `volume_count` counts the open volumes on this member. Each `volumeN` line has the volume name, its status
@@ -131,11 +136,22 @@ resp2_clients:2
 resp3_clients:1
 
 # Memory
-used_memory:17106512
-used_memory_human:16 MB
-committed_memory:125829120
-max_memory:12884901888
-max_memory_human:12.0 GB
+heap_used_memory:17106512
+heap_used_memory_human:16 MB
+heap_committed_memory:125829120
+heap_committed_memory_human:120 MB
+heap_max_memory:12884901888
+heap_max_memory_human:12.0 GB
+heap_init_memory:805306368
+heap_init_memory_human:768 MB
+non_heap_used_memory:48234496
+non_heap_used_memory_human:46 MB
+non_heap_committed_memory:55574528
+non_heap_committed_memory_human:53 MB
+non_heap_max_memory:-1
+non_heap_max_memory_human:-1 B
+non_heap_init_memory:7667712
+non_heap_init_memory_human:7 MB
 gc_count:9
 gc_time_msec:9
 
