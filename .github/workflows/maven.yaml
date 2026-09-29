@@ -11,7 +11,7 @@ on:
       - 'internals/**'
       - 'recipes/**'
       - 'development/**'
-      - 'contrib/**'
+      - 'extras/**'
       - 'benchmarks/**'
       - 'LICENSE'
   pull_request:
@@ -24,7 +24,7 @@ on:
       - 'internals/**'
       - 'recipes/**'
       - 'development/**'
-      - 'contrib/**'
+      - 'extras/**'
       - 'benchmarks/**'
       - 'LICENSE'
 
