@@ -58,13 +58,11 @@ public class IndexMaintainer {
      * Returns which of the given ObjectIds already have at least one back pointer in this index.
      *
      * <p>Issues one point request per ObjectId against the {@code (BACK_POINTER, ObjectId, ...)}
-     * keyspace. This layout is shared by single field and compound indexes, so the probe is index
-     * type agnostic. All requests are dispatched before any is awaited, so the FoundationDB client
-     * pipelines them over a single connection, giving a few round trips instead of one per ObjectId.
-     * Each read is not a snapshot read, so it registers a narrow read conflict range over exactly that
-     * ObjectId's back pointers. A concurrent writer that adds or removes an entry for one of these
-     * ObjectIds forces this transaction to conflict on commit. This lets the background index builder
-     * skip ObjectIds already indexed by online writers without double counting cardinality.
+     * keyspace, which single field and compound indexes share. All requests are sent before any is
+     * awaited, so the FoundationDB client pipelines them. The reads are not snapshot reads, so a
+     * concurrent writer that adds or removes an entry for one of these ObjectIds makes this transaction
+     * conflict on commit. The background index builder uses this to skip ObjectIds already indexed by
+     * online writers without double counting cardinality.
      *
      * @param tr            the FoundationDB transaction
      * @param indexSubspace the index's directory subspace

@@ -50,21 +50,21 @@ public abstract class AbstractScanNode extends AbstractPipelineNode implements S
      * subtype. The conversion is necessary because FoundationDB's Tuple layer uses its own
      * type system (e.g. all integers are stored as longs, Decimal128 as strings).
      *
-     * <p><b>Notable type mappings:</b>
+     * <p>Type mappings that differ from the BSON type:
      * <ul>
      *   <li>{@code INT32}: FoundationDB stores as long, narrowed to int here</li>
      *   <li>{@code DECIMAL128}: stored as string in the Tuple layer, parsed to BigDecimal</li>
      *   <li>{@code OBJECT_ID}: stored as 12-byte array, reconstructed into {@link ObjectIdVal}</li>
      *   <li>{@code BINARY}: yields {@link VersionstampVal} when the value is a
      *       {@link Versionstamp} (primary _id index), otherwise {@link BinaryVal}</li>
+     *   <li>{@code STRING}: yields {@link BinaryVal} when the index has a collation,
+     *       because the index stores the collation key bytes</li>
      *   <li>{@code NULL} or a {@code null} value: returns {@link NullVal}</li>
      * </ul>
      *
-     * <p>Used by scan nodes to construct checkpoint bounds and evaluate predicates
-     * during index traversal.
-     *
-     * @param value    the raw value extracted from tuple position 1 (may be {@code null})
-     * @param bsonType the BSON type from the index definition
+     * @param value     the raw value extracted from tuple position 1 (may be {@code null})
+     * @param bsonType  the BSON type from the index definition
+     * @param collation the index collation, or {@code null} if the index has none
      * @return the typed BqlValue wrapper
      * @throws IllegalArgumentException if the BSON type is not supported for indexing
      * @see RangeScanNode

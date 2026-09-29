@@ -30,23 +30,10 @@ import java.util.Map;
  * builds a value distribution histogram, and stores it in bucket metadata for the query
  * planner to estimate selectivity.
  *
- * <p>State lifecycle:
- * <pre>
- * WAITING -> RUNNING -> COMPLETED (success)
- *                  -> FAILED (error during analysis)
- *                  -> STOPPED (manual cancellation)
- * </pre>
- *
- * <p>Only status and error are tracked, both inherited from {@link AbstractTaskState}. Unlike
- * {@link com.kronotop.bucket.index.maintenance.IndexBuildingTaskState}, no cursor position is
- * persisted, because analysis samples the hint space instead of scanning the whole index.
- * Completed or failed tasks are removed by
+ * <p>Only status and error are tracked, both inherited from {@link AbstractTaskState}. No cursor
+ * is persisted, because analysis samples the hint space instead of scanning the whole index.
+ * Completed or stopped tasks are removed by
  * {@link com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper}.
- *
- * @see IndexAnalyzeRoutine
- * @see IndexAnalyzeTask
- * @see HistogramCodec
- * @see AbstractTaskState
  */
 public class IndexAnalyzeTaskState extends AbstractTaskState {
 

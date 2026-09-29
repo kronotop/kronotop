@@ -29,26 +29,25 @@ import java.util.UUID;
  * <p>
  * Holds the metadata needed to create and manage the index: a unique id, a name that is
  * unique within the bucket, the field selector in dot notation, the indexed BSON type,
- * whether the field is multi-key, the current status, and an optional collation.
+ * whether the field is multi-key, the current status, an optional collation, and whether
+ * the index is unique.
  *
- * <h3>Multi-key indexes</h3>
+ * <p>
  * When {@code multiKey} is true, an array field produces one index entry per array element.
+ * A unique index cannot be multi-key.
+ * Indexes on DECIMAL128 fields are not implemented yet, so {@code create} rejects them.
+ * <p>
+ * Use {@link #updateStatus(IndexStatus)} to derive a new instance with a changed status.
+ * A DROPPED index cannot move to any other status.
  *
- * <h3>Supported types</h3>
- * All BSON types are supported except DECIMAL128, which is not implemented yet.
- *
- * <h3>Status</h3>
- * The status tracks the index state (READY, BUILDING, FAILED, and so on) and drives
- * background building. Use {@link #updateStatus(IndexStatus)} to derive a new instance
- * with a changed status. A DROPPED index cannot move to any other status.
- *
- * @param id        unique identifier generated from UUID hash using SipHash24 algorithm
+ * @param id        unique identifier, a SipHash24 hash of a random UUID
  * @param name      index name, must be unique within a bucket
  * @param selector  document field path in dot notation (e.g., "field.subfield")
  * @param bsonType  BSON type of the indexed field values
  * @param multiKey  if true, indexes array elements individually
  * @param status    current index status
  * @param collation optional collation for locale-aware string ordering, null inherits the bucket default or binary ordering
+ * @param unique    if true, the index enforces unique values; cannot be combined with {@code multiKey}
  * @see SingleFieldIndexUtil#create(com.apple.foundationdb.Transaction, com.apple.foundationdb.directory.DirectorySubspace, SingleFieldIndexDefinition)
  * @see IndexNameGenerator#generate(String, BsonType)
  * @see IndexStatus
@@ -67,16 +66,15 @@ public record SingleFieldIndexDefinition(long id, String name, String selector, 
     }
 
     /**
-     * Creates a new index definition with a unique ID and the given attributes.
-     * The ID is a SipHash24 hash of a random UUID.
+     * Creates a new index definition with a new unique ID.
      *
-     * @param name     the human-readable name for the index, must be unique within a bucket
-     * @param selector the document field path to index using dot notation (e.g., "user.address.city")
-     * @param bsonType the expected BSON data type of the indexed field values
-     * @param multiKey if true, array elements are indexed individually
-     * @param status   the initial status assigned to the index
-     * @return a new IndexDefinition instance with a unique ID and the specified attributes
-     * @throws NotImplementedException if bsonType is DECIMAL128, which is not currently supported
+     * @param name     index name, must be unique within a bucket
+     * @param selector document field path in dot notation (e.g., "user.address.city")
+     * @param bsonType BSON type of the indexed field values
+     * @param multiKey if true, indexes array elements individually
+     * @param status   initial index status
+     * @return a new definition with the given attributes
+     * @throws NotImplementedException if bsonType is DECIMAL128
      */
     public static SingleFieldIndexDefinition create(String name, String selector, BsonType bsonType, boolean multiKey, IndexStatus status) {
         return create(name, selector, bsonType, multiKey, status, null);

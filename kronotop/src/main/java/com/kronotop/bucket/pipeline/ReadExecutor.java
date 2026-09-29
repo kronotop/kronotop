@@ -31,30 +31,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reads documents in the Kronotop Cluster.
+ * Runs a query pipeline and returns the matching documents.
  *
- * <p>Runs a query pipeline to identify the documents to retrieve, then fetches their
- * content. Handles both persisted entries (already in memory) and document locations
- * (retrieved from storage).
- *
- * <p>This executor supports reading from two types of data sinks:
- * <ul>
- *   <li>{@link PersistedEntrySink} - Contains complete document entries already in memory</li>
- *   <li>{@link DocumentLocationSink} - Contains document location metadata requiring retrieval</li>
- * </ul>
- *
- * @see Executor
- * @see PipelineExecutor
- * @see DataSink
+ * <p>Reads from two sink types: {@link PersistedEntrySink} holds documents already in memory,
+ * {@link DocumentLocationSink} holds locations that are read from storage.
  */
 public final class ReadExecutor extends BaseExecutor implements Executor<List<ByteBuffer>> {
     private final PipelineExecutor executor;
 
-    /**
-     * Constructs a new ReadExecutor with the specified pipeline executor.
-     *
-     * @param executor the pipeline executor used to process the query and populate data sinks
-     */
     public ReadExecutor(PipelineExecutor executor) {
         this.executor = executor;
     }

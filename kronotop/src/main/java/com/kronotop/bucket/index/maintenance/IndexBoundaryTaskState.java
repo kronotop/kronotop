@@ -32,12 +32,7 @@ import java.util.Map;
  *
  * <p>Unlike {@link IndexBuildingTaskState}, this state carries only the inherited status and error
  * fields. Boundary tasks are short-lived and need no cursor or progress tracking. Completed or
- * failed tasks are removed by {@link IndexMaintenanceTaskSweeper}.
- *
- * @see IndexBoundaryRoutine
- * @see IndexBoundaryTask
- * @see BoundaryLocator
- * @see AbstractTaskState
+ * stopped tasks are removed by {@link IndexMaintenanceTaskSweeper}.
  */
 public class IndexBoundaryTaskState extends AbstractTaskState {
     /**

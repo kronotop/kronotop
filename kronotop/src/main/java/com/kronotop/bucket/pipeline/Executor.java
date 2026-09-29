@@ -19,23 +19,10 @@ package com.kronotop.bucket.pipeline;
 import com.apple.foundationdb.Transaction;
 
 /**
- * Runs one database operation on the documents a query pipeline selects.
+ * Runs one database operation (read, delete or update) on the documents a query pipeline selects,
+ * within a FoundationDB transaction.
  *
- * <p>Permitted implementations:
- * <ul>
- *   <li>{@link ReadExecutor} - reads document content</li>
- *   <li>{@link DeleteExecutor} - removes documents</li>
- *   <li>{@link UpdateExecutor} - modifies documents</li>
- * </ul>
- *
- * <p>Executors run within a FoundationDB transaction.
- *
- * @param <T> the type of result returned by the executor operation
- * @see ReadExecutor
- * @see DeleteExecutor
- * @see UpdateExecutor
- * @see QueryContext
- * @see PipelineExecutor
+ * @param <T> the result type
  */
 public sealed interface Executor<T> permits ReadExecutor, DeleteExecutor, UpdateExecutor {
 

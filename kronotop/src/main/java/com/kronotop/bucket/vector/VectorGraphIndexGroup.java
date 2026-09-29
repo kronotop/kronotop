@@ -48,14 +48,14 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 
 /**
- * Manages a collection of on-heap and on-disk vector graph indexes for a single vector index definition.
- * Provides lifecycle management (bootstrap, flush, close) and unified search across all contained indexes.
+ * Holds the on-heap and on-disk vector graph indexes of one vector index definition.
+ * Bootstraps, flushes, closes and searches them as one unit.
  *
- * <p>A group transitions through two states:
+ * <p>A group has two states:
  * <ul>
- *   <li><b>Not ready</b> — background bootstrap is loading on-disk indexes and replaying the mutation log.
+ *   <li>Not ready: background bootstrap is loading on-disk indexes and replaying the mutation log.
  *       All write operations are blocked until bootstrap completes.</li>
- *   <li><b>Ready</b> — the group is fully initialized and available for reads and writes.
+ *   <li>Ready: the group is available for reads and writes.
  *       A group created via the fast-path (no data to recover) is immediately ready.</li>
  * </ul>
  */

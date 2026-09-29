@@ -20,13 +20,12 @@ import com.kronotop.bucket.planner.physical.PhysicalNode;
 import com.kronotop.bucket.planner.physical.PlannerContext;
 
 /**
- * Interface for physical plan optimization rules.
- * Rules transform PhysicalNode trees to improve query execution performance.
+ * A rule that rewrites a PhysicalNode tree into a cheaper equivalent.
  */
 public interface PhysicalOptimizationRule {
 
     /**
-     * Apply this optimization rule to a physical node tree.
+     * Applies this rule to a physical node tree.
      *
      * @param context planner context containing metadata and configuration
      * @param node    the physical node to optimize
@@ -35,22 +34,17 @@ public interface PhysicalOptimizationRule {
     PhysicalNode apply(PlannerContext context, PhysicalNode node);
 
     /**
-     * Get the name of this optimization rule.
-     *
-     * @return rule name for logging and metrics
+     * Returns the rule name, used in logs and metrics.
      */
     String getName();
 
     /**
-     * Get the priority of this rule. Higher priority rules execute first.
-     *
-     * @return priority value (higher values = higher priority)
+     * Returns the rule priority. Higher priority rules run first.
      */
     int getPriority();
 
     /**
-     * Quick check if this rule can be applied to the given node.
-     * This should be a fast check to avoid expensive rule application attempts.
+     * Returns false if this rule can never apply to the node. Must be cheap.
      *
      * @param node the physical node to check
      * @return true if this rule might be applicable

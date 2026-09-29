@@ -34,12 +34,8 @@ import java.util.List;
 /**
  * Builds compound indexes on existing bucket data in the background.
  *
- * <p>Extends {@link AbstractBuildingRoutine} with index lookup via
- * {@link BucketMetadata#compoundIndexes()} and per-document entry insertion using
+ * <p>Looks up the index in {@link BucketMetadata#compoundIndexes()} and writes entries with
  * {@link CompoundIndexMaintainer}.
- *
- * @see AbstractBuildingRoutine
- * @see CompoundIndexMaintainer
  */
 public class CompoundIndexBuildingRoutine extends AbstractBuildingRoutine {
 

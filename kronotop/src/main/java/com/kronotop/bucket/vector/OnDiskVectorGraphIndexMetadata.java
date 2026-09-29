@@ -63,7 +63,7 @@ import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
  *     32     4  deletedCount
  *     36     4  reserved
  *
- * ORDINAL SECTION — (maxOrdinal + 1) × 64 bytes
+ * ORDINAL SECTION ((maxOrdinal + 1) × 64 bytes)
  * -------------------------------------------
  * offset  size  field
  *      0     8  segmentId   (long)
@@ -76,7 +76,7 @@ import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
  *     45    12  objectId    (byte[12])
  *     57     7  reserved
  *
- * OBJECTID SECTION — count × 28 bytes, sorted by ObjectId (unsigned)
+ * OBJECTID SECTION (count × 28 bytes, sorted by ObjectId, unsigned)
  * ---------------------------------------
  * offset  size  field
  *      0    12  objectId     (byte[12])

@@ -115,7 +115,7 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
 
     @Override
     public int getPriority() {
-        return 60; // Medium priority - after index optimizations, before lower-level optimizations
+        return 60;
     }
 
     @Override
@@ -131,14 +131,13 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
 
     /**
      * Estimates the selectivity cost of a physical node.
-     * Lower values indicate higher selectivity (better performance).
+     * Lower values mean fewer expected results.
      * When sortByField is set, gives priority to index scans on that field.
      */
     private record SelectivityEstimator(PlannerContext context) {
 
         /**
-         * Estimate the selectivity cost of a physical node.
-         * Lower cost means higher selectivity (fewer expected results).
+         * Estimates the selectivity cost of a physical node.
          *
          * @param node the physical node to estimate
          * @return estimated cost (lower = more selective)
@@ -246,7 +245,7 @@ public class SelectivityBasedOrderingRule implements PhysicalOptimizationRule {
         }
 
         /**
-         * Get selectivity adjustment based on operator type.
+         * Get selectivity adjustment based on the operator type.
          * Lower values are more selective.
          */
         private double getOperatorSelectivityAdjustment(Operator op) {

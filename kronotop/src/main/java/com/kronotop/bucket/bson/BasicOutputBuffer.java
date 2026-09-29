@@ -43,8 +43,8 @@ import static java.nio.ByteOrder.LITTLE_ENDIAN;
 public class BasicOutputBuffer extends OutputBuffer {
 
     /**
-     * This ByteBuffer allows us to write ObjectIDs without allocating a temporary array per object, and enables us
-     * to leverage JVM intrinsics for writing little-endian numeric values.
+     * Lets us write ObjectIDs without a temporary array per object, and use JVM intrinsics for
+     * little-endian numeric values.
      */
     private ByteBuffer buffer;
 
@@ -204,8 +204,8 @@ public class BasicOutputBuffer extends OutputBuffer {
     }
 
     /**
-     * Ensures that `absolutePosition` is a valid index in `this.buffer` and there is room to write at
-     * least `bytesToWrite` bytes.
+     * Checks that {@code absolutePosition} is a valid index in {@code buffer} and there is room to write at
+     * least {@code bytesToWrite} bytes.
      */
     private void checkPosition(final int absolutePosition, final int bytesToWrite) {
         if (absolutePosition < 0) {

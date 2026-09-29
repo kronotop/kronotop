@@ -94,31 +94,31 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Retrieves the input type associated with the given request's session.
+     * Returns the input type of the request's session.
      *
-     * @param request the request object containing the session from which the input type is retrieved
-     * @return the input type associated with the session, typically either JSON or BSON
+     * @param request the current request
+     * @return JSON or BSON
      */
     InputType getInputType(Request request) {
         return request.getSession().attr(com.kronotop.server.SessionAttributes.INPUT_TYPE).get();
     }
 
     /**
-     * Retrieves the reply type associated with the given request's session.
+     * Returns the reply type of the request's session.
      *
-     * @param request the request object containing the session from which the reply type is retrieved
-     * @return the reply type associated with the session, typically either JSON or BSON
+     * @param request the current request
+     * @return JSON or BSON
      */
     private ReplyType getReplyType(Request request) {
         return request.getSession().attr(com.kronotop.server.SessionAttributes.REPLY_TYPE).get();
     }
 
     /**
-     * Prepares a {@code ByteBuf} value based on the reply type derived from the given request.
+     * Encodes a document in the session's reply type.
      *
-     * @param request  the {@code Request} object containing the session information
-     * @param document a {@code ByteBuffer} containing the document data
-     * @return a {@code ByteBuf} object containing the serialized data in the format specified by the reply type
+     * @param request  the current request
+     * @param document the document as BSON bytes
+     * @return the encoded document
      */
     protected ByteBuf prepareValue(Request request, ByteBuffer document) {
         ReplyType replyType = getReplyType(request);
@@ -148,11 +148,11 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Processes and writes a RESP3-compliant response to the client based on the provided {@code ReadResponse}.
+     * Writes the cursor ID and entries as a RESP3 map.
      *
-     * @param request      the {@code Request} object containing session and command-related information
-     * @param response     the {@code Response} object used to send the processed results back to the client
-     * @param readResponse the {@code BucketEntriesMapResponse} containing the cursor ID and entries
+     * @param request      the current request
+     * @param response     the response to write to
+     * @param readResponse the cursor ID and entries
      */
     protected void resp3Response(Request request, Response response, BucketEntriesMapResponse readResponse) {
         Map<RedisMessage, RedisMessage> root = new LinkedHashMap<>();
@@ -174,11 +174,11 @@ public abstract class AbstractBucketHandler implements Handler {
     }
 
     /**
-     * Processes and writes a RESP2-compliant response to the client based on the given {@code ReadResponse}.
+     * Writes the cursor ID and entries as a RESP2 array.
      *
-     * @param request      the {@code Request} object containing the session and command information
-     * @param response     the {@code Response} object used to send the result back to the client
-     * @param readResponse the {@code BucketEntriesMapResponse} containing the cursor ID and entries
+     * @param request      the current request
+     * @param response     the response to write to
+     * @param readResponse the cursor ID and entries
      */
     protected void resp2Response(Request request, Response response, BucketEntriesMapResponse readResponse) {
         List<RedisMessage> root = new ArrayList<>();
@@ -294,11 +294,8 @@ public abstract class AbstractBucketHandler implements Handler {
     /**
      * Applies field-level projection to query results if a projection spec is present in the context.
      * <p>
-     * This method deserializes each ByteBuffer into a BsonDocument, applies the projection, and serializes back.
-     * A BsonBinaryReader-based approach that operates directly on raw bytes was considered but rejected:
-     * projection runs on already-limited result sets, the real bottleneck is FDB/Volume I/O, and the Projector
-     * logic (nested fields, array traversal, positional operator) would require a complex state machine
-     * for marginal gain.
+     * Each entry is decoded into a {@code BsonDocument}, projected and encoded again. The result set is
+     * already limited, so the round-trip cost is small next to FDB and Volume I/O.
      *
      * @param entries the raw document entries from the query executor
      * @param ctx     the query context potentially containing a projection spec
@@ -326,9 +323,7 @@ public abstract class AbstractBucketHandler implements Handler {
     /**
      * Applies field-level projection to vector search results.
      * <p>
-     * Same ByteBuffer-to-BsonDocument round-trip rationale as {@link #applyProjection}:
-     * the result set is already bounded, and a raw-bytes approach would add significant
-     * complexity for negligible performance improvement.
+     * Uses the same decode and encode round-trip as {@link #applyProjection}.
      */
     protected List<VectorSearchResult> applyVectorProjection(
             List<VectorSearchResult> results,

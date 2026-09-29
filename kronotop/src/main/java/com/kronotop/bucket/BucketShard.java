@@ -24,9 +24,7 @@ import java.util.List;
 
 public interface BucketShard extends Shard {
     /**
-     * Retrieves the Volume associated with the Shard.
-     *
-     * @return the Volume associated with the Shard
+     * Returns the Volume that stores this shard's document bodies.
      */
     Volume volume();
 

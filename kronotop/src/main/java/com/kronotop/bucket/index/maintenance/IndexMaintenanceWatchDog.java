@@ -59,10 +59,6 @@ import java.util.concurrent.locks.LockSupport;
  * thread keep-alive. At most {@code MAX_WORKER_POOL_SIZE} workers (twice the pool size) are tracked
  * in memory, which provides backpressure. Workers idle beyond {@code WORKER_MAX_STALE_PERIOD} (60s)
  * are shut down.
- *
- * @see IndexMaintenanceWorker
- * @see IndexMaintenanceTaskSweeper
- * @see BucketShard
  */
 public class IndexMaintenanceWatchDog implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexMaintenanceWatchDog.class);
@@ -147,11 +143,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
     }
 
     /**
-     * Returns the active workers map.
-     *
-     * <p><b>Note:</b> Package-private for testing purposes only.
-     *
-     * @return the map of active workers keyed by task ID
+     * Returns the active workers keyed by task ID. Used by tests.
      */
     Map<Versionstamp, WorkerHandle> getWorkers() {
         return workers;
@@ -173,15 +165,9 @@ public class IndexMaintenanceWatchDog implements Runnable {
     /**
      * Cleans up stale workers that have been inactive beyond the maximum stale period.
      *
-     * <p>Stale workers are first collected and shut down inside the synchronized
-     * {@link #collectStaleWorkers()} method, but <b>not</b> removed from the workers map
-     * at that point. This ensures that during the subsequent {@code await()} calls
-     * (which run outside the lock), {@link #spawnWorker} still sees the entry and
-     * will not spawn a duplicate worker for the same task.
-     *
-     * <p>Map removal happens only after {@code await()} completes for each stale worker.
-     *
-     * <p><b>Note:</b> Package-private for testing purposes.
+     * <p>{@link #collectStaleWorkers()} shuts stale workers down under the lock but keeps them in
+     * the workers map. They are removed only after {@code await()} returns, so {@link #spawnWorker}
+     * cannot start a duplicate worker for the same task while {@code await()} runs outside the lock.
      */
     void cleanupStaleWorkers() {
         List<Map.Entry<Versionstamp, WorkerHandle>> staleWorkers = collectStaleWorkers();
@@ -358,8 +344,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
      *
      * <p>Starts a periodic task at {@code bucket.index.maintenance.worker_maintenance_interval}
      * seconds that cleans up stale workers and processes the queue, so pending tasks make progress
-     * even if a watch is missed. Then loops on the task watch: it waits for the trigger key to
-     * change, processes the queue, and re-arms the watch.
+     * even if a watch is missed. The main loop processes the queue each time the trigger key changes.
      *
      * <p>Exceptions are logged and the loop keeps running, except for the CancellationException
      * expected when the shard closes.
@@ -397,9 +382,8 @@ public class IndexMaintenanceWatchDog implements Runnable {
     /**
      * Shuts down the watchdog and all active workers.
      *
-     * <p>Cancels the watch, shuts down every active worker, then stops the worker executor and
-     * scheduler and waits up to the default termination timeout for them. A warning is logged if
-     * they do not terminate in time, so shard closure is never blocked indefinitely.
+     * <p>Waits up to the default termination timeout for the worker pool, then again for the
+     * scheduler. If either does not stop in time, a warning is logged and shard closure continues.
      *
      * @throws KronotopException if interrupted while waiting for termination
      */
@@ -445,22 +429,11 @@ public class IndexMaintenanceWatchDog implements Runnable {
         private final IndexMaintenanceWorker worker;
         private final Future<?> future;
 
-        /**
-         * Creates a new WorkerHandle.
-         *
-         * @param worker the index maintenance worker instance
-         * @param future the future representing the worker's execution
-         */
         WorkerHandle(IndexMaintenanceWorker worker, Future<?> future) {
             this.worker = worker;
             this.future = future;
         }
 
-        /**
-         * Returns the underlying IndexMaintenanceWorker.
-         *
-         * @return the wrapped worker instance
-         */
         public IndexMaintenanceWorker getWorker() {
             return worker;
         }

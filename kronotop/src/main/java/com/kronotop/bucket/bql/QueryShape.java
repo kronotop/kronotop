@@ -24,29 +24,15 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Computes a query shape hash for plan caching using FNV-1a algorithm.
+ * Computes a 64-bit query shape hash for plan caching.
  *
- * <p>A query shape captures the structural characteristics of a query without
- * the actual parameter values. Two queries with the same shape will have
- * identical execution plans, making the shape suitable as a cache key.</p>
+ * <p>The shape includes operators, field selectors, value types, the AND/OR/NOT nesting,
+ * the array sizes of $in/$nin/$all and the boolean value of $exists. Other values are not
+ * included. The order of children in $and/$or and the order of values in $in/$nin/$all do
+ * not change the shape.</p>
  *
- * <p>The shape includes:</p>
- * <ul>
- *   <li>Operator types ($eq, $gt, $in, $and, etc.)</li>
- *   <li>Field selectors (field names being queried)</li>
- *   <li>Value types (INT32, STRING, etc.) but not actual values</li>
- *   <li>Structural nesting (AND/OR/NOT hierarchy)</li>
- *   <li>Array sizes for $in/$nin/$all operators</li>
- * </ul>
- *
- * <p>Order independence:</p>
- * <ul>
- *   <li>Field ordering within $and/$or does not affect the shape hash</li>
- *   <li>Value ordering within $in/$nin/$all does not affect the shape hash</li>
- * </ul>
- *
- * <p>For $in/$nin/$all operators, all value types are hashed (not just the first),
- * so mixed-type arrays produce different shapes than homogeneous arrays.</p>
+ * <p>The expression is hashed with FNV-1a. The SORTBY field and the collation, when given,
+ * are added to that hash with a multiply-and-add step.</p>
  */
 public final class QueryShape extends BaseShapeHash {
 
@@ -57,8 +43,7 @@ public final class QueryShape extends BaseShapeHash {
      * Computes a 64-bit shape hash for a BQL expression.
      *
      * <p>Queries with the same shape produce identical hashes and can share
-     * cached execution plans. The hash is computed using FNV-1a algorithm
-     * with minimal allocations.</p>
+     * cached execution plans.</p>
      *
      * @param expr the BQL expression to compute the shape for
      * @return a 64-bit FNV-1a hash representing the query shape

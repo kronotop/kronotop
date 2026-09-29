@@ -32,8 +32,5 @@ public interface PhysicalPlanValidationRule {
      */
     List<Violation> check(PlannerContext context, PhysicalNode plan);
 
-    /**
-     * Returns the name of this validation rule.
-     */
     String getName();
 }

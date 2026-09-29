@@ -50,10 +50,10 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
     }
 
     /**
-     * Parses the input byte array into a Document object, assuming it is either JSON or BSON format.
+     * Parses a JSON or BSON update document.
      *
-     * @param input the input byte array containing the data to be parsed
-     * @return a Document object obtained by parsing the input byte array
+     * @param input the raw update document
+     * @return the parsed {@code BsonDocument}
      */
     private BsonDocument parseUpdateDocument(byte[] input) {
         if (BqlParser.isBSON(input)) {

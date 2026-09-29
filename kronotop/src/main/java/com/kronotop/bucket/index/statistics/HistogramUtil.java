@@ -24,8 +24,7 @@ import java.util.Iterator;
 import java.util.TreeSet;
 
 /**
- * Utility class for building and querying histograms from sorted BSON values.
- * Works efficiently with up to ~1000 elements.
+ * Builds and queries histograms from sorted BSON values.
  */
 public final class HistogramUtil {
 
@@ -119,6 +118,6 @@ public final class HistogramUtil {
         int totalBuckets = histogram.size();
 
         double percentile = ((index + 1) / (double) totalBuckets) * 100.0;
-        return Math.max(0, Math.min(100, percentile));
+        return Math.clamp(percentile, 0, 100);
     }
 }

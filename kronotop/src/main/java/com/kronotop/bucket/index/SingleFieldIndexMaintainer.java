@@ -104,8 +104,8 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
 
     /**
      * Encodes a raw field value into the form stored in index keys: ObjectId values become their
-     * byte representation, and String values are replaced by their collation key. This is the single
-     * source of truth for index value encoding, so uniqueness checks and entry writes agree exactly.
+     * byte representation, and String values are replaced by their collation key. Uniqueness checks
+     * and entry writes both use this method, so they always encode the same way.
      *
      * @param definition    the index definition
      * @param metadata      the bucket metadata
@@ -177,10 +177,8 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
     }
 
     /**
-     * Inserts a single field index entry, building the IndexEntry from the supplied shard and metadata.
-     *
-     * <p>Unlike {@link #setEntry}, which takes an already encoded {@link IndexEntry}, this method builds
-     * the entry from the given shard and entry metadata.
+     * Inserts a single field index entry. Unlike {@link #setEntry}, it builds the {@link IndexEntry}
+     * from the shard ID and entry metadata.
      *
      * @param tr            the FoundationDB transaction
      * @param index         the resolved index
@@ -288,8 +286,7 @@ public final class SingleFieldIndexMaintainer extends IndexMaintainer {
     /**
      * Creates a single field index entry using an {@link IndexEntryContainer}.
      *
-     * <p>Convenience method that extracts all required values from the container and creates
-     * the index entry with back pointer and cardinality update.
+     * <p>Writes the index entry, its back pointer and the cardinality update.
      *
      * @param tr            the FoundationDB transaction
      * @param objectId      the document's ObjectId as bytes

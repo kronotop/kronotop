@@ -28,28 +28,11 @@ import java.util.Map;
  *
  * <p>A drop task clears the index entries and publishes a metadata update so readers stop
  * using the index. It runs as a single task, not one per shard. Only status and error are
- * tracked, with no cursor, since the clear runs within a transaction.
- *
- * <p>State lifecycle:
- * <pre>
- * WAITING -> RUNNING -> COMPLETED (success)
- *                  -> FAILED (error during deletion)
- *                  -> STOPPED (manually stopped)
- * </pre>
- *
- * <p>State fields, both inherited from {@link AbstractTaskState}:
- * <ul>
- *   <li>status: task execution status</li>
- *   <li>error: error message if failed</li>
- * </ul>
+ * tracked, with no cursor, since the clear runs within a transaction. The lifecycle is described
+ * in {@link AbstractTaskState}.
  *
  * <p>The {@link IndexMaintenanceTaskSweeper} removes the completed task once the index no
  * longer exists.
- *
- * @see IndexDropRoutine
- * @see IndexDropTask
- * @see IndexMaintenanceTaskSweeper
- * @see AbstractTaskState
  */
 public class IndexDropTaskState extends AbstractTaskState {
 
@@ -64,11 +47,7 @@ public class IndexDropTaskState extends AbstractTaskState {
     }
 
     /**
-     * Loads the drop task state from FoundationDB.
-     *
-     * <p>Retrieves common state fields (status and error) using the parent class
-     * {@link AbstractTaskState#loadCommonFields}. No additional fields are loaded
-     * as drop tasks only track execution status.
+     * Loads the drop task state (status and error) from FoundationDB.
      *
      * @param tr       transaction for reading state
      * @param subspace task subspace

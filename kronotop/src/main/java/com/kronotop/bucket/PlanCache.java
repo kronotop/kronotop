@@ -28,9 +28,9 @@ import java.util.concurrent.locks.StampedLock;
 /**
  * Thread-safe cache for query execution plans, keyed by namespace, bucket ID, and query shape hash.
  *
- * <p>Uses fastutil's RBTreeMap for namespace keys to enable efficient prefix-based invalidation
- * (e.g., removing "production" invalidates "production.users.johndoe"). Uses StampedLock for
- * optimistic read access, optimized for read-heavy workloads typical of plan caching.</p>
+ * <p>Plans can be invalidated for one bucket, one namespace, or all namespaces that start with
+ * a string prefix. Namespace keys are kept in a sorted map for the prefix case. {@link #get}
+ * uses the optimistic mode of a StampedLock.</p>
  *
  * <p>Implements FIFO eviction per bucket when size exceeds {@link #MAX_ENTRIES_PER_BUCKET}.</p>
  */
@@ -107,8 +107,8 @@ public class PlanCache {
     }
 
     /**
-     * Invalidates all cached plans for a bucket.
-     * Call this when bucket indexes change.
+     * Invalidates all cached plans for a bucket. Called when the bucket metadata or index
+     * statistics change, a vector index is dropped, or the bucket is removed.
      *
      * @param namespace the namespace name
      * @param bucketId  the bucket identifier
@@ -140,9 +140,8 @@ public class PlanCache {
     }
 
     /**
-     * Invalidates all cached plans for namespaces matching the given prefix.
-     * For example, the prefix "production" invalidates "production", "production.users",
-     * "production.users.johndoe", etc.
+     * Invalidates all cached plans for namespaces that start with the given string. This is a
+     * plain string match, so "prod" matches "prod.users" and also "production".
      *
      * @param prefix the namespace prefix to match
      */

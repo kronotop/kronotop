@@ -34,12 +34,8 @@ import org.bson.BsonValue;
 /**
  * Builds secondary (single-field) indexes on existing bucket data in the background.
  *
- * <p>Extends {@link AbstractBuildingRoutine} with index lookup via
- * {@link BucketMetadata#singleFieldIndexes()} and per-document entry insertion using
- * {@link SingleFieldIndexMaintainer}, including multikey array handling.
- *
- * @see AbstractBuildingRoutine
- * @see SingleFieldIndexMaintainer
+ * <p>Looks up the index in {@link BucketMetadata#singleFieldIndexes()} and writes entries with
+ * {@link SingleFieldIndexMaintainer}, one per array element for multikey fields.
  */
 public class SingleFieldIndexBuildingRoutine extends AbstractBuildingRoutine {
 

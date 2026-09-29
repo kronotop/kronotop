@@ -36,10 +36,8 @@ import java.math.BigDecimal;
  * INT64 to DOUBLE is explicitly forbidden because 64-bit integers
  * exceed double's 53-bit mantissa, causing silent precision loss.
  *
- * <h3>Common type resolution and cost</h3>
  * <p>
- * {@link #commonType} does NOT always promote to DECIMAL128. It returns the
- * cheapest lossless common type for each pair:
+ * {@link #commonType} returns the cheapest lossless common type for each pair:
  * <pre>
  *   INT32 + INT32 -> INT32 (identity, no conversion)
  *   INT32 + INT64 -> INT64 (cheap cast)
@@ -47,7 +45,7 @@ import java.math.BigDecimal;
  *   INT32 + DECIMAL128 -> DECIMAL128 (BigDecimal allocation)
  *   INT64 + INT64 -> INT64 (identity, no conversion)
  *   INT64 + DOUBLE -> DECIMAL128 (BigDecimal allocation, unavoidable since INT64 -> DOUBLE is lossy)
- *   DOUBLE and DOUBLE -> DOUBLE (identity, no conversion)
+ *   DOUBLE + DOUBLE -> DOUBLE (identity, no conversion)
  *   DOUBLE + DECIMAL128 -> DECIMAL128 (BigDecimal allocation)
  * </pre>
  * <p>

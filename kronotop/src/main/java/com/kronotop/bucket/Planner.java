@@ -43,23 +43,14 @@ import java.util.Map;
  * <ol>
  *   <li>Logical planning: AST -> logical plan ({@link LogicalPlanner})</li>
  *   <li>Physical planning: logical plan -> physical plan ({@link PhysicalPlanner})</li>
- *   <li>Optimization: applies index selection and plan transformations ({@link Optimizer})</li>
+ *   <li>Optimization: rule-based rewrites of the physical plan ({@link Optimizer})</li>
  *   <li>Parameter binding: maps physical nodes to parameter indices ({@link PhysicalPlanParameterBinder})</li>
- *   <li>Pipeline rewriting: physical plan -> executable pipeline ({@link PipelineRewriter})</li>
+ *   <li>Pipeline rewriting: physical plan -> an executable pipeline ({@link PipelineRewriter})</li>
  * </ol>
  *
- * <p>Plan caching uses {@link QueryShape} to compute a structural hash of queries.
- * Queries with identical shapes (same operators, fields, and value types) share cached plans,
- * avoiding redundant planning overhead. Cached plans are parameterized: the pipeline structure
- * is reused while actual parameter values are bound at execution time via {@link PipelineContext}.</p>
- *
- * @see LogicalPlanner
- * @see PhysicalPlanner
- * @see Optimizer
- * @see PhysicalPlanParameterBinder
- * @see PipelineRewriter
- * @see PlanCache
- * @see QueryShape
+ * <p>Queries with the same {@link QueryShape} (operators, fields, value types, sort field and
+ * collation) share a cached plan in {@link PlanCache}. The plan holds parameter slots, and their
+ * values come from the query context at execution time.</p>
  */
 public class Planner {
     private final LogicalPlanner logicalPlanner = new LogicalPlanner();

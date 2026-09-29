@@ -28,16 +28,10 @@ import java.util.concurrent.locks.LockSupport;
  * Blocks until every shard in the cluster has observed the latest bucket metadata version, then
  * waits out any transactions that started before the update.
  *
- * <p>This guards operations that must not run against stale metadata. It first drives a
- * {@link BucketMetadataVersionBarrier}, polling all shards for up to 60 seconds (120 attempts at
- * 500ms) until they report the target version. It then sleeps 10 seconds so that transactions
- * opened before the update, which have a 5-second FoundationDB lifetime, are guaranteed to have
- * expired.
- *
- * <p>The 10-second grace period can be skipped in tests by setting
+ * <p>Guards operations that must not run against stale metadata. Shards are polled through a
+ * {@link BucketMetadataVersionBarrier}. The wait after that is longer than the 5-second FoundationDB
+ * transaction lifetime. Tests can skip it with
  * {@code __test__.bucket_metadata_convergence.skip_wait_transaction_limit}.
- *
- * @see BucketMetadataVersionBarrier
  */
 public class BucketMetadataConvergence {
 

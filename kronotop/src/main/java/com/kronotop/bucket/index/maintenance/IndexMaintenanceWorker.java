@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
- * Executes index maintenance tasks (BOUNDARY, BUILD, DROP, ANALYZE) with retry logic and lifecycle management.
+ * Runs one index maintenance task (BOUNDARY, BUILD, DROP or ANALYZE) and retries it on failure.
  *
  * <p>Workers load task definitions from FoundationDB, create the appropriate routine, and execute it
  * until completion or shutdown. Upon reaching a terminal state (COMPLETED, FAILED, STOPPED), workers

@@ -62,11 +62,6 @@ public class QueryOptions {
 
     private final Collation collation;
 
-    /**
-     * Private constructor used by the Builder pattern.
-     *
-     * @param builder the Builder instance containing the configuration values
-     */
     private QueryOptions(Builder builder) {
         this.sortByField = builder.sortByField;
         this.sortDirection = builder.sortDirection;
@@ -127,7 +122,6 @@ public class QueryOptions {
 
     /**
      * Returns the maximum number of documents to return in a single batch.
-     * This controls pagination behavior and memory usage during query execution.
      *
      * @return the batch size (0 to {@value QueryContext#MAXIMUM_BATCH})
      */
@@ -162,11 +156,7 @@ public class QueryOptions {
     }
 
     /**
-     * Builder class for constructing QueryOptions instances using the builder pattern.
-     * Provides a fluent API for configuring query options with method chaining.
-     *
-     * <p>All builder methods return the Builder instance to allow method chaining.
-     * Call {@link #build()} to create the final immutable QueryOptions instance.
+     * Builder for {@link QueryOptions}. Call {@link #build()} to create the immutable instance.
      */
     public static class Builder {
         private UpdateOptions update;
@@ -206,7 +196,7 @@ public class QueryOptions {
          * Sets the field name to use for sorting results.
          *
          * @param sortByField the field name to sort by
-         * @return this Builder instance for method chaining
+         * @return this builder
          */
         public Builder sortByField(String sortByField) {
             this.sortByField = sortByField;
@@ -217,7 +207,7 @@ public class QueryOptions {
          * Sets the sort direction (ASC or DESC).
          *
          * @param sortDirection the sort direction
-         * @return this Builder instance for method chaining
+         * @return this builder
          */
         public Builder sortDirection(SortDirection sortDirection) {
             this.sortDirection = sortDirection;
@@ -228,7 +218,7 @@ public class QueryOptions {
          * Sets the maximum number of documents to return in total, across all batches.
          *
          * @param limit the limit, or 0 for unlimited
-         * @return this Builder instance for method chaining
+         * @return this builder
          * @throws IllegalArgumentException if the limit is negative
          */
         public Builder limit(int limit) {
@@ -241,10 +231,9 @@ public class QueryOptions {
 
         /**
          * Sets the maximum number of documents to return in a single batch.
-         * This controls pagination and memory usage during query execution.
          *
          * @param batch the batch size (0 to {@value QueryContext#MAXIMUM_BATCH})
-         * @return this Builder instance for method chaining
+         * @return this builder
          * @throws IllegalArgumentException if the batch size is negative or exceeds the maximum
          */
         public Builder batch(int batch) {
@@ -262,7 +251,7 @@ public class QueryOptions {
          * Sets the field name to use for in-memory result sorting.
          *
          * @param resultSortField the field name to sort results by
-         * @return this Builder instance for method chaining
+         * @return this builder
          */
         public Builder resultSortField(String resultSortField) {
             this.resultSortField = resultSortField;
@@ -273,7 +262,7 @@ public class QueryOptions {
          * Sets the sort direction for in-memory result sorting.
          *
          * @param resultSortDirection the sort direction
-         * @return this Builder instance for method chaining
+         * @return this builder
          */
         public Builder resultSortDirection(SortDirection resultSortDirection) {
             this.resultSortDirection = resultSortDirection;
@@ -290,11 +279,6 @@ public class QueryOptions {
             return this;
         }
 
-        /**
-         * Builds and returns an immutable QueryOptions instance with the configured values.
-         *
-         * @return a new QueryOptions instance
-         */
         public QueryOptions build() {
             return new QueryOptions(this);
         }

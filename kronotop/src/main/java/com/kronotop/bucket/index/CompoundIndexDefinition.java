@@ -23,11 +23,13 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * An immutable compound index definition spanning multiple document fields.
+ * Immutable definition of a compound index on multiple document fields.
+ * <p>
+ * {@code create} accepts 2 to 32 fields. A unique index cannot contain a multi-key field.
  *
- * @param id        unique identifier generated from UUID hash using SipHash24 algorithm
- * @param name      a human-readable index name must be unique within a bucket
- * @param fields    ordered list of fields that make up the compound index (2 to 32)
+ * @param id        unique identifier, a SipHash24 hash of a random UUID
+ * @param name      index name, must be unique within a bucket
+ * @param fields    ordered list of fields that make up the compound index
  * @param status    current operational status of the index
  * @param collation optional collation for locale-aware string ordering, null means inherit bucket-level or binary default
  * @param unique    if true, the combination of all field values must be unique across documents
@@ -48,12 +50,12 @@ public record CompoundIndexDefinition(long id, String name, List<CompoundIndexFi
     }
 
     /**
-     * Creates a new compound index definition with the specified status.
+     * Creates a new compound index definition with a new unique ID.
      *
-     * @param name   the human-readable name for the index
-     * @param fields the ordered list of fields (2 to 32)
-     * @param status the initial status assigned to the index
-     * @return a new CompoundIndexDefinition instance
+     * @param name   index name, must be unique within a bucket
+     * @param fields ordered list of fields (2 to 32)
+     * @param status initial index status
+     * @return a new definition with the given attributes
      * @throws IllegalArgumentException if fewer than 2 or more than 32 fields are provided
      */
     public static CompoundIndexDefinition create(String name, List<CompoundIndexField> fields, IndexStatus status) {

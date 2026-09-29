@@ -109,7 +109,7 @@ public class RangeScanFallbackRule implements PhysicalOptimizationRule {
 
     @Override
     public int getPriority() {
-        return 80; // Medium priority - should run after index-based optimizations
+        return 80;
     }
 
     @Override

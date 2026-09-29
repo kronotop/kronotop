@@ -181,11 +181,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         return planner;
     }
 
-    /**
-     * Retrieves the ShardSelector instance associated with the BucketService.
-     *
-     * @return the ShardSelector instance for managing shard selection logic
-     */
     public ShardSelector getShardSelector() {
         return shardSelector;
     }

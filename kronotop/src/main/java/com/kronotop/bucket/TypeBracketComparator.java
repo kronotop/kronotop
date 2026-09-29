@@ -39,9 +39,6 @@ import java.util.Map;
  */
 public final class TypeBracketComparator implements Comparator<BsonValue> {
 
-    /**
-     * Singleton instance of the comparator.
-     */
     public static final TypeBracketComparator INSTANCE = new TypeBracketComparator();
 
     private TypeBracketComparator() {

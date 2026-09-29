@@ -43,11 +43,11 @@ import java.util.stream.Stream;
  * <p>The sweeper deletes task definitions from task subspaces and clears their back pointers
  * from index subspaces. Cleanup depends on task kind:
  * <ul>
- *   <li><strong>BOUNDARY / ANALYZE:</strong> removed when COMPLETED, STOPPED, or the index is gone</li>
- *   <li><strong>BUILD:</strong> removed when COMPLETED, STOPPED, or the index is gone, then the
+ *   <li>BOUNDARY and ANALYZE: removed when COMPLETED, STOPPED, or the index is gone</li>
+ *   <li>BUILD: removed when COMPLETED, STOPPED, or the index is gone, then the
  *       readiness check for the index type (single-field, compound, or vector) runs in a second
  *       transaction to attempt the BUILDING to READY transition</li>
- *   <li><strong>DROP:</strong> removed when the index is gone from metadata, or the task is in a
+ *   <li>DROP: removed when the index is gone from metadata, or the task is in a
  *       terminal state and the index directory no longer exists in FoundationDB</li>
  * </ul>
  *
@@ -56,16 +56,8 @@ import java.util.stream.Stream;
  * tasks across every shard are removed. Transactions use {@link RetryMethods} to retry on conflict.
  *
  * @see SingleFieldIndexUtil#markIndexAsReadyIfBuildDone
- * @see IndexMaintenanceWatchDog
- * @see IndexBuildingTask
- * @see IndexDropTask
- * @see IndexBoundaryTask
- * @see IndexAnalyzeTask
  */
 public class IndexMaintenanceTaskSweeper {
-    /**
-     * Application context providing access to FoundationDB and BucketService.
-     */
     private final Context context;
 
     /**
@@ -73,11 +65,6 @@ public class IndexMaintenanceTaskSweeper {
      */
     private final Map<Integer, DirectorySubspace> subspaces = new ConcurrentHashMap<>();
 
-    /**
-     * Creates a sweeper with the specified application context.
-     *
-     * @param context application context with FoundationDB and BucketService access
-     */
     public IndexMaintenanceTaskSweeper(Context context) {
         this.context = context;
     }
@@ -110,8 +97,6 @@ public class IndexMaintenanceTaskSweeper {
     /**
      * Sweeps a single task, retrying on FoundationDB conflict.
      *
-     * <p>Wraps {@link #doSweep} with retry handling.
-     *
      * @param taskSubspace directory subspace containing the task definition
      * @param taskId       versionstamp identifier of the task to sweep
      */
@@ -121,10 +106,7 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Handles BUILD task cleanup.
-     *
-     * <p>Removes BUILD task if: index deleted (null), task COMPLETED, or task STOPPED.
-     * Clears back pointer when task is removed.
+     * Removes a BUILD task and its back pointer. See the class doc for the rules.
      *
      * @param tr      transaction for cleanup operations
      * @param taskId  task identifier
@@ -202,10 +184,7 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Handles BOUNDARY task cleanup.
-     *
-     * <p>Removes BOUNDARY task if: index deleted (null), task COMPLETED, or task STOPPED.
-     * Clears back pointer when task is removed.
+     * Removes a BOUNDARY task and its back pointer. See the class doc for the rules.
      *
      * @param tr      transaction for cleanup operations
      * @param taskId  task identifier
@@ -229,10 +208,7 @@ public class IndexMaintenanceTaskSweeper {
     }
 
     /**
-     * Handles ANALYZE task cleanup.
-     *
-     * <p>Removes ANALYZE task if: index deleted (null), task COMPLETED, or task STOPPED.
-     * Clears back pointer when task is removed.
+     * Removes an ANALYZE task and its back pointer. See the class doc for the rules.
      *
      * @param tr      transaction for cleanup operations
      * @param taskId  task identifier

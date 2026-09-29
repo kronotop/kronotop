@@ -29,21 +29,14 @@ import java.util.Map;
  * <p>Tracks the progress of a background index build. Each shard keeps its own state in
  * FoundationDB so builds can be monitored and resumed across the cluster.
  *
- * <p>State fields:
+ * <p>Adds two fields to the status and error from {@link AbstractTaskState}:
  * <ul>
  *   <li>cursorVersionstamp: last processed entry, the position a build resumes from</li>
  *   <li>bootstrapped: whether the first batch of entries has been processed</li>
- *   <li>status: WAITING, RUNNING, COMPLETED, FAILED, or STOPPED (from {@link AbstractTaskState})</li>
- *   <li>error: error message when the task failed, null otherwise (from {@link AbstractTaskState})</li>
  * </ul>
  *
  * <p>Fields are stored separately in FoundationDB via {@link TaskStorage}, so a single field
  * can be updated without rewriting the whole state.
- *
- * @see IndexBuildingTask
- * @see IndexTaskStatus
- * @see IndexMaintenanceTaskSweeper
- * @see TaskStorage
  */
 public class IndexBuildingTaskState extends AbstractTaskState {
     /**
@@ -106,8 +99,7 @@ public class IndexBuildingTaskState extends AbstractTaskState {
     }
 
     /**
-     * Returns whether the status is terminal. A terminal task has finished execution and is
-     * eligible for cleanup by the {@link IndexMaintenanceTaskSweeper}.
+     * Returns whether the status is terminal, meaning the task has finished execution.
      *
      * @param status the status to check
      * @return true if the status is COMPLETED, FAILED, or STOPPED, false otherwise
@@ -117,13 +109,9 @@ public class IndexBuildingTaskState extends AbstractTaskState {
     }
 
     /**
-     * Marks the index building task as bootstrapped or resets its bootstrap status.
-     *
-     * <p>This method updates the {@code BOOTSTRAPPED} flag in the task's state record within
-     * FoundationDB. When set to {@code true}, it indicates that the first batch of index
-     * entries has been successfully processed and that subsequent executions should use
-     * exclusive range selectors (e.g., {@code firstGreaterThan}) to continue from the
-     * last known cursor.
+     * Sets or clears the {@code BOOTSTRAPPED} flag. When {@code true}, the first batch has been
+     * processed, and later runs continue after the cursor with exclusive selectors
+     * (e.g., {@code firstGreaterThan}).
      *
      * @param tr           the FoundationDB transaction used to modify the task state
      * @param subspace     the directory subspace where the task state is stored

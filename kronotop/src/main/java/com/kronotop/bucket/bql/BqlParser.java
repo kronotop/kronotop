@@ -32,20 +32,13 @@ import java.util.Map;
  * Parses Bucket Query Language (BQL) into a {@code BqlExpr} tree.
  * <p>
  * Input can be a BQL string, a BSON byte array, or a BSON document. The parser covers
- * field selectors, comparison operators ({@code $gt}, {@code $lt}, {@code $eq}, {@code $in},
- * and so on), logical operators ({@code $and}, {@code $or}, {@code $not}, {@code $nor}), and
- * {@code $elemMatch}.
- *
- * <h2>Scalar Array $elemMatch</h2>
+ * field selectors and comparison, array, and logical operators.
+ * <p>
  * For scalar arrays such as {@code tags: ["urgent", "bug"]}, operators inside {@code $elemMatch}
  * use an empty string {@code ""} as the selector, because scalar elements are wrapped in
  * {@code {"": value}} during evaluation. The empty selector stands for "the element itself"
- * and is never a user-visible field name.
- * <p>
- * When serialized back to JSON via {@code BqlElemMatch.toJson()}, empty selectors are stripped,
- * so the output reads {@code {"$eq": "urgent"}} instead of {@code {"": "urgent"}}.
- * <p>
- * Example: {@code { tags: { $elemMatch: { $eq: "urgent" } } }} parses with selector {@code ""}.
+ * and is never a user-visible field name. For example, {@code { tags: { $elemMatch: { $eq: "urgent" } } }}
+ * parses with selector {@code ""}.
  */
 public class BqlParser {
     private static final int MINIMUM_BSON_DOCUMENT_SIZE = 5;
@@ -56,16 +49,11 @@ public class BqlParser {
     }
 
     /**
-     * Parses a given BQL (Bucket Query Language) query string and converts it into a corresponding
-     * {@code BqlExpr} representation.
-     * <p>
-     * The input string is first validated as BSON and then processed for its BQL structure
-     * using internal parsing mechanisms. If the input is malformed or contains unsupported
-     * operators, a {@code BqlParseException} is thrown.
+     * Parses a BQL query string.
      *
-     * @param query the BQL query string to be parsed
-     * @return the parsed {@code BqlExpr} object representing the query
-     * @throws BqlParseException if the query string is invalid or cannot be parsed
+     * @param query the BQL query string
+     * @return the parsed expression
+     * @throws BqlParseException if the query is malformed or uses an unsupported operator
      */
     public static BqlExpr parse(String query) {
         BsonDocument document;
@@ -98,11 +86,11 @@ public class BqlParser {
     }
 
     /**
-     * Parses a BSON-encoded query into a BqlExpr object.
+     * Parses a BSON-encoded query.
      *
-     * @param query the BSON-encoded query as a byte array
-     * @return a BqlExpr object representing the parsed query
-     * @throws BqlParseException if the BSON format is invalid or an error occurs during parsing
+     * @param query the BSON-encoded query
+     * @return the parsed expression
+     * @throws BqlParseException if the BSON is invalid or the query cannot be parsed
      */
     public static BqlExpr parse(byte[] query) {
         if (!isBSON(query)) {
@@ -119,11 +107,11 @@ public class BqlParser {
     }
 
     /**
-     * Parses the given BSON document into a BqlExpr object.
+     * Parses a BSON document.
      *
-     * @param document the BSON document to be parsed. Must not be null.
-     * @return a BqlExpr object representing the parsed content of the document.
-     * @throws BqlParseException if a parsing error occurs or if there is an issue processing the BSON document.
+     * @param document the query document, not null
+     * @return the parsed expression
+     * @throws BqlParseException if the document cannot be parsed
      */
     private static BqlExpr parse(BsonDocument document) {
         try (BsonReader reader = document.asBsonReader()) {
@@ -150,16 +138,10 @@ public class BqlParser {
     }
 
     /**
-     * Reads and parses an expression from the provided {@code BsonReader}, constructing
-     * a {@code BqlExpr} object from the BSON document structure.
-     * <p>
-     * The method processes the BSON document, evaluates its fields, and aggregates any
-     * expressions found. If the document contains a single expression, that expression
-     * is returned directly. If multiple expressions are found, they are combined into
-     * a {@code BqlAnd} object.
+     * Reads a query document. Multiple top-level expressions are combined into a {@code BqlAnd}.
      *
-     * @param reader the {@code BsonReader} instance used to read the BSON document
-     * @return the resulting {@code BqlExpr} object representing the parsed expression
+     * @param reader the reader, positioned at the document
+     * @return the parsed expression
      */
     private BqlExpr readExpr(BsonReader reader) {
         reader.readStartDocument();
@@ -180,17 +162,13 @@ public class BqlParser {
     }
 
     /**
-     * Parses a BSON key-value pair, determining whether the key represents a selector or an operator,
-     * and constructs the corresponding {@code BqlExpr} object.
-     * <p>
-     * If the key starts with '$', it is treated as an operator (e.g., "$and", "$or", "$not") and the
-     * method processes it accordingly. Otherwise, the key is treated as a selector name, and an appropriate
-     * selector expression or equality expression is created based on the BSON type of the value.
+     * Parses one key-value pair. A key that starts with {@code $} is a logical operator,
+     * any other key is a selector.
      *
-     * @param reader the {@code BsonReader} instance used to read the BSON data
-     * @param key    the key in the BSON document to be parsed, which may represent either a selector name or an operator
-     * @return the resulting {@code BqlExpr} object constructed from the parsed key and its corresponding value
-     * @throws BqlParseException if the key starts with '$' but does not match a known operator or if the BSON value type is not supported
+     * @param reader the reader, positioned at the value
+     * @param key    the operator or selector name
+     * @return the parsed expression
+     * @throws BqlParseException if the operator is unknown or the value type is not supported
      */
     private BqlExpr parseSelectorOrOperator(BsonReader reader, String key) {
         if (key.startsWith("$")) {
@@ -215,17 +193,12 @@ public class BqlParser {
     }
 
     /**
-     * Parses a BSON key-value pair within the context of an `$elemMatch` expression, determining whether
-     * the key represents a selector or an operator, and constructs the corresponding {@code BqlExpr} object.
-     * <p>
-     * If the key starts with a '$', it is treated as an operator (e.g., "$and", "$or", "$not") and the
-     * method processes it accordingly. Otherwise, the key is treated as a selector name, and an appropriate
-     * selector expression or equality expression is created based on the BSON type of the value.
+     * Same as {@link #parseSelectorOrOperator}, but inside {@code $elemMatch}.
      *
-     * @param reader            the {@code BsonReader} instance used to read the BSON data
-     * @param key               the key in the BSON document to be parsed, which may represent either a selector name or an operator
-     * @param elemMatchSelector the parent selector name within the `$elemMatch` context that is being processed
-     * @return the resulting {@code BqlExpr} object constructed from the parsed key and its corresponding value
+     * @param reader            the reader, positioned at the value
+     * @param key               the operator or selector name
+     * @param elemMatchSelector the selector that owns the {@code $elemMatch}
+     * @return the parsed expression
      */
     private BqlExpr parseSelectorOrOperatorInElemMatch(BsonReader reader, String key, String elemMatchSelector) {
         if (key.startsWith("$")) {
@@ -273,14 +246,11 @@ public class BqlParser {
      * the comparisons ({@code $gt}, {@code $lt}, {@code $gte}, {@code $lte}, {@code $eq},
      * {@code $ne}), the array operators ({@code $in}, {@code $nin}, {@code $all}), and
      * {@code $size} and {@code $exists}.
-     * <p>
-     * If the operator is not recognized or the value type is invalid for the operator,
-     * a {@code BqlParseException} is thrown.
      *
-     * @param reader   the {@code BsonReader} instance used to read the BSON data
-     * @param op       the operator being parsed (e.g., "$gt", "$eq", "$exists")
-     * @param selector the name of the selector the operator applies to
-     * @return the resulting {@code BqlExpr} object corresponding to the parsed operator and selector value
+     * @param reader   the reader, positioned at the operator value
+     * @param op       the operator, e.g. {@code $gt}
+     * @param selector the selector the operator applies to
+     * @return the parsed expression
      * @throws BqlParseException if the operator is unknown, or if the value type is invalid for the operator
      */
     private BqlExpr parseSelectorOperator(BsonReader reader, String op, String selector) {
@@ -322,17 +292,12 @@ public class BqlParser {
     }
 
     /**
-     * Reads a selector-based expression from the provided {@code BsonReader} and constructs a {@code BqlExpr}
-     * object representing the parsed expression. The method processes selector-level operator documents
-     * within BSON data and creates the corresponding query expressions.
-     * <p>
-     * If the document is empty, the method throws a {@code BqlParseException}. Depending on the selector operator,
-     * the method may handle special cases like `$elemMatch` and `$not`. If multiple operators are present
-     * in the same selector document, they are combined with an implicit `$and`.
+     * Reads the operator document of a selector, such as {@code {$gt: 1, $lt: 5}}. Multiple operators
+     * are combined with an implicit {@code $and}.
      *
-     * @param reader   the {@code BsonReader} instance used to read the BSON document
-     * @param selector the name of the selector the expression applies to
-     * @return the resulting {@code BqlExpr} object representing the selector expression
+     * @param reader   the reader, positioned at the operator document
+     * @param selector the selector the operators apply to
+     * @return the parsed expression
      * @throws BqlParseException if the selector operator document is empty or invalid
      */
     private BqlExpr readSelectorExpression(BsonReader reader, String selector) {
@@ -409,16 +374,11 @@ public class BqlParser {
     }
 
     /**
-     * Reads and parses an `$elemMatch` expression from the provided {@code BsonReader}, constructing
-     * a {@code BqlExpr} object based on the content of the BSON document.
-     * <p>
-     * The method processes the document as a series of nested expressions or operators. If the document
-     * contains only one expression, it directly returns that expression. If multiple expressions are
-     * present, they are combined into a {@code BqlAnd} object.
+     * Reads the body of an {@code $elemMatch}. Multiple expressions are combined into a {@code BqlAnd}.
      *
-     * @param reader            the {@code BsonReader} instance used to read the BSON document
-     * @param elemMatchSelector the parent selector name associated with the `$elemMatch` context
-     * @return a {@code BqlExpr} object representing the parsed `$elemMatch` expression
+     * @param reader            the reader, positioned at the document
+     * @param elemMatchSelector the selector that owns the {@code $elemMatch}
+     * @return the parsed expression
      */
     private BqlExpr readElemMatchExpr(BsonReader reader, String elemMatchSelector) {
         reader.readStartDocument();
@@ -439,14 +399,10 @@ public class BqlParser {
     }
 
     /**
-     * Reads an array from the provided {@code BsonReader}, parsing each element
-     * into a corresponding {@code BqlExpr} object and returning the results as a list.
-     * <p>
-     * The method assumes that the reader is positioned at the start of an array
-     * and processes each BSON element until reaching the end of the array.
+     * Reads an array of expressions, such as the operands of {@code $and}.
      *
-     * @param reader the {@code BsonReader} instance used to read the BSON array
-     * @return a list of {@code BqlExpr} objects parsed from the BSON array
+     * @param reader the reader, positioned at the array
+     * @return the parsed expressions
      */
     private List<BqlExpr> readArray(BsonReader reader) {
         reader.readStartArray();
@@ -461,15 +417,10 @@ public class BqlParser {
     }
 
     /**
-     * Reads and parses an array of BSON values from the provided {@code BsonReader},
-     * constructing a list of {@code BqlValue} objects that represent the parsed elements.
-     * <p>
-     * The method expects the reader to be positioned at the start of an array, processes
-     * each BSON element until reaching the end of the array, and converts each element
-     * into its corresponding {@code BqlValue} representation.
+     * Reads an array of values, such as the operand of {@code $in}.
      *
-     * @param reader the {@code BsonReader} instance used to read the BSON array
-     * @return a list of {@code BqlValue} objects parsed from the BSON array
+     * @param reader the reader, positioned at the array
+     * @return the parsed values
      */
     private List<BqlValue> readValueArray(BsonReader reader) {
         reader.readStartArray();
@@ -503,14 +454,10 @@ public class BqlParser {
     }
 
     /**
-     * Reads a BSON value from the provided {@code BsonReader} and converts it into
-     * an appropriate {@code BqlValue} representation based on the type of the BSON data.
-     * <p>
-     * The method supports various BSON types, including strings, integers, doubles, booleans,
-     * documents, and arrays. Unsupported BSON types will result in a {@code BqlParseException}.
+     * Reads a BSON value as a {@code BqlValue}.
      *
-     * @param reader the {@code BsonReader} instance used to read the BSON value
-     * @return a {@code BqlValue} object representing the parsed BSON value
+     * @param reader the reader, positioned at the value
+     * @return the parsed value
      * @throws BqlParseException if an unsupported BSON type is encountered
      */
     private BqlValue readValue(BsonReader reader) {

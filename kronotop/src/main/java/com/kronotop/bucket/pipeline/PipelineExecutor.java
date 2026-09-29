@@ -31,21 +31,11 @@ Cooper: No. It's necessary.
  */
 
 /**
- * Executes query plans by traversing the pipeline node tree.
+ * Executes a pipeline plan by walking its node tree.
  * <p>
- * Dispatches the root node to the appropriate visitor; then each visitor drives
- * execution through {@link #executePipelineNode} which recursively walks the
- * node chain (scan, logical, transformation, and any chained {@code next} nodes).
- * <p>
- * Scan, union, and ordered-concat visitors share an adaptive budgeting loop that
- * decouples the user-facing BATCH from the FDB getRange limit. The budget starts at
- * the batch size and grows when residual filtering yields few results, bounded by a
- * per-transaction time budget. This reduces FDB round-trips for low-selectivity
- * queries while preventing runaway scans.
- *
- * @see PipelineNode for the node hierarchy
- * @see QueryContext for execution state management
- * @see ScanBudget for the adaptive budgeting algorithm
+ * The FDB getRange limit is separate from the user-facing BATCH. It starts at the batch size and
+ * grows when residual filtering returns few results, within a per-transaction time budget
+ * (see {@link ScanBudget}). This cuts round-trips for low-selectivity queries without runaway scans.
  */
 public class PipelineExecutor {
     private static final long TX_TIME_BUDGET_NANOS = Duration.ofSeconds(4).toNanos();

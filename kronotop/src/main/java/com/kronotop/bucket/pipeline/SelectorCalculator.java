@@ -40,16 +40,8 @@ import java.util.List;
 import static com.kronotop.bucket.pipeline.IndexUtil.getKeySelector;
 
 /**
- * Calculates FoundationDB {@link KeySelector} pairs for the scan operations used by the query pipeline.
- *
- * <p>Determines the begin and end positions for scanning index entries from the scan context and
- * cursor state. Three scan types are supported:</p>
- *
- * <ul>
- *   <li><strong>Full Scan</strong> - all entries in an index, no filtering</li>
- *   <li><strong>Index Scan</strong> - entries matching a single predicate (=, >, >=, <, <=, !=)</li>
- *   <li><strong>Range Scan</strong> - entries within a range with inclusive or exclusive bounds</li>
- * </ul>
+ * Calculates FoundationDB {@link KeySelector} pairs for full scans, single-predicate index scans
+ * and range scans.
  *
  * <p>Secondary index entries are keyed as {@code [ENTRIES_MAGIC, indexed_value, objectId]}; the
  * primary (_id) index is keyed as {@code [ENTRIES_MAGIC, objectId]}.</p>
@@ -57,8 +49,6 @@ import static com.kronotop.bucket.pipeline.IndexUtil.getKeySelector;
  * <p>When a cursor state is present, the scan resumes from the last processed position: forward
  * scans adjust the begin selector, reverse scans adjust the end selector, and the opposite
  * boundary is preserved.</p>
- *
- * @since 0.13
  */
 class SelectorCalculator {
     private static final CursorManager cursorManager = new CursorManager();
@@ -197,13 +187,7 @@ class SelectorCalculator {
      * <p>A fresh scan builds selectors from the operator and operand; a continuation resumes from
      * the cursor position while keeping the original filter bound.</p>
      *
-     * <p>Supported operators:</p>
-     * <ul>
-     *   <li><strong>EQ</strong> - entries with exactly the given value</li>
-     *   <li><strong>GT/GTE</strong> - from the value boundary to the index end</li>
-     *   <li><strong>LT/LTE</strong> - from the index beginning to the value boundary</li>
-     *   <li><strong>NE</strong> - full scan with filtering (not optimized into multiple ranges)</li>
-     * </ul>
+     * <p>NE is not split into two ranges. It scans the whole index and filters.</p>
      *
      * @param ctx the index scan context containing predicate, direction, and cursor state
      * @return a SelectorPair for scanning entries matching the filter condition
@@ -234,19 +218,12 @@ class SelectorCalculator {
      *
      * <p>Key structure: {@code [ENTRIES_MAGIC, indexed_value, objectId]}.</p>
      *
-     * <ul>
-     *   <li><strong>EQ:</strong> {@code indexed_value} equals the operand</li>
-     *   <li><strong>GT:</strong> {@code indexed_value > operand}</li>
-     *   <li><strong>GTE:</strong> {@code indexed_value >= operand}</li>
-     *   <li><strong>LT:</strong> {@code indexed_value < operand}</li>
-     *   <li><strong>LTE:</strong> {@code indexed_value <= operand}</li>
-     *   <li><strong>NE:</strong> falls back to a full scan</li>
-     * </ul>
-     *
      * @param indexSubspace the FoundationDB subspace for this index
      * @param operator      the comparison operator (EQ, GT, GTE, LT, LTE, NE)
      * @param operand       the value to compare against (BqlValue)
      * @param definition    the index definition
+     * @param collation     the index collation, or {@code null} if the index has none
+     * @param collatorCache the collator cache used to build the collation key of the operand
      * @return a SelectorPair defining the scan range for this operation
      * @throws UnsupportedOperationException if the operator is not supported for index scans
      */
@@ -322,24 +299,8 @@ class SelectorCalculator {
     /**
      * Extracts the native Java object from a BqlValue for index storage.
      *
-     * <p>This method converts BQL value types into their corresponding Java objects that
-     * can be stored in FoundationDB index entries. It handles type normalization (e.g.,
-     * converting INT32 to long) to ensure consistent index storage.</p>
-     *
-     * <p><strong>Type Mapping:</strong></p>
-     * <ul>
-     *   <li>StringVal -> String</li>
-     *   <li>Int32Val -> Long (stored as long for consistent storage)</li>
-     *   <li>Int64Val -> Long</li>
-     *   <li>DoubleVal -> Double</li>
-     *   <li>BooleanVal -> Boolean</li>
-     *   <li>DateTimeVal -> Long</li>
-     *   <li>TimestampVal -> Long</li>
-     *   <li>Decimal128Val -> BigDecimal</li>
-     *   <li>BinaryVal -> byte array</li>
-     *   <li>ObjectIdVal -> byte[] (ObjectId bytes for consistent index storage)</li>
-     *   <li>NullVal -> null</li>
-     * </ul>
+     * <p>Int32Val, DateTimeVal and TimestampVal become Long, Decimal128Val becomes BigDecimal,
+     * ObjectIdVal becomes its 12 bytes, and NullVal becomes null. Other values map directly.</p>
      *
      * @param bqlValue the BQL value to extract from
      * @return the native Java object for index storage
@@ -365,8 +326,8 @@ class SelectorCalculator {
 
     /**
      * Extracts a Java object from a BqlValue, applying lossless numeric widening to match
-     * the index field's target type. This ensures FDB tuple encoding matches what was stored
-     * at index build time.
+     * the index field's target type, so the FDB tuple encoding matches what was stored at index
+     * build time.
      *
      * @param bqlValue   the BQL value to extract from
      * @param targetType the index field's declared BSON type
@@ -396,13 +357,7 @@ class SelectorCalculator {
     /**
      * Creates a KeySelector from a cursor bound for _id index continuation.
      *
-     * <p>This method is specifically designed for the _id index (primary index) which uses
-     * ObjectId values. It extracts the ObjectId from the bound and constructs
-     * the appropriate KeySelector.</p>
-     *
-     * <p><strong>Note:</strong> This method assumes the bound contains an ObjectIdVal,
-     * which is appropriate since it's used for _id index operations where ObjectIds
-     * are the primary key.</p>
+     * <p>The bound must hold an ObjectIdVal.</p>
      *
      * @param idIndexSubspace the _id index subspace
      * @param bound           the cursor bound containing position information
@@ -428,17 +383,16 @@ class SelectorCalculator {
     /**
      * Constructs KeySelector pair for fresh range scan operations.
      *
-     * <p>This method creates begin and end selectors for range scans based on the predicate's
-     * upper and lower bounds. Both bounds are optional, and each can be inclusive or exclusive.</p>
+     * <p>Both bounds are optional, and each can be inclusive or exclusive.</p>
      *
-     * <p><strong>Lower Bound Handling:</strong></p>
+     * <p>Lower bound:</p>
      * <ul>
      *   <li>If present and inclusive: {@code firstGreaterOrEqual(lowerKey)}</li>
      *   <li>If present and exclusive: {@code firstGreaterThan(strinc(lowerKey))}</li>
      *   <li>If absent: Start from index beginning</li>
      * </ul>
      *
-     * <p><strong>Upper Bound Handling:</strong></p>
+     * <p>Upper bound:</p>
      * <ul>
      *   <li>If present and inclusive: {@code firstGreaterOrEqual(strinc(upperKey))} to include all entries with that value</li>
      *   <li>If present and exclusive: {@code firstGreaterOrEqual(upperKey)} to exclude entries with that value</li>
@@ -448,6 +402,9 @@ class SelectorCalculator {
      * @param indexSubspace the FoundationDB subspace for this index
      * @param predicate     the range scan predicate containing bounds and inclusion flags
      * @param parameters    the parameter list for resolving Param operands
+     * @param index         the index definition
+     * @param collation     the index collation, or {@code null} if the index has none
+     * @param collatorCache the collator cache used to build the collation keys of the bounds
      * @return a SelectorPair defining the range scan boundaries
      */
     private static SelectorPair constructRangeScanSelectors(DirectorySubspace indexSubspace, RangeScanPredicate predicate,

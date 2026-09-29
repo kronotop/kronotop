@@ -101,7 +101,7 @@ public class RedundantScanEliminationRule implements PhysicalOptimizationRule {
 
     @Override
     public int getPriority() {
-        return 100; // High priority - run early to simplify other optimizations
+        return 100;
     }
 
     @Override

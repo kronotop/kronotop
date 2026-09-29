@@ -26,11 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Optimization rule that combines multiple indexed conditions into an optimized intersection scan.
- * <p>
- * This rule identifies AND operations with multiple indexed EQ conditions on different fields
- * and converts them to a single PhysicalIndexIntersection node that can efficiently find
- * documents matching all conditions by intersecting index results.
+ * Combines indexed EQ conditions on different fields under an AND into one
+ * PhysicalIndexIntersection node, which intersects the index results.
  * <p>
  * Examples:
  * - AND(PhysicalIndexScan(name="john"), PhysicalIndexScan(age=25))
@@ -126,7 +123,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
 
     @Override
     public int getPriority() {
-        return 80; // High priority, but after simpler optimizations
+        return 80;
     }
 
     @Override
@@ -141,7 +138,7 @@ public class IndexIntersectionRule implements PhysicalOptimizationRule {
     }
 
     /**
-     * Helper record to group index scan candidates
+     * An indexed filter that can join the intersection.
      */
     private record IndexScanCandidate(PhysicalFilter filter, SingleFieldIndexDefinition index) {
     }

@@ -60,27 +60,14 @@ import java.util.concurrent.locks.LockSupport;
 /**
  * Consumes the BUCKET_EVENTS journal and reacts to bucket changes on this member.
  *
- * <p>The watcher runs in a background thread and handles four event kinds: metadata
- * updates, bucket removal, vector index drops, and index statistics updates. Depending on
- * the event, it invalidates the plan cache and the bucket metadata cache, removes in-memory
- * vector indexes and their on-disk files, and records the latest metadata version for every
- * shard this member owns as primary.
+ * <p>Depending on the event, it invalidates the plan and metadata caches, removes vector indexes
+ * from memory and disk, and records the latest metadata version for every shard this member owns
+ * as primary. {@link BucketMetadataVersionBarrier} reads that record, stored under each shard's
+ * {@code lastSeenVersions} subspace as an 8-byte little-endian long.
  *
- * <p>The version record lives under each shard's {@code lastSeenVersions} subspace and acts
- * as a witness. Coordination logic such as {@link BucketMetadataVersionBarrier} uses it to
- * confirm that all relevant shards have seen a given metadata version before proceeding.
- * Versions are stored as an 8-byte little-endian long.
- *
- * <p>A journal {@link Consumer} with RESUME offset reads events so each one is processed
- * once, even across restarts. The watcher waits on a FoundationDB watch over the journal
- * trigger key. When it fires, the watcher drains all pending events in one batch, then
- * re-arms the watch.
- *
- * <p>If a single event fails, the batch loop stops and leaves that event unconsumed so it is
- * retried on the next trigger. The outer loop backs off one second after an error, and
- * transactions retry through Resilience4j. Events for buckets or namespaces that no longer
- * exist are ignored, since the change may have been a deletion. On shutdown the watcher
- * drains any remaining events and waits up to 10 seconds to stop.
+ * <p>Events are read with a RESUME offset, so each one is processed once, even across restarts.
+ * A failed event stays unconsumed and is retried on the next trigger. Events for buckets or
+ * namespaces that no longer exist are ignored.
  */
 public class BucketEventsWatcher implements Runnable {
     private static final Logger LOGGER = LoggerFactory.getLogger(BucketEventsWatcher.class);

@@ -22,55 +22,46 @@ import com.kronotop.bucket.planner.physical.PlannerContext;
 import java.util.ArrayList;
 import java.util.List;
 
-/*
- * As you start to walk on the way, the way appears.
- *
- * — Attributed to Rumi
- */
-
 /**
  * Applies rule-based optimizations to a PhysicalNode tree.
  * <p>
  * Runs after the PhysicalPlanner and before the PipelineExecutor. Each rule
- * rewrites the plan to make query execution cheaper.
+ * rewrites the plan to make query execution cheaper. Rules run in priority order,
+ * highest first, and the whole list repeats until a pass changes nothing, at most
+ * 5 passes.
  */
 public class Optimizer {
     private final List<PhysicalOptimizationRule> rules;
     private final int maxOptimizationPasses;
 
     public Optimizer() {
-        this.maxOptimizationPasses = 5; // Default max iterations
+        this.maxOptimizationPasses = 5;
         this.rules = initializeRules();
     }
 
     /**
-     * Initialize the optimization rules in priority order.
-     * Higher priority rules run first.
+     * Returns the rules sorted by priority, highest first. Rules with the same
+     * priority keep the order in which they are added.
      */
     private List<PhysicalOptimizationRule> initializeRules() {
         List<PhysicalOptimizationRule> rulesList = new ArrayList<>();
 
-        // Phase 1: Index Optimization Rules (High Priority)
         rulesList.add(new RedundantScanEliminationRule());
         rulesList.add(new RangeScanConsolidationRule());
         rulesList.add(new IndexIntersectionRule());
-
-        // Phase 2: Fallback Rules (Medium Priority)
         rulesList.add(new RangeScanFallbackRule());
-
-        // Phase 3: Execution Order Optimization Rules (Medium Priority)
         rulesList.add(new SelectivityBasedOrderingRule());
 
-        // Sort by priority (higher priority first)
+        // Stable sort, higher priority first
         rulesList.sort((r1, r2) -> Integer.compare(r2.getPriority(), r1.getPriority()));
 
         return rulesList;
     }
 
     /**
-     * Optimize a physical plan by applying optimization rules.
+     * Applies the optimization rules to a physical plan.
      *
-     * @param context planner context containing metadata and configuration
+     * @param context planner context
      * @param plan    the physical plan to optimize
      * @return optimized physical plan
      */

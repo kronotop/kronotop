@@ -24,7 +24,6 @@ import java.io.Closeable;
 
 /**
  * Common search interface for on-heap and on-disk vector graph indexes.
- * Enables unified iteration over heterogeneous index types during search and lifecycle operations.
  */
 public interface SearchableVectorIndex extends Closeable {
 

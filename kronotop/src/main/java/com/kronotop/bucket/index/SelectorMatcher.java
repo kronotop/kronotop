@@ -30,16 +30,12 @@ import java.nio.ByteBuffer;
  * {@code "orders.0.total"} reads the "total" field of the first order.
  *
  * <p>When a non-numeric segment is applied to an array, the matcher walks every
- * element and collects the matching values into an array. This multikey traversal
- * is what lets an array-valued field feed a multikey index.
+ * element and collects the matching values into an array. Multikey indexes use
+ * this to index array-valued fields.
  *
- * <p>The document is read with a streaming BSON reader, so traversal stops once
- * the target is reached. A missing field, an out-of-range array index, or a type
+ * <p>The document is read with a streaming BSON reader, so only values on the path
+ * are materialized. A missing field, an out-of-range array index, or a type
  * mismatch returns {@code null}.
- *
- * @see org.bson.BsonReader
- * @see org.bson.BsonValue
- * @since 0.13
  */
 public class SelectorMatcher {
     /**
@@ -49,19 +45,19 @@ public class SelectorMatcher {
      * @param document the document to read
      * @return the value at the path, or {@code null} if the path does not exist, an array index
      * is out of range, or a segment hits a type mismatch
-     * @throws IllegalArgumentException if the selector is null or empty
-     * @throws NullPointerException     if the document is null
+     * @throws NullPointerException if the selector or the document is null
      */
     public static BsonValue match(String selector, BsonDocument document) {
         return match(StringUtil.split(selector), document);
     }
 
     /**
-     * Matches pre-split path segments against a BSON document and returns the corresponding value.
+     * Same as {@link #match(String, BsonDocument)}, with the selector already split into segments.
      *
-     * @param pathSegments the pre-split selector path segments
-     * @param document     the BSON document to search within
-     * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist
+     * @param pathSegments the selector split into segments
+     * @param document     the document to read
+     * @return the value at the path, or {@code null} if the path does not exist, an array index
+     * is out of range, or a segment hits a type mismatch
      */
     public static BsonValue match(String[] pathSegments, BsonDocument document) {
         try (BsonReader reader = document.asBsonReader()) {
@@ -71,25 +67,26 @@ public class SelectorMatcher {
     }
 
     /**
-     * Matches a selector path against a BSON document held in a ByteBuffer and returns the corresponding value.
+     * Extracts the value at the given dot-notation selector from a BSON document held in a buffer.
+     * The buffer is rewound after reading.
      *
-     * @param selector the dot-notation path to the desired value (e.g., "field.subfield", "arrayField.0")
-     * @param input    the ByteBuffer containing the BSON document to search within
-     * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist,
-     * the BSON structure does not match the selector, or array indices are invalid
-     * @throws IllegalArgumentException if the selector is null or empty
-     * @throws NullPointerException     if the input ByteBuffer is null
+     * @param selector the dot-notation path, for example "user.profile.name" or "items.0"
+     * @param input    the buffer holding the document
+     * @return the value at the path, or {@code null} if the path does not exist, an array index
+     * is out of range, or a segment hits a type mismatch
+     * @throws NullPointerException if the selector or the buffer is null
      */
     public static BsonValue match(String selector, ByteBuffer input) {
         return match(StringUtil.split(selector), input);
     }
 
     /**
-     * Matches pre-split path segments against a BSON document represented as a ByteBuffer.
+     * Same as {@link #match(String, ByteBuffer)}, with the selector already split into segments.
      *
-     * @param pathSegments the pre-split selector path segments
-     * @param input        the ByteBuffer containing the BSON document to search within
-     * @return the BsonValue found at the specified path, or {@code null} if the path doesn't exist
+     * @param pathSegments the selector split into segments
+     * @param input        the buffer holding the document
+     * @return the value at the path, or {@code null} if the path does not exist, an array index
+     * is out of range, or a segment hits a type mismatch
      */
     public static BsonValue match(String[] pathSegments, ByteBuffer input) {
         try (BsonReader reader = new BsonBinaryReader(input)) {

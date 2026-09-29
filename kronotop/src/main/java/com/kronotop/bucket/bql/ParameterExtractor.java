@@ -25,18 +25,12 @@ import java.util.List;
 /**
  * Extracts parameter values from BQL expressions in a deterministic order.
  *
- * <p>The extraction order is synchronized with {@link QueryShape#compute(BqlExpr)} -
- * queries with the same shape hash will always produce parameters in the same order.
- * This enables plan caching with parameterized execution.</p>
+ * <p>AND/OR children are sorted with {@link QueryShape#compute(BqlExpr)}, so queries with the same
+ * shape hash fill the same parameter slots and a cached plan can be reused with new values.
+ * Using {@code QueryShape.compute()} itself keeps the two classes from drifting apart.</p>
  *
- * <p><strong>Invariant:</strong> This class uses {@code QueryShape.compute()} directly
- * for sorting AND/OR children, ensuring automatic lockstep when QueryShape changes.</p>
- *
- * <h3>Identical-Shape Siblings</h3>
- * <p>When AND/OR children have identical shape hashes (same field name, same operator,
- * same value type), their relative order is preserved from the original query rather
- * than being canonicalized. This means two queries with the same shape but different
- * ordering of identical-shape siblings will extract parameters in different orders:</p>
+ * <p>AND/OR children with identical shape hashes (same field, operator and value type) keep
+ * their original order, so their parameters come out in query order:</p>
  *
  * <pre>{@code
  * // Same shape hash, but different parameter order:
@@ -44,10 +38,8 @@ import java.util.List;
  * {"$or": [{"brand": "Samsung"}, {"brand": "Apple"}]}  -> [Samsung, Apple]
  * }</pre>
  *
- * <p>This is semantically correct because AND and OR are commutative operations -
- * swapping identical-shape siblings produces equivalent query results. The parameters
- * are inserted into structurally identical slots, so the execution produces the same
- * result regardless of parameter order.</p>
+ * <p>This is correct because AND and OR are commutative. The parameters go into
+ * structurally identical slots, so the result does not depend on their order.</p>
  */
 public final class ParameterExtractor {
 

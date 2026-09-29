@@ -46,23 +46,10 @@ import static com.kronotop.AsyncCommandExecutor.runAsync;
  *
  * <p>{@code unique} is optional and defaults to {@code false}.</p>
  *
- * <h3>Multi-key Index Behavior and Limitations</h3>
- *
- * <p>When {@code multi_key} is set to {@code true}, the index is designed for array fields.
- * Each element in the array creates a separate index entry, allowing queries to match
- * documents where any array element satisfies the condition.</p>
- *
- * <p><b>Limitations of multi-key indexes:</b></p>
- * <ul>
- *   <li><b>Undefined ordering:</b> Result ordering is undefined with multi-key indexes.
- *       Since each document can have multiple index entries (one per array element),
- *       the order in which documents are returned cannot be guaranteed. The {@code reverse}
- *       query option has unpredictable behavior on multi-key indexed fields.</li>
- *   <li><b>Index size:</b> Multi-key indexes can be significantly larger than regular indexes
- *       because each array element creates a separate index entry.</li>
- *   <li><b>Type matching:</b> Only array elements matching the specified {@code bson_type}
- *       are indexed. Mixed-type arrays will only have matching elements indexed.</li>
- * </ul>
+ * <p>When {@code multi_key} is {@code true}, each array element gets its own index entry, so a
+ * query matches a document if any element matches. A document can then have many entries, so
+ * result order is undefined and the {@code reverse} option is unpredictable on that field. Only
+ * elements of the given {@code bson_type} are indexed.</p>
  */
 class BucketIndexCreateSubcommand implements SubcommandHandler {
     private final Context context;

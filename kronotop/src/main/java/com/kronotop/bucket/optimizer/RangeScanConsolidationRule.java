@@ -243,7 +243,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
 
     @Override
     public int getPriority() {
-        return 90; // High priority, but after redundant scan elimination
+        return 90;
     }
 
     @Override
@@ -272,7 +272,7 @@ public class RangeScanConsolidationRule implements PhysicalOptimizationRule {
     }
 
     /**
-     * Helper record to group range conditions by selector
+     * A range filter and the index on its selector.
      */
     private record RangeCondition(PhysicalFilter filter, SingleFieldIndexDefinition index) {
     }

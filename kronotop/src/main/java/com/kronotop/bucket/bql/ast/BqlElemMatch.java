@@ -20,7 +20,7 @@ package com.kronotop.bucket.bql.ast;
  * Represents an $elemMatch query expression for matching array elements.
  * <p>
  * For scalar arrays, inner operators use an empty selector which is stripped
- * during JSON serialization to produce clean output like {@code {"$eq": "value"}}
+ * during JSON serialization, so the output reads {@code {"$eq": "value"}}
  * instead of {@code {"": "value"}}.
  */
 public record BqlElemMatch(String selector, BqlExpr expr) implements BqlExpr {
@@ -32,19 +32,15 @@ public record BqlElemMatch(String selector, BqlExpr expr) implements BqlExpr {
     }
 
     /**
-     * Converts empty selector wrappers to explicit operators in JSON output.
-     * For scalar array operators:
-     * - {@code {"": value}} becomes {@code {"$eq": value}} (implicit equality)
-     * - {@code {"": {"$gte": value}}} becomes {@code {"$gte": value}} (explicit operator)
-     * This ensures roundtrip parsing consistency.
+     * Removes empty selectors so the JSON output parses back to the same expression.
+     * A plain value {@code {"": value}} becomes {@code {"$eq": value}}, and an operator
+     * object {@code {"": {"$gte": value}}} becomes {@code {"$gte": value}}.
      */
     private String stripEmptySelectors(String json) {
         if (json.startsWith(EMPTY_SELECTOR_PREFIX) && json.endsWith("}")) {
             // Extract the value part: {"": VALUE} -> VALUE
             String value = json.substring(EMPTY_SELECTOR_PREFIX.length(), json.length() - 1);
 
-            // If value is already an operator object (e.g., {"$gte": 80}), return as-is
-            // If it's a plain value (e.g., "urgent", 80), wrap in $eq for roundtrip consistency
             if (value.startsWith("{")) {
                 return value;
             }

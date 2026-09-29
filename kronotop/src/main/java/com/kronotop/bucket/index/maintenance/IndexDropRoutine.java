@@ -114,10 +114,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     }
 
     /**
-     * Executes the index drop operation within a single transaction.
-     *
-     * <p>Reloads the bucket metadata, clears the index entries, and sets the task status to
-     * COMPLETED or FAILED.
+     * Drops the index in a single transaction and sets the task status to COMPLETED or FAILED.
      *
      * @throws IndexMaintenanceRoutineShutdownException if interrupted during execution
      */
@@ -196,10 +193,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     }
 
     /**
-     * Initiates the index drop routine with automatic retry on transient failures.
-     *
-     * <p>Clears the stopped flag to allow restarts, runs {@link #initialize()}, then calls
-     * {@link #startInternal()} unless the routine was stopped or interrupted. Transient failures
+     * Starts the index drop routine. The routine can be restarted after a stop. Transient failures
      * are retried at the worker level.
      */
     @Override

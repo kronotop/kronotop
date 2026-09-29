@@ -115,9 +115,9 @@ public class PhysicalPlanner {
     }
 
     /**
-     * Attempts to match filter children against available compound indexes using the prefix rule.
-     * Returns the best match (most matched fields), or null if no match found.
-     * Normally requires minimum 2 matched filters; relaxes to 1 when sortByField covers the next index field.
+     * Matches filter children against compound indexes using the prefix rule and returns the
+     * match with the most fields, or null. At least 2 matched filters are required, or 1 when
+     * the first one is on the leading index field.
      */
     private CompoundIndexMatchResult tryCompoundIndexMatch(PlannerContext context, List<LogicalNode> children, String elemMatchSelector) {
         CompoundIndexMatchResult best = null;
@@ -263,15 +263,16 @@ public class PhysicalPlanner {
     }
 
     /**
-     * Converts a LogicalFilter to PhysicalIndexScan when an index exists and the operator/type
-     * are compatible, otherwise falls back to PhysicalFullScan.
+     * Converts a LogicalFilter to a physical node: a single field index scan when an index exists
+     * and the operator and type fit, a compound index scan when the field leads a compound index,
+     * and a full scan otherwise.
      * <p>
-     * For $in operator with an index, transforms to PhysicalOr with multiple PhysicalIndexScan(EQ) nodes,
-     * which the executor runs as a union of index scans.
-     * Without an index, $in remains as-is and PredicateEvaluator handles it with array semantics.
+     * An empty $in becomes PhysicalFalse and an empty $nin becomes PhysicalTrue. With a matching
+     * index, $in becomes a union of EQ index scans and $nin an intersection of NE index scans
+     * ($nin only on non-multi-key indexes).
      * <p>
-     * For scalar array $elemMatch, when the filter's selector is empty but we're inside an $elemMatch
-     * context, we use the $elemMatch selector for index lookup.
+     * Inside a scalar array $elemMatch the filter selector is empty, so the $elemMatch selector
+     * is used for index lookup.
      *
      * @param elemMatchSelector the selector from parent $elemMatch (null if not inside $elemMatch)
      */
@@ -381,26 +382,12 @@ public class PhysicalPlanner {
     }
 
     /**
-     * Transforms $in operator with an index into PhysicalOr with multiple PhysicalIndexScan(EQ) nodes.
-     * <p>
-     * Examples:
-     * <ul>
-     *   <li>{@code {'role': {'$in': ['admin', 'editor']}}} with index on 'role'
-     *       -> {@code PhysicalOr([PhysicalIndexScan(EQ, 'admin'), PhysicalIndexScan(EQ, 'editor')])}</li>
-     *   <li>{@code {'role': {'$in': ['admin']}}} with index on 'role'
-     *       -> {@code PhysicalIndexScan(EQ, 'admin')} (single value optimization)</li>
-     *   <li>{@code {'role': {'$in': []}}} with index on 'role'
-     *       -> {@code PhysicalFalse} (an empty list matches nothing)</li>
-     * </ul>
+     * Rewrites $in on an indexed field as a PhysicalOr of EQ index scans, one per value.
+     * A single value becomes one EQ index scan.
      */
     @SuppressWarnings("unchecked")
     private PhysicalNode transposeInToOr(LogicalFilter filter, SingleFieldIndex index, PlannerContext context) {
         List<BqlValue> values = (List<BqlValue>) filter.operand();
-
-        // Empty $in matches nothing
-        if (values.isEmpty()) {
-            return new PhysicalFalse(context.nextId());
-        }
 
         // Single value optimization: just use EQ directly
         if (values.size() == 1) {
@@ -428,26 +415,12 @@ public class PhysicalPlanner {
     }
 
     /**
-     * Transforms $nin operator with an index into PhysicalAnd with multiple PhysicalIndexScan(NE) nodes.
-     * <p>
-     * Examples:
-     * <ul>
-     *   <li>{@code {'role': {'$nin': ['admin', 'editor']}}} with index on 'role'
-     *       -> {@code PhysicalAnd([PhysicalIndexScan(NE, 'admin'), PhysicalIndexScan(NE, 'editor')])}</li>
-     *   <li>{@code {'role': {'$nin': ['admin']}}} with index on 'role'
-     *       -> {@code PhysicalIndexScan(NE, 'admin')} (single value optimization)</li>
-     *   <li>{@code {'role': {'$nin': []}}} with index on 'role'
-     *       -> {@code PhysicalTrue} (empty list matches everything)</li>
-     * </ul>
+     * Rewrites $nin on an indexed field as a PhysicalAnd of NE index scans, one per value.
+     * A single value becomes one NE index scan.
      */
     @SuppressWarnings("unchecked")
     private PhysicalNode transposeNinToAnd(LogicalFilter filter, SingleFieldIndex index, PlannerContext context) {
         List<BqlValue> values = (List<BqlValue>) filter.operand();
-
-        // Empty $nin matches everything
-        if (values.isEmpty()) {
-            return new PhysicalTrue(context.nextId());
-        }
 
         // Single value optimization: just use NE directly
         if (values.size() == 1) {
@@ -475,9 +448,8 @@ public class PhysicalPlanner {
     }
 
     /**
-     * Returns true if the operator supports index scan execution.
-     * Note: IN operator is handled specially in transposeFilter via transposeInToOr.
-     * Note: NIN operator is handled specially in transposeFilter via transposeNinToAnd.
+     * Returns true if the operator supports index scan execution. IN and NIN return false here.
+     * With a matching index, transposeFilter rewrites them earlier (NIN only on non-multi-key indexes).
      */
     private boolean isIndexableOperator(Operator op) {
         return switch (op) {

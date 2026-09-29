@@ -30,11 +30,10 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * A thread-safe registry for managing vector graph index groups organized by namespace, bucket, and index ID.
+ * Thread-safe registry of vector graph index groups, keyed by namespace, bucket and index ID.
  *
  * <p>Groups are stored in a three-level hierarchy: namespace -> bucket -> indexId -> VectorGraphIndexGroup.
- * The namespace key supports prefix-based removal using a sorted map, enabling efficient
- * cleanup of entire namespace trees.
+ * The namespace level is a sorted map, so a whole namespace tree can be removed by prefix.
  */
 public class VectorGraphIndexRegistry {
     private final ConcurrentSkipListMap<String, ConcurrentHashMap<String, ConcurrentHashMap<Long, VectorGraphIndexGroup>>> registry = new ConcurrentSkipListMap<>();
@@ -58,10 +57,10 @@ public class VectorGraphIndexRegistry {
 
     /**
      * Retrieves the index group for the given key. If absent, invokes the supplier to load or create
-     * the group. If the supplier returns null, an empty group is created as a fallback.
-     * ConcurrentHashMap.computeIfAbsent guarantees the supplier runs exactly once per key —
-     * concurrent callers block until the supplier completes and receive the same group instance.
-     * This ensures a single background bootstrap is triggered per vector index.
+     * the group. If the supplier returns null, nothing is stored and null is returned.
+     * ConcurrentHashMap.computeIfAbsent runs the supplier exactly once per key. Concurrent callers
+     * block until it completes and receive the same group, so only one background bootstrap starts
+     * per vector index.
      */
     public VectorGraphIndexGroup computeIfAbsent(
             BucketMetadata metadata,

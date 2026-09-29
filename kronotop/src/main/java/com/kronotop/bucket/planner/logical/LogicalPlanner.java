@@ -91,7 +91,7 @@ public final class LogicalPlanner {
     }
 
     /**
-     * Produces an optimised logical plan tree and validates it for correctness.
+     * Builds an optimized logical plan from the parsed query and validates it.
      * Throws {@link LogicalPlanValidationException} if the plan is invalid.
      */
     public LogicalNode planAndValidate(BqlExpr root) {
@@ -436,10 +436,12 @@ public final class LogicalPlanner {
 
     /**
      * Detects contradictory conditions and replaces them with FALSE.
-     * Examples:
-     * - AND(selector = A, selector = B) -> FALSE
-     * - AND(selector > 100, selector < 50) -> FALSE
-     * - AND(selector = A, selector != A) -> FALSE
+     * <p>Examples:
+     * <ul>
+     *   <li>{@code AND(selector = A, selector = B) -> FALSE}</li>
+     *   <li>{@code AND(selector > 100, selector < 50) -> FALSE}</li>
+     *   <li>{@code AND(selector = A, selector != A) -> FALSE}</li>
+     * </ul>
      */
     private static final class ContradictionDetectionTransform implements LogicalTransform {
         @Override
@@ -599,12 +601,14 @@ public final class LogicalPlanner {
     }
 
     /**
-     * Eliminates tautological conditions and simplifies logical expressions.
-     * Examples:
-     * - OR(selector = A, selector != A) -> TRUE
-     * - OR(selector > 5, selector <= 5) -> TRUE
-     * - AND(TRUE, condition) -> condition
-     * - OR(FALSE, condition) -> condition
+     * Replaces always-true conditions with TRUE and removes TRUE and FALSE constants.
+     * <p>Examples:
+     * <ul>
+     *   <li>{@code OR(selector = A, selector != A) -> TRUE}</li>
+     *   <li>{@code OR(selector > 5, selector <= 5) -> TRUE}</li>
+     *   <li>{@code AND(TRUE, condition) -> condition}</li>
+     *   <li>{@code OR(FALSE, condition) -> condition}</li>
+     * </ul>
      */
     private static final class TautologyEliminationTransform implements LogicalTransform {
         @Override
@@ -699,18 +703,18 @@ public final class LogicalPlanner {
                     (op2 == Operator.LT && op1 == Operator.GTE && d2 == d1) ||
                     (op2 == Operator.LTE && op1 == Operator.GT && d2 == d1);
         }
-
-        // Using shared utility methods
     }
 
     /**
-     * Eliminates redundant conditions in logical expressions.
-     * Examples:
-     * - AND(selector > 5, selector > 3) -> selector > 5 (more restrictive)
-     * - OR(selector < 10, selector < 15) -> selector < 15 (less restrictive)
-     * - AND(selector = A, selector = A) -> selector = A (duplicates)
-     * - AND(selector >= 5, selector > 4) -> selector >= 5 (subsumption)
-     * - OR(selector IN [A,B], selector = A) -> selector IN [A,B] (subsumption)
+     * Removes conditions that other conditions on the same selector already cover.
+     * <p>Examples:
+     * <ul>
+     *   <li>{@code AND(selector > 5, selector > 3) -> selector > 5}</li>
+     *   <li>{@code OR(selector < 10, selector < 15) -> selector < 15}</li>
+     *   <li>{@code AND(selector = A, selector = A) -> selector = A}</li>
+     *   <li>{@code AND(selector >= 5, selector > 4) -> selector >= 5}</li>
+     *   <li>{@code OR(selector IN [A], selector IN [A,B]) -> selector IN [A,B]}</li>
+     * </ul>
      */
     private static final class RedundantConditionEliminationTransform implements LogicalTransform {
         @Override
@@ -983,18 +987,17 @@ public final class LogicalPlanner {
 
             return false;
         }
-
-        // Using shared utility methods
     }
 
     /**
-     * Performs constant folding and simplification of boolean expressions.
-     * Examples:
-     * - AND(TRUE, TRUE) -> TRUE
-     * - AND(TRUE, FALSE) -> FALSE
-     * - OR(FALSE, FALSE) -> FALSE
-     * - OR(TRUE, FALSE) -> TRUE
-     * - NOT(NOT(x)) -> x (handled by RemoveDoubleNotTransform)
+     * Folds TRUE and FALSE constants into the tree.
+     * <p>Examples:
+     * <ul>
+     *   <li>{@code AND(TRUE, TRUE) -> TRUE}</li>
+     *   <li>{@code AND(TRUE, FALSE) -> FALSE}</li>
+     *   <li>{@code OR(FALSE, FALSE) -> FALSE}</li>
+     *   <li>{@code OR(TRUE, FALSE) -> TRUE}</li>
+     * </ul>
      */
     private static final class ConstantFoldingTransform implements LogicalTransform {
         @Override

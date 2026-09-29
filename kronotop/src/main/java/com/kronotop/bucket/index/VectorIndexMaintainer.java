@@ -43,14 +43,8 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     /**
      * Returns which of the given ObjectIds already have an entry in this vector index.
      *
-     * <p>Issues one point request per ObjectId against the {@code (ENTRIES, ObjectId)} key. A vector
-     * index keys its entry directly by ObjectId with exactly one entry per ObjectId, so a single get
-     * answers existence. All requests are dispatched before any is awaited, so the FoundationDB client
-     * pipelines them over a single connection, giving a few round trips instead of one per ObjectId.
-     * Each read is not a snapshot read, so it registers a read conflict on exactly that ObjectId's
-     * entry key. A concurrent writer that sets the entry for one of these ObjectIds forces this
-     * transaction to conflict on commit. This lets the background index builder skip ObjectIds already
-     * indexed by online writers without double counting cardinality.
+     * <p>Same approach as {@link IndexMaintainer#findIndexedObjectIds}, but a vector index has
+     * exactly one {@code (ENTRIES, ObjectId)} key per ObjectId, so a single get answers existence.
      *
      * @param tr            the FoundationDB transaction
      * @param indexSubspace the vector index's directory subspace

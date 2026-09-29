@@ -31,36 +31,23 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Turns the physical planner output ({@link PhysicalNode} tree) into an executable
- * pipeline plan ({@link PipelineNode} tree). It picks an {@link ExecutionStrategy} for
- * each logical operator, converts scans to their pipeline equivalents, and folds
- * predicates that cannot drive an index into residual filters.
+ * Rewrites a physical plan ({@link PhysicalNode} tree) into an executable pipeline plan
+ * ({@link PipelineNode} tree). Predicates that cannot use an index become residual filters.
  * <p>
- * Execution strategies:
+ * Each AND/OR node gets an {@link ExecutionStrategy} from its children:
  * <ul>
- *   <li>{@link ExecutionStrategy#INDEX_SCAN} - one index available, use it directly</li>
- *   <li>{@link ExecutionStrategy#FULL_SCAN} - no indexes, scan all documents</li>
- *   <li>{@link ExecutionStrategy#MIXED_SCAN} - multiple indexes, or a mix of indexed and non-indexed conditions</li>
- *   <li>{@link ExecutionStrategy#NESTED} - contains nested AND/OR structures (e.g. from {@code $in})</li>
+ *   <li>{@link ExecutionStrategy#INDEX_SCAN} - exactly one index scan</li>
+ *   <li>{@link ExecutionStrategy#FULL_SCAN} - no index scan</li>
+ *   <li>{@link ExecutionStrategy#MIXED_SCAN} - more than one index scan, or index scans together with full scans
+ *       or elemMatch</li>
+ *   <li>{@link ExecutionStrategy#NESTED} - at least one nested AND/OR child, for example from {@code $in}</li>
  * </ul>
- *
- * @see PhysicalNode
- * @see PipelineNode
- * @see ExecutionStrategy
  */
 public class PipelineRewriter {
 
     /**
-     * Picks an execution strategy for a logical operator by classifying its children.
-     * Any nested {@link PhysicalAnd} or {@link PhysicalOr} forces {@link ExecutionStrategy#NESTED}.
-     * With no usable index it returns {@link ExecutionStrategy#FULL_SCAN}; a single index
-     * scan and nothing else returns {@link ExecutionStrategy#INDEX_SCAN}; any other mix
-     * (multiple indexes, or an index alongside full scans or elemMatch) returns
-     * {@link ExecutionStrategy#MIXED_SCAN}. An indexed {@link PhysicalElemMatch} sub-plan
-     * counts as an index scan.
-     *
-     * @param children the child {@link PhysicalNode} instances to analyze
-     * @return the chosen {@link ExecutionStrategy}
+     * Picks the {@link ExecutionStrategy} for the children of an AND/OR node. A {@link PhysicalElemMatch}
+     * with an indexed sub-plan counts as an index scan.
      */
     private static ExecutionStrategy determineStrategy(List<PhysicalNode> children) {
         int indexScan = 0;
@@ -111,26 +98,14 @@ public class PipelineRewriter {
     }
 
     /**
-     * Rewrites each physical node into its pipeline equivalent via
-     * {@link #rewrite(PlannerContext, PipelineContext, PhysicalNode)}, keeping order.
-     *
-     * @param ctx         the planner context for ID generation and metadata access
-     * @param pipelineCtx the pipeline context for parameter binding
-     * @param children    the {@link PhysicalNode} instances to rewrite
-     * @return the rewritten {@link PipelineNode} instances in the same order
+     * Rewrites each child into a pipeline node, keeping the order.
      */
     private static List<PipelineNode> rewriteChildren(PlannerContext ctx, PipelineContext pipelineCtx, List<PhysicalNode> children) {
         return children.stream().map((node) -> PipelineRewriter.rewrite(ctx, pipelineCtx, node)).toList();
     }
 
     /**
-     * Determines the execution strategy for the children and rewrites them to pipeline
-     * nodes, returning both bundled in an {@link IntermediatePlan}.
-     *
-     * @param ctx         the planner context for ID generation and metadata access
-     * @param pipelineCtx the pipeline context for parameter binding
-     * @param children    the child {@link PhysicalNode} instances
-     * @return the strategy and rewritten nodes
+     * Picks the execution strategy for the children and rewrites them into pipeline nodes.
      */
     private static IntermediatePlan traverseChildren(PlannerContext ctx, PipelineContext pipelineCtx, List<PhysicalNode> children) {
         ExecutionStrategy strategy = determineStrategy(children);
@@ -139,14 +114,8 @@ public class PipelineRewriter {
     }
 
     /**
-     * Converts each pipeline node into a residual predicate for post-retrieval filtering
-     * and combines them with the given strategy.
-     *
-     * @param ctx      the planner context for ID generation
-     * @param children the list of {@link PipelineNode} instances to transform
-     * @param strategy how to combine the predicates: {@link PredicateEvalStrategy#AND} produces
-     *                 {@link ResidualAndNode}, {@link PredicateEvalStrategy#OR} produces {@link ResidualOrNode}
-     * @return a composite {@link ResidualPredicateNode} combining all child predicates
+     * Converts each node into a residual predicate and joins them with a {@link ResidualAndNode}
+     * or a {@link ResidualOrNode}, based on {@code strategy}.
      */
     private static ResidualPredicateNode transformToResidualPredicate(
             PlannerContext ctx,
@@ -163,20 +132,10 @@ public class PipelineRewriter {
     }
 
     /**
-     * Transforms a single pipeline node into its residual predicate equivalent.
-     * <p>
-     * Supports the following node types:
-     * <ul>
-     *   <li>{@link FullScanNode} - extracts the existing predicate directly</li>
-     *   <li>{@link IndexScanNode} - converts {@link IndexScanPredicate} to {@link ResidualPredicate}</li>
-     *   <li>{@link RangeScanNode} - converts to {@link ResidualAndNode} with lower/upper bound predicates</li>
-     *   <li>{@link UnionNode} - recursively transforms children into {@link ResidualOrNode}</li>
-     * </ul>
+     * Converts a full scan, index scan, range scan or union node into a residual predicate that
+     * matches the same documents.
      *
-     * @param ctx  the planner context for ID generation
-     * @param node the {@link PipelineNode} to transform
-     * @return the equivalent {@link ResidualPredicateNode}
-     * @throws KronotopException if the node type is not supported for transformation
+     * @throws KronotopException if the node type is not supported
      */
     static ResidualPredicateNode transformNodeToResidualPredicate(PlannerContext ctx, PipelineNode node) {
         return switch (node) {
@@ -240,18 +199,8 @@ public class PipelineRewriter {
     }
 
     /**
-     * Converts a range scan predicate into a residual AND node with lower and upper bound checks.
-     * <p>
-     * A range scan (e.g., {@code field >= 10 AND field <= 20}) is decomposed into two separate
-     * comparison predicates combined with AND logic:
-     * <ul>
-     *   <li>Lower bound: GT or GTE depending on {@link RangeScanPredicate#includeLower()}</li>
-     *   <li>Upper bound: LT or LTE depending on {@link RangeScanPredicate#includeUpper()}</li>
-     * </ul>
-     *
-     * @param ctx       the planner context for ID generation
-     * @param predicate the {@link RangeScanPredicate} containing range bounds and inclusion flags
-     * @return a {@link ResidualAndNode} containing lower and upper bound predicates
+     * Converts a range scan predicate into an AND of a lower bound check (GT or GTE) and an upper
+     * bound check (LT or LTE).
      */
     private static ResidualPredicateNode rangeScanPredicateToResidualAndNode(PlannerContext ctx, RangeScanPredicate predicate) {
         List<ResidualPredicateNode> children = new ArrayList<>();
@@ -275,23 +224,17 @@ public class PipelineRewriter {
     }
 
     /**
-     * Rewrites a logical AND/OR operator into a pipeline node, dispatching on the
-     * execution strategy chosen for its children.
+     * Rewrites an AND/OR node based on the execution strategy of its children.
      * <ul>
-     *   <li>{@link ExecutionStrategy#FULL_SCAN} - a {@link FullScanNode} with the combined predicate</li>
-     *   <li>{@link ExecutionStrategy#NESTED} - AND uses the indexed nodes with residual filters;
-     *       OR builds a flattened {@link UnionNode}</li>
-     *   <li>{@link ExecutionStrategy#MIXED_SCAN} or {@link ExecutionStrategy#INDEX_SCAN} - AND picks the most
-     *       selective index and turns the rest into residual predicates; OR builds a {@link UnionNode}, or an
-     *       {@link OrderedConcatNode} when every branch is an EQ scan on the sortBy field</li>
+     *   <li>{@link ExecutionStrategy#FULL_SCAN} - one {@link FullScanNode} with the combined predicate</li>
+     *   <li>{@link ExecutionStrategy#NESTED} - see {@link #convertNestedAndToIndexedPlan} and
+     *       {@link #convertNestedOrToUnionNode}</li>
+     *   <li>{@link ExecutionStrategy#MIXED_SCAN} and {@link ExecutionStrategy#INDEX_SCAN} - AND scans the most
+     *       selective child and filters the rest; OR builds a {@link UnionNode}, or an {@link OrderedConcatNode}
+     *       when every branch is an EQ index scan on the sortBy field</li>
      * </ul>
      *
-     * @param ctx               the planner context for ID generation and metadata access
-     * @param pipelineCtx       the pipeline context for parameter binding
-     * @param id                the node identifier for the resulting pipeline node
-     * @param children          the list of child {@link PhysicalNode} instances
-     * @param predicateStrategy {@link PredicateEvalStrategy#AND} or {@link PredicateEvalStrategy#OR}
-     * @return the optimized {@link PipelineNode} for executing the logical operation
+     * @param id the ID of the resulting node when the strategy is {@link ExecutionStrategy#FULL_SCAN}
      */
     private static PipelineNode rewriteLogicalOperator(
             PlannerContext ctx,
@@ -326,16 +269,12 @@ public class PipelineRewriter {
     }
 
     /**
-     * Converts a nested OR plan into a {@link UnionNode}. Nested {@link UnionNode} children
-     * (from {@code $in} expanded to OR index scans) are lifted to the top level, and multiple
-     * {@link FullScanNode} branches are merged into one node with an OR predicate.
+     * Builds a {@link UnionNode} for an OR with nested children. The children of a nested
+     * {@link UnionNode} move up to the top level, and multiple {@link FullScanNode}s are merged
+     * into one full scan with an OR predicate.
      * <p>
      * Example: {@code $or: [{role: {$in: [admin, editor]}}, {status: active}]} with an index on role becomes
      * {@code UnionNode([IndexScan(role=admin), IndexScan(role=editor), FullScan(status=active)])}.
-     *
-     * @param ctx      the planner context for ID generation
-     * @param children the list of rewritten {@link PipelineNode} instances from the OR branches
-     * @return a {@link UnionNode} with flattened and consolidated children
      */
     private static PipelineNode convertNestedOrToUnionNode(PlannerContext ctx, List<PipelineNode> children) {
         List<PipelineNode> flattenedChildren = new ArrayList<>();
@@ -364,20 +303,15 @@ public class PipelineRewriter {
     }
 
     /**
-     * Rewrites a nested AND plan to drive an index and apply the rest as residual filters.
-     * The most selective indexed node ({@link UnionNode}, {@link IndexScanNode},
-     * {@link RangeScanNode}, or {@link CompoundIndexScanNode}) becomes the primary access
-     * path; all other conditions are chained after it as a
-     * {@link TransformWithResidualPredicateNode}. With no indexed node it falls back to a
-     * {@link FullScanNode} carrying the combined AND predicate.
+     * Rewrites an AND with nested children. The most selective indexed child ({@link UnionNode},
+     * {@link IndexScanNode}, {@link RangeScanNode} or {@link CompoundIndexScanNode}) drives the scan,
+     * and all other conditions become a {@link TransformWithResidualPredicateNode} after it. For a
+     * {@link UnionNode}, the filter is attached to each of its children. Without an indexed child, it
+     * returns a {@link FullScanNode} with the combined predicate.
      * <p>
      * Example: {@code $and: [{role: {$in: [admin, editor]}}, {status: active}]} with an index on role becomes
-     * {@code UnionNode([IndexScan(role=admin), IndexScan(role=editor)]) -> TransformWithResidualPredicate(status=active)}.
-     *
-     * @param ctx         the planner context for ID generation and metadata access
-     * @param pipelineCtx the pipeline context for parameter binding
-     * @param children    the list of rewritten {@link PipelineNode} instances from the AND branches
-     * @return the primary indexed node with residual predicates chained, or a {@link FullScanNode} if no indexes
+     * {@code UnionNode([IndexScan(role=admin) -> TransformWithResidualPredicate(status=active),
+     * IndexScan(role=editor) -> TransformWithResidualPredicate(status=active)])}.
      */
     private static PipelineNode convertNestedAndToIndexedPlan(PlannerContext ctx, PipelineContext pipelineCtx, List<PipelineNode> children) {
         // Separate indexed nodes (UnionNode, IndexScanNode, RangeScanNode) from full scans
@@ -400,7 +334,7 @@ public class PipelineRewriter {
             return new FullScanNode(ctx.nextId(), getPrimaryIndexDefinition(ctx), predicate);
         }
 
-        // Select the primary indexed node (prefer UnionNode from $in, or use selectivity)
+        // Select the primary indexed node by selectivity
         PipelineNode primaryNode;
         List<PipelineNode> otherIndexedNodes;
 
@@ -451,8 +385,8 @@ public class PipelineRewriter {
     }
 
     /**
-     * Creates a new IndexScanNode with merged residual predicates when the primary node already has a chain.
-     * Clones the index scan predicate and connects the merged residual predicate.
+     * Returns a copy of an index scan or range scan node with {@code nextNode} attached. Other node
+     * types are returned unchanged, without {@code nextNode}.
      */
     private static PipelineNode createMergedIndexScanNode(PlannerContext ctx, PipelineNode primaryNode, TransformWithResidualPredicateNode nextNode) {
         if (primaryNode instanceof IndexScanNode indexScanNode) {
@@ -464,18 +398,12 @@ public class PipelineRewriter {
             newNode.connectNext(nextNode);
             return newNode;
         }
-        // For UnionNode, just connect the next node to the first child that doesn't have one
-        // This is a fallback - ideally, these cases should be handled differently
+        // Other node types are returned unchanged and nextNode is not attached
         return primaryNode;
     }
 
     /**
-     * Determines if the given list of {@link PipelineNode} instances contains more than one node
-     * of type {@link FullScanNode}.
-     *
-     * @param children the list of {@link PipelineNode} instances to analyze
-     * @return {@code true} if there are more than one {@link FullScanNode} in the list,
-     * otherwise {@code false}
+     * Returns true if {@code children} contains more than one {@link FullScanNode}.
      */
     private static boolean hasManyFullScanNodes(List<PipelineNode> children) {
         int numberOfFullScans = 0;
@@ -513,13 +441,8 @@ public class PipelineRewriter {
     }
 
     /**
-     * Transforms a list of child {@link PipelineNode} instances into a {@link UnionNode}.
-     * If the child nodes include multiple {@link FullScanNode} instances,
-     * they are consolidated into a single {@link FullScanNode} containing a residual predicate.
-     *
-     * @param ctx      the {@link PlannerContext} providing context information and utilities
-     * @param children the list of child {@link PipelineNode} instances to be processed
-     * @return a {@link UnionNode} containing the transformed child nodes
+     * Builds a {@link UnionNode} for an OR. Multiple {@link FullScanNode}s are merged into one full
+     * scan with an OR predicate.
      */
     private static PipelineNode convertToUnionNode(PlannerContext ctx, List<PipelineNode> children) {
         if (!hasManyFullScanNodes(children)) {
@@ -541,17 +464,9 @@ public class PipelineRewriter {
     }
 
     /**
-     * Optimizes a mixed scan scenario by selecting the most selective index and converting
-     * remaining predicates to residual filters.
-     * <p>
-     * Uses {@link SelectivityEstimator} to identify which index will produce the smallest
-     * result set, then chains the other predicates as a {@link TransformWithResidualPredicateNode}
-     * for post-retrieval filtering.
-     *
-     * @param ctx               the planner context for ID generation and metadata access
-     * @param children          the list of scan nodes to optimize
-     * @param predicateStrategy how to combine residual predicates (AND/OR)
-     * @return the most selective scan node with residual predicates connected as the next step
+     * Scans the most selective child, picked by {@link SelectivityEstimator}, and filters with the
+     * other children as a {@link TransformWithResidualPredicateNode}. If the chosen node already has
+     * a residual filter, it returns a copy of the node with both filters merged.
      */
     private static PipelineNode convertToIndexScanNode(PlannerContext ctx, PipelineContext pipelineCtx, List<PipelineNode> children, PredicateEvalStrategy predicateStrategy) {
         PipelineNode mostSelectiveIndexScan = SelectivityEstimator.estimate(ctx, pipelineCtx, children);
@@ -605,16 +520,8 @@ public class PipelineRewriter {
     }
 
     /**
-     * Falls back to a full table scan when no suitable indexes are available.
-     * <p>
-     * Combines all child predicates into a single composite residual predicate
-     * that filters documents during the sequential scan.
-     *
-     * @param ctx      the planner context for ID generation
-     * @param id       the node identifier for the resulting full scan node
-     * @param children the list of child nodes whose predicates will be combined
-     * @param strategy how to combine predicates (AND/OR)
-     * @return a full scan node with the combined residual predicate
+     * Returns a {@link FullScanNode} that filters with the predicates of all children, joined by
+     * {@code strategy}.
      */
     private static FullScanNode convertToFullScanNode(PlannerContext ctx, int id, List<PipelineNode> children, PredicateEvalStrategy strategy) {
         ResidualPredicateNode predicate = transformToResidualPredicate(ctx, children, strategy);
@@ -622,41 +529,24 @@ public class PipelineRewriter {
     }
 
     /**
-     * Rewrites a physical execution plan into an optimized pipeline execution plan.
-     * <p>
-     * This is a convenience method that creates a default {@link PipelineContext} for non-parameterized execution.
+     * Rewrites a physical plan into a pipeline plan without parameter binding. All operands are literals.
      *
-     * @param ctx  the planner context containing bucket metadata and ID generator
-     * @param plan the physical execution plan to rewrite
-     * @return the optimized {@link PipelineNode}, or {@code null} for unsatisfiable queries
-     * @throws IllegalStateException if the physical node contains an invalid state or unsupported type
+     * @return the pipeline plan, or {@code null} if the query matches nothing
      */
     public static PipelineNode rewrite(PlannerContext ctx, PhysicalNode plan) {
         return rewrite(ctx, new PipelineContext(), plan);
     }
 
     /**
-     * Rewrites a physical execution plan into an optimized pipeline execution plan.
+     * Rewrites a physical plan into a pipeline plan.
      * <p>
-     * This is the main entry point for plan transformation. It handles every physical node type:
-     * <ul>
-     *   <li>{@link PhysicalAnd} / {@link PhysicalOr} - rewritten via {@link #rewriteLogicalOperator}</li>
-     *   <li>{@link PhysicalIndexScan} - converted to {@link IndexScanNode}</li>
-     *   <li>{@link PhysicalFullScan} - converted to {@link FullScanNode}</li>
-     *   <li>{@link PhysicalRangeScan} - converted to {@link RangeScanNode}</li>
-     *   <li>{@link PhysicalCompoundIndexScan} - converted to {@link CompoundIndexScanNode}</li>
-     *   <li>{@link PhysicalIndexIntersection} - converted to an index scan with the rest as residual predicates</li>
-     *   <li>{@link PhysicalElemMatch} - index scan plus a residual elemMatch predicate, or a full scan if unindexed</li>
-     *   <li>{@link PhysicalNot} - a full scan with a negated residual predicate ({@code $not} cannot use an index)</li>
-     *   <li>{@link PhysicalTrue} - a {@link RangeScanNode} over the sortBy index when one exists, otherwise a
-     *       {@link FullScanNode} with {@link AlwaysTruePredicate}</li>
-     *   <li>{@link PhysicalFalse} - returns {@code null} (query matches nothing)</li>
-     * </ul>
+     * {@code $not} cannot use an index, so {@link PhysicalNot} becomes a full scan with a negated
+     * residual predicate. {@link PhysicalTrue} scans the sortBy index when one exists.
      *
      * @param ctx         the planner context containing bucket metadata and ID generator
      * @param pipelineCtx the pipeline context for parameter binding
      * @param plan        the physical execution plan to rewrite
-     * @return the optimized {@link PipelineNode}, or {@code null} for unsatisfiable queries
+     * @return the pipeline plan, or {@code null} if the query matches nothing
      * @throws IllegalStateException if the physical node contains an invalid state or unsupported type
      */
     public static PipelineNode rewrite(PlannerContext ctx, PipelineContext pipelineCtx, PhysicalNode plan) {
@@ -719,7 +609,7 @@ public class PipelineRewriter {
                 );
                 yield new RangeScanNode(rangeScan.id(), rangeScan.index(), predicate);
             }
-            case PhysicalFalse ignored -> null; // this query makes no sense.
+            case PhysicalFalse ignored -> null; // matches nothing
             case PhysicalOr physicalOr -> rewriteLogicalOperator(
                     ctx,
                     pipelineCtx,
@@ -796,10 +686,9 @@ public class PipelineRewriter {
     }
 
     /**
-     * Rewrites a {@link PhysicalTrue} node, which represents an empty filter ({}).
-     * If a sortByField is specified and an index exists for that field, creates a
-     * {@link RangeScanNode} with a full range so the index provides the ordering.
-     * Otherwise, falls back to a {@link FullScanNode} with {@link AlwaysTruePredicate}.
+     * Rewrites an empty filter. If the sortBy field has an index, it returns a full range scan on
+     * that index, so the results come in sort order. Otherwise, it returns a full scan that matches
+     * every document.
      */
     private static PipelineNode rewritePhysicalTrue(PlannerContext ctx, PhysicalTrue node) {
         String sortByField = ctx.getSortByField();
@@ -821,9 +710,8 @@ public class PipelineRewriter {
     }
 
     /**
-     * Checks if a physical node sub-plan uses an index.
-     * Used by {@link #determineStrategy} to count {@link PhysicalElemMatch} nodes
-     * with indexed sub-plans as index scans.
+     * Returns true if a {@link PhysicalElemMatch} sub-plan can use an index. An AND needs at least
+     * one indexed child, and an OR needs all of its children indexed.
      */
     private static boolean hasIndexedSubPlan(PhysicalNode subPlan) {
         if (subPlan instanceof PhysicalIndexScan ||
@@ -845,9 +733,8 @@ public class PipelineRewriter {
     }
 
     /**
-     * Checks if the given pipeline node provides selective single field index access.
-     * Includes {@link IndexScanNode}, {@link RangeScanNode}, and {@link UnionNode}
-     * when all children use selective single field indexes (e.g., from $in operator).
+     * Returns true if the node is an index scan, a range scan, or a {@link UnionNode} whose children
+     * all meet this condition.
      */
     private static boolean usesSelectiveSecondaryIndex(PipelineNode node) {
         if (node instanceof IndexScanNode || node instanceof RangeScanNode) {
@@ -862,10 +749,11 @@ public class PipelineRewriter {
     }
 
     /**
-     * Creates a new scan node (IndexScan, RangeScan, or UnionNode) with ONLY the elemMatch predicate.
-     * This is used when rewriting PhysicalElemMatch with an indexed sub-plan.
-     * Unlike attachResidualPredicate, this does NOT merge with existing residual predicates
-     * because the elemMatchPredicate already contains all conditions from the sub-plan.
+     * Returns a copy of an index scan or range scan node with {@code elemMatchPredicate} as its only
+     * residual filter. The existing residual filter of the node is not kept, because
+     * {@code elemMatchPredicate} already contains all conditions of the sub-plan. For a union node,
+     * it returns a new union node with the same children, and the children keep their own residual
+     * filters.
      */
     private static PipelineNode createScanWithElemMatchPredicate(
             PlannerContext ctx, PipelineNode subPlanNode, ResidualElemMatchNode elemMatchPredicate) {
@@ -892,7 +780,7 @@ public class PipelineRewriter {
     }
 
     /**
-     * Retrieves the primary index definition from the bucket metadata.
+     * Returns the definition of the primary index.
      */
     private static SingleFieldIndexDefinition getPrimaryIndexDefinition(PlannerContext ctx) {
         SingleFieldIndex index = ctx.getMetadata().singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
@@ -900,15 +788,12 @@ public class PipelineRewriter {
     }
 
     /**
-     * Wraps an operand value into the appropriate Operand type using PipelineContext.
-     * Handles BqlValue, List (for $in/$nin/$all), Boolean (for $exists), and Integer.
-     * In parameterized mode, creates Operand.Param; otherwise creates Operand.Literal.
+     * Wraps an operand from the physical plan into an {@link Operand}. It returns a parameter
+     * reference if the node has a parameter binding, otherwise a literal. List operands, for
+     * {@code $in}, {@code $nin} and {@code $all}, become list operands.
      *
-     * @param pipelineCtx the pipeline context for parameter binding
-     * @param nodeId      the physical node ID
-     * @param occurrence  the occurrence index (0 for single operands, 0/1 for range bounds)
-     * @param operand     the operand value from the physical plan
-     * @return the wrapped Operand instance
+     * @param occurrence the position of the operand in the node: 0, or 1 for the upper bound of a
+     *                   range with both bounds
      */
     @SuppressWarnings("unchecked")
     private static Operand wrapOperand(PipelineContext pipelineCtx, int nodeId, int occurrence, Object operand) {
@@ -922,10 +807,9 @@ public class PipelineRewriter {
     }
 
     /**
-     * Converts an operand value to a BqlValue.
+     * Converts a {@link BqlValue}, {@link Boolean} or {@link Integer} operand to a {@link BqlValue}.
      *
-     * @param operand the operand value from the physical plan
-     * @return the BqlValue representation
+     * @throws IllegalArgumentException if the operand is null or has another type
      */
     private static BqlValue toBqlValue(Object operand) {
         return switch (operand) {
@@ -940,11 +824,7 @@ public class PipelineRewriter {
 }
 
 /**
- * Bundles the {@link ExecutionStrategy} chosen for a set of physical plan children with
- * the {@link PipelineNode} instances they were rewritten into.
- *
- * @param strategy the execution strategy chosen for the children
- * @param children the rewritten pipeline nodes
+ * Execution strategy and rewritten pipeline nodes for the children of an AND/OR node.
  */
 record IntermediatePlan(ExecutionStrategy strategy, List<PipelineNode> children) {
 }

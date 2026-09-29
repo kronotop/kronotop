@@ -36,8 +36,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import static com.kronotop.bucket.BucketMetadataUtil.POSITIVE_DELTA_ONE;
 
 /**
- * Utility class for index lifecycle management: creation, deletion, status transitions,
- * cardinality tracking, and background task orchestration.
+ * Single field index lifecycle helpers: create, load and save the definition, drop, clear, analyze,
+ * create build tasks, and move the index from BUILDING to READY.
  *
  * @see SingleFieldIndexDefinition
  * @see BucketMetadata

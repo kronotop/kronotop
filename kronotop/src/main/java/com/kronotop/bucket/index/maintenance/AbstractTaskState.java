@@ -49,13 +49,6 @@ import java.util.Map;
  * </ul>
  *
  * <p>Fields are stored under key "s" (status enum name) and "e" (UTF-8 error message).
- *
- * @see IndexBuildingTaskState
- * @see IndexBoundaryTaskState
- * @see IndexDropTaskState
- * @see IndexAnalyzeTaskState
- * @see TaskStorage
- * @see IndexTaskStatus
  */
 public abstract class AbstractTaskState {
     /**

@@ -35,9 +35,7 @@ public class Histogram extends ArrayList<HistogramBucket> implements List<Histog
     }
 
     /**
-     * Creates a new empty histogram.
-     *
-     * @return a new Histogram instance
+     * Creates an empty histogram with the given version.
      */
     public static Histogram create(long version) {
         return new Histogram(version);

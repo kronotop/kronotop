@@ -21,8 +21,7 @@ import com.google.common.hash.Hashing;
 import org.bson.BsonValue;
 
 /**
- * Probabilistic selector for index statistics sampling.
- * Uses MurmurHash3 for deterministic, hot-path friendly selection.
+ * Selects values for index statistics sampling. Selection is deterministic: it uses a MurmurHash3 hash.
  */
 public class ProbabilisticSelector {
     private static final HashFunction MURMUR3_32_FIXED = Hashing.murmur3_32_fixed();
@@ -68,8 +67,7 @@ public class ProbabilisticSelector {
     }
 
     /**
-     * Computes hash for BsonValue with minimal allocations.
-     * Uses numeric values directly, hashes binary/string types.
+     * Computes the hash of a BsonValue. Numeric values are used directly, binary and string values are hashed.
      */
     private static int computeHash(BsonValue value) {
         if (value == null) {
