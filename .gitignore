@@ -23,6 +23,7 @@
 hs_err_pid*
 replay_pid*
 
+latencies/
 .idea/
 .vscode/
 target/
