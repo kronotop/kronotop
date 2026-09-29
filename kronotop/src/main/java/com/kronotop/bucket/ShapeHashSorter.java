@@ -17,9 +17,8 @@
 package com.kronotop.bucket;
 
 /**
- * Utility for sorting indices by shape hash values using insertion sort.
- * Used by ParameterExtractor and PhysicalPlanParameterBinder to maintain
- * consistent canonical ordering of AND/OR children.
+ * Sorts indices by shape hash. ParameterExtractor and PhysicalPlanParameterBinder use it to
+ * order AND/OR children in the same way.
  */
 public final class ShapeHashSorter {
 
@@ -27,8 +26,8 @@ public final class ShapeHashSorter {
     }
 
     /**
-     * Sorts indices by their corresponding hash values using insertion sort.
-     * This is a stable sort that preserves insertion order for identical hashes.
+     * Sorts hashes in ascending signed order and moves indices with them. Uses insertion sort,
+     * which is stable: indices with equal hashes keep their input order.
      *
      * @param hashes  the hash values to sort by (modified in place)
      * @param indices the indices to reorder according to hash order (modified in place)

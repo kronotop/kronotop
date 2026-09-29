@@ -23,23 +23,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Extracts parameter values from BQL expressions in a deterministic order.
+ * Extracts parameter values from a BQL expression, so a cached plan can be reused with new values.
  *
- * <p>AND/OR children are sorted with {@link QueryShape#compute(BqlExpr)}, so queries with the same
- * shape hash fill the same parameter slots and a cached plan can be reused with new values.
- * Using {@code QueryShape.compute()} itself keeps the two classes from drifting apart.</p>
- *
- * <p>AND/OR children with identical shape hashes (same field, operator and value type) keep
- * their original order, so their parameters come out in query order:</p>
+ * <p>AND/OR children are ordered by {@link QueryShape#compute(BqlExpr)}, the same hash the query
+ * shape uses. Children with the same hash have the same structure, so they keep their query order.
+ * Values of $in, $nin and $all also keep their query order:</p>
  *
  * <pre>{@code
- * // Same shape hash, but different parameter order:
  * {"$or": [{"brand": "Apple"}, {"brand": "Samsung"}]}  -> [Apple, Samsung]
  * {"$or": [{"brand": "Samsung"}, {"brand": "Apple"}]}  -> [Samsung, Apple]
  * }</pre>
  *
- * <p>This is correct because AND and OR are commutative. The parameters go into
- * structurally identical slots, so the result does not depend on their order.</p>
+ * <p>Both results are correct because the order of AND/OR children does not change the result.</p>
  */
 public final class ParameterExtractor {
 
@@ -50,7 +45,7 @@ public final class ParameterExtractor {
      * Extracts parameter values from a BQL expression.
      *
      * @param expr the BQL expression to extract parameters from
-     * @return list of parameter values in canonical order
+     * @return the parameter values
      */
     public static List<BqlValue> extract(BqlExpr expr) {
         List<BqlValue> output = new ArrayList<>();
@@ -88,8 +83,7 @@ public final class ParameterExtractor {
     }
 
     /**
-     * Extracts parameters from AND/OR children in canonical order.
-     * Uses QueryShape.compute() for sorting to ensure lockstep with shape hashing.
+     * Extracts parameters from AND/OR children, ordered by shape hash.
      */
     private static void extractLogical(List<BqlExpr> children, List<BqlValue> output) {
         int size = children.size();
@@ -97,7 +91,6 @@ public final class ParameterExtractor {
             return;
         }
 
-        // Compute shape hashes and build an index array
         long[] hashes = new long[size];
         int[] indices = new int[size];
         for (int i = 0; i < size; i++) {
@@ -107,7 +100,6 @@ public final class ParameterExtractor {
 
         ShapeHashSorter.sortIndicesByHash(hashes, indices);
 
-        // Extract parameters in sorted order
         for (int i = 0; i < size; i++) {
             extractInto(children.get(indices[i]), output);
         }

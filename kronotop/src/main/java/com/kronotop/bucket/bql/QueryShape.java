@@ -26,13 +26,13 @@ import java.util.List;
 /**
  * Computes a 64-bit query shape hash for plan caching.
  *
- * <p>The shape includes operators, field selectors, value types, the AND/OR/NOT nesting,
- * the array sizes of $in/$nin/$all and the boolean value of $exists. Other values are not
- * included. The order of children in $and/$or and the order of values in $in/$nin/$all do
- * not change the shape.</p>
+ * <p>The shape includes operators, field selectors, value types, the AND/OR/NOT/$elemMatch nesting,
+ * the number of AND/OR children, the array sizes of $in/$nin/$all and the boolean value of $exists.
+ * Other values are not included. The order of children in $and/$or and the order of values in
+ * $in/$nin/$all do not change the shape.</p>
  *
- * <p>The expression is hashed with FNV-1a. The SORTBY field and the collation, when given,
- * are added to that hash with a multiply-and-add step.</p>
+ * <p>The expression is hashed with FNV-1a. The SORTBY field and the collation, when given, are
+ * added to that hash.</p>
  */
 public final class QueryShape extends BaseShapeHash {
 
@@ -42,11 +42,8 @@ public final class QueryShape extends BaseShapeHash {
     /**
      * Computes a 64-bit shape hash for a BQL expression.
      *
-     * <p>Queries with the same shape produce identical hashes and can share
-     * cached execution plans.</p>
-     *
      * @param expr the BQL expression to compute the shape for
-     * @return a 64-bit FNV-1a hash representing the query shape
+     * @return the shape hash
      */
     public static long compute(BqlExpr expr) {
         return computeExpr(expr, FNV_OFFSET_BASIS);
@@ -54,7 +51,7 @@ public final class QueryShape extends BaseShapeHash {
 
     /**
      * Computes a 64-bit shape hash that includes the SORTBY field.
-     * Queries with different sort fields produce different plans and must have distinct cache keys.
+     * Queries with different sort fields may produce different plans and must have distinct cache keys.
      *
      * @param expr        the BQL expression to compute the shape for
      * @param sortByField the SORTBY field name, or null if no sorting is requested
@@ -63,7 +60,6 @@ public final class QueryShape extends BaseShapeHash {
     public static long compute(BqlExpr expr, String sortByField) {
         long shapeHash = compute(expr);
         if (sortByField != null) {
-            // Include sortByField in the cache key - different sort fields produce different plans
             return 31 * shapeHash + sortByField.hashCode();
         }
         return shapeHash;
@@ -109,14 +105,14 @@ public final class QueryShape extends BaseShapeHash {
             case BqlSize(String selector, int ignored) -> {
                 long h = mix(hash, OP_SIZE);
                 h = mixString(h, selector);
-                h = mix(h, TYPE_INT32); // size is always int
+                h = mix(h, TYPE_INT32);
                 yield h;
             }
 
             case BqlExists(String selector, boolean exists) -> {
                 long h = mix(hash, OP_EXISTS);
                 h = mixString(h, selector);
-                h = mix(h, exists ? 1 : 0); // include the boolean value in shape
+                h = mix(h, exists ? 1 : 0);
                 yield h;
             }
 
@@ -155,7 +151,6 @@ public final class QueryShape extends BaseShapeHash {
     private static long hashLogical(long hash, int op, List<BqlExpr> children) {
         long h = mix(hash, op);
         h = mix(h, children.size());
-        // Compute child hashes, sort for canonical order, then combine
         long[] childHashes = new long[children.size()];
         for (int i = 0; i < children.size(); i++) {
             childHashes[i] = computeExpr(children.get(i), FNV_OFFSET_BASIS);

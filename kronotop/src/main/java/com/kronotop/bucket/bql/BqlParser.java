@@ -31,14 +31,12 @@ import java.util.Map;
 /**
  * Parses Bucket Query Language (BQL) into a {@code BqlExpr} tree.
  * <p>
- * Input can be a BQL string, a BSON byte array, or a BSON document. The parser covers
- * field selectors and comparison, array, and logical operators.
+ * Input can be a BQL string or a BSON byte array. The parser covers field selectors and
+ * comparison, array, and logical operators.
  * <p>
- * For scalar arrays such as {@code tags: ["urgent", "bug"]}, operators inside {@code $elemMatch}
- * use an empty string {@code ""} as the selector, because scalar elements are wrapped in
- * {@code {"": value}} during evaluation. The empty selector stands for "the element itself"
- * and is never a user-visible field name. For example, {@code { tags: { $elemMatch: { $eq: "urgent" } } }}
- * parses with selector {@code ""}.
+ * Inside {@code $elemMatch} on a scalar array, operators use the empty selector {@code ""}.
+ * Each element is wrapped as {@code {"": value}} during evaluation. Example:
+ * {@code { tags: { $elemMatch: { $eq: "urgent" } } }} parses with selector {@code ""}.
  */
 public class BqlParser {
     private static final int MINIMUM_BSON_DOCUMENT_SIZE = 5;
@@ -67,9 +65,8 @@ public class BqlParser {
     }
 
     /**
-     * Determines if the given byte array is a valid BSON document by checking
-     * the BSON structural invariants: minimum size, null terminator, and
-     * declared length matching actual length.
+     * Returns true if the byte array looks like a BSON document. It checks the minimum size,
+     * the trailing null byte, and the declared length. It does not validate the content.
      */
     public static boolean isBSON(byte[] query) {
         if (query.length < MINIMUM_BSON_DOCUMENT_SIZE) {
@@ -86,9 +83,9 @@ public class BqlParser {
     }
 
     /**
-     * Parses a BSON-encoded query.
+     * Parses a query. BSON input is read directly. Any other input is parsed as a BQL string.
      *
-     * @param query the BSON-encoded query
+     * @param query the BSON-encoded query or the BQL string bytes
      * @return the parsed expression
      * @throws BqlParseException if the BSON is invalid or the query cannot be parsed
      */
@@ -138,7 +135,7 @@ public class BqlParser {
     }
 
     /**
-     * Reads a query document. Multiple top-level expressions are combined into a {@code BqlAnd}.
+     * Reads a query document. Multiple expressions are combined into a {@code BqlAnd}.
      *
      * @param reader the reader, positioned at the document
      * @return the parsed expression
@@ -193,7 +190,8 @@ public class BqlParser {
     }
 
     /**
-     * Same as {@link #parseSelectorOrOperator}, but inside {@code $elemMatch}.
+     * Same as {@link #parseSelectorOrOperator}, but inside {@code $elemMatch}. A {@code $} key that
+     * is not a logical operator is parsed with the empty selector {@code ""}.
      *
      * @param reader            the reader, positioned at the value
      * @param key               the operator or selector name
@@ -209,7 +207,6 @@ public class BqlParser {
                 case "$not" -> new BqlNot(readElemMatchExpr(reader, elemMatchSelector));
                 // For scalar array $elemMatch (e.g., {'tags': {'$elemMatch': {'$eq': 'urgent'}}}),
                 // use empty selector "" because scalar elements are wrapped in {"": value}
-                // This is a semantic invariant of scalar elemMatch.
                 default -> parseSelectorOperator(reader, key, "");
             };
         } else {
@@ -427,8 +424,8 @@ public class BqlParser {
         List<BqlValue> values = new ArrayList<>();
 
         while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
-            // A regular expression literal is a valid array element only here, where the array feeds
-            // $in, $nin, and $all. Each such element acts as a regex matcher, not a stored value.
+            // A regular expression literal becomes a RegexVal. In $in, $nin, and $all, it acts as
+            // a regex matcher.
             if (reader.getCurrentBsonType() == BsonType.REGULAR_EXPRESSION) {
                 BsonRegularExpression regex = reader.readRegularExpression();
                 values.add(new RegexVal(regex.getPattern(), regex.getOptions()));
@@ -442,10 +439,11 @@ public class BqlParser {
     }
 
     /**
-     * Determines if a string represents a Base32Hex encoded Versionstamp.
+     * Returns true if the string has the length of a Base32Hex encoded Versionstamp. It does not
+     * decode the string.
      *
      * @param value the string to check
-     * @return true if the string appears to be a Versionstamp encoding
+     * @return true if the string has the encoded Versionstamp length
      */
     private boolean isVersionstampString(String value) {
         // Versionstamps have a specific encoded length

@@ -28,8 +28,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Walks the physical plan in canonical order and builds a parameter binding map.
- * The canonical order matches ParameterExtractor's traversal order for BQL expressions.
+ * Maps each physical node ID to the positions of its operands in the parameter list.
+ * A position is found by comparing the operand value with the extracted parameters.
  */
 public final class PhysicalPlanParameterBinder {
 
@@ -37,8 +37,7 @@ public final class PhysicalPlanParameterBinder {
     }
 
     /**
-     * Walks the physical plan in canonical order and builds a mapping from
-     * physical node ID to parameter bindings.
+     * Builds a map from physical node ID to parameter bindings.
      *
      * @param root       the root physical node
      * @param parameters the extracted parameter values from the original query
@@ -68,7 +67,6 @@ public final class PhysicalPlanParameterBinder {
                     }
                     bindings.put(filter.id(), filterBindings);
                 } else {
-                    // Single operand - find its index in parameters
                     // SIZE stores Integer, so convert to Int32Val for lookup
                     BqlValue value = toBqlValue(filter.operand());
                     int paramIndex = findParameterIndex(parameters, value);
@@ -76,11 +74,9 @@ public final class PhysicalPlanParameterBinder {
                 }
             }
 
-            case PhysicalIndexScan indexScan -> // Delegate to the wrapped filter node
-                    bindNode(indexScan.node(), bindings, parameters);
+            case PhysicalIndexScan indexScan -> bindNode(indexScan.node(), bindings, parameters);
 
-            case PhysicalFullScan fullScan -> // Delegate to the wrapped filter node
-                    bindNode(fullScan.node(), bindings, parameters);
+            case PhysicalFullScan fullScan -> bindNode(fullScan.node(), bindings, parameters);
 
             case PhysicalRangeScan rangeScan -> {
                 // Two operands: lower bound and upper bound (if present)
@@ -97,22 +93,18 @@ public final class PhysicalPlanParameterBinder {
                 bindings.put(rangeScan.id(), rangeBindings);
             }
 
-            case PhysicalAnd and -> // Sort children by shape hash (canonical order)
-                    bindChildrenInCanonicalOrder(and.children(), bindings, parameters);
+            case PhysicalAnd and -> bindChildrenInCanonicalOrder(and.children(), bindings, parameters);
 
-            case PhysicalOr or -> // Sort children by shape hash (canonical order)
-                    bindChildrenInCanonicalOrder(or.children(), bindings, parameters);
+            case PhysicalOr or -> bindChildrenInCanonicalOrder(or.children(), bindings, parameters);
 
-            case PhysicalNot not -> // Recursively bind the child
-                    bindNode(not.child(), bindings, parameters);
+            case PhysicalNot not -> bindNode(not.child(), bindings, parameters);
 
-            case PhysicalElemMatch elemMatch -> // Recursively bind the sub-plan
-                    bindNode(elemMatch.subPlan(), bindings, parameters);
+            case PhysicalElemMatch elemMatch -> bindNode(elemMatch.subPlan(), bindings, parameters);
 
-            case PhysicalIndexIntersection intersection -> // Sort filters by shape hash and bind in canonical order
+            case PhysicalIndexIntersection intersection ->
                     bindChildrenInCanonicalOrder(intersection.filters(), bindings, parameters);
 
-            case PhysicalCompoundIndexScan compoundScan -> // Sort filters by shape hash and bind in canonical order
+            case PhysicalCompoundIndexScan compoundScan ->
                     bindChildrenInCanonicalOrder(compoundScan.filters(), bindings, parameters);
 
             case PhysicalTrue ignored -> {
@@ -153,9 +145,7 @@ public final class PhysicalPlanParameterBinder {
     }
 
     /**
-     * Binds children in canonical order by sorting them by shape hash.
-     * Uses stable insertion sort that preserves order for identical-shape siblings.
-     * Uses computeForBinding() to match ParameterExtractor's ordering.
+     * Binds children in shape hash order.
      */
     private static void bindChildrenInCanonicalOrder(
             List<? extends PhysicalNode> children,
@@ -166,7 +156,6 @@ public final class PhysicalPlanParameterBinder {
             return;
         }
 
-        // Compute shape hashes using computeForBinding to match ParameterExtractor ordering
         long[] hashes = new long[size];
         int[] indices = new int[size];
         for (int i = 0; i < size; i++) {
@@ -176,7 +165,6 @@ public final class PhysicalPlanParameterBinder {
 
         ShapeHashSorter.sortIndicesByHash(hashes, indices);
 
-        // Bind children in sorted order
         for (int i = 0; i < size; i++) {
             bindNode(children.get(indices[i]), bindings, parameters);
         }

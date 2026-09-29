@@ -303,11 +303,9 @@ public class PipelineRewriter {
     }
 
     /**
-     * Rewrites an AND with nested children. The most selective indexed child ({@link UnionNode},
-     * {@link IndexScanNode}, {@link RangeScanNode} or {@link CompoundIndexScanNode}) drives the scan,
-     * and all other conditions become a {@link TransformWithResidualPredicateNode} after it. For a
-     * {@link UnionNode}, the filter is attached to each of its children. Without an indexed child, it
-     * returns a {@link FullScanNode} with the combined predicate.
+     * Rewrites an AND with nested children. The most selective indexed child (union, index scan, range
+     * scan or compound index scan) drives the scan, and the other conditions filter after it. A union
+     * gets the filter on each child. Without an indexed child, it returns a {@link FullScanNode}.
      * <p>
      * Example: {@code $and: [{role: {$in: [admin, editor]}}, {status: active}]} with an index on role becomes
      * {@code UnionNode([IndexScan(role=admin) -> TransformWithResidualPredicate(status=active),
@@ -466,7 +464,7 @@ public class PipelineRewriter {
     /**
      * Scans the most selective child, picked by {@link SelectivityEstimator}, and filters with the
      * other children as a {@link TransformWithResidualPredicateNode}. If the chosen node already has
-     * a residual filter, it returns a copy of the node with both filters merged.
+     * a residual filter, both filters are merged.
      */
     private static PipelineNode convertToIndexScanNode(PlannerContext ctx, PipelineContext pipelineCtx, List<PipelineNode> children, PredicateEvalStrategy predicateStrategy) {
         PipelineNode mostSelectiveIndexScan = SelectivityEstimator.estimate(ctx, pipelineCtx, children);
@@ -686,9 +684,9 @@ public class PipelineRewriter {
     }
 
     /**
-     * Rewrites an empty filter. If the sortBy field has an index, it returns a full range scan on
-     * that index, so the results come in sort order. Otherwise, it returns a full scan that matches
-     * every document.
+     * Rewrites a filter that matches every document. If the sortBy field has an index, it returns a
+     * full range scan on that index, so the results come in sort order. Otherwise, it returns a full
+     * scan.
      */
     private static PipelineNode rewritePhysicalTrue(PlannerContext ctx, PhysicalTrue node) {
         String sortByField = ctx.getSortByField();
@@ -749,11 +747,9 @@ public class PipelineRewriter {
     }
 
     /**
-     * Returns a copy of an index scan or range scan node with {@code elemMatchPredicate} as its only
-     * residual filter. The existing residual filter of the node is not kept, because
-     * {@code elemMatchPredicate} already contains all conditions of the sub-plan. For a union node,
-     * it returns a new union node with the same children, and the children keep their own residual
-     * filters.
+     * Returns a copy of an index scan, range scan or union node with {@code elemMatchPredicate} as its
+     * residual filter. A scan drops its old filter, because {@code elemMatchPredicate} already contains
+     * all sub-plan conditions. Union children keep their own filters.
      */
     private static PipelineNode createScanWithElemMatchPredicate(
             PlannerContext ctx, PipelineNode subPlanNode, ResidualElemMatchNode elemMatchPredicate) {
