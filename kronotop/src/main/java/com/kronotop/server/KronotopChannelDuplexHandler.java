@@ -55,39 +55,9 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * KronotopChannelDuplexHandler is a specialized implementation of {@link ChannelDuplexHandler}
- * designed to handle duplex communication within the Kronotop Redis-like framework. This
- * handler manages incoming and outgoing requests at the channel level, and extends
- * functionality to support authentication, command execution, and transaction handling.
- * <p>
- * This class interacts with Redis-like command handling and transaction flows, while
- * providing additional utilities for command validation and watcher mechanisms to monitor
- * key events.
- * <p>
- * The class integrates with the Kronotop's context to access configuration,
- * service dependencies, and custom registry of command handlers.
- * <p>
- * Key Features:
- * - Handles the life-cycle of network channels, such as registration and unregistration.
- * - Supports authentication if properly enabled in the configuration.
- * - Processes and executes Redis-like commands with argument validation.
- * - Provides utility methods to assist in transaction handling with redis-like `MULTI`, `EXEC`,
- * and `DISCARD` commands.
- * - Monitors and handles watched keys during transactions.
- * - Logs commands for debugging purposes if configured.
- * <p>
- * Preconditions:
- * - Requires `Context` and `CommandHandlerRegistry` objects during instantiation.
- * - Dependent on configuration-based settings for authentication and command logging.
- * <p>
- * Thread-Safety:
- * - A `ReadWriteLock` is used to synchronize command execution and transaction queuing.
- * - Locking ensures consistency during reading and modification of shared resources.
- * <p>
- * Error Handling:
- * - Handles incorrect number of arguments for commands through validations.
- * - Custom exceptions are converted to RESP-formatted errors for proper client response.
- * - System exceptions and unforeseen errors during transaction execution are gracefully addressed.
+ * Serves RESP commands on a client channel. It checks authentication and argument counts, runs
+ * the command handler, and converts exceptions to RESP errors. It also queues the commands sent
+ * between MULTI and EXEC.
  */
 public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(KronotopChannelDuplexHandler.class);
@@ -155,9 +125,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Releases this client's demand on the key it is blocked on with ZWATCH, if any. Removing the
-     * client from the key's waiter set unblocks its handler and cancels the underlying watch once that
-     * set drains to empty.
+     * Removes the client from the waiters of the key it is blocked on with ZWATCH, if any.
      */
     private void releaseZWatch(Session session) {
         byte[] packedKey = session.attr(SessionAttributes.ZWATCH_KEY).get();
@@ -325,12 +293,10 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Reads the command and its arguments from the given {@link Request} object
-     * and converts them into a single string representation, where the command
-     * and its arguments are separated by spaces.
+     * Joins the command and its arguments into one string, separated by spaces.
      *
-     * @param request the {@link Request} object containing the command and its arguments
-     * @return a single string representing the command and its arguments
+     * @param request the request that holds the command and its arguments
+     * @return the command and its arguments as one string
      */
     private String readCommandAsString(Request request) {
         List<String> command = new ArrayList<>(List.of(request.getCommand()));
@@ -343,15 +309,12 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Executes a Redis-compatible command within the context of a transaction.
-     * Depending on the command, the method performs actions such as queuing the command,
-     * ending the transaction, or throwing appropriate errors for invalid operations.
+     * Handles a command received after MULTI.
      *
-     * @param session  the session associated with the current transaction
-     * @param request  the request object containing the command and its arguments
-     * @param response the response object used to send results or errors back to the client
-     * @return a boolean indicating whether the transaction is still ongoing (true)
-     * or has been discarded (false)
+     * @param session  the session that owns the transaction
+     * @param request  the request that holds the command and its arguments
+     * @param response the response used to reply to the client
+     * @return false if the command is DISCARD, true otherwise
      */
     private boolean executeRedisCompatibleCommandInTransaction(Session session, Request request, Response response) {
         switch (request.getCommand()) {
@@ -380,13 +343,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Executes a Redis-compatible command by preparing the handler, executing the command,
-     * and handling any potential resource cleanup. This method ensures thread-safe access
-     * and releases resources if necessary, such as reference-counted messages.
+     * Checks and runs a command under the read lock of the transaction lock.
      *
-     * @param request  the request object containing the command, its arguments, and context
-     * @param response the response object used to send back the result or error to the client
-     * @param entry    the handler entry containing the handler and cached metadata
+     * @param request  the request that holds the command and its arguments
+     * @param response the response used to reply to the client
+     * @param entry    the handler entry of the command
      */
     private void executeRedisCompatibleCommand(Request request, Response response, HandlerEntry entry) {
         transactionLock.readLock().lock();
@@ -399,12 +360,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     /**
-     * Executes a Kronotop command by preparing the handler, processing the command,
-     * and handling any exceptions that occur during execution.
+     * Checks and runs a command without taking the transaction lock.
      *
-     * @param request  the request object containing the command information and arguments
-     * @param response the response object used to send the result or error back to the client
-     * @param entry    the handler entry containing the handler and cached metadata
+     * @param request  the request that holds the command and its arguments
+     * @param response the response used to reply to the client
+     * @param entry    the handler entry of the command
      */
     private void executeKronotopCommand(Request request, Response response, HandlerEntry entry) {
         beforeExecute(entry, request);
