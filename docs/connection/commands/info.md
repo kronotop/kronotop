@@ -22,17 +22,17 @@ INFO [section ...]
 Bulk string containing server information formatted as `key:value` pairs grouped under `# Section` headers. Sections
 are separated by an empty line.
 
-| Section    | Fields                                                                                                                                                                                                                                        |
-|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Server`   | `server_name`, `kronotop_version`, `kronotop_git_sha1`, `kronotop_build_time`, `server_mode`, `os`, `arch_bits`, `java_version`, `process_id`, `run_id`, `tcp_port`, `server_time_usec`, `fdb_api_version`, `listener0`, `listener1`          |
-| `Cluster`  | `cluster_enabled`                                                                                                                                                                                                                             |
-| `Kronotop` | `cluster_name`, `member_id`, `member_status`, `bucket_shards`, `stash_shards`, `known_members`, `alive_members`, `primary_shards`, `standby_shards`                                                                                           |
-| `Clients`  | `connected_clients`, `clients_in_transaction`, `clients_in_multi`, `snapshot_read_clients`, `resp2_clients`, `resp3_clients`                                                                                                                  |
-| `Memory`   | `heap_used_memory`, `heap_committed_memory`, `heap_max_memory`, `heap_init_memory`, `non_heap_used_memory`, `non_heap_committed_memory`, `non_heap_max_memory`, `non_heap_init_memory`, `direct_buffer_count`, `direct_buffer_used_memory`, `direct_buffer_total_capacity`, `mapped_buffer_count`, `mapped_buffer_used_memory`, `mapped_buffer_total_capacity`, each byte field with a `_human` pair, `gc_count`, `gc_time_msec` |
-| `Tasks`    | `task_count`, `running_tasks`                                                                                                                                                                                                                 |
-| `Volume`   | `volume_count`, `volume0`, `volume1`, ...                                                                                                                                                                                                     |
-| `Bucket`   | `plan_cache_size`, `index_maintenance_workers`, `index_maintenance_processed_entries`, `index_maintenance_retried_conflicts`, `index_maintenance_last_run`                                                                                    |
-| `Vector`   | `vector_indexes`, `vector_bytes_used`                                                                                                                                                                                                         |
+| Section    | Fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+|------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Server`   | `server_name`, `kronotop_version`, `kronotop_git_sha1`, `kronotop_build_time`, `server_mode`, `os`, `arch_bits`, `java_version`, `process_id`, `run_id`, `tcp_port`, `server_time_usec`, `fdb_api_version`, `listener0`, `listener1`                                                                                                                                                                                                                                                                                                                                                                                         |
+| `Cluster`  | `cluster_enabled`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `Kronotop` | `cluster_name`, `member_id`, `member_status`, `bucket_shards`, `stash_shards`, `known_members`, `alive_members`, `primary_shards`, `standby_shards`                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `Clients`  | `connected_clients`, `clients_in_transaction`, `clients_in_multi`, `snapshot_read_clients`, `resp2_clients`, `resp3_clients`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `Memory`   | `heap_used_memory`, `heap_committed_memory`, `heap_max_memory`, `non_heap_used_memory`, `non_heap_committed_memory`, `non_heap_max_memory`, `direct_buffer_count`, `direct_buffer_used_memory`, `direct_buffer_total_capacity`, `mapped_buffer_count`, `mapped_buffer_used_memory`, `mapped_buffer_total_capacity`, `netty_used_direct_memory`, `netty_used_heap_memory`, `total_allocated_memory`, `gc_freed_memory`, each byte field with a `_human` pair, `gc_count`, `gc_time_msec`                                                                                                                                      |
+| `Tasks`    | `task_count`, `running_tasks`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `Volume`   | `volume_count`, `volume0`, `volume1`, ...                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `Bucket`   | `plan_cache_size`, `index_maintenance_workers`, `index_maintenance_processed_entries`, `index_maintenance_retried_conflicts`, `index_maintenance_last_run`                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `Vector`   | `vector_indexes`, `vector_bytes_used`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 Field notes:
 
@@ -57,14 +57,25 @@ Field notes:
 - `resp2_clients` and `resp3_clients` split `connected_clients` by the negotiated protocol version.
 - `heap_*` fields cover the JVM heap. `non_heap_*` fields cover JVM memory outside the heap, such as class metadata
   and compiled code. Direct buffers are not included.
-- `*_used_memory` is the memory in use, `*_committed_memory` the memory reserved from the operating system,
-  `*_max_memory` the limit and `*_init_memory` the size requested at startup. All are in bytes. A value of `-1` means
-  the JVM does not define it. `non_heap_max_memory` is usually `-1`.
+- `*_used_memory` is the memory in use, `*_committed_memory` the memory reserved from the operating system and
+  `*_max_memory` the limit. All are in bytes. A value of `-1` means the JVM does not define it.
+  `non_heap_max_memory` is usually `-1`.
 - `direct_buffer_*` fields cover direct buffers. `mapped_buffer_*` fields cover memory-mapped files, such as volume
   segments. `*_count` is the number of buffers, `*_total_capacity` their total size and `*_used_memory` the memory
   the JVM uses for them, in bytes. For mapped files, the size is the mapped range, not the part loaded in RAM.
+- `netty_used_direct_memory` and `netty_used_heap_memory` are the direct and heap memory held by the network buffer
+  pool, in bytes. This is the size of the pooled memory blocks, not only the bytes in use by open requests.
+  Depending on the JVM options, `netty_used_direct_memory` is also counted in `direct_buffer_*`.
+- `total_allocated_memory` is the total heap memory allocated since startup, in bytes. It only grows. Read it twice
+  and divide the difference by the time between the reads to get the allocation rate. It is `-1` when the JVM does not
+  measure it. The field is missing when the JVM does not support this measurement.
 - Each `_human` field repeats the value before it in a readable unit.
 - `gc_count` and `gc_time_msec` are totals since startup.
+- `gc_freed_memory` is the total memory freed by garbage collection, in bytes. Counting begins when the member
+  starts. Collections that ran before that moment are counted in `gc_count` and `gc_time_msec`, but not here. It
+  covers the heap, the class metadata areas and the compiled code area. Objects moved from one memory area to
+  another are not counted as freed. It can be slightly higher than `total_allocated_memory`, because it also counts
+  unused space the JVM leaves in memory blocks, freed class metadata and freed compiled code.
 - `task_count` counts the background tasks registered on this member. `running_tasks` counts the ones executing at
   the moment of the call.
 - `volume_count` counts the open volumes on this member. Each `volumeN` line has the volume name, its status
@@ -145,28 +156,32 @@ heap_committed_memory:125829120
 heap_committed_memory_human:120 MB
 heap_max_memory:12884901888
 heap_max_memory_human:12.0 GB
-heap_init_memory:805306368
-heap_init_memory_human:768 MB
-non_heap_used_memory:48234496
-non_heap_used_memory_human:46 MB
+non_heap_used_memory:45088768
+non_heap_used_memory_human:43 MB
 non_heap_committed_memory:55574528
 non_heap_committed_memory_human:53 MB
 non_heap_max_memory:-1
 non_heap_max_memory_human:-1 B
-non_heap_init_memory:7667712
-non_heap_init_memory_human:7 MB
-direct_buffer_count:12
-direct_buffer_used_memory:98304
-direct_buffer_used_memory_human:96 KB
-direct_buffer_total_capacity:98304
-direct_buffer_total_capacity_human:96 KB
+direct_buffer_count:32
+direct_buffer_used_memory:4194304
+direct_buffer_used_memory_human:4 MB
+direct_buffer_total_capacity:4194304
+direct_buffer_total_capacity_human:4 MB
 mapped_buffer_count:1
 mapped_buffer_used_memory:67108864
 mapped_buffer_used_memory_human:64 MB
 mapped_buffer_total_capacity:67108864
 mapped_buffer_total_capacity_human:64 MB
+netty_used_direct_memory:4194304
+netty_used_direct_memory_human:4 MB
+netty_used_heap_memory:0
+netty_used_heap_memory_human:0 B
+total_allocated_memory:2147483648
+total_allocated_memory_human:2.0 GB
 gc_count:9
 gc_time_msec:9
+gc_freed_memory:1887436800
+gc_freed_memory_human:1.8 GB
 
 # Tasks
 task_count:4

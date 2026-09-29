@@ -29,6 +29,9 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.transaction.TransactionUtil;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufAllocatorMetric;
+import io.netty.buffer.ByteBufAllocatorMetricProvider;
 import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -230,9 +233,6 @@ public class InfoHandler implements Handler {
         collector.put(MEMORY_SECTION, "heap_max_memory", heapMemoryUsage.getMax());
         collector.put(MEMORY_SECTION, "heap_max_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getMax()));
 
-        collector.put(MEMORY_SECTION, "heap_init_memory", heapMemoryUsage.getInit());
-        collector.put(MEMORY_SECTION, "heap_init_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getInit()));
-
         MemoryUsage nonHeapMemoryUsage = memoryMXBean.getNonHeapMemoryUsage();
         collector.put(MEMORY_SECTION, "non_heap_used_memory", nonHeapMemoryUsage.getUsed());
         collector.put(MEMORY_SECTION, "non_heap_used_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getUsed()));
@@ -242,9 +242,6 @@ public class InfoHandler implements Handler {
 
         collector.put(MEMORY_SECTION, "non_heap_max_memory", nonHeapMemoryUsage.getMax());
         collector.put(MEMORY_SECTION, "non_heap_max_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getMax()));
-
-        collector.put(MEMORY_SECTION, "non_heap_init_memory", nonHeapMemoryUsage.getInit());
-        collector.put(MEMORY_SECTION, "non_heap_init_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getInit()));
 
         for (BufferPoolMXBean bufferPool : ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)) {
             String prefix = switch (bufferPool.getName()) {
@@ -264,8 +261,29 @@ public class InfoHandler implements Handler {
             collector.put(MEMORY_SECTION, prefix + "_total_capacity_human", KronotopInstanceStarter.formatBytes(bufferPool.getTotalCapacity()));
         }
 
+        if (ByteBufAllocator.DEFAULT instanceof ByteBufAllocatorMetricProvider provider) {
+            ByteBufAllocatorMetric metric = provider.metric();
+            collector.put(MEMORY_SECTION, "netty_used_direct_memory", metric.usedDirectMemory());
+            collector.put(MEMORY_SECTION, "netty_used_direct_memory_human", KronotopInstanceStarter.formatBytes(metric.usedDirectMemory()));
+
+            collector.put(MEMORY_SECTION, "netty_used_heap_memory", metric.usedHeapMemory());
+            collector.put(MEMORY_SECTION, "netty_used_heap_memory_human", KronotopInstanceStarter.formatBytes(metric.usedHeapMemory()));
+        }
+
+        if (ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean threadMXBean
+                && threadMXBean.isThreadAllocatedMemorySupported()) {
+            // -1 when thread memory allocation measurement is disabled
+            long totalAllocated = threadMXBean.getTotalThreadAllocatedBytes();
+            collector.put(MEMORY_SECTION, "total_allocated_memory", totalAllocated);
+            collector.put(MEMORY_SECTION, "total_allocated_memory_human", KronotopInstanceStarter.formatBytes(totalAllocated));
+        }
+
         collector.put(MEMORY_SECTION, "gc_count", gcCount);
         collector.put(MEMORY_SECTION, "gc_time_msec", gcTime);
+
+        long gcFreed = context.getRuntimeMetrics().getGcFreedBytes();
+        collector.put(MEMORY_SECTION, "gc_freed_memory", gcFreed);
+        collector.put(MEMORY_SECTION, "gc_freed_memory_human", KronotopInstanceStarter.formatBytes(gcFreed));
     }
 
     private void collectKronotop(InfoCollector collector) {

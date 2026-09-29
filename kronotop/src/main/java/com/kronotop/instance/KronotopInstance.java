@@ -318,6 +318,7 @@ public class KronotopInstance {
         try {
             initializeMember(memberId);
             initializeContext();
+            context.getRuntimeMetrics().start();
             initializeDirectoryLayout();
             registerKronotopServices();
             registerCleanupJournalTask();
@@ -406,6 +407,7 @@ public class KronotopInstance {
         }
 
         context.getInternalClientPool().shutdown();
+        context.getRuntimeMetrics().stop();
 
         if (journalCleanupTaskFuture != null) {
             journalCleanupTaskFuture.cancel(true);

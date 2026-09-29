@@ -72,6 +72,7 @@ public class ContextImpl implements Context {
     private final ShardRegistry shardRegistry;
     private final SessionStore sessionStore = new SessionStore();
     private final InFlight inFlight = new InFlight();
+    private final RuntimeMetrics runtimeMetrics = new RuntimeMetrics();
     // Direct field access for minimal overhead on the hot path.
     // Initialized only once to avoid runtime lookup and casting costs.
     private BucketMetadataCache bucketMetadataCache;
@@ -257,5 +258,10 @@ public class ContextImpl implements Context {
     @Override
     public InFlight getInFlight() {
         return inFlight;
+    }
+
+    @Override
+    public RuntimeMetrics getRuntimeMetrics() {
+        return runtimeMetrics;
     }
 }

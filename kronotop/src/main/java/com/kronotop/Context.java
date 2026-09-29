@@ -237,4 +237,11 @@ public interface Context {
     ShardRegistry getShardRegistry();
 
     InFlight getInFlight();
+
+    /**
+     * Returns the runtime metrics of this instance.
+     *
+     * @return the {@link RuntimeMetrics} instance
+     */
+    RuntimeMetrics getRuntimeMetrics();
 }

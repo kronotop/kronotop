@@ -249,9 +249,10 @@ class InfoHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReportMemoryFields() {
-        // Behavior: the Memory section reports JVM heap and non-heap usage, direct and mapped
-        // buffer pools and GC totals; non-heap max, init and buffer pool memory may be -1 when
-        // the JVM leaves them undefined
+        // Behavior: the Memory section reports JVM heap and non-heap usage,
+        // direct and mapped buffer pools, Netty allocator usage, total allocated
+        // bytes and GC totals; non-heap max, buffer pool memory and total allocated
+        // bytes may be -1 when the JVM leaves them undefined
         String info = runInfo(getChannel(), "memory");
 
         long heapUsed = longField(info, "heap_used_memory");
@@ -260,14 +261,12 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(heapUsed > 0);
         assertTrue(heapCommitted >= heapUsed);
         assertTrue(heapMax >= heapUsed);
-        assertTrue(longField(info, "heap_init_memory") >= -1);
 
         long nonHeapUsed = longField(info, "non_heap_used_memory");
         long nonHeapCommitted = longField(info, "non_heap_committed_memory");
         assertTrue(nonHeapUsed > 0);
         assertTrue(nonHeapCommitted >= nonHeapUsed);
         assertTrue(longField(info, "non_heap_max_memory") >= -1);
-        assertTrue(longField(info, "non_heap_init_memory") >= -1);
 
         for (String pool : List.of("direct_buffer", "mapped_buffer")) {
             assertTrue(longField(info, pool + "_count") >= 0, pool);
@@ -275,14 +274,21 @@ class InfoHandlerTest extends BaseHandlerTest {
             assertTrue(longField(info, pool + "_total_capacity") >= 0, pool);
         }
 
+        assertTrue(longField(info, "netty_used_direct_memory") >= 0);
+        assertTrue(longField(info, "netty_used_heap_memory") >= 0);
+        assertTrue(longField(info, "total_allocated_memory") >= -1);
+
         assertTrue(longField(info, "gc_count") >= 0);
         assertTrue(longField(info, "gc_time_msec") >= 0);
+        assertTrue(longField(info, "gc_freed_memory") >= 0);
         for (String field : List.of(
                 "heap_used_memory_human", "heap_committed_memory_human", "heap_max_memory_human",
-                "heap_init_memory_human", "non_heap_used_memory_human", "non_heap_committed_memory_human",
-                "non_heap_max_memory_human", "non_heap_init_memory_human",
+                "non_heap_used_memory_human", "non_heap_committed_memory_human",
+                "non_heap_max_memory_human",
+                "total_allocated_memory_human",
                 "direct_buffer_used_memory_human", "direct_buffer_total_capacity_human",
-                "mapped_buffer_used_memory_human", "mapped_buffer_total_capacity_human")) {
+                "mapped_buffer_used_memory_human", "mapped_buffer_total_capacity_human",
+                "netty_used_direct_memory_human", "netty_used_heap_memory_human", "gc_freed_memory_human")) {
             assertFalse(Objects.requireNonNull(fieldValue(info, field)).isBlank(), field);
         }
     }
