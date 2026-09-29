@@ -5,7 +5,7 @@ Syntax highlighting for Kronotop `.kr` script files.
 ## Installation
 
 ```bash
-cp -aR /path/to/kronotop/contrib/kronotop-vscode ~/.vscode/extensions/kronotop-kr
+cp -aR /path/to/kronotop/extras/kronotop-vscode ~/.vscode/extensions/kronotop-kr
 ```
 
 Reload VS Code after installing.
