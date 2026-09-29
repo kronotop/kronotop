@@ -249,8 +249,9 @@ class InfoHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReportMemoryFields() {
-        // Behavior: the Memory section reports JVM heap and non-heap usage and GC totals;
-        // non-heap max and init may be -1 when the JVM leaves them undefined
+        // Behavior: the Memory section reports JVM heap and non-heap usage, direct and mapped
+        // buffer pools and GC totals; non-heap max, init and buffer pool memory may be -1 when
+        // the JVM leaves them undefined
         String info = runInfo(getChannel(), "memory");
 
         long heapUsed = longField(info, "heap_used_memory");
@@ -268,12 +269,20 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(longField(info, "non_heap_max_memory") >= -1);
         assertTrue(longField(info, "non_heap_init_memory") >= -1);
 
+        for (String pool : List.of("direct_buffer", "mapped_buffer")) {
+            assertTrue(longField(info, pool + "_count") >= 0, pool);
+            assertTrue(longField(info, pool + "_used_memory") >= -1, pool);
+            assertTrue(longField(info, pool + "_total_capacity") >= 0, pool);
+        }
+
         assertTrue(longField(info, "gc_count") >= 0);
         assertTrue(longField(info, "gc_time_msec") >= 0);
         for (String field : List.of(
                 "heap_used_memory_human", "heap_committed_memory_human", "heap_max_memory_human",
                 "heap_init_memory_human", "non_heap_used_memory_human", "non_heap_committed_memory_human",
-                "non_heap_max_memory_human", "non_heap_init_memory_human")) {
+                "non_heap_max_memory_human", "non_heap_init_memory_human",
+                "direct_buffer_used_memory_human", "direct_buffer_total_capacity_human",
+                "mapped_buffer_used_memory_human", "mapped_buffer_total_capacity_human")) {
             assertFalse(Objects.requireNonNull(fieldValue(info, field)).isBlank(), field);
         }
     }

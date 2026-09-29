@@ -28,7 +28,7 @@ are separated by an empty line.
 | `Cluster`  | `cluster_enabled`                                                                                                                                                                                                                             |
 | `Kronotop` | `cluster_name`, `member_id`, `member_status`, `bucket_shards`, `stash_shards`, `known_members`, `alive_members`, `primary_shards`, `standby_shards`                                                                                           |
 | `Clients`  | `connected_clients`, `clients_in_transaction`, `clients_in_multi`, `snapshot_read_clients`, `resp2_clients`, `resp3_clients`                                                                                                                  |
-| `Memory`   | `heap_used_memory`, `heap_committed_memory`, `heap_max_memory`, `heap_init_memory`, `non_heap_used_memory`, `non_heap_committed_memory`, `non_heap_max_memory`, `non_heap_init_memory`, each with a `_human` pair, `gc_count`, `gc_time_msec` |
+| `Memory`   | `heap_used_memory`, `heap_committed_memory`, `heap_max_memory`, `heap_init_memory`, `non_heap_used_memory`, `non_heap_committed_memory`, `non_heap_max_memory`, `non_heap_init_memory`, `direct_buffer_count`, `direct_buffer_used_memory`, `direct_buffer_total_capacity`, `mapped_buffer_count`, `mapped_buffer_used_memory`, `mapped_buffer_total_capacity`, each byte field with a `_human` pair, `gc_count`, `gc_time_msec` |
 | `Tasks`    | `task_count`, `running_tasks`                                                                                                                                                                                                                 |
 | `Volume`   | `volume_count`, `volume0`, `volume1`, ...                                                                                                                                                                                                     |
 | `Bucket`   | `plan_cache_size`, `index_maintenance_workers`, `index_maintenance_processed_entries`, `index_maintenance_retried_conflicts`, `index_maintenance_last_run`                                                                                    |
@@ -60,6 +60,9 @@ Field notes:
 - `*_used_memory` is the memory in use, `*_committed_memory` the memory reserved from the operating system,
   `*_max_memory` the limit and `*_init_memory` the size requested at startup. All are in bytes. A value of `-1` means
   the JVM does not define it. `non_heap_max_memory` is usually `-1`.
+- `direct_buffer_*` fields cover direct buffers. `mapped_buffer_*` fields cover memory-mapped files, such as volume
+  segments. `*_count` is the number of buffers, `*_total_capacity` their total size and `*_used_memory` the memory
+  the JVM uses for them, in bytes. For mapped files, the size is the mapped range, not the part loaded in RAM.
 - Each `_human` field repeats the value before it in a readable unit.
 - `gc_count` and `gc_time_msec` are totals since startup.
 - `task_count` counts the background tasks registered on this member. `running_tasks` counts the ones executing at
@@ -152,6 +155,16 @@ non_heap_max_memory:-1
 non_heap_max_memory_human:-1 B
 non_heap_init_memory:7667712
 non_heap_init_memory_human:7 MB
+direct_buffer_count:12
+direct_buffer_used_memory:98304
+direct_buffer_used_memory_human:96 KB
+direct_buffer_total_capacity:98304
+direct_buffer_total_capacity_human:96 KB
+mapped_buffer_count:1
+mapped_buffer_used_memory:67108864
+mapped_buffer_used_memory_human:64 MB
+mapped_buffer_total_capacity:67108864
+mapped_buffer_total_capacity_human:64 MB
 gc_count:9
 gc_time_msec:9
 

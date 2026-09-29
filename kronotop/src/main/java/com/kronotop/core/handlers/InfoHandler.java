@@ -35,10 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.management.GarbageCollectorMXBean;
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.management.MemoryUsage;
+import java.lang.management.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashSet;
@@ -220,6 +217,7 @@ public class InfoHandler implements Handler {
                 gcTime += gc.getCollectionTime();
             }
         }
+
         MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
 
         MemoryUsage heapMemoryUsage = memoryMXBean.getHeapMemoryUsage();
@@ -247,6 +245,24 @@ public class InfoHandler implements Handler {
 
         collector.put(MEMORY_SECTION, "non_heap_init_memory", nonHeapMemoryUsage.getInit());
         collector.put(MEMORY_SECTION, "non_heap_init_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getInit()));
+
+        for (BufferPoolMXBean bufferPool : ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)) {
+            String prefix = switch (bufferPool.getName()) {
+                case "direct" -> "direct_buffer";
+                case "mapped" -> "mapped_buffer";
+                default -> null;
+            };
+            if (prefix == null) {
+                continue;
+            }
+            collector.put(MEMORY_SECTION, prefix + "_count", bufferPool.getCount());
+
+            collector.put(MEMORY_SECTION, prefix + "_used_memory", bufferPool.getMemoryUsed());
+            collector.put(MEMORY_SECTION, prefix + "_used_memory_human", KronotopInstanceStarter.formatBytes(bufferPool.getMemoryUsed()));
+
+            collector.put(MEMORY_SECTION, prefix + "_total_capacity", bufferPool.getTotalCapacity());
+            collector.put(MEMORY_SECTION, prefix + "_total_capacity_human", KronotopInstanceStarter.formatBytes(bufferPool.getTotalCapacity()));
+        }
 
         collector.put(MEMORY_SECTION, "gc_count", gcCount);
         collector.put(MEMORY_SECTION, "gc_time_msec", gcTime);
