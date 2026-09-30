@@ -29,6 +29,7 @@ are separated by an empty line.
 | `Kronotop` | `cluster_name`, `member_id`, `member_status`, `bucket_shards`, `stash_shards`, `known_members`, `alive_members`, `primary_shards`, `standby_shards`                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `Clients`  | `connected_clients`, `clients_in_transaction`, `clients_in_multi`, `snapshot_read_clients`, `resp2_clients`, `resp3_clients`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `Memory`   | `heap_used_memory`, `heap_committed_memory`, `heap_max_memory`, `non_heap_used_memory`, `non_heap_committed_memory`, `non_heap_max_memory`, `direct_buffer_count`, `direct_buffer_used_memory`, `direct_buffer_total_capacity`, `mapped_buffer_count`, `mapped_buffer_used_memory`, `mapped_buffer_total_capacity`, `netty_used_direct_memory`, `netty_used_heap_memory`, `total_allocated_memory`, `gc_freed_memory`, each byte field with a `_human` pair, `gc_count`, `gc_time_msec`                                                                                                                                      |
+| `Traffic`  | `external_total_commands_processed`, `external_read_bytes`, `external_written_bytes`, `internal_total_commands_processed`, `internal_read_bytes`, `internal_written_bytes`, each byte field with a `_human` pair                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `Tasks`    | `task_count`, `running_tasks`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `Volume`   | `volume_count`, `volume0`, `volume1`, ...                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `Bucket`   | `plan_cache_size`, `index_maintenance_workers`, `index_maintenance_processed_entries`, `index_maintenance_retried_conflicts`, `index_maintenance_last_run`                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -76,6 +77,11 @@ Field notes:
   covers the heap, the class metadata areas and the compiled code area. Objects moved from one memory area to
   another are not counted as freed. It can be slightly higher than `total_allocated_memory`, because it also counts
   unused space the JVM leaves in memory blocks, freed class metadata and freed compiled code.
+- `*_total_commands_processed` is the number of commands received since the member started, including the ones
+  answered with an error. Fields with the `external_` prefix cover the client port, fields with the `internal_`
+  prefix cover the cluster port.
+- `*_read_bytes` and `*_written_bytes` are the total bytes read from and written to the connections of that port.
+  With TLS enabled, the encrypted bytes are counted. The counters start at zero on restart.
 - `task_count` counts the background tasks registered on this member. `running_tasks` counts the ones executing at
   the moment of the call.
 - `volume_count` counts the open volumes on this member. Each `volumeN` line has the volume name, its status
@@ -182,6 +188,18 @@ gc_count:9
 gc_time_msec:9
 gc_freed_memory:1887436800
 gc_freed_memory_human:1.8 GB
+
+# Traffic
+external_total_commands_processed:1284
+external_read_bytes:196608
+external_read_bytes_human:192 KB
+external_written_bytes:917504
+external_written_bytes_human:896 KB
+internal_total_commands_processed:42
+internal_read_bytes:8192
+internal_read_bytes_human:8 KB
+internal_written_bytes:12288
+internal_written_bytes_human:12 KB
 
 # Tasks
 task_count:4

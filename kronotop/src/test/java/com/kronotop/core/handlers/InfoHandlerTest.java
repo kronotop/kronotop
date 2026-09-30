@@ -94,10 +94,13 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(info.contains("\r\n\r\n# Kronotop\r\n"));
         assertTrue(info.contains("\r\n\r\n# Clients\r\n"));
         assertTrue(info.contains("\r\n\r\n# Memory\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Traffic\r\n"));
         assertTrue(info.contains("\r\n\r\n# Tasks\r\n"));
         assertTrue(info.contains("\r\n\r\n# Volume\r\n"));
         assertTrue(info.contains("\r\n\r\n# Bucket\r\n"));
         assertTrue(info.contains("\r\n\r\n# Vector\r\n"));
+        assertTrue(info.indexOf("# Memory") < info.indexOf("# Traffic"));
+        assertTrue(info.indexOf("# Traffic") < info.indexOf("# Tasks"));
         assertTrue(info.indexOf("# Tasks") < info.indexOf("# Volume"));
         assertTrue(info.indexOf("# Volume") < info.indexOf("# Bucket"));
         assertTrue(info.indexOf("# Bucket") < info.indexOf("# Vector"));
@@ -291,6 +294,32 @@ class InfoHandlerTest extends BaseHandlerTest {
                 "netty_used_direct_memory_human", "netty_used_heap_memory_human", "gc_freed_memory_human")) {
             assertFalse(Objects.requireNonNull(fieldValue(info, field)).isBlank(), field);
         }
+    }
+
+    @Test
+    void shouldReportTrafficFields() {
+        // Behavior: the Traffic section reports command and byte totals for the external and
+        // internal listeners; every byte field has a _human pair
+        String info = runInfo(getChannel(), "traffic");
+
+        for (String prefix : List.of("external", "internal")) {
+            assertTrue(longField(info, prefix + "_total_commands_processed") >= 0, prefix);
+            assertTrue(longField(info, prefix + "_read_bytes") >= 0, prefix);
+            assertTrue(longField(info, prefix + "_written_bytes") >= 0, prefix);
+            for (String field : List.of(prefix + "_read_bytes_human", prefix + "_written_bytes_human")) {
+                assertFalse(Objects.requireNonNull(fieldValue(info, field)).isBlank(), field);
+            }
+        }
+    }
+
+    @Test
+    void shouldCountProcessedCommands() {
+        // Behavior: external_total_commands_processed grows by at least one for every command
+        // the external listener receives, the INFO call itself included
+        long first = longField(runInfo(getChannel(), "traffic"), "external_total_commands_processed");
+        long second = longField(runInfo(getChannel(), "traffic"), "external_total_commands_processed");
+
+        assertTrue(second >= first + 1);
     }
 
     @Test
