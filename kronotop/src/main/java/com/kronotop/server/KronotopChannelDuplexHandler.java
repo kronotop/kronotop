@@ -138,6 +138,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     }
 
     private void exceptionToRespError(Request request, Response response, Exception exception) {
+        metrics.increaseCommandsFailed(serverKind);
         switch (exception) {
             case KronotopException exp -> {
                 if (exp.getCause() != null) {
@@ -216,6 +217,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
                         // Execute AUTH command.
                         execute(handler, request, response);
                     } else {
+                        metrics.increaseCommandsFailed(serverKind);
                         response.writeError(RESPError.NOAUTH, "Authentication required.");
                     }
                 }

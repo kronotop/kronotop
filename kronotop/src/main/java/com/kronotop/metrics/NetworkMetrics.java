@@ -18,7 +18,6 @@ package com.kronotop.metrics;
 
 import com.kronotop.server.ServerKind;
 
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
 public class NetworkMetrics {
@@ -29,6 +28,8 @@ public class NetworkMetrics {
 
     private final LongAdder externalTotalCommandsProcessed = new LongAdder();
     private final LongAdder internalTotalCommandsProcessed = new LongAdder();
+    private final LongAdder externalCommandsFailed = new LongAdder();
+    private final LongAdder internalCommandsFailed = new LongAdder();
 
     public NetworkMetrics() {
     }
@@ -76,5 +77,20 @@ public class NetworkMetrics {
             return externalTotalCommandsProcessed.sum();
         }
         return internalTotalCommandsProcessed.sum();
+    }
+
+    public void increaseCommandsFailed(ServerKind serverKind) {
+        if (serverKind == ServerKind.EXTERNAL) {
+            externalCommandsFailed.increment();
+        } else {
+            internalCommandsFailed.increment();
+        }
+    }
+
+    public long getCommandsFailed(ServerKind serverKind) {
+        if (serverKind == ServerKind.EXTERNAL) {
+            return externalCommandsFailed.sum();
+        }
+        return internalCommandsFailed.sum();
     }
 }

@@ -32,6 +32,7 @@ class NetworkMetricsTest {
             assertEquals(0, metrics.getReadBytes(kind), kind.name());
             assertEquals(0, metrics.getWrittenBytes(kind), kind.name());
             assertEquals(0, metrics.getTotalCommandsProcessed(kind), kind.name());
+            assertEquals(0, metrics.getCommandsFailed(kind), kind.name());
         }
     }
 
@@ -71,6 +72,20 @@ class NetworkMetricsTest {
         metrics.increaseTotalCommandsProcessed(ServerKind.INTERNAL);
 
         assertEquals(3, metrics.getTotalCommandsProcessed(ServerKind.INTERNAL));
+        assertEquals(0, metrics.getTotalCommandsProcessed(ServerKind.EXTERNAL));
+    }
+
+    @Test
+    void shouldCountFailedCommandsPerServerKind() {
+        // Behavior: every increase adds one failed command to the given server kind only
+        // and does not change the processed counter
+        NetworkMetrics metrics = new NetworkMetrics();
+
+        metrics.increaseCommandsFailed(ServerKind.EXTERNAL);
+        metrics.increaseCommandsFailed(ServerKind.EXTERNAL);
+
+        assertEquals(2, metrics.getCommandsFailed(ServerKind.EXTERNAL));
+        assertEquals(0, metrics.getCommandsFailed(ServerKind.INTERNAL));
         assertEquals(0, metrics.getTotalCommandsProcessed(ServerKind.EXTERNAL));
     }
 }

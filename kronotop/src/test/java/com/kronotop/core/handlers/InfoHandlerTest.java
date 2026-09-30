@@ -25,6 +25,7 @@ import com.kronotop.commands.redis.RedisCommandBuilder;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
+import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -299,11 +300,16 @@ class InfoHandlerTest extends BaseHandlerTest {
     @Test
     void shouldReportTrafficFields() {
         // Behavior: the Traffic section reports command and byte totals for the external and
-        // internal listeners; every byte field has a _human pair
+        // internal listeners; succeeded plus failed equals processed; every byte field has a _human pair
         String info = runInfo(getChannel(), "traffic");
 
         for (String prefix : List.of("external", "internal")) {
-            assertTrue(longField(info, prefix + "_total_commands_processed") >= 0, prefix);
+            long processed = longField(info, prefix + "_total_commands_processed");
+            long succeeded = longField(info, prefix + "_commands_succeeded");
+            long failed = longField(info, prefix + "_commands_failed");
+            assertTrue(processed >= 0, prefix);
+            assertTrue(failed >= 0, prefix);
+            assertEquals(processed, succeeded + failed, prefix);
             assertTrue(longField(info, prefix + "_read_bytes") >= 0, prefix);
             assertTrue(longField(info, prefix + "_written_bytes") >= 0, prefix);
             for (String field : List.of(prefix + "_read_bytes_human", prefix + "_written_bytes_human")) {
@@ -320,6 +326,24 @@ class InfoHandlerTest extends BaseHandlerTest {
         long second = longField(runInfo(getChannel(), "traffic"), "external_total_commands_processed");
 
         assertTrue(second >= first + 1);
+    }
+
+    @Test
+    void shouldCountFailedCommands() {
+        // Behavior: a command answered with an error grows external_commands_failed by one and
+        // leaves external_commands_succeeded unchanged; INFO itself counts as succeeded
+        String before = runInfo(getChannel(), "traffic");
+        long failedBefore = longField(before, "external_commands_failed");
+        long succeededBefore = longField(before, "external_commands_succeeded");
+
+        ByteBuf buf = Unpooled.buffer();
+        buf.writeBytes("*1\r\n$14\r\nNOSUCHCOMMANDX\r\n".getBytes(StandardCharsets.US_ASCII));
+        assertInstanceOf(ErrorRedisMessage.class, runCommand(getChannel(), buf));
+
+        String after = runInfo(getChannel(), "traffic");
+        assertEquals(failedBefore + 1, longField(after, "external_commands_failed"));
+        // The first INFO call succeeded; the failing command did not
+        assertEquals(succeededBefore + 1, longField(after, "external_commands_succeeded"));
     }
 
     @Test

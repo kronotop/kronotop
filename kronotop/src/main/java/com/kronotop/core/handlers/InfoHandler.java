@@ -304,7 +304,11 @@ public class InfoHandler implements Handler {
         NetworkMetrics metrics = context.getRuntimeMetrics().getNetworkMetrics();
         for (ServerKind serverKind : ServerKind.values()) {
             String prefix = serverKind.toString().toLowerCase();
-            collector.put(TRAFFIC_SECTION, prefix + "_total_commands_processed", metrics.getTotalCommandsProcessed(serverKind));
+            long processed = metrics.getTotalCommandsProcessed(serverKind);
+            long failed = metrics.getCommandsFailed(serverKind);
+            collector.put(TRAFFIC_SECTION, prefix + "_total_commands_processed", processed);
+            collector.put(TRAFFIC_SECTION, prefix + "_commands_succeeded", processed - failed);
+            collector.put(TRAFFIC_SECTION, prefix + "_commands_failed", failed);
             collector.put(TRAFFIC_SECTION, prefix + "_read_bytes", metrics.getReadBytes(serverKind));
             collector.put(TRAFFIC_SECTION, prefix + "_read_bytes_human", KronotopInstanceStarter.formatBytes(metrics.getReadBytes(serverKind)));
             collector.put(TRAFFIC_SECTION, prefix + "_written_bytes", metrics.getWrittenBytes(serverKind));
