@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-package com.kronotop;
+package com.kronotop.metrics;
 
 import com.sun.management.GarbageCollectionNotificationInfo;
 import com.sun.management.GcInfo;
@@ -31,14 +31,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * Holds runtime metrics of a Kronotop instance. Any component can record its metrics here through the
- * {@link Context}.
- */
 public class RuntimeMetrics {
     private final AtomicLong gcFreedBytes = new AtomicLong();
     private final NotificationListener listener = this::handleNotification;
     private final List<NotificationEmitter> emitters = new ArrayList<>();
+    private final NetworkMetrics networkMetrics = new NetworkMetrics();
 
     /**
      * Starts metric collection.
@@ -71,6 +68,10 @@ public class RuntimeMetrics {
      */
     public long getGcFreedBytes() {
         return gcFreedBytes.get();
+    }
+
+    public NetworkMetrics getNetworkMetrics() {
+        return networkMetrics;
     }
 
     private void handleNotification(Notification notification, Object handback) {

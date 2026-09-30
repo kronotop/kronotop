@@ -86,6 +86,7 @@ public abstract class RESPServer implements KronotopService {
                     @Override
                     public void initChannel(SocketChannel ch) {
                         ChannelPipeline p = ch.pipeline();
+                        p.addLast(new NettyTrafficCounter(serverKind, context.getRuntimeMetrics()));
                         if (sslContext != null) {
                             p.addLast(sslContext.newHandler(ch.alloc()));
                         }

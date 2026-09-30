@@ -22,6 +22,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.MemberAttributes;
 import com.kronotop.instance.KronotopInstanceStatus;
 import com.kronotop.internal.ProtocolMessageUtil;
+import com.kronotop.metrics.NetworkMetrics;
 import com.kronotop.server.impl.RESPRequest;
 import com.kronotop.server.impl.RESPResponse;
 import com.kronotop.server.impl.TransactionResponse;
@@ -71,6 +72,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private final ServerKind serverKind;
     private final boolean logCommandForDebugging;
     private boolean authEnabled = false;
+    private final NetworkMetrics metrics;
 
     public KronotopChannelDuplexHandler(Context context, CommandHandlerRegistry commands, ServerKind serverKind) {
         this.context = context;
@@ -86,6 +88,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         if (config.hasPath("auth.requirepass") || config.hasPath("auth.users")) {
             authEnabled = true;
         }
+        this.metrics = context.getRuntimeMetrics().getNetworkMetrics();
     }
 
     private void checkMaximumArgumentCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
@@ -434,6 +437,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         try {
             channelRead0(ctx, message);
         } finally {
+            metrics.increaseTotalCommandsProcessed(serverKind);
             ReferenceCountUtil.release(message);
         }
     }

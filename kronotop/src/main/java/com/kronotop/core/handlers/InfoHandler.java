@@ -24,6 +24,7 @@ import com.kronotop.core.InfoCollector;
 import com.kronotop.core.handlers.protocol.InfoMessage;
 import com.kronotop.instance.KronotopInstanceStarter;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.metrics.NetworkMetrics;
 import com.kronotop.network.Address;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
@@ -57,6 +58,7 @@ public class InfoHandler implements Handler {
     public static final String VOLUME_SECTION = "Volume";
     public static final String BUCKET_SECTION = "Bucket";
     public static final String VECTOR_SECTION = "Vector";
+    public static final String TRAFFIC_SECTION = "Traffic";
     private static final Logger LOGGER = LoggerFactory.getLogger(InfoHandler.class);
     private static final Set<String> ALL_SECTIONS = Set.of("all", "default", "everything");
 
@@ -126,6 +128,7 @@ public class InfoHandler implements Handler {
         collectKronotop(collector);
         collectClients(collector);
         collectMemory(collector);
+        collectTraffic(collector);
         for (KronotopService service : context.getServices()) {
             try {
                 service.collectInfo(collector);
@@ -294,6 +297,18 @@ public class InfoHandler implements Handler {
         collector.put(KRONOTOP_SECTION, "bucket_shards", context.getShardRegistry().getShardIds(ShardKind.BUCKET).size());
         if (context.getShardRegistry().getShardKinds().contains(ShardKind.STASH)) {
             collector.put(KRONOTOP_SECTION, "stash_shards", context.getShardRegistry().getShardIds(ShardKind.STASH).size());
+        }
+    }
+
+    private void collectTraffic(InfoCollector collector) {
+        NetworkMetrics metrics = context.getRuntimeMetrics().getNetworkMetrics();
+        for (ServerKind serverKind : ServerKind.values()) {
+            String prefix = serverKind.toString().toLowerCase();
+            collector.put(TRAFFIC_SECTION, prefix + "_total_commands_processed", metrics.getTotalCommandsProcessed(serverKind));
+            collector.put(TRAFFIC_SECTION, prefix + "_read_bytes", metrics.getReadBytes(serverKind));
+            collector.put(TRAFFIC_SECTION, prefix + "_read_bytes_human", KronotopInstanceStarter.formatBytes(metrics.getReadBytes(serverKind)));
+            collector.put(TRAFFIC_SECTION, prefix + "_written_bytes", metrics.getWrittenBytes(serverKind));
+            collector.put(TRAFFIC_SECTION, prefix + "_written_bytes_human", KronotopInstanceStarter.formatBytes(metrics.getWrittenBytes(serverKind)));
         }
     }
 

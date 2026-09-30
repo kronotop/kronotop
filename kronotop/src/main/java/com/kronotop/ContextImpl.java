@@ -27,6 +27,7 @@ import com.kronotop.commands.CommandMetadataLoader;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.KronotopDirectoryLayer;
 import com.kronotop.journal.Journal;
+import com.kronotop.metrics.RuntimeMetrics;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.SessionStore;
