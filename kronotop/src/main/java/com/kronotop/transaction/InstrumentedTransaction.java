@@ -23,25 +23,23 @@ import java.util.function.Function;
 
 /**
  * Wraps an FDB {@link Transaction} to collect operation counts, byte volumes,
- * commit latency, and total duration into a {@link TransactionMetrics} instance.
+ * commit latency, and total duration into a {@link TransactionProfile} instance.
  */
 public class InstrumentedTransaction extends InstrumentedReadTransaction<Transaction> implements Transaction {
 
     private ReadTransaction snapshot;
 
     public InstrumentedTransaction(Transaction underlying) {
-        super(underlying, new TransactionMetrics());
+        super(underlying, new TransactionProfile());
     }
 
-    public InstrumentedTransaction(Transaction underlying, TransactionMetrics metrics) {
+    public InstrumentedTransaction(Transaction underlying, TransactionProfile metrics) {
         super(underlying, metrics);
     }
 
-    public TransactionMetrics getMetrics() {
+    public TransactionProfile getProfile() {
         return metrics;
     }
-
-    // --- Instrumented write operations ---
 
     @Override
     public void set(byte[] key, byte[] value) {
@@ -84,8 +82,6 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
         metrics.incrementMutations();
     }
 
-    // --- Instrumented lifecycle ---
-
     @Override
     public CompletableFuture<Void> commit() {
         long commitStartNanos = System.nanoTime();
@@ -111,8 +107,6 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
         metrics.recordTotalDuration();
     }
 
-    // --- Snapshot ---
-
     @Override
     public ReadTransaction snapshot() {
         if (snapshot == null) {
@@ -120,8 +114,6 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
         }
         return snapshot;
     }
-
-    // --- Transaction-specific delegation ---
 
     @Override
     public void addReadConflictRange(byte[] keyBegin, byte[] keyEnd) {
@@ -188,11 +180,9 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
         return function.apply(this);
     }
 
-    // --- Inner class ---
-
     private static class InstrumentedSnapshot extends InstrumentedReadTransaction<ReadTransaction> implements ReadTransaction {
 
-        InstrumentedSnapshot(ReadTransaction underlying, TransactionMetrics metrics) {
+        InstrumentedSnapshot(ReadTransaction underlying, TransactionProfile metrics) {
             super(underlying, metrics);
         }
 

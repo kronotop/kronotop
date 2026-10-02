@@ -184,7 +184,7 @@ public class PipelineExecutor {
             return 0;
         }
         if (tr instanceof InstrumentedTransaction itx) {
-            return itx.getMetrics().getStartNanos() + TX_TIME_BUDGET_NANOS;
+            return itx.getProfile().getStartNanos() + TX_TIME_BUDGET_NANOS;
         }
         throw new IllegalArgumentException("Transaction must be an InstrumentedTransaction");
     }

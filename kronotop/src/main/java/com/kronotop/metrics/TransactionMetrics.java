@@ -16,5 +16,34 @@
 
 package com.kronotop.metrics;
 
+import java.util.concurrent.atomic.LongAdder;
+
 public class TransactionMetrics {
+    private final LongAdder transactionsCreated = new LongAdder();
+    private final LongAdder transactionsCommitted = new LongAdder();
+    private final LongAdder transactionsRolledBack = new LongAdder();
+
+    public void increaseTransactionsCreated() {
+        transactionsCreated.increment();
+    }
+
+    public long getTransactionsCreated() {
+        return transactionsCreated.sum();
+    }
+
+    public void increaseTransactionsCommitted() {
+        transactionsCommitted.increment();
+    }
+
+    public long getTransactionsCommitted() {
+        return transactionsCommitted.sum();
+    }
+
+    public void increaseTransactionsRolledBack() {
+        transactionsRolledBack.increment();
+    }
+
+    public long getTransactionsRolledBack() {
+        return transactionsRolledBack.sum();
+    }
 }

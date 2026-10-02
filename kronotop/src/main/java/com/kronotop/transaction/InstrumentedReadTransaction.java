@@ -28,16 +28,16 @@ import java.util.function.Function;
 
 /**
  * Abstract base that instruments read operations on an FDB {@link ReadTransaction},
- * tracking operation counts and bytes read into a shared {@link TransactionMetrics}.
+ * tracking operation counts and bytes read into a shared {@link TransactionProfile}.
  *
  * @param <T> the concrete transaction type being wrapped
  */
 abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements ReadTransaction {
 
     protected final T underlying;
-    protected final TransactionMetrics metrics;
+    protected final TransactionProfile metrics;
 
-    protected InstrumentedReadTransaction(T underlying, TransactionMetrics metrics) {
+    protected InstrumentedReadTransaction(T underlying, TransactionProfile metrics) {
         this.underlying = underlying;
         this.metrics = metrics;
     }
@@ -213,9 +213,9 @@ abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements
 
     private static class ByteCountingAsyncIterable implements AsyncIterable<KeyValue> {
         private final AsyncIterable<KeyValue> underlying;
-        private final TransactionMetrics metrics;
+        private final TransactionProfile metrics;
 
-        ByteCountingAsyncIterable(AsyncIterable<KeyValue> underlying, TransactionMetrics metrics) {
+        ByteCountingAsyncIterable(AsyncIterable<KeyValue> underlying, TransactionProfile metrics) {
             this.underlying = underlying;
             this.metrics = metrics;
         }
@@ -242,9 +242,9 @@ abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements
 
     private static class ByteCountingAsyncIterator implements AsyncIterator<KeyValue> {
         private final AsyncIterator<KeyValue> underlying;
-        private final TransactionMetrics metrics;
+        private final TransactionProfile metrics;
 
-        ByteCountingAsyncIterator(AsyncIterator<KeyValue> underlying, TransactionMetrics metrics) {
+        ByteCountingAsyncIterator(AsyncIterator<KeyValue> underlying, TransactionProfile metrics) {
             this.underlying = underlying;
             this.metrics = metrics;
         }
