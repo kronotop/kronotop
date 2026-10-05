@@ -151,7 +151,7 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
             DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
             while (!shutdown) {
                 int total = 0;
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                     tr.options().setPriorityBatch();
                     byte[] begin = tr.get(subspace.pack(METADATA_KEY.LAST_PREFIX.name())).join();
                     byte[] end = ByteArrayUtil.strinc(prefixesSubspace.pack());

@@ -28,6 +28,7 @@ import com.kronotop.bucket.index.IndexEntry;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.MutationLogValue;
 import com.kronotop.bucket.index.VectorIndexValue;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.EntryMetadata;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
@@ -156,7 +157,7 @@ public final class VectorIndexCrashRecovery {
         List<FailedOps.Delete> failedDeletes = new ArrayList<>();
         while (true) {
             List<KeyValue> page;
-            try (Transaction tr = db.createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(db)) {
                 page = tr.getRange(begin, end, PAGE_SIZE).asList().join();
             }
 

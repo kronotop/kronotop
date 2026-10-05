@@ -23,6 +23,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.client.protocol.ChangeLogCoordinateResponse;
 import com.kronotop.cluster.client.protocol.ChangeLogEntryResponse;
 import com.kronotop.cluster.client.protocol.SegmentRange;
+import com.kronotop.transaction.TransactionUtil;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisFuture;
@@ -85,7 +86,7 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
      */
     private void persistProgress(long segmentId, long sequenceNumber, long position) {
         transactionWithRetry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 ReplicationState.setSequenceNumber(tr, subspace, segmentId, sequenceNumber);
                 ReplicationState.setPosition(tr, subspace, segmentId, position);
                 tr.commit().join();
@@ -233,7 +234,7 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
      * Determines the starting cursor position based on the persisted replication state.
      */
     private Cursor locateCursor() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             Stage currentStage = ReplicationState.readStage(tr, subspace, session.segmentId());
             long sequenceNumber;
             if (currentStage == Stage.SEGMENT_REPLICATION) {

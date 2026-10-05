@@ -35,6 +35,7 @@ import com.kronotop.namespace.handlers.NamespaceMetadataField;
 import com.kronotop.namespace.handlers.NamespaceRemovedEvent;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
+import com.kronotop.transaction.TransactionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,7 +177,7 @@ public class NamespaceUtil {
      */
     public static boolean exists(Context context, List<String> names) {
         List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(names).toList();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             boolean exists = context.getDirectoryLayer().exists(tr, subpath).join();
             if (!exists) {
                 return false;
@@ -224,7 +225,7 @@ public class NamespaceUtil {
      * @param names   the list of strings representing the hierarchical namespace path to be removed.
      */
     public static void remove(Context context, List<String> names) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             remove(tr, context, names);
             tr.commit().join();
         } catch (CompletionException e) {
@@ -273,7 +274,7 @@ public class NamespaceUtil {
      * @throws NamespaceBeingRemovedException  if the namespace exists but is marked for removal.
      */
     public static void create(Context context, String namespace) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             create(context, tr, splitNamespaceHierarchy(namespace));
         }
     }
@@ -399,7 +400,7 @@ public class NamespaceUtil {
                 // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
                 if (ex.getCode() == 1020) {
                     // retry
-                    try (Transaction retryTr = context.getFoundationDB().createTransaction()) {
+                    try (Transaction retryTr = TransactionUtil.createInstrumentedTransaction(context)) {
                         create(context, retryTr, subpath);
                     }
                     return;
@@ -498,7 +499,7 @@ public class NamespaceUtil {
      * @throws KronotopException        if an error occurs during the operation
      */
     public static NamespaceMetadata readMetadata(Context context, String namespace) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             return readMetadata(tr, context, splitNamespaceHierarchy(namespace));
         }
     }
@@ -541,7 +542,7 @@ public class NamespaceUtil {
      * @throws KronotopException        if an error occurs during the operation
      */
     public static void setRemoved(Context context, String namespace) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             setRemoved(tr, context, splitNamespaceHierarchy(namespace));
             tr.commit().join();
         } catch (CompletionException e) {
@@ -564,7 +565,7 @@ public class NamespaceUtil {
      * @throws KronotopException        if an error occurs during the operation
      */
     public static void incrementVersion(Context context, String namespace) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             DirectorySubspace subspace = open(tr, context, namespace);
             incrementVersion(tr, subspace);
             tr.commit().join();

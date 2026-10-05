@@ -97,7 +97,7 @@ public abstract class AbstractReplication {
      */
     protected void markReplicationStageRunning(long segmentId, Stage stage, Long sequenceNumber) {
         transactionWithRetry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 ReplicationState.setStatus(tr, subspace, segmentId, ReplicationStatus.RUNNING);
                 ReplicationState.setStage(tr, subspace, segmentId, stage);
                 ReplicationState.clearErrorMessage(tr, subspace, segmentId);
@@ -114,7 +114,7 @@ public abstract class AbstractReplication {
      */
     protected void setReplicationStatus(long segmentId, ReplicationStatus status) {
         transactionWithRetry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 ReplicationState.setStatus(tr, subspace, segmentId, status);
                 tr.commit().join();
             }
@@ -128,7 +128,7 @@ public abstract class AbstractReplication {
         Throwable root = getRootCause(throwable);
         String message = root.getMessage() != null ? root.getMessage() : root.getClass().getName();
         transactionWithRetry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 ReplicationState.setStatus(tr, subspace, segmentId, ReplicationStatus.FAILED);
                 ReplicationState.setErrorMessage(tr, subspace, segmentId, message);
                 tr.commit().join();
@@ -141,7 +141,7 @@ public abstract class AbstractReplication {
      */
     protected void setPosition(final long position) {
         transactionWithRetry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 ReplicationState.setPosition(tr, subspace, session.segmentId(), position);
                 tr.commit().join();
             }
@@ -153,7 +153,7 @@ public abstract class AbstractReplication {
      */
     protected void setTailPointer(long sequenceNumber, long pointer) {
         transactionWithRetry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 ReplicationState.setTailPointer(tr, subspace, session.segmentId(), sequenceNumber, pointer);
                 tr.commit().join();
             }

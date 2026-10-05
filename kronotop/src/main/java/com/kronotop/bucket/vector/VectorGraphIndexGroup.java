@@ -27,6 +27,7 @@ import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
 import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.index.*;
+import com.kronotop.transaction.TransactionUtil;
 import io.github.jbellis.jvector.vector.VectorSimilarityFunction;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -358,7 +359,7 @@ public class VectorGraphIndexGroup {
                         Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue(), latestVersionstamp)
                 )
         );
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             tr.clear(begin, end);
             tr.commit().join();
         }
@@ -502,7 +503,7 @@ public class VectorGraphIndexGroup {
 
     private void persistFailedOps() {
         DirectorySubspace indexSubspace = vectorIndex.subspace();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             // Truncate FAILED_OP_LOG first, everything should be written to an index.
             // Remember that JVector-based vector integration is eventually consistent.
             VectorIndexMaintainer.truncateFailedOpLog(tr, indexSubspace);

@@ -16,6 +16,7 @@
 
 package com.kronotop.transaction;
 
+import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.CommitHook;
@@ -73,6 +74,10 @@ public class TransactionUtil {
 
     public static InstrumentedTransaction createInstrumentedTransaction(Context context, ExecutorService executor) {
         return new InstrumentedTransaction(context.getFoundationDB().createTransaction(executor));
+    }
+
+    public static InstrumentedTransaction createInstrumentedTransaction(Database database) {
+        return new InstrumentedTransaction(database.createTransaction());
     }
 
     /**

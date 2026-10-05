@@ -28,6 +28,7 @@ import com.kronotop.bucket.index.IndexStatus;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
+import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,7 +76,7 @@ public abstract class AbstractBoundaryRoutine extends AbstractIndexMaintenanceRo
     private void markTaskFailed(Throwable th) {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 IndexBoundaryTaskState.setError(tr, subspace, taskId, th.getMessage());
                 IndexBoundaryTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
                 commit(tr);
@@ -88,7 +89,7 @@ public abstract class AbstractBoundaryRoutine extends AbstractIndexMaintenanceRo
     }
 
     private void initialize() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
                 stopped = true;
@@ -113,7 +114,7 @@ public abstract class AbstractBoundaryRoutine extends AbstractIndexMaintenanceRo
             BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket());
 
             boolean emptyBucket;
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 BucketMetadata metadata = BucketMetadataUtil.reload(context, tr.snapshot(), task.getNamespace(), task.getBucket());
 
                 IndexHolder<?> holder = lookupIndex(metadata);
@@ -140,7 +141,7 @@ public abstract class AbstractBoundaryRoutine extends AbstractIndexMaintenanceRo
             BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket());
 
             if (emptyBucket) {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                     BucketMetadata fresh = BucketMetadataUtil.reload(context, tr.snapshot(), task.getNamespace(), task.getBucket());
                     IndexHolder<?> freshHolder = lookupIndex(fresh);
                     if (freshHolder != null) {

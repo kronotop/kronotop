@@ -34,6 +34,7 @@ import com.kronotop.stash.server.FlushAllHandler;
 import com.kronotop.stash.server.FlushDBHandler;
 import com.kronotop.stash.storage.*;
 import com.kronotop.stash.storage.impl.OnHeapStashShardImpl;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.VolumeSession;
 import com.kronotop.watcher.Watcher;
@@ -282,7 +283,7 @@ public class StashService extends ShardOwnerService<StashShard> implements Krono
         try {
             volumeSyncWorkers.forEach(VolumeSyncWorker::pause);
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 // Stop all the operations on the owned shards
                 getServiceContext().shards().values().forEach(shard ->
                         ShardUtil.setShardStatus(context, tr, ShardKind.STASH, ShardStatus.READONLY, shard.id()));
@@ -296,7 +297,7 @@ public class StashService extends ShardOwnerService<StashShard> implements Krono
                 shard.volumeSyncQueue().clear();
             });
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 Prefix prefix = new Prefix(context.getConfig().getString("stash.volume_syncer.prefix").getBytes());
                 VolumeSession session = new VolumeSession(tr, prefix);
                 getServiceContext().shards().values().forEach(shard -> shard.volume().clearPrefix(session));
@@ -304,7 +305,7 @@ public class StashService extends ShardOwnerService<StashShard> implements Krono
             }
         } finally {
             volumeSyncWorkers.forEach(VolumeSyncWorker::resume);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 // Stop all the operations on the owned shards
                 getServiceContext().shards().values().forEach(shard ->
                         ShardUtil.setShardStatus(context, tr, ShardKind.STASH, ShardStatus.READWRITE, shard.id()));

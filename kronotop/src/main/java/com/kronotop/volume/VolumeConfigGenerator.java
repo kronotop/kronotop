@@ -91,7 +91,7 @@ public class VolumeConfigGenerator {
     private DirectorySubspace createOrOpenVolumeSubspace(KronotopDirectoryNode directory, boolean createIfNotExist) {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         return retry.executeSupplier(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 DirectorySubspace subspace;
                 if (createIfNotExist) {
                     subspace = context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join();

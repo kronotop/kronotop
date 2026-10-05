@@ -22,6 +22,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.stash.storage.DataStructurePack;
 import com.kronotop.stash.storage.StashShard;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.DeleteResult;
 import com.kronotop.volume.Prefix;
@@ -121,7 +122,7 @@ public class VolumeSyncSession {
      */
     public void sync() throws IOException {
         // TODO: We should consider the transaction time limit: 5 seconds
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
 
             // memtier_benchmark sets the same key many times, and this triggers a bizarre bug in VolumeSyncer
             // See https://forums.foundationdb.org/t/why-is-read-or-wrote-unreadable-key-necessary/3753

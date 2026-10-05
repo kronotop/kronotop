@@ -42,6 +42,7 @@ import com.kronotop.journal.JournalName;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.PrefixUtil;
 
@@ -153,7 +154,7 @@ public class BucketMetadataUtil {
             String bucket,
             List<Integer> shards
     ) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             BucketMetadata metadata = create(context, tr, session, bucket, shards, null);
             tr.commit().join();
 
@@ -306,7 +307,7 @@ public class BucketMetadataUtil {
         boolean singleFieldStale = metadata.singleFieldIndexes().getStatsLastRefreshedAt() <= now - ttl;
         boolean compoundStale = metadata.compoundIndexes().getStatsLastRefreshedAt() <= now - ttl;
         if (singleFieldStale || compoundStale) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 Map<Long, IndexStatistics> indexStatistics = readIndexStatistics(tr, metadata);
                 if (singleFieldStale) {
                     metadata.singleFieldIndexes().updateStatistics(indexStatistics);
@@ -573,7 +574,7 @@ public class BucketMetadataUtil {
         if (metadata != null) {
             return metadata;
         }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             return open(context, tr, namespace, bucket);
         }
     }

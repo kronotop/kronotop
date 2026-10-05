@@ -19,6 +19,7 @@ package com.kronotop.internal;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
+import com.kronotop.transaction.TransactionUtil;
 
 import java.util.function.Function;
 
@@ -57,7 +58,7 @@ public class RenewableTransaction implements AutoCloseable {
         if (transaction != null) {
             transaction.close();
         }
-        transaction = database.createTransaction();
+        transaction = TransactionUtil.createInstrumentedTransaction(database);
         createdAtNanos = System.nanoTime();
     }
 

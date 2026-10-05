@@ -27,6 +27,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.Context;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.transaction.TransactionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +56,7 @@ public class Consumer {
         this.journalMetadata = loadJournalMetadata();
         DirectorySubspace consumerSubspace = createOrOpenConsumerSubspace();
         this.offsetKey = consumerSubspace.pack(Tuple.from(OFFSET_KEY));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             this.initialOffset = inspectOffset(tr);
             this.offset = initialOffset;
         }

@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.google.common.io.BaseEncoding;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
+import com.kronotop.transaction.TransactionUtil;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -134,7 +135,7 @@ public class ZWatcher {
      */
     private KeyWatch createWatch(byte[] packedKey) {
         CompletableFuture<Void> underlying;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             underlying = tr.watch(packedKey);
             tr.commit().join();
         }

@@ -88,7 +88,7 @@ class MemberRegistry {
      * @return true if the member's directory exists, false otherwise
      */
     boolean isAdded(String memberId) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             return isAdded(tr, memberId);
         }
     }
@@ -103,7 +103,7 @@ class MemberRegistry {
     DirectorySubspace add(Member member) {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         return retry.executeSupplier(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 if (isAdded(tr, member.getId())) {
                     throw new MemberAlreadyRegisteredException(
                             String.format("Member: %s already registered", member.getId())
@@ -129,7 +129,7 @@ class MemberRegistry {
     void registerOrUpdate(Member member, boolean forceInitialization) {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         retry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 KronotopDirectoryNode directory = getDirectoryNode(member.getId());
                 boolean registered = false;
                 if (isAdded(tr, member.getId())) {
@@ -187,7 +187,7 @@ class MemberRegistry {
     void remove(String memberId) {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         retry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 remove(tr, memberId);
                 tr.commit().join();
             }
@@ -227,7 +227,7 @@ class MemberRegistry {
     Member setStatus(String memberId, MemberStatus status) {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         return retry.executeSupplier(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 Member member = findMember(tr, memberId);
                 member.setStatus(status);
 
@@ -281,7 +281,7 @@ class MemberRegistry {
      * @throws CompletionException          if an error occurs during transaction completion
      */
     Member findMember(String memberId) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             return findMember(tr, memberId);
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
@@ -297,7 +297,7 @@ class MemberRegistry {
      * @return a TreeSet containing Member objects sorted by their process IDs.
      */
     TreeSet<Member> listMembers() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             return listMembers(tr);
         }
     }

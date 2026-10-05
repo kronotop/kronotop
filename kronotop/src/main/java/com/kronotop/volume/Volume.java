@@ -148,7 +148,7 @@ public class Volume {
                 .build();
         this.vacuumExecutor = KrExecutors.newBoundedExecutor(1, 1, TimeUnit.MINUTES, vacuumThreadFactory);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             VolumeMetadata metadata = VolumeMetadataUtil.createOrOpen(tr, subspace);
             this.volumeId = metadata.id();
             this.status = metadata.status();
@@ -194,7 +194,7 @@ public class Volume {
 
     private long computeNextSegmentId() {
         // protected by segmentLock
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, subspace);
             if (segmentIds.isEmpty()) {
                 return 0L;
@@ -240,7 +240,7 @@ public class Volume {
                 return segment;
             }
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, subspace);
                 if (!segmentIds.contains(writableSegmentId)) {
                     throw new SegmentNotFoundException(writableSegmentId);
@@ -292,7 +292,7 @@ public class Volume {
             SegmentConfig segmentConfig = new SegmentConfig(newSegmentId, config.dataDir(), config.segmentSize());
             WritableSegment segment = new FileSegment(segmentConfig, 0);
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 byte[] segmentIdKey = subspace.packVolumeSegmentIdKey(newSegmentId);
                 tr.set(segmentIdKey, VolumeMetadataUtil.NULL_BYTES);
                 tr.commit().join();
@@ -399,7 +399,7 @@ public class Volume {
     public void setStatus(VolumeStatus status) {
         transactionWithRetry.executeRunnable(() -> {
             statusLock.writeLock().lock();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 byte[] statusKey = subspace.packVolumeStatusKey();
                 tr.set(statusKey, status.toString().getBytes(StandardCharsets.US_ASCII));
                 tr.commit().join();
@@ -1033,7 +1033,7 @@ public class Volume {
             if (vacuumWatchDog != null && !vacuumWatchDog.isStopped()) {
                 throw new KronotopException("Vacuum is already running on volume " + config.name());
             }
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 if (VacuumMetadataUtil.exists(tr, subspace)) {
                     throw new KronotopException("Stale vacuum metadata exists on volume " + config.name() + ", run DROP first");
                 }
@@ -1069,7 +1069,7 @@ public class Volume {
             if (vacuumWatchDog != null && !vacuumWatchDog.isStopped()) {
                 throw new KronotopException("Vacuum is still running on volume " + config.name() + ", run STOP first");
             }
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 if (!VacuumMetadataUtil.exists(tr, subspace)) {
                     throw new KronotopException("No active vacuum on volume " + config.name());
                 }
@@ -1096,7 +1096,7 @@ public class Volume {
     public VacuumStatusResult vacuumStatus() {
         boolean active = isVacuumActive();
         if (!active) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 if (!VacuumMetadataUtil.exists(tr, subspace)) {
                     throw new KronotopException("No active vacuum on volume " + config.name());
                 }
@@ -1104,7 +1104,7 @@ public class Volume {
         }
         VacuumMetadata metadata;
         List<VacuumSegmentMetadata> segments;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             metadata = VacuumMetadataUtil.load(tr, subspace);
             segments = VacuumSegmentMetadataUtil.loadAll(tr, subspace);
         }
@@ -1332,7 +1332,7 @@ public class Volume {
      * @return the analysis result of each segment
      */
     public List<SegmentAnalysis> analyze() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             return analyze(tr);
         }
     }
@@ -1405,7 +1405,7 @@ public class Volume {
     }
 
     void destroyStaleSegment(long segmentId) throws IOException {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             // Second check against possible stale reads.
             ByteBuffer buf = ByteBuffer.allocate(Long.BYTES);
             buf.putLong(segmentId);

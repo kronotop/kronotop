@@ -75,7 +75,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
         List<byte[]> objectIds = new ArrayList<>();
         KeySelector begin = KeySelector.firstGreaterThan(beginKey);
         KeySelector end = KeySelector.firstGreaterOrEqual(endKey);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             AsyncIterable<KeyValue> iterable = tr.snapshot().getRange(begin, end);
             for (KeyValue keyValue : iterable) {
                 checkForShutdown();
@@ -91,7 +91,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
      */
     private List<Object> aggregateKeysFromIndex(IndexHolder<?> index, int limit, boolean reverse) {
         List<Object> indexedValues = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             byte[] prefix = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             KeySelector begin = KeySelector.firstGreaterThan(prefix);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
@@ -111,7 +111,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
         byte[] beginPrefix = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue(), objectIdPivot));
         byte[] endPrefix = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
         List<Object> indexedValues = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             KeySelector begin = KeySelector.firstGreaterThan(beginPrefix);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(endPrefix));
             for (KeyValue keyValue : tr.snapshot().getRange(begin, end, limit, reverse)) {
@@ -131,7 +131,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
         byte[] pivotKey = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue(), objectIdPivot));
         byte[] endPrefix = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         List<Object> indexedValues = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             KeySelector begin = KeySelector.firstGreaterThan(pivotKey);
             KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(endPrefix));
             for (KeyValue keyValue : tr.snapshot().getRange(begin, end, limit, reverse)) {
@@ -222,7 +222,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
             checkForShutdown();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 IndexDefinition definition = strategy.loadDefinition(tr, index.subspace());
                 if (definition == null) {
                     // Index is dropped and flushed
@@ -244,7 +244,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
     private void markIndexAnalyzeTaskFailed(Throwable th) {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 IndexAnalyzeTaskState.setError(tr, subspace, taskId, th.getMessage());
                 IndexAnalyzeTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
                 commit(tr);
@@ -271,7 +271,7 @@ public class IndexAnalyzeRoutine extends AbstractIndexMaintenanceRoutine {
     }
 
     private void initialize() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
                 stopped = true;

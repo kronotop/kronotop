@@ -30,6 +30,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.KronotopDirectoryLayer;
+import com.kronotop.transaction.TransactionUtil;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
@@ -109,7 +110,7 @@ public class Journal {
      * @return a list of journal names as strings.
      */
     public List<String> listJournals() {
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(database)) {
             return listJournals(tr);
         }
     }

@@ -39,6 +39,7 @@ import com.kronotop.journal.*;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
 import com.kronotop.task.TaskService;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.handlers.*;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -172,7 +173,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
      * member ID is stored, the method silently returns.
      */
     private void resumeMarkStalePrefixesTaskIfAny() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             KronotopDirectoryNode node = KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).
@@ -328,7 +329,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
      */
     public long getVolumeId(DirectorySubspace subspace) {
         return volumeIdCache.computeIfAbsent(subspace, ds -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 return VolumeMetadataUtil.readVolumeId(tr, new VolumeSubspace(ds));
             }
         });
@@ -388,7 +389,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
     private synchronized void fetchDisusedPrefixes() {
         boolean done = false;
         while (!done) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 for (int i = 0; i < DISUSED_PREFIXES_JOURNAL_BATCH_SIZE; i++) {
                     Event event = disusedPrefixesConsumer.consume(tr);
                     if (event == null) {
@@ -526,7 +527,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
             if (isShutdown) {
                 return;
             }
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.DISUSED_PREFIXES.getValue()).trigger());
                 tr.commit().join();
                 try {

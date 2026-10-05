@@ -30,6 +30,7 @@ import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.task.TaskStorage;
+import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 
 import java.util.List;
@@ -240,7 +241,7 @@ public class IndexMaintenanceTaskSweeper {
      * @param taskId       versionstamp identifier of the task to sweep
      */
     private void doSweep(DirectorySubspace taskSubspace, Versionstamp taskId) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             byte[] definition = TaskStorage.getDefinition(tr, taskSubspace, taskId);
             if (definition == null) {
                 return;
@@ -288,7 +289,7 @@ public class IndexMaintenanceTaskSweeper {
      * @param definition serialized BUILD task definition
      */
     private void tryMarkSingleFieldIndexAsReady(byte[] definition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             IndexBuildingTask task = JSONUtil.readValue(definition, IndexBuildingTask.class);
             if (SingleFieldIndexUtil.markIndexAsReadyIfBuildDone(tx, task.getNamespace(), task.getBucket(), task.getIndexId())) {
@@ -303,7 +304,7 @@ public class IndexMaintenanceTaskSweeper {
      * @param definition serialized vector BUILD task definition
      */
     private void tryMarkVectorIndexAsReady(byte[] definition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             IndexBuildingTask task = JSONUtil.readValue(definition, IndexBuildingTask.class);
             if (VectorIndexUtil.markVectorIndexAsReadyIfBuildDone(tx, task.getNamespace(), task.getBucket(), task.getIndexId())) {
@@ -318,7 +319,7 @@ public class IndexMaintenanceTaskSweeper {
      * @param definition serialized compound BUILD task definition
      */
     private void tryMarkCompoundIndexAsReady(byte[] definition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             IndexBuildingTask task = JSONUtil.readValue(definition, IndexBuildingTask.class);
             if (CompoundIndexUtil.markCompoundIndexAsReadyIfBuildDone(tx, task.getNamespace(), task.getBucket(), task.getIndexId())) {

@@ -28,6 +28,7 @@ import com.kronotop.Context;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceTaskSweeper;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceWatchDog;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceWorker;
+import com.kronotop.transaction.TransactionUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -165,7 +166,7 @@ public class TaskStorage {
      * @return the complete versionstamp identifying the created task
      */
     public static Versionstamp create(Context context, DirectorySubspace subspace, byte[] definition) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             CompletableFuture<byte[]> future = create(tr, 0, subspace, definition);
             tr.commit().join();
 

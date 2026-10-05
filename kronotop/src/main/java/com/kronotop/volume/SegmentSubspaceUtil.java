@@ -25,6 +25,7 @@ import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.transaction.TransactionUtil;
 
 import java.util.Arrays;
 import java.util.List;
@@ -81,7 +82,7 @@ public class SegmentSubspaceUtil {
      * @return the next available position (position + length of the last entry), or 0 if the segment is empty
      */
     public static long findNextPosition(Context context, DirectorySubspace subspace, long segmentId) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             SegmentTailPointer link = locateTailPointer(tr, subspace, segmentId);
             return link.nextPosition();
         }

@@ -34,6 +34,7 @@ import com.kronotop.internal.KrExecutors;
 import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
 import com.kronotop.namespace.NoSuchNamespaceException;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.worker.Worker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,7 +120,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
      * @return a CompletableFuture that completes when the watched key changes
      */
     private CompletableFuture<Void> watcher() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             CompletableFuture<Void> watcher = tr.watch(trigger);
             tr.commit().join();
             return watcher;
@@ -307,7 +308,7 @@ public class IndexMaintenanceWatchDog implements Runnable {
             return;
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             TaskStorage.tasks(tr, subspace, (taskId) -> {
                 byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
                 IndexMaintenanceTask task = JSONUtil.readValue(definition, IndexMaintenanceTask.class);

@@ -26,6 +26,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
@@ -115,7 +116,7 @@ public class BucketMetadataVersionBarrier {
         CheckedRunnable runnable = Retry.decorateCheckedRunnable(retry, () -> {
             attempts.getAndIncrement();
             int satisfies = 0;
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 ReadTransaction readTr = tr.snapshot();
                 for (int shardId : shardIds) {
                     DirectorySubspace subspace = openLastSeenVersionsSubspace(readTr, shardId);

@@ -20,6 +20,7 @@ import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.stash.handlers.hash.HashValue;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.Prefix;
 import com.kronotop.volume.VolumeEntry;
 import com.kronotop.volume.VolumeSession;
@@ -140,7 +141,7 @@ public final class StashShardLoader {
      * Upon successful completion, the shard is marked as operable.
      */
     public void load() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             loadFromVolume(tr);
         }
         shard.setOperable(true);

@@ -43,6 +43,7 @@ import com.kronotop.network.NetworkConfigUtil;
 import com.kronotop.stash.StashContext;
 import com.kronotop.stash.StashService;
 import com.kronotop.task.TaskService;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.replication.ReplicationService;
 import com.kronotop.watcher.Watcher;
@@ -274,7 +275,7 @@ public class KronotopInstance {
      * FoundationDB directory layer. Retries on transaction conflicts.
      */
     private void initializeDirectoryLayout() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             KronotopDirectoryNode cluster = KronotopDirectory.kronotop().cluster(context.getClusterName());
             context.getDirectoryLayer().createOrOpen(tr, cluster.toList()).join();
 

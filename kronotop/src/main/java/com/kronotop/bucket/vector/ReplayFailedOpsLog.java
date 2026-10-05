@@ -24,6 +24,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
+import com.kronotop.transaction.TransactionUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +59,7 @@ public final class ReplayFailedOpsLog {
         boolean replayed = false;
         while (true) {
             List<KeyValue> page;
-            try (Transaction tr = db.createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(db)) {
                 page = tr.getRange(begin, end, PAGE_SIZE).asList().join();
             }
             if (page.isEmpty()) {

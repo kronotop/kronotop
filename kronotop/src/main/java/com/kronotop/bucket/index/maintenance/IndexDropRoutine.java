@@ -26,6 +26,7 @@ import com.kronotop.bucket.index.*;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.internal.task.TaskStorage;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
+import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     private void markIndexDropTaskFailed(Throwable th) {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 IndexDropTaskState.setError(tr, subspace, taskId, th.getMessage());
                 IndexDropTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
                 commit(tr);
@@ -125,7 +126,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
 
         try {
             BucketMetadataConvergence.await(context, task.getNamespace(), task.getBucket());
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, task.getNamespace(), task.getBucket());
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(task.getIndexId(), IndexSelectionPolicy.ALL);
@@ -175,7 +176,7 @@ public class IndexDropRoutine extends AbstractIndexMaintenanceRoutine {
     }
 
     private void initialize() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
                 stopped = true;

@@ -27,6 +27,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.kronotop.KronotopException;
 import com.kronotop.internal.JSONUtil;
+import com.kronotop.transaction.TransactionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -150,7 +151,7 @@ public class Publisher {
      * @return The result produced by the provided function after the transaction is committed.
      */
     private <T> T executeThenCommit(Function<? super Transaction, T> action) {
-        try (Transaction tr = database.createTransaction()) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(database)) {
             T result = action.apply(tr);
             tr.commit().join();
             return result;
