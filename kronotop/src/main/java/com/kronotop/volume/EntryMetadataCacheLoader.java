@@ -19,6 +19,7 @@ package com.kronotop.volume;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheLoader;
 import com.kronotop.Context;
+import com.kronotop.transaction.TransactionUtil;
 
 import javax.annotation.Nonnull;
 import java.time.Duration;
@@ -38,7 +39,7 @@ class EntryMetadataCacheLoader extends CacheLoader<Versionstamp, EntryMetadata> 
     @Override
     public @Nonnull EntryMetadata load(@Nonnull Versionstamp key) {
         // See https://github.com/google/guava/wiki/CachesExplained#when-does-cleanup-happen
-        return context.getFoundationDB().run(tr -> {
+        return TransactionUtil.execute(context, tr -> {
             byte[] value = tr.get(subspace.packEntryKey(prefix, key)).join();
             if (value == null) {
                 return null;

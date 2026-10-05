@@ -28,10 +28,12 @@ import com.kronotop.Context;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.transaction.TransactionUtil;
+import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 
 /**
  * Consumes events from a journal with at-least-once delivery semantics.
@@ -85,7 +87,9 @@ public class Consumer {
                         journal(config.journal()).
                         consumers().
                         consumer(config.id());
-        return context.getFoundationDB().run(tr -> context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join());
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
+        return retry.executeSupplier(() -> TransactionUtil.executeThenCommit(context,
+                tr -> context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join()));
     }
 
     /**
@@ -101,10 +105,11 @@ public class Consumer {
                         cluster(context.getClusterName()).
                         journals().
                         journal(config.journal());
-        return context.getFoundationDB().run(tr -> {
+        Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
+        return retry.executeSupplier(() -> TransactionUtil.executeThenCommit(context, tr -> {
             DirectorySubspace subspace = context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join();
             return new JournalMetadata(subspace);
-        });
+        }));
     }
 
     /**

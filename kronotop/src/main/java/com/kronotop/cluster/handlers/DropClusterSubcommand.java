@@ -23,6 +23,7 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
+import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.*;
@@ -88,7 +89,7 @@ class DropClusterSubcommand extends BaseKrAdminSubcommandHandler implements Subc
                     throw new KronotopException("drop-cluster token has expired");
                 }
 
-                context.getFoundationDB().run(tr -> {
+                TransactionUtil.executeThenCommit(context, tr -> {
                     List<String> subpath = KronotopDirectory.kronotop().cluster(arguments.clusterName).toList();
                     return context.getDirectoryLayer().removeIfExists(tr, subpath).join();
                 });
