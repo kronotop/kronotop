@@ -36,7 +36,6 @@ public class RuntimeMetrics {
     private final NotificationListener listener = this::handleNotification;
     private final List<NotificationEmitter> emitters = new ArrayList<>();
     private final NetworkMetrics networkMetrics = new NetworkMetrics();
-    private final TransactionMetrics transactionMetrics = new TransactionMetrics();
 
     /**
      * Starts metric collection.
@@ -73,10 +72,6 @@ public class RuntimeMetrics {
 
     public NetworkMetrics getNetworkMetrics() {
         return networkMetrics;
-    }
-
-    public TransactionMetrics getTransactionMetrics() {
-        return transactionMetrics;
     }
 
     private void handleNotification(Notification notification, Object handback) {
