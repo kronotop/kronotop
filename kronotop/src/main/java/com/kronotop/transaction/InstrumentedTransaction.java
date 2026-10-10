@@ -23,21 +23,21 @@ import java.util.function.Function;
 
 /**
  * Wraps an FDB {@link Transaction} to collect operation counts, byte volumes,
- * commit latency, and total duration into a {@link TransactionProfile} instance.
+ * commit latency, and total duration into a {@link TransactionMetrics} instance.
  */
 public class InstrumentedTransaction extends InstrumentedReadTransaction<Transaction> implements Transaction {
 
     private ReadTransaction snapshot;
 
     public InstrumentedTransaction(Transaction underlying) {
-        super(underlying, new TransactionProfile());
+        super(underlying, new TransactionMetrics());
     }
 
-    public InstrumentedTransaction(Transaction underlying, TransactionProfile metrics) {
+    public InstrumentedTransaction(Transaction underlying, TransactionMetrics metrics) {
         super(underlying, metrics);
     }
 
-    public TransactionProfile getProfile() {
+    public TransactionMetrics getProfile() {
         return metrics;
     }
 
@@ -182,7 +182,7 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
 
     private static class InstrumentedSnapshot extends InstrumentedReadTransaction<ReadTransaction> implements ReadTransaction {
 
-        InstrumentedSnapshot(ReadTransaction underlying, TransactionProfile metrics) {
+        InstrumentedSnapshot(ReadTransaction underlying, TransactionMetrics metrics) {
             super(underlying, metrics);
         }
 

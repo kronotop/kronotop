@@ -46,7 +46,7 @@ class InstrumentedTransactionTest extends BaseStandaloneInstanceTest {
             tr.set(TEST_KEY, TEST_VALUE);
             tr.commit().join();
 
-            TransactionProfile metrics = tr.getProfile();
+            TransactionMetrics metrics = tr.getProfile();
             assertEquals(1, metrics.getWrites());
         }
     }
@@ -58,7 +58,7 @@ class InstrumentedTransactionTest extends BaseStandaloneInstanceTest {
             tr.set(TEST_KEY, TEST_VALUE);
             tr.commit().join();
 
-            TransactionProfile metrics = tr.getProfile();
+            TransactionMetrics metrics = tr.getProfile();
             assertEquals(TEST_KEY.length + TEST_VALUE.length, metrics.getBytesWritten());
         }
     }
@@ -74,7 +74,7 @@ class InstrumentedTransactionTest extends BaseStandaloneInstanceTest {
         try (InstrumentedTransaction tr = createInstrumentedTransaction()) {
             byte[] result = tr.get(TEST_KEY).join();
 
-            TransactionProfile metrics = tr.getProfile();
+            TransactionMetrics metrics = tr.getProfile();
             assertEquals(1, metrics.getReads());
             assertNotNull(result);
         }
@@ -91,7 +91,7 @@ class InstrumentedTransactionTest extends BaseStandaloneInstanceTest {
         try (InstrumentedTransaction tr = createInstrumentedTransaction()) {
             tr.get(TEST_KEY).join();
 
-            TransactionProfile metrics = tr.getProfile();
+            TransactionMetrics metrics = tr.getProfile();
             assertEquals(TEST_VALUE.length, metrics.getBytesRead());
         }
     }
@@ -277,7 +277,7 @@ class InstrumentedTransactionTest extends BaseStandaloneInstanceTest {
             tr.clear(key2);
             tr.commit().join();
 
-            TransactionProfile m = tr.getProfile();
+            TransactionMetrics m = tr.getProfile();
             assertEquals(2, m.getWrites());
             assertEquals(1, m.getReads());
             assertEquals(1, m.getDeletes());

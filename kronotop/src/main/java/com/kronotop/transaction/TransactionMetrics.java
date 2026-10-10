@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Thread-safe counters for tracking FDB transaction lifecycle metrics:
  * operation counts, byte volumes, timing, and commit status.
  */
-public class TransactionProfile {
+public class TransactionMetrics {
 
     // Operation counters
     private final AtomicLong reads = new AtomicLong();
@@ -45,11 +45,11 @@ public class TransactionProfile {
     private volatile boolean committed;
     private volatile boolean conflicted;
 
-    public TransactionProfile() {
+    public TransactionMetrics() {
         this.startNanos = System.nanoTime();
     }
 
-    TransactionProfile(long startNanos) {
+    TransactionMetrics(long startNanos) {
         this.startNanos = startNanos;
     }
 

@@ -25,7 +25,7 @@ class TransactionProfileTest {
     @Test
     void shouldStartWithZeroCounters() {
         // Behavior: A fresh TransactionProfile instance has all counters at zero and status flags false.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         assertEquals(0, profile.getReads());
         assertEquals(0, profile.getRangeReads());
@@ -44,7 +44,7 @@ class TransactionProfileTest {
     @Test
     void shouldIncrementReads() {
         // Behavior: Each incrementReads call increases the read counter by 1.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         profile.incrementReads();
         profile.incrementReads();
@@ -56,7 +56,7 @@ class TransactionProfileTest {
     @Test
     void shouldIncrementRangeReads() {
         // Behavior: Each incrementRangeReads call increases the range read counter by 1.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         profile.incrementRangeReads();
         profile.incrementRangeReads();
@@ -67,7 +67,7 @@ class TransactionProfileTest {
     @Test
     void shouldIncrementWrites() {
         // Behavior: Each incrementWrites call increases the write counter by 1.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         profile.incrementWrites();
 
@@ -77,7 +77,7 @@ class TransactionProfileTest {
     @Test
     void shouldIncrementDeletes() {
         // Behavior: Each incrementDeletes call increases the delete counter by 1.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         profile.incrementDeletes();
         profile.incrementDeletes();
@@ -88,7 +88,7 @@ class TransactionProfileTest {
     @Test
     void shouldIncrementRangeDeletes() {
         // Behavior: Each incrementRangeDeletes call increases the range delete counter by 1.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         profile.incrementRangeDeletes();
 
@@ -98,7 +98,7 @@ class TransactionProfileTest {
     @Test
     void shouldIncrementMutations() {
         // Behavior: Each incrementMutations call increases the mutation counter by 1.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         profile.incrementMutations();
         profile.incrementMutations();
@@ -110,7 +110,7 @@ class TransactionProfileTest {
     @Test
     void shouldAddBytesRead() {
         // Behavior: addBytesRead accumulates the total bytes read.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         profile.addBytesRead(100);
         profile.addBytesRead(250);
@@ -121,7 +121,7 @@ class TransactionProfileTest {
     @Test
     void shouldAddBytesWritten() {
         // Behavior: addBytesWritten accumulates the total bytes written.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         profile.addBytesWritten(512);
         profile.addBytesWritten(1024);
@@ -132,7 +132,7 @@ class TransactionProfileTest {
     @Test
     void shouldRecordCommitLatency() {
         // Behavior: recordCommitLatency stores the provided nanosecond value.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         profile.recordCommitLatency(5_000_000L);
 
@@ -142,7 +142,7 @@ class TransactionProfileTest {
     @Test
     void shouldRecordTotalDuration() {
         // Behavior: recordTotalDuration computes elapsed time since construction.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         // Let some time pass
         long before = System.nanoTime();
@@ -156,7 +156,7 @@ class TransactionProfileTest {
     @Test
     void shouldMarkCommitted() {
         // Behavior: markCommitted sets the committed flag to true.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         assertFalse(profile.isCommitted());
         profile.markCommitted();
@@ -166,7 +166,7 @@ class TransactionProfileTest {
     @Test
     void shouldMarkConflicted() {
         // Behavior: markConflicted sets the conflicted flag to true.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
 
         assertFalse(profile.isConflicted());
         profile.markConflicted();
@@ -176,7 +176,7 @@ class TransactionProfileTest {
     @Test
     void shouldProduceReadableToString() {
         // Behavior: toString returns a human-readable summary containing all metric names.
-        TransactionProfile profile = new TransactionProfile();
+        TransactionMetrics profile = new TransactionMetrics();
         profile.incrementReads();
         profile.incrementWrites();
         profile.addBytesRead(42);
