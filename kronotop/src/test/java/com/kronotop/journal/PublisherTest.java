@@ -31,7 +31,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldOrderVersionstampsCorrectlyAcrossTransactions() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
 
         Publisher publisher = journal.getPublisher();
         VersionstampContainer first = publisher.publish(TEST_JOURNAL, "foo");
@@ -44,7 +44,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldOrderVersionstampsCorrectlyWithinSingleTransaction() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
 
         Publisher publisher = journal.getPublisher();
         List<VersionstampContainer> result = new ArrayList<>();
@@ -67,7 +67,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldNotPersistEventWhenTransactionNotCommitted() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
         Publisher publisher = journal.getPublisher();
 
         // Publish in a transaction but don't commit
@@ -89,7 +89,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldIncrementUserVersionForMultipleEventsInSameTransaction() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
         Publisher publisher = journal.getPublisher();
 
         List<VersionstampContainer> containers = new ArrayList<>();
@@ -121,7 +121,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldReturnValidVersionstampContainer() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
         Publisher publisher = journal.getPublisher();
 
         VersionstampContainer result = publisher.publish(TEST_JOURNAL, "test-event");
@@ -139,7 +139,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldEncodeComplexObjectsAsJson() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
         Publisher publisher = journal.getPublisher();
 
         // Publish complex object
@@ -161,7 +161,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldIncrementTriggerCounterForEachPublishedEvent() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
         Publisher publisher = journal.getPublisher();
 
         // Publish multiple events

@@ -528,7 +528,8 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 return;
             }
             try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.DISUSED_PREFIXES.getValue()).trigger());
+                JournalService journal = context.getService(JournalService.NAME);
+                CompletableFuture<Void> watcher = keyWatcher.watch(tr, journal.getJournalMetadata(JournalName.DISUSED_PREFIXES.getValue()).trigger());
                 tr.commit().join();
                 try {
                     fetchDisusedPrefixes();

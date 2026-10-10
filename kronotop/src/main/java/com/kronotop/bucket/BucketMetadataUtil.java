@@ -39,6 +39,7 @@ import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.UUIDUtil;
 import com.kronotop.journal.JournalName;
+import com.kronotop.journal.JournalService;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
@@ -661,7 +662,8 @@ public class BucketMetadataUtil {
                 metadata.uuid(),
                 metadata.version()
         );
-        tx.context().getJournal().getPublisher().publish(tx.tr(), JournalName.BUCKET_EVENTS, event);
+        JournalService journal = tx.context().getService(JournalService.NAME);
+        journal.getPublisher().publish(tx.tr(), JournalName.BUCKET_EVENTS, event);
     }
 
     /**
@@ -677,7 +679,8 @@ public class BucketMetadataUtil {
                 metadata.uuid(),
                 metadata.version()
         );
-        tx.context().getJournal().getPublisher().publish(tx.tr(), JournalName.BUCKET_EVENTS, event);
+        JournalService journal = tx.context().getService(JournalService.NAME);
+        journal.getPublisher().publish(tx.tr(), JournalName.BUCKET_EVENTS, event);
     }
 
     /**
@@ -696,7 +699,8 @@ public class BucketMetadataUtil {
                 indexId,
                 metadata.uuid()
         );
-        tx.context().getJournal().getPublisher().publish(tx.tr(), JournalName.BUCKET_EVENTS, event);
+        JournalService journal = tx.context().getService(JournalService.NAME);
+        journal.getPublisher().publish(tx.tr(), JournalName.BUCKET_EVENTS, event);
     }
 
     /**
@@ -713,7 +717,8 @@ public class BucketMetadataUtil {
                 metadata.name(),
                 metadata.uuid()
         );
-        context.getJournal().getPublisher().publish(tr, JournalName.BUCKET_EVENTS, event);
+        JournalService journal = context.getService(JournalService.NAME);
+        journal.getPublisher().publish(tr, JournalName.BUCKET_EVENTS, event);
     }
 
     /**

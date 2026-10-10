@@ -32,6 +32,7 @@ import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.journal.JournalName;
+import com.kronotop.journal.JournalService;
 import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
 import com.kronotop.task.handlers.TaskNames;
@@ -48,6 +49,7 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(MarkStalePrefixesTask.class);
     private final int batchSize;
     private final Context context;
+    private final JournalService journal;
     private final CountDownLatch latch = new CountDownLatch(1);
     private final DirectorySubspace subspace;
     private volatile boolean shutdown;
@@ -58,6 +60,7 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
 
     protected MarkStalePrefixesTask(Context context, int batchSize) {
         this.context = context;
+        this.journal = context.getService(JournalService.NAME);
         this.batchSize = batchSize;
         this.subspace = TransactionUtil.executeThenCommit(context, (tr) -> {
             DirectorySubspace subspace = openTaskSubspace(tr);
@@ -170,7 +173,7 @@ public class MarkStalePrefixesTask extends BaseTask implements Task {
                         byte[] prefix = (byte[]) prefixesSubspace.unpack(keyValue.getKey()).get(0);
                         if (PrefixUtil.isStale(context, tr, Prefix.fromBytes(prefix))) {
                             tr.clear(keyValue.getKey());
-                            context.getJournal().getPublisher().publish(tr, JournalName.DISUSED_PREFIXES, prefix);
+                            journal.getPublisher().publish(tr, JournalName.DISUSED_PREFIXES, prefix);
                         }
                         latestKey = keyValue.getKey();
                         total++;

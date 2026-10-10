@@ -26,6 +26,7 @@ import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.handlers.protocol.BucketPurgeMessage;
 import com.kronotop.bucket.index.maintenance.IndexTaskUtil;
 import com.kronotop.journal.JournalName;
+import com.kronotop.journal.JournalService;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
@@ -44,6 +45,8 @@ import static com.kronotop.AsyncCommandExecutor.runAsync;
 @MaximumArgumentCount(BucketPurgeMessage.MAXIMUM_ARGUMENT_COUNT)
 @MinimumArgumentCount(BucketPurgeMessage.MINIMUM_ARGUMENT_COUNT)
 public class BucketPurgeHandler extends AbstractBucketHandler {
+    private final JournalService journal = context.getService(JournalService.NAME);
+
     public BucketPurgeHandler(BucketService service) {
         super(service);
     }
@@ -74,7 +77,7 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
                 // Unregister prefix and publish as disused before purge
                 byte[] prefixPointer = BucketMetadataUtil.prefixBindingKey(metadata.pointerSubspace());
                 PrefixUtil.unregister(context, tr, prefixPointer, metadata.prefix());
-                context.getJournal().getPublisher().publish(tr, JournalName.DISUSED_PREFIXES, metadata.prefix().asBytes());
+                journal.getPublisher().publish(tr, JournalName.DISUSED_PREFIXES, metadata.prefix().asBytes());
 
                 IndexTaskUtil.clearBucketTasks(tx, metadata);
                 BucketMetadataUtil.purge(tx, namespace, message.getBucket());

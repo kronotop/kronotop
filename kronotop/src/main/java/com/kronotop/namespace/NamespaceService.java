@@ -245,7 +245,8 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
 
             while (!shutdown) {
                 try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.NAMESPACE_EVENTS.getValue()).trigger());
+                    JournalService journal = context.getService(JournalService.NAME);
+                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, journal.getJournalMetadata(JournalName.NAMESPACE_EVENTS.getValue()).trigger());
                     tr.commit().join();
                     try {
                         // Try to fetch the latest events before start waiting

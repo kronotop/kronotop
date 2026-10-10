@@ -38,6 +38,7 @@ import com.kronotop.journal.Consumer;
 import com.kronotop.journal.ConsumerConfig;
 import com.kronotop.journal.Event;
 import com.kronotop.journal.JournalName;
+import com.kronotop.journal.JournalService;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
 import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.transaction.TransactionUtil;
@@ -269,7 +270,8 @@ public class BucketEventsWatcher implements Runnable {
 
             while (!shutdown) {
                 try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(journalName).trigger());
+                    JournalService journal = context.getService(JournalService.NAME);
+                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, journal.getJournalMetadata(journalName).trigger());
                     // TODO: retry if this fails
                     tr.commit().join();
                     try {

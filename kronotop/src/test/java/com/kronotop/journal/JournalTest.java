@@ -28,7 +28,7 @@ class JournalTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldListJournalsAfterPublishingEvent() {
-        JournalService journal = new JournalService(context.getConfig(), context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
         journal.getPublisher().publish(TEST_JOURNAL, "message");
 
         boolean found = false;

@@ -22,6 +22,7 @@ import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.journal.JournalName;
+import com.kronotop.journal.JournalService;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.namespace.NoSuchNamespaceException;
@@ -37,9 +38,11 @@ import java.util.concurrent.CompletionException;
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
 class RemoveSubcommand extends BaseSubcommand implements SubcommandHandler {
+    private final JournalService journal;
 
     RemoveSubcommand(Context context) {
         super(context);
+        this.journal = context.getService(JournalService.NAME);
     }
 
     private void remove(String namespace, List<String> subpath) {
@@ -50,7 +53,7 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandHandler {
                 throw new NamespaceBeingRemovedException(namespace);
             }
             NamespaceUtil.setRemoved(tr, context, subpath);
-            context.getJournal().getPublisher().publish(tr, JournalName.NAMESPACE_EVENTS, new NamespaceRemovedEvent(metadata.id(), namespace));
+            journal.getPublisher().publish(tr, JournalName.NAMESPACE_EVENTS, new NamespaceRemovedEvent(metadata.id(), namespace));
             tr.commit().join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {

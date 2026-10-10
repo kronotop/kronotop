@@ -19,6 +19,7 @@ package com.kronotop.volume;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.journal.JournalName;
+import com.kronotop.journal.JournalService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -108,7 +109,8 @@ public class VolumeServiceTest extends BaseVolumeTest {
                 volume.append(session, entry);
                 tr.commit().join();
             }
-            context.getJournal().getPublisher().publish(JournalName.DISUSED_PREFIXES, prefix.asBytes());
+            JournalService journal = context.getService(JournalService.NAME);
+            journal.getPublisher().publish(JournalName.DISUSED_PREFIXES, prefix.asBytes());
             await().atMost(Duration.ofSeconds(5)).until(() -> {
                 try (Transaction tr = context.getFoundationDB().createTransaction()) {
                     VolumeSession session = new VolumeSession(tr, prefix);

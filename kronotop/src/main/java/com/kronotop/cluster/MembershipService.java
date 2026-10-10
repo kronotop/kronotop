@@ -58,6 +58,8 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MembershipService.class);
 
+    private final JournalService journal;
+
     private final Context context;
 
     private final MemberRegistry registry;
@@ -90,6 +92,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         super(context, NAME);
 
         this.context = context;
+        this.journal = context.getService(JournalService.NAME);
         this.registry = new MemberRegistry(context);
         this.heartbeatInterval = context.getConfig().getInt("cluster.heartbeat.interval");
         this.heartbeatMaximumSilentPeriod = context.getConfig().getInt("cluster.heartbeat.maximum_silent_period");
@@ -139,7 +142,8 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         initializeInternalState();
 
         // Publish a MemberJoinEvent
-        context.getJournal().getPublisher().publish(JournalName.CLUSTER_EVENTS, new MemberJoinEvent(member));
+        JournalService journal = context.getService(JournalService.NAME);
+        journal.getPublisher().publish(JournalName.CLUSTER_EVENTS, new MemberJoinEvent(member));
         clusterEventsConsumer.start();
 
         ClusterEventsJournalWatcher eventsJournalWatcher = new ClusterEventsJournalWatcher();
@@ -286,7 +290,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
                 try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                     member.setStatus(status);
                     registry.update(tr, member);
-                    context.getJournal().getPublisher().publish(tr, JournalName.CLUSTER_EVENTS, new MemberLeftEvent(member));
+                    journal.getPublisher().publish(tr, JournalName.CLUSTER_EVENTS, new MemberLeftEvent(member));
                     tr.commit().join();
                 } catch (Exception e) {
                     member.setStatus(initialStatus);
@@ -463,7 +467,8 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
 
             while (!shutdown) {
                 try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
-                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, context.getJournal().getJournalMetadata(JournalName.CLUSTER_EVENTS.getValue()).trigger());
+                    JournalService journal = context.getService(JournalService.NAME);
+                    CompletableFuture<Void> watcher = keyWatcher.watch(tr, journal.getJournalMetadata(JournalName.CLUSTER_EVENTS.getValue()).trigger());
                     tr.commit().join();
                     try {
                         // Try to fetch the latest events before start waiting

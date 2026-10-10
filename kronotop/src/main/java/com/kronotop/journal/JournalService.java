@@ -17,17 +17,19 @@
 package com.kronotop.journal;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
 import com.apple.foundationdb.subspace.Subspace;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.kronotop.*;
+import com.kronotop.BaseKronotopService;
+import com.kronotop.ConfigException;
+import com.kronotop.Context;
+import com.kronotop.KronotopException;
+import com.kronotop.KronotopService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.internal.KronotopDirectoryLayer;
 import com.kronotop.transaction.TransactionUtil;
 
 import javax.annotation.Nonnull;
@@ -37,7 +39,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Journal class represents a journal that stores events and allows consumers to consume them.
+ * JournalService stores events and allows consumers to consume them.
  */
 public class JournalService extends BaseKronotopService implements KronotopService {
     public static final String NAME = "Journal";
@@ -86,9 +88,9 @@ public class JournalService extends BaseKronotopService implements KronotopServi
      * @return A list of journal names as strings.
      */
     protected List<String> listJournals(Transaction tr) {
-        KronotopDirectoryNode directory = KronotopDirectory.kronotop().cluster(cluster).journals();
+        KronotopDirectoryNode directory = KronotopDirectory.kronotop().cluster(context.getClusterName()).journals();
         try {
-            DirectorySubspace root = directoryLayer.open(tr, directory.toList()).join();
+            DirectorySubspace root = context.getDirectoryLayer().open(tr, directory.toList()).join();
             return root.list(tr).join();
         } catch (CompletionException e) {
             if (e.getCause() instanceof NoSuchDirectoryException) {
@@ -104,24 +106,18 @@ public class JournalService extends BaseKronotopService implements KronotopServi
      * @return a list of journal names as strings.
      */
     public List<String> listJournals() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(database)) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context.getFoundationDB())) {
             return listJournals(tr);
         }
     }
 
     /**
-     * The JournalMetadataLoader is a private nested class within the Journal class that extends
+     * The JournalMetadataLoader is a private nested class within the JournalService class that extends
      * CacheLoader<String, JournalMetadata>. It is responsible for loading the JournalMetadata for
      * a specific journal from the database.
      */
     // See https://github.com/google/guava/wiki/CachesExplained#when-does-cleanup-happen
     private class JournalMetadataLoader extends CacheLoader<String, JournalMetadata> {
-        private final DirectoryLayer directoryLayer;
-
-        public JournalMetadataLoader(Context context) {
-            this.directoryLayer = KronotopDirectoryLayer.fromConfig(context.getConfig());
-        }
-
         @Override
         public @Nonnull JournalMetadata load(@Nonnull String name) {
             Subspace subspace = context.getFoundationDB().run(tr -> {
@@ -131,7 +127,7 @@ public class JournalService extends BaseKronotopService implements KronotopServi
                                 cluster(context.getClusterName()).
                                 journals().
                                 journal(name);
-                return directoryLayer.createOrOpen(tr, directory.toList()).join();
+                return context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join();
             });
             return new JournalMetadata(subspace);
         }

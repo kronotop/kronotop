@@ -22,6 +22,7 @@ import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.kronotop.Context;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.task.BaseTask;
@@ -50,6 +51,7 @@ public class CleanupJournalTask extends BaseTask implements Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(CleanupJournalTask.class);
 
     private final Duration retentionPeriod;
+    private final Context context;
     private final JournalService journal;
 
     private int counter = 0;
@@ -57,6 +59,7 @@ public class CleanupJournalTask extends BaseTask implements Task {
 
     public CleanupJournalTask(JournalService journal, long retentionPeriod, TimeUnit unit) {
         this.journal = journal;
+        this.context = journal.getContext();
         this.retentionPeriod = Duration.of(retentionPeriod, unit.toChronoUnit());
     }
 
@@ -134,15 +137,15 @@ public class CleanupJournalTask extends BaseTask implements Task {
 
     @Override
     public void task() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(journal.database)) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             tr.options().setPriorityBatch();
             List<String> journals = journal.listJournals(tr);
             for (String journalName : journals) {
                 now = Instant.now().toEpochMilli();
                 counter = 0;
                 KronotopDirectoryNode directory =
-                        KronotopDirectory.kronotop().cluster(journal.cluster).journals().journal(journalName);
-                DirectorySubspace subspace = journal.directoryLayer.open(tr, directory.toList()).join();
+                        KronotopDirectory.kronotop().cluster(context.getClusterName()).journals().journal(journalName);
+                DirectorySubspace subspace = context.getDirectoryLayer().open(tr, directory.toList()).join();
 
                 Range range = findCleanupRange(tr, subspace);
                 if (range != null) {

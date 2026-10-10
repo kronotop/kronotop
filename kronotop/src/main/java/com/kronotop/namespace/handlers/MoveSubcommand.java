@@ -24,6 +24,7 @@ import com.kronotop.AsyncCommandExecutor;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.journal.JournalName;
+import com.kronotop.journal.JournalService;
 import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.namespace.NoSuchNamespaceException;
@@ -38,9 +39,11 @@ import java.util.List;
 import java.util.concurrent.CompletionException;
 
 class MoveSubcommand extends BaseSubcommand implements SubcommandHandler {
+    private final JournalService journal;
 
     MoveSubcommand(Context context) {
         super(context);
+        this.journal = context.getService(JournalService.NAME);
     }
 
     @Override
@@ -58,7 +61,7 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandHandler {
 
                 String oldNamespace = String.join(".", arguments.oldPath);
                 String token = TombstoneManager.setTombstone(context, tr, oldNamespace);
-                context.getJournal().getPublisher().publish(
+                journal.getPublisher().publish(
                         tr,
                         JournalName.NAMESPACE_EVENTS,
                         new NamespaceMovedEvent(oldNamespace, token)

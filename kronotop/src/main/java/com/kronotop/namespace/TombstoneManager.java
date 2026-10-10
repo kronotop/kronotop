@@ -28,6 +28,7 @@ import com.kronotop.cluster.MemberView;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.journal.JournalName;
+import com.kronotop.journal.JournalService;
 import com.kronotop.namespace.handlers.NamespaceMovedEvent;
 import com.kronotop.namespace.handlers.Tombstone;
 
@@ -130,7 +131,8 @@ public class TombstoneManager {
             for (Map.Entry<Member, MemberView> entry : membership.getKnownMembers().entrySet()) {
                 if (entry.getValue().isAlive() && !observers.contains(entry.getKey().getId())) {
                     // Trigger the cluster again, the following method uses its own transaction.
-                    context.getJournal().getPublisher().publish(
+                    JournalService journal = context.getService(JournalService.NAME);
+                    journal.getPublisher().publish(
                             JournalName.NAMESPACE_EVENTS,
                             new NamespaceMovedEvent(namespace, token)
                     );

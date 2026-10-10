@@ -49,7 +49,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldEvictAllExpiredEntries() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             for (int i = 0; i < 3; i++) {
@@ -67,7 +67,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldNotEvictJournalEntryWhenWithinTTL() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             journal.getPublisher().publish(tr, TEST_JOURNAL, "message");
@@ -83,7 +83,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldEvictOnlyExpiredEntries() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
 
         // Publish first batch of entries
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
@@ -115,7 +115,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldHandleEmptyJournal() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
 
         // Create the journal without publishing any entries
         journal.getJournalMetadata(TEST_JOURNAL);
@@ -127,7 +127,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldCleanupMultipleJournals() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
         String journal1 = "cleanup-test-journal-1";
         String journal2 = "cleanup-test-journal-2";
 
@@ -163,7 +163,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldNeverComplete() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
 
         CleanupJournalTask task = new CleanupJournalTask(journal, 1, TimeUnit.HOURS);
 
@@ -178,7 +178,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldHandleShutdownGracefully() {
-        JournalService journal = new JournalService(config, context.getFoundationDB());
+        JournalService journal = context.getService(JournalService.NAME);
 
         CleanupJournalTask task = new CleanupJournalTask(journal, 1, TimeUnit.HOURS);
 
