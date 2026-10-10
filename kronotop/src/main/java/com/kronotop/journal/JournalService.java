@@ -16,7 +16,6 @@
 
 package com.kronotop.journal;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -25,13 +24,11 @@ import com.apple.foundationdb.subspace.Subspace;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.kronotop.ConfigException;
-import com.kronotop.KronotopException;
+import com.kronotop.*;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.KronotopDirectoryLayer;
 import com.kronotop.transaction.TransactionUtil;
-import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
 import java.util.List;
@@ -42,24 +39,21 @@ import java.util.concurrent.TimeUnit;
 /**
  * Journal class represents a journal that stores events and allows consumers to consume them.
  */
-public class Journal {
-    protected final String cluster;
-    protected final Database database;
-    protected final DirectoryLayer directoryLayer;
+public class JournalService extends BaseKronotopService implements KronotopService {
+    public static final String NAME = "Journal";
+
     private final Publisher publisher;
     private final LoadingCache<String, JournalMetadata> journalMetadataCache;
 
-    public Journal(Config config, Database database) {
-        if (!config.hasPath("cluster.name")) {
+    public JournalService(Context context) {
+        super(context, NAME);
+        if (!context.getConfig().hasPath("cluster.name")) {
             throw new ConfigException("cluster.name is missing in configuration");
         }
-        this.cluster = config.getString("cluster.name");
-        this.database = database;
-        this.directoryLayer = KronotopDirectoryLayer.fromConfig(config);
         this.journalMetadataCache = CacheBuilder.newBuilder()
                 .expireAfterAccess(10, TimeUnit.MINUTES)
                 .build(new JournalMetadataLoader());
-        this.publisher = new Publisher(database, journalMetadataCache);
+        this.publisher = new Publisher(context, journalMetadataCache);
     }
 
     /**
@@ -122,13 +116,19 @@ public class Journal {
      */
     // See https://github.com/google/guava/wiki/CachesExplained#when-does-cleanup-happen
     private class JournalMetadataLoader extends CacheLoader<String, JournalMetadata> {
+        private final DirectoryLayer directoryLayer;
+
+        public JournalMetadataLoader(Context context) {
+            this.directoryLayer = KronotopDirectoryLayer.fromConfig(context.getConfig());
+        }
+
         @Override
         public @Nonnull JournalMetadata load(@Nonnull String name) {
-            Subspace subspace = database.run(tr -> {
+            Subspace subspace = context.getFoundationDB().run(tr -> {
                 KronotopDirectoryNode directory =
                         KronotopDirectory.
                                 kronotop().
-                                cluster(cluster).
+                                cluster(context.getClusterName()).
                                 journals().
                                 journal(name);
                 return directoryLayer.createOrOpen(tr, directory.toList()).join();

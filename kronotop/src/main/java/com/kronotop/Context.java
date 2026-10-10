@@ -24,7 +24,6 @@ import com.kronotop.cluster.ShardRegistry;
 import com.kronotop.cluster.client.InternalClientPool;
 import com.kronotop.commands.CommandMetadata;
 import com.kronotop.internal.DirectorySubspaceCache;
-import com.kronotop.journal.Journal;
 import com.kronotop.metrics.RuntimeMetrics;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
@@ -151,13 +150,6 @@ public interface Context {
      * @return the list of Kronotop services
      */
     List<KronotopService> getServices();
-
-    /**
-     * Retrieves the Journal object associated with the Context.
-     *
-     * @return The Journal object.
-     */
-    Journal getJournal();
 
     /**
      * Returns the metadata of the commands exposed by the given server kind.

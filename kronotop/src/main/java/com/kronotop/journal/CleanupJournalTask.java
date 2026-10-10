@@ -43,19 +43,19 @@ import java.util.concurrent.TimeUnit;
  * <p>This task iterates through all registered journals and clears entries whose timestamps
  * exceed the retention period. It runs continuously and never completes.</p>
  *
- * @see Journal
+ * @see JournalService
  * @see Entry
  */
 public class CleanupJournalTask extends BaseTask implements Task {
     private static final Logger LOGGER = LoggerFactory.getLogger(CleanupJournalTask.class);
 
     private final Duration retentionPeriod;
-    private final Journal journal;
+    private final JournalService journal;
 
     private int counter = 0;
     private long now;
 
-    public CleanupJournalTask(Journal journal, long retentionPeriod, TimeUnit unit) {
+    public CleanupJournalTask(JournalService journal, long retentionPeriod, TimeUnit unit) {
         this.journal = journal;
         this.retentionPeriod = Duration.of(retentionPeriod, unit.toChronoUnit());
     }

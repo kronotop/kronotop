@@ -37,7 +37,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldConsumeAllEventsWhenOffsetIsEarliest() {
-        Journal journal = new Journal(config, context.getFoundationDB());
+        JournalService journal = new JournalService(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
         List<String> expectedEvents = new ArrayList<>();
@@ -68,7 +68,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldConsumeNothingWhenOffsetIsLatestAndEventsAlreadyPublished() {
-        Journal journal = new Journal(config, context.getFoundationDB());
+        JournalService journal = new JournalService(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
         for (String event : EVENTS) {
@@ -86,7 +86,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldConsumeNewEventsWhenOffsetIsLatestAndConsumerStartedFirst() {
-        Journal journal = new Journal(config, context.getFoundationDB());
+        JournalService journal = new JournalService(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
         ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.LATEST);
@@ -117,7 +117,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldResumeFromLastCommittedOffsetWhenOffsetIsResume() {
-        Journal journal = new Journal(config, context.getFoundationDB());
+        JournalService journal = new JournalService(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
         String firstEvent = "first-message";
@@ -151,7 +151,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         // Behavior: LATEST consumer that restarts anchors to the journal tail and ignores a stale
         // persisted checkpoint, so events published while it was down are not replayed. Only events
         // published after the restart are delivered.
-        Journal journal = new Journal(config, context.getFoundationDB());
+        JournalService journal = new JournalService(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
         ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.LATEST);
@@ -191,7 +191,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldConsumeSameEventWhenNotMarkedAsConsumed() {
-        Journal journal = new Journal(config, context.getFoundationDB());
+        JournalService journal = new JournalService(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
         String firstEvent = "first-message";
@@ -238,7 +238,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldRewindOffsetWhenTransactionFails() {
-        Journal journal = new Journal(config, context.getFoundationDB());
+        JournalService journal = new JournalService(config, context.getFoundationDB());
         Publisher publisher = journal.getPublisher();
 
         // Publish two events

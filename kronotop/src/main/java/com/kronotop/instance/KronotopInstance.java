@@ -35,6 +35,7 @@ import com.kronotop.internal.FoundationDBFactory;
 import com.kronotop.internal.ProcessIdGenerator;
 import com.kronotop.internal.ProcessIdGeneratorImpl;
 import com.kronotop.journal.CleanupJournalTask;
+import com.kronotop.journal.JournalService;
 import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.namespace.NamespaceService;
 import com.kronotop.namespace.NamespaceUtil;
@@ -106,6 +107,9 @@ public class KronotopInstance {
      */
     private void registerKronotopServices() {
         // Registration sort is important here.
+
+        JournalService journal = new JournalService(context);
+        context.registerService(JournalService.NAME, journal);
 
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
@@ -344,7 +348,8 @@ public class KronotopInstance {
         String timeunit = config.getString("background_tasks.journal_cleanup_task.timeunit");
 
         try {
-            CleanupJournalTask cleanupTask = new CleanupJournalTask(context.getJournal(), retentionPeriod, TaskService.timeUnitOf(timeunit));
+            JournalService journal = context.getService(JournalService.NAME);
+            CleanupJournalTask cleanupTask = new CleanupJournalTask(journal, retentionPeriod, TaskService.timeUnitOf(timeunit));
             journalCleanupTaskFuture = taskService.scheduleAtFixedRate(cleanupTask, 1, 1, TimeUnit.DAYS);
         } catch (IllegalArgumentException e) {
             throw new KronotopException("Invalid timeunit: " + timeunit, e);

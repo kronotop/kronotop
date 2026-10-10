@@ -26,7 +26,6 @@ import com.kronotop.commands.CommandMetadata;
 import com.kronotop.commands.CommandMetadataLoader;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.KronotopDirectoryLayer;
-import com.kronotop.journal.Journal;
 import com.kronotop.metrics.RuntimeMetrics;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
@@ -62,7 +61,6 @@ public class ContextImpl implements Context {
     private final EnumMap<ServerKind, CommandHandlerRegistry> handlers = new EnumMap<>(ServerKind.class);
     private final LinkedHashMap<String, KronotopService> services = new LinkedHashMap<>();
     private final String clusterName;
-    private final Journal journal;
     private final WorkerRegistry workerRegistry;
     private final EnumMap<ServerKind, Map<String, CommandMetadata>> commandMetadata = CommandMetadataLoader.load();
     private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
@@ -107,7 +105,6 @@ public class ContextImpl implements Context {
         this.member = member;
         this.database = database;
         this.directoryLayer = KronotopDirectoryLayer.fromConfig(config);
-        this.journal = new Journal(config, database);
         this.workerRegistry = new WorkerRegistry();
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
         this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database, directoryLayer);
@@ -188,11 +185,6 @@ public class ContextImpl implements Context {
 
     public List<KronotopService> getServices() {
         return new ArrayList<>(services.values());
-    }
-
-    @Override
-    public Journal getJournal() {
-        return journal;
     }
 
     @Override

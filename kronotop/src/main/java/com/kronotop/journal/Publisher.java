@@ -16,7 +16,6 @@
 
 package com.kronotop.journal;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.subspace.Subspace;
@@ -25,6 +24,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.transaction.TransactionUtil;
@@ -45,12 +45,12 @@ import java.util.function.Function;
 public class Publisher {
     private static final Logger LOGGER = LoggerFactory.getLogger(Publisher.class);
     private static final byte[] TRIGGER_DELTA = new byte[]{1, 0, 0, 0}; // 1, byte order: little-endian
-    private final Database database;
+    private final Context context;
     private final LoadingCache<String, JournalMetadata> cache;
     private final LoadingCache<Long, AtomicInteger> userVersions;
 
-    Publisher(Database database, LoadingCache<String, JournalMetadata> cache) {
-        this.database = database;
+    Publisher(Context context, LoadingCache<String, JournalMetadata> cache) {
+        this.context = context;
         this.cache = cache;
         this.userVersions = CacheBuilder.newBuilder()
                 .expireAfterAccess(10, TimeUnit.SECONDS)
@@ -151,7 +151,7 @@ public class Publisher {
      * @return The result produced by the provided function after the transaction is committed.
      */
     private <T> T executeThenCommit(Function<? super Transaction, T> action) {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(database)) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context.getFoundationDB())) {
             T result = action.apply(tr);
             tr.commit().join();
             return result;
