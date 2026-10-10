@@ -106,7 +106,7 @@ public class JournalService extends BaseKronotopService implements KronotopServi
      * @return a list of journal names as strings.
      */
     public List<String> listJournals() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context.getFoundationDB())) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             return listJournals(tr);
         }
     }

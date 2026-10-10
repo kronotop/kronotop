@@ -76,10 +76,6 @@ public class TransactionUtil {
         return new InstrumentedTransaction(context.getFoundationDB().createTransaction(executor));
     }
 
-    public static InstrumentedTransaction createInstrumentedTransaction(Database database) {
-        return new InstrumentedTransaction(database.createTransaction());
-    }
-
     /**
      * Adds a post-commit hook to the session. Post-commit hooks are executed
      * after a transaction has been successfully committed.

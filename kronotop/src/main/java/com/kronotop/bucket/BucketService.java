@@ -301,7 +301,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         );
         // Replay the FAILED_OP_LOG
         FailedOps failedOps = ReplayFailedOpsLog.replay(
-                context.getFoundationDB(),
+                context,
                 group,
                 onHeap,
                 vectorIndex.subspace(),
@@ -340,7 +340,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 }
 
                 FailedOps failedOps = VectorIndexCrashRecovery.recover(
-                        context.getFoundationDB(),
+                        context,
                         vectorIndex.subspace(),
                         group,
                         definition.dimensions(),

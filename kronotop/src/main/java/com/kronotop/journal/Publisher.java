@@ -151,7 +151,7 @@ public class Publisher {
      * @return The result produced by the provided function after the transaction is committed.
      */
     private <T> T executeThenCommit(Function<? super Transaction, T> action) {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context.getFoundationDB())) {
+        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
             T result = action.apply(tr);
             tr.commit().join();
             return result;

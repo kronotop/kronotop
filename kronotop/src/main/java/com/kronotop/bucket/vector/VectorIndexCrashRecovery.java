@@ -24,6 +24,7 @@ import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
+import com.kronotop.Context;
 import com.kronotop.bucket.index.IndexEntry;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.bucket.index.MutationLogValue;
@@ -123,7 +124,7 @@ public final class VectorIndexCrashRecovery {
      * @return the adds and deletes that failed to apply
      */
     public static FailedOps recover(
-            Database db,
+            Context context,
             DirectorySubspace indexSubspace,
             VectorGraphIndexGroup group,
             int dimensions,
@@ -157,7 +158,7 @@ public final class VectorIndexCrashRecovery {
         List<FailedOps.Delete> failedDeletes = new ArrayList<>();
         while (true) {
             List<KeyValue> page;
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(db)) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 page = tr.getRange(begin, end, PAGE_SIZE).asList().join();
             }
 

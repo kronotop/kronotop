@@ -121,14 +121,14 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(2, recovered.size());
-        assertTrue(recovered.getMetadata().findNodeRef(oid1) != null);
-        assertTrue(recovered.getMetadata().findNodeRef(oid2) != null);
+        assertNotNull(recovered.getMetadata().findNodeRef(oid1));
+        assertNotNull(recovered.getMetadata().findNodeRef(oid2));
         group.closeAll();
     }
 
@@ -206,14 +206,14 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Recover — should only get oid2
         VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(1, recovered.size());
         assertNull(recovered.getMetadata().findNodeRef(oid1));
-        assertTrue(recovered.getMetadata().findNodeRef(oid2) != null);
+        assertNotNull(recovered.getMetadata().findNodeRef(oid2));
         group.closeAll();
     }
 
@@ -246,7 +246,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
@@ -267,7 +267,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         FailedOps failedOps = VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
@@ -321,7 +321,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
@@ -379,15 +379,15 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         // Empty group — no on-disk files
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(3, recovered.size());
-        assertTrue(recovered.getMetadata().findNodeRef(oid1) != null);
-        assertTrue(recovered.getMetadata().findNodeRef(oid2) != null);
-        assertTrue(recovered.getMetadata().findNodeRef(oid3) != null);
+        assertNotNull(recovered.getMetadata().findNodeRef(oid1));
+        assertNotNull(recovered.getMetadata().findNodeRef(oid2));
+        assertNotNull(recovered.getMetadata().findNodeRef(oid3));
         group.closeAll();
     }
 
@@ -409,7 +409,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 5, 1
         );
 
@@ -442,7 +442,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 5, 1
         );
 
@@ -540,7 +540,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Run crash recovery
         VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
@@ -604,8 +604,8 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getFirst();
         assertEquals(2, recovered.size());
-        assertTrue(recovered.getMetadata().findNodeRef(oid1) != null);
-        assertTrue(recovered.getMetadata().findNodeRef(oid2) != null);
+        assertNotNull(recovered.getMetadata().findNodeRef(oid1));
+        assertNotNull(recovered.getMetadata().findNodeRef(oid2));
 
         // Verify recovered vectors are searchable
         List<MergedNodeScore> results = group.searchAll(TEST_VECTOR_1, 2, 0.0f, 1.0f);
@@ -648,7 +648,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         assertTrue(group.isReady());
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getFirst();
         assertEquals(1, recovered.size());
-        assertTrue(recovered.getMetadata().findNodeRef(oid) != null);
+        assertNotNull(recovered.getMetadata().findNodeRef(oid));
 
         // Verify recovered vector is searchable with correct similarity
         List<MergedNodeScore> results = group.searchAll(TEST_VECTOR_3, 1, 0.0f, 1.0f);
@@ -902,7 +902,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         FailedOps failedOps = VectorIndexCrashRecovery.recover(
-                context.getFoundationDB(), vectorIndex.subspace(), group,
+                context, vectorIndex.subspace(), group,
                 DIMENSIONS, VectorSimilarityFunction.COSINE, executor, 0, 6
         );
 
@@ -911,7 +911,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex recovered = group.getOnHeapIndexes().getLast();
         assertEquals(total, recovered.size());
         for (ObjectId oid : oids) {
-            assertTrue(recovered.getMetadata().findNodeRef(oid) != null);
+            assertNotNull(recovered.getMetadata().findNodeRef(oid));
         }
         assertEquals(expected, recovered.getLatestVersionstamp());
         group.closeAll();

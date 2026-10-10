@@ -35,7 +35,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -98,7 +97,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldReplayFailedInserts() throws IOException {
+    void shouldReplayFailedInserts() {
         // Behavior: INSERT entries in the FAILED_OP_LOG are added to the on-heap index, and the latest versionstamp advances.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -122,19 +121,19 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         group.addOnHeap(onHeap);
 
         FailedOps failedOps = ReplayFailedOpsLog.replay(
-                context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
+                context, group, onHeap, vectorIndex.subspace(), executor);
 
         assertTrue(failedOps.adds().isEmpty());
         assertTrue(failedOps.deletes().isEmpty());
         assertEquals(2, onHeap.size());
-        assertTrue(onHeap.getMetadata().findNodeRef(oid1) != null);
+        assertNotNull(onHeap.getMetadata().findNodeRef(oid1));
         assertTrue(onHeap.getMetadata().findNodeRef(oid2).ordinal() > 0);
         assertEquals(vs2, onHeap.getLatestVersionstamp());
         group.closeAll();
     }
 
     @Test
-    void shouldReplayFailedDeleteOnHeap() throws IOException {
+    void shouldReplayFailedDeleteOnHeap() {
         // Behavior: A DELETE entry in the FAILED_OP_LOG removes the node mapping from the on-heap index.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -146,7 +145,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         group.addOnHeap(onHeap);
         onHeap.addGraphNode(oid, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
-        assertTrue(onHeap.getMetadata().findNodeRef(oid) != null);
+        assertNotNull(onHeap.getMetadata().findNodeRef(oid));
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), vs, oid.toByteArray());
@@ -154,7 +153,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         }
 
         FailedOps failedOps = ReplayFailedOpsLog.replay(
-                context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
+                context, group, onHeap, vectorIndex.subspace(), executor);
 
         assertTrue(failedOps.adds().isEmpty());
         assertTrue(failedOps.deletes().isEmpty());
@@ -163,7 +162,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldNotReplayStaleDeleteAgainstNewerOnDiskNode() throws IOException {
+    void shouldNotReplayStaleDeleteAgainstNewerOnDiskNode() {
         // Behavior: A DELETE entry in the FAILED_OP_LOG that is older than the on-disk node of the same object
         // leaves the node alive. A newer DELETE entry marks the node deleted.
         VectorIndex vectorIndex = createVectorIndex();
@@ -188,7 +187,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
         FailedOps failedOps = ReplayFailedOpsLog.replay(
-                context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
+                context, group, onHeap, vectorIndex.subspace(), executor);
         assertTrue(failedOps.deletes().isEmpty());
         assertNotNull(onDisk.getMetadata().findDocumentLocation(ref.ordinal()));
 
@@ -197,14 +196,14 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
             tr.commit().join();
         }
         failedOps = ReplayFailedOpsLog.replay(
-                context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
+                context, group, onHeap, vectorIndex.subspace(), executor);
         assertTrue(failedOps.deletes().isEmpty());
         assertNull(onDisk.getMetadata().findDocumentLocation(ref.ordinal()));
         group.closeAll();
     }
 
     @Test
-    void shouldReturnEmptyFailedOpsWhenLogIsEmpty() throws IOException {
+    void shouldReturnEmptyFailedOpsWhenLogIsEmpty() {
         // Behavior: An empty FAILED_OP_LOG leaves the on-heap index unchanged and returns empty lists.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -214,7 +213,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         group.addOnHeap(onHeap);
 
         FailedOps failedOps = ReplayFailedOpsLog.replay(
-                context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
+                context, group, onHeap, vectorIndex.subspace(), executor);
 
         assertTrue(failedOps.adds().isEmpty());
         assertTrue(failedOps.deletes().isEmpty());
@@ -224,7 +223,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldKeepLogEntriesAfterReplay() throws IOException {
+    void shouldKeepLogEntriesAfterReplay() {
         // Behavior: Replay does not remove entries from the FAILED_OP_LOG.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -241,7 +240,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         VectorGraphIndexGroup group = new VectorGraphIndexGroup(context, metadata, vectorIndex);
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         group.addOnHeap(onHeap);
-        ReplayFailedOpsLog.replay(context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
+        ReplayFailedOpsLog.replay(context, group, onHeap, vectorIndex.subspace(), executor);
 
         assertEquals(1, readFailedOpLog(vectorIndex).size());
         assertEquals(1, onHeap.size());
@@ -249,7 +248,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
-    void shouldReplayLogLargerThanOnePage() throws IOException {
+    void shouldReplayLogLargerThanOnePage() {
         // Behavior: A FAILED_OP_LOG larger than one page is replayed completely across several transactions.
         VectorIndex vectorIndex = createVectorIndex();
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
@@ -271,12 +270,12 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         group.addOnHeap(onHeap);
         FailedOps failedOps = ReplayFailedOpsLog.replay(
-                context.getFoundationDB(), group, onHeap, vectorIndex.subspace(), executor);
+                context, group, onHeap, vectorIndex.subspace(), executor);
 
         assertTrue(failedOps.adds().isEmpty());
         assertEquals(total, onHeap.size());
         for (ObjectId oid : oids) {
-            assertTrue(onHeap.getMetadata().findNodeRef(oid) != null);
+            assertNotNull(onHeap.getMetadata().findNodeRef(oid));
         }
         assertEquals(versionstamp(total), onHeap.getLatestVersionstamp());
         group.closeAll();

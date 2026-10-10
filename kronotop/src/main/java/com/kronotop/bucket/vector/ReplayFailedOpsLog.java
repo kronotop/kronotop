@@ -23,6 +23,7 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
+import com.kronotop.Context;
 import com.kronotop.bucket.index.IndexSubspaceMagic;
 import com.kronotop.transaction.TransactionUtil;
 
@@ -44,7 +45,7 @@ public final class ReplayFailedOpsLog {
      * @return the adds and deletes that failed to apply again
      */
     public static FailedOps replay(
-            Database db,
+            Context context,
             VectorGraphIndexGroup group,
             OnHeapVectorGraphIndex onHeap,
             DirectorySubspace indexSubspace,
@@ -59,7 +60,7 @@ public final class ReplayFailedOpsLog {
         boolean replayed = false;
         while (true) {
             List<KeyValue> page;
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(db)) {
+            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
                 page = tr.getRange(begin, end, PAGE_SIZE).asList().join();
             }
             if (page.isEmpty()) {
