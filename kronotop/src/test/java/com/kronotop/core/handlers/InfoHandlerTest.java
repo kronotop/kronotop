@@ -276,13 +276,18 @@ class InfoHandlerTest extends BaseHandlerTest {
         long nonHeapCommitted = longField(info, "non_heap_committed_memory");
         assertTrue(nonHeapUsed > 0);
         assertTrue(nonHeapCommitted >= nonHeapUsed);
-        assertTrue(longField(info, "non_heap_max_memory") >= -1);
+        long nonHeapMax = longField(info, "non_heap_max_memory");
+        assertTrue(nonHeapMax >= -1);
+        if (nonHeapMax == -1) {
+            assertEquals("unlimited", fieldValue(info, "non_heap_max_memory_human"));
+        }
 
         for (String pool : List.of("direct_buffer", "mapped_buffer")) {
             assertTrue(longField(info, pool + "_count") >= 0, pool);
-            assertTrue(longField(info, pool + "_used_memory") >= -1, pool);
             assertTrue(longField(info, pool + "_total_capacity") >= 0, pool);
         }
+        assertTrue(longField(info, "direct_buffer_used_memory") >= -1);
+        assertNull(fieldValue(info, "mapped_buffer_used_memory"));
 
         assertTrue(longField(info, "netty_used_direct_memory") >= 0);
         assertTrue(longField(info, "netty_used_heap_memory") >= 0);
@@ -297,7 +302,7 @@ class InfoHandlerTest extends BaseHandlerTest {
                 "non_heap_max_memory_human",
                 "total_allocated_memory_human",
                 "direct_buffer_used_memory_human", "direct_buffer_total_capacity_human",
-                "mapped_buffer_used_memory_human", "mapped_buffer_total_capacity_human",
+                "mapped_buffer_total_capacity_human",
                 "netty_used_direct_memory_human", "netty_used_heap_memory_human", "gc_freed_memory_human")) {
             assertFalse(Objects.requireNonNull(fieldValue(info, field)).isBlank(), field);
         }

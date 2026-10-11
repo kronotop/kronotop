@@ -100,6 +100,13 @@ public class InfoHandler implements Handler {
         return now.getEpochSecond() * 1_000_000L + now.getNano() / 1_000L;
     }
 
+    /**
+     * Formats a JVM memory limit. A limit of -1 means the JVM does not define one.
+     */
+    private static String formatLimit(long max) {
+        return max == -1 ? "unlimited" : KronotopInstanceStarter.formatBytes(max);
+    }
+
     private static String listener(String name, Address bind, List<Address> advertise) {
         StringBuilder sb = new StringBuilder();
         sb.append("name=").append(name);
@@ -243,7 +250,7 @@ public class InfoHandler implements Handler {
         collector.put(MEMORY_SECTION, "heap_committed_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getCommitted()));
 
         collector.put(MEMORY_SECTION, "heap_max_memory", heapMemoryUsage.getMax());
-        collector.put(MEMORY_SECTION, "heap_max_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getMax()));
+        collector.put(MEMORY_SECTION, "heap_max_memory_human", formatLimit(heapMemoryUsage.getMax()));
 
         MemoryUsage nonHeapMemoryUsage = memoryMXBean.getNonHeapMemoryUsage();
         collector.put(MEMORY_SECTION, "non_heap_used_memory", nonHeapMemoryUsage.getUsed());
@@ -253,7 +260,7 @@ public class InfoHandler implements Handler {
         collector.put(MEMORY_SECTION, "non_heap_committed_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getCommitted()));
 
         collector.put(MEMORY_SECTION, "non_heap_max_memory", nonHeapMemoryUsage.getMax());
-        collector.put(MEMORY_SECTION, "non_heap_max_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getMax()));
+        collector.put(MEMORY_SECTION, "non_heap_max_memory_human", formatLimit(nonHeapMemoryUsage.getMax()));
 
         for (BufferPoolMXBean bufferPool : ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)) {
             String prefix = switch (bufferPool.getName()) {
@@ -266,8 +273,11 @@ public class InfoHandler implements Handler {
             }
             collector.put(MEMORY_SECTION, prefix + "_count", bufferPool.getCount());
 
-            collector.put(MEMORY_SECTION, prefix + "_used_memory", bufferPool.getMemoryUsed());
-            collector.put(MEMORY_SECTION, prefix + "_used_memory_human", KronotopInstanceStarter.formatBytes(bufferPool.getMemoryUsed()));
+            // The JVM reports the whole mapped range as used, so the field adds nothing for mapped files
+            if (bufferPool.getName().equals("direct")) {
+                collector.put(MEMORY_SECTION, prefix + "_used_memory", bufferPool.getMemoryUsed());
+                collector.put(MEMORY_SECTION, prefix + "_used_memory_human", KronotopInstanceStarter.formatBytes(bufferPool.getMemoryUsed()));
+            }
 
             collector.put(MEMORY_SECTION, prefix + "_total_capacity", bufferPool.getTotalCapacity());
             collector.put(MEMORY_SECTION, prefix + "_total_capacity_human", KronotopInstanceStarter.formatBytes(bufferPool.getTotalCapacity()));
