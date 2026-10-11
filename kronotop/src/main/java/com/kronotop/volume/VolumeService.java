@@ -133,6 +133,7 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
      * If the service is shut down, no further actions are initiated by the watcher.
      * The watcher reschedules itself upon completion unless the service has been shut down.
      */
+    @Override
     public void start() {
         disusedPrefixesConsumer.start();
 

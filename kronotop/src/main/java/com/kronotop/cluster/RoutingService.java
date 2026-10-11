@@ -109,6 +109,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
      * starts the {@link RoutingEventsWatcher}. Otherwise, starts the
      * {@link ClusterInitializationWatcher} to wait for cluster initialization.
      */
+    @Override
     public void start() {
         Attribute<Boolean> clusterInitialized = context.getMemberAttributes().attr(MemberAttributes.CLUSTER_INITIALIZED);
         clusterInitialized.set(isClusterInitialized_internal());

@@ -76,6 +76,7 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
         handlerMethod(ServerKind.EXTERNAL, new NamespaceHandler(this));
     }
 
+    @Override
     public void start() {
         namespaceEventsConsumer.start();
 

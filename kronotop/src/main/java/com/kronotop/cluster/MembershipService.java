@@ -131,6 +131,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      *
      * @throws MemberAlreadyRunningException if a member with the same ID is already RUNNING
      */
+    @Override
     public void start() {
         Member member = context.getMember();
         member.setStatus(MemberStatus.RUNNING);

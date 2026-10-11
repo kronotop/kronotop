@@ -153,6 +153,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     // controlled registration here. Not part of the service's public surface and
     // not intended for production use.
     void registerReplicationWatchDog(ShardKind shardKind, int shardId, ReplicationWatchDog watchDog) {
+        // TODO: Unused in production
         rwlock.writeLock().lock();
         try {
             replications.get(shardKind).put(shardId, watchDog);
@@ -161,6 +162,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
         }
     }
 
+    @Override
     public void start() {
         for (ShardKind shardKind : context.getShardRegistry().getShardKinds()) {
             List<Integer> shardIds = context.getShardRegistry().getShardIds(shardKind);

@@ -113,8 +113,8 @@ public class KronotopInstance {
         Watcher watcher = new Watcher();
         context.registerService(Watcher.NAME, watcher);
 
-        CoreService baseService = new CoreService(context);
-        context.registerService(CoreService.NAME, baseService);
+        CoreService coreService = new CoreService(context);
+        context.registerService(CoreService.NAME, coreService);
 
         TaskService taskService = new TaskService(context);
         context.registerService(TaskService.NAME, taskService);

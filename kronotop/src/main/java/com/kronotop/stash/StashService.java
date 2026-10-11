@@ -205,6 +205,7 @@ public class StashService extends ShardOwnerService<StashShard> implements Krono
         }
     }
 
+    @Override
     public void start() {
         for (int shardId = 0; shardId < numberOfShards; shardId++) {
             loadStashShardFromDisk(shardId);

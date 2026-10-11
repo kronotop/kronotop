@@ -31,6 +31,14 @@ public interface KronotopService {
     String getName();
 
     /**
+     * Starts the service. The instance calls this method after all services are
+     * registered in the context, so a service can look up other services here.
+     * The default does nothing.
+     */
+    default void start() {
+    }
+
+    /**
      * Retrieves the context associated with the KronotopService.
      *
      * @return the context associated with the KronotopService
