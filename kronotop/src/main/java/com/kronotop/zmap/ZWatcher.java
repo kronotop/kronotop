@@ -24,6 +24,7 @@ import com.kronotop.KronotopException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.StampedLock;
 
 /**
@@ -44,6 +45,7 @@ public class ZWatcher {
     private final Context context;
     private final ConcurrentHashMap<String, KeyWatch> watches = new ConcurrentHashMap<>();
     private final StampedLock lock = new StampedLock();
+    private final LongAdder fired = new LongAdder();
     private volatile boolean shutdown;
 
     public ZWatcher(Context context) {
@@ -146,10 +148,13 @@ public class ZWatcher {
      * no longer the one mapped to the key leaves the current generation untouched and signals no one.
      * Serialized with registering and leaving through the atomic compute on the key.
      */
-    private void fire(String key, KeyWatch fired, Throwable throwable) {
+    private void fire(String key, KeyWatch expected, Throwable throwable) {
         watches.compute(key, (ignored, current) -> {
-            if (current == null || current != fired) {
+            if (current == null || current != expected) {
                 return current;
+            }
+            if (throwable == null) {
+                fired.increment();
             }
             for (CompletableFuture<Void> signal : current.waiters.values()) {
                 if (throwable == null) {
@@ -215,6 +220,13 @@ public class ZWatcher {
      */
     public int watcherCount() {
         return watches.size();
+    }
+
+    /**
+     * Returns the number of watches that fired with success since the member started.
+     */
+    public long firedCount() {
+        return fired.sum();
     }
 
     /**

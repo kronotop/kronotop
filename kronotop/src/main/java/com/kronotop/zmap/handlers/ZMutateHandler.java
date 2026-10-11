@@ -56,6 +56,7 @@ public class ZMutateHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
+        service.getMetrics().incrementMutations();
         AsyncCommandExecutor.runAsync(context, response, () -> {
             ZMutateMessage message = request.attr(MessageTypes.ZMUTATE).get();
 

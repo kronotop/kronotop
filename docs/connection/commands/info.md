@@ -35,6 +35,7 @@ are separated by an empty line.
 | `Volume`       | `volume_count`, `volume0`, `volume1`, ...                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `Bucket`       | `plan_cache_size`, `plan_cache_hits`, `plan_cache_misses`, `open_cursors`, `bucket_inserts`, `bucket_queries`, `bucket_updates`, `bucket_deletes`, `bucket_advances`, `bucket_vector_searches`, `bucket_purges`, `bucket_removes`, `index_maintenance_workers`, `index_maintenance_processed_entries`, `index_maintenance_retried_conflicts`, `index_maintenance_last_run`                                                                                                                                                                                                                           |
 | `Vector`       | `vector_indexes`, `vector_bytes_used`, `vector_pending_retries`, `vector_retried_ops`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `ZMap`         | `zmap_sets`, `zmap_gets`, `zmap_range_reads`, `zmap_deletes`, `zmap_mutations`, `zmap_watches`, `zmap_watched_keys`, `zmap_watch_waiters`, `zmap_watch_fires` |
 
 Field notes:
 
@@ -103,6 +104,13 @@ Field notes:
   bytes.
 - `vector_pending_retries` counts failed vector node adds and deletes waiting for the background retry.
   `vector_retried_ops` counts the ones the retry replayed with success since the member started.
+- `zmap_sets`, `zmap_gets`, `zmap_range_reads`, `zmap_deletes`, `zmap_mutations` and `zmap_watches` count ZMap command
+  calls on this member, grouped by kind: sets are `ZSET` and the typed `ZSET*` commands, gets are `ZGET`, `ZGETKEY` and
+  the typed `ZGET*` commands, range reads are `ZGETRANGE` and `ZGETRANGESIZE`, deletes are `ZDEL` and `ZDELRANGE`,
+  mutations are `ZMUTATE` and the `ZINC*` commands. One call is one count.
+- `zmap_watched_keys` is the number of distinct keys with an active `ZWATCH`, which equals the number of FoundationDB
+  watches. `zmap_watch_waiters` is the number of clients blocked on them. `zmap_watch_fires` counts the watches that
+  fired with success since the member started. One fire wakes every waiter on the key and counts once.
 
 ## Behavior
 

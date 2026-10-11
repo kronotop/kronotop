@@ -50,6 +50,7 @@ public class ZIncD128Handler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementMutations();
         runAsync(context, response, () -> {
             ZIncD128Message message = request.attr(MessageTypes.ZINCD128).get();
 

@@ -59,6 +59,7 @@ public class InfoHandler implements Handler {
     public static final String VOLUME_SECTION = "Volume";
     public static final String BUCKET_SECTION = "Bucket";
     public static final String VECTOR_SECTION = "Vector";
+    public static final String ZMAP_SECTION = "ZMap";
     public static final String TRAFFIC_SECTION = "Traffic";
     public static final String TRANSACTIONS_SECTION = "Transactions";
     private static final Logger LOGGER = LoggerFactory.getLogger(InfoHandler.class);

@@ -56,6 +56,7 @@ public class ZSetHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
+        service.getMetrics().incrementSets();
         AsyncCommandExecutor.runAsync(context, response, () -> {
             ZSetMessage message = request.attr(MessageTypes.ZSET).get();
 

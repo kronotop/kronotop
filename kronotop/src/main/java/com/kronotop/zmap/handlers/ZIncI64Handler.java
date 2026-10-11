@@ -46,6 +46,7 @@ public class ZIncI64Handler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementMutations();
         runAsync(context, response, () -> {
             ZIncI64Message message = request.attr(MessageTypes.ZINCI64).get();
             Session session = request.getSession();

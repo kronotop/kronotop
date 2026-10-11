@@ -45,6 +45,7 @@ public class ZSetF64Handler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementSets();
         runAsync(context, response, () -> {
             ZSetF64Message message = request.attr(MessageTypes.ZSETF64).get();
             ZMapNumericValueCodec.validateFiniteF64(message.getValue(), "Invalid value: must be a finite IEEE-754 double");

@@ -49,6 +49,7 @@ public class ZDelRangeHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
+        service.getMetrics().incrementDeletes();
         AsyncCommandExecutor.runAsync(context, response, () -> {
             ZDelRangeMessage message = request.attr(MessageTypes.ZDELRANGE).get();
 

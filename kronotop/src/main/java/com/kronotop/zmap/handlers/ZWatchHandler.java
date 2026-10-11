@@ -55,6 +55,8 @@ public class ZWatchHandler extends BaseZMapHandler implements Handler {
             throw new KronotopException("ZWATCH is not allowed within a transaction");
         }
 
+        service.getMetrics().incrementWatches();
+
         ZWatcher zwatcher = service.getZWatcher();
         Channel channel = response.getCtx().channel();
         long clientId = session.getClientId();

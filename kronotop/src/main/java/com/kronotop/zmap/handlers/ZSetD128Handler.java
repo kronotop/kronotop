@@ -46,6 +46,7 @@ public class ZSetD128Handler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementSets();
         runAsync(context, response, () -> {
             ZSetD128Message message = request.attr(MessageTypes.ZSETD128).get();
             Decimal128 parsed = ZMapNumericValueCodec.parseDecimal128(message.getValue());

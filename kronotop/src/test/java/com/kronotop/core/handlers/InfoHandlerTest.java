@@ -478,6 +478,22 @@ class InfoHandlerTest extends BaseHandlerTest {
     }
 
     @Test
+    void shouldReportZMapFields() {
+        // Behavior: the ZMap section reports grouped command counters and the watch state
+        String info = runInfo(getChannel(), "zmap");
+
+        assertTrue(longField(info, "zmap_sets") >= 0);
+        assertTrue(longField(info, "zmap_gets") >= 0);
+        assertTrue(longField(info, "zmap_range_reads") >= 0);
+        assertTrue(longField(info, "zmap_deletes") >= 0);
+        assertTrue(longField(info, "zmap_mutations") >= 0);
+        assertTrue(longField(info, "zmap_watches") >= 0);
+        assertTrue(intField(info, "zmap_watched_keys") >= 0);
+        assertTrue(intField(info, "zmap_watch_waiters") >= 0);
+        assertTrue(longField(info, "zmap_watch_fires") >= 0);
+    }
+
+    @Test
     void shouldKeepClusterSectionMinimal() {
         // Behavior: the Cluster section holds only cluster_enabled, the same shape
         // clients expect from a standalone server

@@ -45,6 +45,7 @@ public class ZIncF64Handler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementMutations();
         runAsync(context, response, () -> {
             ZIncF64Message message = request.attr(MessageTypes.ZINCF64).get();
             double delta = message.getValue();

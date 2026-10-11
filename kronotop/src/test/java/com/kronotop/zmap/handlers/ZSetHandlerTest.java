@@ -39,6 +39,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class ZSetHandlerTest extends BaseHandlerTest {
@@ -72,6 +73,31 @@ class ZSetHandlerTest extends BaseHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         SimpleStringRedisMessage actualMessage = (SimpleStringRedisMessage) response;
         assertEquals(Response.OK, actualMessage.content());
+    }
+
+    @Test
+    void shouldCountSetInInfo() {
+        // Behavior: a ZSET call shows up in the zmap_sets counter of INFO zmap
+        ZMapCommandBuilder<String, String> cmd = new ZMapCommandBuilder<>(StringCodec.ASCII);
+        EmbeddedChannel channel = getChannel();
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.zset("my-key", "my-value").encode(buf);
+        assertOK(runCommand(channel, buf));
+
+        ByteBuf infoBuf = Unpooled.buffer();
+        infoBuf.writeBytes("*2\r\n$4\r\nINFO\r\n$4\r\nzmap\r\n".getBytes(CharsetUtil.US_ASCII));
+        Object response = runCommand(channel, infoBuf);
+        assertInstanceOf(FullBulkStringRedisMessage.class, response);
+        String info = ((FullBulkStringRedisMessage) response).content().toString(CharsetUtil.US_ASCII);
+
+        long sets = -1;
+        for (String line : info.split("\r\n")) {
+            if (line.startsWith("zmap_sets:")) {
+                sets = Long.parseLong(line.substring("zmap_sets:".length()));
+            }
+        }
+        assertTrue(sets >= 1, info);
     }
 
     @Test

@@ -54,6 +54,7 @@ public class ZGetF64Handler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementGets();
         supplyAsync(context, response, () -> {
             ZGetF64Message message = request.attr(MessageTypes.ZGETF64).get();
             Session session = request.getSession();

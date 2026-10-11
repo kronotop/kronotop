@@ -55,6 +55,7 @@ public class ZGetHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
+        service.getMetrics().incrementGets();
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             ZGetMessage message = request.attr(MessageTypes.ZGET).get();
             Session session = request.getSession();

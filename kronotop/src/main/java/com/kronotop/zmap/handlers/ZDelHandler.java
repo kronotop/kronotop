@@ -56,6 +56,7 @@ public class ZDelHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
+        service.getMetrics().incrementDeletes();
         AsyncCommandExecutor.runAsync(context, response, () -> {
             ZDelMessage message = request.attr(MessageTypes.ZDEL).get();
 

@@ -95,6 +95,7 @@ class ZWatchHandlerTest extends BaseHandlerTest {
         // Behavior: ZWATCH blocks until the watched key changes, then returns OK. The mutation
         // happens on a separate connection.
         zset(channel, "watched", "v1");
+        long firedBefore = zwatcher().firedCount();
 
         EmbeddedChannel watcherChannel = newChannel();
         CompletableFuture<Object> watchFuture = CompletableFuture.supplyAsync(
@@ -107,6 +108,7 @@ class ZWatchHandlerTest extends BaseHandlerTest {
 
         assertOK(watchFuture.get(5, TimeUnit.SECONDS));
         await().atMost(Duration.ofSeconds(5)).until(() -> zwatcher().watcherCount() == 0);
+        assertEquals(firedBefore + 1, zwatcher().firedCount());
     }
 
     @Test

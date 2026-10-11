@@ -45,6 +45,7 @@ public class ZSetI64Handler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementSets();
         runAsync(context, response, () -> {
             ZSetI64Message message = request.attr(MessageTypes.ZSETI64).get();
             Session session = request.getSession();

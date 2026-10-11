@@ -64,6 +64,7 @@ public class ZGetRangeHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) {
+        service.getMetrics().incrementRangeReads();
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             ZGetRangeMessage message = request.attr(MessageTypes.ZGETRANGE).get();
 

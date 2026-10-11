@@ -60,6 +60,7 @@ public class ZGetD128Handler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementGets();
         supplyAsync(context, response, () -> {
             ZGetD128Message message = request.attr(MessageTypes.ZGETD128).get();
             Session session = request.getSession();

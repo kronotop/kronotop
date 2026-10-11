@@ -57,6 +57,7 @@ public class ZGetKeyHandler extends BaseZMapHandler implements Handler {
 
     @Override
     public void execute(Request request, Response response) throws ExecutionException, InterruptedException {
+        service.getMetrics().incrementGets();
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             ZGetKeyMessage message = request.attr(MessageTypes.ZGETKEY).get();
 

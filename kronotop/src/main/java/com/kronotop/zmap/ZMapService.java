@@ -19,6 +19,8 @@ package com.kronotop.zmap;
 import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
+import com.kronotop.core.InfoCollector;
+import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.server.ServerKind;
 import com.kronotop.zmap.handlers.*;
 
@@ -30,6 +32,7 @@ public class ZMapService extends CommandHandlerService implements KronotopServic
     public static final String NAME = "ZMap";
 
     private final ZWatcher zwatcher;
+    private final ZMapMetrics metrics = new ZMapMetrics();
 
     public ZMapService(Context context) {
         super(context, NAME);
@@ -58,6 +61,23 @@ public class ZMapService extends CommandHandlerService implements KronotopServic
 
     public ZWatcher getZWatcher() {
         return zwatcher;
+    }
+
+    public ZMapMetrics getMetrics() {
+        return metrics;
+    }
+
+    @Override
+    public void collectInfo(InfoCollector collector) {
+        collector.put(InfoHandler.ZMAP_SECTION, "zmap_sets", metrics.getSets());
+        collector.put(InfoHandler.ZMAP_SECTION, "zmap_gets", metrics.getGets());
+        collector.put(InfoHandler.ZMAP_SECTION, "zmap_range_reads", metrics.getRangeReads());
+        collector.put(InfoHandler.ZMAP_SECTION, "zmap_deletes", metrics.getDeletes());
+        collector.put(InfoHandler.ZMAP_SECTION, "zmap_mutations", metrics.getMutations());
+        collector.put(InfoHandler.ZMAP_SECTION, "zmap_watches", metrics.getWatches());
+        collector.put(InfoHandler.ZMAP_SECTION, "zmap_watched_keys", zwatcher.watcherCount());
+        collector.put(InfoHandler.ZMAP_SECTION, "zmap_watch_waiters", zwatcher.totalWaiters());
+        collector.put(InfoHandler.ZMAP_SECTION, "zmap_watch_fires", zwatcher.firedCount());
     }
 
     @Override
