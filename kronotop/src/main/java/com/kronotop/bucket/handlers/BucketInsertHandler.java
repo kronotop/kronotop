@@ -324,6 +324,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementInserts();
         supplyAsync(context, response, () -> {
             BucketInsertMessage message = request.attr(MessageTypes.BUCKETINSERT).get();
             if (message.getDocumentCount() == 0) {

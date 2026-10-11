@@ -2314,7 +2314,8 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
     @Test
     void shouldReportOpenCursorInInfo() {
         // Behavior: a QUERY without LIMIT leaves its cursor open on the session, and INFO bucket
-        // reports it in open_cursors
+        // reports it in open_cursors. The INSERT and QUERY calls are counted in bucket_inserts
+        // and bucket_queries
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
 
         BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
@@ -2333,6 +2334,12 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         for (String line : info.split("\r\n")) {
             if (line.startsWith("open_cursors:")) {
                 assertTrue(Integer.parseInt(line.substring("open_cursors:".length())) >= 1, line);
+            }
+            if (line.startsWith("bucket_inserts:")) {
+                assertTrue(Long.parseLong(line.substring("bucket_inserts:".length())) >= 1, line);
+            }
+            if (line.startsWith("bucket_queries:")) {
+                assertTrue(Long.parseLong(line.substring("bucket_queries:".length())) >= 1, line);
             }
         }
     }

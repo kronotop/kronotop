@@ -49,6 +49,7 @@ public class BucketQueryHandler extends AbstractBucketHandler implements Handler
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementQueries();
         supplyAsync(context, response, () -> {
             BucketQueryMessage message = request.attr(MessageTypes.BUCKETQUERY).get();
             Session session = request.getSession();

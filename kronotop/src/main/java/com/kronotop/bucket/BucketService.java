@@ -80,6 +80,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private final CollatorCache collatorCache = new CollatorCache();
     private final QueryExecutor queryExecutor;
     private final PlanCache planCache = new PlanCache();
+    private final BucketMetrics metrics = new BucketMetrics();
     private final Planner planner;
     private final FailedVectorNodeOpRetrier failedVectorNodeOpRetrier;
     private final long vectorFlushThresholdBytes;
@@ -131,6 +132,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         return planCache;
     }
 
+    public BucketMetrics getMetrics() {
+        return metrics;
+    }
+
     @Override
     public void collectInfo(InfoCollector collector) {
         int workers = 0;
@@ -156,6 +161,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             openCursors[0] += session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get().size();
         });
         collector.put(InfoHandler.BUCKET_SECTION, "open_cursors", openCursors[0]);
+        collector.put(InfoHandler.BUCKET_SECTION, "bucket_inserts", metrics.getInserts());
+        collector.put(InfoHandler.BUCKET_SECTION, "bucket_queries", metrics.getQueries());
+        collector.put(InfoHandler.BUCKET_SECTION, "bucket_updates", metrics.getUpdates());
+        collector.put(InfoHandler.BUCKET_SECTION, "bucket_deletes", metrics.getDeletes());
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_workers", workers);
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_processed_entries", processed);
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_retried_conflicts", retried);

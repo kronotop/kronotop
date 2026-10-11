@@ -428,6 +428,10 @@ class InfoHandlerTest extends BaseHandlerTest {
 
         assertTrue(intField(info, "plan_cache_size") >= 0);
         assertTrue(intField(info, "open_cursors") >= 0);
+        assertTrue(longField(info, "bucket_inserts") >= 0);
+        assertTrue(longField(info, "bucket_queries") >= 0);
+        assertTrue(longField(info, "bucket_updates") >= 0);
+        assertTrue(longField(info, "bucket_deletes") >= 0);
         assertTrue(intField(info, "index_maintenance_workers") >= 0);
         assertTrue(longField(info, "index_maintenance_processed_entries") >= 0);
         assertTrue(longField(info, "index_maintenance_retried_conflicts") >= 0);

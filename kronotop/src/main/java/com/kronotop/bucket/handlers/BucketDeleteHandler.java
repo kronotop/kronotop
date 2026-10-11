@@ -51,6 +51,7 @@ public class BucketDeleteHandler extends AbstractBucketHandler implements Handle
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementDeletes();
         supplyAsync(context, response, () -> {
             BucketDeleteMessage message = request.attr(MessageTypes.BUCKETDELETE).get();
             Session session = request.getSession();

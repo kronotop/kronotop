@@ -64,6 +64,7 @@ public class BucketUpdateHandler extends AbstractBucketHandler implements Handle
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementUpdates();
         supplyAsync(context, response, () -> {
             BucketUpdateMessage message = request.attr(MessageTypes.BUCKETUPDATE).get();
             Session session = request.getSession();
