@@ -348,6 +348,25 @@ class InstrumentedTransactionTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldExcludeWatchTransactionFromOldestActive() {
+        // Behavior: a transaction that owns a watch is marked watching, is counted separately,
+        // and is skipped by oldestActiveTransactionStartNanos().
+        TransactionManager manager = context.getTransactionManager();
+        int watching = manager.getWatchingTransactionCount();
+        byte[] key = Tuple.from("test", "instrumented", "watch").pack();
+
+        try (InstrumentedTransaction tr = createInstrumentedTransaction()) {
+            tr.watch(key);
+            tr.commit().join();
+
+            assertTrue(tr.getMetrics().isWatching());
+            assertEquals(watching + 1, manager.getWatchingTransactionCount());
+            long oldest = manager.oldestActiveTransactionStartNanos();
+            assertTrue(oldest == 0 || oldest > tr.getMetrics().getStartNanos(), "oldest=" + oldest);
+        }
+    }
+
+    @Test
     void shouldAggregateConflictedTransaction() {
         // Behavior: a commit that fails with not_committed (1020) adds one to conflicted
         // and not to committed or commitFailed.

@@ -168,6 +168,7 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
 
     @Override
     public CompletableFuture<Void> watch(byte[] key) throws FDBException {
+        metrics.markWatching();
         return underlying.watch(key);
     }
 

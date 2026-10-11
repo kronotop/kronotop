@@ -2310,4 +2310,30 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
     }
+
+    @Test
+    void shouldReportOpenCursorInInfo() {
+        // Behavior: a QUERY without LIMIT leaves its cursor open on the session, and INFO bucket
+        // reports it in open_cursors
+        insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}").encode(buf);
+        assertInstanceOf(MapRedisMessage.class, runCommand(channel, buf));
+
+        ByteBuf infoBuf = Unpooled.buffer();
+        infoBuf.writeBytes("*2\r\n$4\r\nINFO\r\n$6\r\nbucket\r\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        Object response = runCommand(channel, infoBuf);
+        assertInstanceOf(FullBulkStringRedisMessage.class, response);
+        String info = ((FullBulkStringRedisMessage) response).content().toString(java.nio.charset.StandardCharsets.US_ASCII);
+
+        assertTrue(info.contains("open_cursors:"), info);
+        for (String line : info.split("\r\n")) {
+            if (line.startsWith("open_cursors:")) {
+                assertTrue(Integer.parseInt(line.substring("open_cursors:".length())) >= 1, line);
+            }
+        }
+    }
 }

@@ -179,6 +179,11 @@ public class InfoHandler implements Handler {
         collector.put(SERVER_SECTION, "run_id", VersionstampUtil.base32HexEncode(member.getProcessId()));
         collector.put(SERVER_SECTION, "tcp_port", member.getExternalAddress().getPort());
         collector.put(SERVER_SECTION, "server_time_usec", serverTimeUsec());
+        collector.put(SERVER_SECTION, "uptime_in_seconds", ManagementFactory.getRuntimeMXBean().getUptime() / 1000);
+        if (ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os
+                && os.getProcessCpuTime() >= 0) {
+            collector.put(SERVER_SECTION, "process_cpu_time_msec", os.getProcessCpuTime() / 1_000_000);
+        }
         collector.put(SERVER_SECTION, "fdb_api_version", context.getConfig().getInt("foundationdb.apiversion"));
         collector.put(SERVER_SECTION, "listener0",
                 listener("external", member.getExternalAddress(), member.getExternalAdvertise()));
@@ -322,16 +327,25 @@ public class InfoHandler implements Handler {
     private void collectTransactions(InfoCollector collector) {
         AggregatedTransactionMetrics metrics = context.getRuntimeMetrics().getAggregatedTransactionMetrics();
         long created = metrics.getCreated();
-        long active = context.getTransactionManager().getActiveTransactionCount();
+        // open = every registered transaction; watching = the ones that hold a watch and stay open
+        // until an event arrives; active = the rest, the ones a client or a task is really working in.
+        long open = context.getTransactionManager().getActiveTransactionCount();
+        long watching = context.getTransactionManager().getWatchingTransactionCount();
+        long active = Math.max(0, open - watching);
         long committed = metrics.getCommitted();
         long conflicted = metrics.getConflicted();
         long commitFailed = metrics.getCommitFailed();
         long rolledBack = metrics.getRolledBack();
         // Closed without a commit attempt or a rollback: read-only work and channel close.
-        long closedWithoutCommit = Math.max(0, created - active - committed - conflicted - commitFailed - rolledBack);
+        long closedWithoutCommit = Math.max(0, created - open - committed - conflicted - commitFailed - rolledBack);
 
         collector.put(TRANSACTIONS_SECTION, "transactions_created", created);
         collector.put(TRANSACTIONS_SECTION, "transactions_active", active);
+        collector.put(TRANSACTIONS_SECTION, "transactions_watching", watching);
+        // Watch transactions are excluded. They stay open until an event arrives.
+        long oldestStart = context.getTransactionManager().oldestActiveTransactionStartNanos();
+        collector.put(TRANSACTIONS_SECTION, "oldest_active_transaction_usec",
+                oldestStart == 0 ? 0 : (System.nanoTime() - oldestStart) / 1000);
         collector.put(TRANSACTIONS_SECTION, "transactions_committed", committed);
         collector.put(TRANSACTIONS_SECTION, "transactions_conflicted", conflicted);
         collector.put(TRANSACTIONS_SECTION, "transactions_commit_failed", commitFailed);
@@ -350,7 +364,7 @@ public class InfoHandler implements Handler {
         collector.put(TRANSACTIONS_SECTION, "transaction_bytes_written_human", KronotopInstanceStarter.formatBytes(metrics.getBytesWritten()));
 
         long commitAttempts = Math.max(1, committed + conflicted + commitFailed);
-        long closed = Math.max(1, created - active);
+        long closed = Math.max(1, created - open);
         collector.put(TRANSACTIONS_SECTION, "avg_commit_latency_usec", metrics.getCommitLatencyNanos() / 1000 / commitAttempts);
         collector.put(TRANSACTIONS_SECTION, "max_commit_latency_usec", metrics.getMaxCommitLatencyNanos() / 1000);
         collector.put(TRANSACTIONS_SECTION, "avg_transaction_duration_usec", metrics.getDurationNanos() / 1000 / closed);

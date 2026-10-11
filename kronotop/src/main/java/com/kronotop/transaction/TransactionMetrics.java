@@ -44,13 +44,10 @@ public class TransactionMetrics {
     // Status
     private volatile boolean committed;
     private volatile boolean conflicted;
+    private volatile boolean watching;
 
     public TransactionMetrics() {
         this.startNanos = System.nanoTime();
-    }
-
-    TransactionMetrics(long startNanos) {
-        this.startNanos = startNanos;
     }
 
     public void incrementReads() {
@@ -99,6 +96,10 @@ public class TransactionMetrics {
 
     public void markConflicted() {
         this.conflicted = true;
+    }
+
+    public void markWatching() {
+        this.watching = true;
     }
 
     public long getReads() {
@@ -153,6 +154,13 @@ public class TransactionMetrics {
         return conflicted;
     }
 
+    /**
+     * True when the transaction owns a watch. Such a transaction stays open until the watched key changes.
+     */
+    public boolean isWatching() {
+        return watching;
+    }
+
     @Override
     public String toString() {
         return "TransactionMetrics{" +
@@ -168,6 +176,7 @@ public class TransactionMetrics {
                 ", totalDurationNanos=" + totalDurationNanos +
                 ", committed=" + committed +
                 ", conflicted=" + conflicted +
+                ", watching=" + watching +
                 '}';
     }
 }

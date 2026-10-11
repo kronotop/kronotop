@@ -70,6 +70,34 @@ public class TransactionManager {
         return registry.size();
     }
 
+    /**
+     * Returns the start time (System.nanoTime) of the oldest open transaction, or 0 when none is open.
+     * Transactions that own a watch are skipped. They stay open until the watched key changes.
+     */
+    public long oldestActiveTransactionStartNanos() {
+        long oldest = 0;
+        for (InstrumentedTransaction tr : registry.values()) {
+            if (tr.getMetrics().isWatching()) {
+                continue;
+            }
+            long start = tr.getMetrics().getStartNanos();
+            if (oldest == 0 || start < oldest) {
+                oldest = start;
+            }
+        }
+        return oldest;
+    }
+
+    public int getWatchingTransactionCount() {
+        int count = 0;
+        for (InstrumentedTransaction tr : registry.values()) {
+            if (tr.getMetrics().isWatching()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     AggregatedTransactionMetrics getAggregatedTransactionMetrics() {
         return aggregatedTransactionMetrics;
     }

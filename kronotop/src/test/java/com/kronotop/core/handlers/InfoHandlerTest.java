@@ -143,6 +143,8 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(info.contains("tcp_port:" + member.getExternalAddress().getPort() + "\r\n"));
         assertTrue(info.contains("fdb_api_version:" + context.getConfig().getInt("foundationdb.apiversion") + "\r\n"));
         assertTrue(info.contains("server_time_usec:"));
+        assertTrue(longField(info, "uptime_in_seconds") >= 0);
+        assertTrue(longField(info, "process_cpu_time_msec") >= 0);
     }
 
     @Test
@@ -344,7 +346,8 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(longField(info, "transactions_rolled_back") >= rolledBack + 1);
         assertTrue(longField(info, "transactions_created") >= longField(info, "transactions_committed"));
         for (String field : List.of(
-                "transactions_active", "transactions_conflicted", "transactions_commit_failed",
+                "transactions_active", "transactions_watching", "oldest_active_transaction_usec",
+                "transactions_conflicted", "transactions_commit_failed",
                 "transactions_closed_without_commit", "transaction_reads", "transaction_range_reads",
                 "transaction_writes", "transaction_deletes", "transaction_range_deletes",
                 "transaction_mutations", "transaction_bytes_read", "transaction_bytes_written",
@@ -424,10 +427,33 @@ class InfoHandlerTest extends BaseHandlerTest {
         String info = runInfo(getChannel(), "bucket");
 
         assertTrue(intField(info, "plan_cache_size") >= 0);
+        assertTrue(intField(info, "open_cursors") >= 0);
         assertTrue(intField(info, "index_maintenance_workers") >= 0);
         assertTrue(longField(info, "index_maintenance_processed_entries") >= 0);
         assertTrue(longField(info, "index_maintenance_retried_conflicts") >= 0);
         assertTrue(longField(info, "index_maintenance_last_run") >= 0);
+    }
+
+    @Test
+    void shouldReportOldestActiveTransaction() throws InterruptedException {
+        // Behavior: background watch transactions are reported as watching, not active; without a plain
+        // open transaction the oldest value is near zero. An open transaction counts as active and makes
+        // oldest_active_transaction_usec positive and growing.
+        String idle = runInfo(getChannel(), "transactions");
+        assertTrue(longField(idle, "transactions_watching") >= 1, idle);
+        assertTrue(longField(idle, "oldest_active_transaction_usec") < 1_000_000, idle);
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            Thread.sleep(5);
+            String info = runInfo(getChannel(), "transactions");
+            assertTrue(longField(info, "transactions_active") >= 1, info);
+            long first = longField(info, "oldest_active_transaction_usec");
+            assertTrue(first > 0);
+            Thread.sleep(5);
+            long second = longField(runInfo(getChannel(), "transactions"), "oldest_active_transaction_usec");
+            assertTrue(second > first);
+            tr.cancel();
+        }
     }
 
     @Test

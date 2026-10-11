@@ -42,6 +42,7 @@ import com.kronotop.core.InfoCollector;
 import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.server.ServerKind;
+import com.kronotop.server.SessionAttributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,6 +149,13 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             }
         }
         collector.put(InfoHandler.BUCKET_SECTION, "plan_cache_size", planCache.size());
+        int[] openCursors = new int[1];
+        context.getSessionStore().forEach(session -> {
+            openCursors[0] += session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().size();
+            openCursors[0] += session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().size();
+            openCursors[0] += session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get().size();
+        });
+        collector.put(InfoHandler.BUCKET_SECTION, "open_cursors", openCursors[0]);
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_workers", workers);
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_processed_entries", processed);
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_retried_conflicts", retried);
