@@ -106,6 +106,7 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementVectorSearches();
         supplyAsync(context, response, () -> {
             BucketVectorMessage message = request.attr(MessageTypes.BUCKETVECTOR).get();
             Session session = request.getSession();

@@ -60,6 +60,7 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementAdvances();
         BucketAdvanceMessage message = request.attr(MessageTypes.BUCKETADVANCE).get();
         SubcommandHandler executor = executors.get(message.getOperation());
         if (executor == null) {

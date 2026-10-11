@@ -27,6 +27,12 @@ public class BucketMetrics {
     private final LongAdder queries = new LongAdder();
     private final LongAdder updates = new LongAdder();
     private final LongAdder deletes = new LongAdder();
+    private final LongAdder advances = new LongAdder();
+    private final LongAdder vectorSearches = new LongAdder();
+    private final LongAdder purges = new LongAdder();
+    private final LongAdder removes = new LongAdder();
+    private final LongAdder planCacheHits = new LongAdder();
+    private final LongAdder planCacheMisses = new LongAdder();
 
     public void incrementInserts() {
         inserts.increment();
@@ -58,5 +64,53 @@ public class BucketMetrics {
 
     public long getDeletes() {
         return deletes.sum();
+    }
+
+    public void incrementAdvances() {
+        advances.increment();
+    }
+
+    public void incrementVectorSearches() {
+        vectorSearches.increment();
+    }
+
+    public void incrementPurges() {
+        purges.increment();
+    }
+
+    public void incrementRemoves() {
+        removes.increment();
+    }
+
+    public void incrementPlanCacheHits() {
+        planCacheHits.increment();
+    }
+
+    public void incrementPlanCacheMisses() {
+        planCacheMisses.increment();
+    }
+
+    public long getAdvances() {
+        return advances.sum();
+    }
+
+    public long getVectorSearches() {
+        return vectorSearches.sum();
+    }
+
+    public long getPurges() {
+        return purges.sum();
+    }
+
+    public long getRemoves() {
+        return removes.sum();
+    }
+
+    public long getPlanCacheHits() {
+        return planCacheHits.sum();
+    }
+
+    public long getPlanCacheMisses() {
+        return planCacheMisses.sum();
     }
 }

@@ -2323,6 +2323,10 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         ByteBuf buf = Unpooled.buffer();
         cmd.query(TEST_BUCKET, "{}").encode(buf);
         assertInstanceOf(MapRedisMessage.class, runCommand(channel, buf));
+        // Same shape again: first QUERY is a plan cache miss, second one is a hit
+        ByteBuf secondBuf = Unpooled.buffer();
+        cmd.query(TEST_BUCKET, "{}").encode(secondBuf);
+        assertInstanceOf(MapRedisMessage.class, runCommand(channel, secondBuf));
 
         ByteBuf infoBuf = Unpooled.buffer();
         infoBuf.writeBytes("*2\r\n$4\r\nINFO\r\n$6\r\nbucket\r\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
@@ -2340,6 +2344,12 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
             }
             if (line.startsWith("bucket_queries:")) {
                 assertTrue(Long.parseLong(line.substring("bucket_queries:".length())) >= 1, line);
+            }
+            if (line.startsWith("plan_cache_hits:")) {
+                assertTrue(Long.parseLong(line.substring("plan_cache_hits:".length())) >= 1, line);
+            }
+            if (line.startsWith("plan_cache_misses:")) {
+                assertTrue(Long.parseLong(line.substring("plan_cache_misses:".length())) >= 1, line);
             }
         }
     }

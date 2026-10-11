@@ -48,6 +48,7 @@ public class BucketRemoveHandler extends AbstractBucketHandler {
     @Override
     public void execute(Request request, Response response) throws Exception {
         // Command hierarchy: remove -> purge
+        service.getMetrics().incrementRemoves();
         runAsync(context, response, () -> {
             BucketRemoveMessage message = request.attr(MessageTypes.BUCKETREMOVE).get();
             String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());

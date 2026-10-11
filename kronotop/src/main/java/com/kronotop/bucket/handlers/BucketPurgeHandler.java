@@ -57,6 +57,7 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
 
     @Override
     public void execute(Request request, Response response) throws Exception {
+        service.getMetrics().incrementPurges();
         runAsync(context, response, () -> {
             BucketPurgeMessage message = request.attr(MessageTypes.BUCKETPURGE).get();
             String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());

@@ -124,7 +124,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
 
         this.failedVectorNodeOpRetrier = new FailedVectorNodeOpRetrier(context, Duration.ofSeconds(5));
         this.bucketEventsWatcher = new BucketEventsWatcher(context, planCache);
-        this.planner = new Planner(planCache);
+        this.planner = new Planner(planCache, metrics);
         this.queryExecutor = new QueryExecutor(this);
     }
 
@@ -154,6 +154,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             }
         }
         collector.put(InfoHandler.BUCKET_SECTION, "plan_cache_size", planCache.size());
+        collector.put(InfoHandler.BUCKET_SECTION, "plan_cache_hits", metrics.getPlanCacheHits());
+        collector.put(InfoHandler.BUCKET_SECTION, "plan_cache_misses", metrics.getPlanCacheMisses());
         int[] openCursors = new int[1];
         context.getSessionStore().forEach(session -> {
             openCursors[0] += session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().size();
@@ -165,6 +167,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         collector.put(InfoHandler.BUCKET_SECTION, "bucket_queries", metrics.getQueries());
         collector.put(InfoHandler.BUCKET_SECTION, "bucket_updates", metrics.getUpdates());
         collector.put(InfoHandler.BUCKET_SECTION, "bucket_deletes", metrics.getDeletes());
+        collector.put(InfoHandler.BUCKET_SECTION, "bucket_advances", metrics.getAdvances());
+        collector.put(InfoHandler.BUCKET_SECTION, "bucket_vector_searches", metrics.getVectorSearches());
+        collector.put(InfoHandler.BUCKET_SECTION, "bucket_purges", metrics.getPurges());
+        collector.put(InfoHandler.BUCKET_SECTION, "bucket_removes", metrics.getRemoves());
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_workers", workers);
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_processed_entries", processed);
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_retried_conflicts", retried);

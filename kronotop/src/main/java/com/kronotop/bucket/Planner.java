@@ -57,14 +57,17 @@ public class Planner {
     private final PhysicalPlanner physicalPlanner = new PhysicalPlanner();
     private final Optimizer optimizer = new Optimizer();
     private final PlanCache planCache;
+    private final BucketMetrics metrics;
 
     /**
      * Creates a new Planner with the specified plan cache.
      *
      * @param planCache the cache for storing and retrieving compiled plans
+     * @param metrics   the counters for plan cache hits and misses
      */
-    public Planner(PlanCache planCache) {
+    public Planner(PlanCache planCache, BucketMetrics metrics) {
         this.planCache = planCache;
+        this.metrics = metrics;
     }
 
     /**
@@ -128,8 +131,11 @@ public class Planner {
         if (usePlanCache) {
             PlanCache.CachedPlan cachedPlan = planCache.get(metadata.namespace(), metadata.uuid(), shapeHash);
             if (cachedPlan != null && !(context.now() >= cachedPlan.insertedAt() + maxTTL)) {
+                metrics.incrementPlanCacheHits();
                 return cachedPlan.plan();
             }
+            // An expired entry is a miss.
+            metrics.incrementPlanCacheMisses();
         }
 
         PlannerContext ctx = new PlannerContext(metadata);
