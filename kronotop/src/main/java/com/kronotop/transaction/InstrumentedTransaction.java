@@ -17,6 +17,7 @@
 package com.kronotop.transaction;
 
 import com.apple.foundationdb.*;
+import com.kronotop.metrics.AggregatedTransactionMetrics;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -28,11 +29,13 @@ import java.util.function.Function;
 public class InstrumentedTransaction extends InstrumentedReadTransaction<Transaction> implements Transaction {
 
     private final TransactionManager manager;
+    private final AggregatedTransactionMetrics aggregated;
     private ReadTransaction snapshot;
 
     InstrumentedTransaction(long id, Transaction underlying, TransactionManager manager) {
         super(id, underlying, new TransactionMetrics());
         this.manager = manager;
+        this.aggregated = manager.getAggregatedTransactionMetrics();
     }
 
     @Override
@@ -79,10 +82,13 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
     @Override
     public CompletableFuture<Void> commit() {
         long commitStartNanos = System.nanoTime();
-        return underlying.commit().whenComplete((v, ex) -> {
-            metrics.recordCommitLatency(System.nanoTime() - commitStartNanos);
+        return underlying.commit().whenComplete((ignored, ex) -> {
+            long latency = System.nanoTime() - commitStartNanos;
+            metrics.recordCommitLatency(latency);
+            aggregated.recordCommitLatency(latency);
             if (ex == null) {
                 metrics.markCommitted();
+                aggregated.incrementCommitted();
             } else {
                 Throwable cause = ex;
                 while (cause != null && !(cause instanceof FDBException)) {
@@ -90,6 +96,9 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
                 }
                 if (cause instanceof FDBException fdb && fdb.getCode() == 1020) {
                     metrics.markConflicted();
+                    aggregated.incrementConflicted();
+                } else {
+                    aggregated.incrementCommitFailed();
                 }
             }
         });
@@ -97,9 +106,10 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
 
     @Override
     public void close() {
+        // Duration must be final before release() folds it into the aggregated totals.
+        metrics.recordTotalDuration();
         manager.release(this);
         underlying.close();
-        metrics.recordTotalDuration();
     }
 
     @Override
@@ -153,6 +163,7 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
     @Override
     public void cancel() {
         underlying.cancel();
+        aggregated.incrementRolledBack();
     }
 
     @Override

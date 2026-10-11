@@ -107,7 +107,7 @@ public class ContextImpl implements Context {
         this.member = member;
         this.database = database;
         this.directoryLayer = KronotopDirectoryLayer.fromConfig(config);
-        this.transactionManager = new TransactionManager(database);
+        this.transactionManager = new TransactionManager(database, runtimeMetrics.getAggregatedTransactionMetrics());
         this.workerRegistry = new WorkerRegistry();
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
         this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database, directoryLayer);

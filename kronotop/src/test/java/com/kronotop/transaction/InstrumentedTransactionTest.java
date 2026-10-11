@@ -21,10 +21,12 @@ import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.ReadTransaction;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.metrics.AggregatedTransactionMetrics;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -284,5 +286,88 @@ class InstrumentedTransactionTest extends BaseStandaloneInstanceTest {
             // bytesRead = val1.length (read-your-own-write)
             assertEquals(val1.length, m.getBytesRead());
         }
+    }
+
+    private AggregatedTransactionMetrics aggregated() {
+        return context.getRuntimeMetrics().getAggregatedTransactionMetrics();
+    }
+
+    @Test
+    void shouldAggregateCommittedTransaction() {
+        // Behavior: a committed transaction adds one to created and committed and folds its
+        // writes into the totals on close. Background services also commit, so deltas are lower bounds.
+        AggregatedTransactionMetrics agg = aggregated();
+        long created = agg.getCreated();
+        long committed = agg.getCommitted();
+        long writes = agg.getWrites();
+
+        try (InstrumentedTransaction tr = createInstrumentedTransaction()) {
+            assertTrue(context.getTransactionManager().getActiveTransactionCount() >= 1);
+            tr.set(TEST_KEY, TEST_VALUE);
+            tr.commit().join();
+        }
+
+        assertTrue(agg.getCreated() >= created + 1);
+        assertTrue(agg.getCommitted() >= committed + 1);
+        assertTrue(agg.getWrites() >= writes + 1);
+        assertTrue(agg.getCommitLatencyNanos() > 0);
+        assertTrue(agg.getDurationNanos() > 0);
+    }
+
+    @Test
+    void shouldAggregateRolledBackTransaction() {
+        // Behavior: cancel() adds one to rolledBack. Only ROLLBACK cancels, so the delta is exact.
+        AggregatedTransactionMetrics agg = aggregated();
+        long rolledBack = agg.getRolledBack();
+
+        try (InstrumentedTransaction tr = createInstrumentedTransaction()) {
+            tr.set(TEST_KEY, TEST_VALUE);
+            tr.cancel();
+        }
+
+        assertEquals(rolledBack + 1, agg.getRolledBack());
+    }
+
+    @Test
+    void shouldFoldTotalsOnceOnDoubleClose() {
+        // Behavior: closing a transaction twice folds its totals into the aggregate only once.
+        // A large value makes the delta distinct from the small writes of background services.
+        AggregatedTransactionMetrics agg = aggregated();
+        byte[] value = new byte[64 * 1024];
+        long before = agg.getBytesWritten();
+
+        InstrumentedTransaction tr = createInstrumentedTransaction();
+        tr.set(TEST_KEY, value);
+        tr.commit().join();
+        tr.close();
+        tr.close();
+
+        long delta = agg.getBytesWritten() - before;
+        assertTrue(delta >= value.length, "delta=" + delta);
+        assertTrue(delta < 2L * value.length, "delta=" + delta);
+    }
+
+    @Test
+    void shouldAggregateConflictedTransaction() {
+        // Behavior: a commit that fails with not_committed (1020) adds one to conflicted
+        // and not to committed or commitFailed.
+        AggregatedTransactionMetrics agg = aggregated();
+        long conflicted = agg.getConflicted();
+        long commitFailed = agg.getCommitFailed();
+        byte[] key = Tuple.from("test", "instrumented", "conflict").pack();
+
+        try (InstrumentedTransaction first = createInstrumentedTransaction();
+             InstrumentedTransaction second = createInstrumentedTransaction()) {
+            first.get(key).join();
+            second.get(key).join();
+            first.set(key, TEST_VALUE);
+            second.set(key, TEST_VALUE);
+            first.commit().join();
+            assertThrows(CompletionException.class, () -> second.commit().join());
+            assertTrue(second.getMetrics().isConflicted());
+        }
+
+        assertTrue(agg.getConflicted() >= conflicted + 1);
+        assertEquals(commitFailed, agg.getCommitFailed());
     }
 }

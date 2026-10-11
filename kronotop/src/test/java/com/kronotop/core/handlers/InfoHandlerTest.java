@@ -16,6 +16,8 @@
 
 package com.kronotop.core.handlers;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.cluster.Member;
 import com.kronotop.cluster.sharding.ShardKind;
@@ -96,12 +98,14 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(info.contains("\r\n\r\n# Clients\r\n"));
         assertTrue(info.contains("\r\n\r\n# Memory\r\n"));
         assertTrue(info.contains("\r\n\r\n# Traffic\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Transactions\r\n"));
         assertTrue(info.contains("\r\n\r\n# Tasks\r\n"));
         assertTrue(info.contains("\r\n\r\n# Volume\r\n"));
         assertTrue(info.contains("\r\n\r\n# Bucket\r\n"));
         assertTrue(info.contains("\r\n\r\n# Vector\r\n"));
         assertTrue(info.indexOf("# Memory") < info.indexOf("# Traffic"));
-        assertTrue(info.indexOf("# Traffic") < info.indexOf("# Tasks"));
+        assertTrue(info.indexOf("# Traffic") < info.indexOf("# Transactions"));
+        assertTrue(info.indexOf("# Transactions") < info.indexOf("# Tasks"));
         assertTrue(info.indexOf("# Tasks") < info.indexOf("# Volume"));
         assertTrue(info.indexOf("# Volume") < info.indexOf("# Bucket"));
         assertTrue(info.indexOf("# Bucket") < info.indexOf("# Vector"));
@@ -315,6 +319,40 @@ class InfoHandlerTest extends BaseHandlerTest {
             for (String field : List.of(prefix + "_read_bytes_human", prefix + "_written_bytes_human")) {
                 assertFalse(Objects.requireNonNull(fieldValue(info, field)).isBlank(), field);
             }
+        }
+    }
+
+    @Test
+    void shouldReportTransactionsFields() {
+        // Behavior: the Transactions section reports lifecycle counters, operation totals and
+        // latency figures; a committed and a cancelled transaction each move their counter.
+        // Background services also commit, so the deltas are lower bounds.
+        String before = runInfo(getChannel(), "transactions");
+        long committed = longField(before, "transactions_committed");
+        long rolledBack = longField(before, "transactions_rolled_back");
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            tr.set(Tuple.from("test", "info", "tx").pack(), new byte[]{1});
+            tr.commit().join();
+        }
+        try (Transaction tr = context.getTransactionManager().create()) {
+            tr.cancel();
+        }
+
+        String info = runInfo(getChannel(), "transactions");
+        assertTrue(longField(info, "transactions_committed") >= committed + 1);
+        assertTrue(longField(info, "transactions_rolled_back") >= rolledBack + 1);
+        assertTrue(longField(info, "transactions_created") >= longField(info, "transactions_committed"));
+        for (String field : List.of(
+                "transactions_active", "transactions_conflicted", "transactions_commit_failed",
+                "transactions_closed_without_commit", "transaction_reads", "transaction_range_reads",
+                "transaction_writes", "transaction_deletes", "transaction_range_deletes",
+                "transaction_mutations", "transaction_bytes_read", "transaction_bytes_written",
+                "avg_commit_latency_usec", "max_commit_latency_usec", "avg_transaction_duration_usec")) {
+            assertTrue(longField(info, field) >= 0, field);
+        }
+        for (String field : List.of("transaction_bytes_read_human", "transaction_bytes_written_human")) {
+            assertFalse(Objects.requireNonNull(fieldValue(info, field)).isBlank(), field);
         }
     }
 

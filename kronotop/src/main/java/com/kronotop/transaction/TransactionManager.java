@@ -18,6 +18,7 @@ package com.kronotop.transaction;
 
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
+import com.kronotop.metrics.AggregatedTransactionMetrics;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,9 +33,14 @@ public class TransactionManager {
     private final Database database;
     private final AtomicLong counter = new AtomicLong();
     private final Map<Long, InstrumentedTransaction> registry = new ConcurrentHashMap<>(1 << 16);
+    private final AggregatedTransactionMetrics aggregatedTransactionMetrics;
 
-    public TransactionManager(Database database) {
+    public TransactionManager(
+            Database database,
+            AggregatedTransactionMetrics aggregatedTransactionMetrics
+    ) {
         this.database = database;
+        this.aggregatedTransactionMetrics = aggregatedTransactionMetrics;
     }
 
     public InstrumentedTransaction create() {
@@ -49,10 +55,22 @@ public class TransactionManager {
         long id = counter.getAndIncrement();
         InstrumentedTransaction tr = new InstrumentedTransaction(id, underlying, this);
         registry.put(id, tr);
+        aggregatedTransactionMetrics.incrementCreated();
         return tr;
     }
 
     void release(InstrumentedTransaction tr) {
-        registry.remove(tr.getId());
+        // A second close() must not fold the totals twice.
+        if (registry.remove(tr.getId()) != null) {
+            aggregatedTransactionMetrics.record(tr.getMetrics());
+        }
+    }
+
+    public int getActiveTransactionCount() {
+        return registry.size();
+    }
+
+    AggregatedTransactionMetrics getAggregatedTransactionMetrics() {
+        return aggregatedTransactionMetrics;
     }
 }

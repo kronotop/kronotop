@@ -24,6 +24,7 @@ import com.kronotop.core.InfoCollector;
 import com.kronotop.core.handlers.protocol.InfoMessage;
 import com.kronotop.instance.KronotopInstanceStarter;
 import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.metrics.AggregatedTransactionMetrics;
 import com.kronotop.metrics.NetworkMetrics;
 import com.kronotop.network.Address;
 import com.kronotop.server.*;
@@ -59,6 +60,7 @@ public class InfoHandler implements Handler {
     public static final String BUCKET_SECTION = "Bucket";
     public static final String VECTOR_SECTION = "Vector";
     public static final String TRAFFIC_SECTION = "Traffic";
+    public static final String TRANSACTIONS_SECTION = "Transactions";
     private static final Logger LOGGER = LoggerFactory.getLogger(InfoHandler.class);
     private static final Set<String> ALL_SECTIONS = Set.of("all", "default", "everything");
 
@@ -129,6 +131,7 @@ public class InfoHandler implements Handler {
         collectClients(collector);
         collectMemory(collector);
         collectTraffic(collector);
+        collectTransactions(collector);
         for (KronotopService service : context.getServices()) {
             try {
                 service.collectInfo(collector);
@@ -314,6 +317,43 @@ public class InfoHandler implements Handler {
             collector.put(TRAFFIC_SECTION, prefix + "_written_bytes", metrics.getWrittenBytes(serverKind));
             collector.put(TRAFFIC_SECTION, prefix + "_written_bytes_human", KronotopInstanceStarter.formatBytes(metrics.getWrittenBytes(serverKind)));
         }
+    }
+
+    private void collectTransactions(InfoCollector collector) {
+        AggregatedTransactionMetrics metrics = context.getRuntimeMetrics().getAggregatedTransactionMetrics();
+        long created = metrics.getCreated();
+        long active = context.getTransactionManager().getActiveTransactionCount();
+        long committed = metrics.getCommitted();
+        long conflicted = metrics.getConflicted();
+        long commitFailed = metrics.getCommitFailed();
+        long rolledBack = metrics.getRolledBack();
+        // Closed without a commit attempt or a rollback: read-only work and channel close.
+        long closedWithoutCommit = Math.max(0, created - active - committed - conflicted - commitFailed - rolledBack);
+
+        collector.put(TRANSACTIONS_SECTION, "transactions_created", created);
+        collector.put(TRANSACTIONS_SECTION, "transactions_active", active);
+        collector.put(TRANSACTIONS_SECTION, "transactions_committed", committed);
+        collector.put(TRANSACTIONS_SECTION, "transactions_conflicted", conflicted);
+        collector.put(TRANSACTIONS_SECTION, "transactions_commit_failed", commitFailed);
+        collector.put(TRANSACTIONS_SECTION, "transactions_rolled_back", rolledBack);
+        collector.put(TRANSACTIONS_SECTION, "transactions_closed_without_commit", closedWithoutCommit);
+
+        collector.put(TRANSACTIONS_SECTION, "transaction_reads", metrics.getReads());
+        collector.put(TRANSACTIONS_SECTION, "transaction_range_reads", metrics.getRangeReads());
+        collector.put(TRANSACTIONS_SECTION, "transaction_writes", metrics.getWrites());
+        collector.put(TRANSACTIONS_SECTION, "transaction_deletes", metrics.getDeletes());
+        collector.put(TRANSACTIONS_SECTION, "transaction_range_deletes", metrics.getRangeDeletes());
+        collector.put(TRANSACTIONS_SECTION, "transaction_mutations", metrics.getMutations());
+        collector.put(TRANSACTIONS_SECTION, "transaction_bytes_read", metrics.getBytesRead());
+        collector.put(TRANSACTIONS_SECTION, "transaction_bytes_read_human", KronotopInstanceStarter.formatBytes(metrics.getBytesRead()));
+        collector.put(TRANSACTIONS_SECTION, "transaction_bytes_written", metrics.getBytesWritten());
+        collector.put(TRANSACTIONS_SECTION, "transaction_bytes_written_human", KronotopInstanceStarter.formatBytes(metrics.getBytesWritten()));
+
+        long commitAttempts = Math.max(1, committed + conflicted + commitFailed);
+        long closed = Math.max(1, created - active);
+        collector.put(TRANSACTIONS_SECTION, "avg_commit_latency_usec", metrics.getCommitLatencyNanos() / 1000 / commitAttempts);
+        collector.put(TRANSACTIONS_SECTION, "max_commit_latency_usec", metrics.getMaxCommitLatencyNanos() / 1000);
+        collector.put(TRANSACTIONS_SECTION, "avg_transaction_duration_usec", metrics.getDurationNanos() / 1000 / closed);
     }
 
     private static final class ClientCounters {
