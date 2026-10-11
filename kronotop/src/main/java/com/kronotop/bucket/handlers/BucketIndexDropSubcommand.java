@@ -28,7 +28,6 @@ import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -49,7 +48,7 @@ public class BucketIndexDropSubcommand implements SubcommandHandler {
             if (arguments.index.equals(PrimaryIndex.NAME)) {
                 throw new IllegalArgumentException("Cannot drop the primary index");
             }
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 String namespace = NamespaceUtil.resolve(request.getSession(), arguments.namespace);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);

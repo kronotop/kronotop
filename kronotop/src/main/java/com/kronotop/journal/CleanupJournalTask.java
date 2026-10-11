@@ -27,7 +27,6 @@ import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.task.BaseTask;
 import com.kronotop.task.Task;
-import com.kronotop.transaction.TransactionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,7 +136,7 @@ public class CleanupJournalTask extends BaseTask implements Task {
 
     @Override
     public void task() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.options().setPriorityBatch();
             List<String> journals = journal.listJournals(tr);
             for (String journalName : journals) {

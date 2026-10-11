@@ -26,7 +26,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.SegmentSubspaceUtil;
 import com.kronotop.volume.SegmentTailPointer;
 import com.kronotop.volume.VolumeService;
@@ -59,7 +58,7 @@ public class CursorSubcommand extends BaseSubcommandHandler implements Subcomman
         supplyAsync(context, response, () -> {
             DirectorySubspace volumeSubspace = service.openSubspace(arguments.volumeName);
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 long activeSegmentId = SegmentSubspaceUtil.findActiveSegmentId(tr, volumeSubspace);
                 SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, volumeSubspace, activeSegmentId);
                 long sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, volumeSubspace, activeSegmentId, pointer);

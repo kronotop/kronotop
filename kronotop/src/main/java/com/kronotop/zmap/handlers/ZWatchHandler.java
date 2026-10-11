@@ -23,7 +23,6 @@ import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.zmap.BaseZMapHandler;
 import com.kronotop.zmap.ZMapService;
 import com.kronotop.zmap.ZWatcher;
@@ -64,7 +63,7 @@ public class ZWatchHandler extends BaseZMapHandler implements Handler {
             ZWatchMessage message = request.attr(MessageTypes.ZWATCH).get();
 
             byte[] packedKey;
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
                 packedKey = subspace.pack(message.getKey());
             }

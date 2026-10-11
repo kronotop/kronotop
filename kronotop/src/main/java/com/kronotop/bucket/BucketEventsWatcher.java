@@ -41,7 +41,6 @@ import com.kronotop.journal.JournalName;
 import com.kronotop.journal.JournalService;
 import com.kronotop.namespace.NamespaceBeingRemovedException;
 import com.kronotop.namespace.NoSuchNamespaceException;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.worker.Worker;
 import com.kronotop.worker.WorkerTag;
 import com.kronotop.worker.WorkerUtil;
@@ -239,7 +238,7 @@ public class BucketEventsWatcher implements Runnable {
     private void fetchBucketEvents() {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 while (!shutdown) {
                     // Try to consume the latest event.
                     Event event = consumer.consume(tr);
@@ -269,7 +268,7 @@ public class BucketEventsWatcher implements Runnable {
             consumer.start();
 
             while (!shutdown) {
-                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     JournalService journal = context.getService(JournalService.NAME);
                     CompletableFuture<Void> watcher = keyWatcher.watch(tr, journal.getJournalMetadata(journalName).trigger());
                     // TODO: retry if this fails

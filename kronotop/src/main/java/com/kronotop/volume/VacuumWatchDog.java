@@ -161,7 +161,7 @@ class VacuumWatchDog implements Runnable {
         long completedAt = System.currentTimeMillis();
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         retry.executeRunnable(() -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VacuumMetadataUtil.save(
                         tr,
                         volume.getSubspace(),
@@ -246,7 +246,7 @@ class VacuumWatchDog implements Runnable {
         }
 
         private void markStopped() {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VacuumMetadataStatus status = VacuumSegmentMetadataUtil.readStatus(tr, volume.getSubspace(), segmentId);
                 if (status != VacuumMetadataStatus.COMPLETED) {
                     VacuumSegmentMetadataUtil.setStatus(tr, volume.getSubspace(), segmentId, VacuumMetadataStatus.STOPPED);

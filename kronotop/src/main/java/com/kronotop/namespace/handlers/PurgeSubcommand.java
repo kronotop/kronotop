@@ -26,7 +26,6 @@ import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.time.Duration;
 import java.util.List;
@@ -48,7 +47,7 @@ class PurgeSubcommand extends BaseSubcommand implements SubcommandHandler {
                 throw new KronotopException("Cannot purge the default namespace: '" + name + "'");
             }
 
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 DirectorySubspace subspace = NamespaceUtil.open(tr, context, arguments.subpath);
                 NamespaceMetadata metadata = NamespaceUtil.readMetadata(tr, name, subspace);
                 if (!metadata.removed()) {

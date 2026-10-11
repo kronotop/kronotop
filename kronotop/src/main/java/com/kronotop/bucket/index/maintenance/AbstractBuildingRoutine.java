@@ -172,7 +172,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
     private void setIndexTaskStatus(IndexTaskStatus status) {
         Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
         retry.executeRunnable(() -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 IndexBuildingTaskState.setStatus(tr, subspace, taskId, status);
                 commit(tr);
             }
@@ -181,7 +181,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
 
     private void markTaskFailed(Throwable th) {
         RetryMethods.retry(RetryMethods.TRANSACTION).executeRunnable(() -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 IndexBuildingTaskState.setError(tr, subspace, taskId, th.getMessage());
                 IndexBuildingTaskState.setStatus(tr, subspace, taskId, IndexTaskStatus.FAILED);
                 commit(tr);
@@ -196,7 +196,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
     }
 
     private void initialize() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             if (definition == null) {
                 stopped = true;
@@ -223,7 +223,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
             BucketMetadata metadata = TransactionUtil.execute(context, tr ->
                     BucketMetadataUtil.reload(context, tr, task.getNamespace(), task.getBucket())
             );
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 tr.options().setPriorityBatch();
                 IndexHolder<?> holder = lookupIndex(metadata);
                 if (holder == null) {

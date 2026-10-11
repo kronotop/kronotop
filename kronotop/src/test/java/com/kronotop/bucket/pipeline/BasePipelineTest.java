@@ -42,7 +42,6 @@ import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.transaction.InstrumentedTransaction;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -245,7 +244,7 @@ public class BasePipelineTest extends BaseHandlerTest {
     }
 
     protected Transaction createTransaction() {
-        return new InstrumentedTransaction(context.getFoundationDB().createTransaction());
+        return context.getTransactionManager().create();
     }
 
     protected BucketMetadata createBucketWithCollation(String bucketName, String collationJson) {

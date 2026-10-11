@@ -28,6 +28,7 @@ import com.kronotop.metrics.RuntimeMetrics;
 import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.SessionStore;
+import com.kronotop.transaction.TransactionManager;
 import com.kronotop.worker.WorkerRegistry;
 import com.typesafe.config.Config;
 import io.netty.util.AttributeMap;
@@ -237,4 +238,6 @@ public interface Context {
      * @return the {@link RuntimeMetrics} instance
      */
     RuntimeMetrics getRuntimeMetrics();
+
+    TransactionManager getTransactionManager();
 }

@@ -153,7 +153,7 @@ public class VolumeReplication implements ReplicationTask {
      * Determines the next replication step based on the current cursor state and segment status.
      */
     ReplicationStep resolveNextSegment() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationCursor cursor = ReplicationState.readCursor(tr, subspace);
             ReplicationStatus status = ReplicationState.readStatus(tr, subspace, cursor.segmentId());
             Stage stage = ReplicationState.readStage(tr, subspace, cursor.segmentId());

@@ -30,7 +30,6 @@ import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -47,7 +46,7 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandHandler {
 
     private void remove(String namespace, List<String> subpath) {
         // Remove namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             NamespaceMetadata metadata = NamespaceUtil.readMetadata(tr, context, subpath);
             if (metadata.removed()) {
                 throw new NamespaceBeingRemovedException(namespace);

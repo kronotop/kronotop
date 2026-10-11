@@ -16,7 +16,6 @@
 
 package com.kronotop.transaction;
 
-import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.CommitHook;
@@ -35,7 +34,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
@@ -60,20 +58,12 @@ public class TransactionUtil {
             // set AUTO_COMMIT to true.
             // This will be a one-off transaction.
             // WARNING: Using "virtualThreadPerTaskExecutor" can be dangerous here.
-            Transaction tr = createInstrumentedTransaction(context, context.getVirtualThreadPerTaskExecutor());
+            Transaction tr = context.getTransactionManager().create(context.getVirtualThreadPerTaskExecutor());
             session.setTransaction(tr);
             session.attr(SessionAttributes.AUTO_COMMIT).set(true);
             return tr;
         }
         return transactionAttr.get();
-    }
-
-    public static InstrumentedTransaction createInstrumentedTransaction(Context context) {
-        return new InstrumentedTransaction(context.getFoundationDB().createTransaction());
-    }
-
-    public static InstrumentedTransaction createInstrumentedTransaction(Context context, ExecutorService executor) {
-        return new InstrumentedTransaction(context.getFoundationDB().createTransaction(executor));
     }
 
     /**
@@ -194,13 +184,13 @@ public class TransactionUtil {
     }
 
     public static <T> T execute(Context context, Function<? super Transaction, T> action) {
-        try (Transaction tr = createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return action.apply(tr);
         }
     }
 
     public static <T> T executeThenCommit(Context context, Function<? super Transaction, T> action) {
-        try (Transaction tr = createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             T result = action.apply(tr);
             tr.commit().join();
             return result;

@@ -147,7 +147,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
     private void initializeCluster() {
         DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
 
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             if (MembershipUtil.isClusterInitialized(tr, clusterMetadataSubspace)) {
                 throw new KronotopException("cluster has already been initialized");
             }

@@ -35,7 +35,6 @@ import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -83,7 +82,7 @@ public class BucketLocateHandler extends AbstractBucketHandler implements Handle
             BucketLocateMessage message = request.attr(MessageTypes.BUCKETLOCATE).get();
             List<RedisMessage> routes = new ArrayList<>();
             Map<String, Member> members = new LinkedHashMap<>();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, message.getBucket());
                 for (int shardId : metadata.shards()) {

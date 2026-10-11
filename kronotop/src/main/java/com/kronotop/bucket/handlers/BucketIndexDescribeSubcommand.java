@@ -31,7 +31,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.Session;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.*;
-import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -128,7 +127,7 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         DescribeArguments arguments = new DescribeArguments(request.getArguments());
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 String namespace = NamespaceUtil.resolve(session, arguments.namespace);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);
 

@@ -58,7 +58,7 @@ public class Consumer {
         this.journalMetadata = loadJournalMetadata();
         DirectorySubspace consumerSubspace = createOrOpenConsumerSubspace();
         this.offsetKey = consumerSubspace.pack(Tuple.from(OFFSET_KEY));
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             this.initialOffset = inspectOffset(tr);
             this.offset = initialOffset;
         }

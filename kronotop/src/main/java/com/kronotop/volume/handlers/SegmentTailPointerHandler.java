@@ -27,7 +27,6 @@ import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.SegmentSubspaceUtil;
 import com.kronotop.volume.SegmentTailPointer;
 import com.kronotop.volume.VolumeService;
@@ -67,7 +66,7 @@ public class SegmentTailPointerHandler extends BaseVolumeHandler implements Hand
 
             long segmentId = message.getSegmentId();
             List<RedisMessage> result = new ArrayList<>();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 // locateTailPointer returns the next valid position within the segment.
                 // A returned value indicates that no user data exists beyond this point.
                 // It serves as an upper bound for replication and backup processes.

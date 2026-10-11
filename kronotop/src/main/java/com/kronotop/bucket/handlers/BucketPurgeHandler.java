@@ -34,7 +34,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.PrefixUtil;
 
 import java.time.Duration;
@@ -61,7 +60,7 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
         runAsync(context, response, () -> {
             BucketPurgeMessage message = request.attr(MessageTypes.BUCKETPURGE).get();
             String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, namespace, message.getBucket());
                 if (!metadata.removed()) {
                     throw new KronotopException(String.format("Bucket '%s' is not removed", message.getBucket()));
@@ -70,7 +69,7 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
                 barrier.await(metadata.version(), 20, Duration.ofMillis(250)); // 5000 milliseconds
             }
 
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, namespace, message.getBucket());
 

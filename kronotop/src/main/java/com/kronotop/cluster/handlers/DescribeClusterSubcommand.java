@@ -27,7 +27,6 @@ import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -45,7 +44,7 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
                 throw new InvalidNumberOfArgumentsException();
             }
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 String version = MetadataVersion.read(context, tr);
                 result.put(bulkString("metadata_version"), bulkString(version));
                 result.put(bulkString("cluster_name"), bulkString(context.getClusterName()));

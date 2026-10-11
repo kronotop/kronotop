@@ -27,7 +27,6 @@ import com.kronotop.cluster.MemberView;
 import com.kronotop.cluster.MembershipService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.namespace.handlers.NamespaceMetadata;
-import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.core.functions.CheckedRunnable;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
@@ -91,7 +90,7 @@ public class NamespaceVersionBarrier {
             attempts.getAndIncrement();
             int satisfies = 0;
             int aliveMembers = 0;
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 ReadTransaction readTr = tr.snapshot();
 
                 for (Map.Entry<Member, MemberView> entry : knownMembers.entrySet()) {

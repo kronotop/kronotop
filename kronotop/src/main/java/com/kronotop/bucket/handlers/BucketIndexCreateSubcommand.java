@@ -28,7 +28,6 @@ import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 import io.netty.buffer.ByteBuf;
 
@@ -65,7 +64,7 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
 
             Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
             retry.executeRunnable(() -> {
-                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     TransactionalContext tx = new TransactionalContext(context, tr);
                     String namespace = NamespaceUtil.resolve(request.getSession(), arguments.getNamespace());
                     BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, namespace, arguments.getBucket());

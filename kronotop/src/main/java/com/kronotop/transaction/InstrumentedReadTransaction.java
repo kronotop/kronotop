@@ -33,16 +33,23 @@ import java.util.function.Function;
  * @param <T> the concrete transaction type being wrapped
  */
 abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements ReadTransaction {
-
+    private final long id;
     protected final T underlying;
     protected final TransactionMetrics metrics;
 
-    protected InstrumentedReadTransaction(T underlying, TransactionMetrics metrics) {
+    protected InstrumentedReadTransaction(long id, T underlying, TransactionMetrics metrics) {
+        this.id = id;
         this.underlying = underlying;
         this.metrics = metrics;
     }
 
-    // --- Instrumented read operations ---
+    public TransactionMetrics getMetrics() {
+        return metrics;
+    }
+
+    public long getId() {
+        return id;
+    }
 
     @Override
     public CompletableFuture<byte[]> get(byte[] key) {
@@ -66,8 +73,6 @@ abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements
         });
     }
 
-    // --- Instrumented range reads (KeySelector overloads) ---
-
     @Override
     public AsyncIterable<KeyValue> getRange(KeySelector begin, KeySelector end) {
         return new ByteCountingAsyncIterable(underlying.getRange(begin, end), metrics);
@@ -87,8 +92,6 @@ abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements
     public AsyncIterable<KeyValue> getRange(KeySelector begin, KeySelector end, int limit, boolean reverse, StreamingMode mode) {
         return new ByteCountingAsyncIterable(underlying.getRange(begin, end, limit, reverse, mode), metrics);
     }
-
-    // --- Instrumented range reads (byte[] overloads) ---
 
     @Override
     public AsyncIterable<KeyValue> getRange(byte[] begin, byte[] end) {
@@ -110,8 +113,6 @@ abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements
         return new ByteCountingAsyncIterable(underlying.getRange(begin, end, limit, reverse, mode), metrics);
     }
 
-    // --- Instrumented range reads (Range overloads) ---
-
     @Override
     public AsyncIterable<KeyValue> getRange(Range range) {
         return new ByteCountingAsyncIterable(underlying.getRange(range), metrics);
@@ -131,8 +132,6 @@ abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements
     public AsyncIterable<KeyValue> getRange(Range range, int limit, boolean reverse, StreamingMode mode) {
         return new ByteCountingAsyncIterable(underlying.getRange(range, limit, reverse, mode), metrics);
     }
-
-    // --- Pure delegation ---
 
     @Override
     public AsyncIterable<MappedKeyValue> getMappedRange(KeySelector begin, KeySelector end, byte[] mapper, int limit, boolean reverse, StreamingMode mode) {
@@ -208,8 +207,6 @@ abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements
     public Executor getExecutor() {
         return underlying.getExecutor();
     }
-
-    // --- Byte-counting inner classes ---
 
     private static class ByteCountingAsyncIterable implements AsyncIterable<KeyValue> {
         private final AsyncIterable<KeyValue> underlying;

@@ -30,7 +30,6 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumArgumentCount;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +54,7 @@ public class BucketCreateHandler extends AbstractBucketHandler implements Handle
         BucketCreateMessage message = request.attr(MessageTypes.BUCKETCREATE).get();
         String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
         runAsync(context, response, () -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 List<Integer> shards = new ArrayList<>(message.getShards());
                 if (message.getShards().isEmpty()) {
                     BucketShard shard = service.getShardSelector().next();

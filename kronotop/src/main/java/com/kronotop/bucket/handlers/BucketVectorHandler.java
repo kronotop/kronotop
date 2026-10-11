@@ -31,7 +31,6 @@ import com.kronotop.namespace.NamespaceUtil;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumArgumentCount;
-import com.kronotop.transaction.TransactionUtil;
 import org.bson.BsonDocument;
 import org.bson.types.ObjectId;
 
@@ -111,7 +110,7 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
             BucketVectorMessage message = request.attr(MessageTypes.BUCKETVECTOR).get();
             Session session = request.getSession();
 
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 String namespace = NamespaceUtil.resolve(session, message.getNamespace());
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, message.getBucket());
                 checkBucketOwnership(metadata);

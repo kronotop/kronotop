@@ -33,7 +33,6 @@ import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.util.List;
 import java.util.concurrent.CompletionException;
@@ -54,7 +53,7 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandHandler {
             List<String> newPath = getNamespaceSubpath(arguments.newPath);
 
             // Move namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 checkNamespaceBeingRemoved(tr, arguments.oldPath);
                 DirectorySubspace newSubspace = context.getDirectoryLayer().move(tr, oldPath, newPath).join();
                 NamespaceUtil.updateLeafAndParentPointer(context, tr, newSubspace, arguments.newPath);

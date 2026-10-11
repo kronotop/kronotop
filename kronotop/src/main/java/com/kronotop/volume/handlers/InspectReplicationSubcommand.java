@@ -26,7 +26,6 @@ import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.MapRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.replication.ReplicationStatusInfo;
@@ -108,7 +107,7 @@ class InspectReplicationSubcommand extends BaseSubcommandHandler implements Subc
         ReplicationArguments arguments = new ReplicationArguments(request.getArguments());
 
         supplyAsync(context, response, () -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeNames.Parsed parsed = VolumeNames.parse(arguments.volumeName);
                 DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
                         context, tr, parsed.shardKind(), arguments.volumeName, arguments.standById

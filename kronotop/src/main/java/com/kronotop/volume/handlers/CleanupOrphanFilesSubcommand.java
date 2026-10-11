@@ -24,7 +24,6 @@ import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 import com.kronotop.volume.segment.SegmentUtil;
 import io.netty.buffer.ByteBuf;
@@ -66,7 +65,7 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
 
         supplyAsync(context, response, () -> {
             List<RedisMessage> deletedFiles = new ArrayList<>();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 Volume volume = service.findVolume(arguments.volumeName);
                 List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
                 Set<String> assumedFiles = new HashSet<>();

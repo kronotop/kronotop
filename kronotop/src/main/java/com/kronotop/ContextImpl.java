@@ -31,6 +31,7 @@ import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.SessionStore;
 import com.kronotop.server.TLSConfig;
+import com.kronotop.transaction.TransactionManager;
 import com.kronotop.worker.WorkerRegistry;
 import com.typesafe.config.Config;
 import io.netty.util.AttributeMap;
@@ -61,6 +62,7 @@ public class ContextImpl implements Context {
     private final EnumMap<ServerKind, CommandHandlerRegistry> handlers = new EnumMap<>(ServerKind.class);
     private final LinkedHashMap<String, KronotopService> services = new LinkedHashMap<>();
     private final String clusterName;
+    private final TransactionManager transactionManager;
     private final WorkerRegistry workerRegistry;
     private final EnumMap<ServerKind, Map<String, CommandMetadata>> commandMetadata = CommandMetadataLoader.load();
     private final ConcurrentHashMap<String, ServiceContext<?>> contexts = new ConcurrentHashMap<>();
@@ -105,6 +107,7 @@ public class ContextImpl implements Context {
         this.member = member;
         this.database = database;
         this.directoryLayer = KronotopDirectoryLayer.fromConfig(config);
+        this.transactionManager = new TransactionManager(database);
         this.workerRegistry = new WorkerRegistry();
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
         this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database, directoryLayer);
@@ -256,5 +259,10 @@ public class ContextImpl implements Context {
     @Override
     public RuntimeMetrics getRuntimeMetrics() {
         return runtimeMetrics;
+    }
+
+    @Override
+    public TransactionManager getTransactionManager() {
+        return transactionManager;
     }
 }

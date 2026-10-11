@@ -24,7 +24,6 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.transaction.InstrumentedTransaction;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -44,7 +43,7 @@ class VacuumSegment {
     }
 
     private void analyzeSegment(long segmentId) {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] statusKey = subspace.packVacuumSegmentMetadataFieldKey(segmentId, VacuumMetadataField.STATUS.getValue());
             byte[] statusValue = tr.get(statusKey).join();
             if (statusValue != null) {
@@ -100,7 +99,7 @@ class VacuumSegment {
     boolean vacuum(VacuumContext ctx, long segmentId, EntryEvacuator evacuator) throws IOException {
         analyzeSegment(segmentId);
 
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.setStatus(tr, subspace, segmentId, VacuumMetadataStatus.EVACUATING);
             tr.commit().join();
         }
@@ -116,7 +115,7 @@ class VacuumSegment {
             while (true) {
                 if (ctx.isStopped()) break;
 
-                try (InstrumentedTransaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (InstrumentedTransaction tr = context.getTransactionManager().create()) {
                     tr.options().setPriorityBatch();
                     Range vacuumRange = new Range(keyAfter(cursor), prefixRange.end);
 
@@ -147,7 +146,7 @@ class VacuumSegment {
                 }
             }
 
-            try (InstrumentedTransaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (InstrumentedTransaction tr = context.getTransactionManager().create()) {
                 if (!hasRemainingEntries(tr, segmentId)) {
                     VacuumSegmentMetadataUtil.setStatus(tr, subspace, segmentId, VacuumMetadataStatus.COMPLETED);
                     tr.commit().join();

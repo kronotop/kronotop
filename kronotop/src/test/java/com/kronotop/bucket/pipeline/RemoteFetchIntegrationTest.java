@@ -44,7 +44,6 @@ import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.SimpleStringRedisMessage;
-import com.kronotop.transaction.InstrumentedTransaction;
 import com.kronotop.transaction.TransactionUtil;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
@@ -119,7 +118,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<String> names = new ArrayList<>();
-        try (Transaction tr = new InstrumentedTransaction(secondContext.getFoundationDB().createTransaction())) {
+        try (Transaction tr = secondContext.getTransactionManager().create()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(3, results.size());
             for (ByteBuffer buffer : results) {
@@ -156,7 +155,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<String> names = new ArrayList<>();
-        try (Transaction tr = new InstrumentedTransaction(secondContext.getFoundationDB().createTransaction())) {
+        try (Transaction tr = secondContext.getTransactionManager().create()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(2, results.size());
             for (ByteBuffer buffer : results) {
@@ -197,7 +196,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         QueryOptions options = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = new InstrumentedTransaction(secondContext.getFoundationDB().createTransaction())) {
+        try (Transaction tr = secondContext.getTransactionManager().create()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(1, results.size());
             assertEquals("Alice", extractName(results.iterator().next()));
@@ -229,7 +228,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
         List<String> names = new ArrayList<>();
-        try (Transaction tr = new InstrumentedTransaction(secondContext.getFoundationDB().createTransaction())) {
+        try (Transaction tr = secondContext.getTransactionManager().create()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(5, results.size());
             for (ByteBuffer buffer : results) {
@@ -263,7 +262,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         QueryOptions options = QueryOptions.builder().build();
         QueryContext ctx = new QueryContext(getSession(), metadata, options, planWithParams.plan(), planWithParams.parameters());
 
-        try (Transaction tr = new InstrumentedTransaction(secondContext.getFoundationDB().createTransaction())) {
+        try (Transaction tr = secondContext.getTransactionManager().create()) {
             List<ByteBuffer> results = readExecutor.execute(tr, ctx);
             assertEquals(50, results.size());
 

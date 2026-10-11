@@ -23,7 +23,6 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -38,7 +37,7 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
     public void execute(Request request, Response response) {
         RemoveMemberArguments arguments = new RemoveMemberArguments(request.getArguments());
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 membership.removeMember(tr, arguments.memberId);
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();

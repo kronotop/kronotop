@@ -28,7 +28,6 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeConfigGenerator;
 import com.kronotop.volume.VolumeMetadataUtil;
 import com.kronotop.volume.VolumeStatus;
@@ -156,7 +155,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     public void execute(Request request, Response response) {
         RouteArguments arguments = new RouteArguments(request.getArguments());
         runAsync(context, response, () -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 if (!membership.isMemberRegistered(tr, arguments.memberId)) {
                     throw new KronotopException("member not found");
                 }

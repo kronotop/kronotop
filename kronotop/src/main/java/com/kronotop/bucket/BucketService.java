@@ -42,7 +42,6 @@ import com.kronotop.core.InfoCollector;
 import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.server.ServerKind;
-import com.kronotop.transaction.TransactionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -385,7 +384,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     private boolean hasMutationLogEntries(VectorIndex vectorIndex) {
         DirectorySubspace indexSubspace = vectorIndex.subspace();
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> result = tr.getRange(
                     KeySelector.firstGreaterOrEqual(prefix),
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix)),

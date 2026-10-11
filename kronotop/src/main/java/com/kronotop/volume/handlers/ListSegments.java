@@ -24,7 +24,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 import io.netty.buffer.ByteBuf;
 
@@ -47,7 +46,7 @@ public class ListSegments extends BaseSubcommandHandler implements SubcommandHan
             VolumeConfig config = volume.getConfig();
 
             List<RedisMessage> children = new ArrayList<>();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(config.subspace()));
                 for (long segmentId : segmentIds) {
                     children.add(new IntegerRedisMessage(segmentId));

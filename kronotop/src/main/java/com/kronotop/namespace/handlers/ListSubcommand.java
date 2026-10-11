@@ -28,7 +28,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
@@ -47,7 +46,7 @@ class ListSubcommand extends BaseSubcommand implements SubcommandHandler {
     public void execute(Request request, Response response) {
         ListArguments arguments = new ListArguments(request);
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 List<String> subpath = getNamespaceSubpath(arguments.subpath);
                 CompletableFuture<List<String>> future;
                 if (subpath.isEmpty()) {

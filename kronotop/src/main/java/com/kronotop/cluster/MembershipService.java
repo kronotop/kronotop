@@ -112,7 +112,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     }
 
     private void initializeInternalState() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (Member member : registry.listMembers(tr)) {
                 if (!member.getStatus().equals(MemberStatus.RUNNING)) {
                     continue;
@@ -287,7 +287,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(50));
         try {
             retry.executeRunnable(() -> {
-                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     member.setStatus(status);
                     registry.update(tr, member);
                     journal.getPublisher().publish(tr, JournalName.CLUSTER_EVENTS, new MemberLeftEvent(member));
@@ -309,7 +309,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     private void processMemberJoinEvent(byte[] data) {
         MemberJoinEvent event = JSONUtil.readValue(data, MemberJoinEvent.class);
 
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Member member = registry.findMember(tr, event.memberId());
             DirectorySubspace subspace = openMemberSubspace(tr, member);
             long heartbeat = Heartbeat.get(tr, subspace);
@@ -368,7 +368,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     private synchronized void fetchClusterEvents() {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         retry.executeRunnable(() -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 while (true) {
                     // Try to consume the latest event.
                     Event event;
@@ -406,7 +406,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
      * @param maxSilentPeriod maximum missed heartbeat intervals before a member is considered dead
      */
     void checkClusterMembers(long maxSilentPeriod) {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (Member member : knownMembers.keySet()) {
                 DirectorySubspace subspace = subspaces.get(member);
                 if (subspace == null) {
@@ -466,7 +466,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             }
 
             while (!shutdown) {
-                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     JournalService journal = context.getService(JournalService.NAME);
                     CompletableFuture<Void> watcher = keyWatcher.watch(tr, journal.getJournalMetadata(JournalName.CLUSTER_EVENTS.getValue()).trigger());
                     tr.commit().join();
@@ -500,7 +500,7 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
             if (shutdown) {
                 return;
             }
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 Heartbeat.set(tr, subspace);
                 tr.commit().join();
             } catch (Exception e) {

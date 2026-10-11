@@ -26,7 +26,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.IntegerRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.VolumeNames;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.replication.ReplicationStatusInfo;
@@ -61,7 +60,7 @@ class ReplicationStatsSubcommand extends BaseSubcommandHandler implements Subcom
 
         supplyAsync(context, response, () -> {
             String volumeName = request.attr(MessageTypes.VOLUMESTATS).get().getVolumeName();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeNames.Parsed parsed = VolumeNames.parse(volumeName);
                 DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
                         context, tr, parsed.shardKind(), volumeName, arguments.standbyId

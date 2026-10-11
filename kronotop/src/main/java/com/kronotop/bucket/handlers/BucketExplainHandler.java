@@ -32,7 +32,6 @@ import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.BooleanRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -53,7 +52,7 @@ public class BucketExplainHandler extends AbstractBucketHandler implements Handl
     }
 
     private BucketMetadata openBucketMetadata(Request request, BucketExplainMessage message) {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket(), message.getArguments());
         }
     }

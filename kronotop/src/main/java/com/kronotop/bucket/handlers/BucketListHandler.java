@@ -28,7 +28,6 @@ import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
@@ -58,7 +57,7 @@ public class BucketListHandler extends AbstractBucketHandler implements Handler 
             Session session = request.getSession();
             String namespace = NamespaceUtil.resolve(session, message.getNamespace());
             List<RedisMessage> children = new ArrayList<>();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(
                         context, tr, session, namespace, DataStructureKind.BUCKET
                 );

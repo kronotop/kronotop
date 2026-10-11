@@ -30,7 +30,6 @@ import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
-import com.kronotop.transaction.TransactionUtil;
 
 import javax.annotation.Nonnull;
 import java.util.List;
@@ -106,7 +105,7 @@ public class JournalService extends BaseKronotopService implements KronotopServi
      * @return a list of journal names as strings.
      */
     public List<String> listJournals() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return listJournals(tr);
         }
     }

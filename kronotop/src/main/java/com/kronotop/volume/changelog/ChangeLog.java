@@ -25,7 +25,6 @@ import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
 
 import java.util.ArrayList;
@@ -60,7 +59,7 @@ public class ChangeLog {
     public ChangeLog(Context context, DirectorySubspace subspace) {
         this.context = context;
         this.subspace = subspace;
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             this.lastGeneratedSequenceNumber = ChangeLog.getLatestSequenceNumber(tr, subspace);
         }
     }

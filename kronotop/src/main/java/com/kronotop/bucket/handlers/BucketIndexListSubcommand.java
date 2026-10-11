@@ -30,7 +30,6 @@ import com.kronotop.server.Session;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
-import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
@@ -53,7 +52,7 @@ class BucketIndexListSubcommand implements SubcommandHandler {
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
             List<RedisMessage> children = new ArrayList<>();
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 String namespace = NamespaceUtil.resolve(session, arguments.namespace);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);
                 List<String> names = IndexUtil.list(tr, metadata.subspace());

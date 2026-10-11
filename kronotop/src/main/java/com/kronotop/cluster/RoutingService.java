@@ -30,7 +30,6 @@ import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.server.ServerKind;
-import com.kronotop.transaction.TransactionUtil;
 import io.netty.util.Attribute;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,7 +172,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
      * @return true if the cluster is initialized, otherwise false.
      */
     private boolean isClusterInitialized_internal() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
             byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
             byte[] data = tr.get(key).join();
@@ -265,7 +264,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
         ShardRegistry shardRegistry = context.getShardRegistry();
 
         RoutingTable table = new RoutingTable();
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (ShardKind shardKind : shardRegistry.getShardKinds()) {
                 shardRegistry.refresh(tr, shardKind);
                 List<Integer> shardIds = shardRegistry.getShardIds(shardKind);
@@ -393,7 +392,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
                 byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_INITIALIZED));
 
-                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
                     tr.commit().join();
                     try {
@@ -439,7 +438,7 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
             DirectorySubspace subspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
             byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_TOPOLOGY_CHANGED));
             while (!shutdown) {
-                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     CompletableFuture<Void> watcher = keyWatcher.watch(tr, key);
                     tr.commit().join();
 

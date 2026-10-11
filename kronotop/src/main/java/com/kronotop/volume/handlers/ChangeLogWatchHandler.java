@@ -25,7 +25,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.Volume;
 import com.kronotop.volume.VolumeService;
 import com.kronotop.volume.changelog.ChangeLog;
@@ -60,7 +59,7 @@ public class ChangeLogWatchHandler extends BaseVolumeHandler implements Handler 
             byte[] mutationTrigger = service.getMutationTriggerKey(subspace);
 
             while (true) {
-                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     long latestSequenceNumber = ChangeLog.getLatestSequenceNumber(tr, subspace);
                     if (latestSequenceNumber < message.getSequenceNumber()) {
                         throw new IllegalArgumentException(

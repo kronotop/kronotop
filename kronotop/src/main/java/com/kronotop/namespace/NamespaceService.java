@@ -94,7 +94,7 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
                 metadata().
                 members().
                 member(context.getMember().getId()).toList();
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             memberSubspace = context.getDirectoryLayer().open(tr, subpath).join();
         }
     }
@@ -175,7 +175,7 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
     private synchronized void fetchNamespaceEvents() {
         Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
         retry.executeRunnable(() -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 while (true) {
                     // Try to consume the latest event.
                     Event event;
@@ -244,7 +244,7 @@ public class NamespaceService extends CommandHandlerService implements KronotopS
             }
 
             while (!shutdown) {
-                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     JournalService journal = context.getService(JournalService.NAME);
                     CompletableFuture<Void> watcher = keyWatcher.watch(tr, journal.getJournalMetadata(JournalName.NAMESPACE_EVENTS.getValue()).trigger());
                     tr.commit().join();

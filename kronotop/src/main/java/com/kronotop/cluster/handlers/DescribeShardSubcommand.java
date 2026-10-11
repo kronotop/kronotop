@@ -24,7 +24,6 @@ import com.kronotop.internal.ProtocolMessageUtil;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.transaction.TransactionUtil;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
@@ -39,7 +38,7 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
     public void execute(Request request, Response response) {
         DescribeShardArguments arguments = new DescribeShardArguments(request.getArguments());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return describeShard(tr, arguments.kind, arguments.shardId);
             }
         }, response::writeMap);

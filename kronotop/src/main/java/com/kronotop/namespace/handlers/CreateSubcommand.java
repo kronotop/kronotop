@@ -28,7 +28,6 @@ import com.kronotop.server.IllegalCommandArgumentException;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.SubcommandHandler;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.util.List;
 
@@ -47,7 +46,7 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandHandler {
             String namespace = dottedNamespace(arguments.subpath);
 
             // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TombstoneManager.checkBarrier(context, tr, namespace);
                 // Commits the transaction itself.
                 NamespaceUtil.create(context, tr, arguments.subpath);

@@ -29,7 +29,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
-import com.kronotop.transaction.TransactionUtil;
 
 import static com.kronotop.AsyncCommandExecutor.runAsync;
 
@@ -52,7 +51,7 @@ public class BucketRemoveHandler extends AbstractBucketHandler {
         runAsync(context, response, () -> {
             BucketRemoveMessage message = request.attr(MessageTypes.BUCKETREMOVE).get();
             String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
-            try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, namespace, message.getBucket());
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 BucketMetadataUtil.setRemoved(tx, metadata);

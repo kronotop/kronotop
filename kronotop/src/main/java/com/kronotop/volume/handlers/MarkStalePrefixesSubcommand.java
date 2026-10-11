@@ -37,7 +37,6 @@ import com.kronotop.server.SubcommandHandler;
 import com.kronotop.server.resp3.ArrayRedisMessage;
 import com.kronotop.server.resp3.RedisMessage;
 import com.kronotop.task.TaskService;
-import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.MarkStalePrefixesTask;
 import com.kronotop.volume.VolumeService;
 import io.netty.buffer.ByteBuf;
@@ -67,7 +66,7 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
                 KronotopDirectoryNode node = KronotopDirectory.kronotop()
                         .cluster(context.getClusterName()).metadata().tasks()
                         .task(MarkStalePrefixesTask.NAME);
-                try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     DirectorySubspace subspace;
                     try {
                         subspace = context.getDirectoryLayer().open(tr, node.toList()).join();

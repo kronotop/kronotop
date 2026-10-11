@@ -26,7 +26,6 @@ import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
-import com.kronotop.transaction.TransactionUtil;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -81,7 +80,7 @@ public class TickHandler implements Handler {
     }
 
     private long fetchReadVersion() {
-        try (Transaction tr = TransactionUtil.createInstrumentedTransaction(context)) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getReadVersion().join();
         }
     }

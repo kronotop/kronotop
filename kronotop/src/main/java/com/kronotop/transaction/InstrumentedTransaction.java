@@ -27,18 +27,12 @@ import java.util.function.Function;
  */
 public class InstrumentedTransaction extends InstrumentedReadTransaction<Transaction> implements Transaction {
 
+    private final TransactionManager manager;
     private ReadTransaction snapshot;
 
-    public InstrumentedTransaction(Transaction underlying) {
-        super(underlying, new TransactionMetrics());
-    }
-
-    public InstrumentedTransaction(Transaction underlying, TransactionMetrics metrics) {
-        super(underlying, metrics);
-    }
-
-    public TransactionMetrics getProfile() {
-        return metrics;
+    InstrumentedTransaction(long id, Transaction underlying, TransactionManager manager) {
+        super(id, underlying, new TransactionMetrics());
+        this.manager = manager;
     }
 
     @Override
@@ -103,6 +97,7 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
 
     @Override
     public void close() {
+        manager.release(this);
         underlying.close();
         metrics.recordTotalDuration();
     }
@@ -110,7 +105,7 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
     @Override
     public ReadTransaction snapshot() {
         if (snapshot == null) {
-            snapshot = new InstrumentedSnapshot(underlying.snapshot(), metrics);
+            snapshot = new InstrumentedSnapshot(getId(), underlying.snapshot(), metrics);
         }
         return snapshot;
     }
@@ -182,8 +177,8 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
 
     private static class InstrumentedSnapshot extends InstrumentedReadTransaction<ReadTransaction> implements ReadTransaction {
 
-        InstrumentedSnapshot(ReadTransaction underlying, TransactionMetrics metrics) {
-            super(underlying, metrics);
+        InstrumentedSnapshot(long id, ReadTransaction underlying, TransactionMetrics metrics) {
+            super(id, underlying, metrics);
         }
 
         @Override
