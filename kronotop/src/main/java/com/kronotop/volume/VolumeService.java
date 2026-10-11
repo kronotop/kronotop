@@ -29,13 +29,13 @@ import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.core.InfoCollector;
-import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.journal.*;
+import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.CommandAlreadyRegisteredException;
 import com.kronotop.server.ServerKind;
 import com.kronotop.task.TaskService;
@@ -304,11 +304,11 @@ public class VolumeService extends CommandHandlerService implements KronotopServ
                 .filter(volume -> !volume.isClosed())
                 .sorted(Comparator.comparing(volume -> volume.getConfig().name()))
                 .toList();
-        collector.put(InfoHandler.VOLUME_SECTION, "volume_count", open.size());
+        collector.put(InfoReport.VOLUME_SECTION, "volume_count", open.size());
         int index = 0;
         for (Volume volume : open) {
             String line = prepareVolumeSection(volume);
-            collector.put(InfoHandler.VOLUME_SECTION, "volume" + index, line);
+            collector.put(InfoReport.VOLUME_SECTION, "volume" + index, line);
             index++;
         }
     }

@@ -39,8 +39,8 @@ import com.kronotop.cluster.RoutingEventKind;
 import com.kronotop.cluster.RoutingService;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.core.InfoCollector;
-import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.internal.ExecutorServiceUtil;
+import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.SessionAttributes;
 import org.slf4j.Logger;
@@ -153,28 +153,28 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 lastRun = Math.max(lastRun, metrics.getLatestExecution());
             }
         }
-        collector.put(InfoHandler.BUCKET_SECTION, "plan_cache_size", planCache.size());
-        collector.put(InfoHandler.BUCKET_SECTION, "plan_cache_hits", metrics.getPlanCacheHits());
-        collector.put(InfoHandler.BUCKET_SECTION, "plan_cache_misses", metrics.getPlanCacheMisses());
+        collector.put(InfoReport.BUCKET_SECTION, "plan_cache_size", planCache.size());
+        collector.put(InfoReport.BUCKET_SECTION, "plan_cache_hits", metrics.getPlanCacheHits());
+        collector.put(InfoReport.BUCKET_SECTION, "plan_cache_misses", metrics.getPlanCacheMisses());
         int[] openCursors = new int[1];
         context.getSessionStore().forEach(session -> {
             openCursors[0] += session.attr(SessionAttributes.BUCKET_READ_QUERY_CONTEXTS).get().size();
             openCursors[0] += session.attr(SessionAttributes.BUCKET_DELETE_QUERY_CONTEXTS).get().size();
             openCursors[0] += session.attr(SessionAttributes.BUCKET_UPDATE_QUERY_CONTEXTS).get().size();
         });
-        collector.put(InfoHandler.BUCKET_SECTION, "open_cursors", openCursors[0]);
-        collector.put(InfoHandler.BUCKET_SECTION, "bucket_inserts", metrics.getInserts());
-        collector.put(InfoHandler.BUCKET_SECTION, "bucket_queries", metrics.getQueries());
-        collector.put(InfoHandler.BUCKET_SECTION, "bucket_updates", metrics.getUpdates());
-        collector.put(InfoHandler.BUCKET_SECTION, "bucket_deletes", metrics.getDeletes());
-        collector.put(InfoHandler.BUCKET_SECTION, "bucket_advances", metrics.getAdvances());
-        collector.put(InfoHandler.BUCKET_SECTION, "bucket_vector_searches", metrics.getVectorSearches());
-        collector.put(InfoHandler.BUCKET_SECTION, "bucket_purges", metrics.getPurges());
-        collector.put(InfoHandler.BUCKET_SECTION, "bucket_removes", metrics.getRemoves());
-        collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_workers", workers);
-        collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_processed_entries", processed);
-        collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_retried_conflicts", retried);
-        collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_last_run", lastRun);
+        collector.put(InfoReport.BUCKET_SECTION, "open_cursors", openCursors[0]);
+        collector.put(InfoReport.BUCKET_SECTION, "bucket_inserts", metrics.getInserts());
+        collector.put(InfoReport.BUCKET_SECTION, "bucket_queries", metrics.getQueries());
+        collector.put(InfoReport.BUCKET_SECTION, "bucket_updates", metrics.getUpdates());
+        collector.put(InfoReport.BUCKET_SECTION, "bucket_deletes", metrics.getDeletes());
+        collector.put(InfoReport.BUCKET_SECTION, "bucket_advances", metrics.getAdvances());
+        collector.put(InfoReport.BUCKET_SECTION, "bucket_vector_searches", metrics.getVectorSearches());
+        collector.put(InfoReport.BUCKET_SECTION, "bucket_purges", metrics.getPurges());
+        collector.put(InfoReport.BUCKET_SECTION, "bucket_removes", metrics.getRemoves());
+        collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_workers", workers);
+        collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_processed_entries", processed);
+        collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_retried_conflicts", retried);
+        collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_last_run", lastRun);
 
         int[] indexes = new int[1];
         int[] pending = new int[1];
@@ -186,10 +186,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
                 bytes[0] += index.ramBytesUsed();
             }
         });
-        collector.put(InfoHandler.VECTOR_SECTION, "vector_indexes", indexes[0]);
-        collector.put(InfoHandler.VECTOR_SECTION, "vector_bytes_used", bytes[0]);
-        collector.put(InfoHandler.VECTOR_SECTION, "vector_pending_retries", pending[0]);
-        collector.put(InfoHandler.VECTOR_SECTION, "vector_retried_ops", metrics.getVectorRetriedOps());
+        collector.put(InfoReport.VECTOR_SECTION, "vector_indexes", indexes[0]);
+        collector.put(InfoReport.VECTOR_SECTION, "vector_bytes_used", bytes[0]);
+        collector.put(InfoReport.VECTOR_SECTION, "vector_pending_retries", pending[0]);
+        collector.put(InfoReport.VECTOR_SECTION, "vector_retried_ops", metrics.getVectorRetriedOps());
     }
 
     public Route findRoute(int shardId) {

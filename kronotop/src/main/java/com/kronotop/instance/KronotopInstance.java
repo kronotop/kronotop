@@ -350,7 +350,7 @@ public class KronotopInstance {
             return;
         }
         int exportInterval = config.getInt("observability.otlp.export_interval");
-        observabilityScheduler.scheduleAtFixedRate(new OtlpExportTask(), exportInterval, exportInterval, TimeUnit.SECONDS);
+        observabilityScheduler.scheduleAtFixedRate(new OtlpExportTask(context), exportInterval, exportInterval, TimeUnit.SECONDS);
     }
 
     /**

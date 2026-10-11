@@ -26,13 +26,13 @@ import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.KronotopService;
 import com.kronotop.core.InfoCollector;
-import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.JSONUtil;
 import com.kronotop.internal.KeyWatcher;
 import com.kronotop.journal.*;
+import com.kronotop.metrics.InfoReport;
 import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
 import org.slf4j.Logger;
@@ -231,8 +231,8 @@ public class MembershipService extends BaseKronotopService implements KronotopSe
     @Override
     public void collectInfo(InfoCollector collector) {
         long alive = knownMembers.values().stream().filter(MemberView::isAlive).count();
-        collector.put(InfoHandler.KRONOTOP_SECTION, "known_members", knownMembers.size());
-        collector.put(InfoHandler.KRONOTOP_SECTION, "alive_members", alive);
+        collector.put(InfoReport.KRONOTOP_SECTION, "known_members", knownMembers.size());
+        collector.put(InfoReport.KRONOTOP_SECTION, "alive_members", alive);
     }
 
     /**

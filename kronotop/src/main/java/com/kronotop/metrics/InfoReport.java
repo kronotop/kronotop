@@ -1,0 +1,358 @@
+/*
+ * Copyright (c) 2023-2026 Burak Sezer
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.kronotop.metrics;
+
+import com.kronotop.Context;
+import com.kronotop.KronotopService;
+import com.kronotop.cluster.Member;
+import com.kronotop.cluster.sharding.ShardKind;
+import com.kronotop.core.InfoCollector;
+import com.kronotop.instance.KronotopInstanceStarter;
+import com.kronotop.internal.VersionstampUtil;
+import com.kronotop.network.Address;
+import com.kronotop.server.RESPVersion;
+import com.kronotop.server.ServerKind;
+import com.kronotop.server.SessionAttributes;
+import com.kronotop.transaction.TransactionUtil;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufAllocatorMetric;
+import io.netty.buffer.ByteBufAllocatorMetricProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.management.*;
+import java.time.Instant;
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
+
+/**
+ * Builds the INFO report. The INFO command and the OTLP exporter share it.
+ */
+public class InfoReport {
+    public static final String SERVER_SECTION = "Server";
+    public static final String CLUSTER_SECTION = "Cluster";
+    public static final String KRONOTOP_SECTION = "Kronotop";
+    public static final String CLIENTS_SECTION = "Clients";
+    public static final String MEMORY_SECTION = "Memory";
+    public static final String TASKS_SECTION = "Tasks";
+    public static final String VOLUME_SECTION = "Volume";
+    public static final String BUCKET_SECTION = "Bucket";
+    public static final String VECTOR_SECTION = "Vector";
+    public static final String ZMAP_SECTION = "ZMap";
+    public static final String TRAFFIC_SECTION = "Traffic";
+    public static final String TRANSACTIONS_SECTION = "Transactions";
+    private static final Logger LOGGER = LoggerFactory.getLogger(InfoReport.class);
+
+    private final Context context;
+    private final String version;
+    private final String gitSha1;
+    private final String buildTime;
+
+    public InfoReport(Context context) {
+        this.context = context;
+        Properties props = loadBuildProperties();
+        this.version = KronotopInstanceStarter.resolveProperty(props.getProperty("kronotop.version"));
+        this.gitSha1 = KronotopInstanceStarter.resolveProperty(props.getProperty("kronotop.git.commit"));
+        this.buildTime = KronotopInstanceStarter.resolveProperty(props.getProperty("kronotop.build.time"));
+    }
+
+    private static Properties loadBuildProperties() {
+        Properties props = new Properties();
+        try (InputStream in = InfoReport.class.getClassLoader().getResourceAsStream("application.properties")) {
+            if (in != null) {
+                props.load(in);
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Failed to load application.properties", e);
+        }
+        return props;
+    }
+
+    private static int archBits() {
+        String arch = System.getProperty("os.arch", "");
+        return arch.contains("64") ? 64 : 32;
+    }
+
+    private static long serverTimeUsec() {
+        Instant now = Instant.now();
+        return now.getEpochSecond() * 1_000_000L + now.getNano() / 1_000L;
+    }
+
+    /**
+     * Formats a JVM memory limit. A limit of -1 means the JVM does not define one.
+     */
+    private static String formatLimit(long max) {
+        return max == -1 ? "unlimited" : KronotopInstanceStarter.formatBytes(max);
+    }
+
+    private static String listener(String name, Address bind, List<Address> advertise) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("name=").append(name);
+        sb.append(",bind=").append(bind.getHost());
+        sb.append(",port=").append(bind.getPort());
+        for (Address address : advertise) {
+            sb.append(",advertise=").append(address);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Collects every section and renders the ones whose lower-case name is in
+     * the filter. A null filter renders everything.
+     */
+    public String render(Set<String> filter) {
+        InfoCollector collector = new InfoCollector();
+        collectServer(collector);
+        collector.put(CLUSTER_SECTION, "cluster_enabled", 0);
+        collectKronotop(collector);
+        collectClients(collector);
+        collectMemory(collector);
+        collectTraffic(collector);
+        collectTransactions(collector);
+        for (KronotopService service : context.getServices()) {
+            try {
+                service.collectInfo(collector);
+            } catch (Exception e) {
+                LOGGER.error("Failed to collect INFO fields from service: {}", service.getName(), e);
+            }
+        }
+        return collector.render(filter);
+    }
+
+    private void collectServer(InfoCollector collector) {
+        Member member = context.getMember();
+        collector.put(SERVER_SECTION, "server_name", "kronotop");
+        collector.put(SERVER_SECTION, "kronotop_version", version);
+        collector.put(SERVER_SECTION, "kronotop_git_sha1", gitSha1);
+        collector.put(SERVER_SECTION, "kronotop_build_time", buildTime);
+        collector.put(SERVER_SECTION, "server_mode", "standalone");
+        collector.put(SERVER_SECTION, "os", String.format("%s %s %s",
+                System.getProperty("os.name"),
+                System.getProperty("os.version"),
+                System.getProperty("os.arch")
+        ));
+        collector.put(SERVER_SECTION, "arch_bits", archBits());
+        collector.put(SERVER_SECTION, "java_version", System.getProperty("java.version"));
+        collector.put(SERVER_SECTION, "process_id", ProcessHandle.current().pid());
+        collector.put(SERVER_SECTION, "run_id", VersionstampUtil.base32HexEncode(member.getProcessId()));
+        collector.put(SERVER_SECTION, "tcp_port", member.getExternalAddress().getPort());
+        collector.put(SERVER_SECTION, "server_time_usec", serverTimeUsec());
+        collector.put(SERVER_SECTION, "uptime_in_seconds", ManagementFactory.getRuntimeMXBean().getUptime() / 1000);
+        if (ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os
+                && os.getProcessCpuTime() >= 0) {
+            collector.put(SERVER_SECTION, "process_cpu_time_msec", os.getProcessCpuTime() / 1_000_000);
+        }
+        collector.put(SERVER_SECTION, "fdb_api_version", context.getConfig().getInt("foundationdb.apiversion"));
+        collector.put(SERVER_SECTION, "listener0",
+                listener("external", member.getExternalAddress(), member.getExternalAdvertise()));
+        collector.put(SERVER_SECTION, "listener1",
+                listener("internal", member.getInternalAddress(), member.getInternalAdvertise()));
+    }
+
+    private void collectClients(InfoCollector collector) {
+        ClientCounters counters = new ClientCounters();
+        context.getSessionStore().forEach(session -> {
+            counters.connected++;
+            if (Boolean.TRUE.equals(session.attr(SessionAttributes.BEGIN).get())) {
+                counters.inTransaction++;
+            }
+            if (Boolean.TRUE.equals(session.attr(SessionAttributes.MULTI).get())) {
+                counters.inMulti++;
+            }
+            if (TransactionUtil.isSnapshotRead(session)) {
+                counters.snapshotRead++;
+            }
+            if (session.getProtocolVersion() == RESPVersion.RESP3) {
+                counters.resp3++;
+            } else {
+                counters.resp2++;
+            }
+        });
+        collector.put(CLIENTS_SECTION, "connected_clients", counters.connected);
+        collector.put(CLIENTS_SECTION, "clients_in_transaction", counters.inTransaction);
+        if (context.getShardRegistry().getShardKinds().contains(ShardKind.STASH)) {
+            collector.put(CLIENTS_SECTION, "clients_in_multi", counters.inMulti);
+        }
+        collector.put(CLIENTS_SECTION, "snapshot_read_clients", counters.snapshotRead);
+        collector.put(CLIENTS_SECTION, "resp2_clients", counters.resp2);
+        collector.put(CLIENTS_SECTION, "resp3_clients", counters.resp3);
+    }
+
+    private void collectMemory(InfoCollector collector) {
+        long gcCount = 0;
+        long gcTime = 0;
+        for (GarbageCollectorMXBean gc : ManagementFactory.getGarbageCollectorMXBeans()) {
+            if (gc.getCollectionCount() > 0) {
+                gcCount += gc.getCollectionCount();
+            }
+            if (gc.getCollectionTime() > 0) {
+                gcTime += gc.getCollectionTime();
+            }
+        }
+
+        MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
+
+        MemoryUsage heapMemoryUsage = memoryMXBean.getHeapMemoryUsage();
+        collector.put(MEMORY_SECTION, "heap_used_memory", heapMemoryUsage.getUsed());
+        collector.put(MEMORY_SECTION, "heap_used_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getUsed()));
+
+        collector.put(MEMORY_SECTION, "heap_committed_memory", heapMemoryUsage.getCommitted());
+        collector.put(MEMORY_SECTION, "heap_committed_memory_human", KronotopInstanceStarter.formatBytes(heapMemoryUsage.getCommitted()));
+
+        collector.put(MEMORY_SECTION, "heap_max_memory", heapMemoryUsage.getMax());
+        collector.put(MEMORY_SECTION, "heap_max_memory_human", formatLimit(heapMemoryUsage.getMax()));
+
+        MemoryUsage nonHeapMemoryUsage = memoryMXBean.getNonHeapMemoryUsage();
+        collector.put(MEMORY_SECTION, "non_heap_used_memory", nonHeapMemoryUsage.getUsed());
+        collector.put(MEMORY_SECTION, "non_heap_used_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getUsed()));
+
+        collector.put(MEMORY_SECTION, "non_heap_committed_memory", nonHeapMemoryUsage.getCommitted());
+        collector.put(MEMORY_SECTION, "non_heap_committed_memory_human", KronotopInstanceStarter.formatBytes(nonHeapMemoryUsage.getCommitted()));
+
+        collector.put(MEMORY_SECTION, "non_heap_max_memory", nonHeapMemoryUsage.getMax());
+        collector.put(MEMORY_SECTION, "non_heap_max_memory_human", formatLimit(nonHeapMemoryUsage.getMax()));
+
+        for (BufferPoolMXBean bufferPool : ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)) {
+            switch (bufferPool.getName()) {
+                case "direct" -> {
+                    collector.put(MEMORY_SECTION, "direct_buffer_count", bufferPool.getCount());
+                    collector.put(MEMORY_SECTION, "direct_buffer_used_memory", bufferPool.getMemoryUsed());
+                    collector.put(MEMORY_SECTION, "direct_buffer_used_memory_human", KronotopInstanceStarter.formatBytes(bufferPool.getMemoryUsed()));
+                    collector.put(MEMORY_SECTION, "direct_buffer_total_capacity", bufferPool.getTotalCapacity());
+                    collector.put(MEMORY_SECTION, "direct_buffer_total_capacity_human", KronotopInstanceStarter.formatBytes(bufferPool.getTotalCapacity()));
+                }
+                // The JVM reports the whole mapped range as used, so there is no used_memory field for mapped files
+                case "mapped" -> {
+                    collector.put(MEMORY_SECTION, "mapped_buffer_count", bufferPool.getCount());
+                    collector.put(MEMORY_SECTION, "mapped_buffer_total_capacity", bufferPool.getTotalCapacity());
+                    collector.put(MEMORY_SECTION, "mapped_buffer_total_capacity_human", KronotopInstanceStarter.formatBytes(bufferPool.getTotalCapacity()));
+                }
+                default -> {
+                }
+            }
+        }
+
+        if (ByteBufAllocator.DEFAULT instanceof ByteBufAllocatorMetricProvider provider) {
+            ByteBufAllocatorMetric metric = provider.metric();
+            collector.put(MEMORY_SECTION, "netty_used_direct_memory", metric.usedDirectMemory());
+            collector.put(MEMORY_SECTION, "netty_used_direct_memory_human", KronotopInstanceStarter.formatBytes(metric.usedDirectMemory()));
+
+            collector.put(MEMORY_SECTION, "netty_used_heap_memory", metric.usedHeapMemory());
+            collector.put(MEMORY_SECTION, "netty_used_heap_memory_human", KronotopInstanceStarter.formatBytes(metric.usedHeapMemory()));
+        }
+
+        if (ManagementFactory.getThreadMXBean() instanceof com.sun.management.ThreadMXBean threadMXBean
+                && threadMXBean.isThreadAllocatedMemorySupported()) {
+            // -1 when thread memory allocation measurement is disabled
+            long totalAllocated = threadMXBean.getTotalThreadAllocatedBytes();
+            collector.put(MEMORY_SECTION, "total_allocated_memory", totalAllocated);
+            collector.put(MEMORY_SECTION, "total_allocated_memory_human", KronotopInstanceStarter.formatBytes(totalAllocated));
+        }
+
+        collector.put(MEMORY_SECTION, "gc_count", gcCount);
+        collector.put(MEMORY_SECTION, "gc_time_msec", gcTime);
+
+        long gcFreed = context.getRuntimeMetrics().getGcFreedBytes();
+        collector.put(MEMORY_SECTION, "gc_freed_memory", gcFreed);
+        collector.put(MEMORY_SECTION, "gc_freed_memory_human", KronotopInstanceStarter.formatBytes(gcFreed));
+    }
+
+    private void collectKronotop(InfoCollector collector) {
+        Member member = context.getMember();
+        collector.put(KRONOTOP_SECTION, "cluster_name", context.getClusterName());
+        collector.put(KRONOTOP_SECTION, "member_id", member.getId());
+        collector.put(KRONOTOP_SECTION, "member_status", member.getStatus());
+        collector.put(KRONOTOP_SECTION, "bucket_shards", context.getShardRegistry().getShardIds(ShardKind.BUCKET).size());
+        if (context.getShardRegistry().getShardKinds().contains(ShardKind.STASH)) {
+            collector.put(KRONOTOP_SECTION, "stash_shards", context.getShardRegistry().getShardIds(ShardKind.STASH).size());
+        }
+    }
+
+    private void collectTraffic(InfoCollector collector) {
+        NetworkMetrics metrics = context.getRuntimeMetrics().getNetworkMetrics();
+        for (ServerKind serverKind : ServerKind.values()) {
+            String prefix = serverKind.toString().toLowerCase();
+            long processed = metrics.getTotalCommandsProcessed(serverKind);
+            long failed = metrics.getCommandsFailed(serverKind);
+            collector.put(TRAFFIC_SECTION, prefix + "_total_commands_processed", processed);
+            collector.put(TRAFFIC_SECTION, prefix + "_commands_succeeded", processed - failed);
+            collector.put(TRAFFIC_SECTION, prefix + "_commands_failed", failed);
+            collector.put(TRAFFIC_SECTION, prefix + "_read_bytes", metrics.getReadBytes(serverKind));
+            collector.put(TRAFFIC_SECTION, prefix + "_read_bytes_human", KronotopInstanceStarter.formatBytes(metrics.getReadBytes(serverKind)));
+            collector.put(TRAFFIC_SECTION, prefix + "_written_bytes", metrics.getWrittenBytes(serverKind));
+            collector.put(TRAFFIC_SECTION, prefix + "_written_bytes_human", KronotopInstanceStarter.formatBytes(metrics.getWrittenBytes(serverKind)));
+        }
+    }
+
+    private void collectTransactions(InfoCollector collector) {
+        AggregatedTransactionMetrics metrics = context.getRuntimeMetrics().getAggregatedTransactionMetrics();
+        long created = metrics.getCreated();
+        // open = every registered transaction; watching = the ones that hold a watch and stay open
+        // until an event arrives; active = the rest, the ones a client or a task is really working in.
+        long open = context.getTransactionManager().getActiveTransactionCount();
+        long watching = context.getTransactionManager().getWatchingTransactionCount();
+        long active = Math.max(0, open - watching);
+        long committed = metrics.getCommitted();
+        long conflicted = metrics.getConflicted();
+        long commitFailed = metrics.getCommitFailed();
+        long rolledBack = metrics.getRolledBack();
+        // Closed without a commit attempt or a rollback: read-only work and channel close.
+        long closedWithoutCommit = Math.max(0, created - open - committed - conflicted - commitFailed - rolledBack);
+
+        collector.put(TRANSACTIONS_SECTION, "transactions_created", created);
+        collector.put(TRANSACTIONS_SECTION, "transactions_active", active);
+        collector.put(TRANSACTIONS_SECTION, "transactions_watching", watching);
+        // Watch transactions are excluded. They stay open until an event arrives.
+        long oldestStart = context.getTransactionManager().oldestActiveTransactionStartNanos();
+        collector.put(TRANSACTIONS_SECTION, "oldest_active_transaction_usec",
+                oldestStart == 0 ? 0 : (System.nanoTime() - oldestStart) / 1000);
+        collector.put(TRANSACTIONS_SECTION, "transactions_committed", committed);
+        collector.put(TRANSACTIONS_SECTION, "transactions_conflicted", conflicted);
+        collector.put(TRANSACTIONS_SECTION, "transactions_commit_failed", commitFailed);
+        collector.put(TRANSACTIONS_SECTION, "transactions_rolled_back", rolledBack);
+        collector.put(TRANSACTIONS_SECTION, "transactions_closed_without_commit", closedWithoutCommit);
+
+        collector.put(TRANSACTIONS_SECTION, "transaction_reads", metrics.getReads());
+        collector.put(TRANSACTIONS_SECTION, "transaction_range_reads", metrics.getRangeReads());
+        collector.put(TRANSACTIONS_SECTION, "transaction_writes", metrics.getWrites());
+        collector.put(TRANSACTIONS_SECTION, "transaction_deletes", metrics.getDeletes());
+        collector.put(TRANSACTIONS_SECTION, "transaction_range_deletes", metrics.getRangeDeletes());
+        collector.put(TRANSACTIONS_SECTION, "transaction_mutations", metrics.getMutations());
+        collector.put(TRANSACTIONS_SECTION, "transaction_bytes_read", metrics.getBytesRead());
+        collector.put(TRANSACTIONS_SECTION, "transaction_bytes_read_human", KronotopInstanceStarter.formatBytes(metrics.getBytesRead()));
+        collector.put(TRANSACTIONS_SECTION, "transaction_bytes_written", metrics.getBytesWritten());
+        collector.put(TRANSACTIONS_SECTION, "transaction_bytes_written_human", KronotopInstanceStarter.formatBytes(metrics.getBytesWritten()));
+
+        long commitAttempts = Math.max(1, committed + conflicted + commitFailed);
+        long closed = Math.max(1, created - open);
+        collector.put(TRANSACTIONS_SECTION, "avg_commit_latency_usec", metrics.getCommitLatencyNanos() / 1000 / commitAttempts);
+        collector.put(TRANSACTIONS_SECTION, "max_commit_latency_usec", metrics.getMaxCommitLatencyNanos() / 1000);
+        collector.put(TRANSACTIONS_SECTION, "avg_transaction_duration_usec", metrics.getDurationNanos() / 1000 / closed);
+    }
+
+    private static final class ClientCounters {
+        int connected;
+        int inTransaction;
+        int inMulti;
+        int snapshotRead;
+        int resp2;
+        int resp3;
+    }
+}

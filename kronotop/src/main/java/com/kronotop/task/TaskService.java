@@ -20,8 +20,8 @@ import com.kronotop.CommandHandlerService;
 import com.kronotop.Context;
 import com.kronotop.KronotopService;
 import com.kronotop.core.InfoCollector;
-import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.internal.ExecutorServiceUtil;
+import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.ServerKind;
 import com.kronotop.task.handlers.TaskAdminHandler;
 import org.slf4j.Logger;
@@ -122,8 +122,8 @@ public class TaskService extends CommandHandlerService implements KronotopServic
                 running++;
             }
         }
-        collector.put(InfoHandler.TASKS_SECTION, "task_count", total);
-        collector.put(InfoHandler.TASKS_SECTION, "running_tasks", running);
+        collector.put(InfoReport.TASKS_SECTION, "task_count", total);
+        collector.put(InfoReport.TASKS_SECTION, "running_tasks", running);
     }
 
     /**

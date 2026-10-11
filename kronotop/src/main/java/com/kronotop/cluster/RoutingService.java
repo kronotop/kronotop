@@ -25,10 +25,10 @@ import com.kronotop.cluster.handlers.KrAdminHandler;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.cluster.sharding.ShardStatus;
 import com.kronotop.core.InfoCollector;
-import com.kronotop.core.handlers.InfoHandler;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.KeyWatcher;
+import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.ServerKind;
 import io.netty.util.Attribute;
 import org.slf4j.Logger;
@@ -162,8 +162,8 @@ public class RoutingService extends CommandHandlerService implements KronotopSer
                 }
             }
         }
-        collector.put(InfoHandler.KRONOTOP_SECTION, "primary_shards", primary);
-        collector.put(InfoHandler.KRONOTOP_SECTION, "standby_shards", standby);
+        collector.put(InfoReport.KRONOTOP_SECTION, "primary_shards", primary);
+        collector.put(InfoReport.KRONOTOP_SECTION, "standby_shards", standby);
     }
 
     /**
