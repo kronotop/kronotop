@@ -263,24 +263,23 @@ public class InfoHandler implements Handler {
         collector.put(MEMORY_SECTION, "non_heap_max_memory_human", formatLimit(nonHeapMemoryUsage.getMax()));
 
         for (BufferPoolMXBean bufferPool : ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)) {
-            String prefix = switch (bufferPool.getName()) {
-                case "direct" -> "direct_buffer";
-                case "mapped" -> "mapped_buffer";
-                default -> null;
-            };
-            if (prefix == null) {
-                continue;
+            switch (bufferPool.getName()) {
+                case "direct" -> {
+                    collector.put(MEMORY_SECTION, "direct_buffer_count", bufferPool.getCount());
+                    collector.put(MEMORY_SECTION, "direct_buffer_used_memory", bufferPool.getMemoryUsed());
+                    collector.put(MEMORY_SECTION, "direct_buffer_used_memory_human", KronotopInstanceStarter.formatBytes(bufferPool.getMemoryUsed()));
+                    collector.put(MEMORY_SECTION, "direct_buffer_total_capacity", bufferPool.getTotalCapacity());
+                    collector.put(MEMORY_SECTION, "direct_buffer_total_capacity_human", KronotopInstanceStarter.formatBytes(bufferPool.getTotalCapacity()));
+                }
+                // The JVM reports the whole mapped range as used, so there is no used_memory field for mapped files
+                case "mapped" -> {
+                    collector.put(MEMORY_SECTION, "mapped_buffer_count", bufferPool.getCount());
+                    collector.put(MEMORY_SECTION, "mapped_buffer_total_capacity", bufferPool.getTotalCapacity());
+                    collector.put(MEMORY_SECTION, "mapped_buffer_total_capacity_human", KronotopInstanceStarter.formatBytes(bufferPool.getTotalCapacity()));
+                }
+                default -> {
+                }
             }
-            collector.put(MEMORY_SECTION, prefix + "_count", bufferPool.getCount());
-
-            // The JVM reports the whole mapped range as used, so the field adds nothing for mapped files
-            if (bufferPool.getName().equals("direct")) {
-                collector.put(MEMORY_SECTION, prefix + "_used_memory", bufferPool.getMemoryUsed());
-                collector.put(MEMORY_SECTION, prefix + "_used_memory_human", KronotopInstanceStarter.formatBytes(bufferPool.getMemoryUsed()));
-            }
-
-            collector.put(MEMORY_SECTION, prefix + "_total_capacity", bufferPool.getTotalCapacity());
-            collector.put(MEMORY_SECTION, prefix + "_total_capacity_human", KronotopInstanceStarter.formatBytes(bufferPool.getTotalCapacity()));
         }
 
         if (ByteBufAllocator.DEFAULT instanceof ByteBufAllocatorMetricProvider provider) {
