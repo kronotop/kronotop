@@ -118,7 +118,8 @@ public class KronotopInstanceWithRESP extends KronotopInstance {
             throw new UnsupportedOperationException();
         }
 
-        protected void start() throws InterruptedException {
+        @Override
+        public void start() {
             for (Map.Entry<Address, RESPServer> entry : servers.entrySet()) {
                 entry.getValue().start(entry.getKey());
             }

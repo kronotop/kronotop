@@ -67,7 +67,7 @@ public abstract class RESPServer implements KronotopService {
         return SslContextBuilder.forServer(tlsConfig.certFile(), tlsConfig.keyFile()).build();
     }
 
-    public void start(Address address) throws InterruptedException {
+    public void start(Address address) {
         final SslContext sslContext;
         if (tlsConfig.enabled()) {
             try {
@@ -105,7 +105,7 @@ public abstract class RESPServer implements KronotopService {
 
         configureBootstrap(b);
 
-        channelFuture = b.bind(address.getHost(), address.getPort()).sync();
+        channelFuture = b.bind(address.getHost(), address.getPort()).syncUninterruptibly();
     }
 
     @Override

@@ -21,6 +21,7 @@ import com.apple.foundationdb.FDBException;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.google.common.net.HostAndPort;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.kronotop.*;
 import com.kronotop.bucket.BucketContext;
 import com.kronotop.bucket.BucketService;
@@ -31,11 +32,13 @@ import com.kronotop.cluster.RoutingService;
 import com.kronotop.core.CoreService;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.internal.FoundationDBFactory;
 import com.kronotop.internal.ProcessIdGenerator;
 import com.kronotop.internal.ProcessIdGeneratorImpl;
 import com.kronotop.journal.CleanupJournalTask;
 import com.kronotop.journal.JournalService;
+import com.kronotop.metrics.OtlpExportTask;
 import com.kronotop.namespace.NamespaceAlreadyExistsException;
 import com.kronotop.namespace.NamespaceService;
 import com.kronotop.namespace.NamespaceUtil;
@@ -63,10 +66,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 /*
 It can scarcely be denied that the supreme goal of all theory is to make the irreducible basic elements as simple and as
@@ -87,6 +87,7 @@ public class KronotopInstance {
     private static final long IN_FLIGHT_SHUTDOWN_TIMEOUT_SECONDS = 60;
     protected final Config config;
     private final Database database;
+    private ScheduledExecutorService observabilityScheduler;
     protected Context context;
     protected Member member;
     private ScheduledFuture<?> journalCleanupTaskFuture;
@@ -98,6 +99,14 @@ public class KronotopInstance {
     public KronotopInstance(Config config) {
         this.config = config;
         this.database = FoundationDBFactory.newDatabase(config);
+
+        boolean otlpEnabled = config.getBoolean("observability.otlp.enabled");
+        if (otlpEnabled) {
+            this.observabilityScheduler = new ScheduledThreadPoolExecutor(
+                    1,
+                    new ThreadFactoryBuilder().setNameFormat("kr.observability-%d").build()
+            );
+        }
     }
 
     /**
@@ -326,12 +335,22 @@ public class KronotopInstance {
             initializeDirectoryLayout();
             registerKronotopServices();
             registerCleanupJournalTask();
+            scheduleOtlpExport();
             setStatus(KronotopInstanceStatus.RUNNING);
         } catch (Exception e) {
             LOGGER.error("Failed to initialize the instance", e);
             shutdown();
             throw e;
         }
+    }
+
+    private void scheduleOtlpExport() {
+        boolean otlpEnabled = config.getBoolean("observability.otlp.enabled");
+        if (!otlpEnabled) {
+            return;
+        }
+        int exportInterval = config.getInt("observability.otlp.export_interval");
+        observabilityScheduler.scheduleAtFixedRate(new OtlpExportTask(), exportInterval, exportInterval, TimeUnit.SECONDS);
     }
 
     /**
@@ -413,6 +432,17 @@ public class KronotopInstance {
 
         context.getInternalClientPool().shutdown();
         context.getRuntimeMetrics().stop();
+
+        boolean otlpEnabled = config.getBoolean("observability.otlp.enabled");
+        if (otlpEnabled) {
+            observabilityScheduler.shutdownNow();
+            if (!observabilityScheduler.awaitTermination(
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT,
+                    ExecutorServiceUtil.DEFAULT_TIMEOUT_TIMEUNIT
+            )) {
+                LOGGER.warn("Observability scheduler cannot be stopped gracefully");
+            }
+        }
 
         if (journalCleanupTaskFuture != null) {
             journalCleanupTaskFuture.cancel(true);
