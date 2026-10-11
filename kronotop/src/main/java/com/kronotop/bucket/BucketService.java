@@ -177,8 +177,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         collector.put(InfoHandler.BUCKET_SECTION, "index_maintenance_last_run", lastRun);
 
         int[] indexes = new int[1];
+        int[] pending = new int[1];
         long[] bytes = new long[1];
         vectorGraphRegistry.forEachGroup(group -> {
+            pending[0] += group.pendingFailedOps();
             for (OnHeapVectorGraphIndex index : group.getOnHeapIndexes()) {
                 indexes[0]++;
                 bytes[0] += index.ramBytesUsed();
@@ -186,6 +188,8 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         });
         collector.put(InfoHandler.VECTOR_SECTION, "vector_indexes", indexes[0]);
         collector.put(InfoHandler.VECTOR_SECTION, "vector_bytes_used", bytes[0]);
+        collector.put(InfoHandler.VECTOR_SECTION, "vector_pending_retries", pending[0]);
+        collector.put(InfoHandler.VECTOR_SECTION, "vector_retried_ops", metrics.getVectorRetriedOps());
     }
 
     public Route findRoute(int shardId) {

@@ -48,6 +48,7 @@ public class FailedVectorNodeOpRetrier {
         BucketService service = context.getService(BucketService.NAME);
         service.getVectorGraphRegistry().forEachGroup((group) -> {
             int number = group.retryFailedOps();
+            service.getMetrics().addVectorRetriedOps(number);
             if (number > 0) {
                 LOGGER.debug("Retried {} failed vector node ops, bucketId={}", number, group.getBucketId());
             }

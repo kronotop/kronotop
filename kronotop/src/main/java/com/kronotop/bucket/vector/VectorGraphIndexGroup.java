@@ -481,6 +481,13 @@ public class VectorGraphIndexGroup {
     }
 
     /**
+     * Returns the number of failed operations that wait for a retry.
+     */
+    public int pendingFailedOps() {
+        return failedOps.size();
+    }
+
+    /**
      * Retries all recorded failed operations. An entry is retried only if a newer entry has not replaced it.
      * Entries that fail again are recorded for a later retry. Returns the number of operations that succeeded.
      */

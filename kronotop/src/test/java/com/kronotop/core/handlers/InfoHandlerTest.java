@@ -473,6 +473,8 @@ class InfoHandlerTest extends BaseHandlerTest {
 
         assertTrue(intField(info, "vector_indexes") >= 0);
         assertTrue(longField(info, "vector_bytes_used") >= 0);
+        assertTrue(intField(info, "vector_pending_retries") >= 0);
+        assertTrue(longField(info, "vector_retried_ops") >= 0);
     }
 
     @Test
