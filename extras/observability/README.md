@@ -42,16 +42,16 @@ Kronotop sends the numeric `INFO` fields. The Prometheus exporter in the collect
 
 ```promql
 # Client commands per second on one cluster
-rate(kronotop_external_commands_processed_total{kronotop_cluster_name="dev"}[1m])
+rate(kronotop_external_commands_processed_total{kronotop_cluster_name="development"}[1m])
 
 # Heap allocation rate of one member
-rate(kronotop_allocated_memory_bytes_total{instance="m1"}[1m])
+rate(kronotop_allocated_memory_bytes_total{instance="dbeb680500cc5259d25865277d304b45dac8e694"}[1m])
 
 # Heap usage ratio
 kronotop_heap_used_memory_bytes / kronotop_heap_max_memory_bytes
 
 # Restarts in the last hour: uptime dropped
-resets(kronotop_uptime_in_seconds{instance="m1"}[1h])
+resets(kronotop_uptime_in_seconds{instance="dbeb680500cc5259d25865277d304b45dac8e694"}[1h])
 ```
 
 The dashboards in [grafana](grafana/) have more examples.
