@@ -181,9 +181,10 @@ public interface Response {
     void writeBigNumber(byte[] value);
 
     /**
-     * Writes the content of a ByteBuf as a verbatim string to the client.
+     * Writes plain text as a verbatim string to the client. The "txt" format prefix is
+     * added by the implementation. RESP2 sessions receive a bulk string instead.
      *
-     * @param content the content to be written as a verbatim string
+     * @param content the text to be written
      */
     void writeVerbatimString(ByteBuf content);
 

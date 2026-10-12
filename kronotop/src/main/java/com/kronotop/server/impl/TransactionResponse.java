@@ -285,16 +285,14 @@ public class TransactionResponse implements Response {
     }
 
     /**
-     * Adds a {@link FullBulkVerbatimStringRedisMessage} to the list of response messages.
-     * <p>
-     * The verbatim string message includes a format type and the real content.
+     * Adds plain text as a verbatim string to the list of response messages. The "txt"
+     * format prefix is added here. RESP2 gets a bulk string without the prefix.
      *
-     * @param content the content of the {@link FullBulkVerbatimStringRedisMessage} to be added. Must not be {@code null}.
-     * @see FullBulkVerbatimStringRedisMessage
+     * @param content the text to be added, must not be {@code null}
      */
     @Override
     public void writeVerbatimString(ByteBuf content) {
-        writeRedisMessage(new FullBulkVerbatimStringRedisMessage(content));
+        writeRedisMessage(RESPUtil.verbatimString(content));
     }
 
     /**

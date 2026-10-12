@@ -48,6 +48,15 @@ public class RESPUtil {
     }
 
     /**
+     * Wraps plain text content as a verbatim string message. The "txt:" format prefix
+     * the wire format needs is added here, so the caller passes only the text.
+     */
+    public static FullBulkVerbatimStringRedisMessage verbatimString(ByteBuf content) {
+        ByteBuf prefix = Unpooled.wrappedBuffer("txt:".getBytes(StandardCharsets.US_ASCII));
+        return new FullBulkVerbatimStringRedisMessage(Unpooled.wrappedBuffer(prefix, content));
+    }
+
+    /**
      * Returns the null message for the given protocol version. RESP3 has its own null type,
      * RESP2 encodes null as a bulk string with a length of -1.
      */

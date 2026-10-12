@@ -114,6 +114,18 @@ class ResponseFormatterTest {
     }
 
     @Test
+    void shouldFormatEmptyVerbatimStringAsNothing() {
+        RespValue value = new RespValue.VerbatimString("txt", "");
+        assertEquals("", formatter.format(value));
+    }
+
+    @Test
+    void shouldStripTrailingNewlineFromVerbatimString() {
+        RespValue value = new RespValue.VerbatimString("txt", "# Server\r\nx:1\r\n");
+        assertEquals("# Server\r\nx:1\r", formatter.format(value));
+    }
+
+    @Test
     void shouldFormatEmptyArray() {
         RespValue value = new RespValue.Array(List.of());
         assertEquals("(empty array)", formatter.format(value));

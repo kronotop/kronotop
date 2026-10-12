@@ -24,7 +24,6 @@ import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
 import com.kronotop.server.annotation.Command;
-import com.kronotop.server.resp3.FullBulkStringRedisMessage;
 import io.netty.buffer.Unpooled;
 
 import java.nio.charset.StandardCharsets;
@@ -55,9 +54,7 @@ public class InfoHandler implements Handler {
     public void execute(Request request, Response response) {
         InfoMessage message = request.attr(MessageTypes.INFO).get();
         String body = report.render(sectionFilter(message));
-        response.writeFullBulkString(new FullBulkStringRedisMessage(
-                Unpooled.buffer().writeBytes(body.getBytes(StandardCharsets.UTF_8))
-        ));
+        response.writeVerbatimString(Unpooled.wrappedBuffer(body.getBytes(StandardCharsets.UTF_8)));
     }
 
     private Set<String> sectionFilter(InfoMessage message) {

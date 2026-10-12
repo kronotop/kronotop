@@ -19,7 +19,8 @@ INFO [section ...]
 
 ## Return Value
 
-A bulk string of `key:value` lines grouped under `# Section` headers. Sections are separated by an empty line.
+A verbatim string (`txt`) in RESP3, a bulk string in RESP2. It holds `key:value` lines grouped under `# Section`
+headers. Sections are separated by an empty line.
 
 These rules apply to all sections:
 
@@ -217,7 +218,7 @@ the cluster port.
 ## Behavior
 
 Without arguments, all sections are returned. With one or more section names, only the named sections are returned,
-in the order above. Unknown names are ignored. If no name matches, the reply is an empty bulk string.
+in the order above. Unknown names are ignored. If no name matches, the reply is an empty string.
 
 The command reads only in-memory state. It does not touch FoundationDB and does not require the cluster to be
 initialized.

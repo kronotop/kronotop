@@ -55,7 +55,7 @@ public class ResponseFormatter {
             case RespValue.Boolean b -> b.value() ? "(true)" : "(false)";
             case RespValue.Null ignored -> "(nil)";
             case RespValue.BigNumber bn -> "(integer) " + bn.value();
-            case RespValue.VerbatimString vs -> vs.value();
+            case RespValue.VerbatimString vs -> stripTrailingNewline(vs.value());
             case RespValue.Array arr -> formatArray(arr, indent);
             case RespValue.RespMap m -> formatMap(m, indent);
             case RespValue.RespSet s -> formatSet(s, indent);
@@ -64,12 +64,16 @@ public class ResponseFormatter {
         };
     }
 
+    private String stripTrailingNewline(String s) {
+        if (s.endsWith("\n")) {
+            return s.substring(0, s.length() - 1);
+        }
+        return s;
+    }
+
     private String formatBlobString(String s) {
         if (s.contains("\n")) {
-            if (s.endsWith("\n")) {
-                s = s.substring(0, s.length() - 1);
-            }
-            return maybeColorizeJson(s);
+            return maybeColorizeJson(stripTrailingNewline(s));
         }
         if (isJson(s)) {
             return maybeColorizeJson(s);

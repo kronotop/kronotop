@@ -29,6 +29,7 @@ import com.kronotop.network.Address;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.ErrorRedisMessage;
 import com.kronotop.server.resp3.FullBulkStringRedisMessage;
+import com.kronotop.server.resp3.FullBulkVerbatimStringRedisMessage;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -62,15 +63,7 @@ class InfoHandlerTest extends BaseHandlerTest {
     }
 
     private String runInfo(EmbeddedChannel channel, String... sections) {
-        StringBuilder sb = new StringBuilder();
-        sb.append('*').append(1 + sections.length).append("\r\n$4\r\nINFO\r\n");
-        for (String section : sections) {
-            sb.append('$').append(section.length()).append("\r\n").append(section).append("\r\n");
-        }
-        ByteBuf buf = Unpooled.buffer();
-        buf.writeBytes(sb.toString().getBytes(StandardCharsets.US_ASCII));
-
-        Object response = runCommand(channel, buf);
+        Object response = runCommand(channel, infoCommand(sections));
         assertInstanceOf(FullBulkStringRedisMessage.class, response);
         return ((FullBulkStringRedisMessage) response).content().toString(StandardCharsets.US_ASCII);
     }
@@ -84,6 +77,38 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(info.contains("server_mode:standalone\r\n"));
         assertTrue(info.contains("cluster_enabled:0\r\n"));
         assertFalse(info.contains("redis_mode:"));
+    }
+
+    private ByteBuf infoCommand(String... sections) {
+        StringBuilder sb = new StringBuilder();
+        sb.append('*').append(1 + sections.length).append("\r\n$4\r\nINFO\r\n");
+        for (String section : sections) {
+            sb.append('$').append(section.length()).append("\r\n").append(section).append("\r\n");
+        }
+        return Unpooled.buffer().writeBytes(sb.toString().getBytes(StandardCharsets.US_ASCII));
+    }
+
+    @Test
+    void shouldReplyVerbatimStringOnResp3() {
+        // Behavior: on a RESP3 session INFO replies with a txt verbatim string,
+        // same as Redis; RESP2 sessions keep the bulk string
+        switchProtocol(RESPVersion.RESP3);
+
+        Object response = runCommand(getChannel(), infoCommand("server"));
+        assertInstanceOf(FullBulkVerbatimStringRedisMessage.class, response);
+        FullBulkVerbatimStringRedisMessage message = (FullBulkVerbatimStringRedisMessage) response;
+        assertEquals("txt", message.format());
+        assertTrue(message.realContent().startsWith("# Server\r\n"));
+    }
+
+    @Test
+    void shouldReplyEmptyVerbatimStringOnResp3ForUnknownSection() {
+        // Behavior: an unknown section on RESP3 gives an empty verbatim string
+        switchProtocol(RESPVersion.RESP3);
+
+        Object response = runCommand(getChannel(), infoCommand("foo"));
+        assertInstanceOf(FullBulkVerbatimStringRedisMessage.class, response);
+        assertEquals("", ((FullBulkVerbatimStringRedisMessage) response).realContent());
     }
 
     @Test

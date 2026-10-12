@@ -676,7 +676,10 @@ public class KronotopCLI implements Callable<Integer> {
                     out.println(rawFormatter.format(response));
                     out.println();
                 } else {
-                    out.println(responseFormatter.format(response));
+                    String formatted = responseFormatter.format(response);
+                    if (!formatted.isEmpty()) {
+                        out.println(formatted);
+                    }
                 }
             }
             return response;

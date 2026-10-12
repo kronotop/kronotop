@@ -243,10 +243,8 @@ class RESPResponseTest extends BaseStandaloneInstanceTest {
             FullBulkVerbatimStringRedisMessage message =
                     (FullBulkVerbatimStringRedisMessage) redisMessage;
 
-            assertEquals(
-                    "message",
-                    message.content().toString(StandardCharsets.UTF_8)
-            );
+            assertEquals("txt", message.format());
+            assertEquals("message", message.realContent());
         } finally {
             ReferenceCountUtil.release(redisMessage);
         }
@@ -553,7 +551,7 @@ class RESPResponseTest extends BaseStandaloneInstanceTest {
     void shouldWriteVerbatimStringAsBulkStringWhenRESP2() {
         // Behavior: RESP2 has no verbatim string, so the format prefix is dropped and the rest is sent as a bulk string.
         ByteBuf content = Unpooled.buffer();
-        content.writeBytes("txt:message".getBytes(StandardCharsets.UTF_8));
+        content.writeBytes("message".getBytes(StandardCharsets.UTF_8));
 
         RESPResponse response = newResponse(RESPVersion.RESP2);
         response.writeVerbatimString(content);
