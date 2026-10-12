@@ -1,8 +1,8 @@
-FROM eclipse-temurin:26-jre-noble
+FROM eclipse-temurin:27-ubi10-minimal
 
 ARG KR_HOME="/opt/kronotop"
 ARG FOUNDATIONDB_VERSION="7.3.68"
-ARG FOUNDATIONDB_CLIENTS_DEB="foundationdb-clients_7.3.68-1_amd64.deb"
+ARG FOUNDATIONDB_CLIENTS_RPM="foundationdb-clients-7.3.68-1.el7.x86_64.rpm"
 
 WORKDIR $KR_HOME
 
@@ -10,9 +10,9 @@ ENV KR_HOME=$KR_HOME \
     PATH=${KR_HOME}/bin:$PATH
 
 # Install FoundationDB client
-ADD https://github.com/apple/foundationdb/releases/download/$FOUNDATIONDB_VERSION/$FOUNDATIONDB_CLIENTS_DEB $KR_HOME
-RUN dpkg -i $KR_HOME/$FOUNDATIONDB_CLIENTS_DEB && \
-    rm $KR_HOME/$FOUNDATIONDB_CLIENTS_DEB
+ADD https://github.com/apple/foundationdb/releases/download/$FOUNDATIONDB_VERSION/$FOUNDATIONDB_CLIENTS_RPM $KR_HOME
+RUN rpm -i --nodeps $KR_HOME/$FOUNDATIONDB_CLIENTS_RPM && \
+    rm $KR_HOME/$FOUNDATIONDB_CLIENTS_RPM
 
 COPY *.jar $KR_HOME/
 COPY start.sh $KR_HOME/bin/
