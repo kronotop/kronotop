@@ -102,6 +102,9 @@ class OtlpExportTaskTest extends BaseStandaloneInstanceTest {
         assertEquals(2, sum.at("/sum/aggregationTemporality").asInt());
         assertTrue(sum.at("/sum/dataPoints/0").has("startTimeUnixNano"));
 
+        assertTrue(metrics.get("kronotop.thread_count").has("gauge"));
+        assertTrue(metrics.get("kronotop.total_started_threads").at("/sum/isMonotonic").asBoolean());
+
         for (String name : metrics.keySet()) {
             assertFalse(name.endsWith("_human"), name);
             assertTrue(name.startsWith("kronotop."), name);

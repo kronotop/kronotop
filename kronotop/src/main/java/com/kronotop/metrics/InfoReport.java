@@ -51,6 +51,7 @@ public class InfoReport {
     public static final String KRONOTOP_SECTION = "Kronotop";
     public static final String CLIENTS_SECTION = "Clients";
     public static final String MEMORY_SECTION = "Memory";
+    public static final String THREADS_SECTION = "Threads";
     public static final String TASKS_SECTION = "Tasks";
     public static final String VOLUME_SECTION = "Volume";
     public static final String BUCKET_SECTION = "Bucket";
@@ -131,6 +132,7 @@ public class InfoReport {
         collectKronotop(collector);
         collectClients(collector);
         collectMemory(collector);
+        collectThreads(collector);
         collectTraffic(collector);
         collectTransactions(collector);
         for (KronotopService service : context.getServices()) {
@@ -279,6 +281,15 @@ public class InfoReport {
         long gcFreed = context.getRuntimeMetrics().getGcFreedBytes();
         collector.put(MEMORY_SECTION, "gc_freed_memory", gcFreed);
         collector.put(MEMORY_SECTION, "gc_freed_memory_human", KronotopInstanceStarter.formatBytes(gcFreed));
+    }
+
+    // Platform threads only. The JDK does not count virtual threads here.
+    private void collectThreads(InfoCollector collector) {
+        ThreadMXBean threads = ManagementFactory.getThreadMXBean();
+        collector.put(THREADS_SECTION, "thread_count", threads.getThreadCount());
+        collector.put(THREADS_SECTION, "daemon_thread_count", threads.getDaemonThreadCount());
+        collector.put(THREADS_SECTION, "peak_thread_count", threads.getPeakThreadCount());
+        collector.put(THREADS_SECTION, "total_started_threads", threads.getTotalStartedThreadCount());
     }
 
     private void collectKronotop(InfoCollector collector) {

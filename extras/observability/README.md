@@ -118,6 +118,17 @@ See [docs/connection/commands/info.md](../../docs/connection/commands/info.md) f
 | `gc_time_msec`                 | `kronotop_gc_time_msec_total`                 | counter |
 | `gc_freed_memory`              | `kronotop_gc_freed_memory_bytes_total`        | counter |
 
+### Threads
+
+Only platform threads are counted. Virtual threads are not included.
+
+| INFO field              | Prometheus name                  | Type    |
+|-------------------------|----------------------------------|---------|
+| `thread_count`          | `kronotop_thread_count`          | gauge   |
+| `daemon_thread_count`   | `kronotop_daemon_thread_count`   | gauge   |
+| `peak_thread_count`     | `kronotop_peak_thread_count`     | gauge   |
+| `total_started_threads` | `kronotop_started_threads_total` | counter |
+
 ### Traffic
 
 `external_commands_succeeded` and `internal_commands_succeeded` are not sent.

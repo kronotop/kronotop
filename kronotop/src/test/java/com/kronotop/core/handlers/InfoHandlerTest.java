@@ -97,13 +97,15 @@ class InfoHandlerTest extends BaseHandlerTest {
         assertTrue(info.contains("\r\n\r\n# Kronotop\r\n"));
         assertTrue(info.contains("\r\n\r\n# Clients\r\n"));
         assertTrue(info.contains("\r\n\r\n# Memory\r\n"));
+        assertTrue(info.contains("\r\n\r\n# Threads\r\n"));
         assertTrue(info.contains("\r\n\r\n# Traffic\r\n"));
         assertTrue(info.contains("\r\n\r\n# Transactions\r\n"));
         assertTrue(info.contains("\r\n\r\n# Tasks\r\n"));
         assertTrue(info.contains("\r\n\r\n# Volume\r\n"));
         assertTrue(info.contains("\r\n\r\n# Bucket\r\n"));
         assertTrue(info.contains("\r\n\r\n# Vector\r\n"));
-        assertTrue(info.indexOf("# Memory") < info.indexOf("# Traffic"));
+        assertTrue(info.indexOf("# Memory") < info.indexOf("# Threads"));
+        assertTrue(info.indexOf("# Threads") < info.indexOf("# Traffic"));
         assertTrue(info.indexOf("# Traffic") < info.indexOf("# Transactions"));
         assertTrue(info.indexOf("# Transactions") < info.indexOf("# Tasks"));
         assertTrue(info.indexOf("# Tasks") < info.indexOf("# Volume"));
@@ -306,6 +308,22 @@ class InfoHandlerTest extends BaseHandlerTest {
                 "netty_used_direct_memory_human", "netty_used_heap_memory_human", "gc_freed_memory_human")) {
             assertFalse(Objects.requireNonNull(fieldValue(info, field)).isBlank(), field);
         }
+    }
+
+    @Test
+    void shouldReportThreadFields() {
+        // Behavior: the Threads section reports live, daemon, peak and total
+        // started platform threads, and INFO threads returns only that section
+        String info = runInfo(getChannel(), "threads");
+
+        assertTrue(info.startsWith("# Threads\r\n"));
+        assertFalse(info.contains("# Memory"));
+
+        long threadCount = longField(info, "thread_count");
+        assertTrue(threadCount > 0);
+        assertTrue(longField(info, "daemon_thread_count") <= threadCount);
+        assertTrue(longField(info, "peak_thread_count") >= threadCount);
+        assertTrue(longField(info, "total_started_threads") >= threadCount);
     }
 
     @Test

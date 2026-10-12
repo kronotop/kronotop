@@ -610,6 +610,56 @@
         "y": 36
       },
       "id": 15
+    },
+    {
+      "type": "timeseries",
+      "title": "Threads",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_thread_count{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "thread_count {{instance}}",
+          "refId": "thread_count {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_daemon_thread_count{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "daemon_thread_count {{instance}}",
+          "refId": "daemon_thread_count {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 36
+      },
+      "id": 16
     }
   ]
 }

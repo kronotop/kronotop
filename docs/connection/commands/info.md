@@ -13,9 +13,9 @@ INFO [section ...]
 
 ## Arguments
 
-| Argument  | Type   | Required | Description                                                                                                                                                                                                                  |
-|-----------|--------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `section` | string | No       | One or more of `server`, `cluster`, `kronotop`, `clients`, `memory`, `traffic`, `transactions`, `tasks`, `volume`, `bucket`, `vector`, `zmap`. `all`, `default` and `everything` select every section. Case does not matter. |
+| Argument  | Type   | Required | Description                                                                                                                                                                                                                             |
+|-----------|--------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `section` | string | No       | One or more of `server`, `cluster`, `kronotop`, `clients`, `memory`, `threads`, `traffic`, `transactions`, `tasks`, `volume`, `bucket`, `vector`, `zmap`. `all`, `default` and `everything` select every section. Case does not matter. |
 
 ## Return Value
 
@@ -106,6 +106,17 @@ compiled code. Direct buffers are not included in either. All byte fields are in
 | `gc_count`                     | Number of garbage collections since startup.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `gc_time_msec`                 | Time spent in garbage collection since startup, in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `gc_freed_memory`              | Total memory freed by garbage collection. Counting begins when the member starts. Collections that ran before that moment are counted in `gc_count` and `gc_time_msec`, but not here. It covers the heap, the class metadata areas and the compiled code area. Objects moved from one memory area to another are not counted as freed. It can be slightly higher than `total_allocated_memory`, because it also counts unused space the JVM leaves in memory blocks, freed class metadata and freed compiled code. |
+
+### Threads
+
+Only platform threads are counted. Virtual threads are not included.
+
+| Field                   | Description                                           |
+|-------------------------|-------------------------------------------------------|
+| `thread_count`          | Live threads, daemon and non-daemon.                  |
+| `daemon_thread_count`   | Live daemon threads.                                  |
+| `peak_thread_count`     | Highest `thread_count` seen since the JVM started.    |
+| `total_started_threads` | Threads started since the JVM started. It only grows. |
 
 ### Traffic
 
