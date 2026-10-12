@@ -217,7 +217,6 @@ public class OtlpExportTask implements Runnable {
         attribute(attributes, "service.version", server.get("kronotop_version"));
         attribute(attributes, "service.instance.id", kronotop.get("member_id"));
         attribute(attributes, "kronotop.cluster_name", kronotop.get("cluster_name"));
-        attribute(attributes, "kronotop.run_id", server.get("run_id"));
 
         ObjectNode scopeMetrics = resourceMetrics.putArray("scopeMetrics").addObject();
         scopeMetrics.putObject("scope").put("name", "kronotop");

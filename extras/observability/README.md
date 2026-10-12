@@ -33,7 +33,6 @@ Kronotop sends the numeric `INFO` fields. The Prometheus exporter in the collect
 | `instance`              | Member id. Comes from the `service.instance.id` resource attribute.                                         |
 | `job`                   | Always `kronotop`. Comes from the `service.name` resource attribute.                                        |
 | `service_version`       | Kronotop version.                                                                                           |
-| `kronotop_run_id`       | One value per process. It changes on every restart. A new value means the counters started from zero again. |
 
 ## Querying
 
@@ -51,8 +50,8 @@ rate(kronotop_allocated_memory_bytes_total{instance="m1"}[1m])
 # Heap usage ratio
 kronotop_heap_used_memory_bytes / kronotop_heap_max_memory_bytes
 
-# Restarts: more than 1 run id per instance in the time range means a restart
-count by (instance) (count by (instance, kronotop_run_id) (kronotop_uptime_in_seconds))
+# Restarts in the last hour: uptime dropped
+resets(kronotop_uptime_in_seconds{instance="m1"}[1h])
 ```
 
 The dashboards in [grafana](grafana/) have more examples.
