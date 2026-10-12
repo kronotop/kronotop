@@ -1,8 +1,8 @@
 FROM eclipse-temurin:27-jre-ubi10-minimal
 
 ARG KR_HOME="/opt/kronotop"
-ARG FOUNDATIONDB_VERSION="7.3.68"
-ARG FOUNDATIONDB_CLIENTS_RPM="foundationdb-clients-7.3.68-1.el7.x86_64.rpm"
+ARG FOUNDATIONDB_VERSION="7.3.77"
+ARG FOUNDATIONDB_CLIENTS_RPM="foundationdb-clients-7.3.77-1.el7.x86_64.rpm"
 
 WORKDIR $KR_HOME
 

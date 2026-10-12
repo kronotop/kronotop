@@ -18,9 +18,9 @@ network latency (~0.1-0.3ms).
 ### 1. Install FoundationDB
 
 ```bash
-wget https://github.com/apple/foundationdb/releases/download/7.3.68/foundationdb-clients_7.3.68-1_amd64.deb
-wget https://github.com/apple/foundationdb/releases/download/7.3.68/foundationdb-server_7.3.68-1_amd64.deb
-sudo dpkg -i foundationdb-clients_7.3.68-1_amd64.deb foundationdb-server_7.3.68-1_amd64.deb
+wget https://github.com/apple/foundationdb/releases/download/7.3.77/foundationdb-clients_7.3.77-1_amd64.deb
+wget https://github.com/apple/foundationdb/releases/download/7.3.77/foundationdb-server_7.3.77-1_amd64.deb
+sudo dpkg -i foundationdb-clients_7.3.77-1_amd64.deb foundationdb-server_7.3.77-1_amd64.deb
 ```
 
 ### 2. Stop the default FDB process
@@ -117,8 +117,8 @@ sudo apt install -y openjdk-25-jdk
 Kronotop uses the FDB client library to connect to the FoundationDB cluster.
 
 ```bash
-wget https://github.com/apple/foundationdb/releases/download/7.3.68/foundationdb-clients_7.3.68-1_amd64.deb
-sudo dpkg -i foundationdb-clients_7.3.68-1_amd64.deb
+wget https://github.com/apple/foundationdb/releases/download/7.3.77/foundationdb-clients_7.3.77-1_amd64.deb
+sudo dpkg -i foundationdb-clients_7.3.77-1_amd64.deb
 ```
 
 ### 3. Configure the cluster file

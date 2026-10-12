@@ -29,7 +29,7 @@ Compose.
 
   It must report 25 or higher.
 
-- **FoundationDB 7.3.68.** You need both the client library and a running server. See
+- **FoundationDB 7.3.77.** You need both the client library and a running server. See
   [Installing FoundationDB](#installing-foundationdb) below.
 
 - **Git** to clone the repository.
@@ -39,22 +39,22 @@ version.
 
 ## Installing FoundationDB
 
-Kronotop targets **FoundationDB 7.3.68**. Both the client library and a local server are required for development.
+Kronotop targets **FoundationDB 7.3.77**. Both the client library and a local server are required for development.
 
-Release page: <https://github.com/apple/foundationdb/releases/tag/7.3.68>
+Release page: <https://github.com/apple/foundationdb/releases/tag/7.3.77>
 
-All assets download from `https://github.com/apple/foundationdb/releases/download/7.3.68/<file>`.
+All assets download from `https://github.com/apple/foundationdb/releases/download/7.3.77/<file>`.
 
 ### macOS
 
 Download and install the package for your CPU. It installs both the client and the server.
 
-- Apple Silicon: `FoundationDB-7.3.68_arm64.pkg`
-- Intel: `FoundationDB-7.3.68_x86_64.pkg`
+- Apple Silicon: `FoundationDB-7.3.77_arm64.pkg`
+- Intel: `FoundationDB-7.3.77_x86_64.pkg`
 
 ```
-curl -LO https://github.com/apple/foundationdb/releases/download/7.3.68/FoundationDB-7.3.68_arm64.pkg
-sudo installer -pkg FoundationDB-7.3.68_arm64.pkg -target /
+curl -LO https://github.com/apple/foundationdb/releases/download/7.3.77/FoundationDB-7.3.77_arm64.pkg
+sudo installer -pkg FoundationDB-7.3.77_arm64.pkg -target /
 ```
 
 The installer configures and starts a single-node database and writes the cluster file to
@@ -65,12 +65,12 @@ The installer configures and starts a single-node database and writes the cluste
 Install the `foundationdb-clients` package first, then the server package. Use the `aarch64` variants on ARM machines.
 
 ```
-curl -LO https://github.com/apple/foundationdb/releases/download/7.3.68/foundationdb-clients_7.3.68-1_amd64.deb
-curl -LO https://github.com/apple/foundationdb/releases/download/7.3.68/foundationdb-server_7.3.68-1_amd64.deb
-sudo dpkg -i foundationdb-clients_7.3.68-1_amd64.deb foundationdb-server_7.3.68-1_amd64.deb
+curl -LO https://github.com/apple/foundationdb/releases/download/7.3.77/foundationdb-clients_7.3.77-1_amd64.deb
+curl -LO https://github.com/apple/foundationdb/releases/download/7.3.77/foundationdb-server_7.3.77-1_amd64.deb
+sudo dpkg -i foundationdb-clients_7.3.77-1_amd64.deb foundationdb-server_7.3.77-1_amd64.deb
 ```
 
-ARM packages: `foundationdb-clients_7.3.68-1_aarch64.deb` and `foundationdb-server_7.3.68-1_aarch64.deb`.
+ARM packages: `foundationdb-clients_7.3.77-1_aarch64.deb` and `foundationdb-server_7.3.77-1_aarch64.deb`.
 
 The server package configures and starts a single-node database and writes the cluster file to
 `/etc/foundationdb/fdb.cluster`. No manual initialization is needed.
@@ -78,21 +78,21 @@ The server package configures and starts a single-node database and writes the c
 ### Linux (RHEL / CentOS)
 
 ```
-curl -LO https://github.com/apple/foundationdb/releases/download/7.3.68/foundationdb-clients-7.3.68-1.el7.x86_64.rpm
-curl -LO https://github.com/apple/foundationdb/releases/download/7.3.68/foundationdb-server-7.3.68-1.el7.x86_64.rpm
-sudo rpm -i foundationdb-clients-7.3.68-1.el7.x86_64.rpm foundationdb-server-7.3.68-1.el7.x86_64.rpm
+curl -LO https://github.com/apple/foundationdb/releases/download/7.3.77/foundationdb-clients-7.3.77-1.el7.x86_64.rpm
+curl -LO https://github.com/apple/foundationdb/releases/download/7.3.77/foundationdb-server-7.3.77-1.el7.x86_64.rpm
+sudo rpm -i foundationdb-clients-7.3.77-1.el7.x86_64.rpm foundationdb-server-7.3.77-1.el7.x86_64.rpm
 ```
 
-ARM packages on EL9: `foundationdb-clients-7.3.68-1.el9.aarch64.rpm` and `foundationdb-server-7.3.68-1.el9.aarch64.rpm`.
+ARM packages on EL9: `foundationdb-clients-7.3.77-1.el9.aarch64.rpm` and `foundationdb-server-7.3.77-1.el9.aarch64.rpm`.
 
 The server package configures and starts a single-node database. No manual initialization is needed.
 
 ### Windows
 
-FoundationDB does not publish a native Windows installer for 7.3.68. Use one of these instead:
+FoundationDB does not publish a native Windows installer for 7.3.77. Use one of these instead:
 
 - **WSL2**: run a Linux distribution under WSL2 and install the Debian/Ubuntu packages there.
-- **Docker**: run the official image `foundationdb/foundationdb:7.3.68` and point Kronotop at its cluster file.
+- **Docker**: run the official image `foundationdb/foundationdb:7.3.77` and point Kronotop at its cluster file.
 
 ### Initializing the database
 

@@ -121,7 +121,7 @@
         <dependency>
             <groupId>org.foundationdb</groupId>
             <artifactId>fdb-java</artifactId>
-            <version>7.3.68</version>
+            <version>7.3.77</version>
         </dependency>
 
         <dependency>
