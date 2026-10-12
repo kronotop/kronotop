@@ -16,13 +16,13 @@
 
 package com.kronotop.metrics;
 
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.ObjectNode;
 import com.kronotop.Context;
 import com.kronotop.core.InfoCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.lang.management.ManagementFactory;
 import java.net.URI;
@@ -184,6 +184,15 @@ public class OtlpExportTask implements Runnable {
         this.startTimeUnixNano = ManagementFactory.getRuntimeMXBean().getStartTime() * 1_000_000L;
     }
 
+    private static void attribute(ArrayNode attributes, String key, String value) {
+        if (value == null) {
+            return;
+        }
+        ObjectNode attribute = attributes.addObject();
+        attribute.put("key", key);
+        attribute.putObject("value").put("stringValue", value);
+    }
+
     @Override
     public void run() {
         try {
@@ -259,14 +268,5 @@ public class OtlpExportTask implements Runnable {
             }
         }
         return root;
-    }
-
-    private static void attribute(ArrayNode attributes, String key, String value) {
-        if (value == null) {
-            return;
-        }
-        ObjectNode attribute = attributes.addObject();
-        attribute.put("key", key);
-        attribute.putObject("value").put("stringValue", value);
     }
 }

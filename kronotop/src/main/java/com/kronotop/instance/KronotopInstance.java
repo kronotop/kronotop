@@ -87,9 +87,9 @@ public class KronotopInstance {
     private static final long IN_FLIGHT_SHUTDOWN_TIMEOUT_SECONDS = 60;
     protected final Config config;
     private final Database database;
-    private ScheduledExecutorService observabilityScheduler;
     protected Context context;
     protected Member member;
+    private ScheduledExecutorService observabilityScheduler;
     private ScheduledFuture<?> journalCleanupTaskFuture;
 
     public KronotopInstance() {

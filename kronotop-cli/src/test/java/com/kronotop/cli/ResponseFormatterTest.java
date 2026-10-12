@@ -26,8 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ResponseFormatterTest {
 
-    private final ResponseFormatter formatter = new ResponseFormatter(false);
-    private final ResponseFormatter jsonFormatter = new ResponseFormatter(true);
+    private final ResponseFormatter formatter = new ResponseFormatter();
 
     @Test
     void shouldFormatSimpleString() {
@@ -285,25 +284,25 @@ class ResponseFormatterTest {
     @Test
     void shouldEscapeStringInJsonMode() {
         RespValue value = new RespValue.BlobString("hello\tworld");
-        assertEquals("\"hello\\tworld\"", jsonFormatter.format(value));
+        assertEquals("\"hello\\tworld\"", formatter.format(value));
     }
 
     @Test
     void shouldEscapeNewlineInJsonMode() {
         RespValue value = new RespValue.BlobString("line1");
-        assertEquals("\"line1\"", jsonFormatter.format(value));
+        assertEquals("\"line1\"", formatter.format(value));
     }
 
     @Test
     void shouldEscapeQuotesInJsonMode() {
         RespValue value = new RespValue.BlobString("say \"hello\"");
-        assertEquals("\"say \\\"hello\\\"\"", jsonFormatter.format(value));
+        assertEquals("\"say \\\"hello\\\"\"", formatter.format(value));
     }
 
     @Test
     void shouldEscapeBackslashInJsonMode() {
         RespValue value = new RespValue.BlobString("path\\to\\file");
-        assertEquals("\"path\\\\to\\\\file\"", jsonFormatter.format(value));
+        assertEquals("\"path\\\\to\\\\file\"", formatter.format(value));
     }
 
     @Test
@@ -316,6 +315,6 @@ class ResponseFormatterTest {
     @Test
     void shouldEscapeControlCharsInJsonMode() {
         RespValue value = new RespValue.BlobString("hello\u0001world");
-        assertEquals("\"hello\\x01world\"", jsonFormatter.format(value));
+        assertEquals("\"hello\\x01world\"", formatter.format(value));
     }
 }

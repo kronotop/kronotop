@@ -19,7 +19,6 @@ package com.kronotop.bucket.index.maintenance;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.bucket.index.statistics.IndexAnalyzeTaskState;
 import com.kronotop.internal.task.TaskStorage;
 
 import java.nio.charset.StandardCharsets;

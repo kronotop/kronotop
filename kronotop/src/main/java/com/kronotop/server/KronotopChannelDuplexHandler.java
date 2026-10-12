@@ -71,8 +71,8 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
     private final CommandHandlerRegistry commands;
     private final ServerKind serverKind;
     private final boolean logCommandForDebugging;
-    private boolean authEnabled = false;
     private final NetworkMetrics metrics;
+    private boolean authEnabled = false;
 
     public KronotopChannelDuplexHandler(Context context, CommandHandlerRegistry commands, ServerKind serverKind) {
         this.context = context;

@@ -33,9 +33,9 @@ import java.util.function.Function;
  * @param <T> the concrete transaction type being wrapped
  */
 abstract class InstrumentedReadTransaction<T extends ReadTransaction> implements ReadTransaction {
-    private final long id;
     protected final T underlying;
     protected final TransactionMetrics metrics;
+    private final long id;
 
     protected InstrumentedReadTransaction(long id, T underlying, TransactionMetrics metrics) {
         this.id = id;

@@ -37,6 +37,7 @@ public class CommandDocsCatalog {
     private final Set<String> containers = new HashSet<>();
     private final List<String> commandNames = new ArrayList<>();
     private final Map<String, List<String>> subcommandNames = new HashMap<>();
+
     public CommandDocsCatalog(RespValue reply) {
         Map<String, RespValue> commands = asMap(reply);
         commands.forEach((name, value) -> {

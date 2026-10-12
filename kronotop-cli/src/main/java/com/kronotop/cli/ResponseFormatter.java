@@ -20,6 +20,7 @@ import com.kronotop.resp.RespValue;
 import org.jline.terminal.Terminal;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -27,16 +28,13 @@ import java.util.List;
  */
 public class ResponseFormatter {
 
-    private final boolean jsonReplyType;
     private final JsonColorizer jsonColorizer;
 
-    public ResponseFormatter(boolean jsonReplyType) {
-        this.jsonReplyType = jsonReplyType;
+    public ResponseFormatter() {
         this.jsonColorizer = null;
     }
 
-    public ResponseFormatter(boolean jsonReplyType, Terminal terminal) {
-        this.jsonReplyType = jsonReplyType;
+    public ResponseFormatter(Terminal terminal) {
         this.jsonColorizer = terminal != null ? new JsonColorizer(terminal) : null;
     }
 
@@ -124,20 +122,27 @@ public class ResponseFormatter {
             return "(empty array)";
         }
         StringBuilder sb = new StringBuilder();
-        int size = array.values().size();
-        int maxIndexWidth = String.valueOf(size).length();
+        appendItems(sb, array.values(), indent, ") ");
+        return sb.toString();
+    }
 
-        for (int i = 0; i < size; i++) {
-            int index = i + 1;
-            String indexStr = String.valueOf(index);
+    /**
+     * Appends numbered items to the builder. Every item except the first one in an empty builder
+     * starts on a new line.
+     */
+    private void appendItems(StringBuilder sb, List<RespValue> values, String indent, String marker) {
+        int maxIndexWidth = String.valueOf(values.size()).length();
+
+        for (int i = 0; i < values.size(); i++) {
+            String indexStr = String.valueOf(i + 1);
             String padding = " ".repeat(maxIndexWidth - indexStr.length());
 
-            if (i > 0) {
+            if (!sb.isEmpty()) {
                 sb.append("\n").append(indent);
             }
 
-            RespValue v = array.values().get(i);
-            String prefix = padding + indexStr + ") ";
+            RespValue v = values.get(i);
+            String prefix = padding + indexStr + marker;
 
             if (v instanceof RespValue.Array || v instanceof RespValue.RespMap || v instanceof RespValue.RespSet) {
                 String nestedIndent = indent + " ".repeat(prefix.length());
@@ -146,7 +151,6 @@ public class ResponseFormatter {
                 sb.append(prefix).append(format(v, indent));
             }
         }
-        return sb.toString();
     }
 
     private String formatMap(RespValue.RespMap map, String indent) {
@@ -183,28 +187,22 @@ public class ResponseFormatter {
     }
 
     private boolean isComplexValue(RespValue value) {
-        if (value instanceof RespValue.RespMap m) {
-            return !m.values().isEmpty();
+        return switch (value) {
+            case RespValue.RespMap(var values) -> !values.isEmpty();
+            case RespValue.Array(var values) -> isComplexCollection(values);
+            case RespValue.RespSet(var values) -> isComplexCollection(values);
+            default -> false;
+        };
+    }
+
+    private boolean isComplexCollection(Collection<RespValue> values) {
+        if (values.isEmpty()) {
+            return false;
         }
-        if (value instanceof RespValue.Array arr) {
-            if (arr.values().isEmpty()) {
-                return false;
-            }
-            if (arr.values().size() == 1) {
-                return isComplexValue(arr.values().getFirst());
-            }
-            return true;
+        if (values.size() == 1) {
+            return isComplexValue(values.iterator().next());
         }
-        if (value instanceof RespValue.RespSet s) {
-            if (s.values().isEmpty()) {
-                return false;
-            }
-            if (s.values().size() == 1) {
-                return isComplexValue(s.values().iterator().next());
-            }
-            return true;
-        }
-        return false;
+        return true;
     }
 
     private String formatSet(RespValue.RespSet set, String indent) {
@@ -212,56 +210,14 @@ public class ResponseFormatter {
             return "(empty set)";
         }
         StringBuilder sb = new StringBuilder();
-        List<RespValue> values = new ArrayList<>(set.values());
-        int size = values.size();
-        int maxIndexWidth = String.valueOf(size).length();
-
-        for (int i = 0; i < size; i++) {
-            int index = i + 1;
-            String indexStr = String.valueOf(index);
-            String padding = " ".repeat(maxIndexWidth - indexStr.length());
-
-            if (i > 0) {
-                sb.append("\n").append(indent);
-            }
-
-            RespValue v = values.get(i);
-            String prefix = padding + indexStr + "~ ";
-
-            if (v instanceof RespValue.Array || v instanceof RespValue.RespMap || v instanceof RespValue.RespSet) {
-                String nestedIndent = indent + " ".repeat(prefix.length());
-                sb.append(prefix).append(format(v, nestedIndent));
-            } else {
-                sb.append(prefix).append(format(v, indent));
-            }
-        }
+        appendItems(sb, new ArrayList<>(set.values()), indent, "~ ");
         return sb.toString();
     }
 
     private String formatPush(RespValue.Push push, String indent) {
         StringBuilder sb = new StringBuilder();
         sb.append("push: ").append(push.kind());
-        List<RespValue> values = push.values();
-        int size = values.size();
-        int maxIndexWidth = String.valueOf(size).length();
-
-        for (int i = 0; i < size; i++) {
-            int index = i + 1;
-            String indexStr = String.valueOf(index);
-            String padding = " ".repeat(maxIndexWidth - indexStr.length());
-
-            sb.append("\n").append(indent);
-
-            RespValue v = values.get(i);
-            String prefix = padding + indexStr + ") ";
-
-            if (v instanceof RespValue.Array || v instanceof RespValue.RespMap || v instanceof RespValue.RespSet) {
-                String nestedIndent = indent + " ".repeat(prefix.length());
-                sb.append(prefix).append(format(v, nestedIndent));
-            } else {
-                sb.append(prefix).append(format(v, indent));
-            }
-        }
+        appendItems(sb, push.values(), indent, ") ");
         return sb.toString();
     }
 }

@@ -247,7 +247,7 @@ public class KronotopCLI implements Callable<Integer> {
         }
     }
 
-    private void initializeFormatter() throws IOException {
+    private void initializeFormatter() {
         if (json || quotedJson) {
             jsonFormatter = new JsonResponseFormatter(quotedJson);
             return;
@@ -271,33 +271,12 @@ public class KronotopCLI implements Callable<Integer> {
         if (useRawOutput) {
             rawFormatter = new RawResponseFormatter(CommandLineParser.parseDelimiter(delimiter));
         } else {
-            boolean jsonReplyType = fetchJsonReplyType();
             if (!noColor && terminal != null) {
-                responseFormatter = new ResponseFormatter(jsonReplyType, terminal);
+                responseFormatter = new ResponseFormatter(terminal);
             } else {
-                responseFormatter = new ResponseFormatter(jsonReplyType);
+                responseFormatter = new ResponseFormatter();
             }
         }
-    }
-
-    private boolean fetchJsonReplyType() throws IOException {
-        respWriter.writeCommand(List.of("SESSION.ATTRIBUTE", "list"));
-        RespValue response = respReader.read();
-
-        if (response instanceof RespValue.Array(List<RespValue> values)) {
-            for (int i = 0; i < values.size() - 1; i += 2) {
-                RespValue key = values.get(i);
-                RespValue value = values.get(i + 1);
-
-                if (key instanceof RespValue.SimpleString(String value1) && value1.equals("reply_type")) {
-                    if (value instanceof RespValue.SimpleString(String value2)) {
-                        return value2.equals("json");
-                    }
-                    break;
-                }
-            }
-        }
-        return false;
     }
 
     private void connect() throws IOException {
@@ -459,11 +438,7 @@ public class KronotopCLI implements Callable<Integer> {
 
             // Reinitialize formatter with terminal for colorized output
             if (connected && responseFormatter != null && !noColor) {
-                try {
-                    initializeFormatter();
-                } catch (IOException ignored) {
-                    // Keep the existing formatter if reinitialization fails
-                }
+                initializeFormatter();
             }
 
             DefaultHistory history = new DefaultHistory();
