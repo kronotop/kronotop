@@ -17,6 +17,7 @@
 package com.kronotop.core;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -35,6 +36,13 @@ public class InfoCollector {
      */
     public void put(String section, String key, Object value) {
         sections.computeIfAbsent(section, ignored -> new LinkedHashMap<>()).put(key, String.valueOf(value));
+    }
+
+    /**
+     * Returns a read-only view of the collected sections.
+     */
+    public Map<String, Map<String, String>> sections() {
+        return Collections.unmodifiableMap(sections);
     }
 
     /**

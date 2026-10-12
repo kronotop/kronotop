@@ -118,6 +118,13 @@ public class InfoReport {
      * the filter. A null filter renders everything.
      */
     public String render(Set<String> filter) {
+        return collect().render(filter);
+    }
+
+    /**
+     * Collects every section into a new collector.
+     */
+    public InfoCollector collect() {
         InfoCollector collector = new InfoCollector();
         collectServer(collector);
         collector.put(CLUSTER_SECTION, "cluster_enabled", 0);
@@ -133,7 +140,7 @@ public class InfoReport {
                 LOGGER.error("Failed to collect INFO fields from service: {}", service.getName(), e);
             }
         }
-        return collector.render(filter);
+        return collector;
     }
 
     private void collectServer(InfoCollector collector) {
