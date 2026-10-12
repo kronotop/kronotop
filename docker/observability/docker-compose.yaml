@@ -1,0 +1,41 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.162.0
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol-contrib/config.yaml
+    ports:
+      - "127.0.0.1:4317:4317/tcp"
+      - "127.0.0.1:4318:4318/tcp"
+    networks:
+      - observability
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "127.0.0.1:9090:9090/tcp"
+    depends_on:
+      - otel-collector
+    networks:
+      - observability
+
+  grafana:
+    image: grafana/grafana:13.2.3
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ../../extras/observability/grafana:/var/lib/grafana/dashboards
+    ports:
+      - "127.0.0.1:3000:3000/tcp"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    depends_on:
+      - prometheus
+    networks:
+      - observability
+
+networks:
+  observability:
+    name: observability

@@ -1,0 +1,1050 @@
+{
+  "uid": "kronotop-overview",
+  "title": "Kronotop Overview",
+  "tags": [
+    "kronotop"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "cluster",
+        "label": "Cluster",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(kronotop_uptime_in_seconds, kronotop_cluster_name)",
+        "refresh": 2,
+        "includeAll": false,
+        "multi": false,
+        "current": {}
+      },
+      {
+        "name": "instance",
+        "label": "Instance",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(kronotop_uptime_in_seconds{kronotop_cluster_name=\"$cluster\"}, instance)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Clients",
+      "collapsed": false,
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1
+    },
+    {
+      "type": "timeseries",
+      "title": "Connected clients",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_connected_clients{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "Clients in transaction",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_clients_in_transaction{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 6,
+        "y": 1
+      },
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "Snapshot read clients",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_snapshot_read_clients{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 12,
+        "y": 1
+      },
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "Protocol",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_resp2_clients{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "resp2_clients {{instance}}",
+          "refId": "resp2_clients {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_resp3_clients{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "resp3_clients {{instance}}",
+          "refId": "resp3_clients {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 18,
+        "y": 1
+      },
+      "id": 5
+    },
+    {
+      "type": "row",
+      "title": "Traffic",
+      "collapsed": false,
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 9
+      },
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "External commands/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_external_commands_processed_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 8,
+        "h": 8,
+        "x": 0,
+        "y": 10
+      },
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Failure ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_external_commands_failed_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m]) / rate(kronotop_external_commands_processed_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "external {{instance}}",
+          "refId": "external"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_internal_commands_failed_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m]) / rate(kronotop_internal_commands_processed_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "internal {{instance}}",
+          "refId": "internal"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 8,
+        "h": 8,
+        "x": 8,
+        "y": 10
+      },
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "Internal commands/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_internal_commands_processed_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 8,
+        "h": 8,
+        "x": 16,
+        "y": 10
+      },
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "External bytes/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_external_read_bytes_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "external_read_bytes {{instance}}",
+          "refId": "external_read_bytes {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_external_written_bytes_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "external_written_bytes {{instance}}",
+          "refId": "external_written_bytes {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 18
+      },
+      "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "Internal bytes/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_internal_read_bytes_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "internal_read_bytes {{instance}}",
+          "refId": "internal_read_bytes {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_internal_written_bytes_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "internal_written_bytes {{instance}}",
+          "refId": "internal_written_bytes {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 18
+      },
+      "id": 11
+    },
+    {
+      "type": "row",
+      "title": "Transactions",
+      "collapsed": false,
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 26
+      },
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "Transaction outcomes/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transactions_created_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transactions_created {{instance}}",
+          "refId": "transactions_created {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transactions_committed_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transactions_committed {{instance}}",
+          "refId": "transactions_committed {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transactions_conflicted_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transactions_conflicted {{instance}}",
+          "refId": "transactions_conflicted {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transactions_commit_failed_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transactions_commit_failed {{instance}}",
+          "refId": "transactions_commit_failed {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transactions_rolled_back_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transactions_rolled_back {{instance}}",
+          "refId": "transactions_rolled_back {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 27
+      },
+      "id": 13
+    },
+    {
+      "type": "timeseries",
+      "title": "Open transactions",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_transactions_active{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "transactions_active {{instance}}",
+          "refId": "transactions_active {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_transactions_watching{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "transactions_watching {{instance}}",
+          "refId": "transactions_watching {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 12,
+        "y": 27
+      },
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "Oldest active transaction",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_oldest_active_transaction_usec{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 18,
+        "y": 27
+      },
+      "id": 15
+    },
+    {
+      "type": "timeseries",
+      "title": "Max commit latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_max_commit_latency_usec{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 0,
+        "y": 35
+      },
+      "id": 16
+    },
+    {
+      "type": "timeseries",
+      "title": "FDB operations/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transaction_reads_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transaction_reads {{instance}}",
+          "refId": "transaction_reads {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transaction_range_reads_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transaction_range_reads {{instance}}",
+          "refId": "transaction_range_reads {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transaction_writes_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transaction_writes {{instance}}",
+          "refId": "transaction_writes {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transaction_deletes_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transaction_deletes {{instance}}",
+          "refId": "transaction_deletes {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transaction_range_deletes_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transaction_range_deletes {{instance}}",
+          "refId": "transaction_range_deletes {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transaction_mutations_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transaction_mutations {{instance}}",
+          "refId": "transaction_mutations {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 6,
+        "y": 35
+      },
+      "id": 17
+    },
+    {
+      "type": "timeseries",
+      "title": "FDB bytes/s",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transaction_bytes_read_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transaction_bytes_read {{instance}}",
+          "refId": "transaction_bytes_read {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "rate(kronotop_transaction_bytes_written_total{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}[5m])",
+          "legendFormat": "transaction_bytes_written {{instance}}",
+          "refId": "transaction_bytes_written {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 18,
+        "y": 35
+      },
+      "id": 18
+    },
+    {
+      "type": "row",
+      "title": "Cluster",
+      "collapsed": false,
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 43
+      },
+      "id": 19
+    },
+    {
+      "type": "timeseries",
+      "title": "Members",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_alive_members{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "alive_members {{instance}}",
+          "refId": "alive_members {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_known_members{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "known_members {{instance}}",
+          "refId": "known_members {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 0,
+        "y": 44
+      },
+      "id": 20
+    },
+    {
+      "type": "timeseries",
+      "title": "Shards",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_bucket_shards{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "bucket_shards {{instance}}",
+          "refId": "bucket_shards {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_primary_shards{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "primary_shards {{instance}}",
+          "refId": "primary_shards {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_standby_shards{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "standby_shards {{instance}}",
+          "refId": "standby_shards {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 6,
+        "y": 44
+      },
+      "id": 21
+    },
+    {
+      "type": "timeseries",
+      "title": "Tasks",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_running_tasks{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "running_tasks {{instance}}",
+          "refId": "running_tasks {{instance}}"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_task_count{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "task_count {{instance}}",
+          "refId": "task_count {{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 12,
+        "y": 44
+      },
+      "id": 22
+    },
+    {
+      "type": "stat",
+      "title": "Uptime",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "kronotop_uptime_in_seconds{kronotop_cluster_name=\"$cluster\", instance=~\"$instance\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 8,
+        "x": 18,
+        "y": 44
+      },
+      "id": 23
+    }
+  ]
+}

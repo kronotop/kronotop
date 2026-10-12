@@ -73,6 +73,7 @@ See the [roadmap](ROADMAP.md) for where Kronotop is headed.
 - [ZMap](#zmap)
 - [Transactions](#transactions)
 - [Clustering](#clustering)
+- [Observability](#observability)
 - [Why These Building Blocks?](#why-these-building-blocks)
 - [Support](#support)
 - [About the Name](#about-the-name)
@@ -516,6 +517,13 @@ shard reassignment are managed through the admin command interface.
 
 See the [cluster administration documentation](https://kronotop.com/docs/admin/cluster/operations-guide) for cluster
 initialization, shard routing, and replication configuration.
+
+## Observability
+
+The `INFO` command reports runtime metrics: clients, traffic, transactions, memory, Bucket, ZMap and vector index
+activity. Kronotop can also push these metrics to an OpenTelemetry collector over OTLP/HTTP. Ready-made Grafana
+dashboards are in [extras/observability](extras/observability). For a local setup with collector, Prometheus and Grafana, 
+see [docker/observability](docker/observability).
 
 ## Why These Building Blocks?
 

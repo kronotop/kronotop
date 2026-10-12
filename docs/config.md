@@ -390,3 +390,15 @@ The journal cleanup task removes old journal entries to reclaim FoundationDB sto
 |----------------------------------------------------------|--------|----------|--------------------------------------------------------------------------------------------------------------------------------|
 | `background_tasks.journal_cleanup_task.retention_period` | int    | `1`      | How long journal entries are retained before cleanup. Interpreted together with `timeunit`.                                    |
 | `background_tasks.journal_cleanup_task.timeunit`         | string | `"days"` | Time unit for `retention_period`. Accepted values correspond to Java's `TimeUnit` enum: `"days"`, `"hours"`, `"minutes"`, etc. |
+
+---
+
+## Observability
+
+Kronotop pushes the numeric `INFO` fields to an OpenTelemetry collector over OTLP/HTTP (JSON).
+
+| Parameter                            | Type          | Default                   | Description                                                                                  |
+|--------------------------------------|---------------|---------------------------|----------------------------------------------------------------------------------------------|
+| `observability.otlp.enabled`         | boolean       | `false`                   | Enables the OTLP metrics export task.                                                        |
+| `observability.otlp.endpoint`        | string        | `"http://127.0.0.1:4318"` | Base URL of the collector's OTLP/HTTP receiver. Kronotop appends `/v1/metrics`.              |
+| `observability.otlp.export_interval` | int (seconds) | `10`                      | How often the metrics are pushed. Failed pushes are logged and retried on the next interval. |
