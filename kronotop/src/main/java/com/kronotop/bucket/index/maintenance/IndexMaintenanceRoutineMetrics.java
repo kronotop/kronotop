@@ -16,11 +16,7 @@
 
 package com.kronotop.bucket.index.maintenance;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 public class IndexMaintenanceRoutineMetrics {
-    private final AtomicLong processedEntries = new AtomicLong();
-    private final AtomicLong retriedCommitConflicts = new AtomicLong();
     private final long initiatedAt;
     private volatile long latestExecution;
 
@@ -38,21 +34,5 @@ public class IndexMaintenanceRoutineMetrics {
 
     public void setLatestExecution(long latestExecution) {
         this.latestExecution = latestExecution;
-    }
-
-    public void incrementProcessedEntries(long delta) {
-        processedEntries.addAndGet(delta);
-    }
-
-    public long getProcessedEntries() {
-        return processedEntries.get();
-    }
-
-    public void incrementRetriedCommitConflicts() {
-        retriedCommitConflicts.incrementAndGet();
-    }
-
-    public long getRetriedCommitConflicts() {
-        return retriedCommitConflicts.get();
     }
 }

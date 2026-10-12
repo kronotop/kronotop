@@ -27,6 +27,7 @@ import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketMetadataUtil;
+import com.kronotop.bucket.BucketService;
 import com.kronotop.bucket.Collation;
 import com.kronotop.bucket.handlers.BaseBucketHandlerTest;
 import com.kronotop.bucket.index.*;
@@ -116,13 +117,17 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                TaskStorage.tasks(tr, taskSubspace, (id) -> {
+                TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                     counter.incrementAndGet();
                     return true;
                 });
                 return counter.get() == 0; // all swept and cleaned
             }
         });
+
+        // The worker is gone, the member-level counter keeps what it processed.
+        BucketService service = context.getService(BucketService.NAME);
+        assertTrue(service.getMetrics().getIndexMaintenanceProcessedEntries() >= 2);
     }
 
     @Test
@@ -167,7 +172,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
             try (Transaction tr = context.getFoundationDB().createTransaction()) {
-                TaskStorage.tasks(tr, taskSubspace, (id) -> {
+                TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                     counter.incrementAndGet();
                     return true;
                 });

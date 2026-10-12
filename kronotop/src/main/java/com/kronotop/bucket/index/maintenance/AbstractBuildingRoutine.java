@@ -299,7 +299,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                     setIndexTaskStatus(IndexTaskStatus.COMPLETED);
                     break;
                 } else {
-                    metrics.incrementProcessedEntries(processedEntries);
+                    service.getMetrics().addIndexMaintenanceProcessedEntries(processedEntries);
                 }
             } catch (DuplicateKeyException exp) {
                 LOGGER.debug("TaskId: {} on Bucket shard: {} has failed due to duplicate key violation: '{}'",
@@ -358,7 +358,7 @@ public abstract class AbstractBuildingRoutine extends AbstractIndexMaintenanceRo
                     // Sustained conflicts: fall back to the worker-level retry and watchdog respawn.
                     throw exp;
                 }
-                metrics.incrementRetriedCommitConflicts();
+                service.getMetrics().incrementIndexMaintenanceRetriedConflicts();
                 LOGGER.debug("Retrying index build batch for namespace={}, bucket={}, index={} on Bucket shard: {} after a retriable commit conflict (attempt {})",
                         task.getNamespace(),
                         task.getBucket(),

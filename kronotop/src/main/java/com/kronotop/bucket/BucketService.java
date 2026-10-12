@@ -139,8 +139,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
     @Override
     public void collectInfo(InfoCollector collector) {
         int workers = 0;
-        long processed = 0;
-        long retried = 0;
         long lastRun = 0;
         for (BucketShard shard : getServiceContext().shards().values()) {
             if (shard.isClosed()) {
@@ -148,8 +146,6 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             }
             for (IndexMaintenanceRoutineMetrics metrics : shard.indexMaintenanceMetrics()) {
                 workers++;
-                processed += metrics.getProcessedEntries();
-                retried += metrics.getRetriedCommitConflicts();
                 lastRun = Math.max(lastRun, metrics.getLatestExecution());
             }
         }
@@ -172,8 +168,10 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         collector.put(InfoReport.BUCKET_SECTION, "bucket_purges", metrics.getPurges());
         collector.put(InfoReport.BUCKET_SECTION, "bucket_removes", metrics.getRemoves());
         collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_workers", workers);
-        collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_processed_entries", processed);
-        collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_retried_conflicts", retried);
+        collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_processed_entries",
+                metrics.getIndexMaintenanceProcessedEntries());
+        collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_retried_conflicts",
+                metrics.getIndexMaintenanceRetriedConflicts());
         collector.put(InfoReport.BUCKET_SECTION, "index_maintenance_last_run", lastRun);
 
         int[] indexes = new int[1];

@@ -176,8 +176,8 @@ the cluster port.
 | `bucket_purges`                       | `BUCKET.PURGE` calls.                                                                                    |
 | `bucket_removes`                      | `BUCKET.REMOVE` calls.                                                                                   |
 | `index_maintenance_workers`           | Index maintenance workers running on this member.                                                        |
-| `index_maintenance_processed_entries` | Entries processed by those workers.                                                                      |
-| `index_maintenance_retried_conflicts` | Commit conflicts those workers retried.                                                                  |
+| `index_maintenance_processed_entries` | Entries processed by index maintenance workers on this member since start.                               |
+| `index_maintenance_retried_conflicts` | Commit conflicts index maintenance workers retried since start.                                          |
 | `index_maintenance_last_run`          | Most recent run time in milliseconds since the Unix epoch, or `0` when no worker is running.             |
 
 ### Vector
