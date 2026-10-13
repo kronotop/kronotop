@@ -402,3 +402,5 @@ Kronotop pushes the numeric `INFO` fields to an OpenTelemetry collector over OTL
 | `observability.otlp.enabled`         | boolean       | `false`                   | Enables the OTLP metrics export task.                                                        |
 | `observability.otlp.endpoint`        | string        | `"http://127.0.0.1:4318"` | Base URL of the collector's OTLP/HTTP receiver. Kronotop appends `/v1/metrics`.              |
 | `observability.otlp.export_interval` | int (seconds) | `10`                      | How often the metrics are pushed. Failed pushes are logged and retried on the next interval. |
+
+See [OpenTelemetry](monitoring/opentelemetry.md) for collector setup and the exported metric names.
