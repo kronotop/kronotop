@@ -1,7 +1,7 @@
 {
   "TRANSACTIONS": {
-    "summary": "Returns the list of transactions.",
-    "complexity": "O(N) where N is the number of transactions",
+    "summary": "Returns the open transactions of this member.",
+    "complexity": "O(N) where N is the number of open transactions",
     "group": "transactions",
     "since": "2026.10-1",
     "servers": [
@@ -16,8 +16,89 @@
     ],
     "key_specs": [],
     "reply_schema": {
-      "description": "The list of transactions.",
-      "type": "array"
+      "description": "One map per open transaction, ordered by id. On RESP2 each map arrives as a flat array of alternating keys and values.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "client_id": {
+            "description": "Client id of the owning session, or -1 for an internal transaction.",
+            "type": "integer"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "idle"
+            ]
+          },
+          "namespace": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bucket": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "description": "Data model of the command: Bucket or ZMap. Null for other commands.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
+            "description": "The BQL query of the command with every value replaced by '?'.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "watching": {
+            "type": "boolean"
+          },
+          "reads": {
+            "type": "integer"
+          },
+          "range_reads": {
+            "type": "integer"
+          },
+          "writes": {
+            "type": "integer"
+          },
+          "deletes": {
+            "type": "integer"
+          },
+          "range_deletes": {
+            "type": "integer"
+          },
+          "mutations": {
+            "type": "integer"
+          },
+          "bytes_read": {
+            "type": "integer"
+          },
+          "bytes_written": {
+            "type": "integer"
+          }
+        }
+      }
     }
   }
 }
