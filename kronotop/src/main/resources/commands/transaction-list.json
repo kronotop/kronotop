@@ -1,13 +1,11 @@
 {
-  "TRANSACTIONS": {
+  "LIST": {
     "summary": "Returns the open transactions of this member.",
     "complexity": "O(N) where N is the number of open transactions",
     "group": "transactions",
     "since": "2026.10-1",
-    "servers": [
-      "EXTERNAL"
-    ],
-    "arity": 1,
+    "arity": 2,
+    "container": "TRANSACTION",
     "command_flags": [
       "READONLY"
     ],

@@ -1,5 +1,5 @@
 ---
-title: "TRANSACTIONS"
+title: "TRANSACTION LIST"
 description: "Returns the open transactions of this member."
 ---
 
@@ -8,10 +8,10 @@ Returns the open transactions of this member.
 ## Syntax
 
 ```kronotop
-TRANSACTIONS
+TRANSACTION LIST
 ```
 
-This command takes no arguments.
+`LIST` takes no arguments.
 
 ## Return Value
 
@@ -58,7 +58,7 @@ by `?`.
 **Another session ran a query in a `BEGIN` block and has not committed yet:**
 
 ```kronotop
-> TRANSACTIONS
+> TRANSACTION LIST
 1) 1# "id" => (integer) 42
    2# "duration_ms" => (integer) 1203
    3# "client_id" => (integer) 7

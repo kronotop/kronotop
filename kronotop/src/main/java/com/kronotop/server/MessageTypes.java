@@ -123,7 +123,6 @@ public class MessageTypes {
     public static final AttributeKey<RollbackMessage> ROLLBACK = AttributeKey.valueOf(RollbackMessage.COMMAND);
     public static final AttributeKey<SnapshotReadMessage> SNAPSHOTREAD = AttributeKey.valueOf(SnapshotReadMessage.COMMAND);
     public static final AttributeKey<TickMessage> TICK = AttributeKey.valueOf(TickMessage.COMMAND);
-    public static final AttributeKey<TransactionsMessage> TRANSACTIONS = AttributeKey.valueOf(TransactionsMessage.COMMAND);
     public static final AttributeKey<TransactionMessage> TRANSACTION = AttributeKey.valueOf(TransactionMessage.COMMAND);
 
     // Namespace commands

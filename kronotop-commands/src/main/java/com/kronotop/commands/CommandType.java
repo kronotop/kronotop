@@ -38,7 +38,6 @@ public enum CommandType implements ProtocolKeyword {
     ZGETRANGESIZE,
     GETAPPROXIMATESIZE,
     GETREADVERSION,
-    TRANSACTIONS,
     TRANSACTION,
     TICK,
     ZINC_I64("ZINC.I64"),

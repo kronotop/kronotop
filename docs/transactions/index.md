@@ -255,4 +255,5 @@ a single command.
 | [GETAPPROXIMATESIZE](commands/getapproximatesize.md) | Get the approximate byte size of the transaction |
 | [SNAPSHOTREAD](commands/snapshotread.md)             | Enable or disable snapshot read mode             |
 | [TICK](commands/tick.md)                             | Get a monotonically increasing 64-bit integer    |
-| [TRANSACTIONS](commands/transactions.md)             | List the open transactions of this member        |
+| [TRANSACTION LIST](commands/transaction-list.md)     | List the open transactions of this member        |
+| [TRANSACTION KILL](commands/transaction-kill.md)     | Cancel an open transaction of this member        |

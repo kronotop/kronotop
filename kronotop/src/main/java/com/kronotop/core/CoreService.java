@@ -57,7 +57,6 @@ public class CoreService extends CommandHandlerService implements KronotopServic
         handlerMethod(ServerKind.EXTERNAL, new GetReadVersionHandler(context));
         handlerMethod(ServerKind.EXTERNAL, new GetApproximateSizeHandler(context));
         handlerMethod(ServerKind.EXTERNAL, new TickHandler(context));
-        handlerMethod(ServerKind.EXTERNAL, new TransactionsHandler(context));
         handlerMethod(ServerKind.EXTERNAL, new TransactionHandler(context));
 
         handlerMethod(ServerKind.INTERNAL, new AuthHandler(context));

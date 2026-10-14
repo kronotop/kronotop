@@ -256,18 +256,19 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
     }
 
     /**
-     * Creates and returns a command to list the transactions.
+     * Creates a TRANSACTION LIST command that lists the open transactions of the member.
      *
      * @return a Command object that fetches the transactions as a list
      */
-    public Command<K, V, List<Object>> transactions() {
-        return createCommand(CommandType.TRANSACTIONS, new ArrayOutput<>(codec));
+    public Command<K, V, List<Object>> transactionList() {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(TransactionKeywords.LIST);
+        return createCommand(CommandType.TRANSACTION, new ArrayOutput<>(codec), args);
     }
 
     /**
      * Creates a TRANSACTION KILL command that cancels the transaction with the given id.
      *
-     * @param id the transaction id as listed by TRANSACTIONS
+     * @param id the transaction id as listed by TRANSACTION LIST
      * @return a Command object that returns OK on success
      */
     public Command<K, V, String> transactionKill(long id) {

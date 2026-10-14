@@ -50,7 +50,7 @@ public class Session {
     private final AtomicInteger cursorId = new AtomicInteger(1);
     private volatile RESPVersion protocolVersion;
 
-    // Metadata of the running command, shown by TRANSACTIONS. Arguments are never kept.
+    // Metadata of the running command, shown by TRANSACTION LIST. Arguments are never kept.
     // The pending fields are copied to a transaction when the command binds one, see bind().
     private volatile String pendingCommand;
     private volatile String pendingModel;

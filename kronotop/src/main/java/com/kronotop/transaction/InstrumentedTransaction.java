@@ -39,7 +39,7 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
     private ReadTransaction snapshot;
     private volatile long clientId = INTERNAL;
     private volatile TransactionState state = TransactionState.ACTIVE;
-    // Metadata of the command that runs on this transaction, shown by TRANSACTIONS.
+    // Metadata of the command that runs on this transaction, shown by TRANSACTION LIST.
     private volatile String command;
     private volatile String model;
     private volatile String namespace;

@@ -19,13 +19,10 @@ package com.kronotop.core.handlers.transaction;
 import com.kronotop.Context;
 import com.kronotop.bucket.bql.QueryText;
 import com.kronotop.bucket.bql.ast.BqlExpr;
-import com.kronotop.core.handlers.transaction.protocol.TransactionsMessage;
 import com.kronotop.server.*;
-import com.kronotop.server.annotation.Command;
-import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.InstrumentedTransaction;
 import com.kronotop.transaction.TransactionMetrics;
-import com.kronotop.server.resp3.*;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -37,27 +34,18 @@ import static com.kronotop.server.RESPUtil.bulkString;
 /**
  * Lists the open transactions of this member with the metadata of the command that runs on each.
  */
-@Command(TransactionsMessage.COMMAND)
-@MaximumArgumentCount(TransactionsMessage.MAXIMUM_ARGUMENT_COUNT)
-public class TransactionsHandler implements Handler {
+class ListSubcommand implements SubcommandHandler {
     private final Context context;
 
-    public TransactionsHandler(Context context) {
+    ListSubcommand(Context context) {
         this.context = context;
     }
 
     @Override
-    public boolean isRedisCompatible() {
-        return false;
-    }
-
-    @Override
-    public void beforeExecute(Request request) {
-        request.attr(MessageTypes.TRANSACTIONS).set(new TransactionsMessage());
-    }
-
-    @Override
     public void execute(Request request, Response response) {
+        if (request.getArguments().size() != 1) {
+            throw new WrongNumberOfArgumentsException("wrong number of arguments for 'TRANSACTION LIST' command");
+        }
         RESPVersion version = request.getSession().getProtocolVersion();
         long now = System.nanoTime();
         Map<Long, RedisMessage> sorted = new TreeMap<>();

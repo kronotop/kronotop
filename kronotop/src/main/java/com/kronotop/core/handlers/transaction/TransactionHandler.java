@@ -31,6 +31,7 @@ public class TransactionHandler implements Handler {
     private final EnumMap<TransactionSubcommand, SubcommandHandler> executors = new EnumMap<>(TransactionSubcommand.class);
 
     public TransactionHandler(Context context) {
+        executors.put(TransactionSubcommand.LIST, new ListSubcommand(context));
         executors.put(TransactionSubcommand.KILL, new KillSubcommand(context));
     }
 

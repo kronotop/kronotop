@@ -56,7 +56,7 @@ public class TransactionManager {
 
     /**
      * Creates a transaction for the command that runs on the session. The transaction takes
-     * the client id and the command metadata of the session, so TRANSACTIONS can show them.
+     * the client id and the command metadata of the session, so TRANSACTION LIST can show them.
      */
     public InstrumentedTransaction create(Session session) {
         InstrumentedTransaction tr = create();

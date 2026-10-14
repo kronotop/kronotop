@@ -17,5 +17,6 @@
 package com.kronotop.core.handlers.transaction.protocol;
 
 public enum TransactionSubcommand {
+    LIST,
     KILL,
 }

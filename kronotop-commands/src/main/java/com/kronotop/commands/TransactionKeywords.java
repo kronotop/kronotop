@@ -24,6 +24,7 @@ import java.nio.charset.StandardCharsets;
  * Subcommands of the TRANSACTION command.
  */
 public enum TransactionKeywords implements ProtocolKeyword {
+    LIST,
     KILL;
 
     public final byte[] bytes;
