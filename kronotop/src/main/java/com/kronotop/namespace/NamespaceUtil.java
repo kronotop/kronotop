@@ -81,7 +81,7 @@ public class NamespaceUtil {
      * Opens the directory subspace for a data structure within a namespace.
      *
      * @param tr          the FoundationDB transaction
-     * @param clusterName the cluster name
+     * @param context     the Context object representing the operational environment
      * @param namespace   the dot-separated namespace (e.g., "a.b.c")
      * @param kind        the data structure kind
      * @return the DirectorySubspace for the data structure
@@ -206,7 +206,7 @@ public class NamespaceUtil {
      * <b>IMPORTANT</b>: This method removes the namespace from FDB, use it carefully.
      *
      * @param tr          the Transaction object used to perform operations within the FoundationDB environment
-     * @param clusterName the name of the cluster containing the namespace to be removed
+     * @param context     the Context object representing the operational environment
      * @param names       the list of strings representing the hierarchical namespace path to be removed
      */
     public static void remove(Transaction tr, Context context, List<String> names) {
@@ -293,7 +293,7 @@ public class NamespaceUtil {
 
         // Internal values
         byte[] leafKey = subspace.pack(Tuple.from(Namespace.METADATA, NamespaceMetadataField.LEAF.getValue()));
-        byte[] leafValue = subpath.get(subpath.size() - 1).getBytes(StandardCharsets.UTF_8);
+        byte[] leafValue = subpath.getLast().getBytes(StandardCharsets.UTF_8);
         tr.set(leafKey, leafValue);
 
         List<String> parentSubpath = subpath.subList(0, subpath.size() - 1);
@@ -414,7 +414,7 @@ public class NamespaceUtil {
      * Reads the metadata for a namespace from the FoundationDB directory layer.
      *
      * @param tr          the Transaction object used for operations within the FoundationDB environment
-     * @param clusterName the name of the cluster containing the namespace
+     * @param context     the Context object representing the operational environment
      * @param subpath     the list of strings representing the hierarchical namespace path
      * @return the NamespaceMetadata for the specified namespace
      * @throws NoSuchNamespaceException if the namespace does not exist
@@ -508,7 +508,7 @@ public class NamespaceUtil {
      * Marks a namespace as removed by updating its metadata.
      *
      * @param tr          the Transaction object used for operations within the FoundationDB environment
-     * @param clusterName the name of the cluster containing the namespace
+     * @param context     the Context object representing the operational environment
      * @param subpath     the list of strings representing the hierarchical namespace path
      * @throws NoSuchNamespaceException if the namespace does not exist
      * @throws KronotopException        if an error occurs during the operation
@@ -583,7 +583,7 @@ public class NamespaceUtil {
      *
      * @param tr             the FoundationDB transaction
      * @param memberSubspace the member's directory subspace
-     * @param clusterName    the cluster name
+     * @param context        the Context object representing the operational environment
      * @param event          the namespace removed event containing namespace ID and name
      */
     public static void setLastSeenNamespaceVersion(Transaction tr, DirectorySubspace memberSubspace, Context context, NamespaceRemovedEvent event) {
