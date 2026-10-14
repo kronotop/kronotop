@@ -493,24 +493,6 @@ public class BucketMetadataUtil {
     }
 
     /**
-     * Opens bucket metadata using the namespace from the session, using the cache when available.
-     * If not cached, fetches from the database. Index statistics are refreshed based on TTL.
-     *
-     * @param context the context providing environment and services
-     * @param tr      the transaction for database access
-     * @param session the session containing the current namespace
-     * @param bucket  the bucket name
-     * @return the bucket metadata
-     * @throws IllegalArgumentException if the namespace is not set in the session
-     */
-    public static BucketMetadata open(Context context, ReadTransaction tr, Session session, String bucket) {
-        // TODO: Remove this method, only used by tests.
-        String namespace = NamespaceUtil.resolve(session, null);
-        session.setBucket(bucket);
-        return open(context, tr, namespace, bucket);
-    }
-
-    /**
      * Opens bucket metadata in the namespace given by the query arguments, or in the session's
      * current namespace when the arguments carry none. Uses the cache when available.
      *

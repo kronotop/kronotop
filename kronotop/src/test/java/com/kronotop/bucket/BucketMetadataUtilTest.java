@@ -187,7 +187,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         cleanup.run();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, getSession(), TEST_BUCKET);
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             IndexStatistics statistics = metadata.singleFieldIndexes().getStatistics(primaryIndex.definition().id());
             assertEquals(numberOfEntries, statistics.cardinality());
@@ -232,13 +232,13 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, getSession(), TEST_BUCKET);
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             // Try hard refresh
             BucketMetadataUtil.refreshIndexStatistics(context, metadata, 0);
         }
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, getSession(), TEST_BUCKET);
+            BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             IndexStatistics statistics = metadata.singleFieldIndexes().getStatistics(primaryIndex.definition().id());
             assertEquals(numberOfEntries, statistics.cardinality());
@@ -248,10 +248,9 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldNotOpenNotExistingBucket() {
         // Behavior: open throws NoSuchBucketException when the bucket does not exist.
-        Session session = getSession();
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () ->
-                    BucketMetadataUtil.open(context, tr, session, TEST_BUCKET));
+                    BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET));
             assertEquals("No such bucket: 'test-bucket'", exception.getMessage());
         }
     }
@@ -267,7 +266,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         cleanup.run();
 
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
-            BucketMetadata metadata = assertDoesNotThrow(() -> BucketMetadataUtil.open(context, tr, session, TEST_BUCKET));
+            BucketMetadata metadata = assertDoesNotThrow(() -> BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET));
             assertThat(metadata)
                     .usingRecursiveComparison()
                     .ignoringFields("singleFieldIndexes.lock",
@@ -507,7 +506,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         // Verify bucket no longer exists after invalidating the cache.
         try (Transaction tr = context.getFoundationDB().createTransaction()) {
             NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () ->
-                    BucketMetadataUtil.open(context, tr, session, TEST_BUCKET));
+                    BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET));
             assertEquals("No such bucket: 'test-bucket'", exception.getMessage());
         }
     }
