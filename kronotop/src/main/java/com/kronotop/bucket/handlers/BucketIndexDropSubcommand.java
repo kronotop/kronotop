@@ -48,7 +48,7 @@ public class BucketIndexDropSubcommand implements SubcommandHandler {
             if (arguments.index.equals(PrimaryIndex.NAME)) {
                 throw new IllegalArgumentException("Cannot drop the primary index");
             }
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 String namespace = NamespaceUtil.resolve(request.getSession(), arguments.namespace);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);

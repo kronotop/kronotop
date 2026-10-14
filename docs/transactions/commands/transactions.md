@@ -15,20 +15,20 @@ This command takes no arguments.
 
 ## Return Value
 
-Array: one map per open transaction, ordered by `id`.
+An array with one map per open transaction, sorted by `id`. On RESP2 each map is a flat array of keys and values.
 
 | Field           | Type           | Description                                                                    |
 |-----------------|----------------|--------------------------------------------------------------------------------|
 | `id`            | integer        | Transaction id, unique on this member                                          |
 | `duration_ms`   | integer        | Milliseconds since the transaction was created                                 |
-| `client_id`     | integer        | Client id of the owning session, or `-1` for a background transaction          |
+| `client_id`     | integer        | Client id of the session that owns the transaction, `-1` for the member's own  |
 | `state`         | string         | `active` while a command runs, `idle` between two commands of a `BEGIN` block  |
-| `namespace`     | string or null | Namespace of the running or last command                                       |
-| `bucket`        | string or null | Bucket of the running or last command, null for other data models              |
-| `model`         | string or null | Data model of the running or last command, `Bucket` or `ZMap`, null for others |
-| `command`       | string or null | Name of the running or last command                                            |
-| `query`         | string or null | BQL query of the command with every value replaced by `?`                      |
-| `watching`      | boolean        | The transaction owns a watch                                                   |
+| `namespace`     | string or null | Namespace of the command                                                       |
+| `bucket`        | string or null | Bucket of the command, null for other data models                              |
+| `model`         | string or null | Data model of the command: `Bucket` or `ZMap`, null for others                 |
+| `command`       | string or null | Name of the command                                                            |
+| `query`         | string or null | BQL query of the command, every value replaced by `?`                          |
+| `watching`      | boolean        | True when the transaction holds a watch                                        |
 | `reads`         | integer        | Point reads                                                                    |
 | `range_reads`   | integer        | Range reads                                                                    |
 | `writes`        | integer        | Writes                                                                         |
@@ -40,17 +40,22 @@ Array: one map per open transaction, ordered by `id`.
 
 ## Behavior
 
-The list covers the member that serves the command, not the whole cluster. Background transactions opened by the
-member itself appear with `client_id` set to `-1`; they have no session, so `namespace`, `bucket`, `model`,
-`command` and `query` are null for them.
+The list shows only the member that runs the command, not the whole cluster.
 
-Only a command that runs on the session transaction is recorded. A command that opens its own transaction, such as
-`TICK` or `NAMESPACE.LIST`, does not change `command`, `namespace`, `bucket` or `query`. Command arguments and keys are
-never kept; `query` shows only the shape of the query.
+Each transaction shows the command that opened it. A transaction opened with `BEGIN` shows the last command that used
+it. `BEGIN`, `COMMIT` and `ROLLBACK` are not shown as commands. Some commands, like `TICK` or `NAMESPACE.LIST`, open
+their own transaction. Such a transaction is listed on its own, with the `client_id` of the session that sent the
+command.
+
+The member also opens transactions for its own work. These have `client_id` set to `-1` and no command, so
+`namespace`, `bucket`, `model`, `command` and `query` are null.
+
+Command arguments and keys are not stored. `query` shows only the structure of the query, with every value replaced
+by `?`.
 
 ## Examples
 
-**List the transactions while another session runs a query in a `BEGIN` block:**
+**Another session ran a query in a `BEGIN` block and has not committed yet:**
 
 ```kronotop
 > TRANSACTIONS

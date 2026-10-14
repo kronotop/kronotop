@@ -61,7 +61,7 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
         runAsync(context, response, () -> {
             BucketPurgeMessage message = request.attr(MessageTypes.BUCKETPURGE).get();
             String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, namespace, message.getBucket());
                 if (!metadata.removed()) {
                     throw new KronotopException(String.format("Bucket '%s' is not removed", message.getBucket()));
@@ -70,7 +70,7 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
                 barrier.await(metadata.version(), 20, Duration.ofMillis(250)); // 5000 milliseconds
             }
 
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, namespace, message.getBucket());
 

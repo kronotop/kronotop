@@ -19,6 +19,7 @@ package com.kronotop.transaction;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.metrics.AggregatedTransactionMetrics;
+import com.kronotop.server.Session;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -51,6 +52,16 @@ public class TransactionManager {
 
     public InstrumentedTransaction create(ExecutorService executor) {
         return register(database.createTransaction(executor));
+    }
+
+    /**
+     * Creates a transaction for the command that runs on the session. The transaction takes
+     * the client id and the command metadata of the session, so TRANSACTIONS can show them.
+     */
+    public InstrumentedTransaction create(Session session) {
+        InstrumentedTransaction tr = create();
+        session.bind(tr);
+        return tr;
     }
 
     private InstrumentedTransaction register(Transaction underlying) {

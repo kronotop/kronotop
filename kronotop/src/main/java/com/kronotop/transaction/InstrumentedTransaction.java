@@ -17,6 +17,7 @@
 package com.kronotop.transaction;
 
 import com.apple.foundationdb.*;
+import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.metrics.AggregatedTransactionMetrics;
 
 import java.util.concurrent.CompletableFuture;
@@ -38,6 +39,12 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
     private ReadTransaction snapshot;
     private volatile long clientId = INTERNAL;
     private volatile TransactionState state = TransactionState.ACTIVE;
+    // Metadata of the command that runs on this transaction, shown by TRANSACTIONS.
+    private volatile String command;
+    private volatile String model;
+    private volatile String namespace;
+    private volatile String bucket;
+    private volatile BqlExpr query;
 
     InstrumentedTransaction(long id, Transaction underlying, TransactionManager manager) {
         super(id, underlying, new TransactionMetrics());
@@ -59,6 +66,46 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
 
     public void setState(TransactionState state) {
         this.state = state;
+    }
+
+    public String getCommand() {
+        return command;
+    }
+
+    public void setCommand(String command) {
+        this.command = command;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public void setModel(String model) {
+        this.model = model;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
+    public String getBucket() {
+        return bucket;
+    }
+
+    public void setBucket(String bucket) {
+        this.bucket = bucket;
+    }
+
+    public BqlExpr getQuery() {
+        return query;
+    }
+
+    public void setQuery(BqlExpr query) {
+        this.query = query;
     }
 
     @Override

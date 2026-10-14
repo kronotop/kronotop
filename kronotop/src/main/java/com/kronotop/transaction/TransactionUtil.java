@@ -51,8 +51,6 @@ public class TransactionUtil {
      * @return the current transaction from the session, or a newly created transaction if none exists
      */
     public static Transaction getOrCreateTransaction(Context context, Session session) {
-        // The command runs on the session transaction, so TRANSACTIONS may show it.
-        session.applyPendingCommand();
         Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
         Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
         if (!Boolean.TRUE.equals(beginAttr.get())) {
@@ -61,13 +59,14 @@ public class TransactionUtil {
             // This will be a one-off transaction.
             // WARNING: Using "virtualThreadPerTaskExecutor" can be dangerous here.
             InstrumentedTransaction tr = context.getTransactionManager().create(context.getVirtualThreadPerTaskExecutor());
-            tr.setClientId(session.getClientId());
+            session.bind(tr);
             session.setTransaction(tr);
             session.attr(SessionAttributes.AUTO_COMMIT).set(true);
             return tr;
         }
-        Transaction tr = transactionAttr.get();
-        ((InstrumentedTransaction) tr).setState(TransactionState.ACTIVE);
+        InstrumentedTransaction tr = (InstrumentedTransaction) transactionAttr.get();
+        session.bind(tr);
+        tr.setState(TransactionState.ACTIVE);
         return tr;
     }
 

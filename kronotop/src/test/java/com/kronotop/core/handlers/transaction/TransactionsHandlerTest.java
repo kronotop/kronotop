@@ -19,7 +19,6 @@ package com.kronotop.core.handlers.transaction;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.KronotopCommandBuilder;
-import com.kronotop.commands.TickArgs;
 import com.kronotop.commands.ZMapCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Session;
@@ -138,8 +137,9 @@ class TransactionsHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldIgnoreCommandWithOwnTransaction() {
-        // Behavior: TICK opens its own transaction, so it does not replace the last command of the BEGIN block.
+    void shouldListOwnTransactionOfCommand() {
+        // Behavior: a command that opens its own transaction with create(session) is listed with the client id
+        // and the command, and the BEGIN transaction keeps the last command that ran on it.
         switchProtocol(RESPVersion.RESP3);
         createNamespace(channel, namespace);
         useNamespace(channel, namespace);
@@ -150,15 +150,22 @@ class TransactionsHandlerTest extends BaseHandlerTest {
         zmap.zset("key", "value").encode(buf);
         assertOK(runCommand(channel, buf));
 
-        buf = Unpooled.buffer();
-        cmd.tick(TickArgs.Builder.fresh()).encode(buf);
-        assertInstanceOf(IntegerRedisMessage.class, runCommand(channel, buf));
+        session().startCommand("NAMESPACE.LIST", null);
+        try (InstrumentedTransaction own = context.getTransactionManager().create(session())) {
+            session().setNamespace(namespace);
 
-        Map<String, RedisMessage> fields = findById(sessionTransactionId());
-        assertNotNull(fields);
-        assertEquals("ZSET", string(fields.get("command")));
-        assertEquals("ZMap", string(fields.get("model")));
-        assertEquals(namespace, string(fields.get("namespace")));
+            Map<String, RedisMessage> ownFields = findById(own.getId());
+            assertNotNull(ownFields);
+            assertEquals(session().getClientId(), ((IntegerRedisMessage) ownFields.get("client_id")).value());
+            assertEquals("NAMESPACE.LIST", string(ownFields.get("command")));
+            assertInstanceOf(NullRedisMessage.class, ownFields.get("model"));
+            assertEquals(namespace, string(ownFields.get("namespace")));
+
+            Map<String, RedisMessage> beginFields = findById(sessionTransactionId());
+            assertNotNull(beginFields);
+            assertEquals("ZSET", string(beginFields.get("command")));
+            assertEquals("ZMap", string(beginFields.get("model")));
+        }
     }
 
     @Test

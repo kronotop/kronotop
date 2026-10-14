@@ -65,13 +65,11 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
 
         supplyAsync(context, response, () -> {
             List<RedisMessage> deletedFiles = new ArrayList<>();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 Volume volume = service.findVolume(arguments.volumeName);
                 List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(volume.getConfig().subspace()));
                 Set<String> assumedFiles = new HashSet<>();
-                segmentIds.forEach(segmentId -> {
-                    assumedFiles.add(SegmentUtil.generateFileName(segmentId));
-                });
+                segmentIds.forEach(segmentId -> assumedFiles.add(SegmentUtil.generateFileName(segmentId)));
 
                 Set<String> orphanFiles = new HashSet<>();
                 Set<String> existingFiles = listFiles(Paths.get(volume.getConfig().dataDir(), SegmentUtil.DIRECTORY).toString());
@@ -96,15 +94,13 @@ public class CleanupOrphanFilesSubcommand extends BaseSubcommandHandler implemen
         }, response::writeArray);
     }
 
-    private static class CleanupOrphanFilesArguments {
-        private final String volumeName;
-
+    private record CleanupOrphanFilesArguments(String volumeName) {
         private CleanupOrphanFilesArguments(ArrayList<ByteBuf> args) {
             if (args.size() != 2) {
                 throw new InvalidNumberOfArgumentsException();
             }
 
-            volumeName = ProtocolMessageUtil.readAsString(args.get(1));
+            this(ProtocolMessageUtil.readAsString(args.get(1)));
         }
     }
 }

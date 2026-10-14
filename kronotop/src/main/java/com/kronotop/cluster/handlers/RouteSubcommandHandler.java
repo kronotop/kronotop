@@ -155,7 +155,7 @@ class RouteSubcommandHandler extends BaseKrAdminSubcommandHandler implements Sub
     public void execute(Request request, Response response) {
         RouteArguments arguments = new RouteArguments(request.getArguments());
         runAsync(context, response, () -> {
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 if (!membership.isMemberRegistered(tr, arguments.memberId)) {
                     throw new KronotopException("member not found");
                 }

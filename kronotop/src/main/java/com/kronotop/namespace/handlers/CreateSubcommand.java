@@ -46,7 +46,7 @@ class CreateSubcommand extends BaseSubcommand implements SubcommandHandler {
             String namespace = dottedNamespace(arguments.subpath);
 
             // Create the namespace by using an isolated, one-off transaction to prevent nasty consistency bugs.
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 TombstoneManager.checkBarrier(context, tr, namespace);
                 // Commits the transaction itself.
                 NamespaceUtil.create(context, tr, arguments.subpath);

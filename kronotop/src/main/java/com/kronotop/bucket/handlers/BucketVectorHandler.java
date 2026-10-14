@@ -111,7 +111,7 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
             BucketVectorMessage message = request.attr(MessageTypes.BUCKETVECTOR).get();
             Session session = request.getSession();
 
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(session)) {
                 String namespace = NamespaceUtil.resolve(session, message.getNamespace());
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, message.getBucket());
                 checkBucketOwnership(metadata);

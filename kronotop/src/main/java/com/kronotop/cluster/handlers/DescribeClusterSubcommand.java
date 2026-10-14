@@ -44,7 +44,7 @@ class DescribeClusterSubcommand extends BaseKrAdminSubcommandHandler implements 
                 throw new InvalidNumberOfArgumentsException();
             }
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 String version = MetadataVersion.read(context, tr);
                 result.put(bulkString("metadata_version"), bulkString(version));
                 result.put(bulkString("cluster_name"), bulkString(context.getClusterName()));

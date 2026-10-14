@@ -60,18 +60,6 @@ public class SessionStore {
     }
 
     /**
-     * Returns the session for the given client ID, or null if none is registered.
-     */
-    public Session get(long clientId) {
-        long stamp = lock.readLock();
-        try {
-            return sessions.get(clientId);
-        } finally {
-            lock.unlockRead(stamp);
-        }
-    }
-
-    /**
      * Returns the number of registered sessions.
      */
     public int size() {

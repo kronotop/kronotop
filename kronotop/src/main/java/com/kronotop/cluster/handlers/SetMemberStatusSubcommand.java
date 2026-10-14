@@ -39,7 +39,7 @@ class SetMemberStatusSubcommand extends BaseKrAdminSubcommandHandler implements 
     public void execute(Request request, Response response) {
         SetMemberStatusArguments arguments = new SetMemberStatusArguments(request.getArguments());
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 Member member = membership.findMember(tr, arguments.memberId);
                 member.setStatus(arguments.memberStatus);
                 membership.updateMember(tr, member);

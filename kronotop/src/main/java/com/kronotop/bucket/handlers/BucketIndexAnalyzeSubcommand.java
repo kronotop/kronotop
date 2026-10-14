@@ -72,7 +72,7 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
         AnalyzeArguments arguments = new AnalyzeArguments(request.getArguments());
         AsyncCommandExecutor.runAsync(context, response, () -> {
             String namespace = NamespaceUtil.resolve(request.getSession(), arguments.namespace);
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, arguments.bucket, arguments.index);
                 for (Versionstamp taskId : taskIds) {

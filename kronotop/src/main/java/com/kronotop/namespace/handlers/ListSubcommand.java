@@ -46,7 +46,7 @@ class ListSubcommand extends BaseSubcommand implements SubcommandHandler {
     public void execute(Request request, Response response) {
         ListArguments arguments = new ListArguments(request);
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 List<String> subpath = getNamespaceSubpath(arguments.subpath);
                 CompletableFuture<List<String>> future;
                 if (subpath.isEmpty()) {

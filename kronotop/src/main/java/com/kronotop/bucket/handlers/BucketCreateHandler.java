@@ -54,7 +54,7 @@ public class BucketCreateHandler extends AbstractBucketHandler implements Handle
         BucketCreateMessage message = request.attr(MessageTypes.BUCKETCREATE).get();
         String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
         runAsync(context, response, () -> {
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 List<Integer> shards = new ArrayList<>(message.getShards());
                 if (message.getShards().isEmpty()) {
                     BucketShard shard = service.getShardSelector().next();

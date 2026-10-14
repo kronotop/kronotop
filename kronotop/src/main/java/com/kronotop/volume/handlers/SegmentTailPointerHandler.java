@@ -66,7 +66,7 @@ public class SegmentTailPointerHandler extends BaseVolumeHandler implements Hand
 
             long segmentId = message.getSegmentId();
             List<RedisMessage> result = new ArrayList<>();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 // locateTailPointer returns the next valid position within the segment.
                 // A returned value indicates that no user data exists beyond this point.
                 // It serves as an upper bound for replication and backup processes.

@@ -38,7 +38,7 @@ class DescribeShardSubcommand extends BaseKrAdminSubcommandHandler implements Su
     public void execute(Request request, Response response) {
         DescribeShardArguments arguments = new DescribeShardArguments(request.getArguments());
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 return describeShard(tr, arguments.kind, arguments.shardId);
             }
         }, response::writeMap);

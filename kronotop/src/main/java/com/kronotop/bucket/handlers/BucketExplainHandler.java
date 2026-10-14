@@ -52,7 +52,7 @@ public class BucketExplainHandler extends AbstractBucketHandler implements Handl
     }
 
     private BucketMetadata openBucketMetadata(Request request, BucketExplainMessage message) {
-        try (Transaction tr = context.getTransactionManager().create()) {
+        try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
             return BucketMetadataUtil.open(context, tr, request.getSession(), message.getBucket(), message.getArguments());
         }
     }

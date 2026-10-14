@@ -60,7 +60,7 @@ class ReplicationStatsSubcommand extends BaseSubcommandHandler implements Subcom
 
         supplyAsync(context, response, () -> {
             String volumeName = request.attr(MessageTypes.VOLUMESTATS).get().getVolumeName();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 VolumeNames.Parsed parsed = VolumeNames.parse(volumeName);
                 DirectorySubspace standbySubspace = ReplicationUtil.openStandbySubspace(
                         context, tr, parsed.shardKind(), volumeName, arguments.standbyId

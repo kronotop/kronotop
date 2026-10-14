@@ -47,7 +47,7 @@ class PurgeSubcommand extends BaseSubcommand implements SubcommandHandler {
                 throw new KronotopException("Cannot purge the default namespace: '" + name + "'");
             }
 
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 DirectorySubspace subspace = NamespaceUtil.open(tr, context, arguments.subpath);
                 NamespaceMetadata metadata = NamespaceUtil.readMetadata(tr, name, subspace);
                 if (!metadata.removed()) {

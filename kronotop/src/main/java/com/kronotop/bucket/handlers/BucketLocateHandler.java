@@ -82,7 +82,7 @@ public class BucketLocateHandler extends AbstractBucketHandler implements Handle
             BucketLocateMessage message = request.attr(MessageTypes.BUCKETLOCATE).get();
             List<RedisMessage> routes = new ArrayList<>();
             Map<String, Member> members = new LinkedHashMap<>();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, message.getBucket());
                 for (int shardId : metadata.shards()) {
@@ -106,7 +106,7 @@ public class BucketLocateHandler extends AbstractBucketHandler implements Handle
                 }
             }
             return List.of(
-                    (RedisMessage) new ArrayRedisMessage(routes),
+                    new ArrayRedisMessage(routes),
                     new ArrayRedisMessage(renderMembers(members))
             );
         }, response::writeArray);

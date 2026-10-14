@@ -46,7 +46,7 @@ public class ListSegments extends BaseSubcommandHandler implements SubcommandHan
             VolumeConfig config = volume.getConfig();
 
             List<RedisMessage> children = new ArrayList<>();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, new VolumeSubspace(config.subspace()));
                 for (long segmentId : segmentIds) {
                     children.add(new IntegerRedisMessage(segmentId));

@@ -374,7 +374,7 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      */
     private void executeKronotopCommand(Request request, Response response, HandlerEntry entry) {
         beforeExecute(entry, request);
-        request.getSession().setPendingCommand(request.getCommand(), modelOf(entry.service()));
+        request.getSession().startCommand(request.getCommand(), modelOf(entry.service()));
         executeCommand(entry.handler(), request, response);
     }
 

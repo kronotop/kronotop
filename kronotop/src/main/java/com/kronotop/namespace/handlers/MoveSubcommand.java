@@ -53,7 +53,7 @@ class MoveSubcommand extends BaseSubcommand implements SubcommandHandler {
             List<String> newPath = getNamespaceSubpath(arguments.newPath);
 
             // Move namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 checkNamespaceBeingRemoved(tr, arguments.oldPath);
                 DirectorySubspace newSubspace = context.getDirectoryLayer().move(tr, oldPath, newPath).join();
                 NamespaceUtil.updateLeafAndParentPointer(context, tr, newSubspace, arguments.newPath);

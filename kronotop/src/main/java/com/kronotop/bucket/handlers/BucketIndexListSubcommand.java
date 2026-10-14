@@ -52,7 +52,7 @@ class BucketIndexListSubcommand implements SubcommandHandler {
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
             List<RedisMessage> children = new ArrayList<>();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(session)) {
                 String namespace = NamespaceUtil.resolve(session, arguments.namespace);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);
                 List<String> names = IndexUtil.list(tr, metadata.subspace());

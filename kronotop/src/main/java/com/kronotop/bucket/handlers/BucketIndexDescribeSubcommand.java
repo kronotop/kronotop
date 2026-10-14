@@ -127,7 +127,7 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
         DescribeArguments arguments = new DescribeArguments(request.getArguments());
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(session)) {
                 String namespace = NamespaceUtil.resolve(session, arguments.namespace);
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, namespace, arguments.bucket);
 

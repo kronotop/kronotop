@@ -23,6 +23,7 @@ import com.kronotop.server.Handler;
 import com.kronotop.server.MessageTypes;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.Session;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumArgumentCount;
 import com.kronotop.server.annotation.MinimumArgumentCount;
@@ -58,18 +59,18 @@ public class TickHandler implements Handler {
         supplyAsync(context, response, () -> {
             TickMessage message = request.attr(MessageTypes.TICK).get();
             if (message.getMode().equals(TickMessage.Mode.FRESH)) {
-                return fetchReadVersion();
+                return fetchReadVersion(request.getSession());
             }
-            return cachedTick();
+            return cachedTick(request.getSession());
         }, response::writeInteger);
     }
 
-    private long cachedTick() {
+    private long cachedTick(Session session) {
         CachedReadVersion current = cachedReadVersion.get();
         if (current != null && System.currentTimeMillis() - current.timestamp() < CACHE_TTL_MS) {
             return current.readVersion();
         }
-        long fresh = fetchReadVersion();
+        long fresh = fetchReadVersion(session);
         CachedReadVersion candidate = new CachedReadVersion(System.currentTimeMillis(), fresh);
         // The cached read version must never go backwards; keep the entry with the max version.
         CachedReadVersion winner = cachedReadVersion.accumulateAndGet(candidate,
@@ -79,8 +80,8 @@ public class TickHandler implements Handler {
         return winner.readVersion();
     }
 
-    private long fetchReadVersion() {
-        try (Transaction tr = context.getTransactionManager().create()) {
+    private long fetchReadVersion(Session session) {
+        try (Transaction tr = context.getTransactionManager().create(session)) {
             return tr.getReadVersion().join();
         }
     }

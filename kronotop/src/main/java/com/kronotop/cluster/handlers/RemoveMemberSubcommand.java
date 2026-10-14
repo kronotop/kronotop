@@ -37,7 +37,7 @@ class RemoveMemberSubcommand extends BaseKrAdminSubcommandHandler implements Sub
     public void execute(Request request, Response response) {
         RemoveMemberArguments arguments = new RemoveMemberArguments(request.getArguments());
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 membership.removeMember(tr, arguments.memberId);
                 membership.triggerClusterTopologyWatcher(tr);
                 tr.commit().join();

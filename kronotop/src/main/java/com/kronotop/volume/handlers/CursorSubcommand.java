@@ -58,7 +58,7 @@ public class CursorSubcommand extends BaseSubcommandHandler implements Subcomman
         supplyAsync(context, response, () -> {
             DirectorySubspace volumeSubspace = service.openSubspace(arguments.volumeName);
             Map<RedisMessage, RedisMessage> result = new LinkedHashMap<>();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 long activeSegmentId = SegmentSubspaceUtil.findActiveSegmentId(tr, volumeSubspace);
                 SegmentTailPointer pointer = SegmentSubspaceUtil.locateTailPointer(tr, volumeSubspace, activeSegmentId);
                 long sequenceNumber = ChangeLog.resolveTailSequenceNumber(tr, volumeSubspace, activeSegmentId, pointer);

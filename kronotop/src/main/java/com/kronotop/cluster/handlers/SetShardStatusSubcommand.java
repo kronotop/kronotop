@@ -41,7 +41,7 @@ class SetShardStatusSubcommand extends BaseKrAdminSubcommandHandler implements S
         SetShardStatusArguments arguments = new SetShardStatusArguments(request.getArguments());
 
         AsyncCommandExecutor.runAsync(context, response, () -> {
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 if (arguments.allShards) {
                     for (int shardId : getShardIds(arguments.shardKind)) {
                         ShardUtil.setShardStatus(context, tr, arguments.shardKind, arguments.shardStatus, shardId);

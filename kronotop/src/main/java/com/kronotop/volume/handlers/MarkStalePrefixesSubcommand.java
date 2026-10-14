@@ -66,7 +66,7 @@ public class MarkStalePrefixesSubcommand extends BaseSubcommandHandler implement
                 KronotopDirectoryNode node = KronotopDirectory.kronotop()
                         .cluster(context.getClusterName()).metadata().tasks()
                         .task(MarkStalePrefixesTask.NAME);
-                try (Transaction tr = context.getTransactionManager().create()) {
+                try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                     DirectorySubspace subspace;
                     try {
                         subspace = context.getDirectoryLayer().open(tr, node.toList()).join();

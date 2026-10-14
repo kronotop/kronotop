@@ -50,14 +50,15 @@ public class Session {
     private final AtomicInteger cursorId = new AtomicInteger(1);
     private volatile RESPVersion protocolVersion;
 
-    // Metadata of the running or last command, shown by TRANSACTIONS. Arguments are never kept.
+    // Metadata of the running command, shown by TRANSACTIONS. Arguments are never kept.
+    // The pending fields are copied to a transaction when the command binds one, see bind().
     private volatile String pendingCommand;
     private volatile String pendingModel;
-    private volatile String command;
-    private volatile String model;
-    private volatile String namespace;
-    private volatile String bucket;
-    private volatile BqlExpr query;
+    private volatile String pendingNamespace;
+    private volatile String pendingBucket;
+    private volatile BqlExpr pendingQuery;
+    // The transaction bound by the running command, or null.
+    private volatile InstrumentedTransaction bound;
 
     private Session(Context context, ChannelHandlerContext ctx) {
         this.context = context;
@@ -171,56 +172,53 @@ public class Session {
     }
 
     /**
-     * Remembers the command that starts now. The visible fields do not change until the command
-     * takes the session transaction.
+     * Starts a new command. The pending metadata of the previous command is cleared.
      */
-    public void setPendingCommand(String command, String model) {
+    public void startCommand(String command, String model) {
         this.pendingCommand = command;
         this.pendingModel = model;
+        this.pendingNamespace = null;
+        this.pendingBucket = null;
+        this.pendingQuery = null;
+        this.bound = null;
     }
 
     /**
-     * Makes the pending command the visible one. Namespace, bucket and query belong to the previous
-     * command, so they are cleared here and set again by the new command if it has them.
+     * Binds a transaction to the running command. The transaction takes the client id and
+     * the pending metadata. Metadata set later by the same command is written to it too.
      */
-    public void applyPendingCommand() {
-        this.command = pendingCommand;
-        this.model = pendingModel;
-        this.namespace = null;
-        this.bucket = null;
-        this.query = null;
-    }
-
-    public String getCommand() {
-        return command;
-    }
-
-    public String getModel() {
-        return model;
+    public void bind(InstrumentedTransaction tr) {
+        tr.setClientId(getClientId());
+        tr.setCommand(pendingCommand);
+        tr.setModel(pendingModel);
+        tr.setNamespace(pendingNamespace);
+        tr.setBucket(pendingBucket);
+        tr.setQuery(pendingQuery);
+        this.bound = tr;
     }
 
     public void setNamespace(String namespace) {
-        this.namespace = namespace;
-    }
-
-    public String getNamespace() {
-        return namespace;
+        this.pendingNamespace = namespace;
+        InstrumentedTransaction tr = bound;
+        if (tr != null) {
+            tr.setNamespace(namespace);
+        }
     }
 
     public void setBucket(String bucket) {
-        this.bucket = bucket;
-    }
-
-    public String getBucket() {
-        return bucket;
+        this.pendingBucket = bucket;
+        InstrumentedTransaction tr = bound;
+        if (tr != null) {
+            tr.setBucket(bucket);
+        }
     }
 
     public void setQuery(BqlExpr query) {
-        this.query = query;
-    }
-
-    public BqlExpr getQuery() {
-        return query;
+        this.pendingQuery = query;
+        InstrumentedTransaction tr = bound;
+        if (tr != null) {
+            tr.setQuery(query);
+        }
     }
 
     /**

@@ -65,7 +65,7 @@ public class ZWatchHandler extends BaseZMapHandler implements Handler {
             ZWatchMessage message = request.attr(MessageTypes.ZWATCH).get();
 
             byte[] packedKey;
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(session)) {
                 DirectorySubspace subspace = openZMapSubspace(tr, session, message.getNamespace());
                 packedKey = subspace.pack(message.getKey());
             }

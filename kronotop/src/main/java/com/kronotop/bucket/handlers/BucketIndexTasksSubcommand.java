@@ -147,7 +147,7 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> parent = new LinkedHashMap<>();
             String namespace = NamespaceUtil.resolve(request.getSession(), arguments.namespace);
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, namespace, arguments.bucket, arguments.index);
                 for (Versionstamp taskId : taskIds) {

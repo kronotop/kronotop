@@ -29,6 +29,7 @@ import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.namespace.handlers.protocol.NamespaceSubcommand;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.Session;
 import com.kronotop.server.SubcommandHandler;
 
 import java.util.List;
@@ -44,9 +45,9 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandHandler {
         this.journal = context.getService(JournalService.NAME);
     }
 
-    private void remove(String namespace, List<String> subpath) {
+    private void remove(Session session, String namespace, List<String> subpath) {
         // Remove namespaces by using an isolated, one-off transaction to prevent nasty consistency bugs.
-        try (Transaction tr = context.getTransactionManager().create()) {
+        try (Transaction tr = context.getTransactionManager().create(session)) {
             NamespaceMetadata metadata = NamespaceUtil.readMetadata(tr, context, subpath);
             if (metadata.removed()) {
                 throw new NamespaceBeingRemovedException(namespace);
@@ -62,7 +63,7 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandHandler {
                 // 1020 -> not_committed - Transaction not committed due to conflict with another transaction
                 if (ex.getCode() == 1020) {
                     // retry
-                    remove(namespace, subpath);
+                    remove(session, namespace, subpath);
                     return;
                 }
             }
@@ -78,7 +79,7 @@ class RemoveSubcommand extends BaseSubcommand implements SubcommandHandler {
             if (context.getConfig().getString("default_namespace").equals(name)) {
                 throw new KronotopException("Cannot remove the default namespace: '" + name + "'");
             }
-            remove(name, arguments.subpath);
+            remove(request.getSession(), name, arguments.subpath);
         }, response::writeOK);
     }
 

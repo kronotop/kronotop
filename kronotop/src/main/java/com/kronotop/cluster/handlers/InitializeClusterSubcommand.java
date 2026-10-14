@@ -34,6 +34,7 @@ import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.server.Request;
 import com.kronotop.server.Response;
+import com.kronotop.server.Session;
 import com.kronotop.server.SubcommandHandler;
 import com.kronotop.transaction.TransactionUtil;
 import io.github.resilience4j.retry.Retry;
@@ -144,10 +145,10 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         subspace.create(tr, directory.excludeSubspace(subspace)).join();
     }
 
-    private void initializeCluster() {
+    private void initializeCluster(Session session) {
         DirectorySubspace clusterMetadataSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.CLUSTER_METADATA);
 
-        try (Transaction tr = context.getTransactionManager().create()) {
+        try (Transaction tr = context.getTransactionManager().create(session)) {
             if (MembershipUtil.isClusterInitialized(tr, clusterMetadataSubspace)) {
                 throw new KronotopException("cluster has already been initialized");
             }
@@ -182,7 +183,7 @@ class InitializeClusterSubcommand extends BaseKrAdminSubcommandHandler implement
         }
         runAsync(context, response, () -> {
             Retry retry = TransactionUtil.retry(10, Duration.ofMillis(100));
-            retry.executeRunnable(this::initializeCluster);
+            retry.executeRunnable(() -> initializeCluster(request.getSession()));
         }, response::writeOK);
     }
 }

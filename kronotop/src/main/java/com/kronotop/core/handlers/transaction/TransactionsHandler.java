@@ -35,7 +35,7 @@ import java.util.TreeMap;
 import static com.kronotop.server.RESPUtil.bulkString;
 
 /**
- * Lists the open transactions of this member with the metadata of their owning session.
+ * Lists the open transactions of this member with the metadata of the command that runs on each.
  */
 @Command(TransactionsMessage.COMMAND)
 @MaximumArgumentCount(TransactionsMessage.MAXIMUM_ARGUMENT_COUNT)
@@ -69,20 +69,17 @@ public class TransactionsHandler implements Handler {
 
     private MapRedisMessage describe(InstrumentedTransaction tr, long now) {
         TransactionMetrics metrics = tr.getMetrics();
-        Session session = tr.getClientId() == InstrumentedTransaction.INTERNAL
-                ? null
-                : context.getSessionStore().get(tr.getClientId());
-        BqlExpr query = session != null ? session.getQuery() : null;
+        BqlExpr query = tr.getQuery();
 
         Map<RedisMessage, RedisMessage> fields = new LinkedHashMap<>();
         fields.put(bulkString("id"), new IntegerRedisMessage(tr.getId()));
         fields.put(bulkString("duration_ms"), new IntegerRedisMessage((now - metrics.getStartNanos()) / 1_000_000));
         fields.put(bulkString("client_id"), new IntegerRedisMessage(tr.getClientId()));
         fields.put(bulkString("state"), bulkString(tr.getState().name().toLowerCase()));
-        fields.put(bulkString("namespace"), text(session != null ? session.getNamespace() : null));
-        fields.put(bulkString("bucket"), text(session != null ? session.getBucket() : null));
-        fields.put(bulkString("model"), text(session != null ? session.getModel() : null));
-        fields.put(bulkString("command"), text(session != null ? session.getCommand() : null));
+        fields.put(bulkString("namespace"), text(tr.getNamespace()));
+        fields.put(bulkString("bucket"), text(tr.getBucket()));
+        fields.put(bulkString("model"), text(tr.getModel()));
+        fields.put(bulkString("command"), text(tr.getCommand()));
         fields.put(bulkString("query"), text(query != null ? QueryText.render(query) : null));
         fields.put(bulkString("watching"), metrics.isWatching() ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE);
         fields.put(bulkString("reads"), new IntegerRedisMessage(metrics.getReads()));

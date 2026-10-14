@@ -59,7 +59,7 @@ public class ChangeLogWatchHandler extends BaseVolumeHandler implements Handler 
             byte[] mutationTrigger = service.getMutationTriggerKey(subspace);
 
             while (true) {
-                try (Transaction tr = context.getTransactionManager().create()) {
+                try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                     long latestSequenceNumber = ChangeLog.getLatestSequenceNumber(tr, subspace);
                     if (latestSequenceNumber < message.getSequenceNumber()) {
                         throw new IllegalArgumentException(

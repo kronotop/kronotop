@@ -64,7 +64,7 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
 
             Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);
             retry.executeRunnable(() -> {
-                try (Transaction tr = context.getTransactionManager().create()) {
+                try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                     TransactionalContext tx = new TransactionalContext(context, tr);
                     String namespace = NamespaceUtil.resolve(request.getSession(), arguments.getNamespace());
                     BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, namespace, arguments.getBucket());

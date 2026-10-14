@@ -127,7 +127,7 @@ public class ChangeLogRangeHandler extends BaseVolumeHandler implements Handler 
             DirectorySubspace subspace = service.openSubspace(message.getVolume());
 
             List<RedisMessage> entries = new ArrayList<>();
-            try (Transaction tr = context.getTransactionManager().create()) {
+            try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace, options);
                 for (ChangeLogEntry entry : iterable) {
                     entries.add(mapEntry(entry));
