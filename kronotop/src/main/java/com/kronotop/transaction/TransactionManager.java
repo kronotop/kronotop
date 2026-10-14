@@ -79,6 +79,13 @@ public class TransactionManager {
         }
     }
 
+    /**
+     * Returns the open transaction with the given id, or null when there is none.
+     */
+    public InstrumentedTransaction get(long id) {
+        return registry.get(id);
+    }
+
     public int getActiveTransactionCount() {
         return registry.size();
     }

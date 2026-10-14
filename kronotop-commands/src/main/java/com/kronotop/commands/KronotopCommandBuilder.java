@@ -265,6 +265,19 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
     }
 
     /**
+     * Creates a TRANSACTION KILL command that cancels the transaction with the given id.
+     *
+     * @param id the transaction id as listed by TRANSACTIONS
+     * @return a Command object that returns OK on success
+     */
+    public Command<K, V, String> transactionKill(long id) {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).
+                add(TransactionKeywords.KILL).
+                add(id);
+        return createCommand(CommandType.TRANSACTION, new StatusOutput<>(codec), args);
+    }
+
+    /**
      * Creates and returns a command to retrieve a fresh or cached read version of the database.
      *
      * @param tickArgs the arguments selecting the read version mode, FRESH or CACHED

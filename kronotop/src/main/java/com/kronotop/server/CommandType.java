@@ -115,6 +115,7 @@ public enum CommandType {
     GETREADVERSION,
     GETAPPROXIMATESIZE,
     TRANSACTIONS,
+    TRANSACTION,
 
     // Distsys primitives
     TICK,
@@ -292,6 +293,7 @@ public enum CommandType {
             case "GETREADVERSION" -> GETREADVERSION;
             case "GETAPPROXIMATESIZE" -> GETAPPROXIMATESIZE;
             case "TRANSACTIONS" -> TRANSACTIONS;
+            case "TRANSACTION" -> TRANSACTION;
 
             // Distsys primitives
             case "TICK" -> TICK;
