@@ -28,14 +28,37 @@ import java.util.function.Function;
  */
 public class InstrumentedTransaction extends InstrumentedReadTransaction<Transaction> implements Transaction {
 
+    /**
+     * Client id of a transaction that no session owns.
+     */
+    public static final long INTERNAL = -1;
+
     private final TransactionManager manager;
     private final AggregatedTransactionMetrics aggregated;
     private ReadTransaction snapshot;
+    private volatile long clientId = INTERNAL;
+    private volatile TransactionState state = TransactionState.ACTIVE;
 
     InstrumentedTransaction(long id, Transaction underlying, TransactionManager manager) {
         super(id, underlying, new TransactionMetrics());
         this.manager = manager;
         this.aggregated = manager.getAggregatedTransactionMetrics();
+    }
+
+    public long getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(long clientId) {
+        this.clientId = clientId;
+    }
+
+    public TransactionState getState() {
+        return state;
+    }
+
+    public void setState(TransactionState state) {
+        this.state = state;
     }
 
     @Override

@@ -23,6 +23,7 @@ import com.kronotop.core.handlers.transaction.protocol.BeginMessage;
 import com.kronotop.server.*;
 import com.kronotop.server.annotation.Command;
 import com.kronotop.server.annotation.MaximumArgumentCount;
+import com.kronotop.transaction.InstrumentedTransaction;
 import io.netty.util.Attribute;
 
 @Command(BeginMessage.COMMAND)
@@ -52,7 +53,9 @@ public class BeginHandler implements Handler {
             if (Boolean.TRUE.equals(beginAttr.get())) {
                 throw new KronotopException(RESPError.TRANSACTION, "there is already a transaction in progress.");
             }
-            session.setTransaction(context.getTransactionManager().create());
+            InstrumentedTransaction tr = context.getTransactionManager().create();
+            tr.setClientId(session.getClientId());
+            session.setTransaction(tr);
         }, response::writeOK);
     }
 }

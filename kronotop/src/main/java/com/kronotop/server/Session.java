@@ -19,7 +19,10 @@ package com.kronotop.server;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.bql.ast.BqlExpr;
 import com.kronotop.network.ClientIDGenerator;
+import com.kronotop.transaction.InstrumentedTransaction;
+import com.kronotop.transaction.TransactionState;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
@@ -46,6 +49,12 @@ public class Session {
     private final Context context;
     private final AtomicInteger cursorId = new AtomicInteger(1);
     private volatile RESPVersion protocolVersion;
+    // Metadata of the running or last command, shown by TRANSACTIONS. Arguments are never kept.
+    private volatile String command;
+    private volatile String model;
+    private volatile String namespace;
+    private volatile String bucket;
+    private volatile BqlExpr query;
 
     private Session(Context context, ChannelHandlerContext ctx) {
         this.context = context;
@@ -156,6 +165,61 @@ public class Session {
 
     public <T> Attribute<T> attr(AttributeKey<T> key) {
         return channel.attr(key);
+    }
+
+    /**
+     * Records the command that starts now. Namespace, bucket and query belong to the previous
+     * command, so they are cleared here and set again by the new command if it has them.
+     */
+    public void setCommand(String command, String model) {
+        this.command = command;
+        this.model = model;
+        this.namespace = null;
+        this.bucket = null;
+        this.query = null;
+    }
+
+    public String getCommand() {
+        return command;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public void setBucket(String bucket) {
+        this.bucket = bucket;
+    }
+
+    public String getBucket() {
+        return bucket;
+    }
+
+    public void setQuery(BqlExpr query) {
+        this.query = query;
+    }
+
+    public BqlExpr getQuery() {
+        return query;
+    }
+
+    /**
+     * Marks the open transaction as idle. Only a transaction opened with BEGIN survives
+     * the auto-commit cleanup, so only that transaction can become idle.
+     */
+    public void markTransactionIdle() {
+        Transaction tr = attr(SessionAttributes.TRANSACTION).get();
+        if (tr != null) {
+            ((InstrumentedTransaction) tr).setState(TransactionState.IDLE);
+        }
     }
 
     public ChannelHandlerContext getCtx() {

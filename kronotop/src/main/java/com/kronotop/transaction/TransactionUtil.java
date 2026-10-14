@@ -58,12 +58,15 @@ public class TransactionUtil {
             // set AUTO_COMMIT to true.
             // This will be a one-off transaction.
             // WARNING: Using "virtualThreadPerTaskExecutor" can be dangerous here.
-            Transaction tr = context.getTransactionManager().create(context.getVirtualThreadPerTaskExecutor());
+            InstrumentedTransaction tr = context.getTransactionManager().create(context.getVirtualThreadPerTaskExecutor());
+            tr.setClientId(session.getClientId());
             session.setTransaction(tr);
             session.attr(SessionAttributes.AUTO_COMMIT).set(true);
             return tr;
         }
-        return transactionAttr.get();
+        Transaction tr = transactionAttr.get();
+        ((InstrumentedTransaction) tr).setState(TransactionState.ACTIVE);
+        return tr;
     }
 
     /**

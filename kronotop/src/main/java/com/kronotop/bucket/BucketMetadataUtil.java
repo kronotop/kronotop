@@ -504,11 +504,9 @@ public class BucketMetadataUtil {
      * @throws IllegalArgumentException if the namespace is not set in the session
      */
     public static BucketMetadata open(Context context, ReadTransaction tr, Session session, String bucket) {
-        String namespace = session.attr(SessionAttributes.CURRENT_NAMESPACE).get();
-        if (namespace == null) {
-            throw new IllegalArgumentException("namespace not specified");
-        }
-
+        // TODO: Remove this method, only used by tests.
+        String namespace = NamespaceUtil.resolve(session, null);
+        session.setBucket(bucket);
         return open(context, tr, namespace, bucket);
     }
 
@@ -526,6 +524,7 @@ public class BucketMetadataUtil {
      */
     public static BucketMetadata open(Context context, ReadTransaction tr, Session session, String bucket, QueryArguments arguments) {
         String namespace = NamespaceUtil.resolve(session, arguments.getNamespace());
+        session.setBucket(bucket);
         return BucketMetadataUtil.open(context, tr, namespace, bucket);
     }
 

@@ -39,9 +39,10 @@ public class CommandHandlerRegistry {
      * @param handler              the handler instance
      * @param minimumArgumentCount minimum required arguments (-1 = no constraint)
      * @param maximumArgumentCount maximum allowed arguments (-1 = no constraint)
+     * @param service              name of the registering service
      * @throws CommandAlreadyRegisteredException if the command is already registered
      */
-    public void register(CommandType commandType, Handler handler, int minimumArgumentCount, int maximumArgumentCount)
+    public void register(CommandType commandType, Handler handler, int minimumArgumentCount, int maximumArgumentCount, String service)
             throws CommandAlreadyRegisteredException {
         Preconditions.checkNotNull(handler, "handler cannot be null");
         Preconditions.checkNotNull(commandType, "commandType cannot be null");
@@ -56,7 +57,8 @@ public class CommandHandlerRegistry {
                 handler,
                 commandType,
                 minimumArgumentCount,
-                maximumArgumentCount
+                maximumArgumentCount,
+                service
         );
     }
 

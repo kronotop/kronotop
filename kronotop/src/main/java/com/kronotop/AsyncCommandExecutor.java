@@ -53,10 +53,12 @@ public class AsyncCommandExecutor {
                 thenRun(() -> {
                     Session session = Session.extractSessionFromChannel(response.getCtx().channel());
                     session.cleanupIfAutoCommitEnabled();
+                    session.markTransactionIdle();
                 }).
                 exceptionallyAsync(ex -> {
                     Session session = Session.extractSessionFromChannel(response.getCtx().channel());
                     session.cleanupIfAutoCommitEnabled();
+                    session.markTransactionIdle();
                     response.writeError(ex);
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("Unhandled error while serving command asynchronously", ex);
@@ -84,10 +86,12 @@ public class AsyncCommandExecutor {
                 thenRun(() -> {
                     Session session = Session.extractSessionFromChannel(response.getCtx().channel());
                     session.cleanupIfAutoCommitEnabled();
+                    session.markTransactionIdle();
                 }).
                 exceptionallyAsync(ex -> {
                     Session session = Session.extractSessionFromChannel(response.getCtx().channel());
                     session.cleanupIfAutoCommitEnabled();
+                    session.markTransactionIdle();
                     response.writeError(ex);
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("Unhandled error while serving command asynchronously", ex);

@@ -133,6 +133,7 @@ public class NamespaceUtil {
         if (name == null) {
             throw new IllegalArgumentException("namespace not specified");
         }
+        session.setNamespace(name);
         return name;
     }
 

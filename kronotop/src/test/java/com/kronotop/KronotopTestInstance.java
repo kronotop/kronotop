@@ -108,7 +108,8 @@ public class KronotopTestInstance extends KronotopInstance {
                             entry.commandType(),
                             entry.handler(),
                             entry.minimumArgumentCount(),
-                            entry.maximumArgumentCount()
+                            entry.maximumArgumentCount(),
+                            entry.service()
                     );
                 } catch (CommandAlreadyRegisteredException e) {
                     if (!duplicatedCommands.contains(command)) {

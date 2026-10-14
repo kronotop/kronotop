@@ -24,12 +24,14 @@ package com.kronotop.server;
  * @param commandType          the command type enum constant
  * @param minimumArgumentCount minimum required arguments (-1 = no constraint)
  * @param maximumArgumentCount maximum allowed arguments (-1 = no constraint)
+ * @param service              name of the service that registered the handler, shown as the data model
  */
 public record HandlerEntry(
         Handler handler,
         CommandType commandType,
         int minimumArgumentCount,
-        int maximumArgumentCount
+        int maximumArgumentCount,
+        String service
 ) {
     /**
      * Constant indicating no argument constraint is set.

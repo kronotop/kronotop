@@ -454,6 +454,7 @@ public abstract class AbstractBucketHandler implements Handler {
         QueryOptions options = buildQueryOptions(session, updateOptions, arguments);
 
         BqlExpr expr = BqlParser.parse(query);
+        session.setQuery(expr);
         List<BqlValue> parameters = ParameterExtractor.extract(expr);
 
         boolean usePlanCache = !disablePlanCache && planCacheEnabled;

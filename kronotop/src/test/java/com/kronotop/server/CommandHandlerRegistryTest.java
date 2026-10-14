@@ -37,7 +37,7 @@ class CommandHandlerRegistryTest {
     @Test
     void shouldRegisterAndRetrieveByCommandType() {
         Handler handler = new TestHandler();
-        registry.register(CommandType.PING, handler, 0, 1);
+        registry.register(CommandType.PING, handler, 0, 1, "Test");
 
         HandlerEntry entry = registry.get(CommandType.PING);
 
@@ -52,7 +52,7 @@ class CommandHandlerRegistryTest {
     @Test
     void shouldRetrieveByCommandString() {
         Handler handler = new TestHandler();
-        registry.register(CommandType.GET, handler, 1, 1);
+        registry.register(CommandType.GET, handler, 1, 1, "Test");
 
         HandlerEntry entry = registry.get("GET");
 
@@ -64,7 +64,7 @@ class CommandHandlerRegistryTest {
     @Test
     void shouldHandleDotNotationCommands() {
         Handler handler = new TestHandler();
-        registry.register(CommandType.BUCKET_INSERT, handler, 2, -1);
+        registry.register(CommandType.BUCKET_INSERT, handler, 2, -1, "Test");
 
         HandlerEntry entry = registry.get("BUCKET.INSERT");
 
@@ -79,10 +79,10 @@ class CommandHandlerRegistryTest {
         Handler handler1 = new TestHandler();
         Handler handler2 = new TestHandler();
 
-        registry.register(CommandType.SET, handler1, 2, 2);
+        registry.register(CommandType.SET, handler1, 2, 2, "Test");
 
         assertThrows(CommandAlreadyRegisteredException.class,
-                () -> registry.register(CommandType.SET, handler2, 2, 2));
+                () -> registry.register(CommandType.SET, handler2, 2, 2, "Test"));
     }
 
     // Behavior: Verifies that getting an unknown command throws CommandNotFoundException.
@@ -100,9 +100,9 @@ class CommandHandlerRegistryTest {
     // Behavior: Verifies that getCommands returns all registered command names.
     @Test
     void shouldReturnAllRegisteredCommands() {
-        registry.register(CommandType.PING, new TestHandler(), 0, 1);
-        registry.register(CommandType.GET, new TestHandler(), 1, 1);
-        registry.register(CommandType.BUCKET_INSERT, new TestHandler(), 2, -1);
+        registry.register(CommandType.PING, new TestHandler(), 0, 1, "Test");
+        registry.register(CommandType.GET, new TestHandler(), 1, 1, "Test");
+        registry.register(CommandType.BUCKET_INSERT, new TestHandler(), 2, -1, "Test");
 
         Set<String> commands = registry.getCommands();
 
@@ -115,10 +115,10 @@ class CommandHandlerRegistryTest {
     // Behavior: Verifies HandlerEntry constraint helpers work correctly.
     @Test
     void shouldCorrectlyReportConstraintPresence() {
-        registry.register(CommandType.PING, new TestHandler(), HandlerEntry.NO_CONSTRAINT, HandlerEntry.NO_CONSTRAINT);
-        registry.register(CommandType.GET, new TestHandler(), 1, HandlerEntry.NO_CONSTRAINT);
-        registry.register(CommandType.SET, new TestHandler(), HandlerEntry.NO_CONSTRAINT, 5);
-        registry.register(CommandType.DEL, new TestHandler(), 1, 10);
+        registry.register(CommandType.PING, new TestHandler(), HandlerEntry.NO_CONSTRAINT, HandlerEntry.NO_CONSTRAINT, "Test");
+        registry.register(CommandType.GET, new TestHandler(), 1, HandlerEntry.NO_CONSTRAINT, "Test");
+        registry.register(CommandType.SET, new TestHandler(), HandlerEntry.NO_CONSTRAINT, 5, "Test");
+        registry.register(CommandType.DEL, new TestHandler(), 1, 10, "Test");
 
         HandlerEntry pingEntry = registry.get(CommandType.PING);
         assertFalse(pingEntry.hasMinimumArgumentCount());

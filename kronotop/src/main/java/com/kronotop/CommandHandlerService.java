@@ -72,7 +72,7 @@ public class CommandHandlerService extends BaseKronotopService {
         int minArguments = extractMinimumArgumentCount(handler);
         int maxArguments = extractMaximumArgumentCount(handler);
 
-        registry.register(commandType, handler, minArguments, maxArguments);
+        registry.register(commandType, handler, minArguments, maxArguments, getName());
     }
 
     /**

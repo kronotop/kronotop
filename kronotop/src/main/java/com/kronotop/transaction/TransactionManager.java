@@ -20,6 +20,8 @@ import com.apple.foundationdb.Database;
 import com.apple.foundationdb.Transaction;
 import com.kronotop.metrics.AggregatedTransactionMetrics;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -68,6 +70,14 @@ public class TransactionManager {
 
     public int getActiveTransactionCount() {
         return registry.size();
+    }
+
+    /**
+     * Returns a read-only view of the open transactions. The view is weakly consistent;
+     * transactions may be opened or closed while it is iterated.
+     */
+    public Collection<InstrumentedTransaction> transactions() {
+        return Collections.unmodifiableCollection(registry.values());
     }
 
     /**
