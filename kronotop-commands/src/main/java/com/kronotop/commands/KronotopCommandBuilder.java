@@ -256,6 +256,15 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
     }
 
     /**
+     * Creates and returns a command to list the transactions.
+     *
+     * @return a Command object that fetches the transactions as a list
+     */
+    public Command<K, V, List<Object>> transactions() {
+        return createCommand(CommandType.TRANSACTIONS, new ArrayOutput<>(codec));
+    }
+
+    /**
      * Creates and returns a command to retrieve a fresh or cached read version of the database.
      *
      * @param tickArgs the arguments selecting the read version mode, FRESH or CACHED

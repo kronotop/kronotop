@@ -1,0 +1,23 @@
+{
+  "TRANSACTIONS": {
+    "summary": "Returns the list of transactions.",
+    "complexity": "O(N) where N is the number of transactions",
+    "group": "transactions",
+    "since": "2026.10-1",
+    "servers": [
+      "EXTERNAL"
+    ],
+    "arity": 1,
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "TRANSACTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "The list of transactions.",
+      "type": "array"
+    }
+  }
+}
