@@ -1,0 +1,27 @@
+{
+  "KILL": {
+    "summary": "Cancels an open transaction of this member.",
+    "complexity": "O(1)",
+    "group": "transactions",
+    "since": "2026.10-1",
+    "arity": 3,
+    "container": "TRANSACTION",
+    "command_flags": [
+      "WRITE"
+    ],
+    "acl_categories": [
+      "TRANSACTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "const": "OK"
+    },
+    "arguments": [
+      {
+        "name": "id",
+        "type": "integer",
+        "summary": "Transaction id as listed by TRANSACTION LIST."
+      }
+    ]
+  }
+}

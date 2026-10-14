@@ -1,0 +1,15 @@
+{
+  "TRANSACTION": {
+    "summary": "Manages the open transactions of this member.",
+    "complexity": "Depends on the subcommand.",
+    "group": "transactions",
+    "since": "2026.10-1",
+    "servers": [
+      "EXTERNAL"
+    ],
+    "arity": -2,
+    "acl_categories": [
+      "TRANSACTION"
+    ]
+  }
+}
