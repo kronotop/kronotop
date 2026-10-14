@@ -51,6 +51,8 @@ public class TransactionUtil {
      * @return the current transaction from the session, or a newly created transaction if none exists
      */
     public static Transaction getOrCreateTransaction(Context context, Session session) {
+        // The command runs on the session transaction, so TRANSACTIONS may show it.
+        session.applyPendingCommand();
         Attribute<Transaction> transactionAttr = session.attr(SessionAttributes.TRANSACTION);
         Attribute<Boolean> beginAttr = session.attr(SessionAttributes.BEGIN);
         if (!Boolean.TRUE.equals(beginAttr.get())) {

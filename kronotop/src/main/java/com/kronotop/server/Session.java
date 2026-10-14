@@ -49,7 +49,10 @@ public class Session {
     private final Context context;
     private final AtomicInteger cursorId = new AtomicInteger(1);
     private volatile RESPVersion protocolVersion;
+
     // Metadata of the running or last command, shown by TRANSACTIONS. Arguments are never kept.
+    private volatile String pendingCommand;
+    private volatile String pendingModel;
     private volatile String command;
     private volatile String model;
     private volatile String namespace;
@@ -168,12 +171,21 @@ public class Session {
     }
 
     /**
-     * Records the command that starts now. Namespace, bucket and query belong to the previous
+     * Remembers the command that starts now. The visible fields do not change until the command
+     * takes the session transaction.
+     */
+    public void setPendingCommand(String command, String model) {
+        this.pendingCommand = command;
+        this.pendingModel = model;
+    }
+
+    /**
+     * Makes the pending command the visible one. Namespace, bucket and query belong to the previous
      * command, so they are cleared here and set again by the new command if it has them.
      */
-    public void setCommand(String command, String model) {
-        this.command = command;
-        this.model = model;
+    public void applyPendingCommand() {
+        this.command = pendingCommand;
+        this.model = pendingModel;
         this.namespace = null;
         this.bucket = null;
         this.query = null;

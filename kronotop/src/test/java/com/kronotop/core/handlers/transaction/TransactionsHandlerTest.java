@@ -138,18 +138,27 @@ class TransactionsHandlerTest extends BaseHandlerTest {
     }
 
     @Test
-    void shouldNotShowModelForCoreCommand() {
+    void shouldIgnoreCommandWithOwnTransaction() {
+        // Behavior: TICK opens its own transaction, so it does not replace the last command of the BEGIN block.
         switchProtocol(RESPVersion.RESP3);
+        createNamespace(channel, namespace);
+        useNamespace(channel, namespace);
         begin();
 
+        ZMapCommandBuilder<String, String> zmap = new ZMapCommandBuilder<>(StringCodec.ASCII);
         ByteBuf buf = Unpooled.buffer();
+        zmap.zset("key", "value").encode(buf);
+        assertOK(runCommand(channel, buf));
+
+        buf = Unpooled.buffer();
         cmd.tick(TickArgs.Builder.fresh()).encode(buf);
         assertInstanceOf(IntegerRedisMessage.class, runCommand(channel, buf));
 
         Map<String, RedisMessage> fields = findById(sessionTransactionId());
         assertNotNull(fields);
-        assertEquals("TICK", string(fields.get("command")));
-        assertInstanceOf(NullRedisMessage.class, fields.get("model"));
+        assertEquals("ZSET", string(fields.get("command")));
+        assertEquals("ZMap", string(fields.get("model")));
+        assertEquals(namespace, string(fields.get("namespace")));
     }
 
     @Test

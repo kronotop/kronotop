@@ -44,8 +44,9 @@ The list covers the member that serves the command, not the whole cluster. Backg
 member itself appear with `client_id` set to `-1`; they have no session, so `namespace`, `bucket`, `model`,
 `command` and `query` are null for them.
 
-`BEGIN`, `COMMIT` and `ROLLBACK` are not recorded as commands. In a `BEGIN` block the `command` field shows the last data
-command. Command arguments and keys are never kept; `query` shows only the shape of the query.
+Only a command that runs on the session transaction is recorded. A command that opens its own transaction, such as
+`TICK` or `NAMESPACE.LIST`, does not change `command`, `namespace`, `bucket` or `query`. Command arguments and keys are
+never kept; `query` shows only the shape of the query.
 
 ## Examples
 

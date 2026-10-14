@@ -374,23 +374,13 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
      */
     private void executeKronotopCommand(Request request, Response response, HandlerEntry entry) {
         beforeExecute(entry, request);
-        if (isDataCommand(entry.commandType())) {
-            request.getSession().setCommand(request.getCommand(), modelOf(entry.service()));
-        }
+        request.getSession().setPendingCommand(request.getCommand(), modelOf(entry.service()));
         executeCommand(entry.handler(), request, response);
     }
 
     // Only Bucket and ZMap are data models. Other services have no model.
     private static String modelOf(String service) {
         return BucketService.NAME.equals(service) || ZMapService.NAME.equals(service) ? service : null;
-    }
-
-    // Transaction control and TRANSACTIONS itself must not hide the last data command.
-    private static boolean isDataCommand(CommandType type) {
-        return switch (type) {
-            case BEGIN, COMMIT, ROLLBACK, TRANSACTIONS -> false;
-            default -> true;
-        };
     }
 
     private void channelRead0(ChannelHandlerContext ctx, Object message) {
