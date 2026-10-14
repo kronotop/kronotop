@@ -50,21 +50,24 @@ public class AsyncCommandExecutor {
         // Write response back to Netty's thread that handled the request
         CompletableFuture.supplyAsync(supplier, context.getVirtualThreadPerTaskExecutor()).
                 thenAcceptAsync(action, response.getCtx().executor()).
-                thenRun(() -> {
-                    Session session = Session.extractSessionFromChannel(response.getCtx().channel());
-                    session.cleanupIfAutoCommitEnabled();
-                    session.markTransactionIdle();
-                }).
-                exceptionallyAsync(ex -> {
-                    Session session = Session.extractSessionFromChannel(response.getCtx().channel());
-                    session.cleanupIfAutoCommitEnabled();
-                    session.markTransactionIdle();
-                    response.writeError(ex);
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("Unhandled error while serving command asynchronously", ex);
-                    }
-                    return null;
-                }, response.getCtx().executor());
+                thenRun(() -> finish(response)).
+                exceptionallyAsync(ex -> fail(response, ex), response.getCtx().executor());
+    }
+
+    // Runs after the command, on both the success and the error path.
+    private static void finish(Response response) {
+        Session session = Session.extractSessionFromChannel(response.getCtx().channel());
+        session.cleanupIfAutoCommitEnabled();
+        session.markTransactionIdle();
+    }
+
+    private static Void fail(Response response, Throwable ex) {
+        finish(response);
+        response.writeError(ex);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Unhandled error while serving command asynchronously", ex);
+        }
+        return null;
     }
 
     /**
@@ -83,20 +86,7 @@ public class AsyncCommandExecutor {
         // Write response back to Netty's thread that handled the request
         CompletableFuture.runAsync(runnable, context.getVirtualThreadPerTaskExecutor()).
                 thenRunAsync(action, response.getCtx().executor()).
-                thenRun(() -> {
-                    Session session = Session.extractSessionFromChannel(response.getCtx().channel());
-                    session.cleanupIfAutoCommitEnabled();
-                    session.markTransactionIdle();
-                }).
-                exceptionallyAsync(ex -> {
-                    Session session = Session.extractSessionFromChannel(response.getCtx().channel());
-                    session.cleanupIfAutoCommitEnabled();
-                    session.markTransactionIdle();
-                    response.writeError(ex);
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("Unhandled error while serving command asynchronously", ex);
-                    }
-                    return null;
-                }, response.getCtx().executor());
+                thenRun(() -> finish(response)).
+                exceptionallyAsync(ex -> fail(response, ex), response.getCtx().executor());
     }
 }
