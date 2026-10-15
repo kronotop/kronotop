@@ -4,7 +4,8 @@ description: "Export INFO metrics to an OpenTelemetry Collector over OTLP/HTTP a
 ---
 
 Kronotop pushes the numeric `INFO` fields to an OpenTelemetry Collector over OTLP/HTTP as JSON. Only metrics are exported, 
-no traces and no logs. The export is disabled by default.
+no traces and no logs. The export is disabled by default. A Docker Compose stack and Grafana dashboards are in 
+[Ready-to-run stack](#ready-to-run-stack).
 
 ## Configuration
 
@@ -56,8 +57,14 @@ service:
       exporters: [prometheus]
 ```
 
-Point Prometheus at port 8889 of the collector. A ready-to-run stack with collector, Prometheus and Grafana is in 
-[docker/observability](https://github.com/kronotop/kronotop/tree/main/docker/observability). Grafana dashboards are in [extras/observability](https://github.com/kronotop/kronotop/tree/main/extras/observability).
+Point Prometheus at port 8889 of the collector.
+
+## Ready-to-run stack
+
+[docker/observability](https://github.com/kronotop/kronotop/tree/main/docker/observability) starts a collector, Prometheus and Grafana with Docker Compose.
+
+[extras/observability](https://github.com/kronotop/kronotop/tree/main/extras/observability) holds the Grafana dashboards as JSON. Import them into your own Grafana. Ready for production
+use.
 
 ## Labels
 
