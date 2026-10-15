@@ -39,6 +39,14 @@ class SlowSubcommand implements SubcommandHandler {
         this.context = context;
     }
 
+    private static RedisMessage bool(boolean value) {
+        return value ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE;
+    }
+
+    private static RedisMessage text(String value) {
+        return value == null ? NullRedisMessage.INSTANCE : bulkString(value);
+    }
+
     @Override
     public void execute(Request request, Response response) {
         if (request.getArguments().size() != 1) {
@@ -75,13 +83,5 @@ class SlowSubcommand implements SubcommandHandler {
         fields.put(bulkString("bytes_read"), new IntegerRedisMessage(entry.bytesRead()));
         fields.put(bulkString("bytes_written"), new IntegerRedisMessage(entry.bytesWritten()));
         return new MapRedisMessage(fields);
-    }
-
-    private static RedisMessage bool(boolean value) {
-        return value ? BooleanRedisMessage.TRUE : BooleanRedisMessage.FALSE;
-    }
-
-    private static RedisMessage text(String value) {
-        return value == null ? NullRedisMessage.INSTANCE : bulkString(value);
     }
 }

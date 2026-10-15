@@ -92,6 +92,11 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         this.metrics = context.getRuntimeMetrics().getNetworkMetrics();
     }
 
+    // Only Bucket and ZMap are data models. Other services have no model.
+    private static String modelOf(String service) {
+        return BucketService.NAME.equals(service) || ZMapService.NAME.equals(service) ? service : null;
+    }
+
     private void checkMaximumArgumentCount(HandlerEntry entry, Request request) throws WrongNumberOfArgumentsException {
         if (entry.hasMaximumArgumentCount()) {
             if (request.getArguments().size() > entry.maximumArgumentCount()) {
@@ -376,11 +381,6 @@ public class KronotopChannelDuplexHandler extends ChannelDuplexHandler {
         beforeExecute(entry, request);
         request.getSession().startCommand(request.getCommand(), modelOf(entry.service()));
         executeCommand(entry.handler(), request, response);
-    }
-
-    // Only Bucket and ZMap are data models. Other services have no model.
-    private static String modelOf(String service) {
-        return BucketService.NAME.equals(service) || ZMapService.NAME.equals(service) ? service : null;
     }
 
     private void channelRead0(ChannelHandlerContext ctx, Object message) {

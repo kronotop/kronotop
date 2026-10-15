@@ -44,6 +44,10 @@ class TransactionHandlerTest extends BaseHandlerTest {
     private final KronotopCommandBuilder<String, String> cmd = new KronotopCommandBuilder<>(StringCodec.ASCII);
     private final ZMapCommandBuilder<String, String> zmap = new ZMapCommandBuilder<>(StringCodec.ASCII);
 
+    private static String string(RedisMessage message) {
+        return ((FullBulkStringRedisMessage) message).content().toString(CharsetUtil.UTF_8);
+    }
+
     private Map<String, RedisMessage> findById(long id) {
         ByteBuf buf = Unpooled.buffer();
         cmd.transactionList().encode(buf);
@@ -102,10 +106,6 @@ class TransactionHandlerTest extends BaseHandlerTest {
             }
         }
         return fields;
-    }
-
-    private static String string(RedisMessage message) {
-        return ((FullBulkStringRedisMessage) message).content().toString(CharsetUtil.UTF_8);
     }
 
     private Session session() {

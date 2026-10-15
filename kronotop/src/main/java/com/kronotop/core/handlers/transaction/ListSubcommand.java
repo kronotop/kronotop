@@ -42,6 +42,10 @@ class ListSubcommand implements SubcommandHandler {
         this.context = context;
     }
 
+    private static RedisMessage text(String value) {
+        return value == null ? NullRedisMessage.INSTANCE : bulkString(value);
+    }
+
     @Override
     public void execute(Request request, Response response) {
         if (request.getArguments().size() != 1) {
@@ -82,9 +86,5 @@ class ListSubcommand implements SubcommandHandler {
         fields.put(bulkString("bytes_read"), new IntegerRedisMessage(metrics.getBytesRead()));
         fields.put(bulkString("bytes_written"), new IntegerRedisMessage(metrics.getBytesWritten()));
         return new MapRedisMessage(fields);
-    }
-
-    private static RedisMessage text(String value) {
-        return value == null ? NullRedisMessage.INSTANCE : bulkString(value);
     }
 }

@@ -80,10 +80,10 @@ public class NamespaceUtil {
     /**
      * Opens the directory subspace for a data structure within a namespace.
      *
-     * @param tr          the FoundationDB transaction
-     * @param context     the Context object representing the operational environment
-     * @param namespace   the dot-separated namespace (e.g., "a.b.c")
-     * @param kind        the data structure kind
+     * @param tr        the FoundationDB transaction
+     * @param context   the Context object representing the operational environment
+     * @param namespace the dot-separated namespace (e.g., "a.b.c")
+     * @param kind      the data structure kind
      * @return the DirectorySubspace for the data structure
      * @throws NoSuchNamespaceException       if the namespace does not exist
      * @throws NamespaceBeingRemovedException if the namespace is marked for removal
@@ -205,9 +205,9 @@ public class NamespaceUtil {
      * <p>
      * <b>IMPORTANT</b>: This method removes the namespace from FDB, use it carefully.
      *
-     * @param tr          the Transaction object used to perform operations within the FoundationDB environment
-     * @param context     the Context object representing the operational environment
-     * @param names       the list of strings representing the hierarchical namespace path to be removed
+     * @param tr      the Transaction object used to perform operations within the FoundationDB environment
+     * @param context the Context object representing the operational environment
+     * @param names   the list of strings representing the hierarchical namespace path to be removed
      */
     public static void remove(Transaction tr, Context context, List<String> names) {
         List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).namespaces().namespace(names).toList();
@@ -413,9 +413,9 @@ public class NamespaceUtil {
     /**
      * Reads the metadata for a namespace from the FoundationDB directory layer.
      *
-     * @param tr          the Transaction object used for operations within the FoundationDB environment
-     * @param context     the Context object representing the operational environment
-     * @param subpath     the list of strings representing the hierarchical namespace path
+     * @param tr      the Transaction object used for operations within the FoundationDB environment
+     * @param context the Context object representing the operational environment
+     * @param subpath the list of strings representing the hierarchical namespace path
      * @return the NamespaceMetadata for the specified namespace
      * @throws NoSuchNamespaceException if the namespace does not exist
      * @throws KronotopException        if an error occurs during the operation
@@ -507,9 +507,9 @@ public class NamespaceUtil {
     /**
      * Marks a namespace as removed by updating its metadata.
      *
-     * @param tr          the Transaction object used for operations within the FoundationDB environment
-     * @param context     the Context object representing the operational environment
-     * @param subpath     the list of strings representing the hierarchical namespace path
+     * @param tr      the Transaction object used for operations within the FoundationDB environment
+     * @param context the Context object representing the operational environment
+     * @param subpath the list of strings representing the hierarchical namespace path
      * @throws NoSuchNamespaceException if the namespace does not exist
      * @throws KronotopException        if an error occurs during the operation
      */
