@@ -30,6 +30,8 @@ import io.lettuce.core.SslOptions;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.protocol.ProtocolVersion;
+import io.lettuce.core.resource.ClientResources;
+import io.lettuce.core.resource.DefaultClientResources;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.ExecutionException;
@@ -38,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Connection pool for internal cluster communication. Maintains separate pools
  * for String and ByteArray codecs, keyed by cluster Member with TTL-based eviction.
+ * All clients share one ClientResources, so eviction never stops an event loop.
  */
 public class InternalClientPool {
     private static final long DEFAULT_IDLE_TIMEOUT_MINUTES = 10;
@@ -45,6 +48,7 @@ public class InternalClientPool {
     private final LoadingCache<Member, PooledConnection<String, String>> stringPool;
     private final LoadingCache<Member, PooledConnection<byte[], byte[]>> byteArrayPool;
     private final TLSConfig tlsConfig;
+    private final ClientResources clientResources;
 
     public InternalClientPool() {
         this(TLSConfig.disabled(), DEFAULT_IDLE_TIMEOUT_MINUTES);
@@ -56,6 +60,7 @@ public class InternalClientPool {
 
     public InternalClientPool(TLSConfig tlsConfig, long idleTimeoutMinutes) {
         this.tlsConfig = tlsConfig;
+        this.clientResources = DefaultClientResources.create();
 
         this.stringPool = CacheBuilder.newBuilder()
                 .expireAfterAccess(idleTimeoutMinutes, TimeUnit.MINUTES)
@@ -122,6 +127,7 @@ public class InternalClientPool {
     public void shutdown() {
         stringPool.invalidateAll();
         byteArrayPool.invalidateAll();
+        clientResources.shutdown();
     }
 
     private RedisClient createClient(Member member) {
@@ -133,7 +139,7 @@ public class InternalClientPool {
                 .withVerifyPeer(tlsConfig.enabled())
                 .build();
 
-        RedisClient client = RedisClient.create(uri);
+        RedisClient client = RedisClient.create(clientResources, uri);
 
         if (tlsConfig.enabled()) {
             SslOptions.Builder sslBuilder = SslOptions.builder();
