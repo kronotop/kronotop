@@ -38,7 +38,7 @@ class BucketMetadataVersionBarrierTest extends BaseBucketHandlerTest {
     void shouldAwaitForTargetVersion() {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
             tr.commit().join();

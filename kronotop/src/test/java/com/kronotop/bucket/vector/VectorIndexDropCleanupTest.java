@@ -66,7 +66,7 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
         createBucketWithVectorIndex();
 
         BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
@@ -82,7 +82,7 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
 
         // Wait for the index to be cleared from FDB
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 try {
                     IndexUtil.open(tr, metadata.subspace(), indexName);
                     return false;
@@ -105,7 +105,7 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
         createBucketWithVectorIndex();
 
         BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
@@ -143,7 +143,7 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
         createBucketWithVectorIndex();
 
         BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
@@ -164,7 +164,7 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
 
         // Wait for the index to be cleared from FDB
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 try {
                     IndexUtil.open(tr, metadata.subspace(), indexName);
                     return false;
@@ -182,7 +182,7 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
         createBucketWithVectorIndex();
 
         BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
@@ -205,7 +205,7 @@ class VectorIndexDropCleanupTest extends BaseBucketHandlerTest {
 
         // Wait for the index to be cleared from FDB
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 try {
                     IndexUtil.open(tr, metadata.subspace(), indexName);
                     return false;

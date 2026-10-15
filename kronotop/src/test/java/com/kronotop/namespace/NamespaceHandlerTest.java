@@ -413,7 +413,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
             bucketCmd.create(TEST_BUCKET).encode(createBuf);
             runCommand(channel, createBuf);
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = BucketMetadataUtil.open(context, tr, name, TEST_BUCKET);
                 prefix = metadata.prefix();
             }
@@ -506,7 +506,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = NamespaceUtil.open(tr, context, "mvh.same.renamed");
             List<String> subpath = new ArrayList<>();
             NamespaceUtil.resolveNamespacePath(tr, new Subspace(subspace.pack()), subpath);
@@ -540,7 +540,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = NamespaceUtil.open(tr, context, "mvh.dst.child");
             List<String> subpath = new ArrayList<>();
             NamespaceUtil.resolveNamespacePath(tr, new Subspace(subspace.pack()), subpath);
@@ -568,7 +568,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = NamespaceUtil.open(tr, context, "mvhpromoted");
             List<String> subpath = new ArrayList<>();
             NamespaceUtil.resolveNamespacePath(tr, new Subspace(subspace.pack()), subpath);
@@ -929,7 +929,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         // Set lastSeenNamespaceVersion for this member to satisfy the barrier
         NamespaceRemovedEvent event = new NamespaceRemovedEvent(metadata.id(), namespace);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<String> memberSubpath = KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).
@@ -985,7 +985,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         // Wait for the journal event to be processed and the last seen version to be set
         await().atMost(15, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 List<String> subpath = KronotopDirectory.
                         kronotop().
                         cluster(context.getClusterName()).
@@ -1127,7 +1127,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         // Set the lastSeenNamespaceVersion for this member to satisfy the barrier
         NamespaceRemovedEvent event = new NamespaceRemovedEvent(metadata.id(), parentNamespace);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<String> memberSubpath = KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).
@@ -1164,7 +1164,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         assertNotNull(taskId);
 
         // Verify the task exists
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] definition = TaskStorage.getDefinition(tr, taskSubspace, taskId);
             assertNotNull(definition);
         }
@@ -1172,14 +1172,14 @@ class NamespaceHandlerTest extends BaseHandlerTest {
         // Explicitly trigger the watchdog to wake up and process the task queue.
         // TaskStorage.create() already triggers watchers, but this ensures the
         // watchdog processes the queue immediately.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.triggerWatchers(tr, taskSubspace);
             tr.commit().join();
         }
 
         // The BucketService's watchdog will detect the orphaned task (bucket no longer exists) and drop it.
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 byte[] definition = TaskStorage.getDefinition(tr, taskSubspace, taskId);
                 return definition == null; // Task should be dropped by GC
             }
@@ -1369,7 +1369,7 @@ class NamespaceHandlerTest extends BaseHandlerTest {
 
         // Clear all tombstone data (token + observers), then re-set just the token.
         // This leaves the tombstone present but with zero observers, so the barrier is unsatisfied.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TombstoneManager.cleanup(context, tr, namespaceOld);
             TombstoneManager.setTombstone(context, tr, namespaceOld);
             tr.commit().join();

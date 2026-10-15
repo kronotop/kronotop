@@ -304,7 +304,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
 
     private BucketMetadata openBucketMetadata(String bucketName) {
         String namespace = primaryContext.getConfig().getString("default_namespace");
-        try (Transaction tr = primaryContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = primaryContext.getTransactionManager().create()) {
             return BucketMetadataUtil.open(primaryContext, tr, namespace, bucketName);
         }
     }
@@ -314,7 +314,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
         BucketMetadata metadata = openBucketMetadata(bucketName);
 
         DirectorySubspace subspace;
-        try (Transaction tr = primaryContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = primaryContext.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(primaryContext, tr);
             subspace = SingleFieldIndexUtil.create(tx, namespace, bucketName, definition);
             tr.commit().join();
@@ -322,7 +322,7 @@ class RemoteFetchIntegrationTest extends BaseClusterTestWithTCPServer {
 
         // Wait for index to be ready
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            try (Transaction tr = primaryContext.getFoundationDB().createTransaction()) {
+            try (Transaction tr = primaryContext.getTransactionManager().create()) {
                 SingleFieldIndexDefinition loaded = SingleFieldIndexUtil.loadIndexDefinition(tr, subspace);
                 return loaded.status() == IndexStatus.READY;
             }

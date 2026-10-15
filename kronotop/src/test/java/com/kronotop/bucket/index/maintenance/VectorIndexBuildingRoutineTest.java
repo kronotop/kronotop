@@ -64,7 +64,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
     private VectorIndexDefinition createVectorIndex(IndexStatus status) {
         String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);
         VectorIndexDefinition definition = VectorIndexDefinition.create(name, SELECTOR, DIMENSIONS, DistanceFunction.COSINE, status);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             VectorIndexUtil.create(tx, getBucketMetadata(TEST_BUCKET), definition);
             tr.commit().join();
@@ -105,7 +105,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         DirectorySubspace indexSubspace = vectorIndex.subspace();
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         AtomicInteger count = new AtomicInteger();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (KeyValue ignored : tr.getRange(Range.startsWith(prefix))) {
                 count.incrementAndGet();
             }
@@ -135,7 +135,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         // Verify all tasks are swept
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     counter.incrementAndGet();
                     return true;
@@ -191,7 +191,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         });
 
         // Verify cardinality
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
             Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics indexStats = stats.get(definition.id());
@@ -222,7 +222,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertEquals(2, countFdbEntries(vectorIndex));
 
         // Verify cardinality is 2, not 3
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics indexStats = stats.get(definition.id());
             assertNotNull(indexStats);
@@ -250,7 +250,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         });
 
         // Remove the index entirely
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
             VectorIndexUtil.clear(tr, metadata.subspace(), definition.name());
             tr.commit().join();
@@ -259,7 +259,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         // Wait for all tasks to be swept
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     counter.incrementAndGet();
                     return true;
@@ -291,7 +291,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         });
 
         // Mark the index as DROPPED
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
             VectorIndexDefinition dropped = definition.updateStatus(IndexStatus.DROPPED);
             VectorIndexUtil.saveIndexDefinition(tr, metadata, dropped);
@@ -301,7 +301,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         // Wait for all tasks to be swept
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     counter.incrementAndGet();
                     return true;
@@ -336,7 +336,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertEquals(2, countFdbEntries(vectorIndex));
 
         // Cardinality should also be 2
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics indexStats = stats.get(definition.id());
             assertNotNull(indexStats);
@@ -401,7 +401,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertEquals(totalDocs, countFdbEntries(vectorIndex));
 
         // Verify cardinality matches total
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics indexStats = stats.get(definition.id());
             assertNotNull(indexStats);
@@ -431,7 +431,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         // Wait for the background build task to complete and be swept.
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     counter.incrementAndGet();
                     return true;
@@ -447,7 +447,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         assertEquals(3, countFdbEntries(vectorIndex), "Should have exactly one index entry per document");
 
         // Cardinality must be exact, not double-counted by the builder.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics indexStats = stats.get(definition.id());
             assertNotNull(indexStats, "Index statistics should be present");
@@ -474,7 +474,7 @@ class VectorIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         // Wait for the background build task to complete and be swept.
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     counter.incrementAndGet();
                     return true;

@@ -37,7 +37,7 @@ class KeyWatcherTest extends BaseStandaloneInstanceTest {
         KeyWatcher keyWatcher = new KeyWatcher();
 
         CompletableFuture<Void> watcher;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             watcher = keyWatcher.watch(tr, key);
             tr.commit().join();
         }
@@ -47,7 +47,7 @@ class KeyWatcherTest extends BaseStandaloneInstanceTest {
         class WatchTrigger implements Runnable {
             @Override
             public void run() {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     tr.set(key, "foobar".getBytes());
                     tr.commit().join();
                 }

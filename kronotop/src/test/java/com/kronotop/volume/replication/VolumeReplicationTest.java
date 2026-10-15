@@ -60,7 +60,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
     private void replicationStopTrigger(VolumeReplication replication, DirectorySubspace standbySubspace) {
         Thread.ofVirtual().start(() -> await().atMost(Duration.ofSeconds(15)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 if (ReplicationState.readStage(tr, standbySubspace, 1L) == Stage.CHANGE_DATA_CAPTURE) {
                     replication.shutdown();
                     return true;
@@ -73,7 +73,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     private void appendEntries(int number, int length) throws IOException {
         ByteBuffer[] entries = getEntries(number, length);
         AppendResult result;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             result = volume.append(session, entries);
             tr.commit().join();
@@ -88,7 +88,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             pairs[i] = new KeyEntry(TestUtil.generateVersionstamp(i), ByteBuffer.wrap(data));
         }
         InsertResult result;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             result = volume.insert(session, pairs);
             tr.commit().join();
@@ -256,7 +256,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         // CDC trigger: write extra entries when the CHANGE_DATA_CAPTURE stage is reached
         Thread.ofVirtual().start(() -> {
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, 1L) == Stage.CHANGE_DATA_CAPTURE;
                 }
             });
@@ -336,7 +336,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         // Stop replication after the full segment reaches DONE status
         Thread.ofVirtual().start(() -> {
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStatus(tr, standbySubspace, fullSegmentId) == ReplicationStatus.DONE;
                 }
             });
@@ -503,7 +503,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         Thread.ofVirtual().start(() -> {
             // Wait for the SEGMENT_REPLICATION stage on the first segment
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, fullSegmentId) == Stage.SEGMENT_REPLICATION;
                 }
             });
@@ -511,7 +511,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             // Wait for the first segment to be DONE
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStatus(tr, standbySubspace, fullSegmentId) == ReplicationStatus.DONE;
                 }
             });
@@ -519,7 +519,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             // Wait for CDC stage (on any segment - the last active segment will be in CDC)
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     for (SegmentAnalysis analysis : items) {
                         if (ReplicationState.readStage(tr, standbySubspace, analysis.segmentId()) == Stage.CHANGE_DATA_CAPTURE) {
                             return true;
@@ -586,7 +586,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         Thread.ofVirtual().start(() -> {
             // Wait for CDC stage on an initial segment
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, initialSegmentId) == Stage.CHANGE_DATA_CAPTURE;
                 }
             });
@@ -666,7 +666,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             // Wait for each full segment to complete in order
             for (Long segmentId : fullSegmentIds) {
                 await().atMost(Duration.ofSeconds(30)).until(() -> {
-                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    try (Transaction tr = context.getTransactionManager().create()) {
                         return ReplicationState.readStatus(tr, standbySubspace, segmentId) == ReplicationStatus.DONE;
                     }
                 });
@@ -675,7 +675,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             // Wait for CDC to start on the partial segment, then shutdown
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     for (SegmentAnalysis analysis : items) {
                         if (ReplicationState.readStage(tr, standbySubspace, analysis.segmentId()) == Stage.CHANGE_DATA_CAPTURE) {
                             return true;
@@ -743,7 +743,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Append entries and capture versionstamps for later deletion
         Versionstamp[] versionstampedKeys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -757,7 +757,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
         Thread.ofVirtual().start(() -> {
             // Delete half of the entries
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 Versionstamp[] keysToDelete = new Versionstamp[number / 2];
                 System.arraycopy(versionstampedKeys, 0, keysToDelete, 0, number / 2);
@@ -791,7 +791,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             Volume replicatedVolume = new Volume(context, replicatedVolumeConfig);
 
             // Verify deleted keys return null (metadata is shared via FoundationDB)
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 0; i < number / 2; i++) {
                     ByteBuffer result = replicatedVolume.get(session, versionstampedKeys[i]);
@@ -800,7 +800,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             }
 
             // Verify surviving keys return valid data from replicated segments
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = number / 2; i < number; i++) {
                     ByteBuffer result = replicatedVolume.get(session, versionstampedKeys[i]);
@@ -828,7 +828,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         int finalNumber = number;
         Thread.ofVirtual().start(() -> {
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, 1L) == Stage.CHANGE_DATA_CAPTURE;
                 }
             });
@@ -907,7 +907,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                     return false;
                 }
 
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     // Check if the active segment is in CDC mode
                     Stage stage = ReplicationState.readStage(tr, standbySubspace, primaryCursor.activeSegmentId());
                     if (stage != Stage.CHANGE_DATA_CAPTURE) {
@@ -931,7 +931,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             // Final verification
             VolumeInspectCursorResponse primaryCursor = replicationClient.conn().sync().volumeInspectCursor(volumeConfig.name());
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 List<Long> tailPointer = ReplicationState.readTailPointer(tr, standbySubspace, primaryCursor.activeSegmentId());
                 assertEquals(primaryCursor.sequenceNumber(), tailPointer.get(0), "Sequence number should match");
                 assertEquals(primaryCursor.nextPosition(), tailPointer.get(1), "Next position should match");
@@ -966,7 +966,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         Thread.ofVirtual().start(() -> {
             // Wait for segment 0 to enter the SEGMENT_REPLICATION stage
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, 0L) == Stage.SEGMENT_REPLICATION;
                 }
             });
@@ -1036,7 +1036,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         int insertCount = 3;
         Versionstamp[] appendedKeys;
         final int[] uv = {insertCount};
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix, () -> uv[0]++);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -1071,7 +1071,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                     byte[] data = Strings.padStart("INSERT" + i, length, '0').getBytes();
                     insertPairs[i] = new KeyEntry(insertKeys[i], ByteBuffer.wrap(data));
                 }
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     VolumeSession session = new VolumeSession(tr, prefix);
                     InsertResult insertResult = volume.insert(session, insertPairs);
                     tr.commit().join();
@@ -1081,7 +1081,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                 // UPDATE appendedKeys[0] with new data
                 byte[] updatedData = Strings.padStart("UPDATED", length, '0').getBytes();
                 KeyEntry updatePair = new KeyEntry(capturedAppendedKeys[0], ByteBuffer.wrap(updatedData));
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     VolumeSession session = new VolumeSession(tr, prefix);
                     UpdateResult updateResult = volume.update(session, updatePair);
                     tr.commit().join();
@@ -1089,7 +1089,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                 }
 
                 // DELETE appendedKeys[1]
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     VolumeSession session = new VolumeSession(tr, prefix);
                     volume.delete(session, capturedAppendedKeys[1]);
                     tr.commit().join();
@@ -1114,7 +1114,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             for (SegmentAnalysis analysis : items) {
                 long segmentId = analysis.segmentId();
                 await().atMost(Duration.ofSeconds(15)).until(() -> {
-                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    try (Transaction tr = context.getTransactionManager().create()) {
                         return ReplicationState.readStage(tr, standbySubspace, segmentId) == Stage.CHANGE_DATA_CAPTURE;
                     }
                 });
@@ -1150,7 +1150,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             Volume replicatedVolume = new Volume(context, replicatedVolumeConfig);
 
             // Verify appendedKeys[0] (updated) returns new data
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 ByteBuffer result = replicatedVolume.get(session, appendedKeys[0]);
                 assertNotNull(result, "Updated key should return data");
@@ -1159,14 +1159,14 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             }
 
             // Verify appendedKeys[1] (deleted) returns null
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 ByteBuffer result = replicatedVolume.get(session, appendedKeys[1]);
                 assertNull(result, "Deleted key should return null");
             }
 
             // Verify appendedKeys[2..9] (surviving) return original data
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 2; i < number; i++) {
                     ByteBuffer result = replicatedVolume.get(session, appendedKeys[i]);
@@ -1177,7 +1177,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             }
 
             // Verify insertKeys[0..2] (older versionstamps) return their respective data
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 0; i < 3; i++) {
                     ByteBuffer result = replicatedVolume.get(session, insertKeys[i]);
@@ -1247,7 +1247,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             // Wait for the segment to enter CDC mode
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, segmentId) == Stage.CHANGE_DATA_CAPTURE;
                 }
             });
@@ -1277,7 +1277,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             );
             Volume replicatedVolume = new Volume(context, replicatedVolumeConfig);
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 0; i < number; i++) {
                     ByteBuffer result = replicatedVolume.get(session, versionstampedKeys[i]);
@@ -1308,7 +1308,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         // CDC trigger: insert entries when the CHANGE_DATA_CAPTURE stage is reached
         Thread.ofVirtual().start(() -> {
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, 1L) == Stage.CHANGE_DATA_CAPTURE;
                 }
             });
@@ -1370,7 +1370,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(number, length);
 
         Versionstamp[] appendedKeys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -1380,7 +1380,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Collect VersionstampedEntry for the first 3 entries
         List<VersionstampedEntry> versionstampedEntries = new java.util.ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             for (VolumeEntry volumeEntry : volume.getRange(session)) {
                 versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
@@ -1398,7 +1398,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             // Delete the first 3 entries via VolumeFacade.deleteByVersionstampedEntry
             VolumeFacade facade = new VolumeFacade(context);
             VolumeSubspace volumeSubspace = new VolumeSubspace(volumeConfig.subspace());
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 facade.deleteByVersionstampedEntry(volumeSubspace, session, versionstampedEntries.toArray(new VersionstampedEntry[0]));
                 tr.commit().join();
@@ -1419,7 +1419,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             for (SegmentAnalysis analysis : items) {
                 long segmentId = analysis.segmentId();
                 await().atMost(Duration.ofSeconds(15)).until(() -> {
-                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    try (Transaction tr = context.getTransactionManager().create()) {
                         return ReplicationState.readStage(tr, standbySubspace, segmentId) == Stage.CHANGE_DATA_CAPTURE;
                     }
                 });
@@ -1455,7 +1455,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             Volume replicatedVolume = new Volume(context, replicatedVolumeConfig);
 
             // Verify deleted keys (first 3) return null
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 0; i < 3; i++) {
                     ByteBuffer result = replicatedVolume.get(session, appendedKeys[i]);
@@ -1464,7 +1464,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             }
 
             // Verify surviving keys (3..9) return original data
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 3; i < number; i++) {
                     ByteBuffer result = replicatedVolume.get(session, appendedKeys[i]);
@@ -1487,7 +1487,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(number, length);
 
         Versionstamp[] appendedKeys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -1508,7 +1508,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                     pairs[i] = new KeyEntry(appendedKeys[i], ByteBuffer.wrap(data));
                 }
                 UpdateResult updateResult;
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     VolumeSession session = new VolumeSession(tr, prefix);
                     updateResult = volume.update(session, pairs);
                     tr.commit().join();
@@ -1533,7 +1533,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             for (SegmentAnalysis analysis : items) {
                 long segmentId = analysis.segmentId();
                 await().atMost(Duration.ofSeconds(15)).until(() -> {
-                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    try (Transaction tr = context.getTransactionManager().create()) {
                         return ReplicationState.readStage(tr, standbySubspace, segmentId) == Stage.CHANGE_DATA_CAPTURE;
                     }
                 });
@@ -1569,7 +1569,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             Volume replicatedVolume = new Volume(context, replicatedVolumeConfig);
 
             // Verify updated keys (first 3) return new data
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 0; i < 3; i++) {
                     ByteBuffer result = replicatedVolume.get(session, appendedKeys[i]);
@@ -1580,7 +1580,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             }
 
             // Verify untouched keys (3..9) return original data
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 3; i < number; i++) {
                     ByteBuffer result = replicatedVolume.get(session, appendedKeys[i]);
@@ -1613,7 +1613,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         try {
             // 3. Wait for CDC stage on the active segment (segment 1)
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, 1L) == Stage.CHANGE_DATA_CAPTURE;
                 }
             });
@@ -1688,7 +1688,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         try {
             // 3. Wait for CDC on segment 1
             await().atMost(Duration.ofSeconds(15)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, 1L) == Stage.CHANGE_DATA_CAPTURE;
                 }
             });
@@ -1739,7 +1739,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                             replicationClient.conn().sync().volumeInspectCursor(volumeConfig.name());
                     if (!primaryCursor.hasData()) return false;
 
-                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    try (Transaction tr = context.getTransactionManager().create()) {
                         Stage stage = ReplicationState.readStage(tr, standbySubspace, primaryCursor.activeSegmentId());
                         if (stage != Stage.CHANGE_DATA_CAPTURE) return false;
 
@@ -1765,7 +1765,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             );
             Volume replicatedVolume = new Volume(context, replicatedVolumeConfig);
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (VolumeEntry entry : volume.getRange(session)) {
                     ByteBuffer standbyData = replicatedVolume.get(session, entry.key());
@@ -1787,7 +1787,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         ByteBuffer[] entries = getEntries(number, length);
 
         Versionstamp[] appendedKeys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -1797,7 +1797,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Collect VersionstampedEntry for the first 3 entries
         List<VersionstampedEntry> versionstampedEntries = new java.util.ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             for (VolumeEntry volumeEntry : volume.getRange(session)) {
                 versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
@@ -1813,7 +1813,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
         Thread.ofVirtual().start(() -> {
             DeleteResult deleteResult;
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 deleteResult = volume.deleteByVersionstampedEntry(session, versionstampedEntries.toArray(new VersionstampedEntry[0]));
                 tr.commit().join();
@@ -1835,7 +1835,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             for (SegmentAnalysis analysis : items) {
                 long segmentId = analysis.segmentId();
                 await().atMost(Duration.ofSeconds(15)).until(() -> {
-                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    try (Transaction tr = context.getTransactionManager().create()) {
                         return ReplicationState.readStage(tr, standbySubspace, segmentId) == Stage.CHANGE_DATA_CAPTURE;
                     }
                 });
@@ -1871,7 +1871,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             Volume replicatedVolume = new Volume(context, replicatedVolumeConfig);
 
             // Verify deleted keys (first 3) return null
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 0; i < 3; i++) {
                     ByteBuffer result = replicatedVolume.get(session, appendedKeys[i]);
@@ -1880,7 +1880,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             }
 
             // Verify surviving keys (3..9) return original data
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 for (int i = 3; i < number; i++) {
                     ByteBuffer result = replicatedVolume.get(session, appendedKeys[i]);
@@ -1998,7 +1998,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
         long segmentId = 1L;
         long position = 4096L;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setPosition(tr, standbySubspace, segmentId, position);
             ReplicationState.setStage(tr, standbySubspace, segmentId, Stage.SEGMENT_REPLICATION);
             ReplicationState.setStatus(tr, standbySubspace, segmentId, ReplicationStatus.FAILED);
@@ -2021,7 +2021,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         DirectorySubspace standbySubspace = replication.createOrOpenStandbySubspace();
 
         long segmentId = 1L;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setPosition(tr, standbySubspace, segmentId, 0L);
             ReplicationState.setStatus(tr, standbySubspace, segmentId, ReplicationStatus.STOPPED);
             tr.commit().join();
@@ -2052,7 +2052,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
                 Subspaces.VOLUME_METADATA_SUBSPACE,
                 VolumeMetadataField.SEGMENT_ID.getValue(),
                 1L));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.set(segmentIdKey, new byte[0]);
             tr.commit().join();
         }
@@ -2065,7 +2065,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             // The standby bulk-replicates segment 0, reaches the empty active segment 1, and must
             // hand off to CDC rather than spinning on it.
             await().atMost(Duration.ofSeconds(20)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     return ReplicationState.readStage(tr, standbySubspace, 1L) == Stage.CHANGE_DATA_CAPTURE;
                 }
             });

@@ -116,14 +116,14 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: Appending entries increments appends by the number of entries and bytes_appended by total bytes.
         // The default segment is reused, so segments_created stays zero.
         ByteBuffer[] entries1 = baseVolumeTestWrapper.getEntries(10);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.append(session, entries1);
             tr.commit().join();
         }
 
         ByteBuffer[] entries2 = baseVolumeTestWrapper.getEntries(5);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.append(session, entries2);
             tr.commit().join();
@@ -145,7 +145,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: Reading entries increments gets by 1 per call and bytes_read by the entry size.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(5);
         Versionstamp[] keys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -172,20 +172,20 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: Deleting entries increments deletes by the number of deleted entries across all calls.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(5);
         Versionstamp[] keys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
             keys = appendResult.getVersionstampedKeys();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.delete(session, keys[0], keys[1]);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.delete(session, keys[2]);
             tr.commit().join();
@@ -206,7 +206,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: Updating entries increments updates by the number of updated entries and adds updated entry bytes to bytes_appended.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(3);
         Versionstamp[] keys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -214,7 +214,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         }
 
         ByteBuffer[] updateEntries = getEntries(2, 20);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.update(session,
                     new KeyEntry(keys[0], updateEntries[0]),
@@ -237,7 +237,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldResetCounters() throws IOException {
         // Behavior: After reset, all counters return to zero.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.append(session, entries);
             tr.commit().join();
@@ -285,7 +285,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnCorrectSegmentStatsAfterAppend() throws IOException {
         // Behavior: Appending entries produces one segment with exact used_bytes, free_bytes, zero garbage, and correct cardinality.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.append(session, entries);
             tr.commit().join();
@@ -308,14 +308,14 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: Deleting entries reduces used_bytes and cardinality, creates garbage_bytes, but free_bytes stays the same.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(5);
         Versionstamp[] keys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
             keys = appendResult.getVersionstampedKeys();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.delete(session, keys[0], keys[1]);
             tr.commit().join();
@@ -338,14 +338,14 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: After deleting all entries, garbage_bytes equals OPCOUNTERS bytes_appended and used_bytes is zero.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
         Versionstamp[] keys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
             keys = appendResult.getVersionstampedKeys();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.delete(session, keys);
             tr.commit().join();
@@ -367,7 +367,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: Updating entries adjusts used_bytes for the size difference, old data becomes garbage, cardinality unchanged.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(3);
         Versionstamp[] keys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -375,7 +375,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         }
 
         ByteBuffer[] updateEntries = getEntries(2, 20);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.update(session,
                     new KeyEntry(keys[0], updateEntries[0]),
@@ -403,7 +403,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // and garbage_bytes is internally consistent with the segment invariant.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(5);
         Versionstamp[] keys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -411,7 +411,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         }
 
         // Delete 1 entry (10 bytes become garbage)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.delete(session, keys[0]);
             tr.commit().join();
@@ -419,7 +419,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
 
         // Update 1 entry with a 20-byte entry (20 bytes written, old 10 bytes become garbage)
         ByteBuffer[] updateEntries = getEntries(1, 20);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.update(session, new KeyEntry(keys[1], updateEntries[0]));
             tr.commit().join();
@@ -524,7 +524,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldReturnCorrectOverviewAfterAppend() throws IOException {
         // Behavior: Appending 10 entries (10 bytes each) produces one segment with correct aggregated stats and zero garbage.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(10);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.append(session, entries);
             tr.commit().join();
@@ -548,14 +548,14 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: Deleting entries from a single segment increases garbage_bytes, decreases used_bytes and cardinality, while free_bytes stays unchanged.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(5);
         Versionstamp[] keys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
             keys = appendResult.getVersionstampedKeys();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.delete(session, keys[0], keys[1]);
             tr.commit().join();
@@ -578,7 +578,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: When entries span multiple segments, the overview aggregates total_size_bytes, used_bytes, free_bytes, garbage_bytes, and cardinality across all segments.
         int entrySize = 100480;
         ByteBuffer[] entries = getEntries(20, entrySize);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.append(session, entries);
             tr.commit().join();
@@ -608,7 +608,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         // Behavior: Updating entries creates garbage from old data while maintaining correct used_bytes and cardinality in the overview.
         ByteBuffer[] entries = baseVolumeTestWrapper.getEntries(3);
         Versionstamp[] keys;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult appendResult = volume.append(session, entries);
             tr.commit().join();
@@ -616,7 +616,7 @@ class VolumeStatsHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         }
 
         ByteBuffer[] updateEntries = getEntries(2, 20);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             volume.update(session,
                     new KeyEntry(keys[0], updateEntries[0]),

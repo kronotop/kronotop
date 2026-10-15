@@ -154,7 +154,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
         assertEquals(Response.OK, actualMessage.content());
 
         // Verify the task was created
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             List<Versionstamp> taskIds = IndexTaskUtil.getTaskIds(tx, TEST_NAMESPACE, TEST_BUCKET, "test");
             assertEquals(1, taskIds.size(), "Expected exactly one task to be created");
@@ -243,7 +243,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
         }
 
         // Get the bucket metadata and mark it as removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
@@ -581,7 +581,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, collatedBucket);
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
@@ -612,7 +612,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, collatedBucket);
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.ALL);
             SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
@@ -640,7 +640,7 @@ class BucketIndexCreateSubcommandTest extends BaseIndexHandlerTest {
             assertInstanceOf(SimpleStringRedisMessage.class, msg);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, collatedBucket);
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());

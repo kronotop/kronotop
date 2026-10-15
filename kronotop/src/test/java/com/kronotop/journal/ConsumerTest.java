@@ -52,7 +52,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         consumer.start();
 
         List<String> consumedEvents = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             while (true) {
                 Event event = consumer.consume(tr);
                 if (event == null) {
@@ -79,7 +79,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         Consumer consumer = new Consumer(context, config);
         consumer.start();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertNull(consumer.consume(tr));
         }
     }
@@ -101,7 +101,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         }
 
         List<String> consumedEvents = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             while (true) {
                 Event event = consumer.consume(tr);
                 if (event == null) {
@@ -128,7 +128,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         firstConsumer.start();
 
         // Consume the first event
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event = firstConsumer.consume(tr);
             firstConsumer.markConsumed(tr, event);
             tr.commit().join();
@@ -140,7 +140,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         // Assume that the first consumer has been shut downed and we created a second one.
         Consumer secondConsumer = new Consumer(context, config);
         secondConsumer.start();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event = secondConsumer.consume(tr);
             assertEquals(secondEvent, JSONUtil.readValue(event.value(), String.class));
         }
@@ -160,7 +160,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         Consumer firstConsumer = new Consumer(context, config);
         firstConsumer.start();
         publisher.publish(JOURNAL_NAME, "live-1").complete();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event = firstConsumer.consume(tr);
             assertNotNull(event);
             assertEquals("live-1", JSONUtil.readValue(event.value(), String.class));
@@ -176,13 +176,13 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         // Restart with the same consumer id and LATEST: the stale backlog must be skipped.
         Consumer restartedConsumer = new Consumer(context, config);
         restartedConsumer.start();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertNull(restartedConsumer.consume(tr));
         }
 
         // A genuinely new event after the restart is still delivered.
         publisher.publish(JOURNAL_NAME, "live-2").complete();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event = restartedConsumer.consume(tr);
             assertNotNull(event);
             assertEquals("live-2", JSONUtil.readValue(event.value(), String.class));
@@ -202,14 +202,14 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         firstConsumer.start();
 
         // Consume the first event
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event = firstConsumer.consume(tr);
             assertEquals(firstEvent, JSONUtil.readValue(event.value(), String.class));
         }
 
         Consumer secondConsumer = new Consumer(context, config);
         secondConsumer.start();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event = secondConsumer.consume(tr);
             assertEquals(firstEvent, JSONUtil.readValue(event.value(), String.class));
         }
@@ -219,7 +219,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
     void shouldThrowExceptionWhenConsumeCalledBeforeStarting() {
         ConsumerConfig config = new ConsumerConfig(CONSUMER_ID, JOURNAL_NAME, ConsumerConfig.Offset.EARLIEST);
         Consumer consumer = new Consumer(context, config);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThrows(IllegalStateException.class, () -> consumer.consume(tr));
         }
     }
@@ -231,7 +231,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         consumer.start();
         consumer.stop();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThrows(IllegalStateException.class, () -> consumer.consume(tr));
         }
     }
@@ -253,7 +253,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
 
         // First transaction: consume and mark, but DON'T commit (simulates failure)
         Event event1;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             event1 = consumer.consume(tr);
             assertNotNull(event1);
             assertEquals(firstEvent, JSONUtil.readValue(event1.value(), String.class));
@@ -262,7 +262,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         }
 
         // Second transaction: should rewind and consume the same event again
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event2 = consumer.consume(tr);
             assertNotNull(event2);
             // Should be the SAME event as before (rewound to checkpoint)
@@ -275,7 +275,7 @@ class ConsumerTest extends BaseStandaloneInstanceTest {
         }
 
         // Third transaction: should now move forward to second event
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event3 = consumer.consume(tr);
             assertNotNull(event3);
             assertEquals(secondEvent, JSONUtil.readValue(event3.value(), String.class));

@@ -596,7 +596,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
 
         // Get the bucket metadata and mark it as removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
@@ -2378,7 +2378,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }
@@ -2484,7 +2484,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(0, entries.size(), "Should have 0 vector index entries after unset");
 
         // Verify cardinality = 0
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
             assertEquals(0L, stats.cardinality(), "Cardinality should be 0 after unset");
         }
@@ -2504,7 +2504,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
 
         // Verify cardinality = 3
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
             assertEquals(3L, stats.cardinality(), "Cardinality should be 3 before update");
         }
@@ -2522,7 +2522,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(2, updatedIds.size(), "Should have updated 2 documents with age > 30");
 
         // Verify cardinality = 1
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
             assertEquals(1L, stats.cardinality(), "Cardinality should be 1 after unsetting 2 docs");
         }
@@ -2609,7 +2609,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> mutationLogEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, mutationLogEntries.size(), "Should have 1 mutation log entry after upsert");
 
@@ -2721,7 +2721,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         cmdBytes.indexCreate(COLLATION_BUCKET, "{\"name\": {\"bson_type\": \"string\"}}").encode(indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, runCommand(channel, indexBuf));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, COLLATION_BUCKET);
             waitForIndexReadiness(metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL).subspace());
         }
@@ -2772,7 +2772,7 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
                 "{\"name\": {\"bson_type\": \"string\", \"collation\": {\"locale\": \"tr\", \"strength\": 1}}}").encode(indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, runCommand(channel, indexBuf));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, COLLATION_BUCKET);
             waitForIndexReadiness(metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL).subspace());
         }

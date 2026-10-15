@@ -215,7 +215,7 @@ class NonStrictTypesIndexTest extends BaseBucketHandlerTest {
                 , false, IndexStatus.WAITING);
 
         DirectorySubspace indexSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             indexSubspace = SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();

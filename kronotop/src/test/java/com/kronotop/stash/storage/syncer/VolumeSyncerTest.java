@@ -65,7 +65,7 @@ class VolumeSyncerTest extends BaseStorageTest {
         assertTrue(volumeSyncer.isQueueEmpty());
 
         int count = 0;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             for (VolumeEntry entry : shard.volume().getRange(session)) {
                 StringPack pack = StringPack.unpack(entry.entry());
@@ -99,7 +99,7 @@ class VolumeSyncerTest extends BaseStorageTest {
         volumeSyncer.run();
 
         // Verify no entries remain
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             int count = 0;
             for (VolumeEntry ignored : shard.volume().getRange(session)) {
@@ -132,7 +132,7 @@ class VolumeSyncerTest extends BaseStorageTest {
         volumeSyncer.run();
 
         // Verify only the new entry remains
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             int count = 0;
             for (VolumeEntry entry : shard.volume().getRange(session)) {
@@ -206,7 +206,7 @@ class VolumeSyncerTest extends BaseStorageTest {
         volumeSyncer.run();
         assertTrue(volumeSyncer.isQueueEmpty());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
             for (VolumeEntry keyEntry : iterable) {
@@ -238,7 +238,7 @@ class VolumeSyncerTest extends BaseStorageTest {
         volumeSyncer.run();
         assertTrue(volumeSyncer.isQueueEmpty());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             Iterable<VolumeEntry> iterable = shard.volume().getRange(session);
             for (VolumeEntry keyEntry : iterable) {

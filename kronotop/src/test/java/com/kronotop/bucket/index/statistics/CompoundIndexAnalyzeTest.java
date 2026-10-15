@@ -82,12 +82,12 @@ class CompoundIndexAnalyzeTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
             byte[] value = tr.get(key).join();
@@ -119,7 +119,7 @@ class CompoundIndexAnalyzeTest extends BaseBucketHandlerTest {
 
         // Manually write hints
         List<ObjectId> randomKeys = selectRandomKeysFromMap(items, 200);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
             assertNotNull(compoundIndex);
@@ -134,12 +134,12 @@ class CompoundIndexAnalyzeTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
             byte[] value = tr.get(key).join();
@@ -172,13 +172,13 @@ class CompoundIndexAnalyzeTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
 
         // Reload metadata from scratch - this reads stats via BucketMetadataHeader.read()
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             IndexStatistics stats = metadata.compoundIndexes().getStatistics(definition.id());
             assertNotNull(stats, "Statistics should be loaded for compound index");

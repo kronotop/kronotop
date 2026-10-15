@@ -62,7 +62,7 @@ abstract class BaseVectorHookIntegrationTest extends BaseBucketHandlerTest {
     }
 
     protected OnHeapVectorGraphIndex getVectorGraph(String bucket, String selector) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, bucket);
             VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(selector, IndexSelectionPolicy.ALL);
             assertNotNull(vectorIndex, "Vector index should exist for selector: " + selector);

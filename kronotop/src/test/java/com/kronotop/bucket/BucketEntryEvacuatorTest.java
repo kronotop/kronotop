@@ -216,20 +216,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             EntryMetadata newEntryMetadata = EntryMetadata.decode(newEncodedMetadata);
             assertNotEquals(entry.entryMetadata().position(), newEntryMetadata.position());
@@ -255,20 +255,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
             verifySingleFieldIndex(tr, metadata, "age", objectId, TEST_SHARD_ID, newEncodedMetadata);
@@ -297,20 +297,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
             verifyCompoundIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
@@ -326,7 +326,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         VectorIndexDefinition vectorDef = VectorIndexDefinition.create(
                 vectorIndexName, "embedding", 3, DistanceFunction.COSINE, IndexStatus.READY
         );
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             VectorIndexUtil.create(tx, getBucketMetadata(TEST_BUCKET), vectorDef);
             tr.commit().join();
@@ -341,20 +341,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
             verifyVectorIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata, new float[]{1.0f, 2.0f, 3.0f});
@@ -375,7 +375,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         VectorIndexDefinition vectorDef = VectorIndexDefinition.create(
                 vectorIndexName, "embedding", 3, DistanceFunction.COSINE, IndexStatus.WAITING
         );
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             VectorIndexUtil.create(tx, getBucketMetadata(TEST_BUCKET), vectorDef);
             tr.commit().join();
@@ -391,20 +391,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
 
@@ -446,7 +446,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
                 IndexStatus.WAITING
         );
         DirectorySubspace compoundSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             compoundSubspace = CompoundIndexUtil.create(tx, metadataBeforeCompound, compoundDef);
             tr.commit().join();
@@ -458,7 +458,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
                 vectorIndexName, "embedding", 3, DistanceFunction.COSINE, IndexStatus.READY
         );
         BucketMetadata metadataBeforeVector = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             VectorIndexUtil.create(tx, metadataBeforeVector, vectorDef);
             tr.commit().join();
@@ -473,20 +473,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
             verifySingleFieldIndex(tr, metadata, "age", objectId, TEST_SHARD_ID, newEncodedMetadata);
@@ -515,21 +515,21 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         List<VolumeEntry> entries;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(3, entries.size());
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
         for (VolumeEntry entry : entries) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
                 tr.commit().join();
                 assertTrue(result);
             }
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.size(); i++) {
                 byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entries.get(i).versionstamp(), tr);
                 verifyPrimaryIndex(tr, metadata, objectIds.get(i), TEST_SHARD_ID, newEncodedMetadata);
@@ -554,20 +554,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         List<VolumeEntry> entries;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(3, entries.size());
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID, 2, Long.MAX_VALUE);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(evacuator.evacuate(context, tr, entries.get(0).entryMetadata(), entries.get(0).versionstamp()));
             assertFalse(evacuator.evacuate(context, tr, entries.get(1).entryMetadata(), entries.get(1).versionstamp()));
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(evacuator.evacuate(context, tr, entries.get(2).entryMetadata(), entries.get(2).versionstamp()));
             tr.commit().join();
         }
@@ -586,7 +586,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
@@ -594,7 +594,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID, Integer.MAX_VALUE, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertFalse(evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp()));
             tr.commit().join();
         }
@@ -617,20 +617,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
             int backPointerCount = verifySingleFieldIndexAndCountBackPointers(tr, metadata, "tags", objectId, TEST_SHARD_ID, newEncodedMetadata);
@@ -660,20 +660,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
             int backPointerCount = verifyCompoundIndexAndCountBackPointers(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
@@ -695,7 +695,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
 
         VolumeEntry entry;
         ByteBuffer originalDocument;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
@@ -703,13 +703,13 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             EntryMetadata newEntryMetadata = EntryMetadata.decode(newEncodedMetadata);
             assertNotEquals(entry.entryMetadata().position(), newEntryMetadata.position());
@@ -735,7 +735,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
         List<VolumeEntry> entries;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(3, entries.size());
         }
@@ -744,13 +744,13 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         long maxBytes = entryLength * 2 - 1;
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID, Integer.MAX_VALUE, maxBytes);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(evacuator.evacuate(context, tr, entries.get(0).entryMetadata(), entries.get(0).versionstamp()));
             assertFalse(evacuator.evacuate(context, tr, entries.get(1).entryMetadata(), entries.get(1).versionstamp()));
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(evacuator.evacuate(context, tr, entries.get(2).entryMetadata(), entries.get(2).versionstamp()));
             tr.commit().join();
         }
@@ -771,7 +771,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
 
         VolumeEntry entry;
         ByteBuffer originalDocument;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
@@ -781,11 +781,11 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         // First evacuation
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
         EntryMetadata firstEvacMetadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp()));
             tr.commit().join();
         }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] encoded = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             firstEvacMetadata = EntryMetadata.decode(encoded);
             assertNotEquals(entry.entryMetadata().position(), firstEvacMetadata.position());
@@ -793,12 +793,12 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
 
         // Second evacuation
         evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(evacuator.evacuate(context, tr, firstEvacMetadata, entry.versionstamp()));
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] secondEncoded = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             EntryMetadata secondEvacMetadata = EntryMetadata.decode(secondEncoded);
             assertNotEquals(firstEvacMetadata.position(), secondEvacMetadata.position());
@@ -829,14 +829,14 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         List<VolumeEntry> entries;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(3, entries.size());
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
         for (VolumeEntry entry : entries) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
                 tr.commit().join();
             }
@@ -876,7 +876,7 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
                 "age_idx", "age", BsonType.INT32, false, IndexStatus.WAITING
         );
         BucketMetadata initial = getBucketMetadata(TEST_BUCKET);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexUtil.create(tr, initial.subspace(), waitingIndex);
             tr.commit().join();
         }
@@ -894,20 +894,20 @@ class BucketEntryEvacuatorTest extends BaseBucketHandlerTest {
         BucketMetadata metadata = reloadBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
 
         VolumeEntry entry;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<VolumeEntry> entries = scanVolumeEntries(volume, metadata.prefix(), tr);
             assertEquals(1, entries.size());
             entry = entries.getFirst();
         }
 
         BucketEntryEvacuator evacuator = new BucketEntryEvacuator(volume, TEST_SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             boolean result = evacuator.evacuate(context, tr, entry.entryMetadata(), entry.versionstamp());
             tr.commit().join();
             assertTrue(result);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] newEncodedMetadata = readNewEncodedMetadata(volume, metadata.prefix(), entry.versionstamp(), tr);
             verifyPrimaryIndex(tr, metadata, objectId, TEST_SHARD_ID, newEncodedMetadata);
 

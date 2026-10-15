@@ -88,7 +88,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 , IndexStatus.WAITING);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -96,7 +96,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             List<ObjectId> objectIds = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
@@ -113,7 +113,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     counter.incrementAndGet();
                     return true;
@@ -135,7 +135,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 )
                 , IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -175,7 +175,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 , IndexStatus.WAITING);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -184,13 +184,13 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TestUtil.findIndexMaintenanceTaskId(context, taskSubspace, IndexMaintenanceTaskKind.BUILD);
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
                 return state.status() == IndexTaskStatus.FAILED;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.FAILED, state.status());
             assertNotNull(state.error(), "Error message should be set");
@@ -229,7 +229,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 )
                 , IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -237,7 +237,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Expect 3 entries: (java, 1), (kotlin, 1), (python, 2)
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -285,7 +285,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 )
                 , IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -293,7 +293,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Expect 2 entries: (java, 1) and (kotlin, 1), not 3
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -340,14 +340,14 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 )
                 , IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
         }
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
@@ -401,7 +401,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 )
                 , IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -409,7 +409,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Both documents should be indexed: Alice with (Alice, 30), Bob with (Bob, null)
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -453,14 +453,14 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 )
                 , IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
         }
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -514,7 +514,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 , IndexStatus.WAITING);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -530,7 +530,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         // Wait for task cleanup
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     counter.incrementAndGet();
                     return true;
@@ -563,7 +563,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 )
                 , IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -571,7 +571,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Expect 3 entries: (java, 1), (kotlin, 1), (null, 1)
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -619,7 +619,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 )
                 , IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -629,7 +629,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<ObjectId> objectIds = new ArrayList<>();
             List<String> names = new ArrayList<>();
             List<Long> ages = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
@@ -672,7 +672,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 )
                 , IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -681,7 +681,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             List<Long> xValues = new ArrayList<>();
             List<Long> yValues = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 byte[] begin = compoundIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -734,14 +734,14 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                         new CompoundIndexField("age", BsonType.INT32, false)
                 ), IndexStatus.WAITING, frenchPrimary);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, BUCKET_NAME, definition);
             tr.commit().join();
         }
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, BUCKET_NAME);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 if (compoundIndex == null) return false;
@@ -792,7 +792,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 , IndexStatus.WAITING);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -817,7 +817,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         // Wait for the background build task to complete and be swept.
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     counter.incrementAndGet();
                     return true;
@@ -826,7 +826,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
             CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
 
@@ -871,7 +871,7 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 IndexStatus.WAITING, null, true);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -881,13 +881,13 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Wait for the task to fail due to the uniqueness violation.
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
                 return state.status() == IndexTaskStatus.FAILED;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.FAILED, state.status());
             assertNotNull(state.error(), "Error message should be set");
@@ -931,14 +931,14 @@ class CompoundIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 ),
                 IndexStatus.WAITING, null, true);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
         }
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
                 if (compoundIndex == null) return false;

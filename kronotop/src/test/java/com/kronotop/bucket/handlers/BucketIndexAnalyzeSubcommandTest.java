@@ -116,7 +116,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
         }
 
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex("username", IndexSelectionPolicy.ALL);
                 SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());
@@ -155,7 +155,7 @@ class BucketIndexAnalyzeSubcommandTest extends BaseIndexHandlerTest {
         }
 
         // Get the bucket metadata and mark it as removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);

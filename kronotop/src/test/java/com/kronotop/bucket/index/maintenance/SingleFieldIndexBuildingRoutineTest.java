@@ -83,7 +83,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 , false, IndexStatus.WAITING);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -93,7 +93,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<Long> expectedIndexValues = new ArrayList<>(List.of(32L, 40L));
             List<Long> indexValues = new ArrayList<>();
             List<ObjectId> objectIds = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
@@ -112,7 +112,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                     counter.incrementAndGet();
                     return true;
@@ -142,7 +142,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 , false, IndexStatus.WAITING);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -167,7 +167,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         // Wait for the background build task to complete and be swept.
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (ignored) -> {
                     counter.incrementAndGet();
                     return true;
@@ -176,7 +176,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
 
@@ -219,7 +219,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 , false, IndexStatus.WAITING);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -229,14 +229,14 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Wait for the task to fail due to the type mismatch
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
                 return state.status() == IndexTaskStatus.FAILED;
             }
         });
 
         // Verify an error message contains type mismatch information
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.FAILED, state.status());
             assertNotNull(state.error(), "Error message should be set");
@@ -275,7 +275,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.STRING
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -285,7 +285,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             List<String> expectedIndexValues = List.of("english", "history", "math", "science");
             List<String> indexValues = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -322,7 +322,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.STRING
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -330,7 +330,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Wait for the index to be built and verify only unique entries exist
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -372,7 +372,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.STRING
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -380,7 +380,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Wait for the index to be built and verify cardinality
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
                 IndexStatistics stats = indexStatistics.get(definition.id());
@@ -416,7 +416,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.STRING
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -424,7 +424,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Wait for the index to be built and verify both index entries and cardinality
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
 
@@ -487,7 +487,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.OBJECT_ID
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -497,7 +497,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<byte[]> expectedIndexValues = new ArrayList<>(List.of(refId1.toByteArray(), refId2.toByteArray()));
             List<byte[]> indexValues = new ArrayList<>();
             List<ObjectId> objectIds = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
@@ -553,7 +553,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.OBJECT_ID
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -563,7 +563,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         List<byte[]> expectedBytes = List.of(ref1.toByteArray(), ref2.toByteArray(), ref3.toByteArray());
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -618,7 +618,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.STRING
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -626,7 +626,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Wait for the index to be built and verify entries include null
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -674,7 +674,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.INT64
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -684,7 +684,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<Long> expectedIndexValues = new ArrayList<>(List.of(32L, 40L));
             List<Long> indexValues = new ArrayList<>();
             List<ObjectId> objectIds = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
@@ -723,7 +723,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.DOUBLE
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -732,7 +732,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             List<Double> expectedIndexValues = new ArrayList<>(List.of(42.0, 99.0));
             List<Double> indexValues = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -771,7 +771,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 , false, IndexStatus.WAITING);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -780,13 +780,13 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TestUtil.findIndexMaintenanceTaskId(context, taskSubspace, IndexMaintenanceTaskKind.BUILD);
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
                 return state.status() == IndexTaskStatus.FAILED;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.FAILED, state.status());
             assertNotNull(state.error(), "Error message should be set");
@@ -823,7 +823,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.INT64
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -832,7 +832,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             List<Long> expectedIndexValues = List.of(10L, 20L, 30L, 40L, 50L);
             List<Long> indexValues = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
@@ -870,14 +870,14 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.INT64
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
         }
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
                 IndexStatistics stats = indexStatistics.get(definition.id());
@@ -913,7 +913,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 BsonType.INT64
                 , false, IndexStatus.WAITING);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -923,7 +923,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
             List<Long> expectedIndexValues = new ArrayList<>(List.of(25L, 3000000000L, 40L));
             List<Long> indexValues = new ArrayList<>();
             List<ObjectId> objectIds = new ArrayList<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
@@ -964,7 +964,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 , false, IndexStatus.WAITING);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -973,13 +973,13 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TestUtil.findIndexMaintenanceTaskId(context, taskSubspace, IndexMaintenanceTaskKind.BUILD);
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
                 return state.status() == IndexTaskStatus.FAILED;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.FAILED, state.status());
             assertNotNull(state.error(), "Error message should be set");
@@ -1025,14 +1025,14 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
                 "name-collated-index", "name", BsonType.STRING, false, IndexStatus.WAITING, turkishPrimary);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, BUCKET_NAME, definition);
             tr.commit().join();
         }
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, BUCKET_NAME);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 if (index == null) return false;
@@ -1082,7 +1082,7 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
                 "email-unique-index", "email", BsonType.STRING, false, IndexStatus.WAITING, null, true);
 
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
@@ -1092,13 +1092,13 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
 
         // Wait for the task to fail due to the uniqueness violation.
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
                 return state.status() == IndexTaskStatus.FAILED;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.FAILED, state.status());
             assertNotNull(state.error(), "Error message should be set");
@@ -1137,14 +1137,14 @@ class SingleFieldIndexBuildingRoutineTest extends BaseBucketHandlerTest {
         SingleFieldIndexDefinition definition = SingleFieldIndexDefinition.create(
                 "email-unique-index", "email", BsonType.STRING, false, IndexStatus.WAITING, null, true);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
             tr.commit().join();
         }
 
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                 SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                 if (index == null) return false;

@@ -104,7 +104,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
 
         ByteBuffer entry = ByteBuffer.wrap("entry".getBytes());
         try {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 VolumeSession session = new VolumeSession(tr, prefix);
                 volume.append(session, entry);
                 tr.commit().join();
@@ -112,7 +112,7 @@ public class VolumeServiceTest extends BaseVolumeTest {
             JournalService journal = context.getService(JournalService.NAME);
             journal.getPublisher().publish(JournalName.DISUSED_PREFIXES, prefix.asBytes());
             await().atMost(Duration.ofSeconds(5)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     VolumeSession session = new VolumeSession(tr, prefix);
                     Iterable<VolumeEntry> iterable = volume.getRange(session);
                     return !iterable.iterator().hasNext();

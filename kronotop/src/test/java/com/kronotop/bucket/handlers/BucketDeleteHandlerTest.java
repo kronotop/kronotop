@@ -524,7 +524,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
 
         // Get the bucket metadata and mark it as removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
@@ -799,7 +799,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Precondition: 3 widened index entries, cardinality 3
         assertEquals(3, fetchAllIndexedEntries(index.subspace()).size(),
                 "Should have 3 index entries before delete");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), indexDefinition.id());
             assertEquals(3L, stats.cardinality(), "Cardinality should be 3 before delete");
         }
@@ -828,7 +828,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
                 "Remaining widened INT32 value 25 should be stored as Long 25L");
 
         // Cardinality should be 1
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), indexDefinition.id());
             assertEquals(1L, stats.cardinality(), "Cardinality should be 1 after deleting 2 documents");
         }
@@ -868,7 +868,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Precondition: 2 widened index entries, cardinality 2
         assertEquals(2, fetchAllIndexedEntries(index.subspace()).size(),
                 "Should have 2 index entries before delete");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), indexDefinition.id());
             assertEquals(2L, stats.cardinality(), "Cardinality should be 2 before delete");
         }
@@ -900,7 +900,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
                 "Remaining widened INT32 value 100 should be stored as Double 100.0");
 
         // Cardinality should be 1
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), indexDefinition.id());
             assertEquals(1L, stats.cardinality(), "Cardinality should be 1 after deleting 1 document");
         }
@@ -932,7 +932,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Precondition: 4 widened index entries, cardinality 4
         assertEquals(4, fetchAllIndexedEntries(index.subspace()).size(),
                 "Should have 4 index entries before delete");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), indexDefinition.id());
             assertEquals(4L, stats.cardinality(), "Cardinality should be 4 before delete");
         }
@@ -965,7 +965,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
                 "Remaining index entries should be widened values 20L and 30L");
 
         // Cardinality should be 2
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), indexDefinition.id());
             assertEquals(2L, stats.cardinality(), "Cardinality should be 2 after deleting 2 documents");
         }
@@ -1011,7 +1011,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         // Precondition: 3 widened index entries, cardinality 3
         assertEquals(3, fetchAllIndexedEntries(index.subspace()).size(),
                 "Should have 3 index entries before delete");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), indexDefinition.id());
             assertEquals(3L, stats.cardinality(), "Cardinality should be 3 before delete");
         }
@@ -1035,7 +1035,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertEquals(0, fetchAllIndexedEntries(index.subspace()).size(),
                 "Should have 0 index entries after deleting all documents");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), indexDefinition.id());
             assertEquals(0L, stats.cardinality(), "Cardinality should be 0 after deleting all documents");
         }
@@ -1120,7 +1120,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }
@@ -1167,7 +1167,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         );
 
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
             assertEquals(3L, stats.cardinality(), "Cardinality should be 3 before delete");
         }
@@ -1184,7 +1184,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         List<ObjectId> deletedIds = extractObjectIds(msg);
         assertEquals(3, deletedIds.size(), "Should have deleted all 3 documents");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
             assertEquals(0L, stats.cardinality(), "Cardinality should be 0 after deleting all documents");
         }

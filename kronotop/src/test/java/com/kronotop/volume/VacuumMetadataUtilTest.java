@@ -45,12 +45,12 @@ class VacuumMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldSaveAndLoad() {
         // Behavior: save persists status and startedAt; load reconstructs the same VacuumMetadata.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.save(tr, subspace, 42L, VacuumMetadataStatus.ANALYZE, 1000L);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, subspace, 42L);
             assertNotNull(metadata);
             assertEquals(42L, metadata.segmentId());
@@ -62,7 +62,7 @@ class VacuumMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReturnNullWhenNoMetadataExists() {
         // Behavior: load returns null for a segment that has never been analyzed.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, subspace, 999L);
             assertNull(metadata);
         }
@@ -71,12 +71,12 @@ class VacuumMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldReadStatus() {
         // Behavior: readStatus returns the persisted status byte.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.save(tr, subspace, 10L, VacuumMetadataStatus.ANALYZE, 5000L);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumMetadataStatus status = VacuumSegmentMetadataUtil.readStatus(tr, subspace, 10L);
             assertEquals(VacuumMetadataStatus.ANALYZE, status);
         }
@@ -85,7 +85,7 @@ class VacuumMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldThrowWhenReadingStatusOfNonExistentSegment() {
         // Behavior: readStatus throws IllegalStateException for a missing segment.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThrows(IllegalStateException.class, () -> VacuumSegmentMetadataUtil.readStatus(tr, subspace, 999L));
         }
     }
@@ -93,17 +93,17 @@ class VacuumMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldUpdateStatus() {
         // Behavior: updateStatus changes the status without affecting startedAt.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.save(tr, subspace, 7L, VacuumMetadataStatus.ANALYZE, 2000L);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.setStatus(tr, subspace, 7L, VacuumMetadataStatus.EVACUATING);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, subspace, 7L);
             assertNotNull(metadata);
             assertEquals(VacuumMetadataStatus.EVACUATING, metadata.status());
@@ -117,14 +117,14 @@ class VacuumMetadataUtilTest extends BaseStandaloneInstanceTest {
         Prefix alpha = new Prefix("alpha");
         Prefix beta = new Prefix("beta");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.save(tr, subspace, 5L, VacuumMetadataStatus.ANALYZE, 3000L);
             VacuumSegmentMetadataUtil.savePrefixCardinality(tr, subspace, 5L, alpha, 100);
             VacuumSegmentMetadataUtil.savePrefixCardinality(tr, subspace, 5L, beta, 50);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = VacuumSegmentMetadataUtil.getVacuumPrefixRange(subspace, 5L);
             List<KeyValue> results = tr.getRange(range).asList().join();
             assertEquals(2, results.size());
@@ -148,18 +148,18 @@ class VacuumMetadataUtilTest extends BaseStandaloneInstanceTest {
         // Behavior: delete clears status, startedAt, and all prefix cardinalities for the segment.
         Prefix alpha = new Prefix("alpha");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.save(tr, subspace, 3L, VacuumMetadataStatus.ANALYZE, 4000L);
             VacuumSegmentMetadataUtil.savePrefixCardinality(tr, subspace, 3L, alpha, 25);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.delete(tr, subspace, 3L);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertNull(VacuumSegmentMetadataUtil.load(tr, subspace, 3L));
 
             Range range = VacuumSegmentMetadataUtil.getVacuumPrefixRange(subspace, 3L);
@@ -171,18 +171,18 @@ class VacuumMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldNotAffectOtherSegmentsOnDelete() {
         // Behavior: deleting one segment's vacuum metadata leaves another segment's metadata intact.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.save(tr, subspace, 1L, VacuumMetadataStatus.ANALYZE, 1000L);
             VacuumSegmentMetadataUtil.save(tr, subspace, 2L, VacuumMetadataStatus.EVACUATING, 2000L);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VacuumSegmentMetadataUtil.delete(tr, subspace, 1L);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertNull(VacuumSegmentMetadataUtil.load(tr, subspace, 1L));
 
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, subspace, 2L);

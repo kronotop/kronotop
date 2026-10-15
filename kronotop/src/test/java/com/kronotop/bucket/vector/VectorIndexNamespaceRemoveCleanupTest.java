@@ -122,7 +122,7 @@ class VectorIndexNamespaceRemoveCleanupTest extends BaseBucketHandlerTest {
 
         // Capture the index ID
         long indexId;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, child, TEST_BUCKET);
             VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
             assertNotNull(vectorIndex);
@@ -154,7 +154,7 @@ class VectorIndexNamespaceRemoveCleanupTest extends BaseBucketHandlerTest {
         insertDocumentWithVectorInNamespace(child, TEST_BUCKET, new float[]{1.0f, 0.0f, 0.0f});
 
         BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, child, TEST_BUCKET);
         }
 

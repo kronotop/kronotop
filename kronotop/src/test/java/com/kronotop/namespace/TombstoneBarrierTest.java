@@ -61,27 +61,27 @@ class TombstoneBarrierTest extends BaseClusterTest {
         String namespace = "test.barrier.cleanup." + UUID.randomUUID();
 
         String token;
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             token = TombstoneManager.setTombstone(firstContext, tr, namespace);
             tr.commit().join();
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             TombstoneManager.observe(firstContext, tr, namespace, token);
             tr.commit().join();
         }
 
-        try (Transaction tr = secondContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = secondContext.getTransactionManager().create()) {
             TombstoneManager.observe(secondContext, tr, namespace, token);
             tr.commit().join();
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             TombstoneManager.checkBarrier(firstContext, tr, namespace);
             tr.commit().join();
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             assertNull(TombstoneManager.getTombstone(firstContext, tr, namespace));
             assertTrue(TombstoneManager.getObservers(firstContext, tr, namespace, token).isEmpty());
         }
@@ -98,23 +98,23 @@ class TombstoneBarrierTest extends BaseClusterTest {
         String namespace = "test.barrier.not-observed." + UUID.randomUUID();
 
         String token;
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             token = TombstoneManager.setTombstone(firstContext, tr, namespace);
             tr.commit().join();
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             TombstoneManager.observe(firstContext, tr, namespace, token);
             tr.commit().join();
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             assertThrows(BarrierNotSatisfiedException.class, () ->
                     TombstoneManager.checkBarrier(firstContext, tr, namespace)
             );
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             assertNotNull(TombstoneManager.getTombstone(firstContext, tr, namespace));
         }
     }
@@ -130,12 +130,12 @@ class TombstoneBarrierTest extends BaseClusterTest {
         String namespace = "test.barrier.dead-member." + UUID.randomUUID();
 
         String token;
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             token = TombstoneManager.setTombstone(firstContext, tr, namespace);
             tr.commit().join();
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             TombstoneManager.observe(firstContext, tr, namespace, token);
             tr.commit().join();
         }
@@ -144,12 +144,12 @@ class TombstoneBarrierTest extends BaseClusterTest {
         MemberView secondView = membership.getKnownMembers().get(second.getMember());
         secondView.setAlive(false);
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             TombstoneManager.checkBarrier(firstContext, tr, namespace);
             tr.commit().join();
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             assertNull(TombstoneManager.getTombstone(firstContext, tr, namespace));
             assertTrue(TombstoneManager.getObservers(firstContext, tr, namespace, token).isEmpty());
         }
@@ -167,28 +167,28 @@ class TombstoneBarrierTest extends BaseClusterTest {
         String namespace = "test.barrier.stale-token." + UUID.randomUUID();
 
         String token;
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             token = TombstoneManager.setTombstone(firstContext, tr, namespace);
             tr.commit().join();
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             TombstoneManager.observe(firstContext, tr, namespace, token);
             tr.commit().join();
         }
 
-        try (Transaction tr = secondContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = secondContext.getTransactionManager().create()) {
             TombstoneManager.observe(secondContext, tr, namespace, "stale-token-from-previous-move");
             tr.commit().join();
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             assertThrows(BarrierNotSatisfiedException.class, () ->
                     TombstoneManager.checkBarrier(firstContext, tr, namespace)
             );
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             assertNotNull(TombstoneManager.getTombstone(firstContext, tr, namespace));
         }
     }
@@ -221,14 +221,14 @@ class TombstoneBarrierTest extends BaseClusterTest {
         }
 
         String token;
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             token = TombstoneManager.getTombstone(firstContext, tr, oldName);
         }
         assertNotNull(token);
 
         String finalToken = token;
         await().atMost(15, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+            try (Transaction tr = firstContext.getTransactionManager().create()) {
                 List<String> observers = TombstoneManager.getObservers(firstContext, tr, oldName, finalToken);
                 return observers.size() >= 2;
             }
@@ -242,7 +242,7 @@ class TombstoneBarrierTest extends BaseClusterTest {
             assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
         }
 
-        try (Transaction tr = firstContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = firstContext.getTransactionManager().create()) {
             assertNull(TombstoneManager.getTombstone(firstContext, tr, oldName));
         }
     }

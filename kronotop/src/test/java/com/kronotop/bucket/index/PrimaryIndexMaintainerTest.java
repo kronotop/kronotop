@@ -50,7 +50,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         AppendedEntry[] entries = getAppendedEntries();
         assertDoesNotThrow(() -> {
             BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 for (AppendedEntry entry : entries) {
                     ObjectId objectId = new ObjectId();
                     PrimaryIndexMaintainer.setEntry(
@@ -61,7 +61,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
             }
 
             // Verify cardinality was set correctly
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
                 IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), primaryIndex.definition().id());
                 assertEquals(entries.length, statistics.cardinality(), "Primary index cardinality should equal number of entries set");
@@ -74,7 +74,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         AppendedEntry[] entries = getAppendedEntries();
         ObjectId[] objectIds = new ObjectId[entries.length];
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 PrimaryIndexMaintainer.setEntry(
@@ -92,7 +92,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
         byte[] expectedEntryMetadata = getEncodedEntryMetadata();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexedEntries = tr.getRange(begin, end).asList().join();
             assertEquals(3, indexedEntries.size());
 
@@ -125,7 +125,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         // First set the ID index entries
         CompletableFuture<byte[]> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 PrimaryIndexMaintainer.setEntry(tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion());
@@ -143,7 +143,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(entries.length, indexEntries.size(), "Should have entries for all appended entries");
         }
@@ -151,7 +151,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         // Drop the first primary index entry
         ObjectId objectIdToRemove = objectIds[0];
         Versionstamp versionstamp = Versionstamp.complete(trVersion, entries[0].userVersion());
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.dropEntry(
                     tr,
                     objectIdToRemove.toByteArray(),
@@ -163,7 +163,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Verify the primary index entry was dropped
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(entries.length - 1, indexEntries.size(), "Should have one less entry after dropping");
 
@@ -198,7 +198,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId[] objectIds = new ObjectId[entries.length];
 
         // First set the primary index entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 PrimaryIndexMaintainer.setEntry(tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectIds[i].toByteArray(), new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode(), entries[i].userVersion());
@@ -216,7 +216,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(entries.length, indexEntries.size(), "Should have entries for all appended entries");
             originalIndexEntry = indexEntries.get(0).getValue();
@@ -228,7 +228,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         // Update the first primary index entry metadata
         ObjectId objectIdToUpdate = objectIds[0];
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.updateIndexEntry(
                     tr,
                     objectIdToUpdate.toByteArray(),
@@ -240,7 +240,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Verify the primary index entry metadata was updated
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(entries.length, indexEntries.size(), "Should still have same number of entries");
 
@@ -272,7 +272,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId objectId = new ObjectId();
 
         CompletableFuture<byte[]> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.setEntry(
                     tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
             );
@@ -282,7 +282,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] trVersion = future.join();
 
         SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Versionstamp result = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, objectId.toByteArray(), metadata);
             assertNotNull(result, "Should return a Versionstamp for an inserted document");
             Versionstamp expected = Versionstamp.complete(trVersion, entry.userVersion());
@@ -298,7 +298,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId[] objectIds = new ObjectId[entries.length];
 
         CompletableFuture<byte[]> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 PrimaryIndexMaintainer.setEntry(
@@ -311,7 +311,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] trVersion = future.join();
 
         SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
                 Versionstamp result = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, objectIds[i].toByteArray(), metadata);
                 assertNotNull(result, "Should return a Versionstamp for ObjectId " + i);
@@ -327,7 +327,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Versionstamp result = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, new ObjectId().toByteArray(), metadata);
             assertNull(result, "Should return null for non-existent ObjectId");
         }
@@ -342,7 +342,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         AppendedEntry entry = entries[0];
         ObjectId objectId = new ObjectId();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.setEntry(tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion());
             tr.commit().join();
         }
@@ -366,7 +366,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         AppendedEntry[] entries = getAppendedEntries();
         ObjectId[] objectIds = new ObjectId[entries.length];
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 PrimaryIndexMaintainer.setEntry(
@@ -400,7 +400,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId objectId = new ObjectId();
 
         CompletableFuture<byte[]> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.setEntry(
                     tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
             );
@@ -419,7 +419,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         // Drop the primary index entry
         Versionstamp versionstamp = Versionstamp.complete(trVersion, entry.userVersion());
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
             PrimaryIndexMaintainer.dropEntry(tr, objectId.toByteArray(), versionstamp, index, metadata);
             tr.commit().join();
@@ -439,7 +439,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId objectId = new ObjectId();
 
         CompletableFuture<byte[]> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.setEntry(
                     tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
             );
@@ -451,7 +451,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertEquals(0, metadata.volumePointerCache().size(), "Cache should be empty before first lookup");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Versionstamp first = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, objectId.toByteArray(), metadata);
             assertNotNull(first);
             assertEquals(1, metadata.volumePointerCache().size(), "Cache should have one entry after first lookup");
@@ -474,7 +474,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId objectId = new ObjectId();
 
         CompletableFuture<byte[]> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.setEntry(
                     tr, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata, objectId.toByteArray(), new IndexEntry(SHARD_ID, entry.metadataBytes()).encode(), entry.userVersion()
             );
@@ -484,13 +484,13 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] trVersion = future.join();
 
         SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, objectId.toByteArray(), metadata);
         }
         assertEquals(1, metadata.volumePointerCache().size(), "Cache should have one entry after lookup");
 
         Versionstamp versionstamp = Versionstamp.complete(trVersion, entry.userVersion());
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrimaryIndexMaintainer.dropEntry(tr, objectId.toByteArray(), versionstamp, metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE), metadata);
             tr.commit().join();
         }
@@ -503,7 +503,7 @@ class PrimaryIndexMaintainerTest extends BaseIndexMaintainerTest {
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Versionstamp result = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, new ObjectId().toByteArray(), metadata);
             assertNull(result, "Should return null for non-existent ObjectId");
         }

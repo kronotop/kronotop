@@ -315,7 +315,7 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      * @return the index definition
      */
     protected SingleFieldIndexDefinition loadIndexDefinition(String selector) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(selector, IndexSelectionPolicy.ALL);
             return SingleFieldIndexUtil.loadIndexDefinition(tr, index.subspace());

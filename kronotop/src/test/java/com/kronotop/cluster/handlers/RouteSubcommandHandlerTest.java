@@ -425,7 +425,7 @@ class RouteSubcommandHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         number += (number / 2);
 
         ByteBuffer[] entries = getEntries(number, length);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             AppendResult result = volume.append(session, entries);
             tr.commit().join();

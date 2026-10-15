@@ -72,7 +72,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
         SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.setEntry(tr, index, metadata, indexValue, objectIdBytes, encodedIndexEntry, new CollatorCache());
             tr.commit().join();
         }
@@ -83,7 +83,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> backPointers = tr.getRange(begin, end).asList().join();
             boolean found = false;
 
@@ -118,7 +118,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> allBackPointers = tr.getRange(begin, end).asList().join();
 
             for (KeyValue kv : allBackPointers) {
@@ -179,7 +179,7 @@ class IndexBuilderBackPointerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> backPointers = tr.getRange(begin, end).asList().join();
             assertEquals(1, backPointers.size(), "Should have exactly one back pointer");
 

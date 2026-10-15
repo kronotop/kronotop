@@ -214,7 +214,7 @@ class CompoundIndexBuildingRaceHandlerTest extends BaseBucketHandlerTest {
                 IndexStatus.WAITING);
 
         DirectorySubspace compoundIndexSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             compoundIndexSubspace = CompoundIndexUtil.create(tr, metadata.subspace(), definition);
             tr.commit().join();
         }

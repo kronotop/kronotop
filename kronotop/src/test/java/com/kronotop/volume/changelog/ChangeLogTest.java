@@ -71,12 +71,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata metadata = createTestMetadata();
         Prefix prefix = new Prefix("test-prefix");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
 
@@ -99,12 +99,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         Prefix prefix = new Prefix("test-prefix");
         Versionstamp versionstamp = TestUtil.generateVersionstamp(0);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.insertOperation(tr, metadata, prefix, versionstamp);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
 
@@ -127,12 +127,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         Prefix prefix = new Prefix("test-prefix");
         Versionstamp versionstamp = TestUtil.generateVersionstamp(0);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.deleteOperation(tr, metadata, prefix, versionstamp);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
 
@@ -164,14 +164,14 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
             metadataList.add(metadata);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < metadataList.size(); i++) {
                 changeLog.appendOperation(tr, metadataList.get(i), prefix, i);
             }
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
 
@@ -191,7 +191,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
     void shouldReturnZeroWhenChangelogIsEmpty() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-changelog-empty");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long sequenceNumber = ChangeLog.getLatestSequenceNumber(tr, subspace);
             assertEquals(0L, sequenceNumber);
         }
@@ -204,12 +204,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata metadata = createTestMetadata();
         Prefix prefix = new Prefix("test-prefix");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long sequenceNumber = ChangeLog.getLatestSequenceNumber(tr, subspace);
             assertTrue(sequenceNumber > 0);
         }
@@ -224,13 +224,13 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         long length = 50;
         for (int i = 0; i < 5; i++) {
             EntryMetadata metadata = new EntryMetadata(0, prefix.asBytes(), length * i, length, 0);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 changeLog.appendOperation(tr, metadata, prefix, i);
                 tr.commit().join();
             }
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long latestSeq = ChangeLog.getLatestSequenceNumber(tr, subspace);
 
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
@@ -259,12 +259,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata metadata = new EntryMetadata(2L, prefix.asBytes(), 200L, 75L, 2);
         Versionstamp versionstamp = TestUtil.generateVersionstamp(0);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.updateOperation(tr, prevMetadata, metadata, prefix, versionstamp);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
 
@@ -311,21 +311,21 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
         // Retrieve the versionstamp from the changelog entry
         Versionstamp versionstamp;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
             Tuple keyTuple = subspace.unpack(results.getFirst().getKey());
             versionstamp = keyTuple.getVersionstamp(4);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SegmentTailPointer pointer = new SegmentTailPointer(versionstamp, position, length);
             long result = ChangeLog.resolveTailSequenceNumber(tr, subspace, segmentId, pointer);
             long expected = ChangeLog.getLatestSequenceNumber(tr, subspace);
@@ -338,7 +338,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
     void shouldReturnNegativeOne_whenChangelogIsEmpty() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-aligned-seq-empty");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long segmentId = 1L;
             Versionstamp versionstamp = TestUtil.generateVersionstamp(0);
             SegmentTailPointer pointer = new SegmentTailPointer(versionstamp, 100L, 50L);
@@ -361,12 +361,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long differentSegmentId = 999L;
             Versionstamp versionstamp = TestUtil.generateVersionstamp(0);
             SegmentTailPointer pointer = new SegmentTailPointer(versionstamp, position, length);
@@ -389,7 +389,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
@@ -397,7 +397,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         // Retrieve the actual sequence number and versionstamp of the entry
         long entrySequenceNumber;
         Versionstamp versionstamp;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
             Tuple keyTuple = subspace.unpack(results.getFirst().getKey());
@@ -405,7 +405,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
             versionstamp = keyTuple.getVersionstamp(4);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SegmentTailPointer pointer = new SegmentTailPointer(versionstamp, position, length);
             long result = ChangeLog.resolveTailSequenceNumber(tr, subspace, segmentId, pointer);
 
@@ -432,21 +432,21 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         long length = 50L;
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 2);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.updateOperation(tr, prevMetadata, metadata, prefix, entryVersionstamp);
             tr.commit().join();
         }
 
         // Retrieve the versionstamp from the changelog entry
         Versionstamp versionstamp;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
             Tuple keyTuple = subspace.unpack(results.getFirst().getKey());
             versionstamp = keyTuple.getVersionstamp(4);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SegmentTailPointer pointer = new SegmentTailPointer(versionstamp, position, length);
             long result = ChangeLog.resolveTailSequenceNumber(tr, subspace, segmentId, pointer);
 
@@ -468,19 +468,19 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
         // Simulate retention cleanup by deleting the entry
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             tr.clear(range);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Versionstamp versionstamp = TestUtil.generateVersionstamp(0);
             SegmentTailPointer pointer = new SegmentTailPointer(versionstamp, position, length);
             long result = ChangeLog.resolveTailSequenceNumber(tr, subspace, segmentId, pointer);
@@ -500,13 +500,13 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
         // Use a different versionstamp than what's in the changelog
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Versionstamp wrongVersionstamp = TestUtil.generateVersionstamp(999);
             SegmentTailPointer pointer = new SegmentTailPointer(wrongVersionstamp, position, length);
 
@@ -527,14 +527,14 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
         // Retrieve the versionstamp from the changelog entry
         Versionstamp versionstamp;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
             Tuple keyTuple = subspace.unpack(results.getFirst().getKey());
@@ -542,7 +542,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         }
 
         // Use the correct versionstamp but wrong position (misaligned by 10)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SegmentTailPointer pointer = new SegmentTailPointer(versionstamp, position, length + 10);
 
             assertThrows(InconsistentVolumeMetadataException.class, () ->
@@ -562,12 +562,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<Long> sequenceNumbers = ChangeLog.reverseLookup(tr, subspace, segmentId, position);
             assertEquals(1, sequenceNumbers.size());
 
@@ -589,12 +589,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.deleteOperation(tr, metadata, prefix, versionstamp);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<Long> sequenceNumbers = ChangeLog.reverseLookup(tr, subspace, segmentId, position);
             assertEquals(1, sequenceNumbers.size());
 
@@ -622,12 +622,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         long length = 50L;
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 2);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.updateOperation(tr, prevMetadata, metadata, prefix, versionstamp);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long expectedSeqNum = ChangeLog.getLatestSequenceNumber(tr, subspace);
 
             // Check back pointer for the new position
@@ -646,7 +646,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
     void shouldReturnEmptyListForNonExistentBackPointer() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-backpointer-nonexistent");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<Long> sequenceNumbers = ChangeLog.reverseLookup(tr, subspace, 999L, 999L);
             assertTrue(sequenceNumbers.isEmpty());
         }
@@ -664,19 +664,19 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         // First append at this position
         EntryMetadata metadata1 = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata1, prefix, 0);
             tr.commit().join();
         }
 
         // Delete at the same position (reusing the same segment position)
         Versionstamp versionstamp = TestUtil.generateVersionstamp(0);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.deleteOperation(tr, metadata1, prefix, versionstamp);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<Long> sequenceNumbers = ChangeLog.reverseLookup(tr, subspace, segmentId, position);
             assertEquals(2, sequenceNumbers.size());
             // Sequence numbers should be in ascending order (back pointer keys are sorted)
@@ -697,17 +697,17 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         List<Long> sequenceNumbers = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), length * i, length, i);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 changeLog.appendOperation(tr, metadata, prefix, i);
                 tr.commit().join();
             }
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 sequenceNumbers.add(ChangeLog.getLatestSequenceNumber(tr, subspace));
             }
         }
 
         // Verify we have 5 entries before cleanup
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
             assertEquals(5, results.size());
@@ -717,13 +717,13 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         long start = sequenceNumbers.get(0);
         long end = sequenceNumbers.get(2);
         long maxPosition = length * 2; // Position of the third entry
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.prune(tr, start, end, Map.of(segmentId, maxPosition));
             tr.commit().join();
         }
 
         // Verify only the last 2 entries remain
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
             assertEquals(2, results.size());
@@ -751,17 +751,17 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         for (int i = 0; i < 5; i++) {
             long position = length * i;
             EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, i);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 changeLog.appendOperation(tr, metadata, prefix, i);
                 tr.commit().join();
             }
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 sequenceNumbers.add(ChangeLog.getLatestSequenceNumber(tr, subspace));
             }
         }
 
         // Verify back pointers exist for all 5 entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 5; i++) {
                 long position = length * i;
                 List<Long> backPointers = ChangeLog.reverseLookup(tr, subspace, segmentId, position);
@@ -773,13 +773,13 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         long start = sequenceNumbers.get(0);
         long end = sequenceNumbers.get(2);
         long maxPosition = length * 3; // One past the third entry's position to include it in the range
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.prune(tr, start, end, Map.of(segmentId, maxPosition));
             tr.commit().join();
         }
 
         // Verify back pointers for the first 3 entries are cleaned up
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 3; i++) {
                 long position = length * i;
                 List<Long> backPointers = ChangeLog.reverseLookup(tr, subspace, segmentId, position);
@@ -844,7 +844,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata metadata = createTestMetadata();
         Prefix prefix = new Prefix("test-prefix");
 
-        Transaction tr = context.getFoundationDB().createTransaction();
+        Transaction tr = context.getTransactionManager().create();
         changeLog.appendOperation(tr, metadata, prefix, 0);
 
         // The HLC is in-flight (transaction not committed), so the watermark must be less than what was generated
@@ -856,7 +856,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         // After commit, the getVersionstamp future completes and removes the in-flight entry
         // Give the callback a moment to fire
-        try (Transaction readTr = context.getFoundationDB().createTransaction()) {
+        try (Transaction readTr = context.getTransactionManager().create()) {
             long committedSeq = ChangeLog.getLatestSequenceNumber(readTr, subspace);
             assertTrue(watermark < committedSeq);
         }
@@ -873,13 +873,13 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata metadata = createTestMetadata();
         Prefix prefix = new Prefix("test-prefix");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
         // After commit, the getVersionstamp future completes and the callback removes the in-flight entry
-        try (Transaction readTr = context.getFoundationDB().createTransaction()) {
+        try (Transaction readTr = context.getTransactionManager().create()) {
             long committedSeq = ChangeLog.getLatestSequenceNumber(readTr, subspace);
             awaitWatermark(changeLog, committedSeq);
         }
@@ -895,7 +895,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         Prefix prefix = new Prefix("test-prefix");
 
         CompletableFuture<byte[]> vsFuture;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             vsFuture = tr.getVersionstamp();
             // Not committing — just closing
@@ -921,12 +921,12 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata metadata1 = new EntryMetadata(1L, prefix.asBytes(), 100L, 50L, 1);
         EntryMetadata metadata2 = new EntryMetadata(1L, prefix.asBytes(), 150L, 50L, 2);
 
-        Transaction tr1 = context.getFoundationDB().createTransaction();
+        Transaction tr1 = context.getTransactionManager().create();
         changeLog.insertOperation(tr1, metadata1, prefix, TestUtil.generateVersionstamp(0));
 
         long watermarkAfterFirst = changeLog.getSafeWatermark();
 
-        Transaction tr2 = context.getFoundationDB().createTransaction();
+        Transaction tr2 = context.getTransactionManager().create();
         changeLog.insertOperation(tr2, metadata2, prefix, TestUtil.generateVersionstamp(1));
 
         // Watermark should not change since the first (lower) HLC is still in-flight
@@ -960,14 +960,14 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata metadata2 = new EntryMetadata(1L, prefix.asBytes(), 50L, 50L, 2);
         EntryMetadata metadata3 = new EntryMetadata(1L, prefix.asBytes(), 100L, 50L, 3);
 
-        Transaction tr1 = context.getFoundationDB().createTransaction();
+        Transaction tr1 = context.getTransactionManager().create();
         changeLog.insertOperation(tr1, metadata1, prefix, TestUtil.generateVersionstamp(0));
         long watermarkAfterFirst = changeLog.getSafeWatermark();
 
-        Transaction tr2 = context.getFoundationDB().createTransaction();
+        Transaction tr2 = context.getTransactionManager().create();
         changeLog.insertOperation(tr2, metadata2, prefix, TestUtil.generateVersionstamp(1));
 
-        Transaction tr3 = context.getFoundationDB().createTransaction();
+        Transaction tr3 = context.getTransactionManager().create();
         changeLog.insertOperation(tr3, metadata3, prefix, TestUtil.generateVersionstamp(2));
 
         // All three are in-flight, watermark = min(all three) - 1
@@ -1007,7 +1007,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata appendMeta1 = new EntryMetadata(segmentId, prefix.asBytes(), 0L, length, 1);
         EntryMetadata appendMeta2 = new EntryMetadata(segmentId, prefix.asBytes(), 50L, length, 2);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, appendMeta1, prefix, 5);
             changeLog.appendOperation(tr, appendMeta2, prefix, 6);
             tr.commit().join();
@@ -1015,7 +1015,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         // Read back committed APPEND entries to extract the trVersion
         byte[] trVersion;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
             assertEquals(2, results.size());
@@ -1034,7 +1034,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata insertMeta1 = new EntryMetadata(segmentId, prefix.asBytes(), 100L, length, 3);
         EntryMetadata insertMeta2 = new EntryMetadata(segmentId, prefix.asBytes(), 150L, length, 4);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.insertOperation(tr, insertMeta1, prefix, insertVs1);
             changeLog.insertOperation(tr, insertMeta2, prefix, insertVs2);
             tr.commit().join();
@@ -1044,7 +1044,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata updatePrevMeta = new EntryMetadata(segmentId, prefix.asBytes(), 100L, length, 3);
         EntryMetadata updateNewMeta = new EntryMetadata(segmentId, prefix.asBytes(), 200L, length, 5);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.updateOperation(tr, updatePrevMeta, updateNewMeta, prefix, updateVs);
             tr.commit().join();
         }
@@ -1052,13 +1052,13 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         // Tx4: DELETE operation
         EntryMetadata deleteMeta = new EntryMetadata(segmentId, prefix.asBytes(), 50L, length, 2);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.deleteOperation(tr, deleteMeta, prefix, deleteVs);
             tr.commit().join();
         }
 
         // Verification
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             List<ChangeLogEntry> entries = new ArrayList<>();
             for (ChangeLogEntry entry : iterable) {
@@ -1156,7 +1156,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata metadata = createTestMetadata();
         Prefix prefix = new Prefix("test-prefix");
 
-        Transaction tr = context.getFoundationDB().createTransaction();
+        Transaction tr = context.getTransactionManager().create();
         changeLog.appendOperation(tr, metadata, prefix, 0);
         long watermarkWhileInFlight = changeLog.getSafeWatermark();
 
@@ -1177,7 +1177,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         EntryMetadata metadata = createTestMetadata();
         Prefix prefix = new Prefix("test-prefix");
 
-        Transaction tr = context.getFoundationDB().createTransaction();
+        Transaction tr = context.getTransactionManager().create();
 
         // While the entry is in-flight, watermark = inFlightSequenceNumbers.first() - 1
 
@@ -1201,7 +1201,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         long previousWatermark = 0;
         for (int i = 0; i < 20; i++) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 50L * i, 50L, i);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 changeLog.appendOperation(tr, metadata, prefix, i);
                 tr.commit().join();
             }
@@ -1214,7 +1214,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
         }
 
         // The final watermark should equal the latest sequence number
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long latest = ChangeLog.getLatestSequenceNumber(tr, subspace);
             assertEquals(latest, changeLog.getSafeWatermark());
         }
@@ -1239,7 +1239,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
                 try {
                     startLatch.await();
                     EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 50L * idx, 50L, idx);
-                    try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                    try (Transaction tr = context.getTransactionManager().create()) {
                         changeLog.appendOperation(tr, metadata, prefix, idx);
                         LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(ThreadLocalRandom.current().nextInt(50)));
                         tr.commit().join();
@@ -1300,7 +1300,7 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
                 try {
                     startLatch.await();
                     EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 50L * idx, 50L, idx);
-                    Transaction tr = context.getFoundationDB().createTransaction();
+                    Transaction tr = context.getTransactionManager().create();
                     changeLog.appendOperation(tr, metadata, prefix, idx % 100);
                     LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(ThreadLocalRandom.current().nextInt(50)));
 
@@ -1350,37 +1350,37 @@ class ChangeLogTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
         // Retrieve the versionstamp of the APPEND entry
         Versionstamp versionstamp;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Range range = subspace.range(Tuple.from(CHANGELOG_SUBSPACE));
             List<KeyValue> results = tr.getRange(range).asList().join();
             Tuple keyTuple = subspace.unpack(results.getFirst().getKey());
             versionstamp = keyTuple.getVersionstamp(4);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.deleteOperation(tr, metadata, prefix, versionstamp);
             tr.commit().join();
         }
 
         long deleteSequenceNumber;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             deleteSequenceNumber = ChangeLog.getLatestSequenceNumber(tr, subspace);
         }
 
         // Prune the APPEND record and keep the DELETE record, using the tail position as the upper bound
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.prune(tr, 0, deleteSequenceNumber - 1, Map.of(segmentId, position));
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             // The DELETE back pointer survives the prune
             List<Long> sequenceNumbers = ChangeLog.reverseLookup(tr, subspace, segmentId, position);
             assertTrue(sequenceNumbers.contains(deleteSequenceNumber));

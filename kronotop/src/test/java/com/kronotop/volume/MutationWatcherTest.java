@@ -37,7 +37,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         MutationWatcher watcher = new MutationWatcher();
 
         CompletableFuture<Void> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             future = watcher.watch(tr, volume.getId(), trigger);
         }
 
@@ -53,14 +53,14 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         MutationWatcher watcher = new MutationWatcher();
 
         CompletableFuture<Void> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             future = watcher.watch(tr, volume.getId(), trigger);
         }
         assertFalse(future.isDone());
 
         // Append triggers the watcher
         ByteBuffer[] entries = getEntries(1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             volume.append(session, entries);
             tr.commit().join();
@@ -80,10 +80,10 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
 
         CompletableFuture<Void> first;
         CompletableFuture<Void> second;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             first = watcher.watch(tr, volume.getId(), trigger);
         }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             second = watcher.watch(tr, volume.getId(), trigger);
         }
 
@@ -98,13 +98,13 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         MutationWatcher watcher = new MutationWatcher();
 
         CompletableFuture<Void> first;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             first = watcher.watch(tr, volume.getId(), trigger);
         }
 
         // Trigger the watcher
         ByteBuffer[] entries = getEntries(1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             volume.append(session, entries);
             tr.commit().join();
@@ -115,7 +115,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
 
         // New watch should create a new watcher
         CompletableFuture<Void> second;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             second = watcher.watch(tr, volume.getId(), trigger);
         }
         assertNotSame(first, second);
@@ -130,7 +130,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         MutationWatcher watcher = new MutationWatcher();
 
         CompletableFuture<Void> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             future = watcher.watch(tr, volume.getId(), trigger);
         }
         assertFalse(future.isDone());
@@ -149,7 +149,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
 
         watcher.shutdown();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThrows(KronotopException.class, () -> watcher.watch(tr, volume.getId(), trigger));
         }
     }
@@ -160,7 +160,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         MutationWatcher watcher = new MutationWatcher();
 
         CompletableFuture<Void> future;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             future = watcher.watch(tr, volume.getId(), trigger);
         }
         assertFalse(future.isDone());
@@ -183,7 +183,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
         for (int i = 0; i < threadCount; i++) {
             Thread.startVirtualThread(() -> {
                 CompletableFuture<Void> future;
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     future = watcher.watch(tr, volume.getId(), trigger);
                 }
                 allThreadsReady.countDown();
@@ -204,7 +204,7 @@ class MutationWatcherTest extends BaseVolumeIntegrationTest {
 
         // Trigger the watcher with an append
         ByteBuffer[] entries = getEntries(1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             volume.append(session, entries);
             tr.commit().join();

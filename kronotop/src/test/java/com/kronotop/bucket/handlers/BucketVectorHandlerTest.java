@@ -90,7 +90,7 @@ class BucketVectorHandlerTest extends BaseBucketHandlerTest {
         );
 
         DirectorySubspace subspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             subspace = SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, labelIndex);
             tr.commit().join();

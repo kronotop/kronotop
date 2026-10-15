@@ -121,7 +121,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         String namespace = "test.namespace.open";
         NamespaceUtil.create(context, namespace);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = NamespaceUtil.open(tr, context, namespace, DataStructureKind.BUCKET);
             assertThat(subspace).isNotNull();
         }
@@ -129,7 +129,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
 
     @Test
     void shouldThrowExceptionWhenOpeningNonExistentNamespace() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThatThrownBy(() -> NamespaceUtil.open(tr, context, "non.existent.namespace", DataStructureKind.BUCKET))
                     .isInstanceOf(NoSuchNamespaceException.class);
         }
@@ -143,7 +143,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         Session session = Session.extractSessionFromChannel(channel);
         session.attr(SessionAttributes.CURRENT_NAMESPACE).set(namespaceName);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
             assertThat(subspace).isNotNull();
 
@@ -162,7 +162,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         Session session = Session.extractSessionFromChannel(channel);
         session.attr(SessionAttributes.CURRENT_NAMESPACE).set(namespaceName);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace first = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
             DirectorySubspace second = NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET);
             assertThat(first).isSameAs(second);
@@ -174,7 +174,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         Session session = Session.extractSessionFromChannel(channel);
         session.attr(SessionAttributes.CURRENT_NAMESPACE).set(null);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThatThrownBy(() -> NamespaceUtil.openDataStructureSubspace(context, tr, session, DataStructureKind.BUCKET))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("namespace not specified");
@@ -207,7 +207,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.create(context, namespace);
         assertThat(NamespaceUtil.exists(context, List.of("test", "namespace", "remove", "transaction"))).isTrue();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             NamespaceUtil.remove(tr, context, List.of("test", "namespace", "remove", "transaction"));
             tr.commit().join();
         }
@@ -247,7 +247,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.setRemoved(context, "hierarchy.parent");
 
         // Checking child should fail because parent is being removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThatThrownBy(() -> NamespaceUtil.checkBeingRemoved(tr, context, List.of("hierarchy", "parent", "child")))
                     .isInstanceOf(NamespaceBeingRemovedException.class)
                     .hasMessageContaining("hierarchy.parent");
@@ -265,7 +265,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.setRemoved(context, "a.b.c");
 
         // Checking "a.b.c.d" should fail because "a.b.c" is being removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThatThrownBy(() -> NamespaceUtil.checkBeingRemoved(tr, context, List.of("a", "b", "c", "d")))
                     .isInstanceOf(NamespaceBeingRemovedException.class)
                     .hasMessageContaining("a.b.c");
@@ -283,7 +283,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.setRemoved(context, "deep.level1");
 
         // Checking deepest level should fail because grandparent is being removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThatThrownBy(() -> NamespaceUtil.checkBeingRemoved(tr, context, List.of("deep", "level1", "level2", "level3")))
                     .isInstanceOf(NamespaceBeingRemovedException.class)
                     .hasMessageContaining("deep.level1");
@@ -297,7 +297,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.create(context, "clean.hierarchy.child");
 
         // Check should pass without exception
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             NamespaceUtil.checkBeingRemoved(tr, context, List.of("clean", "hierarchy", "child"));
         }
     }
@@ -315,7 +315,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
 
         NamespaceRemovedEvent event = new NamespaceRemovedEvent(namespaceId, namespace);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<String> memberSubpath = KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).
@@ -328,7 +328,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<String> memberSubpath = KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).
@@ -425,11 +425,11 @@ class NamespaceUtilTest extends BaseHandlerTest {
         String namespace = "im.level.test.leaf";
         NamespaceUtil.create(context, namespace);
         DirectorySubspace subspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             subspace = NamespaceUtil.open(tr, context, namespace);
         }
         List<String> subpath = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             NamespaceUtil.resolveNamespacePath(tr, new Subspace(subspace.pack()), subpath);
         }
 
@@ -447,7 +447,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
 
     private String resolveAfterMove(DirectorySubspace movedSubspace) {
         List<String> subpath = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             NamespaceUtil.resolveNamespacePath(tr, new Subspace(movedSubspace.pack()), subpath);
         }
         return String.join(".", subpath.reversed());
@@ -459,7 +459,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.create(context, "mv.same.old");
 
         DirectorySubspace movedSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             context.getDirectoryLayer().move(tr, fdbPath(List.of("mv", "same", "old")), fdbPath(List.of("mv", "same", "renamed"))).join();
             movedSubspace = context.getDirectoryLayer().open(tr, fdbPath(List.of("mv", "same", "renamed"))).join();
             NamespaceUtil.updateLeafAndParentPointer(context, tr, movedSubspace, List.of("mv", "same", "renamed"));
@@ -476,7 +476,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.create(context, "mv.dst");
 
         DirectorySubspace movedSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             context.getDirectoryLayer().move(tr, fdbPath(List.of("mv", "src", "child")), fdbPath(List.of("mv", "dst", "child"))).join();
             movedSubspace = context.getDirectoryLayer().open(tr, fdbPath(List.of("mv", "dst", "child"))).join();
             NamespaceUtil.updateLeafAndParentPointer(context, tr, movedSubspace, List.of("mv", "dst", "child"));
@@ -492,7 +492,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.create(context, "mv.nested.deep");
 
         DirectorySubspace movedSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             context.getDirectoryLayer().move(tr, fdbPath(List.of("mv", "nested", "deep")), fdbPath(List.of("mvrootarget"))).join();
             movedSubspace = context.getDirectoryLayer().open(tr, fdbPath(List.of("mvrootarget"))).join();
             NamespaceUtil.updateLeafAndParentPointer(context, tr, movedSubspace, List.of("mvrootarget"));
@@ -509,7 +509,7 @@ class NamespaceUtilTest extends BaseHandlerTest {
         NamespaceUtil.create(context, "mv.target");
 
         DirectorySubspace movedSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             context.getDirectoryLayer().move(tr, fdbPath(List.of("mvrootsrc")), fdbPath(List.of("mv", "target", "nested"))).join();
             movedSubspace = context.getDirectoryLayer().open(tr, fdbPath(List.of("mv", "target", "nested"))).join();
             NamespaceUtil.updateLeafAndParentPointer(context, tr, movedSubspace, List.of("mv", "target", "nested"));

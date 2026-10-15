@@ -40,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class VectorIndexBucketRemoveCleanupTest extends BaseVectorHookIntegrationTest {
 
     private BucketMetadata getMetadata() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
     }
@@ -64,7 +64,7 @@ class VectorIndexBucketRemoveCleanupTest extends BaseVectorHookIntegrationTest {
 
             // Capture index ID before remove
             long indexId;
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
                 VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
                 assertNotNull(vectorIndex);

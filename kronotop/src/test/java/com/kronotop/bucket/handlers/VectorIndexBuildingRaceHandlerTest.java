@@ -114,7 +114,7 @@ class VectorIndexBuildingRaceHandlerTest extends BaseBucketHandlerTest {
                 "embedding_vector_idx", "embedding", 3, DistanceFunction.COSINE, IndexStatus.WAITING);
 
         DirectorySubspace vectorIndexSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             vectorIndexSubspace = VectorIndexUtil.create(tr, metadata.subspace(), definition);
             tr.commit().join();
         }
@@ -219,7 +219,7 @@ class VectorIndexBuildingRaceHandlerTest extends BaseBucketHandlerTest {
                 "embedding_vector_idx", "embedding", 3, DistanceFunction.COSINE, IndexStatus.WAITING);
 
         DirectorySubspace vectorIndexSubspace;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             vectorIndexSubspace = VectorIndexUtil.create(tr, metadata.subspace(), definition);
             tr.commit().join();
         }

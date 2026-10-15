@@ -69,12 +69,12 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
             byte[] value = tr.get(key).join();
@@ -90,7 +90,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
@@ -111,7 +111,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
@@ -129,7 +129,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         createIndexThenWaitForReadiness(definition);
 
         // Index is ready to analyze but change the status to BUILDING to trigger the error.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             DirectorySubspace indexSubspace = IndexUtil.open(tr, metadata.subspace(), definition.name());
             SingleFieldIndexDefinition indexDefinition = SingleFieldIndexUtil.loadIndexDefinition(tr, indexSubspace);
@@ -143,7 +143,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 IndexAnalyzeTaskState state = IndexAnalyzeTaskState.load(tr, taskSubspace, taskId);
                 return state.status() == IndexTaskStatus.FAILED && state.error().equals("Index is not ready to analyze");
             }
@@ -158,7 +158,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         insertDocumentsAndGetObjectIds(documents, 50);
 
         SingleFieldIndexDefinition definition;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             assertNotNull(primaryIndex);
@@ -170,12 +170,12 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
             byte[] value = tr.get(key).join();
@@ -193,7 +193,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         Map<ObjectId, byte[]> items = insertDocumentsAndGetObjectIds(documents, 50);
 
         SingleFieldIndexDefinition definition;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             assertNotNull(primaryIndex);
@@ -202,7 +202,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
 
         // Manually write hints using the unconditional overload
         List<ObjectId> randomKeys = selectRandomKeysFromMap(items, 200);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
             assertNotNull(index);
@@ -217,12 +217,12 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
             byte[] value = tr.get(key).join();
@@ -250,7 +250,7 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
 
         // Use ObjectIds from inserted documents as hints
         List<ObjectId> randomKeys = selectRandomKeysFromMap(items, 200);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.READ);
             assertNotNull(index);
@@ -265,12 +265,12 @@ class IndexAnalyzeRoutineTest extends BaseBucketHandlerTest {
         Versionstamp taskId = TaskStorage.create(context, taskSubspace, JSONUtil.writeValueAsBytes(task));
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 return TaskStorage.getDefinition(tr, taskSubspace, taskId) == null;
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             byte[] key = IndexUtil.histogramKey(metadata.subspace(), definition.id());
             byte[] value = tr.get(key).join();

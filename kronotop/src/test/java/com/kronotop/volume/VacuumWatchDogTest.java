@@ -48,7 +48,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
 
     private long fillAndSealSegmentWithGarbage(Prefix prefix) throws IOException {
         AppendResult appendResult;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             appendResult = volume.append(session, getEntries(10));
             tr.commit().join();
@@ -59,7 +59,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             for (int i = 1; i <= numIterations; i++) {
                 volume.append(session, randomBytes((int) bufferSize));
@@ -71,7 +71,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
         assertTrue(analyses.size() >= 2);
         long sealedSegmentId = analyses.getFirst().segmentId();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             DeleteResult deleteResult = volume.delete(session, keys);
             tr.commit().join();
@@ -94,7 +94,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
 
         assertTrue(evacuator.enteredLatch.await(5, TimeUnit.SECONDS));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
             assertNotNull(metadata);
@@ -114,7 +114,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             for (int i = 1; i <= numIterations; i++) {
                 volume.append(session, randomBytes((int) bufferSize));
@@ -132,7 +132,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
 
         assertTrue(watchDog.isStopped());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
             VacuumSegmentMetadata segmentMetadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
             assertNull(segmentMetadata);
@@ -148,14 +148,14 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
     void shouldSkipWritableSegment() throws Exception {
         // Behavior: WatchDog skips the writable segment even if it has garbage
         AppendResult appendResult;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             appendResult = volume.append(session, getEntries(10));
             tr.commit().join();
         }
         Versionstamp[] keys = appendResult.getVersionstampedKeys();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             DeleteResult deleteResult = volume.delete(session, keys);
             tr.commit().join();
@@ -171,7 +171,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
 
         assertTrue(watchDog.isStopped());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
             List<VacuumSegmentMetadata> segmentMetadata = VacuumSegmentMetadataUtil.loadAll(tr, volumeSubspace);
             assertTrue(segmentMetadata.isEmpty());
@@ -239,7 +239,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
 
         assertTrue(watchDog.isStopped());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
             assertNotNull(metadata);
@@ -261,7 +261,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
 
         assertTrue(evacuator.enteredLatch.await(5, TimeUnit.SECONDS));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
             List<VacuumSegmentMetadata> allMetadata = VacuumSegmentMetadataUtil.loadAll(tr, volumeSubspace);
             assertEquals(1, allMetadata.size());
@@ -300,7 +300,7 @@ class VacuumWatchDogTest extends BaseVolumeIntegrationTest {
 
         volume.vacuumDrop();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
             assertFalse(VacuumMetadataUtil.exists(tr, volumeSubspace));
         }

@@ -96,7 +96,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         assertEquals(Response.OK, actualMessage.content());
 
         // Verify metadata is persisted in FDB with a primary index
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNotNull(metadata);
             assertFalse(metadata.removed());
@@ -212,7 +212,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNotNull(metadata);
 
@@ -239,7 +239,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNotNull(metadata);
 
@@ -393,7 +393,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             Collation collation = metadata.collation();
             assertNotNull(collation);
@@ -414,7 +414,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, response);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             Collation collation = metadata.collation();
             assertNotNull(collation);
@@ -443,7 +443,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNotNull(metadata.collation());
             assertEquals("en", metadata.collation().locale());
@@ -465,7 +465,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(SimpleStringRedisMessage.class, response);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNull(metadata.collation());
         }
@@ -532,7 +532,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNull(metadata.collation());
 
@@ -560,7 +560,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNotNull(metadata.collation());
             assertEquals("tr", metadata.collation().locale());
@@ -587,7 +587,7 @@ class BucketCreateHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(SimpleStringRedisMessage.class, response);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) response).content());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertNotNull(metadata.collation());
             assertEquals("en", metadata.collation().locale());

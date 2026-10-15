@@ -80,7 +80,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         createBucket(TEST_BUCKET);
         String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);
         VectorIndexDefinition definition = VectorIndexDefinition.create(name, SELECTOR, DIMENSIONS, DistanceFunction.COSINE, IndexStatus.WAITING);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             VectorIndexUtil.create(tx, getBucketMetadata(TEST_BUCKET), definition);
             tr.commit().join();
@@ -91,7 +91,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
 
     private List<KeyValue> readFailedOpLog(VectorIndex vectorIndex) {
         byte[] prefix = vectorIndex.subspace().pack(Tuple.from(IndexSubspaceMagic.FAILED_OP_LOG.getValue()));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(prefix, ByteArrayUtil.strinc(prefix)).asList().join();
         }
     }
@@ -108,7 +108,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         Versionstamp vs2 = versionstamp(2);
         byte[] encoded = encodedIndexEntry();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, vs1,
                     oid1.toByteArray(), encoded, TEST_VECTOR_1);
             VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, vs2,
@@ -147,7 +147,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         onHeap.addGraphNode(oid, TestUtil.zeroVersionstamp(), SHARD_ID, newEntryMetadata(), TEST_VECTOR_1, executor).join();
         assertNotNull(onHeap.getMetadata().findNodeRef(oid));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), vs, oid.toByteArray());
             tr.commit().join();
         }
@@ -182,7 +182,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         OnHeapVectorGraphIndex onHeap = new OnHeapVectorGraphIndex(DIMENSIONS, VectorSimilarityFunction.COSINE);
         group.addOnHeap(onHeap);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), versionstamp(2), oid.toByteArray());
             tr.commit().join();
         }
@@ -191,7 +191,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         assertTrue(failedOps.deletes().isEmpty());
         assertNotNull(onDisk.getMetadata().findDocumentLocation(ref.ordinal()));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), versionstamp(4), oid.toByteArray());
             tr.commit().join();
         }
@@ -231,7 +231,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         ObjectId oid = new ObjectId();
         Versionstamp vs = versionstamp(1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, vs,
                     oid.toByteArray(), encodedIndexEntry(), TEST_VECTOR_1);
             tr.commit().join();
@@ -256,7 +256,7 @@ class ReplayFailedOpsLogTest extends BaseStandaloneInstanceTest {
         int total = ReplayFailedOpsLog.PAGE_SIZE + 1;
         List<ObjectId> oids = new ArrayList<>(total);
         byte[] encoded = encodedIndexEntry();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 1; i <= total; i++) {
                 ObjectId oid = new ObjectId();
                 oids.add(oid);

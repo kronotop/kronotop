@@ -58,7 +58,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
             tr.commit().join();
@@ -71,7 +71,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Consumer consumer = new Consumer(context, cfg);
         try {
             consumer.start();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 Event event = consumer.consume(tr);
                 BucketMetadataUpdatedEvent evt = JSONUtil.readValue(event.value(), BucketMetadataUpdatedEvent.class);
                 assertEquals(TEST_NAMESPACE, evt.namespace());
@@ -90,7 +90,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long version = BucketMetadataUtil.readVersion(tr, metadata.subspace());
             assertEquals(metadata.version(), version);
         }
@@ -102,12 +102,12 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadataUtil.increaseVersion(tr, metadata.subspace(), POSITIVE_DELTA_ONE);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long version = BucketMetadataUtil.readVersion(tr, metadata.subspace());
             // Increased by one
             assertEquals(metadata.version() + 1, version);
@@ -128,7 +128,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         createIndexThenWaitForReadiness(numericIndexDefinition);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexUtil.mutateCardinality(tr, metadata.subspace(), numericIndexDefinition.id(), 1);
             tr.commit().join();
         }
@@ -141,7 +141,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         class IndexStatisticsRunnable implements Runnable {
             @Override
             public void run() {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     IndexUtil.mutateCardinality(tr, metadata.subspace(), primaryIndex.definition().id(), 1);
                     tr.commit().join();
                 }
@@ -155,7 +155,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         latch.await();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             assertEquals(2, stats.size());
 
@@ -186,7 +186,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context::now, 0);
         cleanup.run();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             IndexStatistics statistics = metadata.singleFieldIndexes().getStatistics(primaryIndex.definition().id());
@@ -201,12 +201,12 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
         SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexUtil.mutateCardinality(tr, metadata.subspace(), primaryIndex.definition().id(), 1);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadataHeader header = BucketMetadataHeader.read(tr, metadata.subspace());
 
             assertEquals(metadata.version(), header.version());
@@ -231,13 +231,13 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
             runCommand(instance.getChannel(), buf);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             // Try hard refresh
             BucketMetadataUtil.refreshIndexStatistics(context, metadata, 0);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
             IndexStatistics statistics = metadata.singleFieldIndexes().getStatistics(primaryIndex.definition().id());
@@ -248,7 +248,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldNotOpenNotExistingBucket() {
         // Behavior: open throws NoSuchBucketException when the bucket does not exist.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () ->
                     BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET));
             assertEquals("No such bucket: 'test-bucket'", exception.getMessage());
@@ -265,7 +265,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context::now, 0);
         cleanup.run();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = assertDoesNotThrow(() -> BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET));
             assertThat(metadata)
                     .usingRecursiveComparison()
@@ -313,12 +313,12 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
         SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexUtil.mutateCardinality(tr, metadata.subspace(), primaryIndex.definition().id(), 1);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), primaryIndex.definition().id());
             assertEquals(1, stats.cardinality());
         }
@@ -330,7 +330,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertFalse(BucketMetadataUtil.isRemoved(tr, metadata.subspace()));
         }
     }
@@ -342,13 +342,13 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
         long initialVersion = metadata.version();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(BucketMetadataUtil.isRemoved(tr, metadata.subspace()));
 
             // Verify that setRemoved increases the version
@@ -365,7 +365,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Consumer consumer = new Consumer(context, cfg);
         try {
             consumer.start();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 Event event = consumer.consume(tr);
                 BucketMetadataUpdatedEvent evt = JSONUtil.readValue(event.value(), BucketMetadataUpdatedEvent.class);
                 assertEquals(TEST_NAMESPACE, evt.namespace());
@@ -384,7 +384,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
         // Mark the bucket as removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
             tr.commit().join();
@@ -395,7 +395,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         cleanup.run();
 
         // Open the removed bucket using forceOpen() and verify removed flag
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata openedMetadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertTrue(openedMetadata.removed());
         }
@@ -406,7 +406,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         // Behavior: Transactional create initializes all metadata fields: name, namespace, version, id,
         // prefix, primary index, and removed == false.
         Session session = getSession();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.create(context, tr, session, TEST_BUCKET, List.of(TEST_SHARD_ID), null);
             tr.commit().join();
 
@@ -428,7 +428,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     void shouldThrowOnEmptyShardsList() {
         // Behavior: create rejects an empty shards list with KronotopException.
         Session session = getSession();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             KronotopException exception = assertThrows(KronotopException.class, () ->
                     BucketMetadataUtil.create(context, tr, session, TEST_BUCKET, List.of(), null));
             assertEquals("Shards cannot be empty or null", exception.getMessage());
@@ -440,12 +440,12 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         // Behavior: Calling create twice for the same bucket throws BucketAlreadyExistsException
         // because the volume prefix already exists.
         Session session = getSession();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadataUtil.create(context, tr, session, TEST_BUCKET, List.of(TEST_SHARD_ID), null);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThrows(BucketAlreadyExistsException.class, () ->
                     BucketMetadataUtil.create(context, tr, session, TEST_BUCKET, List.of(TEST_SHARD_ID), null));
         }
@@ -458,7 +458,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
             tr.commit().join();
@@ -466,7 +466,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertThrows(BucketAlreadyExistsException.class, () ->
                     BucketMetadataUtil.create(context, tr, session, TEST_BUCKET, List.of(TEST_SHARD_ID), null));
         }
@@ -495,7 +495,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
         // Purge the bucket
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.purge(tx, TEST_NAMESPACE, TEST_BUCKET);
             tr.commit().join();
@@ -504,7 +504,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
 
         // Verify bucket no longer exists after invalidating the cache.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () ->
                     BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET));
             assertEquals("No such bucket: 'test-bucket'", exception.getMessage());
@@ -518,7 +518,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
         long initialVersion = metadata.version();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setShards(tx, metadata, List.of(2, 0, 1));
             tr.commit().join();
@@ -528,7 +528,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Runnable cleanup = context.getBucketMetadataCache().createEvictionWorker(context::now, 0);
         cleanup.run();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata reloaded = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertEquals(List.of(0, 1, 2), reloaded.shards());
             assertEquals(initialVersion + 1, reloaded.version());
@@ -544,20 +544,20 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         // Add a vector index to the bucket
         String vectorName = VectorIndexNameGenerator.generate("embedding", 3, DistanceFunction.COSINE);
         VectorIndexDefinition vectorDef = VectorIndexDefinition.create(vectorName, "embedding", 3, DistanceFunction.COSINE, IndexStatus.WAITING);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             VectorIndexUtil.create(tx, metadata, vectorDef);
             tr.commit().join();
         }
 
         // Reload metadata so the vectorIndexes registry is populated
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
 
         // Try to expand to multiple shards — should fail
         BucketMetadata finalMetadata = metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             KronotopException exception = assertThrows(KronotopException.class, () ->
                     BucketMetadataUtil.setShards(tx, finalMetadata, List.of(1, 2)));
@@ -571,7 +571,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] pointerBytes = BucketMetadataUtil.resolvePointerBytes(context, tr, metadata.prefix().asBytes());
             assertNotNull(pointerBytes);
             UUID resolved = UUIDUtil.fromBytes(pointerBytes);
@@ -585,7 +585,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         Session session = getSession();
         BucketMetadata expected = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.openByPrefix(context, tr, expected.prefix().asBytes());
             assertEquals(expected.name(), metadata.name());
             assertEquals(expected.namespace(), metadata.namespace());
@@ -606,7 +606,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
 
         BucketMetadata expected = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.openByPrefix(context, tr, expected.prefix().asBytes());
             assertEquals(namespace, metadata.namespace());
             assertEquals(TEST_BUCKET, metadata.name());
@@ -618,7 +618,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     void shouldThrowWhenOpenByPrefixWithUnregisteredPrefix() {
         // Behavior: openByPrefix throws KronotopException for an unregistered prefix.
         byte[] bogusPrefix = new byte[]{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             KronotopException exception = assertThrows(KronotopException.class, () ->
                     BucketMetadataUtil.openByPrefix(context, tr, bogusPrefix));
             assertEquals("Prefix not registered", exception.getMessage());
@@ -634,7 +634,7 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
         session.attr(SessionAttributes.CURRENT_NAMESPACE).set(namespace);
 
         BucketMetadata metadata = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] namespaceBinding = tr.get(namespaceBindingKey(metadata.subspace())).join();
             List<String> subpath = new ArrayList<>();
             NamespaceUtil.resolveNamespacePath(tr, new Subspace(namespaceBinding), subpath);

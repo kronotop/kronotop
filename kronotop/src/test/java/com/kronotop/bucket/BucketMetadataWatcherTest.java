@@ -62,7 +62,7 @@ class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
         createBucket(TEST_BUCKET);
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
             tr.commit().join();
@@ -73,7 +73,7 @@ class BucketMetadataWatcherTest extends BaseBucketHandlerTest {
         List<Integer> shardIds = context.getShardRegistry().getShardIds(ShardKind.BUCKET);
         await().atMost(Duration.ofSeconds(15)).until(() -> {
             int total = 0;
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 for (int shardId : shardIds) {
                     DirectorySubspace subspace = openLastSeenVersionsSubspace(tr, shardId, subspaces);
                     byte[] key = subspace.pack(Tuple.from(metadata.uuid()));

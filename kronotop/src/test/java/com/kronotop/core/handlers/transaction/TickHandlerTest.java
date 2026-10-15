@@ -50,7 +50,7 @@ class TickHandlerTest extends BaseHandlerTest {
     // consecutive reads return the same version. Commit a dummy write to advance it.
     private void advanceCommittedVersion() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("tick-handler-test");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.set(subspace.pack("tick"), new byte[]{0x01});
             tr.commit().join();
         }

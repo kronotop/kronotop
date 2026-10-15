@@ -250,7 +250,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexedEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, indexedEntries.size(), "Should have exactly one index entry for " + fieldName);
 
@@ -308,7 +308,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         DirectorySubspace nameIndexSubspace = nameIndex.subspace();
         DirectorySubspace ageIndexSubspace = ageIndex.subspace();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             // Check name index - should have entry
             byte[] namePrefix = nameIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> nameEntries = tr.getRange(
@@ -464,7 +464,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertEquals(1, actualMessage.children().size());
 
         // Verify all three index entries were created
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             // Check name index
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.READ);
             assertNotNull(nameIndex, "Name index should exist");
@@ -521,7 +521,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         // Refresh bucket metadata to include the new index
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics ageStats = indexStatistics.get(ageIndexDefinition.id());
             assertNull(ageStats, "Age index statistics should not exist");
@@ -547,7 +547,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Verify cardinality has been updated to 3
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics ageStats = indexStatistics.get(ageIndexDefinition.id());
             assertNotNull(ageStats, "Age index statistics should exist after insertions");
@@ -563,7 +563,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         // Verify final cardinality is 4
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics ageStats = indexStatistics.get(ageIndexDefinition.id());
             assertNotNull(ageStats, "Age index statistics should exist after final insertion");
@@ -577,7 +577,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
 
         // Get the bucket metadata and mark it as removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
@@ -909,7 +909,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }
@@ -1017,7 +1017,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         runCommand(channel, buf2);
 
         // Verify cardinality: 2 from doc1 + 3 from doc2 = 5 total index entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics tagsStats = indexStatistics.get(tagsIndexDefinition.id());
             assertNotNull(tagsStats, "Tags index statistics should exist");
@@ -1048,7 +1048,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         List<KeyValue> entriesAfterDoc1 = fetchAllIndexedEntries(tagsIndex.subspace());
         assertEquals(2, entriesAfterDoc1.size(), "Should have 2 index entries after doc1 (deduplicated)");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics stats = indexStatistics.get(tagsIndexDefinition.id());
             assertNotNull(stats, "Index statistics should exist after doc1");
@@ -1066,7 +1066,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         List<KeyValue> entriesAfterDoc2 = fetchAllIndexedEntries(tagsIndex.subspace());
         assertEquals(5, entriesAfterDoc2.size(), "Should have 5 index entries after doc2");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics stats = indexStatistics.get(tagsIndexDefinition.id());
             assertNotNull(stats, "Index statistics should exist after doc2");
@@ -1084,7 +1084,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         List<KeyValue> finalEntries = fetchAllIndexedEntries(tagsIndex.subspace());
         assertEquals(6, finalEntries.size(), "Should have 6 index entries total");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics stats = indexStatistics.get(tagsIndexDefinition.id());
             assertNotNull(stats, "Index statistics should exist after doc3");
@@ -1195,7 +1195,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         runCommand(channel, buf1);
 
         // Verify cardinality is 3 (java, kotlin, null)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var indexStatistics = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics stats = indexStatistics.get(tagsIndexDefinition.id());
             assertNotNull(stats, "Index statistics should exist");
@@ -1592,7 +1592,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(3L, stats.cardinality(), "Cardinality should be 3 after inserting 3 documents");
         }
@@ -1690,7 +1690,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
 
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics stats = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
             assertEquals(3L, stats.cardinality(), "Vector index cardinality should be 3");
         }
@@ -1723,7 +1723,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexedEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, indexedEntries.size(), "Should have exactly one index entry");
 
@@ -1759,7 +1759,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexedEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, indexedEntries.size(), "Should have exactly one index entry");
 
@@ -1804,7 +1804,7 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexedEntries = tr.getRange(begin, end).asList().join();
             assertEquals(3, indexedEntries.size(), "Should have 3 index entries for 3 widened INT32 values");
 

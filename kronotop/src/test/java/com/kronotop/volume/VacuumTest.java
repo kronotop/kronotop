@@ -42,7 +42,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             for (int i = 1; i <= numIterations; i++) {
                 volume.append(session, randomBytes((int) bufferSize));
@@ -63,7 +63,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
         volume.vacuum(ctx, sealedSegmentId, evacuator);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
 
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
@@ -87,7 +87,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         Prefix alpha = new Prefix("alpha");
         Prefix beta = new Prefix("beta");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession sessionAlpha = new VolumeSession(tr, alpha);
             volume.append(sessionAlpha, getEntries(5));
 
@@ -100,7 +100,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, alpha);
             for (int i = 1; i <= numIterations; i++) {
                 volume.append(session, randomBytes((int) bufferSize));
@@ -116,7 +116,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
         volume.vacuum(ctx, sealedSegmentId, evacuator);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
 
             // Verify segment-level metadata
@@ -147,7 +147,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         Prefix alpha = new Prefix("alpha");
         Prefix beta = new Prefix("beta");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession sessionAlpha = new VolumeSession(tr, alpha);
             volume.append(sessionAlpha, getEntries(5));
 
@@ -160,7 +160,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         long segmentSize = VolumeConfiguration.segmentSize;
         long numIterations = 2 * (segmentSize / bufferSize);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, alpha);
             for (int i = 1; i <= numIterations; i++) {
                 volume.append(session, randomBytes((int) bufferSize));
@@ -211,7 +211,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         MockEntryEvacuator evacuator = new MockEntryEvacuator(ctx);
         volume.vacuum(ctx, sealedSegmentId, evacuator);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
 
             // Read cardinality from SEGMENT_STATS
@@ -244,7 +244,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         volume.close();
         volume = service.newVolume(volumeConfig);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSubspace volumeSubspace = new VolumeSubspace(volumeConfig.subspace());
 
             VacuumSegmentMetadata metadata = VacuumSegmentMetadataUtil.load(tr, volumeSubspace, sealedSegmentId);
@@ -267,7 +267,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
 
         VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
             assertTrue(segmentIds.contains(sealedSegmentId));
         }
@@ -276,7 +276,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         EvacuatingEvacuator evacuator = new EvacuatingEvacuator(volume);
         volume.vacuum(ctx, sealedSegmentId, evacuator);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> posEntries = tr.getRange(Range.startsWith(volumeSubspace.packSegmentPositionPrefix(sealedSegmentId))).asList().join();
             assertTrue(posEntries.isEmpty());
 
@@ -305,7 +305,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         volume.vacuum(ctx, sealedSegmentId, evacuator);
 
         VolumeSubspace volumeSubspace = new VolumeSubspace(volume.getConfig().subspace());
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<Long> segmentIds = VolumeMetadataUtil.loadSegmentIds(tr, volumeSubspace);
             assertTrue(segmentIds.contains(sealedSegmentId));
         }
@@ -320,7 +320,7 @@ class VacuumTest extends BaseVolumeIntegrationTest {
         long sealedSegmentId = fillAndSealSegment(stashVolumeSyncerPrefix);
 
         AppendResult appendResult;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
             appendResult = volume.append(session, getEntries(5));
             tr.commit().join();

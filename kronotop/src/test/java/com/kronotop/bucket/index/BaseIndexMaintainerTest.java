@@ -63,7 +63,7 @@ public class BaseIndexMaintainerTest extends BaseStandaloneInstanceTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> volumePointers = tr.getRange(begin, end).asList().join();
             for (KeyValue kv : volumePointers) {
                 Tuple unpacked = indexSubspace.unpack(kv.getKey());

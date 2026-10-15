@@ -88,7 +88,7 @@ class IndexTaskUtilTest extends BaseBucketHandlerTest {
 
         // Get the primary index name
         String primaryIndexName;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             primaryIndexName = IndexUtil.list(tr, metadata.subspace()).getFirst();
         }
 
@@ -98,7 +98,7 @@ class IndexTaskUtilTest extends BaseBucketHandlerTest {
         DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
         Versionstamp taskId;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             indexSubspace = IndexUtil.open(tr, metadata.subspace(), primaryIndexName);
 
             // Create a dummy task
@@ -121,13 +121,13 @@ class IndexTaskUtilTest extends BaseBucketHandlerTest {
         }
 
         // Verify the task exists
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] definition = TaskStorage.getDefinition(tr, taskSubspace, taskId);
             assertNotNull(definition, "Task should exist before clearBucketTasks");
         }
 
         // Verify the back pointer exists
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             AtomicInteger backPointerCount = new AtomicInteger(0);
             IndexTaskUtil.scanTaskBackPointers(tr, indexSubspace, (id, shardId) -> {
                 backPointerCount.incrementAndGet();
@@ -137,20 +137,20 @@ class IndexTaskUtilTest extends BaseBucketHandlerTest {
         }
 
         // Call clearBucketTasks
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             IndexTaskUtil.clearBucketTasks(tx, metadata);
             tr.commit().join();
         }
 
         // Verify task is removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] definition = TaskStorage.getDefinition(tr, taskSubspace, taskId);
             assertNull(definition, "Task should be removed after clearBucketTasks");
         }
 
         // Verify the back pointer is removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             AtomicInteger backPointerCount = new AtomicInteger(0);
             IndexTaskUtil.scanTaskBackPointers(tr, indexSubspace, (id, shardId) -> {
                 backPointerCount.incrementAndGet();

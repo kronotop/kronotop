@@ -35,7 +35,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
         consumer.start();
 
         List<Event> events = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event;
             while ((event = consumer.consume(tr)) != null) {
                 events.add(event);
@@ -51,7 +51,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
     void shouldEvictAllExpiredEntries() {
         JournalService journal = context.getService(JournalService.NAME);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 3; i++) {
                 journal.getPublisher().publish(tr, TEST_JOURNAL, "message " + i);
             }
@@ -69,7 +69,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
     void shouldNotEvictJournalEntryWhenWithinTTL() {
         JournalService journal = context.getService(JournalService.NAME);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             journal.getPublisher().publish(tr, TEST_JOURNAL, "message");
             tr.commit().join();
         }
@@ -86,7 +86,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
         JournalService journal = context.getService(JournalService.NAME);
 
         // Publish first batch of entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 3; i++) {
                 journal.getPublisher().publish(tr, TEST_JOURNAL, "old message " + i);
             }
@@ -98,7 +98,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
         cleanupTask.run();
 
         // Publish the second batch of entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 3; i++) {
                 journal.getPublisher().publish(tr, TEST_JOURNAL, "new message " + i);
             }
@@ -132,7 +132,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
         String journal2 = "cleanup-test-journal-2";
 
         // Publish entries to both journals
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 3; i++) {
                 journal.getPublisher().publish(tr, journal1, "message " + i);
                 journal.getPublisher().publish(tr, journal2, "message " + i);
@@ -154,7 +154,7 @@ class CleanupJournalTaskTest extends BaseStandaloneInstanceTest {
             ConsumerConfig consumerConfig = new ConsumerConfig("consumer-" + journalName, journalName, ConsumerConfig.Offset.EARLIEST);
             Consumer consumer = new Consumer(context, consumerConfig);
             consumer.start();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 assertNull(consumer.consume(tr), "Journal " + journalName + " should be empty");
             }
             consumer.stop();

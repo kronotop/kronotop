@@ -53,7 +53,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         createBucket(TEST_BUCKET);
         String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);
         VectorIndexDefinition definition = VectorIndexDefinition.create(name, SELECTOR, DIMENSIONS, DistanceFunction.COSINE, IndexStatus.WAITING);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             VectorIndexUtil.create(tx, getBucketMetadata(TEST_BUCKET), definition);
             tr.commit().join();
@@ -65,7 +65,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }
@@ -84,7 +84,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
@@ -100,7 +100,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertArrayEquals(TEST_VECTOR, value.vector());
 
         // Verify cardinality
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
             assertEquals(1, statistics.cardinality());
         }
@@ -117,7 +117,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId objectId = new ObjectId();
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] entryMetadata = getEncodedEntryMetadata();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.insertEntry(tr, vectorIndex, metadata,
                     objectIdBytes, SHARD_ID, entryMetadata, TEST_VECTOR);
             tr.commit().join();
@@ -136,7 +136,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertArrayEquals(entryMetadata, value.indexEntry().entryMetadata(), "Entry metadata should match");
         assertArrayEquals(TEST_VECTOR, value.vector(), "Vector should match");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
             assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after inserting one entry");
         }
@@ -152,7 +152,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         AppendedEntry[] entries = getAppendedEntries();
         ObjectId[] objectIds = new ObjectId[entries.length];
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode();
@@ -198,7 +198,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
@@ -210,7 +210,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         int newShardId = SHARD_ID + 1;
         byte[] newEntryMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated").encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.updateIndexEntry(tr, objectIdBytes, vectorIndex, newShardId, newEntryMetadata);
             tr.commit().join();
         }
@@ -235,7 +235,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId nonExistentObjectId = new ObjectId();
         byte[] newEntryMetadata = VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertDoesNotThrow(() -> {
                 VectorIndexMaintainer.updateIndexEntry(tr, nonExistentObjectId.toByteArray(),
                         vectorIndex, SHARD_ID, newEntryMetadata);
@@ -256,7 +256,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         AppendedEntry[] entries = getAppendedEntries();
         ObjectId[] objectIds = new ObjectId[entries.length];
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < entries.length; i++) {
                 objectIds[i] = new ObjectId();
                 byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entries[i].metadataBytes()).encode();
@@ -266,7 +266,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Drop the first entry
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.dropEntry(tr, objectIds[0].toByteArray(), vectorIndex, metadata);
             tr.commit().join();
         }
@@ -284,7 +284,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Verify cardinality
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), vectorIndex.definition().id());
             assertEquals(entries.length - 1, statistics.cardinality());
         }
@@ -299,7 +299,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         ObjectId nonExistentObjectId = new ObjectId();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertDoesNotThrow(() -> {
                 VectorIndexMaintainer.dropEntry(tr, nonExistentObjectId.toByteArray(), vectorIndex, metadata);
                 tr.commit().join();
@@ -346,7 +346,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.MUTATION_LOG.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }
@@ -364,7 +364,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setMutationLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
             tr.commit().join();
         }
@@ -394,7 +394,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setMutationLog(tr, vectorIndex.subspace(), MutationLogKind.UPDATE, objectIdBytes, encodedIndexEntry, TEST_VECTOR, entry.userVersion());
             tr.commit().join();
         }
@@ -423,7 +423,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         ObjectId objectId = new ObjectId();
         byte[] objectIdBytes = objectId.toByteArray();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.deleteMutationLog(tr, vectorIndex.subspace(), objectIdBytes, entry.userVersion());
             tr.commit().join();
         }
@@ -441,7 +441,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FAILED_OP_LOG.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }
@@ -460,7 +460,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
         Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
@@ -492,7 +492,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
         Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.UPDATE, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
@@ -523,7 +523,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] objectIdBytes = objectId.toByteArray();
         Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), versionstamp, objectIdBytes);
             tr.commit().join();
         }
@@ -552,12 +552,12 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
         Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(), versionstamp, objectIdBytes);
             tr.commit().join();
         }
@@ -585,7 +585,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
         Versionstamp versionstamp = TestUtil.generateVersionstamp(entry.userVersion());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, versionstamp, objectIdBytes, encodedIndexEntry, TEST_VECTOR);
             tr.commit().join();
         }
@@ -604,7 +604,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         AppendedEntry entry = entries[0];
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT,
                     TestUtil.generateVersionstamp(1), new ObjectId().toByteArray(), encodedIndexEntry, TEST_VECTOR);
             VectorIndexMaintainer.deleteFailedOpLog(tr, vectorIndex.subspace(),
@@ -613,7 +613,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
         assertEquals(2, getFailedOpLogEntries(vectorIndex.subspace()).size());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.truncateFailedOpLog(tr, vectorIndex.subspace());
             tr.commit().join();
         }
@@ -627,7 +627,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.truncateFailedOpLog(tr, vectorIndex.subspace());
             tr.commit().join();
         }
@@ -673,7 +673,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
 
     private void indexObjectIds(VectorIndex vectorIndex, BucketMetadata metadata, ObjectId... objectIds) {
         AppendedEntry[] entries = getAppendedEntries();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < objectIds.length; i++) {
                 byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entries[0].metadataBytes()).encode();
                 VectorIndexMaintainer.setEntry(tr, vectorIndex, metadata, objectIds[i].toByteArray(), encodedIndexEntry, TEST_VECTOR);
@@ -683,7 +683,7 @@ class VectorIndexMaintainerTest extends BaseIndexMaintainerTest {
     }
 
     private Set<ObjectId> findIndexedObjectIds(DirectorySubspace indexSubspace, ObjectId... objectIds) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<byte[]> ids = Arrays.stream(objectIds).map(ObjectId::toByteArray).toList();
             return VectorIndexMaintainer.findIndexedObjectIds(tr, indexSubspace, ids);
         }

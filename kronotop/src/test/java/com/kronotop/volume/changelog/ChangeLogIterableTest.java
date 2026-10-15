@@ -45,12 +45,12 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             List<ChangeLogEntry> entries = new ArrayList<>();
             for (ChangeLogEntry entry : iterable) {
@@ -85,12 +85,12 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 1);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.deleteOperation(tr, metadata, prefix, versionstamp);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             List<ChangeLogEntry> entries = new ArrayList<>();
             for (ChangeLogEntry entry : iterable) {
@@ -129,12 +129,12 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         long length = 50L;
         EntryMetadata metadata = new EntryMetadata(segmentId, prefix.asBytes(), position, length, 2);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             changeLog.updateOperation(tr, prevMetadata, metadata, prefix, versionstamp);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             List<ChangeLogEntry> entries = new ArrayList<>();
             for (ChangeLogEntry entry : iterable) {
@@ -165,7 +165,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
     void shouldReturnEmptyIteratorWhenNoEntries() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-empty-entries");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             List<ChangeLogEntry> entries = new ArrayList<>();
             for (ChangeLogEntry entry : iterable) {
@@ -184,7 +184,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Create 5 APPEND entries
         for (int i = 0; i < 5; i++) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), i * 50L, 50L, i);
                 changeLog.appendOperation(tr, metadata, prefix, i);
                 tr.commit().join();
@@ -192,7 +192,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         }
 
         // Iterate with limit=2
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .limit(2)
                     .build();
@@ -214,7 +214,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Create 3 APPEND entries with distinct positions
         for (int i = 0; i < 3; i++) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), i * 50L, 50L, i);
                 changeLog.appendOperation(tr, metadata, prefix, i);
                 tr.commit().join();
@@ -222,7 +222,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         }
 
         // Iterate in reverse order
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .limit(3)
                     .reverse(true)
@@ -250,7 +250,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Create 5 APPEND entries
         for (int i = 0; i < 5; i++) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), i * 50L, 50L, i);
                 changeLog.appendOperation(tr, metadata, prefix, i);
                 tr.commit().join();
@@ -259,7 +259,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all entries first to find sequence numbers
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 sequenceNumbers.add(entry.getAfter().orElseThrow().sequenceNumber());
@@ -271,7 +271,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         long beginSeq = sequenceNumbers.get(1);
         long endSeq = sequenceNumbers.get(3);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
                     .end(SequenceNumberSelector.firstGreaterOrEqual(endSeq))
@@ -297,7 +297,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Create 5 APPEND entries
         for (int i = 0; i < 5; i++) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), i * 50L, 50L, i);
                 changeLog.appendOperation(tr, metadata, prefix, i);
                 tr.commit().join();
@@ -306,7 +306,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all sequence numbers
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 sequenceNumbers.add(entry.getAfter().orElseThrow().sequenceNumber());
@@ -317,7 +317,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         long beginSeq = sequenceNumbers.get(1);
         long endSeq = sequenceNumbers.get(4);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .begin(SequenceNumberSelector.firstGreaterThan(beginSeq))
                     .end(SequenceNumberSelector.firstGreaterOrEqual(endSeq))
@@ -344,7 +344,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Create 5 APPEND entries
         for (int i = 0; i < 5; i++) {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), i * 50L, 50L, i);
                 changeLog.appendOperation(tr, metadata, prefix, i);
                 tr.commit().join();
@@ -353,7 +353,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all sequence numbers
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 sequenceNumbers.add(entry.getAfter().orElseThrow().sequenceNumber());
@@ -364,7 +364,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         long beginSeq = sequenceNumbers.get(0);
         long endSeq = sequenceNumbers.get(3);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .begin(SequenceNumberSelector.firstGreaterThan(beginSeq))
                     .end(SequenceNumberSelector.firstGreaterThan(endSeq))
@@ -391,7 +391,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         Prefix prefix = new Prefix("test-prefix");
 
         // Operation 1: APPEND
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
@@ -399,7 +399,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Operation 2: UPDATE (references operation 1)
         Versionstamp updateVersionstamp = TestUtil.generateVersionstamp(1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata prevMetadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             EntryMetadata newMetadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 60L, 2);
             changeLog.updateOperation(tr, prevMetadata, newMetadata, prefix, updateVersionstamp);
@@ -408,21 +408,21 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Operation 3: DELETE
         Versionstamp deleteVersionstamp = TestUtil.generateVersionstamp(2);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(2L, prefix.asBytes(), 200L, 40L, 3);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp);
             tr.commit().join();
         }
 
         // Operation 4: APPEND
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(2L, prefix.asBytes(), 300L, 70L, 4);
             changeLog.appendOperation(tr, metadata, prefix, 3);
             tr.commit().join();
         }
 
         // Verify iteration order and entry types
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             List<ChangeLogEntry> entries = new ArrayList<>();
             for (ChangeLogEntry entry : iterable) {
@@ -468,14 +468,14 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 1: DELETE (FINALIZATION)
         Versionstamp deleteVersionstamp1 = TestUtil.generateVersionstamp(0);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 40L, 1);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp1);
             tr.commit().join();
         }
 
         // Op 2: APPEND (LIFECYCLE)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 50L, 50L, 2);
             changeLog.appendOperation(tr, metadata, prefix, 1);
             tr.commit().join();
@@ -483,7 +483,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 3: DELETE (FINALIZATION)
         Versionstamp deleteVersionstamp2 = TestUtil.generateVersionstamp(2);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 35L, 3);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp2);
             tr.commit().join();
@@ -491,7 +491,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 4: UPDATE (LIFECYCLE)
         Versionstamp updateVersionstamp = TestUtil.generateVersionstamp(3);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata prevMetadata = new EntryMetadata(1L, prefix.asBytes(), 50L, 50L, 2);
             EntryMetadata newMetadata = new EntryMetadata(1L, prefix.asBytes(), 150L, 60L, 4);
             changeLog.updateOperation(tr, prevMetadata, newMetadata, prefix, updateVersionstamp);
@@ -499,7 +499,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         }
 
         // Op 5: APPEND (LIFECYCLE)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 200L, 50L, 5);
             changeLog.appendOperation(tr, metadata, prefix, 4);
             tr.commit().join();
@@ -507,7 +507,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 6: DELETE (FINALIZATION)
         Versionstamp deleteVersionstamp3 = TestUtil.generateVersionstamp(5);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 250L, 30L, 6);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp3);
             tr.commit().join();
@@ -515,7 +515,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all sequence numbers first
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 long seqNum = entry.hasAfter()
@@ -530,7 +530,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         long beginSeq = sequenceNumbers.get(0);
         long endSeq = sequenceNumbers.get(5);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.LIFECYCLE)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -572,7 +572,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         // Mixed ordering: APPEND, DELETE, UPDATE, DELETE, APPEND, DELETE
 
         // Op 1: APPEND (LIFECYCLE)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
@@ -580,7 +580,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 2: DELETE (FINALIZATION)
         Versionstamp deleteVersionstamp1 = TestUtil.generateVersionstamp(1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 40L, 2);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp1);
             tr.commit().join();
@@ -588,7 +588,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 3: UPDATE (LIFECYCLE)
         Versionstamp updateVersionstamp = TestUtil.generateVersionstamp(2);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata prevMetadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             EntryMetadata newMetadata = new EntryMetadata(1L, prefix.asBytes(), 150L, 60L, 3);
             changeLog.updateOperation(tr, prevMetadata, newMetadata, prefix, updateVersionstamp);
@@ -597,14 +597,14 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 4: DELETE (FINALIZATION)
         Versionstamp deleteVersionstamp2 = TestUtil.generateVersionstamp(3);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 200L, 30L, 4);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp2);
             tr.commit().join();
         }
 
         // Op 5: APPEND (LIFECYCLE)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 250L, 50L, 5);
             changeLog.appendOperation(tr, metadata, prefix, 4);
             tr.commit().join();
@@ -612,7 +612,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 6: DELETE (FINALIZATION)
         Versionstamp deleteVersionstamp3 = TestUtil.generateVersionstamp(5);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 300L, 35L, 6);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp3);
             tr.commit().join();
@@ -620,7 +620,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all sequence numbers first
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 long seqNum = entry.hasAfter()
@@ -635,7 +635,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         long beginSeq = sequenceNumbers.get(0);
         long endSeq = sequenceNumbers.get(5);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.FINALIZATION)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -677,7 +677,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         // Mixed ordering: APPEND, DELETE, APPEND, DELETE, UPDATE, DELETE
 
         // Op 1: APPEND (LIFECYCLE) - position 0
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
@@ -685,14 +685,14 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 2: DELETE (FINALIZATION) - position 50
         Versionstamp deleteVersionstamp1 = TestUtil.generateVersionstamp(1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 50L, 40L, 2);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp1);
             tr.commit().join();
         }
 
         // Op 3: APPEND (LIFECYCLE) - position 100
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 50L, 3);
             changeLog.appendOperation(tr, metadata, prefix, 2);
             tr.commit().join();
@@ -700,7 +700,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 4: DELETE (FINALIZATION) - position 150
         Versionstamp deleteVersionstamp2 = TestUtil.generateVersionstamp(3);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 150L, 35L, 4);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp2);
             tr.commit().join();
@@ -708,7 +708,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 5: UPDATE (LIFECYCLE) - position 200
         Versionstamp updateVersionstamp = TestUtil.generateVersionstamp(4);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata prevMetadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 50L, 3);
             EntryMetadata newMetadata = new EntryMetadata(1L, prefix.asBytes(), 200L, 60L, 5);
             changeLog.updateOperation(tr, prevMetadata, newMetadata, prefix, updateVersionstamp);
@@ -717,7 +717,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 6: DELETE (FINALIZATION) - position 250
         Versionstamp deleteVersionstamp3 = TestUtil.generateVersionstamp(5);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 250L, 30L, 6);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp3);
             tr.commit().join();
@@ -725,7 +725,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all sequence numbers first
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 long seqNum = entry.hasAfter()
@@ -742,7 +742,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         long beginSeq = sequenceNumbers.get(1);
         long endSeq = sequenceNumbers.get(5);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.LIFECYCLE)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -772,7 +772,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         // Also test FINALIZATION with the same range
         // This range contains: DELETE(1), APPEND(2), DELETE(3), UPDATE(4)
         // After FINALIZATION filter: DELETE(1), DELETE(3) = 2 entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.FINALIZATION)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -807,20 +807,20 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         Prefix prefix = new Prefix("test-prefix");
 
         // Create only LIFECYCLE operations (APPEND, UPDATE)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 50L, 50L, 2);
             changeLog.appendOperation(tr, metadata, prefix, 1);
             tr.commit().join();
         }
 
         Versionstamp updateVersionstamp = TestUtil.generateVersionstamp(2);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata prevMetadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             EntryMetadata newMetadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 60L, 3);
             changeLog.updateOperation(tr, prevMetadata, newMetadata, prefix, updateVersionstamp);
@@ -829,7 +829,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all sequence numbers
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 long seqNum = entry.hasAfter()
@@ -844,7 +844,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         long beginSeq = sequenceNumbers.get(0);
         long endSeq = sequenceNumbers.get(2);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.FINALIZATION)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -870,7 +870,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         // Mixed ordering: APPEND, DELETE, UPDATE, DELETE, APPEND
 
         // Op 1: APPEND (LIFECYCLE) - position 0
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
@@ -878,7 +878,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 2: DELETE (FINALIZATION) - position 50
         Versionstamp deleteVersionstamp1 = TestUtil.generateVersionstamp(1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 50L, 40L, 2);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp1);
             tr.commit().join();
@@ -886,7 +886,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 3: UPDATE (LIFECYCLE) - position 100
         Versionstamp updateVersionstamp = TestUtil.generateVersionstamp(2);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata prevMetadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             EntryMetadata newMetadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 60L, 3);
             changeLog.updateOperation(tr, prevMetadata, newMetadata, prefix, updateVersionstamp);
@@ -895,14 +895,14 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 4: DELETE (FINALIZATION) - position 150
         Versionstamp deleteVersionstamp2 = TestUtil.generateVersionstamp(3);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 150L, 35L, 4);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp2);
             tr.commit().join();
         }
 
         // Op 5: APPEND (LIFECYCLE) - position 200
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 200L, 50L, 5);
             changeLog.appendOperation(tr, metadata, prefix, 4);
             tr.commit().join();
@@ -910,7 +910,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all sequence numbers
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 long seqNum = entry.hasAfter()
@@ -925,7 +925,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         long endSeq = sequenceNumbers.get(4);
 
         // Filter by LIFECYCLE with reverse - should return APPEND(200), UPDATE(100), APPEND(0)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.LIFECYCLE)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -958,7 +958,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         }
 
         // Filter by FINALIZATION with reverse - should return DELETE(150), DELETE(50)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.FINALIZATION)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -1003,7 +1003,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         // We need consecutive LIFECYCLE or FINALIZATION entries at the end to test limit+reverse+filter
 
         // Op 1: APPEND (LIFECYCLE) - position 0
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             changeLog.appendOperation(tr, metadata, prefix, 0);
             tr.commit().join();
@@ -1011,7 +1011,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 2: DELETE (FINALIZATION) - position 50
         Versionstamp deleteVersionstamp1 = TestUtil.generateVersionstamp(1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 50L, 40L, 2);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp1);
             tr.commit().join();
@@ -1019,7 +1019,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 3: UPDATE (LIFECYCLE) - position 100
         Versionstamp updateVersionstamp = TestUtil.generateVersionstamp(2);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata prevMetadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 50L, 1);
             EntryMetadata newMetadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 60L, 3);
             changeLog.updateOperation(tr, prevMetadata, newMetadata, prefix, updateVersionstamp);
@@ -1027,14 +1027,14 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         }
 
         // Op 4: APPEND (LIFECYCLE) - position 150
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 150L, 50L, 4);
             changeLog.appendOperation(tr, metadata, prefix, 3);
             tr.commit().join();
         }
 
         // Op 5: APPEND (LIFECYCLE) - position 200
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 200L, 50L, 5);
             changeLog.appendOperation(tr, metadata, prefix, 4);
             tr.commit().join();
@@ -1042,7 +1042,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 6: DELETE (FINALIZATION) - position 250
         Versionstamp deleteVersionstamp2 = TestUtil.generateVersionstamp(5);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 250L, 30L, 6);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp2);
             tr.commit().join();
@@ -1050,7 +1050,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 7: DELETE (FINALIZATION) - position 300
         Versionstamp deleteVersionstamp3 = TestUtil.generateVersionstamp(6);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 300L, 30L, 7);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp3);
             tr.commit().join();
@@ -1058,7 +1058,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all sequence numbers
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 long seqNum = entry.hasAfter()
@@ -1075,7 +1075,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
         // Note: limit is applied at FoundationDB range query level, before iterator filtering
         // With limit=4 reverse, we get raw entries: Op7, Op6, Op5, Op4
         // After LIFECYCLE filter: APPEND(200), APPEND(150) = 2 entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.LIFECYCLE)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -1105,7 +1105,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // With limit=4 reverse, we get raw entries: Op7, Op6, Op5, Op4
         // After FINALIZATION filter: DELETE(300), DELETE(250) = 2 entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.FINALIZATION)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -1147,7 +1147,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 1: DELETE (FINALIZATION) - position 0
         Versionstamp deleteVersionstamp1 = TestUtil.generateVersionstamp(0);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 0L, 40L, 1);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp1);
             tr.commit().join();
@@ -1155,14 +1155,14 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 2: DELETE (FINALIZATION) - position 50
         Versionstamp deleteVersionstamp2 = TestUtil.generateVersionstamp(1);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 50L, 40L, 2);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp2);
             tr.commit().join();
         }
 
         // Op 3: APPEND (LIFECYCLE) - position 100
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 50L, 3);
             changeLog.appendOperation(tr, metadata, prefix, 2);
             tr.commit().join();
@@ -1170,7 +1170,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 4: UPDATE (LIFECYCLE) - position 150
         Versionstamp updateVersionstamp = TestUtil.generateVersionstamp(3);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata prevMetadata = new EntryMetadata(1L, prefix.asBytes(), 100L, 50L, 3);
             EntryMetadata newMetadata = new EntryMetadata(1L, prefix.asBytes(), 150L, 60L, 4);
             changeLog.updateOperation(tr, prevMetadata, newMetadata, prefix, updateVersionstamp);
@@ -1179,14 +1179,14 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Op 5: DELETE (FINALIZATION) - position 200
         Versionstamp deleteVersionstamp3 = TestUtil.generateVersionstamp(4);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 200L, 30L, 5);
             changeLog.deleteOperation(tr, metadata, prefix, deleteVersionstamp3);
             tr.commit().join();
         }
 
         // Op 6: APPEND (LIFECYCLE) - position 250
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata metadata = new EntryMetadata(1L, prefix.asBytes(), 250L, 50L, 6);
             changeLog.appendOperation(tr, metadata, prefix, 5);
             tr.commit().join();
@@ -1194,7 +1194,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // Get all sequence numbers
         List<Long> sequenceNumbers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterable iterable = new ChangeLogIterable(tr, subspace);
             for (ChangeLogEntry entry : iterable) {
                 long seqNum = entry.hasAfter()
@@ -1210,7 +1210,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // With limit=4 forward, we get raw entries: Op1, Op2, Op3, Op4
         // After LIFECYCLE filter: APPEND(100), UPDATE(150) = 2 entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.LIFECYCLE)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))
@@ -1239,7 +1239,7 @@ class ChangeLogIterableTest extends BaseStandaloneInstanceTest {
 
         // With limit=4 forward, we get raw entries: Op1, Op2, Op3, Op4
         // After FINALIZATION filter: DELETE(0), DELETE(50) = 2 entries
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ChangeLogIterableOptions options = new ChangeLogIterableOptions.Builder()
                     .parentOperationKind(ParentOperationKind.FINALIZATION)
                     .begin(SequenceNumberSelector.firstGreaterOrEqual(beginSeq))

@@ -395,7 +395,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         assertEquals(Response.OK, ((SimpleStringRedisMessage) indexResult2).content());
 
         // Wait for indexes to be ready
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex ageIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.ALL);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
@@ -446,7 +446,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         assertEquals(Response.OK, ((SimpleStringRedisMessage) indexResult).content());
 
         // Wait for the index to be ready
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex ageIndex = metadata.singleFieldIndexes().getIndex("age", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(ageIndex.subspace());
@@ -582,7 +582,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         Object indexResult = runCommand(channel, indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, indexResult);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, bucket);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
@@ -615,7 +615,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         Object indexResult = runCommand(channel, indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, indexResult);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, bucket);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
@@ -696,7 +696,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         Object indexResult = runCommand(channel, indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, indexResult);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, bucket);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
@@ -735,7 +735,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         Object indexResult = runCommand(channel, indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, indexResult);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, bucket);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
@@ -769,7 +769,7 @@ class BucketExplainHandlerTest extends BaseBucketHandlerTest {
         Object indexResult = runCommand(channel, indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, indexResult);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, bucket);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());

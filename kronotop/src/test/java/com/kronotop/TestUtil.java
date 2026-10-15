@@ -69,7 +69,7 @@ public class TestUtil {
     public static Versionstamp findIndexMaintenanceTaskId(Context context, DirectorySubspace taskSubspace, IndexMaintenanceTaskKind kind) {
         AtomicReference<Versionstamp> taskId = new AtomicReference<>();
         await().atMost(15, TimeUnit.SECONDS).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     byte[] data = TaskStorage.getDefinition(tr, taskSubspace, id);
                     IndexMaintenanceTask task = JSONUtil.readValue(data, IndexMaintenanceTask.class);
@@ -91,7 +91,7 @@ public class TestUtil {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }

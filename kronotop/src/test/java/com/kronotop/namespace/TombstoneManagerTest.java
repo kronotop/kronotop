@@ -39,14 +39,14 @@ class TombstoneManagerTest extends BaseStandaloneInstanceTest {
     void shouldSetTombstone() {
         // Behavior: setTombstone writes a UUID token under the NAMESPACE key and returns it.
         String token;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             token = TombstoneManager.setTombstone(context, tr, TEST_NAMESPACE);
             tr.commit().join();
         }
 
         assertNotNull(token);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace tombstones = getTombstoneSubspace();
             byte[] key = tombstones.pack(Tuple.from(Tombstone.NAMESPACE.getValue(), TEST_NAMESPACE));
             byte[] stored = tr.get(key).join();
@@ -59,13 +59,13 @@ class TombstoneManagerTest extends BaseStandaloneInstanceTest {
     void shouldReturnDifferentTokensForEachCall() {
         // Behavior: Each setTombstone call generates a unique token.
         String token1;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             token1 = TombstoneManager.setTombstone(context, tr, TEST_NAMESPACE);
             tr.commit().join();
         }
 
         String token2;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             token2 = TombstoneManager.setTombstone(context, tr, TEST_NAMESPACE);
             tr.commit().join();
         }
@@ -77,13 +77,13 @@ class TombstoneManagerTest extends BaseStandaloneInstanceTest {
     void shouldObserveTombstone() {
         // Behavior: observe writes the member's ID under the OBSERVERS key with the given token as value.
         String token;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             token = TombstoneManager.setTombstone(context, tr, TEST_NAMESPACE);
             TombstoneManager.observe(context, tr, TEST_NAMESPACE, token);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace tombstones = getTombstoneSubspace();
             byte[] key = tombstones.pack(
                     Tuple.from(Tombstone.OBSERVERS.getValue(), TEST_NAMESPACE, context.getMember().getId())
@@ -98,13 +98,13 @@ class TombstoneManagerTest extends BaseStandaloneInstanceTest {
     void shouldGetObserversWithMatchingToken() {
         // Behavior: getObservers returns member IDs whose observer entries match the given token.
         String token;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             token = TombstoneManager.setTombstone(context, tr, TEST_NAMESPACE);
             TombstoneManager.observe(context, tr, TEST_NAMESPACE, token);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<String> observers = TombstoneManager.getObservers(context, tr, TEST_NAMESPACE, token);
             assertEquals(1, observers.size());
             assertEquals(context.getMember().getId(), observers.get(0));
@@ -114,12 +114,12 @@ class TombstoneManagerTest extends BaseStandaloneInstanceTest {
     @Test
     void shouldNotReturnObserversWithMismatchedToken() {
         // Behavior: getObservers filters out observer entries whose token doesn't match.
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TombstoneManager.observe(context, tr, TEST_NAMESPACE, "token-a");
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<String> observers = TombstoneManager.getObservers(context, tr, TEST_NAMESPACE, "token-b");
             assertTrue(observers.isEmpty());
         }
@@ -129,18 +129,18 @@ class TombstoneManagerTest extends BaseStandaloneInstanceTest {
     void shouldCleanupTombstoneAndObservers() {
         // Behavior: cleanup removes both the tombstone marker and all observer entries for the namespace.
         String token;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             token = TombstoneManager.setTombstone(context, tr, TEST_NAMESPACE);
             TombstoneManager.observe(context, tr, TEST_NAMESPACE, token);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TombstoneManager.cleanup(context, tr, TEST_NAMESPACE);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace tombstones = getTombstoneSubspace();
             byte[] tombstoneKey = tombstones.pack(Tuple.from(Tombstone.NAMESPACE.getValue(), TEST_NAMESPACE));
             assertNull(tr.get(tombstoneKey).join());
@@ -154,7 +154,7 @@ class TombstoneManagerTest extends BaseStandaloneInstanceTest {
     void shouldCleanupNonExistentNamespace() {
         // Behavior: cleanup on a namespace with no tombstone data completes without error.
         assertDoesNotThrow(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TombstoneManager.cleanup(context, tr, "non-existent-namespace");
                 tr.commit().join();
             }
@@ -166,13 +166,13 @@ class TombstoneManagerTest extends BaseStandaloneInstanceTest {
         // Behavior: checkBarrier is a no-op when no tombstone exists for the namespace.
         String namespace = "no-tombstone-ns";
         assertDoesNotThrow(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TombstoneManager.checkBarrier(context, tr, namespace);
                 tr.commit().join();
             }
         });
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertNull(TombstoneManager.getTombstone(context, tr, namespace));
         }
     }

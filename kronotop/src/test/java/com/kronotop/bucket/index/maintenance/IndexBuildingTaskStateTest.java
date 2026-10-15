@@ -43,7 +43,7 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     @Test
     void shouldLoadWithDefaultValues() {
         // Load state without setting any fields - should return defaults
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
 
             assertNotNull(state);
@@ -57,12 +57,12 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     void shouldSetAndLoadCursorVersionstamp() {
         Versionstamp cursorValue = Versionstamp.complete(new byte[10], 0);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState.setCursorVersionstamp(tr, taskSubspace, taskId, cursorValue);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
 
             assertNotNull(state.cursorVersionstamp());
@@ -74,12 +74,12 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     void shouldSetAndLoadError() {
         String errorMessage = "Test error: index build failed due to invalid document";
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState.setError(tr, taskSubspace, taskId, errorMessage);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
 
             assertNotNull(state.error());
@@ -89,12 +89,12 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldSetAndLoadStatus() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
 
             assertEquals(IndexTaskStatus.RUNNING, state.status());
@@ -105,19 +105,19 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     void shouldHandleFailedTaskWithError() {
         String errorMessage = "Index build failed: document validation error";
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
             tr.commit().join();
         }
 
         // Task fails during execution
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState.setError(tr, taskSubspace, taskId, errorMessage);
             IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.FAILED);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
 
             assertEquals(IndexTaskStatus.FAILED, state.status());
@@ -158,17 +158,17 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldTransitionStatusFromWaitingToRunning() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState initialState = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.WAITING, initialState.status());
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState updatedState = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.RUNNING, updatedState.status());
             assertFalse(IndexBuildingTaskState.isTerminal(updatedState.status()));
@@ -177,17 +177,17 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
 
     @Test
     void shouldTransitionStatusFromRunningToCompleted() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.RUNNING);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState.setStatus(tr, taskSubspace, taskId, IndexTaskStatus.COMPLETED);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(IndexTaskStatus.COMPLETED, state.status());
             assertTrue(IndexBuildingTaskState.isTerminal(state.status()));
@@ -198,12 +198,12 @@ class IndexBuildingTaskStateTest extends BaseBucketHandlerTest {
     void shouldHandleErrorMessageWithUnicodeCharacters() {
         String errorMessage = "Index build failed: 文档验证错误 (Document validation error) - エラー";
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState.setError(tr, taskSubspace, taskId, errorMessage);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTaskState state = IndexBuildingTaskState.load(tr, taskSubspace, taskId);
             assertEquals(errorMessage, state.error());
         }

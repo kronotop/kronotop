@@ -39,7 +39,7 @@ class BucketMetadataConvergenceTest extends BaseBucketHandlerTest {
         createBucket(TEST_BUCKET);
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
             tr.commit().join();
@@ -53,7 +53,7 @@ class BucketMetadataConvergenceTest extends BaseBucketHandlerTest {
         createBucket(TEST_BUCKET);
         BucketMetadata initialMetadata = getBucketMetadata(TEST_BUCKET);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, initialMetadata);
             tr.commit().join();

@@ -162,7 +162,7 @@ class VectorIndexIntegrationTest extends BaseBucketHandlerTest {
         assertEquals(0.4, retrievedEmbedding.get(2).asDouble().getValue(), 1e-6);
 
         // Verify vector index metadata exists in FDB
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             VectorIndex vectorIdx = metadata.vectorIndexes().getIndexBySelector("embedding", IndexSelectionPolicy.ALL);
             assertNotNull(vectorIdx, "Vector index should exist for 'embedding' field");
@@ -394,7 +394,7 @@ class VectorIndexIntegrationTest extends BaseBucketHandlerTest {
     }
 
     private OnHeapVectorGraphIndex getVectorGraph(String bucket, String selector) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, bucket);
             VectorIndex vectorIndex = metadata.vectorIndexes().getIndexBySelector(selector, IndexSelectionPolicy.ALL);
             assertNotNull(vectorIndex, "Vector index should exist for selector: " + selector);

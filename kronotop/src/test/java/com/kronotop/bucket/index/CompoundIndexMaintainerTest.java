@@ -66,7 +66,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
 
     BucketMetadata createCompoundIndexAndLoadBucketMetadata(CompoundIndexDefinition definition, String bucket) {
         createBucket(bucket);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.create(tx, TEST_NAMESPACE, bucket, definition);
             tr.commit().join();
@@ -78,7 +78,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
                                         List<Object> fieldValues, ObjectId objectId, AppendedEntry entry) {
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             CompoundIndexMaintainer.setEntry(tr, compoundIndex, metadata, fieldValues, objectIdBytes, encodedIndexEntry, new CollatorCache());
             tr.commit().join();
         }
@@ -88,7 +88,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }
@@ -97,7 +97,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }
@@ -146,7 +146,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertArrayEquals(IndexMaintainer.NULL_VALUE, backPointers.get(0).getValue());
 
         // Verify cardinality
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());
         }
@@ -192,7 +192,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(3, getEntries(compoundIndex.subspace()).size());
         assertEquals(3, getBackPointers(compoundIndex.subspace()).size());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(3, statistics.cardinality());
         }
@@ -249,7 +249,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] entryMetadata = getEncodedEntryMetadata();
         List<Object> fieldValues = List.of("John", 25);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             CompoundIndexMaintainer.insertEntry(tr, compoundIndex, metadata,
                     objectId.toByteArray(), fieldValues, SHARD_ID, entryMetadata, new CollatorCache());
             tr.commit().join();
@@ -285,7 +285,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertArrayEquals(IndexMaintainer.NULL_VALUE, backPointers.get(0).getValue(), "Back pointer value should be NULL_VALUE");
 
         // Verify cardinality
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());
         }
@@ -312,7 +312,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(1, getBackPointers(indexSubspace).size());
 
         // Drop the entry
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             CompoundIndexMaintainer.dropEntry(tr, objectId.toByteArray(), definition, indexSubspace, metadata.subspace());
             tr.commit().join();
         }
@@ -321,7 +321,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(0, getEntries(indexSubspace).size());
         assertEquals(0, getBackPointers(indexSubspace).size());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(0, statistics.cardinality());
         }
@@ -345,7 +345,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(2, getEntries(indexSubspace).size());
 
         // Drop only objectId1
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             CompoundIndexMaintainer.dropEntry(tr, objectId1.toByteArray(), definition, indexSubspace, metadata.subspace());
             tr.commit().join();
         }
@@ -366,7 +366,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals("Bob", bpUnpacked.get(2));
         assertEquals(30L, bpUnpacked.get(3));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());
         }
@@ -381,7 +381,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         DirectorySubspace indexSubspace = compoundIndex.subspace();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ObjectId nonExistent = new ObjectId();
             assertDoesNotThrow(() -> {
                 CompoundIndexMaintainer.dropEntry(tr, nonExistent.toByteArray(), definition, indexSubspace, metadata.subspace());
@@ -389,7 +389,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
             });
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(0, statistics.cardinality());
         }
@@ -415,12 +415,12 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(3, getEntries(indexSubspace).size());
         assertEquals(3, getBackPointers(indexSubspace).size());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(3, statistics.cardinality());
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             CompoundIndexMaintainer.dropEntry(tr, objectId.toByteArray(), definition, indexSubspace, metadata.subspace());
             tr.commit().join();
         }
@@ -428,7 +428,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(0, getEntries(indexSubspace).size());
         assertEquals(0, getBackPointers(indexSubspace).size());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(0, statistics.cardinality());
         }
@@ -459,7 +459,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] newEntryMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated").encode();
         byte[] newMetadata = new IndexEntry(SHARD_ID + 1, newEntryMetadata).encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             CompoundIndexMaintainer.updateIndexEntry(tr, objectId.toByteArray(), newMetadata, indexSubspace, definition.fields().size());
             tr.commit().join();
         }
@@ -482,7 +482,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         DirectorySubspace indexSubspace = compoundIndex.subspace();
         byte[] newMetadata = new IndexEntry(SHARD_ID, getEncodedEntryMetadata()).encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertDoesNotThrow(() -> {
                 CompoundIndexMaintainer.updateIndexEntry(tr, new ObjectId().toByteArray(), newMetadata, indexSubspace, definition.fields().size());
                 tr.commit().join();
@@ -519,7 +519,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         byte[] newEntryMetadata = VolumeTestUtil.generateEntryMetadata(1, 2, 1, 2, "updated").encode();
         byte[] newMetadata = new IndexEntry(SHARD_ID + 1, newEntryMetadata).encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             CompoundIndexMaintainer.updateIndexEntry(tr, objectId.toByteArray(), newMetadata, indexSubspace, definition.fields().size());
             tr.commit().join();
         }
@@ -898,7 +898,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
         assertEquals(true, bpUnpacked.get(4));
 
         // Verify cardinality
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality());
         }
@@ -907,7 +907,7 @@ class CompoundIndexMaintainerTest extends BaseIndexMaintainerTest {
     // --- findIndexedObjectIds tests ---
 
     private Set<ObjectId> findIndexedObjectIds(DirectorySubspace indexSubspace, ObjectId... objectIds) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<byte[]> ids = Arrays.stream(objectIds).map(ObjectId::toByteArray).toList();
             return IndexMaintainer.findIndexedObjectIds(tr, indexSubspace, ids);
         }

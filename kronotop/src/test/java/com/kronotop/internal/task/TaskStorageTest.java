@@ -50,7 +50,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster(TEST_SUBSPACE_NAME);
 
         Versionstamp taskId;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             CompletableFuture<byte[]> future = TaskStorage.create(tr, 0, subspace, JSONUtil.writeValueAsBytes(task));
             tr.commit().join();
 
@@ -63,7 +63,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         }
 
         // Verify the task was created
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             assertNotNull(definition);
 
@@ -80,7 +80,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         // Create tasks with different user versions in the same transaction
         // Note: Both tasks will have the same transaction version but different user versions
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexBuildingTask task1 = createIndexBuildingTask(1);
             IndexBuildingTask task2 = createIndexBuildingTask(2);
 
@@ -110,7 +110,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             assertNotNull(definition);
 
@@ -128,7 +128,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         // Create a fake versionstamp
         Versionstamp fakeTaskId = Versionstamp.complete(new byte[10]);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, fakeTaskId);
             assertNull(definition);
         }
@@ -142,14 +142,14 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
 
         // Add some state fields
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.setStateField(tr, subspace, taskId, "status", "running".getBytes(StandardCharsets.UTF_8));
             TaskStorage.setStateField(tr, subspace, taskId, "progress", "50%".getBytes(StandardCharsets.UTF_8));
             tr.commit().join();
         }
 
         // Verify task and state exist
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             assertNotNull(definition);
 
@@ -158,13 +158,13 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         }
 
         // Drop the task
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.drop(tr, subspace, taskId);
             tr.commit().join();
         }
 
         // Verify task and all state are deleted
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] definition = TaskStorage.getDefinition(tr, subspace, taskId);
             assertNull(definition);
 
@@ -183,13 +183,13 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         String fieldName = "status";
         String fieldValue = "processing";
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.setStateField(tr, subspace, taskId, fieldName, fieldValue.getBytes(StandardCharsets.UTF_8));
             tr.commit().join();
         }
 
         // Verify the state field was set
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] value = TaskStorage.getStateField(tr, subspace, taskId, fieldName);
             assertNotNull(value);
             assertEquals(fieldValue, new String(value, StandardCharsets.UTF_8));
@@ -206,19 +206,19 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         String fieldName = "status";
 
         // Set initial value
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.setStateField(tr, subspace, taskId, fieldName, "running".getBytes(StandardCharsets.UTF_8));
             tr.commit().join();
         }
 
         // Update the value
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.setStateField(tr, subspace, taskId, fieldName, "completed".getBytes(StandardCharsets.UTF_8));
             tr.commit().join();
         }
 
         // Verify the updated value
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] value = TaskStorage.getStateField(tr, subspace, taskId, fieldName);
             assertEquals("completed", new String(value, StandardCharsets.UTF_8));
         }
@@ -234,12 +234,12 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         String fieldName = "progress";
         String fieldValue = "75%";
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.setStateField(tr, subspace, taskId, fieldName, fieldValue.getBytes(StandardCharsets.UTF_8));
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] value = TaskStorage.getStateField(tr, subspace, taskId, fieldName);
             assertNotNull(value);
             assertEquals(fieldValue, new String(value, StandardCharsets.UTF_8));
@@ -253,7 +253,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] value = TaskStorage.getStateField(tr, subspace, taskId, "nonexistent");
             assertNull(value);
         }
@@ -267,7 +267,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
 
         // Set multiple state fields
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.setStateField(tr, subspace, taskId, "status", "running".getBytes(StandardCharsets.UTF_8));
             TaskStorage.setStateField(tr, subspace, taskId, "progress", "50%".getBytes(StandardCharsets.UTF_8));
             TaskStorage.setStateField(tr, subspace, taskId, "error", "none".getBytes(StandardCharsets.UTF_8));
@@ -275,7 +275,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         }
 
         // Retrieve all state fields
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Map<String, byte[]> stateFields = TaskStorage.getStateFields(tr, subspace, taskId);
 
             assertEquals(3, stateFields.size());
@@ -296,7 +296,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Map<String, byte[]> stateFields = TaskStorage.getStateFields(tr, subspace, taskId);
             assertNotNull(stateFields);
             assertTrue(stateFields.isEmpty());
@@ -319,7 +319,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         // Get initial trigger value
         long initialValue;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] value = tr.get(triggerKey).join();
             initialValue = value != null ? bytesToLong(value) : 0;
         }
@@ -329,7 +329,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
 
         // Verify trigger was incremented
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] value = tr.get(triggerKey).join();
             assertNotNull(value);
             long newValue = bytesToLong(value);
@@ -356,7 +356,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         assertNotEquals(taskId1, taskId3);
 
         // Verify all tasks can be retrieved
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] def1 = TaskStorage.getDefinition(tr, subspace, taskId1);
             byte[] def2 = TaskStorage.getDefinition(tr, subspace, taskId2);
             byte[] def3 = TaskStorage.getDefinition(tr, subspace, taskId3);
@@ -387,14 +387,14 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         Versionstamp taskId2 = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task2));
 
         // Set different state for each task
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.setStateField(tr, subspace, taskId1, "status", "running".getBytes(StandardCharsets.UTF_8));
             TaskStorage.setStateField(tr, subspace, taskId2, "status", "completed".getBytes(StandardCharsets.UTF_8));
             tr.commit().join();
         }
 
         // Verify state isolation
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] status1 = TaskStorage.getStateField(tr, subspace, taskId1, "status");
             byte[] status2 = TaskStorage.getStateField(tr, subspace, taskId2, "status");
 
@@ -418,7 +418,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         // Iterate over all tasks
         java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, subspace, taskId -> {
                 foundTasks.add(taskId);
                 return true; // Continue iteration
@@ -447,7 +447,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         // Collect tasks in iteration order
         java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, subspace, taskId -> {
                 foundTasks.add(taskId);
                 return true;
@@ -476,7 +476,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         // Iterate but break after first task
         java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, subspace, taskId -> {
                 foundTasks.add(taskId);
                 return false; // Break immediately
@@ -503,7 +503,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         // Iterate but break after second task
         java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, subspace, taskId -> {
                 foundTasks.add(taskId);
                 return foundTasks.size() < 2; // Break after second task
@@ -533,7 +533,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         java.util.concurrent.atomic.AtomicReference<Versionstamp> foundTask = new java.util.concurrent.atomic.AtomicReference<>();
         java.util.concurrent.atomic.AtomicInteger iterationCount = new java.util.concurrent.atomic.AtomicInteger(0);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, subspace, taskId -> {
                 iterationCount.incrementAndGet();
                 if (taskId.equals(targetTaskId)) {
@@ -557,7 +557,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         // Don't create any tasks
         java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger(0);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, subspace, taskId -> {
                 callCount.incrementAndGet();
                 return true;
@@ -577,7 +577,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
         Versionstamp taskId = TaskStorage.create(context, subspace, JSONUtil.writeValueAsBytes(task));
 
         // Add multiple state fields
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.setStateField(tr, subspace, taskId, "status", "running".getBytes(StandardCharsets.UTF_8));
             TaskStorage.setStateField(tr, subspace, taskId, "progress", "50%".getBytes(StandardCharsets.UTF_8));
             TaskStorage.setStateField(tr, subspace, taskId, "error", "none".getBytes(StandardCharsets.UTF_8));
@@ -586,7 +586,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         // Iterate over tasks
         java.util.List<Versionstamp> foundTasks = new java.util.ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, subspace, foundTaskId -> {
                 foundTasks.add(foundTaskId);
                 return true;
@@ -617,7 +617,7 @@ class TaskStorageTest extends BaseStandaloneInstanceTest {
 
         // Process only first 3 tasks
         java.util.List<Versionstamp> processedTasks = new java.util.ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, subspace, taskId -> {
                 processedTasks.add(taskId);
                 return processedTasks.size() < 3; // Continue until we have 3 tasks

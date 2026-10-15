@@ -31,12 +31,12 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long segmentId = 1L;
         long expectedPosition = 12345L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setPosition(tr, subspace, segmentId, expectedPosition);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationCursor cursor = ReplicationState.readCursor(tr, subspace);
             assertEquals(segmentId, cursor.segmentId());
             assertEquals(expectedPosition, cursor.position());
@@ -50,17 +50,17 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long initialPosition = 100L;
         long updatedPosition = 500L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setPosition(tr, subspace, segmentId, initialPosition);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setPosition(tr, subspace, segmentId, updatedPosition);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationCursor cursor = ReplicationState.readCursor(tr, subspace);
             assertEquals(segmentId, cursor.segmentId());
             assertEquals(updatedPosition, cursor.position());
@@ -71,14 +71,14 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
     void shouldReturnLatestSegmentWhenMultipleSegmentsExist() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-multiple-segments");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setPosition(tr, subspace, 1L, 100L);
             ReplicationState.setPosition(tr, subspace, 2L, 200L);
             ReplicationState.setPosition(tr, subspace, 3L, 300L);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationCursor cursor = ReplicationState.readCursor(tr, subspace);
             assertEquals(3L, cursor.segmentId());
             assertEquals(300L, cursor.position());
@@ -89,7 +89,7 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
     void shouldReturnDefaultCursorWhenNoSegmentsExist() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-empty-segments");
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationCursor cursor = ReplicationState.readCursor(tr, subspace);
             assertEquals(0L, cursor.segmentId());
             assertEquals(0L, cursor.position());
@@ -102,12 +102,12 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long segmentId = 5L;
         String expectedMessage = "Replication error occurred";
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setErrorMessage(tr, subspace, segmentId, expectedMessage);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             String actualMessage = ReplicationState.readErrorMessage(tr, subspace, segmentId);
             assertEquals(expectedMessage, actualMessage);
         }
@@ -120,17 +120,17 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         String initialMessage = "Initial error";
         String updatedMessage = "Updated error message";
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setErrorMessage(tr, subspace, segmentId, initialMessage);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setErrorMessage(tr, subspace, segmentId, updatedMessage);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             String actualMessage = ReplicationState.readErrorMessage(tr, subspace, segmentId);
             assertEquals(updatedMessage, actualMessage);
         }
@@ -141,7 +141,7 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-no-error");
         long segmentId = 7L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             String message = ReplicationState.readErrorMessage(tr, subspace, segmentId);
             assertNull(message);
         }
@@ -153,22 +153,22 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long segmentId = 100L;
         String errorMessage = "Some error occurred";
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setErrorMessage(tr, subspace, segmentId, errorMessage);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             String message = ReplicationState.readErrorMessage(tr, subspace, segmentId);
             assertEquals(errorMessage, message);
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.clearErrorMessage(tr, subspace, segmentId);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             String message = ReplicationState.readErrorMessage(tr, subspace, segmentId);
             assertNull(message);
         }
@@ -182,13 +182,13 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         String message1 = "Error for segment 8";
         String message2 = "Error for segment 9";
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setErrorMessage(tr, subspace, segmentId1, message1);
             ReplicationState.setErrorMessage(tr, subspace, segmentId2, message2);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             String actualMessage1 = ReplicationState.readErrorMessage(tr, subspace, segmentId1);
             String actualMessage2 = ReplicationState.readErrorMessage(tr, subspace, segmentId2);
             assertEquals(message1, actualMessage1);
@@ -202,12 +202,12 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long segmentId = 10L;
         long largePosition = Long.MAX_VALUE;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setPosition(tr, subspace, segmentId, largePosition);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationCursor cursor = ReplicationState.readCursor(tr, subspace);
             assertEquals(segmentId, cursor.segmentId());
             assertEquals(largePosition, cursor.position());
@@ -222,13 +222,13 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long position1 = 1000L;
         long position2 = 2000L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setPosition(tr, subspace1, segmentId, position1);
             ReplicationState.setPosition(tr, subspace2, segmentId, position2);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationCursor cursor1 = ReplicationState.readCursor(tr, subspace1);
             ReplicationCursor cursor2 = ReplicationState.readCursor(tr, subspace2);
             assertEquals(position1, cursor1.position());
@@ -242,12 +242,12 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long segmentId = 12L;
         ReplicationStatus expectedStatus = ReplicationStatus.RUNNING;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setStatus(tr, subspace, segmentId, expectedStatus);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationStatus actualStatus = ReplicationState.readStatus(tr, subspace, segmentId);
             assertEquals(expectedStatus, actualStatus);
         }
@@ -260,17 +260,17 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         ReplicationStatus initialStatus = ReplicationStatus.WAITING;
         ReplicationStatus updatedStatus = ReplicationStatus.DONE;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setStatus(tr, subspace, segmentId, initialStatus);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setStatus(tr, subspace, segmentId, updatedStatus);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationStatus actualStatus = ReplicationState.readStatus(tr, subspace, segmentId);
             assertEquals(updatedStatus, actualStatus);
         }
@@ -281,7 +281,7 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-no-status");
         long segmentId = 14L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationStatus status = ReplicationState.readStatus(tr, subspace, segmentId);
             assertEquals(ReplicationStatus.WAITING, status);
         }
@@ -296,12 +296,12 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
             long segmentId = 15L + i;
             ReplicationStatus status = allStatuses[i];
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 ReplicationState.setStatus(tr, subspace, segmentId, status);
                 tr.commit().join();
             }
 
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 ReplicationStatus actualStatus = ReplicationState.readStatus(tr, subspace, segmentId);
                 assertEquals(status, actualStatus);
             }
@@ -316,13 +316,13 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         ReplicationStatus status1 = ReplicationStatus.RUNNING;
         ReplicationStatus status2 = ReplicationStatus.FAILED;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setStatus(tr, subspace, segmentId1, status1);
             ReplicationState.setStatus(tr, subspace, segmentId2, status2);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationStatus actualStatus1 = ReplicationState.readStatus(tr, subspace, segmentId1);
             ReplicationStatus actualStatus2 = ReplicationState.readStatus(tr, subspace, segmentId2);
             assertEquals(status1, actualStatus1);
@@ -337,12 +337,12 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long sequenceNumber = 12345L;
         long nextPosition = 67890L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setTailPointer(tr, subspace, segmentId, sequenceNumber, nextPosition);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var result = ReplicationState.readTailPointer(tr, subspace, segmentId);
             assertEquals(2, result.size());
             assertEquals(sequenceNumber, result.get(0));
@@ -355,7 +355,7 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-no-tail-pointer");
         long segmentId = 51L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var result = ReplicationState.readTailPointer(tr, subspace, segmentId);
             assertTrue(result.isEmpty());
         }
@@ -370,17 +370,17 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long updatedSequenceNumber = 500L;
         long updatedNextPosition = 600L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setTailPointer(tr, subspace, segmentId, initialSequenceNumber, initialNextPosition);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setTailPointer(tr, subspace, segmentId, updatedSequenceNumber, updatedNextPosition);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             var result = ReplicationState.readTailPointer(tr, subspace, segmentId);
             assertEquals(2, result.size());
             assertEquals(updatedSequenceNumber, result.get(0));
@@ -394,12 +394,12 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long segmentId = 60L;
         Stage expectedStage = Stage.SEGMENT_REPLICATION;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setStage(tr, subspace, segmentId, expectedStage);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Stage actualStage = ReplicationState.readStage(tr, subspace, segmentId);
             assertEquals(expectedStage, actualStage);
         }
@@ -410,7 +410,7 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-no-stage");
         long segmentId = 61L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Stage stage = ReplicationState.readStage(tr, subspace, segmentId);
             assertNull(stage);
         }
@@ -423,17 +423,17 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         Stage initialStage = Stage.SEGMENT_REPLICATION;
         Stage updatedStage = Stage.CHANGE_DATA_CAPTURE;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setStage(tr, subspace, segmentId, initialStage);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setStage(tr, subspace, segmentId, updatedStage);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Stage actualStage = ReplicationState.readStage(tr, subspace, segmentId);
             assertEquals(updatedStage, actualStage);
         }
@@ -445,12 +445,12 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long segmentId = 70L;
         long expectedSequenceNumber = 12345L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setSequenceNumber(tr, subspace, segmentId, expectedSequenceNumber);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long actualSequenceNumber = ReplicationState.readSequenceNumber(tr, subspace, segmentId);
             assertEquals(expectedSequenceNumber, actualSequenceNumber);
         }
@@ -461,7 +461,7 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-no-sequence-number");
         long segmentId = 71L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long sequenceNumber = ReplicationState.readSequenceNumber(tr, subspace, segmentId);
             assertEquals(0L, sequenceNumber);
         }
@@ -474,17 +474,17 @@ class ReplicationStateTest extends BaseStandaloneInstanceTest {
         long initialSequenceNumber = 100L;
         long updatedSequenceNumber = 500L;
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setSequenceNumber(tr, subspace, segmentId, initialSequenceNumber);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ReplicationState.setSequenceNumber(tr, subspace, segmentId, updatedSequenceNumber);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             long actualSequenceNumber = ReplicationState.readSequenceNumber(tr, subspace, segmentId);
             assertEquals(updatedSequenceNumber, actualSequenceNumber);
         }

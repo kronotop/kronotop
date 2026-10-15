@@ -269,7 +269,7 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
     }
 
     private BucketMetadata openBucketMetadata(String bucketName) {
-        try (Transaction tr = primaryContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = primaryContext.getTransactionManager().create()) {
             String namespace = primaryContext.getConfig().getString("default_namespace");
             return BucketMetadataUtil.open(primaryContext, tr, namespace, bucketName);
         }
@@ -304,7 +304,7 @@ class DocumentRetrieverTest extends BaseClusterTestWithTCPServer {
         SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READ);
         assertNotNull(primaryIndex, "Primary index should exist");
 
-        try (Transaction tr = primaryContext.getFoundationDB().createTransaction()) {
+        try (Transaction tr = primaryContext.getTransactionManager().create()) {
             for (ObjectId objectId : objectIds) {
                 // Look up the index entry by ObjectId: (ENTRIES, ObjectId) -> IndexEntry
                 byte[] indexKey = primaryIndex.subspace().pack(

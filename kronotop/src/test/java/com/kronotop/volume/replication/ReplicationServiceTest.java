@@ -54,7 +54,7 @@ class ReplicationServiceTest extends BaseNetworkedVolumeIntegrationTest {
     private void appendEntries(int number, int length) throws IOException {
         ByteBuffer[] entries = getEntries(number, length);
         AppendResult result;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             result = volume.append(session, entries);
             tr.commit().join();

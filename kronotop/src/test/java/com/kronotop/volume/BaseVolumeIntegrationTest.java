@@ -39,7 +39,7 @@ public class BaseVolumeIntegrationTest extends BaseVolumeTest {
                 cluster(context.getClusterName()).
                 metadata().
                 prefixes();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             context.getDirectoryLayer().createOrOpen(tr, prefixes.toList()).join();
             tr.commit().join();
         }

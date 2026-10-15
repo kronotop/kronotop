@@ -95,7 +95,7 @@ class VolumeSyncerIntegrationTest extends BaseNetworkedVolumeIntegrationTest {
         volumeSyncer.run();
         assertTrue(volumeSyncer.isQueueEmpty());
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, prefix);
             VolumeService standbyVolumeService = standbyInstance.getContext().getService(VolumeService.NAME);
             Volume standbyVolume = standbyVolumeService.findVolume(shard.volume().getConfig().name());

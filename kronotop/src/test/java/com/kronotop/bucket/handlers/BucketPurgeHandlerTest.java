@@ -96,7 +96,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Verify bucket no longer exists
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () ->
                     BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET));
             assertEquals("No such bucket: 'test-bucket'", exception.getMessage());
@@ -219,7 +219,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Verify bucket no longer exists
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             NoSuchBucketException exception = assertThrows(NoSuchBucketException.class, () ->
                     BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET));
             assertEquals("No such bucket: 'test-bucket'", exception.getMessage());
@@ -368,14 +368,14 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
 
         // Capture the prefix before removal
         Prefix prefix;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             prefix = metadata.prefix();
         }
 
         // Verify the prefix is registered in the global PREFIXES subspace
         DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
             assertNotNull(tr.get(prefixKey).join(), "Prefix should be registered before purge");
         }
@@ -396,7 +396,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Verify prefix is no longer in the global PREFIXES subspace
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] prefixKey = prefixesSubspace.pack(Tuple.from((Object) prefix.asBytes()));
             assertNull(tr.get(prefixKey).join(), "Prefix should be unregistered after purge");
         }
@@ -416,7 +416,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         }
 
         Prefix prefix;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.open(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             prefix = metadata.prefix();
         }
@@ -446,7 +446,7 @@ class BucketPurgeHandlerTest extends BaseBucketHandlerTest {
         consumer.start();
 
         List<byte[]> publishedPrefixes = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event;
             while ((event = consumer.consume(tr)) != null) {
                 byte[] decoded = JSONUtil.readValue(event.value(), byte[].class);

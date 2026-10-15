@@ -52,7 +52,7 @@ class NamespaceVersionBarrierTest extends BaseClusterTest {
         NamespaceRemovedEvent event = new NamespaceRemovedEvent(metadata.id(), namespace);
         for (KronotopTestInstance instance : getInstances()) {
             Context instanceContext = instance.getContext();
-            try (Transaction tr = instanceContext.getFoundationDB().createTransaction()) {
+            try (Transaction tr = instanceContext.getTransactionManager().create()) {
                 List<String> memberSubpath = KronotopDirectory.
                         kronotop().
                         cluster(instanceContext.getClusterName()).
@@ -92,7 +92,7 @@ class NamespaceVersionBarrierTest extends BaseClusterTest {
         NamespaceRemovedEvent event = new NamespaceRemovedEvent(metadata.id(), namespace);
         for (KronotopTestInstance instance : getInstances()) {
             Context instanceContext = instance.getContext();
-            try (Transaction tr = instanceContext.getFoundationDB().createTransaction()) {
+            try (Transaction tr = instanceContext.getTransactionManager().create()) {
                 List<String> memberSubpath = KronotopDirectory.
                         kronotop().
                         cluster(instanceContext.getClusterName()).
@@ -153,7 +153,7 @@ class NamespaceVersionBarrierTest extends BaseClusterTest {
 
         // Set the lastSeenNamespaceVersion for only the first member
         NamespaceRemovedEvent event = new NamespaceRemovedEvent(metadata.id(), namespace);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<String> memberSubpath = KronotopDirectory.
                     kronotop().
                     cluster(context.getClusterName()).

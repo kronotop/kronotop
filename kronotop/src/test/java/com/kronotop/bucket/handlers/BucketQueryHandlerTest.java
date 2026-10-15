@@ -127,7 +127,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         BucketService bucketService = context.getService(BucketService.NAME);
         BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
 
@@ -160,7 +160,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
 
         BucketService bucketService = context.getService(BucketService.NAME);
         BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
         long maxTtl = context.getConfig().getInt("bucket.plan_cache.max_ttl");
@@ -206,7 +206,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         PlanCache planCache = bucketService.getPlanCache();
 
         BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
 
@@ -228,7 +228,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
                 "Plan should be cached");
 
         // Publish BUCKET_METADATA_UPDATED_EVENT
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.publishBucketMetadataUpdatedEvent(tx, metadata);
             tr.commit().join();
@@ -250,7 +250,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         PlanCache planCache = bucketService.getPlanCache();
 
         BucketMetadata metadata;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
         }
 
@@ -272,7 +272,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
                 "Plan should be cached");
 
         // Set the bucket as removed (this publishes BUCKET_REMOVED_EVENT)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
             tr.commit().join();
@@ -792,7 +792,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         insertDocumentsAndGetObjectIds(List.of(TEST_DOCUMENT));
 
         // Get the bucket metadata and mark it as removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             TransactionalContext tx = new TransactionalContext(context, tr);
             BucketMetadataUtil.setRemoved(tx, metadata);
@@ -1540,7 +1540,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         Object indexResult = runCommand(channel, indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, indexResult);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
@@ -1634,7 +1634,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         Object indexResult = runCommand(channel, indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, indexResult);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, COLLATION_BUCKET);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
@@ -1722,7 +1722,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         Object indexResult = runCommand(channel, indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, indexResult);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, COLLATION_BUCKET);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());
@@ -2056,7 +2056,7 @@ class BucketQueryHandlerTest extends BaseBucketHandlerTest {
         Object indexResult = runCommand(channel, indexBuf);
         assertInstanceOf(SimpleStringRedisMessage.class, indexResult);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             SingleFieldIndex nameIndex = metadata.singleFieldIndexes().getIndex("name", IndexSelectionPolicy.ALL);
             waitForIndexReadiness(nameIndex.subspace());

@@ -73,14 +73,14 @@ class IndexDropRoutineTest extends BaseBucketHandlerTest {
         SingleFieldIndex index = metadata.singleFieldIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
         assertNotNull(index);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             SingleFieldIndexUtil.drop(tx, metadata, definition.name());
             tr.commit().join();
         }
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 try {
                     IndexUtil.open(tr, metadata.subspace(), definition.name());
                     return false;
@@ -123,14 +123,14 @@ class IndexDropRoutineTest extends BaseBucketHandlerTest {
         CompoundIndex compoundIndex = metadata.compoundIndexes().getIndexById(definition.id(), IndexSelectionPolicy.ALL);
         assertNotNull(compoundIndex);
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             CompoundIndexUtil.drop(tx, metadata, definition.name());
             tr.commit().join();
         }
 
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 try {
                     IndexUtil.open(tr, metadata.subspace(), definition.name());
                     return false;

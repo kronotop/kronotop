@@ -48,7 +48,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
 
         Publisher publisher = journal.getPublisher();
         List<VersionstampContainer> result = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VersionstampContainer first = publisher.publish(tr, TEST_JOURNAL, "foo");
             result.add(first);
 
@@ -71,7 +71,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
         Publisher publisher = journal.getPublisher();
 
         // Publish in a transaction but don't commit
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             publisher.publish(tr, TEST_JOURNAL, "should-not-persist");
             // Intentionally NOT calling tr.commit()
         }
@@ -81,7 +81,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
         Consumer consumer = new Consumer(context, consumerConfig);
         consumer.start();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event = consumer.consume(tr);
             assertNull(event, "Event should not exist when transaction was not committed");
         }
@@ -93,7 +93,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
         Publisher publisher = journal.getPublisher();
 
         List<VersionstampContainer> containers = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             // Publish 5 events in same transaction
             for (int i = 0; i < 5; i++) {
                 containers.add(publisher.publish(tr, TEST_JOURNAL, "event-" + i));
@@ -152,7 +152,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
         Consumer consumer = new Consumer(context, consumerConfig);
         consumer.start();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event = consumer.consume(tr);
             assertNotNull(event);
             assertNotNull(event.value());
@@ -179,7 +179,7 @@ class PublisherTest extends BaseStandaloneInstanceTest {
         consumer.start();
 
         int eventCount = 0;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             while (true) {
                 Event event = consumer.consume(tr);
                 if (event == null) break;

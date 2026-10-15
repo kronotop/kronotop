@@ -50,12 +50,12 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         assertTrue(ProbabilisticSelector.match(matchingValue), "BsonNull should match");
 
         ObjectId objectId = new ObjectId();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray(), matchingValue);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
             byte[] expectedKey = subspace.pack(expectedTuple);
 
@@ -77,12 +77,12 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         assertFalse(ProbabilisticSelector.match(nonMatchingValue), "BsonInt32(1) should not match");
 
         ObjectId objectId = new ObjectId();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray(), nonMatchingValue);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Tuple prefixTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue());
             byte[] prefix = subspace.pack(prefixTuple);
 
@@ -102,12 +102,12 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = new ObjectId();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray());
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
             byte[] expectedKey = subspace.pack(expectedTuple);
 
@@ -125,12 +125,12 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = new ObjectId();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatsBuilder.setHintForStats(tr, index, objectId.toByteArray());
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
             byte[] expectedKey = subspace.pack(expectedTuple);
 
@@ -179,12 +179,12 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = findMatchingObjectId();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatsBuilder.setHintForStatsIfSelected(tr, index, objectId.toByteArray());
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
             byte[] expectedKey = subspace.pack(expectedTuple);
 
@@ -203,12 +203,12 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         SingleFieldIndex index = new SingleFieldIndex(definition, subspace);
 
         ObjectId objectId = findNonMatchingObjectId();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatsBuilder.setHintForStatsIfSelected(tr, index, objectId.toByteArray());
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Tuple prefixTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue());
             byte[] prefix = subspace.pack(prefixTuple);
 
@@ -235,12 +235,12 @@ class IndexStatsBuilderTest extends BaseStandaloneInstanceTest {
         CompoundIndex compoundIndex = new CompoundIndex(definition, subspace);
 
         ObjectId objectId = new ObjectId();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatsBuilder.setHintForStats(tr, compoundIndex, objectId.toByteArray());
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Tuple expectedTuple = Tuple.from(IndexSubspaceMagic.STAT_HINTS.getValue(), objectId.toByteArray());
             byte[] expectedKey = subspace.pack(expectedTuple);
 

@@ -54,7 +54,7 @@ class VectorIndexBoundaryRoutineTest extends BaseBucketHandlerTest {
     private VectorIndexDefinition createVectorIndex(IndexStatus status) {
         String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);
         VectorIndexDefinition definition = VectorIndexDefinition.create(name, SELECTOR, DIMENSIONS, DistanceFunction.COSINE, status);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             VectorIndexUtil.create(tx, getBucketMetadata(TEST_BUCKET), definition);
             tr.commit().join();
@@ -96,7 +96,7 @@ class VectorIndexBoundaryRoutineTest extends BaseBucketHandlerTest {
         // Verify all tasks are swept
         await().atMost(30, TimeUnit.SECONDS).until(() -> {
             AtomicInteger counter = new AtomicInteger();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     counter.incrementAndGet();
                     return true;
@@ -106,7 +106,7 @@ class VectorIndexBoundaryRoutineTest extends BaseBucketHandlerTest {
         });
 
         // Verify cardinality is zero
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
             Map<Long, IndexStatistics> stats = BucketMetadataUtil.readIndexStatistics(tr, metadata);
             IndexStatistics indexStats = stats.get(definition.id());
@@ -144,7 +144,7 @@ class VectorIndexBoundaryRoutineTest extends BaseBucketHandlerTest {
 
         // Verify BOUNDARY task was created (may already be consumed, so check within a window)
         AtomicInteger boundaryTaskCount = new AtomicInteger();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, taskSubspace, (id) -> {
                 byte[] data = TaskStorage.getDefinition(tr, taskSubspace, id);
                 IndexMaintenanceTask task = com.kronotop.internal.JSONUtil.readValue(data, IndexMaintenanceTask.class);
@@ -178,7 +178,7 @@ class VectorIndexBoundaryRoutineTest extends BaseBucketHandlerTest {
 
         // No tasks should be created for this index
         AtomicInteger taskCount = new AtomicInteger();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TaskStorage.tasks(tr, taskSubspace, (id) -> {
                 byte[] data = TaskStorage.getDefinition(tr, taskSubspace, id);
                 IndexMaintenanceTask task = com.kronotop.internal.JSONUtil.readValue(data, IndexMaintenanceTask.class);

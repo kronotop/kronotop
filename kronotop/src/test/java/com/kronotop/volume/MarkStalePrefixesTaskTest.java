@@ -42,7 +42,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
 
     private int countPrefixes() {
         DirectorySubspace prefixesSubspace = context.getDirectorySubspaceCache().get(DirectorySubspaceCache.Key.PREFIXES);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] begin = prefixesSubspace.pack();
             byte[] end = ByteArrayUtil.strinc(begin);
             Range range = new Range(begin, end);
@@ -55,7 +55,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
     void shouldMarkAndRemoveAllStalePrefixes() {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-subspace");
         byte[] prefixPointer = subspace.pack("prefix-pointer");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 20; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
                 PrefixUtil.register(context, tr, prefixPointer, testPrefix);
@@ -64,7 +64,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         }
 
         // Remove the pointer and make prefixes stale
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.clear(prefixPointer);
             tr.commit().join();
         }
@@ -81,7 +81,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-subspace");
 
         // Register 10 non-stale prefixes with valid pointers
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 10; i++) {
                 byte[] prefixPointer = subspace.pack("valid-pointer-" + i);
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
@@ -92,7 +92,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
 
         // Register 10 stale prefixes (the pointer will be removed)
         byte[] stalePointer = subspace.pack("stale-pointer");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 10; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
                 PrefixUtil.register(context, tr, stalePointer, testPrefix);
@@ -103,7 +103,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         assertEquals(20, countPrefixes());
 
         // Remove the stale pointer
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.clear(stalePointer);
             tr.commit().join();
         }
@@ -132,7 +132,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         DirectorySubspace subspace = createOrOpenSubspaceUnderCluster("test-subspace");
 
         // Register 10 prefixes with valid pointers
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 10; i++) {
                 byte[] prefixPointer = subspace.pack("valid-pointer-" + i);
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
@@ -156,7 +156,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
 
         // Register 5 stale prefixes
         byte[] stalePointer = subspace.pack("stale-pointer");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 5; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
                 PrefixUtil.register(context, tr, stalePointer, testPrefix);
@@ -165,7 +165,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         }
 
         // Remove the pointer to make prefixes stale
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.clear(stalePointer);
             tr.commit().join();
         }
@@ -183,7 +183,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         consumer.start();
 
         List<byte[]> publishedPrefixes = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             Event event;
             while ((event = consumer.consume(tr)) != null) {
                 publishedPrefixes.add(event.value());
@@ -202,7 +202,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
 
         // Register 20 stale prefixes
         byte[] stalePointer = subspace.pack("stale-pointer");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 20; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
                 PrefixUtil.register(context, tr, stalePointer, testPrefix);
@@ -211,7 +211,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         }
 
         // Remove the pointer to make prefixes stale
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.clear(stalePointer);
             tr.commit().join();
         }
@@ -236,7 +236,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         KronotopDirectoryNode node = KronotopDirectory.kronotop()
                 .cluster(context.getClusterName()).metadata().tasks()
                 .task(MarkStalePrefixesTask.NAME);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             DirectorySubspace subspace = context.getDirectoryLayer().createOrOpen(tr, node.toList()).join();
             tr.commit().join();
             return subspace;
@@ -249,13 +249,13 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         // the task should allow takeover because the original member has restarted.
         DirectorySubspace testSubspace = createOrOpenSubspaceUnderCluster("test-subspace");
         byte[] stalePointer = testSubspace.pack("stale-pointer");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 5; i++) {
                 PrefixUtil.register(context, tr, stalePointer, new Prefix(UUID.randomUUID().toString()));
             }
             tr.commit().join();
         }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.clear(stalePointer);
             tr.commit().join();
         }
@@ -268,7 +268,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
 
         // Overwrite stored PROCESS_ID with a different Versionstamp
         DirectorySubspace taskSubspace = openTaskSubspace();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.set(taskSubspace.pack(MarkStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()),
                     TestUtil.generateVersionstamp(0).getBytes());
             tr.commit().join();
@@ -286,20 +286,20 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         // the task should allow takeover because the member has been removed.
         DirectorySubspace testSubspace = createOrOpenSubspaceUnderCluster("test-subspace");
         byte[] stalePointer = testSubspace.pack("stale-pointer");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 5; i++) {
                 PrefixUtil.register(context, tr, stalePointer, new Prefix(UUID.randomUUID().toString()));
             }
             tr.commit().join();
         }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.clear(stalePointer);
             tr.commit().join();
         }
 
         // Write metadata with a non-existent member ID
         DirectorySubspace taskSubspace = openTaskSubspace();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.set(taskSubspace.pack(MarkStalePrefixesTask.METADATA_KEY.MEMBER_ID.name()),
                     MemberIdGenerator.generateId().getBytes());
             tr.set(taskSubspace.pack(MarkStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()),
@@ -319,13 +319,13 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         // kind (LAST_PREFIX) and clean up remaining stale prefixes.
         DirectorySubspace testSubspace = createOrOpenSubspaceUnderCluster("test-subspace");
         byte[] stalePointer = testSubspace.pack("stale-pointer");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 20; i++) {
                 PrefixUtil.register(context, tr, stalePointer, new Prefix(UUID.randomUUID().toString()));
             }
             tr.commit().join();
         }
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.clear(stalePointer);
             tr.commit().join();
         }
@@ -340,7 +340,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
 
         // Overwrite stored PROCESS_ID to simulate a restarted member
         DirectorySubspace taskSubspace = openTaskSubspace();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.set(taskSubspace.pack(MarkStalePrefixesTask.METADATA_KEY.PROCESS_ID.name()),
                     TestUtil.generateVersionstamp(0).getBytes());
             tr.commit().join();
@@ -360,7 +360,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
 
         // Register stale prefixes
         byte[] stalePointer = subspace.pack("stale-pointer");
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             for (int i = 0; i < 20; i++) {
                 Prefix testPrefix = new Prefix(UUID.randomUUID().toString());
                 PrefixUtil.register(context, tr, stalePointer, testPrefix);
@@ -369,7 +369,7 @@ class MarkStalePrefixesTaskTest extends BaseVolumeIntegrationTest {
         }
 
         // Remove the pointer to make prefixes stale
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.clear(stalePointer);
             tr.commit().join();
         }

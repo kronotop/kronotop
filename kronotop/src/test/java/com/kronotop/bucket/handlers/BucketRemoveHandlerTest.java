@@ -67,7 +67,7 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
         }
 
         // Verify bucket is marked as removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET);
             assertTrue(metadata.removed());
         }
@@ -132,7 +132,7 @@ class BucketRemoveHandlerTest extends BaseBucketHandlerTest {
 
         assertOK(run(bucketCmd.remove(TEST_BUCKET, otherNamespace)));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(BucketMetadataUtil.forceOpen(context, tr, otherNamespace, TEST_BUCKET).removed());
             assertFalse(BucketMetadataUtil.forceOpen(context, tr, TEST_NAMESPACE, TEST_BUCKET).removed());
         }

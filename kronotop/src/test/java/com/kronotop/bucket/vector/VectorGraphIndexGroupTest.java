@@ -67,7 +67,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         String name = VectorIndexNameGenerator.generate(SELECTOR, DIMENSIONS, DistanceFunction.COSINE);
         VectorIndexDefinition definition = VectorIndexDefinition.create(
                 name, SELECTOR, DIMENSIONS, DistanceFunction.COSINE, IndexStatus.WAITING);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             VectorIndexUtil.create(tx, getBucketMetadata(TEST_BUCKET), definition);
             tr.commit().join();
@@ -849,7 +849,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         ObjectId oid = new ObjectId();
         byte[] encodedEntry = new IndexEntry(1, VolumeTestUtil.generateEntryMetadata(1, 1, 0, 1, "test").encode()).encode();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setMutationLog(
                     tr,
                     vectorIndex.subspace(),
@@ -996,7 +996,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.FAILED_OP_LOG.getValue()));
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return tr.getRange(begin, end).asList().join();
         }
     }
@@ -1038,7 +1038,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         EntryMetadata entryMetadata = newEntryMetadata(1);
         float[] vector = new float[]{1.0f, 0.0f, 0.0f};
         byte[] encodedIndexEntry = new IndexEntry(0, entryMetadata.encode()).encode();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             VectorIndexMaintainer.setFailedOpLog(tr, vectorIndex.subspace(), MutationLogKind.INSERT, versionstamp(3),
                     staleObjectId.toByteArray(), encodedIndexEntry, vector);
             tr.commit().join();

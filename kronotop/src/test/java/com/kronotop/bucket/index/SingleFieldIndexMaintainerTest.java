@@ -77,7 +77,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
         byte[] objectIdBytes = objectId.toByteArray();
         byte[] encodedIndexEntry = new IndexEntry(SHARD_ID, entry.metadataBytes()).encode();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.setEntry(tr, index, metadata, indexValue, objectIdBytes, encodedIndexEntry, new CollatorCache());
             tr.commit().join();
         }
@@ -91,7 +91,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexedEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, indexedEntries.size(), "Should have exactly one index entry");
 
@@ -124,7 +124,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
                                    Object indexValue, ObjectId objectId, int shardId, byte[] entry) {
         SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.READWRITE);
         byte[] objectIdBytes = objectId.toByteArray();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.insertEntry(tr, index, metadata,
                     objectIdBytes, indexValue, shardId, entry, new CollatorCache());
             tr.commit().join();
@@ -150,14 +150,14 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         verifyIndexEntry(indexSubspace, expectedStoredValue, objectId, expectedEntryMetadata);
 
         // Verify cardinality was incremented
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after setting one entry for " + bsonType);
         }
 
         // Verify the back pointer was created
         byte[] backPointerPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> backPointers = tr.getRange(
                     KeySelector.firstGreaterOrEqual(backPointerPrefix),
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix))
@@ -183,7 +183,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         DirectorySubspace indexSubspace = index.subspace();
         DirectorySubspace metadataSubspace = metadata.subspace();
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] indexPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> beforeEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(indexPrefix),
@@ -200,13 +200,13 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Drop the index entry using the ObjectId
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.dropEntry(tr, objectId.toByteArray(), definition, indexSubspace, metadataSubspace);
             tr.commit().join();
         }
 
         // Verify the entry and back pointer are removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] indexPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> afterEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(indexPrefix),
@@ -249,19 +249,19 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, indexEntries.size(), "Should have one index entry before dropping");
         }
 
         // Drop the index entry
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.dropEntry(tr, objectId.toByteArray(), definition, indexSubspace, metadataSubspace);
             tr.commit().join();
         }
 
         // Verify both index entry and back pointer are removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] indexPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> indexEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(indexPrefix),
@@ -310,7 +310,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Verify both entries exist
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] stringPrefix = stringIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> stringEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(stringPrefix),
@@ -327,19 +327,19 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Drop entries from the string index
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.dropEntry(tr, objectId.toByteArray(), stringIndex, stringIndexSubspace, metadataSubspace);
             tr.commit().join();
         }
 
         // Drop entries from the int index
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.dropEntry(tr, objectId.toByteArray(), intIndex, intIndexSubspace, metadataSubspace);
             tr.commit().join();
         }
 
         // Verify all entries are removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] stringPrefix = stringIndexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> stringEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(stringPrefix),
@@ -375,7 +375,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Try to drop entry for non-existent ObjectId
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             ObjectId nonExistentObjectId = new ObjectId();
             assertDoesNotThrow(() -> {
                 SingleFieldIndexMaintainer.dropEntry(tr, nonExistentObjectId.toByteArray(), definition, indexSubspace, metadataSubspace);
@@ -384,7 +384,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Verify cardinality remains 0 (no entry was actually dropped)
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(0, statistics.cardinality(), "Index cardinality should remain 0 when dropping non-existent entry");
         }
@@ -411,7 +411,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         DirectorySubspace metadataSubspace = metadata.subspace();
 
         // Verify all entries exist
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> allEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(prefix),
@@ -421,13 +421,13 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Drop only the middle entry
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.dropEntry(tr, objectId1.toByteArray(), definition, indexSubspace, metadataSubspace);
             tr.commit().join();
         }
 
         // Verify only one entry was removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
             List<KeyValue> remainingEntries = tr.getRange(
                     KeySelector.firstGreaterOrEqual(prefix),
@@ -478,7 +478,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, indexEntries.size(), "Should have one index entry");
             IndexEntry originalIndexEntry = IndexEntry.decode(indexEntries.get(0).getValue());
@@ -491,13 +491,13 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         // Update entry metadata
         IndexEntry newIndexEntry = new IndexEntry(SHARD_ID, newEntryMetadata);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.updateIndexEntry(tr, objectId.toByteArray(), newIndexEntry.encode(), indexSubspace);
             tr.commit().join();
         }
 
         // Verify metadata was updated
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, indexEntries.size(), "Should still have one index entry");
 
@@ -531,7 +531,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(indexValues.length, indexEntries.size(), "Should have entries for each index value");
         }
@@ -541,13 +541,13 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         // Update entry metadata for all entries with this ObjectId
         IndexEntry newIndexEntry = new IndexEntry(SHARD_ID, newEntryMetadata);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.updateIndexEntry(tr, objectId.toByteArray(), newIndexEntry.encode(), indexSubspace);
             tr.commit().join();
         }
 
         // Verify all entries with the same ObjectId have updated metadata
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(indexValues.length, indexEntries.size(), "Should still have all index entries");
 
@@ -579,7 +579,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         IndexEntry newIndexEntry = new IndexEntry(SHARD_ID, newEntryMetadata);
 
         // Should not throw exception for a non-existent ObjectId
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertDoesNotThrow(() -> {
                 SingleFieldIndexMaintainer.updateIndexEntry(tr, nonExistentObjectId.toByteArray(), newIndexEntry.encode(), indexSubspace);
                 tr.commit().join();
@@ -591,7 +591,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(0, indexEntries.size(), "Index should remain empty");
         }
@@ -619,7 +619,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
         KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, indexEntries.size(), "Should have one index entry for " + bsonType);
             IndexEntry originalIndexEntry = IndexEntry.decode(indexEntries.get(0).getValue());
@@ -632,13 +632,13 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
 
         // Update entry metadata
         IndexEntry newIndexEntry = new IndexEntry(SHARD_ID, newEntryMetadata);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.updateIndexEntry(tr, objectId.toByteArray(), newIndexEntry.encode(), indexSubspace);
             tr.commit().join();
         }
 
         // Verify metadata was updated
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(begin, end).asList().join();
             assertEquals(1, indexEntries.size(), "Should still have one index entry for " + bsonType);
 
@@ -675,7 +675,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         );
 
         // Set the index entry using ObjectId
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.setEntryByObjectId(tr, objectId.toByteArray(), container, new CollatorCache());
             tr.commit().join();
         }
@@ -685,7 +685,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector entryBegin = KeySelector.firstGreaterOrEqual(entryPrefix);
         KeySelector entryEnd = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(entryPrefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(entryBegin, entryEnd).asList().join();
             assertEquals(1, indexEntries.size(), "Should have exactly one index entry");
 
@@ -709,7 +709,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector backPointerBegin = KeySelector.firstGreaterOrEqual(backPointerPrefix);
         KeySelector backPointerEnd = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> backPointers = tr.getRange(backPointerBegin, backPointerEnd).asList().join();
             assertEquals(1, backPointers.size(), "Should have exactly one back pointer");
 
@@ -727,7 +727,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Verify the cardinality was updated
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after adding one entry");
         }
@@ -760,7 +760,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         );
 
         // Set the index entry using ObjectId
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             SingleFieldIndexMaintainer.setEntryByObjectId(tr, objectId.toByteArray(), container, new CollatorCache());
             tr.commit().join();
         }
@@ -770,7 +770,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector entryBegin = KeySelector.firstGreaterOrEqual(entryPrefix);
         KeySelector entryEnd = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(entryPrefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(entryBegin, entryEnd).asList().join();
             assertEquals(1, indexEntries.size(), "Should have exactly one index entry");
 
@@ -794,7 +794,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector backPointerBegin = KeySelector.firstGreaterOrEqual(backPointerPrefix);
         KeySelector backPointerEnd = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> backPointers = tr.getRange(backPointerBegin, backPointerEnd).asList().join();
             assertEquals(1, backPointers.size(), "Should have exactly one back pointer");
 
@@ -812,7 +812,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Verify the cardinality was updated
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after adding one entry");
         }
@@ -840,7 +840,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector entryBegin = KeySelector.firstGreaterOrEqual(entryPrefix);
         KeySelector entryEnd = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(entryPrefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> indexEntries = tr.getRange(entryBegin, entryEnd).asList().join();
             assertEquals(1, indexEntries.size(), "Should have exactly one index entry");
 
@@ -864,7 +864,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         KeySelector backPointerBegin = KeySelector.firstGreaterOrEqual(backPointerPrefix);
         KeySelector backPointerEnd = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix));
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> backPointers = tr.getRange(backPointerBegin, backPointerEnd).asList().join();
             assertEquals(1, backPointers.size(), "Should have exactly one back pointer");
 
@@ -882,7 +882,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         }
 
         // Verify cardinality
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after inserting one entry");
         }
@@ -907,14 +907,14 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
         verifyIndexEntry(indexSubspace, expectedStoredValue, objectId, entryMetadata);
 
         // Verify cardinality
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             IndexStatistics statistics = BucketMetadataUtil.readIndexStatistics(tr, metadata.subspace(), definition.id());
             assertEquals(1, statistics.cardinality(), "Index cardinality should be 1 after inserting one entry for " + bsonType);
         }
 
         // Verify the back pointer was created
         byte[] backPointerPrefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<KeyValue> backPointers = tr.getRange(
                     KeySelector.firstGreaterOrEqual(backPointerPrefix),
                     KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(backPointerPrefix))
@@ -924,7 +924,7 @@ class SingleFieldIndexMaintainerTest extends BaseIndexMaintainerTest {
     }
 
     private Set<ObjectId> findIndexedObjectIds(DirectorySubspace indexSubspace, ObjectId... objectIds) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             List<byte[]> ids = Arrays.stream(objectIds).map(ObjectId::toByteArray).toList();
             return IndexMaintainer.findIndexedObjectIds(tr, indexSubspace, ids);
         }

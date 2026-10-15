@@ -92,14 +92,14 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
                     , false, IndexStatus.WAITING);
 
             DirectorySubspace taskSubspace = IndexTaskUtil.openTasksSubspace(context, SHARD_ID);
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TransactionalContext tx = new TransactionalContext(context, tr);
                 SingleFieldIndexUtil.create(tx, TEST_NAMESPACE, TEST_BUCKET, definition);
                 tr.commit().join();
             }
 
             AtomicReference<Versionstamp> taskId = new AtomicReference<>();
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 TaskStorage.tasks(tr, taskSubspace, (id) -> {
                     taskId.set(id);
                     return false; // break;
@@ -111,7 +111,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
             bgFuture.get();
 
             await().atMost(Duration.ofSeconds(30)).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     BucketMetadata metadata = refreshBucketMetadata(TEST_NAMESPACE, TEST_BUCKET);
                     SingleFieldIndex index = metadata.singleFieldIndexes().getIndex(definition.selector(), IndexSelectionPolicy.ALL);
                     byte[] begin = index.subspace().pack(Tuple.from(IndexSubspaceMagic.BACK_POINTER.getValue()));
@@ -126,7 +126,7 @@ class IndexMaintenanceWatchDogTest extends BaseBucketHandlerTest {
             });
 
             await().atMost(30, TimeUnit.SECONDS).until(() -> {
-                try (Transaction tr = context.getFoundationDB().createTransaction()) {
+                try (Transaction tr = context.getTransactionManager().create()) {
                     byte[] value = TaskStorage.getDefinition(tr, taskSubspace, taskId.get());
                     return value == null; // swept & dropped task
                 }

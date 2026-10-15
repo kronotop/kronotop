@@ -38,7 +38,7 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldRegisterPrefixSuccessfully() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertDoesNotThrow(() -> PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.prefix()));
             tr.commit().join();
         }
@@ -46,40 +46,40 @@ class PrefixUtilTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldDetectStalePrefixWhenPointerIsRemoved() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.prefix());
             tr.commit().join();
         }
 
         // Not stale, because prefixPointer still exists;
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertFalse(PrefixUtil.isStale(context, tr, bundle.metadata.prefix()));
         }
 
         // Make it stale, the prefix pointer somehow removed
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             tr.clear(bundle.prefixPointer);
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertTrue(PrefixUtil.isStale(context, tr, bundle.metadata.prefix()));
         }
     }
 
     @Test
     void shouldUnregisterPrefixAndNotBeStale() {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             PrefixUtil.register(context, tr, bundle.prefixPointer, bundle.metadata.prefix());
             tr.commit().join();
         }
 
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertDoesNotThrow(() -> PrefixUtil.unregister(context, tr, bundle.prefixPointer, bundle.metadata.prefix()));
         }
 
         // Not stale, because it's unregistered
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             assertFalse(PrefixUtil.isStale(context, tr, bundle.metadata.prefix()));
         }
     }

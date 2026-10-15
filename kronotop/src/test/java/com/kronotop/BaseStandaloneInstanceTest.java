@@ -118,13 +118,13 @@ public class BaseStandaloneInstanceTest extends BaseTest {
     }
 
     protected BucketMetadata getBucketMetadata(String namespace, String bucket) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return BucketMetadataUtil.open(context, tr, namespace, bucket);
         }
     }
 
     protected BucketMetadata reloadBucketMetadata(String namespace, String bucket) {
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return BucketMetadataUtil.reload(context, tr, namespace, bucket);
         }
     }
@@ -158,7 +158,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
     protected BucketMetadata refreshBucketMetadata(String namespace, String bucket) {
         BucketMetadata metadata = getBucketMetadata(bucket);
         waitUntilUpdated(metadata);
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             return BucketMetadataUtil.reload(context, tr, namespace, bucket);
         }
     }
@@ -182,7 +182,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
 
     protected void waitForCompoundIndexReadiness(DirectorySubspace subspace) {
         await().atMost(Duration.ofSeconds(15)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 CompoundIndexDefinition definition = CompoundIndexUtil.loadIndexDefinition(tr, subspace);
                 return definition.status() == IndexStatus.READY;
             }
@@ -194,7 +194,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         BucketMetadata metadata = getBucketMetadata(namespace, bucket);
 
         List<DirectorySubspace> subspaces = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             for (CompoundIndexDefinition def : definitions) {
                 DirectorySubspace subspace = CompoundIndexUtil.create(tx, namespace, bucket, def);
@@ -224,7 +224,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
 
     protected void waitForIndexReadiness(DirectorySubspace subspace) {
         await().atMost(Duration.ofSeconds(30)).until(() -> {
-            try (Transaction tr = context.getFoundationDB().createTransaction()) {
+            try (Transaction tr = context.getTransactionManager().create()) {
                 SingleFieldIndexDefinition definition = SingleFieldIndexUtil.loadIndexDefinition(tr, subspace);
                 return definition.status() == IndexStatus.READY;
             }
@@ -237,7 +237,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         BucketMetadata metadata = getBucketMetadata(namespace, bucket);
 
         List<DirectorySubspace> subspaces = new ArrayList<>();
-        try (Transaction tr = context.getFoundationDB().createTransaction()) {
+        try (Transaction tr = context.getTransactionManager().create()) {
             TransactionalContext tx = new TransactionalContext(context, tr);
             for (SingleFieldIndexDefinition definition : definitions) {
                 DirectorySubspace subspace = SingleFieldIndexUtil.create(tx, namespace, bucket, definition);
