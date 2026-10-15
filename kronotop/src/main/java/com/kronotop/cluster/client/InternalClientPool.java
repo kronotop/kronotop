@@ -134,7 +134,8 @@ public class InternalClientPool {
     public void shutdown() {
         stringPool.invalidateAll();
         byteArrayPool.invalidateAll();
-        clientResources.shutdown();
+        // The quiet period lets an in-flight reconnect register its channel instead of being rejected.
+        clientResources.shutdown(100, 2000, TimeUnit.MILLISECONDS);
     }
 
     private RedisClient createClient(Member member) {
