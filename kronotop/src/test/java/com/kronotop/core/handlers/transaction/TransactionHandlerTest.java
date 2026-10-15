@@ -56,6 +56,20 @@ class TransactionHandlerTest extends BaseHandlerTest {
         return null;
     }
 
+    private Map<String, RedisMessage> findSlowById(long id) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.transactionSlow().encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        for (RedisMessage child : ((ArrayRedisMessage) msg).children()) {
+            Map<String, RedisMessage> fields = toFields(child);
+            if (((IntegerRedisMessage) fields.get("id")).value() == id) {
+                return fields;
+            }
+        }
+        return null;
+    }
+
     private Map<String, RedisMessage> toFields(RedisMessage message) {
         Map<String, RedisMessage> fields = new HashMap<>();
         if (message instanceof MapRedisMessage map) {
@@ -272,5 +286,81 @@ class TransactionHandlerTest extends BaseHandlerTest {
     void shouldRejectArguments() {
         assertError(runRaw(channel, CommandType.TRANSACTION, List.of("LIST", "extra")),
                 "ERR wrong number of arguments for 'TRANSACTION LIST' command");
+    }
+
+    @Test
+    void shouldLogSlowCommandTransaction() {
+        // test.conf sets the slow log threshold to 0, so every closed transaction is logged.
+        switchProtocol(RESPVersion.RESP3);
+        createNamespace(channel, namespace);
+        useNamespace(channel, namespace);
+        begin();
+        assertOK(zset());
+        long id = sessionTransactionId();
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.commit().encode(buf);
+        assertOK(runCommand(channel, buf));
+
+        Map<String, RedisMessage> fields = findSlowById(id);
+        assertNotNull(fields);
+        assertEquals(session().getClientId(), ((IntegerRedisMessage) fields.get("client_id")).value());
+        assertEquals("ZSET", string(fields.get("command")));
+        assertEquals("ZMap", string(fields.get("model")));
+        assertEquals(namespace, string(fields.get("namespace")));
+        assertEquals(BooleanRedisMessage.TRUE, fields.get("committed"));
+        assertEquals(BooleanRedisMessage.FALSE, fields.get("conflicted"));
+        assertEquals(1, ((IntegerRedisMessage) fields.get("writes")).value());
+        assertTrue(((IntegerRedisMessage) fields.get("timestamp")).value() > 0);
+        assertTrue(((IntegerRedisMessage) fields.get("commit_latency_ms")).value() >= 0);
+        assertNull(findById(id));
+    }
+
+    @Test
+    void shouldLogInternalTransaction() {
+        switchProtocol(RESPVersion.RESP3);
+        InstrumentedTransaction tr = context.getTransactionManager().create();
+        tr.close();
+
+        Map<String, RedisMessage> fields = findSlowById(tr.getId());
+        assertNotNull(fields);
+        assertEquals(InstrumentedTransaction.INTERNAL, ((IntegerRedisMessage) fields.get("client_id")).value());
+        assertInstanceOf(NullRedisMessage.class, fields.get("command"));
+        assertInstanceOf(NullRedisMessage.class, fields.get("query"));
+        assertEquals(BooleanRedisMessage.FALSE, fields.get("committed"));
+    }
+
+    @Test
+    void shouldReturnNewestFirst() {
+        switchProtocol(RESPVersion.RESP3);
+        InstrumentedTransaction first = context.getTransactionManager().create();
+        first.close();
+        InstrumentedTransaction second = context.getTransactionManager().create();
+        second.close();
+
+        ByteBuf buf = Unpooled.buffer();
+        cmd.transactionSlow().encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        // Background tasks may log their own transactions, so compare positions instead of indexes.
+        int firstIndex = -1;
+        int secondIndex = -1;
+        List<RedisMessage> children = ((ArrayRedisMessage) msg).children();
+        for (int i = 0; i < children.size(); i++) {
+            long id = ((IntegerRedisMessage) toFields(children.get(i)).get("id")).value();
+            if (id == first.getId()) {
+                firstIndex = i;
+            } else if (id == second.getId()) {
+                secondIndex = i;
+            }
+        }
+        assertTrue(secondIndex >= 0);
+        assertTrue(secondIndex < firstIndex);
+    }
+
+    @Test
+    void shouldRejectSlowArguments() {
+        assertError(runRaw(channel, CommandType.TRANSACTION, List.of("SLOW", "extra")),
+                "ERR wrong number of arguments for 'TRANSACTION SLOW' command");
     }
 }

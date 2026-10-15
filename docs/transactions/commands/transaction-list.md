@@ -53,6 +53,8 @@ The member also opens transactions for its own work. These have `client_id` set 
 Command arguments and keys are not stored. `query` shows only the structure of the query, with every value replaced
 by `?`.
 
+A closed transaction is no longer listed. Slow transactions that have closed are shown by `TRANSACTION SLOW`.
+
 ## Examples
 
 **Another session ran a query in a `BEGIN` block and has not committed yet:**

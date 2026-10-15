@@ -1,0 +1,106 @@
+{
+  "SLOW": {
+    "summary": "Returns the slow transactions logged by this member.",
+    "complexity": "O(N) where N is the number of logged transactions",
+    "group": "transactions",
+    "since": "2026.10-1",
+    "arity": 2,
+    "container": "TRANSACTION",
+    "command_flags": [
+      "READONLY"
+    ],
+    "acl_categories": [
+      "TRANSACTION"
+    ],
+    "key_specs": [],
+    "reply_schema": {
+      "description": "One map per logged transaction, newest first. On RESP2 each map arrives as a flat array of alternating keys and values.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "timestamp": {
+            "description": "Unix time in milliseconds when the transaction was closed.",
+            "type": "integer"
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "commit_latency_ms": {
+            "description": "Milliseconds spent in commit. 0 when the transaction was not committed.",
+            "type": "integer"
+          },
+          "client_id": {
+            "description": "Client id of the owning session, or -1 for an internal transaction.",
+            "type": "integer"
+          },
+          "namespace": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bucket": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "description": "Data model of the command: Bucket or ZMap. Null for other commands.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "command": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "query": {
+            "description": "The BQL query of the command with every value replaced by '?'.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "committed": {
+            "type": "boolean"
+          },
+          "conflicted": {
+            "type": "boolean"
+          },
+          "reads": {
+            "type": "integer"
+          },
+          "range_reads": {
+            "type": "integer"
+          },
+          "writes": {
+            "type": "integer"
+          },
+          "deletes": {
+            "type": "integer"
+          },
+          "range_deletes": {
+            "type": "integer"
+          },
+          "mutations": {
+            "type": "integer"
+          },
+          "bytes_read": {
+            "type": "integer"
+          },
+          "bytes_written": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

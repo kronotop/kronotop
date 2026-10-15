@@ -37,13 +37,16 @@ public class TransactionManager {
     private final AtomicLong counter = new AtomicLong();
     private final Map<Long, InstrumentedTransaction> registry = new ConcurrentHashMap<>(1 << 16);
     private final AggregatedTransactionMetrics aggregatedTransactionMetrics;
+    private final SlowTransactionLog slowLog;
 
     public TransactionManager(
             Database database,
-            AggregatedTransactionMetrics aggregatedTransactionMetrics
+            AggregatedTransactionMetrics aggregatedTransactionMetrics,
+            SlowTransactionLog slowLog
     ) {
         this.database = database;
         this.aggregatedTransactionMetrics = aggregatedTransactionMetrics;
+        this.slowLog = slowLog;
     }
 
     public InstrumentedTransaction create() {
@@ -76,7 +79,12 @@ public class TransactionManager {
         // A second close() must not fold the totals twice.
         if (registry.remove(tr.getId()) != null) {
             aggregatedTransactionMetrics.record(tr.getMetrics());
+            slowLog.record(tr);
         }
+    }
+
+    public SlowTransactionLog getSlowLog() {
+        return slowLog;
     }
 
     /**

@@ -279,6 +279,16 @@ public class KronotopCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, 
     }
 
     /**
+     * Creates a TRANSACTION SLOW command that lists the slow transactions logged by the member.
+     *
+     * @return a Command object that fetches the slow transactions as a list, newest first
+     */
+    public Command<K, V, List<Object>> transactionSlow() {
+        CommandArgs<K, V> args = new CommandArgs<>(codec).add(TransactionKeywords.SLOW);
+        return createCommand(CommandType.TRANSACTION, new ArrayOutput<>(codec), args);
+    }
+
+    /**
      * Creates and returns a command to retrieve a fresh or cached read version of the database.
      *
      * @param tickArgs the arguments selecting the read version mode, FRESH or CACHED

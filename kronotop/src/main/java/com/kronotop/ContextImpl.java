@@ -31,6 +31,7 @@ import com.kronotop.server.CommandHandlerRegistry;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.SessionStore;
 import com.kronotop.server.TLSConfig;
+import com.kronotop.transaction.SlowTransactionLog;
 import com.kronotop.transaction.TransactionManager;
 import com.kronotop.worker.WorkerRegistry;
 import com.typesafe.config.Config;
@@ -107,7 +108,10 @@ public class ContextImpl implements Context {
         this.member = member;
         this.database = database;
         this.directoryLayer = KronotopDirectoryLayer.fromConfig(config);
-        this.transactionManager = new TransactionManager(database, runtimeMetrics.getAggregatedTransactionMetrics());
+        SlowTransactionLog slowLog = new SlowTransactionLog(
+                config.getLong("transaction.slow_log.threshold"),
+                config.getInt("transaction.slow_log.max_entries"));
+        this.transactionManager = new TransactionManager(database, runtimeMetrics.getAggregatedTransactionMetrics(), slowLog);
         this.workerRegistry = new WorkerRegistry();
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
         this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database, directoryLayer);

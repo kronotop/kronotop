@@ -378,6 +378,20 @@ The volume syncer runs background workers that keep stash volumes synchronized.
 
 ---
 
+## Transaction
+
+### Slow Log
+
+The member keeps an in-memory log of closed transactions that ran long. `TRANSACTION SLOW` reads it. The log is not
+written to disk and is empty after a restart.
+
+| Parameter                          | Type               | Default | Description                                                                               |
+|------------------------------------|--------------------|---------|-------------------------------------------------------------------------------------------|
+| `transaction.slow_log.threshold`   | int (milliseconds) | `1000`  | A transaction is logged when the time from creation to close is at least this long.       |
+| `transaction.slow_log.max_entries` | int                | `1024`  | Number of transactions kept in the log. The oldest entry is dropped when the log is full. |
+
+---
+
 ## Background Tasks
 
 Configuration for system-wide background maintenance tasks.

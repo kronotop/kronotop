@@ -257,3 +257,4 @@ a single command.
 | [TICK](commands/tick.md)                             | Get a monotonically increasing 64-bit integer    |
 | [TRANSACTION LIST](commands/transaction-list.md)     | List the open transactions of this member        |
 | [TRANSACTION KILL](commands/transaction-kill.md)     | Cancel an open transaction of this member        |
+| [TRANSACTION SLOW](commands/transaction-slow.md)     | List the slow transactions of this member        |

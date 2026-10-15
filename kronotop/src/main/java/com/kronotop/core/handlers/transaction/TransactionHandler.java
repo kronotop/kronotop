@@ -33,6 +33,7 @@ public class TransactionHandler implements Handler {
     public TransactionHandler(Context context) {
         executors.put(TransactionSubcommand.LIST, new ListSubcommand(context));
         executors.put(TransactionSubcommand.KILL, new KillSubcommand(context));
+        executors.put(TransactionSubcommand.SLOW, new SlowSubcommand(context));
     }
 
     @Override
