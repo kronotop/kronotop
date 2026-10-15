@@ -17,26 +17,27 @@ TRANSACTION LIST
 
 An array with one map per open transaction, sorted by `id`. On RESP2 each map is a flat array of keys and values.
 
-| Field           | Type           | Description                                                                    |
-|-----------------|----------------|--------------------------------------------------------------------------------|
-| `id`            | integer        | Transaction id, unique on this member                                          |
-| `duration_ms`   | integer        | Milliseconds since the transaction was created                                 |
-| `client_id`     | integer        | Client id of the session that owns the transaction, `-1` for the member's own  |
-| `state`         | string         | `active` while a command runs, `idle` between two commands of a `BEGIN` block  |
-| `namespace`     | string or null | Namespace of the command                                                       |
-| `bucket`        | string or null | Bucket of the command, null for other data models                              |
-| `model`         | string or null | Data model of the command: `Bucket` or `ZMap`, null for others                 |
-| `command`       | string or null | Name of the command                                                            |
-| `query`         | string or null | BQL query of the command, every value replaced by `?`                          |
-| `watching`      | boolean        | True when the transaction holds a watch                                        |
-| `reads`         | integer        | Point reads                                                                    |
-| `range_reads`   | integer        | Range reads                                                                    |
-| `writes`        | integer        | Writes                                                                         |
-| `deletes`       | integer        | Deletes                                                                        |
-| `range_deletes` | integer        | Range deletes                                                                  |
-| `mutations`     | integer        | Atomic mutations                                                               |
-| `bytes_read`    | integer        | Bytes read                                                                     |
-| `bytes_written` | integer        | Bytes written                                                                  |
+| Field           | Type           | Description                                                                             |
+|-----------------|----------------|-----------------------------------------------------------------------------------------|
+| `id`            | integer        | Transaction id, unique on this member                                                   |
+| `duration_ms`   | integer        | Milliseconds since the transaction was created                                          |
+| `idle_ms`       | integer        | Milliseconds since the last command on the transaction finished, 0 while a command runs |
+| `client_id`     | integer        | Client id of the session that owns the transaction, `-1` for the member's own           |
+| `state`         | string         | `active` while a command runs, `idle` between two commands of a `BEGIN` block           |
+| `namespace`     | string or null | Namespace of the command                                                                |
+| `bucket`        | string or null | Bucket of the command, null for other data models                                       |
+| `model`         | string or null | Data model of the command: `Bucket` or `ZMap`, null for others                          |
+| `command`       | string or null | Name of the command                                                                     |
+| `query`         | string or null | BQL query of the command, every value replaced by `?`                                   |
+| `watching`      | boolean        | True when the transaction holds a watch                                                 |
+| `reads`         | integer        | Point reads                                                                             |
+| `range_reads`   | integer        | Range reads                                                                             |
+| `writes`        | integer        | Writes                                                                                  |
+| `deletes`       | integer        | Deletes                                                                                 |
+| `range_deletes` | integer        | Range deletes                                                                           |
+| `mutations`     | integer        | Atomic mutations                                                                        |
+| `bytes_read`    | integer        | Bytes read                                                                              |
+| `bytes_written` | integer        | Bytes written                                                                           |
 
 ## Behavior
 
@@ -63,20 +64,21 @@ A closed transaction is no longer listed. Slow transactions that have closed are
 > TRANSACTION LIST
 1) 1# "id" => (integer) 42
    2# "duration_ms" => (integer) 1203
-   3# "client_id" => (integer) 7
-   4# "state" => "idle"
-   5# "namespace" => "global"
-   6# "bucket" => "users"
-   7# "model" => "Bucket"
-   8# "command" => "BUCKET.QUERY"
-   9# "query" => "{\"age\": {\"$gt\": ?}}"
-   10# "watching" => (false)
-   11# "reads" => (integer) 3
-   12# "range_reads" => (integer) 1
-   13# "writes" => (integer) 0
-   14# "deletes" => (integer) 0
-   15# "range_deletes" => (integer) 0
-   16# "mutations" => (integer) 0
-   17# "bytes_read" => (integer) 512
-   18# "bytes_written" => (integer) 0
+   3# "idle_ms" => (integer) 980
+   4# "client_id" => (integer) 7
+   5# "state" => "idle"
+   6# "namespace" => "global"
+   7# "bucket" => "users"
+   8# "model" => "Bucket"
+   9# "command" => "BUCKET.QUERY"
+   10# "query" => "{\"age\": {\"$gt\": ?}}"
+   11# "watching" => (false)
+   12# "reads" => (integer) 3
+   13# "range_reads" => (integer) 1
+   14# "writes" => (integer) 0
+   15# "deletes" => (integer) 0
+   16# "range_deletes" => (integer) 0
+   17# "mutations" => (integer) 0
+   18# "bytes_read" => (integer) 512
+   19# "bytes_written" => (integer) 0
 ```

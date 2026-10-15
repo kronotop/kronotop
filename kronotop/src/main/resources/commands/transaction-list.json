@@ -25,6 +25,10 @@
           "duration_ms": {
             "type": "integer"
           },
+          "idle_ms": {
+            "description": "Milliseconds since the last command on the transaction finished, 0 while a command runs.",
+            "type": "integer"
+          },
           "client_id": {
             "description": "Client id of the owning session, or -1 for an internal transaction.",
             "type": "integer"

@@ -181,6 +181,7 @@ class TransactionHandlerTest extends BaseHandlerTest {
             assertNotNull(fields);
             assertEquals(InstrumentedTransaction.INTERNAL, ((IntegerRedisMessage) fields.get("client_id")).value());
             assertEquals("active", string(fields.get("state")));
+            assertEquals(0, ((IntegerRedisMessage) fields.get("idle_ms")).value());
             assertInstanceOf(NullRedisMessage.class, fields.get("command"));
             assertInstanceOf(NullRedisMessage.class, fields.get("query"));
             assertEquals(BooleanRedisMessage.FALSE, fields.get("watching"));
@@ -196,6 +197,7 @@ class TransactionHandlerTest extends BaseHandlerTest {
         assertEquals(session().getClientId(), ((IntegerRedisMessage) fields.get("client_id")).value());
         assertEquals("idle", string(fields.get("state")));
         assertTrue(((IntegerRedisMessage) fields.get("duration_ms")).value() >= 0);
+        assertTrue(((IntegerRedisMessage) fields.get("idle_ms")).value() >= 0);
     }
 
     @Test

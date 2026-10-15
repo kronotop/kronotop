@@ -39,6 +39,8 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
     private ReadTransaction snapshot;
     private volatile long clientId = INTERNAL;
     private volatile TransactionState state = TransactionState.ACTIVE;
+    // Set when the state becomes IDLE. Shown by TRANSACTION LIST as idle_ms.
+    private volatile long idleSinceNanos;
     // Metadata of the command that runs on this transaction, shown by TRANSACTION LIST.
     private volatile String command;
     private volatile String model;
@@ -65,7 +67,14 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
     }
 
     public void setState(TransactionState state) {
+        if (state == TransactionState.IDLE) {
+            this.idleSinceNanos = System.nanoTime();
+        }
         this.state = state;
+    }
+
+    public long getIdleSinceNanos() {
+        return idleSinceNanos;
     }
 
     public String getCommand() {

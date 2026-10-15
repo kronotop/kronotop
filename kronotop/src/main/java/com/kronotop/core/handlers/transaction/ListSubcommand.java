@@ -23,6 +23,7 @@ import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.InstrumentedTransaction;
 import com.kronotop.transaction.TransactionMetrics;
+import com.kronotop.transaction.TransactionState;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -62,6 +63,8 @@ class ListSubcommand implements SubcommandHandler {
         Map<RedisMessage, RedisMessage> fields = new LinkedHashMap<>();
         fields.put(bulkString("id"), new IntegerRedisMessage(tr.getId()));
         fields.put(bulkString("duration_ms"), new IntegerRedisMessage((now - metrics.getStartNanos()) / 1_000_000));
+        long idleMs = tr.getState() == TransactionState.IDLE ? (now - tr.getIdleSinceNanos()) / 1_000_000 : 0;
+        fields.put(bulkString("idle_ms"), new IntegerRedisMessage(idleMs));
         fields.put(bulkString("client_id"), new IntegerRedisMessage(tr.getClientId()));
         fields.put(bulkString("state"), bulkString(tr.getState().name().toLowerCase()));
         fields.put(bulkString("namespace"), text(tr.getNamespace()));
