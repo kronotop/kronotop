@@ -3,7 +3,7 @@
     "summary": "Manages the open transactions of this member.",
     "complexity": "Depends on the subcommand.",
     "group": "transactions",
-    "since": "2026.10-1",
+    "since": "2026.10-2",
     "servers": [
       "EXTERNAL"
     ],

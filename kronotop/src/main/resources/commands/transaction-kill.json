@@ -3,7 +3,7 @@
     "summary": "Cancels an open transaction of this member.",
     "complexity": "O(1)",
     "group": "transactions",
-    "since": "2026.10-1",
+    "since": "2026.10-2",
     "arity": 3,
     "container": "TRANSACTION",
     "command_flags": [

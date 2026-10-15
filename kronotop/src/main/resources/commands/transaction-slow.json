@@ -3,7 +3,7 @@
     "summary": "Returns the slow transactions logged by this member.",
     "complexity": "O(N) where N is the number of logged transactions",
     "group": "transactions",
-    "since": "2026.10-1",
+    "since": "2026.10-2",
     "arity": 2,
     "container": "TRANSACTION",
     "command_flags": [
