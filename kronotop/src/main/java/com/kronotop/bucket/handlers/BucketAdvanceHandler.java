@@ -78,6 +78,8 @@ public class BucketAdvanceHandler extends AbstractBucketHandler {
             throw new KronotopException("No previous query context found for '" +
                     message.getOperation().name().toLowerCase() + "' operation with the given cursor id");
         }
+        session.setNamespace(ctx.metadata().namespace());
+        session.setBucket(ctx.metadata().name());
         BucketMetadata metadata = BucketMetadataUtil.open(context, tr, ctx.metadata().namespace(), ctx.metadata().name());
         ctx.updateMetadata(metadata);
         return ctx;

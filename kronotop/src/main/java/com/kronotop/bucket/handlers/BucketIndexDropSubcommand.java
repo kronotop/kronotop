@@ -44,6 +44,7 @@ public class BucketIndexDropSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         DropArguments arguments = new DropArguments(request.getArguments());
+        request.getSession().setBucket(arguments.bucket);
         runAsync(context, response, () -> {
             if (arguments.index.equals(PrimaryIndex.NAME)) {
                 throw new IllegalArgumentException("Cannot drop the primary index");

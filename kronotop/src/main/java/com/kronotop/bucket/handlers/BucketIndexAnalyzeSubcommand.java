@@ -70,6 +70,7 @@ public class BucketIndexAnalyzeSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         AnalyzeArguments arguments = new AnalyzeArguments(request.getArguments());
+        request.getSession().setBucket(arguments.bucket);
         AsyncCommandExecutor.runAsync(context, response, () -> {
             String namespace = NamespaceUtil.resolve(request.getSession(), arguments.namespace);
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {

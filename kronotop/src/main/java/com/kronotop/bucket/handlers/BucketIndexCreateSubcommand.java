@@ -60,6 +60,7 @@ class BucketIndexCreateSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         CreateArguments arguments = new CreateArguments(request.getArguments());
+        request.getSession().setBucket(arguments.getBucket());
         runAsync(context, response, () -> {
 
             Retry retry = RetryMethods.retry(RetryMethods.TRANSACTION);

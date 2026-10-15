@@ -331,6 +331,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                 throw new KronotopException("No documents provided");
             }
             Session session = request.getSession();
+            session.setBucket(message.getBucket());
 
             Transaction tr = TransactionUtil.getOrCreateTransaction(context, session);
             String namespace = NamespaceUtil.resolve(session, message.getNamespace());

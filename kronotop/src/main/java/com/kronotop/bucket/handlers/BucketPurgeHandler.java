@@ -61,6 +61,7 @@ public class BucketPurgeHandler extends AbstractBucketHandler {
         runAsync(context, response, () -> {
             BucketPurgeMessage message = request.attr(MessageTypes.BUCKETPURGE).get();
             String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
+            request.getSession().setBucket(message.getBucket());
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 BucketMetadata metadata = BucketMetadataUtil.forceOpen(context, tr, namespace, message.getBucket());
                 if (!metadata.removed()) {

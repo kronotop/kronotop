@@ -53,6 +53,7 @@ public class BucketCreateHandler extends AbstractBucketHandler implements Handle
     public void execute(Request request, Response response) throws Exception {
         BucketCreateMessage message = request.attr(MessageTypes.BUCKETCREATE).get();
         String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
+        request.getSession().setBucket(message.getBucket());
         runAsync(context, response, () -> {
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 List<Integer> shards = new ArrayList<>(message.getShards());

@@ -80,6 +80,7 @@ public class BucketLocateHandler extends AbstractBucketHandler implements Handle
     public void execute(Request request, Response response) throws Exception {
         supplyAsync(context, response, () -> {
             BucketLocateMessage message = request.attr(MessageTypes.BUCKETLOCATE).get();
+            request.getSession().setBucket(message.getBucket());
             List<RedisMessage> routes = new ArrayList<>();
             Map<String, Member> members = new LinkedHashMap<>();
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {

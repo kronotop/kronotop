@@ -52,6 +52,7 @@ public class BucketRemoveHandler extends AbstractBucketHandler {
         runAsync(context, response, () -> {
             BucketRemoveMessage message = request.attr(MessageTypes.BUCKETREMOVE).get();
             String namespace = NamespaceUtil.resolve(request.getSession(), message.getNamespace());
+            request.getSession().setBucket(message.getBucket());
             try (Transaction tr = context.getTransactionManager().create(request.getSession())) {
                 BucketMetadata metadata = BucketMetadataUtil.reload(context, tr, namespace, message.getBucket());
                 TransactionalContext tx = new TransactionalContext(context, tr);

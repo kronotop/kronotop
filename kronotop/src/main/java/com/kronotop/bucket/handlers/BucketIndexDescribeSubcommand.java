@@ -125,6 +125,7 @@ class BucketIndexDescribeSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         DescribeArguments arguments = new DescribeArguments(request.getArguments());
+        request.getSession().setBucket(arguments.bucket);
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
             try (Transaction tr = context.getTransactionManager().create(session)) {

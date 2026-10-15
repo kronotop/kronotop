@@ -17,6 +17,7 @@
 package com.kronotop.core.handlers.transaction;
 
 import com.kronotop.BaseHandlerTest;
+import com.kronotop.bucket.BSONUtil;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.CommandType;
 import com.kronotop.commands.KronotopCommandBuilder;
@@ -26,6 +27,7 @@ import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 import com.kronotop.server.resp3.*;
 import com.kronotop.transaction.InstrumentedTransaction;
+import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -64,6 +66,23 @@ class TransactionHandlerTest extends BaseHandlerTest {
         for (RedisMessage child : ((ArrayRedisMessage) msg).children()) {
             Map<String, RedisMessage> fields = toFields(child);
             if (((IntegerRedisMessage) fields.get("id")).value() == id) {
+                return fields;
+            }
+        }
+        return null;
+    }
+
+    // Newest slow transaction of this session that ran the command, or null.
+    private Map<String, RedisMessage> findSlowByCommand(String command) {
+        ByteBuf buf = Unpooled.buffer();
+        cmd.transactionSlow().encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+        for (RedisMessage child : ((ArrayRedisMessage) msg).children()) {
+            Map<String, RedisMessage> fields = toFields(child);
+            if (((IntegerRedisMessage) fields.get("client_id")).value() == session().getClientId()
+                    && fields.get("command") instanceof FullBulkStringRedisMessage
+                    && command.equals(string(fields.get("command")))) {
                 return fields;
             }
         }
@@ -273,6 +292,45 @@ class TransactionHandlerTest extends BaseHandlerTest {
         assertEquals(namespace, string(fields.get("namespace")));
         assertEquals(TEST_BUCKET, string(fields.get("bucket")));
         assertEquals("{\"age\": {\"$gt\": ?}}", string(fields.get("query")));
+    }
+
+    @Test
+    void shouldShowBucketOfInsertInBeginBlock() {
+        switchProtocol(RESPVersion.RESP3);
+        createNamespace(channel, namespace);
+        createBucket(channel, namespace, TEST_BUCKET);
+        useNamespace(channel, namespace);
+        begin();
+
+        BucketCommandBuilder<byte[], byte[]> bucket = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        bucket.insert(TEST_BUCKET, List.of(BSONUtil.jsonToDocumentThenBytes("{\"age\": 18}"))).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertNotNull(msg);
+        assertInstanceOf(ArrayRedisMessage.class, msg, msg.toString());
+
+        Map<String, RedisMessage> fields = findById(sessionTransactionId());
+        assertNotNull(fields);
+        assertEquals("BUCKET.INSERT", string(fields.get("command")));
+        assertEquals("Bucket", string(fields.get("model")));
+        assertEquals(namespace, string(fields.get("namespace")));
+        assertEquals(TEST_BUCKET, string(fields.get("bucket")));
+        assertInstanceOf(NullRedisMessage.class, fields.get("query"));
+    }
+
+    @Test
+    void shouldLogBucketOfOwnTransaction() {
+        // Behavior: a command that opens its own transaction with create(session) records its bucket.
+        // test.conf sets the slow log threshold to 0, so the closed transaction is in TRANSACTION SLOW.
+        switchProtocol(RESPVersion.RESP3);
+        createNamespace(channel, namespace);
+        createBucket(channel, namespace, TEST_BUCKET);
+
+        Map<String, RedisMessage> fields = findSlowByCommand("BUCKET.CREATE");
+        assertNotNull(fields);
+        assertEquals("Bucket", string(fields.get("model")));
+        assertEquals(namespace, string(fields.get("namespace")));
+        assertEquals(TEST_BUCKET, string(fields.get("bucket")));
     }
 
     @Test

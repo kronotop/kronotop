@@ -25,7 +25,7 @@ An array with one map per logged transaction, newest first. On RESP2 each map is
 | `commit_latency_ms` | integer        | Milliseconds spent in commit, `0` when the transaction was not committed |
 | `client_id`         | integer        | Client id of the session that owned the transaction, `-1` for internal   |
 | `namespace`         | string or null | Namespace of the command                                                 |
-| `bucket`            | string or null | Bucket of the command, null for other data models                        |
+| `bucket`            | string or null | Bucket of the command, null when the command has no bucket               |
 | `model`             | string or null | Data model of the command: `Bucket` or `ZMap`, null for others           |
 | `command`           | string or null | Name of the command                                                      |
 | `query`             | string or null | BQL query of the command, every value replaced by `?`                    |

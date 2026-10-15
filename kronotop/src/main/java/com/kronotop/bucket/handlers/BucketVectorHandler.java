@@ -110,6 +110,7 @@ public class BucketVectorHandler extends AbstractBucketHandler implements Handle
         supplyAsync(context, response, () -> {
             BucketVectorMessage message = request.attr(MessageTypes.BUCKETVECTOR).get();
             Session session = request.getSession();
+            session.setBucket(message.getBucket());
 
             try (Transaction tr = context.getTransactionManager().create(session)) {
                 String namespace = NamespaceUtil.resolve(session, message.getNamespace());

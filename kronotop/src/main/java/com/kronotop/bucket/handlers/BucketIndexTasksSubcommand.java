@@ -144,6 +144,7 @@ class BucketIndexTasksSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         TasksArguments arguments = new TasksArguments(request.getArguments());
+        request.getSession().setBucket(arguments.bucket);
         AsyncCommandExecutor.supplyAsync(context, response, () -> {
             Map<RedisMessage, RedisMessage> parent = new LinkedHashMap<>();
             String namespace = NamespaceUtil.resolve(request.getSession(), arguments.namespace);

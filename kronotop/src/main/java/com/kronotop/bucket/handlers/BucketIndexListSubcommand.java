@@ -49,6 +49,7 @@ class BucketIndexListSubcommand implements SubcommandHandler {
     @Override
     public void execute(Request request, Response response) {
         ListArguments arguments = new ListArguments(request.getArguments());
+        request.getSession().setBucket(arguments.bucket);
         supplyAsync(context, response, () -> {
             Session session = request.getSession();
             List<RedisMessage> children = new ArrayList<>();

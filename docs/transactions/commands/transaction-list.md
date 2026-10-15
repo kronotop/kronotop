@@ -25,7 +25,7 @@ An array with one map per open transaction, sorted by `id`. On RESP2 each map is
 | `client_id`     | integer        | Client id of the session that owns the transaction, `-1` for the member's own           |
 | `state`         | string         | `active` while a command runs, `idle` between two commands of a `BEGIN` block           |
 | `namespace`     | string or null | Namespace of the command                                                                |
-| `bucket`        | string or null | Bucket of the command, null for other data models                                       |
+| `bucket`        | string or null | Bucket of the command, null when the command has no bucket                              |
 | `model`         | string or null | Data model of the command: `Bucket` or `ZMap`, null for others                          |
 | `command`       | string or null | Name of the command                                                                     |
 | `query`         | string or null | BQL query of the command, every value replaced by `?`                                   |
