@@ -22,76 +22,27 @@ import javax.annotation.Nonnull;
 import java.util.function.IntSupplier;
 
 /**
- * Carries the per-operation context for Volume calls: an optional FoundationDB
- * transaction, the {@link Prefix} that scopes all entries, and a user version
- * counter that orders entries written within the same transaction.
+ * Per-call context for {@link Volume} operations: an optional FoundationDB
+ * transaction, the {@link Prefix} that scopes all entries, and the user version
+ * counter that orders entries written in the same transaction.
  *
- * <p><b>Transactional mode.</b> A session created with a transaction supports all
- * operations: append, update, delete, and transactional reads that resolve entry
- * metadata through the transaction. Volume never commits; committing or rolling
- * back the transaction is the caller's responsibility.
- * <pre>{@code
- * try (Transaction tr = context.getFoundationDB().createTransaction()) {
- *     VolumeSession session = new VolumeSession(tr, prefix);
- *     AppendResult result = volume.append(session, entry1, entry2);
- *     tr.commit().join();
- * }
- * }</pre>
+ * <p>Without a transaction the session is read-only and reads come from the entry
+ * metadata cache. Writes need a transaction. Volume never commits; the caller does.
  *
- * <p><b>Read-only mode.</b> A session created without a transaction serves reads
- * of previously committed entries from the entry metadata cache. Write operations
- * require a transaction and fail with a read-only session.
- * <pre>{@code
- * VolumeSession session = new VolumeSession(prefix);
- * ByteBuffer data = volume.get(session, versionstampedKey);
- * }</pre>
+ * <p>Each session starts its own user version counter at 0. When several requests
+ * write in one transaction, pass a shared {@link IntSupplier} so the versionstamped
+ * keys stay unique.
  *
- * <p><b>Prefix isolation.</b> The prefix logically partitions entries within a
- * shared Volume; buckets and Stash data structures each store their entries under
- * their own prefix, and all operations in a session are scoped to it.
- *
- * <p><b>User versions.</b> The user version is the 2-byte component (0-65535) of
- * the FoundationDB versionstamped key that orders entries committed in the same
- * transaction. By default each session keeps its own counter starting at 0. When
- * multiple requests write within the same transaction, an external
- * {@link IntSupplier} can be shared across their sessions to keep versionstamped
- * keys unique and ordered.
- *
- * <p>Sessions are lightweight, short-lived objects, typically one per transaction,
- * with no cleanup required. They are not thread-safe and must not be shared across
- * threads.
- *
- * @see Volume
- * @see Prefix
- * @see UserVersion
+ * <p>Not thread-safe.
  */
 public class VolumeSession {
-    /**
-     * Internal user version counter, used when no external supplier is set.
-     */
     private final UserVersion userVersion = new UserVersion();
-
-    /**
-     * FoundationDB transaction for this session, or null in read-only mode.
-     */
     private final Transaction transaction;
-
-    /**
-     * Prefix that scopes all entries accessed through this session.
-     */
     private final Prefix prefix;
-
-    /**
-     * Optional external user version supplier, shared across sessions when multiple
-     * requests write within the same transaction.
-     */
     private final IntSupplier userVersionSupplier;
 
     /**
-     * Creates a read-only session without a transaction. Reads of previously committed
-     * entries are served from the entry metadata cache; write operations fail.
-     *
-     * @param prefix the prefix that scopes entries, must not be null
+     * Read-only session. Reads come from the entry metadata cache.
      */
     public VolumeSession(@Nonnull Prefix prefix) {
         this.prefix = prefix;
@@ -100,11 +51,7 @@ public class VolumeSession {
     }
 
     /**
-     * Creates a transactional session for reads and writes. The caller is responsible
-     * for committing or rolling back the transaction; Volume never commits.
-     *
-     * @param tr     the FoundationDB transaction for this session, must not be null
-     * @param prefix the prefix that scopes entries, must not be null
+     * Transactional session with its own user version counter.
      */
     public VolumeSession(@Nonnull Transaction tr, @Nonnull Prefix prefix) {
         this.transaction = tr;
@@ -113,14 +60,8 @@ public class VolumeSession {
     }
 
     /**
-     * Creates a transactional session that draws user versions from an external supplier.
-     * Used when multiple requests write within the same transaction: each request gets
-     * its own session, but all entries must receive unique, sequential user versions
-     * to avoid versionstamp collisions.
-     *
-     * @param tr                  the FoundationDB transaction for this session, must not be null
-     * @param prefix              the prefix that scopes entries, must not be null
-     * @param userVersionSupplier supplier that returns the next user version, must not be null
+     * Transactional session that takes user versions from a shared supplier.
+     * Use it when several requests write in the same transaction.
      */
     public VolumeSession(@Nonnull Transaction tr, @Nonnull Prefix prefix, @Nonnull IntSupplier userVersionSupplier) {
         this.transaction = tr;
@@ -128,33 +69,22 @@ public class VolumeSession {
         this.userVersionSupplier = userVersionSupplier;
     }
 
-    /**
-     * Returns the prefix that scopes all operations in this session.
-     *
-     * @return the prefix
-     */
     public Prefix prefix() {
         return prefix;
     }
 
     /**
-     * Returns the FoundationDB transaction for this session, or null if this is a
-     * read-only session backed by the entry metadata cache.
-     *
-     * @return the transaction, or null for read-only sessions
+     * Returns the transaction, or null for a read-only session.
      */
     public Transaction transaction() {
         return transaction;
     }
 
     /**
-     * Returns the next user version for an entry written in this session. Each entry
-     * gets a unique, sequential value that becomes part of its versionstamped key.
-     * Drawn from the external supplier if one was provided at construction, otherwise
-     * from the session's internal counter. Called by Volume internals only.
+     * Returns the next user version for an entry. Comes from the shared supplier if
+     * set, else from the internal counter.
      *
-     * @return the current user version before incrementing
-     * @throws TooManyEntriesException if the internal counter exceeds 65535 entries
+     * @throws TooManyEntriesException if the internal counter passes 65535
      */
     protected int getAndIncrementUserVersion() {
         if (userVersionSupplier != null) {
