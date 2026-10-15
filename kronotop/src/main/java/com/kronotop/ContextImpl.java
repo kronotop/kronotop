@@ -114,7 +114,7 @@ public class ContextImpl implements Context {
         this.transactionManager = new TransactionManager(database, runtimeMetrics.getAggregatedTransactionMetrics(), slowLog);
         this.workerRegistry = new WorkerRegistry();
         this.dataDir = Path.of(config.getString("data_dir"), clusterName, member.getId());
-        this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, database, directoryLayer);
+        this.directorySubspaceCache = new DirectorySubspaceCache(clusterName, transactionManager, directoryLayer);
         this.internalClientPool = new InternalClientPool(TLSConfig.fromConfig(config, ServerKind.INTERNAL));
         this.shardRegistry = new ShardRegistry(config, clusterName);
 

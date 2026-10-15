@@ -26,8 +26,10 @@ import com.google.common.cache.LoadingCache;
 import com.kronotop.*;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
+import com.kronotop.transaction.TransactionUtil;
 
 import javax.annotation.Nonnull;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -115,15 +117,16 @@ public class JournalService extends BaseKronotopService implements KronotopServi
     private class JournalMetadataLoader extends CacheLoader<String, JournalMetadata> {
         @Override
         public @Nonnull JournalMetadata load(@Nonnull String name) {
-            Subspace subspace = context.getFoundationDB().run(tr -> {
-                KronotopDirectoryNode directory =
-                        KronotopDirectory.
-                                kronotop().
-                                cluster(context.getClusterName()).
-                                journals().
-                                journal(name);
-                return context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join();
-            });
+            KronotopDirectoryNode directory =
+                    KronotopDirectory.
+                            kronotop().
+                            cluster(context.getClusterName()).
+                            journals().
+                            journal(name);
+            // Several members may create the same journal at startup, retry on conflict.
+            Subspace subspace = TransactionUtil.retry(10, Duration.ofMillis(100)).executeSupplier(() ->
+                    TransactionUtil.executeThenCommit(context, tr ->
+                            context.getDirectoryLayer().createOrOpen(tr, directory.toList()).join()));
             return new JournalMetadata(subspace);
         }
     }

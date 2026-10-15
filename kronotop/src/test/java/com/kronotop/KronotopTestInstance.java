@@ -42,6 +42,7 @@ import com.kronotop.network.Address;
 import com.kronotop.server.*;
 import com.kronotop.server.resp3.*;
 import com.kronotop.stash.StashService;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.stash.handlers.cluster.protocol.ClusterMessage;
 import com.typesafe.config.Config;
 import io.lettuce.core.codec.StringCodec;
@@ -256,7 +257,7 @@ public class KronotopTestInstance extends KronotopInstance {
                 metadata().
                 namespaceTombstones().
                 toList();
-        context.getFoundationDB().run(tr ->
+        TransactionUtil.executeThenCommit(context, tr ->
                 context.getDirectoryLayer().createOrOpen(tr, path).join()
         );
 
@@ -352,7 +353,7 @@ public class KronotopTestInstance extends KronotopInstance {
         if (context == null) {
             return;
         }
-        context.getFoundationDB().run(tr -> {
+        TransactionUtil.executeThenCommit(context, tr -> {
             List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).toList();
             return context.getDirectoryLayer().removeIfExists(tr, subpath).join();
         });

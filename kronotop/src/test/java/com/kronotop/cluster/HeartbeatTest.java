@@ -18,6 +18,7 @@ package com.kronotop.cluster;
 
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.transaction.TransactionUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,50 +34,50 @@ class HeartbeatTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldReturnZeroWhenHeartbeatNotSet() {
-        long heartbeat = context.getFoundationDB().run(tr -> Heartbeat.get(tr, testSubspace));
+        long heartbeat = TransactionUtil.execute(context, tr -> Heartbeat.get(tr, testSubspace));
         assertEquals(0, heartbeat);
     }
 
     @Test
     void shouldIncrementHeartbeat() {
-        context.getFoundationDB().run(tr -> {
+        TransactionUtil.executeThenCommit(context, tr -> {
             Heartbeat.set(tr, testSubspace);
             return null;
         });
 
-        long heartbeat = context.getFoundationDB().run(tr -> Heartbeat.get(tr, testSubspace));
+        long heartbeat = TransactionUtil.execute(context, tr -> Heartbeat.get(tr, testSubspace));
         assertEquals(1, heartbeat);
     }
 
     @Test
     void shouldIncrementHeartbeatMultipleTimes() {
         for (int i = 0; i < 3; i++) {
-            context.getFoundationDB().run(tr -> {
+            TransactionUtil.executeThenCommit(context, tr -> {
                 Heartbeat.set(tr, testSubspace);
                 return null;
             });
         }
 
-        long heartbeat = context.getFoundationDB().run(tr -> Heartbeat.get(tr, testSubspace));
+        long heartbeat = TransactionUtil.execute(context, tr -> Heartbeat.get(tr, testSubspace));
         assertEquals(3, heartbeat);
     }
 
     @Test
     void shouldGetCorrectHeartbeatAcrossTransactions() {
-        context.getFoundationDB().run(tr -> {
+        TransactionUtil.executeThenCommit(context, tr -> {
             Heartbeat.set(tr, testSubspace);
             return null;
         });
 
-        long heartbeat1 = context.getFoundationDB().run(tr -> Heartbeat.get(tr, testSubspace));
+        long heartbeat1 = TransactionUtil.execute(context, tr -> Heartbeat.get(tr, testSubspace));
         assertEquals(1, heartbeat1);
 
-        context.getFoundationDB().run(tr -> {
+        TransactionUtil.executeThenCommit(context, tr -> {
             Heartbeat.set(tr, testSubspace);
             return null;
         });
 
-        long heartbeat2 = context.getFoundationDB().run(tr -> Heartbeat.get(tr, testSubspace));
+        long heartbeat2 = TransactionUtil.execute(context, tr -> Heartbeat.get(tr, testSubspace));
         assertEquals(2, heartbeat2);
     }
 }

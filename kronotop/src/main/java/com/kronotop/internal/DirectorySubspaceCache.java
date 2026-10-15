@@ -16,7 +16,7 @@
 
 package com.kronotop.internal;
 
-import com.apple.foundationdb.Database;
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectoryLayer;
 import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.directory.NoSuchDirectoryException;
@@ -30,6 +30,7 @@ import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.directory.KronotopDirectory;
 import com.kronotop.directory.KronotopDirectoryNode;
 import com.kronotop.directory.Shards;
+import com.kronotop.transaction.TransactionManager;
 
 import javax.annotation.Nonnull;
 import java.time.Duration;
@@ -46,7 +47,7 @@ import java.util.concurrent.ExecutionException;
  */
 public final class DirectorySubspaceCache {
     private final String cluster;
-    private final Database database;
+    private final TransactionManager transactionManager;
     private final DirectoryLayer directoryLayer;
 
     private final EnumMap<Key, List<String>> subpaths = new EnumMap<>(Key.class);
@@ -57,9 +58,9 @@ public final class DirectorySubspaceCache {
             .expireAfterAccess(Duration.ofSeconds(10))
             .build(new DirectorySubspaceLoader());
 
-    public DirectorySubspaceCache(String cluster, Database database, DirectoryLayer directoryLayer) {
+    public DirectorySubspaceCache(String cluster, TransactionManager transactionManager, DirectoryLayer directoryLayer) {
         this.cluster = cluster;
-        this.database = database;
+        this.transactionManager = transactionManager;
         this.directoryLayer = directoryLayer;
 
         for (Key name : Key.values()) {
@@ -167,15 +168,15 @@ public final class DirectorySubspaceCache {
 
     /**
      * DirectorySubspaceLoader is a type of CacheLoader designed to handle the loading of DirectorySubspace
-     * instances given a list of strings representing a path. It interacts with a database to open the specified
-     * path using the default DirectoryLayer.
+     * instances given a list of strings representing a path. It opens the path in a transaction
+     * from the TransactionManager using the default DirectoryLayer.
      */
     private class DirectorySubspaceLoader extends CacheLoader<List<String>, DirectorySubspace> {
         @Override
         public @Nonnull DirectorySubspace load(@Nonnull List<String> path) {
-            return database.run(tr -> directoryLayer.
-                    open(tr, path).
-                    join());
+            try (Transaction tr = transactionManager.create()) {
+                return directoryLayer.open(tr, path).join();
+            }
         }
     }
 }

@@ -23,6 +23,7 @@ import com.kronotop.KronotopException;
 import com.kronotop.KronotopTestInstance;
 import com.kronotop.internal.DirectorySubspaceCache;
 import com.kronotop.network.Address;
+import com.kronotop.transaction.TransactionUtil;
 import org.junit.jupiter.api.Test;
 
 import java.net.UnknownHostException;
@@ -31,7 +32,6 @@ import java.nio.ByteOrder;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
@@ -107,7 +107,7 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         );
         updatedMember.setStatus(MemberStatus.UNAVAILABLE);
 
-        instance.getContext().getFoundationDB().run(tr -> {
+        TransactionUtil.executeThenCommit(instance.getContext(), tr -> {
             membership.updateMember(tr, updatedMember);
             return null;
         });
@@ -132,13 +132,12 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
                 instance.getContext().getMember().getProcessId()
         );
 
-        CompletionException exception = assertThrows(CompletionException.class, () ->
-                instance.getContext().getFoundationDB().run(tr -> {
+        assertThrows(MemberNotRegisteredException.class, () ->
+                TransactionUtil.executeThenCommit(instance.getContext(), tr -> {
                     membership.updateMember(tr, unregisteredMember);
                     return null;
                 })
         );
-        assertInstanceOf(MemberNotRegisteredException.class, exception.getCause());
     }
 
     @Test
@@ -157,7 +156,7 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         assertEquals(MemberStatus.STOPPED, stoppedMember.getStatus());
 
         // Remove the stopped member
-        second.getContext().getFoundationDB().run(tr -> {
+        TransactionUtil.executeThenCommit(second.getContext(), tr -> {
             membership.removeMember(tr, first.getMember().getId());
             return null;
         });
@@ -172,13 +171,12 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         KronotopTestInstance instance = getInstances().getFirst();
         MembershipService membership = instance.getContext().getService(MembershipService.NAME);
 
-        CompletionException exception = assertThrows(CompletionException.class, () ->
-                instance.getContext().getFoundationDB().run(tr -> {
+        assertThrows(KronotopException.class, () ->
+                TransactionUtil.executeThenCommit(instance.getContext(), tr -> {
                     membership.removeMember(tr, instance.getMember().getId());
                     return null;
                 })
         );
-        assertInstanceOf(KronotopException.class, exception.getCause());
     }
 
     @Test
@@ -188,13 +186,12 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
 
         String unregisteredMemberId = MemberIdGenerator.generateId();
 
-        CompletionException exception = assertThrows(CompletionException.class, () ->
-                instance.getContext().getFoundationDB().run(tr -> {
+        assertThrows(MemberNotRegisteredException.class, () ->
+                TransactionUtil.executeThenCommit(instance.getContext(), tr -> {
                     membership.removeMember(tr, unregisteredMemberId);
                     return null;
                 })
         );
-        assertInstanceOf(MemberNotRegisteredException.class, exception.getCause());
     }
 
     @Test
@@ -310,7 +307,7 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         byte[] key = subspace.pack(Tuple.from(ClusterConstants.CLUSTER_TOPOLOGY_CHANGED));
 
         // Get initial counter value (little-endian 32-bit integer from atomic ADD)
-        Long initialValue = instance.getContext().getFoundationDB().run(tr -> {
+        Long initialValue = TransactionUtil.execute(instance.getContext(), tr -> {
             byte[] value = tr.get(key).join();
             if (value == null) {
                 return 0L;
@@ -319,13 +316,13 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         });
 
         // Trigger topology watcher
-        instance.getContext().getFoundationDB().run(tr -> {
+        TransactionUtil.executeThenCommit(instance.getContext(), tr -> {
             membership.triggerClusterTopologyWatcher(tr);
             return null;
         });
 
         // Verify counter was incremented
-        Long newValue = instance.getContext().getFoundationDB().run(tr -> {
+        Long newValue = TransactionUtil.execute(instance.getContext(), tr -> {
             byte[] value = tr.get(key).join();
             if (value == null) {
                 return 0L;
@@ -375,7 +372,7 @@ class MembershipServiceIntegrationTest extends BaseClusterTest {
         second.shutdownWithoutCleanup();
         kronotopInstances.remove(second.getMember());
 
-        first.getContext().getFoundationDB().run(tr -> {
+        TransactionUtil.executeThenCommit(first.getContext(), tr -> {
             membership.removeMember(tr, second.getMember().getId());
             return null;
         });

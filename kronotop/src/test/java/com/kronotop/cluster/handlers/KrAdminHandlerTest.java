@@ -29,6 +29,7 @@ import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.resp3.*;
+import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.BaseNetworkedVolumeIntegrationTest;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -658,7 +659,7 @@ class KrAdminHandlerTest extends BaseNetworkedVolumeIntegrationTest {
         assertInstanceOf(SimpleStringRedisMessage.class, msg2);
         assertEquals(Response.OK, ((SimpleStringRedisMessage) msg2).content());
 
-        boolean exists = context.getFoundationDB().run(tr -> {
+        boolean exists = TransactionUtil.execute(context, tr -> {
             List<String> subpath = KronotopDirectory.kronotop().cluster(context.getClusterName()).toList();
             return context.getDirectoryLayer().exists(tr, subpath).join();
         });

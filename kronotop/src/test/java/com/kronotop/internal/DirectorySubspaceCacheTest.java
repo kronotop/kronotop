@@ -32,7 +32,7 @@ public class DirectorySubspaceCacheTest extends BaseClusterTest {
         KronotopTestInstance instance = getInstances().getFirst();
         DirectorySubspaceCache cache = new DirectorySubspaceCache(
                 instance.getContext().getClusterName(),
-                instance.getContext().getFoundationDB(),
+                instance.getContext().getTransactionManager(),
                 instance.getContext().getDirectoryLayer()
         );
         DirectorySubspace subspace = assertDoesNotThrow(() -> cache.get(DirectorySubspaceCache.Key.CLUSTER_METADATA));
@@ -44,7 +44,7 @@ public class DirectorySubspaceCacheTest extends BaseClusterTest {
         KronotopTestInstance instance = getInstances().getFirst();
         DirectorySubspaceCache cache = new DirectorySubspaceCache(
                 instance.getContext().getClusterName(),
-                instance.getContext().getFoundationDB(),
+                instance.getContext().getTransactionManager(),
                 instance.getContext().getDirectoryLayer()
         );
         DirectorySubspace subspace = assertDoesNotThrow(() -> cache.get(ShardKind.STASH, 1));
