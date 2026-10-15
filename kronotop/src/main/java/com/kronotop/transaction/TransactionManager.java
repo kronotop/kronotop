@@ -88,6 +88,15 @@ public class TransactionManager {
     }
 
     /**
+     * Closes every open transaction. Called once at instance shutdown.
+     */
+    public void closeAll() {
+        for (InstrumentedTransaction tr : registry.values()) {
+            tr.close();
+        }
+    }
+
+    /**
      * Returns the open transaction with the given id, or null when there is none.
      */
     public InstrumentedTransaction get(long id) {

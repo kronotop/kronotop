@@ -435,6 +435,7 @@ public class KronotopInstance {
             }
         }
 
+        context.getTransactionManager().closeAll();
         context.getInternalClientPool().shutdown();
         context.getRuntimeMetrics().stop();
 
