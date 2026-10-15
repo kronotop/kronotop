@@ -112,6 +112,13 @@ public class InternalClientPool {
     }
 
     /**
+     * Returns the ClientResources shared by every client that this pool creates.
+     */
+    public ClientResources clientResources() {
+        return clientResources;
+    }
+
+    /**
      * Evicts connections for the given member from both pools.
      *
      * @param member the member whose connections should be evicted

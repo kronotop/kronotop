@@ -102,7 +102,7 @@ public class ReplicationClient {
 
             Address address = member.primaryInternalAdvertise();
             RedisURI.Builder builder = RedisURI.Builder.redis(address.getHost(), address.getPort());
-            RedisClient redisClient = RedisClient.create(builder.build());
+            RedisClient redisClient = RedisClient.create(context.getInternalClientPool().clientResources(), builder.build());
             redisClient.setOptions(options);
 
             // Create a Lettuce connection with retry for transient failures
@@ -156,9 +156,8 @@ public class ReplicationClient {
             }
 
             try {
-                // RedisClient is a heavy resource, must be closed.
-                client.shutdown();
-                client.getResources().shutdown();
+                // ClientResources are shared and owned by InternalClientPool, only the client is closed.
+                client.shutdownAsync();
             } catch (Exception ignored) {
                 // We can swallow errors during shutdown
             }
