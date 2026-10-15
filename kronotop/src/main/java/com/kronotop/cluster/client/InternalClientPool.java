@@ -160,7 +160,7 @@ public class InternalClientPool {
             try {
                 connection.close();
             } finally {
-                client.shutdown();
+                client.shutdownAsync();
             }
         }
     }
