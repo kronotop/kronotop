@@ -316,12 +316,28 @@ class InstrumentedTransactionTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldAggregateRolledBackTransaction() {
-        // Behavior: cancel() adds one to rolledBack. Only ROLLBACK cancels, so the delta is exact.
+        // Behavior: cancel() adds one to rolledBack. ROLLBACK and TRANSACTION KILL cancel.
         AggregatedTransactionMetrics agg = aggregated();
         long rolledBack = agg.getRolledBack();
 
         try (InstrumentedTransaction tr = createInstrumentedTransaction()) {
             tr.set(TEST_KEY, TEST_VALUE);
+            tr.cancel();
+        }
+
+        assertEquals(rolledBack + 1, agg.getRolledBack());
+    }
+
+    @Test
+    void shouldCountRolledBackOnceWhenCancelledTwice() {
+        // Behavior: TRANSACTION KILL cancels, then the owner runs ROLLBACK and cancels again.
+        // The transaction is counted once.
+        AggregatedTransactionMetrics agg = aggregated();
+        long rolledBack = agg.getRolledBack();
+
+        try (InstrumentedTransaction tr = createInstrumentedTransaction()) {
+            tr.set(TEST_KEY, TEST_VALUE);
+            tr.cancel();
             tr.cancel();
         }
 

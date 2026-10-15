@@ -39,6 +39,8 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
     private ReadTransaction snapshot;
     private volatile long clientId = INTERNAL;
     private volatile TransactionState state = TransactionState.ACTIVE;
+    // KILL and ROLLBACK both cancel. The rolled back total must count the transaction once.
+    private volatile boolean cancelled;
     // Set when the state becomes IDLE. Shown by TRANSACTION LIST as idle_ms.
     private volatile long idleSinceNanos;
     // Metadata of the command that runs on this transaction, shown by TRANSACTION LIST.
@@ -242,7 +244,10 @@ public class InstrumentedTransaction extends InstrumentedReadTransaction<Transac
     @Override
     public void cancel() {
         underlying.cancel();
-        aggregated.incrementRolledBack();
+        if (!cancelled) {
+            cancelled = true;
+            aggregated.incrementRolledBack();
+        }
     }
 
     @Override
