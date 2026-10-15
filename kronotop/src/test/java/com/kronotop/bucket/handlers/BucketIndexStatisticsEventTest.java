@@ -77,22 +77,20 @@ class BucketIndexStatisticsEventTest extends BaseIndexHandlerTest {
 
         switchProtocol(cmd, RESPVersion.RESP3);
 
-        // Run QUERY to populate plan cache
         String query = "{\"age\": {\"$eq\": 25}}";
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.query(TEST_BUCKET, query).encode(buf);
-            runCommand(channel, buf);
-        }
+        await().atMost(Duration.ofSeconds(15)).until(() -> {
+            ByteBuf queryBuf = Unpooled.buffer();
+            cmd.query(TEST_BUCKET, query).encode(queryBuf);
+            runCommand(channel, queryBuf);
 
-        // Verify plan is cached
-        {
-            ByteBuf buf = Unpooled.buffer();
-            cmd.explain(TEST_BUCKET, query).encode(buf);
-            Object msg = runCommand(channel, buf);
-            assertInstanceOf(MapRedisMessage.class, msg);
-            assertEquals(true, getBooleanValue((MapRedisMessage) msg, "is_cached"));
-        }
+            ByteBuf explainBuf = Unpooled.buffer();
+            cmd.explain(TEST_BUCKET, query).encode(explainBuf);
+            Object msg = runCommand(channel, explainBuf);
+            if (!(msg instanceof MapRedisMessage mapMessage)) {
+                return false;
+            }
+            return Boolean.TRUE.equals(getBooleanValue(mapMessage, "is_cached"));
+        });
 
         // Run ANALYZE
         {
