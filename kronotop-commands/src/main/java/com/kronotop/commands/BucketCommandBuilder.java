@@ -73,7 +73,7 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
 
     public final Command<K, V, Map<K, V>> query(String bucket, String query) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
-        return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
+        return createCommand(CommandType.BUCKET_QUERY, new MapOutput<>(codec), args);
     }
 
     public final Command<K, V, Map<K, V>> query(String bucket, String query, BucketQueryArgs bucketQueryArgs) {
@@ -81,12 +81,12 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         if (bucketQueryArgs != null) {
             bucketQueryArgs.build(args);
         }
-        return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
+        return createCommand(CommandType.BUCKET_QUERY, new MapOutput<>(codec), args);
     }
 
     public final Command<K, V, Map<K, V>> query(String bucket, byte[] query) {
         CommandArgs<K, V> args = new CommandArgs<>(codec).add(bucket).add(query);
-        return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
+        return createCommand(CommandType.BUCKET_QUERY, new MapOutput<>(codec), args);
     }
 
     public final Command<K, V, Map<K, V>> query(String bucket, byte[] query, BucketQueryArgs bucketQueryArgs) {
@@ -94,7 +94,7 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
         if (bucketQueryArgs != null) {
             bucketQueryArgs.build(args);
         }
-        return createCommand(CommandType.QUERY, new MapOutput<>(codec), args);
+        return createCommand(CommandType.BUCKET_QUERY, new MapOutput<>(codec), args);
     }
 
     public final Command<K, V, Map<K, V>> explain(String bucket, String query) {
@@ -398,7 +398,6 @@ public class BucketCommandBuilder<K, V> extends BaseKronotopCommandBuilder<K, V>
     }
 
     public enum CommandType implements ProtocolKeyword {
-        QUERY("QUERY"),
         BUCKET_INSERT("BUCKET.INSERT"),
         BUCKET_QUERY("BUCKET.QUERY"),
         BUCKET_DELETE("BUCKET.DELETE"),
