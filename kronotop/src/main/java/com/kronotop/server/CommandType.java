@@ -174,10 +174,7 @@ public enum CommandType {
 
     // Session commands
     SESSION_ATTRIBUTE("SESSION.ATTRIBUTE"),
-    SESSION_CLOSE("SESSION.CLOSE"),
-
-    // Query commands
-    QUERY;
+    SESSION_CLOSE("SESSION.CLOSE");
 
     private final String commandName;
 
@@ -352,9 +349,6 @@ public enum CommandType {
             // Session commands
             case "SESSION.ATTRIBUTE" -> SESSION_ATTRIBUTE;
             case "SESSION.CLOSE" -> SESSION_CLOSE;
-
-            // Query commands
-            case "QUERY" -> QUERY;
 
             default -> null;
         };

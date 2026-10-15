@@ -42,7 +42,7 @@ public class CommandHighlighter implements Highlighter {
     private static final AttributedStyle DEFAULT_STYLE = AttributedStyle.DEFAULT;
 
     private static final Set<String> JSON_COMMANDS = Set.of(
-            "bucket.insert", "bucket.query", "query", "bucket.update", "bucket.delete", "bucket.explain",
+            "bucket.insert", "bucket.query", "bucket.update", "bucket.delete", "bucket.explain",
             "bucket.createindex", "bucket.vector", "set", "setx", "zset", "mset", "hset", "hsetnx",
             "hmset"
     );

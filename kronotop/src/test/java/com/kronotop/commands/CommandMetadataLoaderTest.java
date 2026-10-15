@@ -269,7 +269,7 @@ class CommandMetadataLoaderTest {
         // Behavior: the commands that open a cursor list CLOSE as their last argument, BUCKET.EXPLAIN does not list it
         Map<String, CommandMetadata> commands = CommandMetadataLoader.load().get(ServerKind.EXTERNAL);
 
-        for (String name : List.of("BUCKET.QUERY", "BUCKET.DELETE", "BUCKET.UPDATE", "QUERY")) {
+        for (String name : List.of("BUCKET.QUERY", "BUCKET.DELETE", "BUCKET.UPDATE")) {
             assertEquals("CLOSE", commands.get(name).arguments().getLast().token(), name);
         }
 
@@ -285,7 +285,7 @@ class CommandMetadataLoaderTest {
 
         List<String> missing = Stream.of(CommandType.values())
                 .map(CommandType::getCommandName)
-                .filter(name -> name.startsWith("BUCKET.") || name.equals("QUERY"))
+                .filter(name -> name.startsWith("BUCKET."))
                 .filter(name -> !commands.containsKey(name))
                 .toList();
         assertEquals(List.of(), missing);

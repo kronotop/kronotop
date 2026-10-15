@@ -249,9 +249,6 @@
       "glob": "commands/pttl.json"
     },
     {
-      "glob": "commands/query.json"
-    },
-    {
       "glob": "commands/randomkey.json"
     },
     {
