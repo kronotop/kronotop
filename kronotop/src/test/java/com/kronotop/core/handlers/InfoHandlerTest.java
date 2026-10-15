@@ -494,22 +494,19 @@ class InfoHandlerTest extends BaseHandlerTest {
 
     @Test
     void shouldReportOldestActiveTransaction() throws InterruptedException {
-        // Behavior: background watch transactions are reported as watching, not active; without a plain
-        // open transaction the oldest value is near zero. An open transaction counts as active and makes
-        // oldest_active_transaction_usec positive and growing.
+        // Behavior: watch transactions count as watching, an open transaction counts as active, and
+        // oldest_active_transaction_usec is at least the age of that open transaction.
         String idle = runInfo(getChannel(), "transactions");
         assertTrue(longField(idle, "transactions_watching") >= 1, idle);
-        assertTrue(longField(idle, "oldest_active_transaction_usec") < 1_000_000, idle);
 
         try (Transaction tr = context.getTransactionManager().create()) {
             Thread.sleep(5);
             String info = runInfo(getChannel(), "transactions");
             assertTrue(longField(info, "transactions_active") >= 1, info);
-            long first = longField(info, "oldest_active_transaction_usec");
-            assertTrue(first > 0);
+            assertTrue(longField(info, "oldest_active_transaction_usec") >= 5_000, info);
             Thread.sleep(5);
-            long second = longField(runInfo(getChannel(), "transactions"), "oldest_active_transaction_usec");
-            assertTrue(second > first);
+            String later = runInfo(getChannel(), "transactions");
+            assertTrue(longField(later, "oldest_active_transaction_usec") >= 10_000, later);
             tr.cancel();
         }
     }

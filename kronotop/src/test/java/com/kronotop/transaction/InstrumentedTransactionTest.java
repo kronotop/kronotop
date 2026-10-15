@@ -365,20 +365,23 @@ class InstrumentedTransactionTest extends BaseStandaloneInstanceTest {
 
     @Test
     void shouldExcludeWatchTransactionFromOldestActive() {
-        // Behavior: a transaction that owns a watch is marked watching, is counted separately,
-        // and is skipped by oldestActiveTransactionStartNanos().
-        TransactionManager manager = context.getTransactionManager();
-        int watching = manager.getWatchingTransactionCount();
+        // Behavior: a watch transaction is counted as watching and skipped by
+        // oldestActiveTransactionStartNanos(); a plain transaction is not skipped.
+        TransactionManager manager = new TransactionManager(
+                context.getFoundationDB(), new AggregatedTransactionMetrics(), new SlowTransactionLog(1000, 16));
         byte[] key = Tuple.from("test", "instrumented", "watch").pack();
 
-        try (InstrumentedTransaction tr = createInstrumentedTransaction()) {
+        try (InstrumentedTransaction tr = manager.create()) {
             tr.watch(key);
             tr.commit().join();
 
             assertTrue(tr.getMetrics().isWatching());
-            assertEquals(watching + 1, manager.getWatchingTransactionCount());
-            long oldest = manager.oldestActiveTransactionStartNanos();
-            assertTrue(oldest == 0 || oldest > tr.getMetrics().getStartNanos(), "oldest=" + oldest);
+            assertEquals(1, manager.getWatchingTransactionCount());
+            assertEquals(0, manager.oldestActiveTransactionStartNanos());
+
+            try (InstrumentedTransaction plain = manager.create()) {
+                assertEquals(plain.getMetrics().getStartNanos(), manager.oldestActiveTransactionStartNanos());
+            }
         }
     }
 
