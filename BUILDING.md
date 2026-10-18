@@ -19,8 +19,8 @@ Compose.
 
 ## Prerequisites
 
-- **Java (JDK 25 or newer).** Kronotop uses virtual threads, the incubator vector module, and JVM flags that
-  require a recent JDK. Install one yourself, for example, [Eclipse Temurin](https://adoptium.net/) or
+- Java (JDK 25 or newer). Kronotop uses virtual threads, the incubator vector module, and JVM flags that
+  require a recent JDK. Install one, for example [Eclipse Temurin](https://adoptium.net/) or
   [Amazon Corretto](https://aws.amazon.com/corretto/). Check the version:
 
   ```
@@ -29,17 +29,17 @@ Compose.
 
   It must report 25 or higher.
 
-- **FoundationDB 7.3.77.** You need both the client library and a running server. See
+- FoundationDB 7.3.77. You need both the client library and a running server. See
   [Installing FoundationDB](#installing-foundationdb) below.
 
-- **Git** to clone the repository.
+- Git to clone the repository.
 
-Maven does not need to be installed. The project ships a Maven wrapper (`./mvnw`) that downloads the required
+You do not need to install Maven. The project ships a Maven wrapper (`./mvnw`) that downloads the required
 version.
 
 ## Installing FoundationDB
 
-Kronotop targets **FoundationDB 7.3.77**. Both the client library and a local server are required for development.
+Kronotop targets FoundationDB 7.3.77. Development needs both the client library and a local server.
 
 Release page: <https://github.com/apple/foundationdb/releases/tag/7.3.77>
 
@@ -58,7 +58,7 @@ sudo installer -pkg FoundationDB-7.3.77_arm64.pkg -target /
 ```
 
 The installer configures and starts a single-node database and writes the cluster file to
-`/usr/local/etc/foundationdb/fdb.cluster`. No manual initialization is needed.
+`/usr/local/etc/foundationdb/fdb.cluster`.
 
 ### Linux (Debian / Ubuntu)
 
@@ -73,7 +73,7 @@ sudo dpkg -i foundationdb-clients_7.3.77-1_amd64.deb foundationdb-server_7.3.77-
 ARM packages: `foundationdb-clients_7.3.77-1_aarch64.deb` and `foundationdb-server_7.3.77-1_aarch64.deb`.
 
 The server package configures and starts a single-node database and writes the cluster file to
-`/etc/foundationdb/fdb.cluster`. No manual initialization is needed.
+`/etc/foundationdb/fdb.cluster`.
 
 ### Linux (RHEL / CentOS)
 
@@ -85,14 +85,14 @@ sudo rpm -i foundationdb-clients-7.3.77-1.el7.x86_64.rpm foundationdb-server-7.3
 
 ARM packages on EL9: `foundationdb-clients-7.3.77-1.el9.aarch64.rpm` and `foundationdb-server-7.3.77-1.el9.aarch64.rpm`.
 
-The server package configures and starts a single-node database. No manual initialization is needed.
+The server package configures and starts a single-node database.
 
 ### Windows
 
 FoundationDB does not publish a native Windows installer for 7.3.77. Use one of these instead:
 
-- **WSL2**: run a Linux distribution under WSL2 and install the Debian/Ubuntu packages there.
-- **Docker**: run the official image `foundationdb/foundationdb:7.3.77` and point Kronotop at its cluster file.
+- WSL2: run a Linux distribution under WSL2 and install the Debian/Ubuntu packages there.
+- Docker: run the official image `foundationdb/foundationdb:7.3.77` and point Kronotop at its cluster file.
 
 ### Initializing the database
 
@@ -178,7 +178,7 @@ Override it with `-DforkCount=<value>`:
 A `C` suffix is a multiplier of the CPU core count (`0.5C` = half, `1C` = one per core). A plain number is an
 absolute fork count. Use `1` or `0` to run sequentially. Higher fork counts finish faster but use more memory.
 
-Avoid running the full test suite unless necessary; it is slow. Prefer targeted module or class-level runs.
+The full test suite is slow. Prefer targeted module or class-level runs unless you need the whole suite.
 
 ## Running a Local Node
 
@@ -211,7 +211,7 @@ on macOS, `/etc/foundationdb/fdb.cluster` on Linux). To use a different cluster 
 ./bin/kronotop -Dfoundationdb.clusterfile=/path/to/fdb.cluster
 ```
 
-Local data (volumes and segments) is written to a `kronotop-data` directory in the current working directory by
+Kronotop writes local data (volumes and segments) to a `kronotop-data` directory in the current working directory by
 default. Override it with `-Ddata_dir=/path/to/data`.
 
 ## Bootstrapping the Cluster
@@ -310,7 +310,7 @@ java -jar kronotop-ctl/target/kronotop-ctl-2026.10-2.jar bootstrap \
 
 ## Configuration Overrides
 
-Kronotop reads its defaults from a built-in HOCON configuration. Two ways to override values at the startup:
+Kronotop reads its defaults from a built-in HOCON configuration. There are two ways to override values at startup:
 
 - Supply a full config file: `-Dconfig.file=/path/to/kronotop.conf`. Only the values you change need to appear in it.
 - Override individual parameters: `-Dnetwork.external.port=6000`, `-Dcluster.name=dev`, and so on. The property name
@@ -321,9 +321,8 @@ list of parameters.
 
 ## Docker Alternative
 
-To run Kronotop without building from source, the [README Quickstart](README.md#quickstart) starts a FoundationDB
-instance, a Kronotop primary, and a standby with Docker Compose. The compose file and related assets live in the
-[`docker/`](docker/) directory.
+The [README Quickstart](README.md#quickstart) starts a FoundationDB instance, a Kronotop primary, and a standby with
+Docker Compose, with no build step. The compose file and related assets live in the [`docker/`](docker/) directory.
 
 ## Getting Help
 

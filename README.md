@@ -6,9 +6,9 @@ Kronotop is a distributed, transactional document database backed by [Foundation
 
 > Millions of databases. One cluster.
 
-Kronotop gives every AI agent, tenant, or application its own logical database, called a namespace. A namespace is
-a FoundationDB key prefix, so creating one is almost free and its data is isolated from other namespaces. A single
-transaction can commit atomically across any number of namespaces.
+Each tenant, app, or AI agent gets its own logical database, called a namespace. A namespace is a FoundationDB key
+prefix, so creating one is almost free and its data stays isolated from other namespaces. A single transaction can
+commit atomically across any number of namespaces.
 
 Proof: we [created 1,000,001 namespaces in a single cluster](proof/README.md).
 

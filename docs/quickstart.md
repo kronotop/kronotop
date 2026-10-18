@@ -3,12 +3,11 @@ title: "Quickstart"
 description: "Start a minimal Kronotop cluster with Docker Compose, insert a document, and query it back."
 ---
 
-The fastest way to try Kronotop is with Docker Compose. Prebuilt jars are also published on the
-[Releases page](https://github.com/kronotop/kronotop/releases); download them and run with `java -jar`,
-which requires Java 25 or newer. If you want to build Kronotop from source and run a node locally, see the
-[Building and Running guide](https://github.com/kronotop/kronotop/blob/main/BUILDING.md).
+The fastest way to try Kronotop is with Docker Compose. Prebuilt jars are also published on the [Releases page](https://github.com/kronotop/kronotop/releases); 
+download them and run with `java -jar`, which requires Java 25 or newer. To build Kronotop from source and run a node 
+locally, see the [Building and Running guide](https://github.com/kronotop/kronotop/blob/main/BUILDING.md).
 
-## Start the Cluster
+## Start the cluster
 
 Download the Docker Compose file:
 
@@ -34,7 +33,7 @@ docker run --rm -it --platform linux/amd64 --network kronotop \
   ghcr.io/kronotop/kronotop:latest kronotop-cli -h kronotop-primary -p 3320
 ```
 
-Alternatively, you can use `kronotop-cli` or `valkey-cli` if you have them installed locally:
+If you have `kronotop-cli` or `valkey-cli` installed locally, you can connect with that instead:
 
 ```bash
 valkey-cli -p 3320
@@ -56,7 +55,7 @@ kronotop-primary:3320> KR.ADMIN DESCRIBE-CLUSTER
       4# "linked_volumes" => 1) "bucket-shard-0"
 ```
 
-## Session Setup
+## Session setup
 
 Port 3320 is the internal/admin port. Client traffic goes through port 5484. Connect to the client port:
 
@@ -65,8 +64,8 @@ docker run --rm -it --platform linux/amd64 --network kronotop \
   ghcr.io/kronotop/kronotop:latest kronotop-cli -h kronotop-primary -p 5484
 ```
 
-`kronotop-cli` sets these automatically. If you are using `valkey-cli`, set the session attributes manually
-for human-readable output:
+If you use `valkey-cli`, set the session attributes below for human-readable output. `kronotop-cli` sets them
+automatically.
 
 ```kronotop
 SESSION.ATTRIBUTE SET input_type json
@@ -74,7 +73,7 @@ SESSION.ATTRIBUTE SET reply_type json
 SESSION.ATTRIBUTE SET object_id_format hex
 ```
 
-## Insert and Query a Document
+## Insert and query a document
 
 Create a bucket:
 
@@ -102,10 +101,10 @@ kronotop-primary:5484> BUCKET.QUERY orders '{"qty": {"$gte": 1}}'
 2# "entries" => 1) {"_id": "6a133c8806bf494c9e7e00cb", "item": "keyboard", "qty": 2, "price": 49.99}
 ```
 
-## One Transaction, Multiple Models
+## One transaction, multiple models
 
-Kronotop allows different data models and namespaces to participate in the same strictly serializable transaction
-boundary. A single transaction can atomically write a document and update a counter across isolated namespaces:
+Different data models and namespaces can share one strictly serializable transaction. A single transaction can
+atomically write a document and update a counter across isolated namespaces:
 
 ```kronotop
 BEGIN
@@ -124,7 +123,7 @@ COMMIT
 Namespaces must exist before use; create them with `NAMESPACE CREATE production.sales` and
 `NAMESPACE CREATE production.inventory`.
 
-## Next Steps
+## Next steps
 
 - [Bucket Tutorial](bucket/tutorial.md): a walkthrough of the Bucket API, from creating a bucket to removing it
 - [BQL Reference](bucket/bql-reference.md): the query language in full
