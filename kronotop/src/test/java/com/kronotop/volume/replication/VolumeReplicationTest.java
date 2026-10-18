@@ -1990,6 +1990,74 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     }
 
     @Test
+    void shouldAdvanceCheckpointWhenBatchHasOnlyFinalizationEntries(@TempDir Path destination)
+            throws IOException, java.util.concurrent.ExecutionException, InterruptedException {
+        // Behavior: a batch that holds only FINALIZATION (DELETE) entries produces no ranges.
+        // processChanges must still move the checkpoint to latestSequenceNumber. Otherwise,
+        // startInternal calls changelogWatch with the same sequence number, the watch returns
+        // at once and the same batch is fetched forever.
+        int length = 1024;
+        int number = 100;
+        ByteBuffer[] entries = getEntries(number, length);
+
+        Versionstamp[] keys;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            AppendResult appendResult = volume.append(session, entries);
+            tr.commit().join();
+            keys = appendResult.getVersionstampedKeys();
+        }
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            volume.delete(session, keys);
+            tr.commit().join();
+        }
+
+        ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
+        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        ChangeDataCapture cdc = null;
+        try {
+            client.connect(getClientOptions());
+
+            long latestSequenceNumber = client.conn().sync().changelogWatch(volumeConfig.name(), 0L);
+            List<ChangeLogEntryResponse> deleteChanges = client.conn().sync().changelogRange(
+                    volumeConfig.name(), ParentOperationKind.FINALIZATION.toString(), "[0", latestSequenceNumber + "]",
+                    ChangeLogRangeArgs.Builder.limit(number + 100));
+            assertEquals(number, deleteChanges.size());
+            for (ChangeLogEntryResponse entry : deleteChanges) {
+                assertNull(entry.after(), "DELETE entries must not carry an after coordinate");
+            }
+
+            DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
+            ReplicationSession session = new ReplicationSession(
+                    volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
+                    0L, 0L, 16L * 1024 * 1024, volume.getConfig().segmentSize());
+            cdc = new ChangeDataCapture(context, subspace, client, session);
+
+            Path standbySegment0 = SegmentUtil.getFilePath(destination.toAbsolutePath().toString(), 0L);
+            byte[] segment0Before = sha1(standbySegment0.toString());
+
+            ChangeDataCapture.Checkpoint checkpoint = new ChangeDataCapture.Checkpoint();
+            checkpoint.setSegmentId(0L);
+            checkpoint.setSequenceNumber(0L);
+
+            cdc.processChanges(checkpoint, latestSequenceNumber, deleteChanges);
+
+            assertEquals(latestSequenceNumber, checkpoint.sequenceNumber());
+            assertEquals(0L, checkpoint.segmentId());
+
+            byte[] segment0After = sha1(standbySegment0.toString());
+            assertArrayEquals(segment0Before, segment0After, "FINALIZATION entries must not write to the segment file");
+        } finally {
+            if (cdc != null) {
+                cdc.close();
+            }
+            client.shutdown();
+            replication.shutdown();
+        }
+    }
+
+    @Test
     void shouldResumeWhenSegmentStatusIsFailed(@TempDir Path destination) {
         // Behavior: a FAILED segment resumes from its cursor instead of permanently stopping replication.
         VolumeReplication replication =
