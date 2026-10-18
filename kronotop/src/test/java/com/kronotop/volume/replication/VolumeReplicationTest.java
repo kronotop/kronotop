@@ -1993,7 +1993,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
     void shouldAdvanceCheckpointWhenBatchHasOnlyFinalizationEntries(@TempDir Path destination)
             throws IOException, java.util.concurrent.ExecutionException, InterruptedException {
         // Behavior: a batch that holds only FINALIZATION (DELETE) entries produces no ranges.
-        // processChanges must still move the checkpoint to latestSequenceNumber. Otherwise,
+        // processChanges must still move the checkpoint to the last skipped entry. Otherwise,
         // startInternal calls changelogWatch with the same sequence number, the watch returns
         // at once and the same batch is fetched forever.
         int length = 1024;
@@ -2043,11 +2043,103 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
             cdc.processChanges(checkpoint, latestSequenceNumber, deleteChanges);
 
-            assertEquals(latestSequenceNumber, checkpoint.sequenceNumber());
+            assertEquals(deleteChanges.getLast().before().sequenceNumber(), checkpoint.sequenceNumber());
             assertEquals(0L, checkpoint.segmentId());
 
             byte[] segment0After = sha1(standbySegment0.toString());
             assertArrayEquals(segment0Before, segment0After, "FINALIZATION entries must not write to the segment file");
+        } finally {
+            if (cdc != null) {
+                cdc.close();
+            }
+            client.shutdown();
+            replication.shutdown();
+        }
+    }
+
+    @Test
+    void shouldNotSkipEntriesWhenFinalizationBatchIsTruncatedByLimit(@TempDir Path destination)
+            throws IOException, java.util.concurrent.ExecutionException, InterruptedException {
+        // Behavior: CHANGELOG.RANGE without LIMIT returns at most 1000 raw entries. When a burst of
+        // more than 1000 DELETEs is followed by APPENDs, the first round holds only FINALIZATION
+        // entries. The checkpoint must stop at the last fetched entry, not jump to
+        // latestSequenceNumber, otherwise the APPENDs after the burst are never pulled.
+        int length = 128;
+        int burst = 1100;
+        int tail = 10;
+
+        Versionstamp[] keys;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            AppendResult appendResult = volume.append(session, getEntries(burst, length));
+            tr.commit().join();
+            keys = appendResult.getVersionstampedKeys();
+        }
+
+        ReplicationClient client = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
+        VolumeReplication replication = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString());
+        ChangeDataCapture cdc = null;
+        try {
+            client.connect(getClientOptions());
+            long afterAppends = client.conn().sync().changelogWatch(volumeConfig.name(), 0L);
+
+            try (Transaction tr = context.getTransactionManager().create()) {
+                VolumeSession session = new VolumeSession(tr, prefix);
+                volume.delete(session, keys);
+                tr.commit().join();
+            }
+            try (Transaction tr = context.getTransactionManager().create()) {
+                VolumeSession session = new VolumeSession(tr, prefix);
+                volume.append(session, getEntries(tail, length));
+                tr.commit().join();
+            }
+
+            long latest = client.conn().sync().changelogWatch(volumeConfig.name(), afterAppends);
+
+            // First round, same call as startInternal: no LIMIT, so the handler caps at 1000.
+            List<ChangeLogEntryResponse> firstRound = client.conn().sync().changelogRange(
+                    volumeConfig.name(), "*", "(" + afterAppends, latest + "]", null);
+            assertEquals(1000, firstRound.size());
+            for (ChangeLogEntryResponse entry : firstRound) {
+                assertNull(entry.after(), "First round must hold only DELETE entries");
+            }
+
+            DirectorySubspace subspace = replication.createOrOpenStandbySubspace();
+            ReplicationSession session = new ReplicationSession(
+                    volumeConfig.name(), SHARD_KIND, SHARD_ID, destination,
+                    0L, 0L, 16L * 1024 * 1024, volume.getConfig().segmentSize());
+            cdc = new ChangeDataCapture(context, subspace, client, session);
+
+            ChangeDataCapture.Checkpoint checkpoint = new ChangeDataCapture.Checkpoint();
+            checkpoint.setSegmentId(0L);
+            checkpoint.setSequenceNumber(afterAppends);
+
+            cdc.processChanges(checkpoint, latest, firstRound);
+            assertEquals(firstRound.getLast().before().sequenceNumber(), checkpoint.sequenceNumber());
+            assertTrue(checkpoint.sequenceNumber() < latest, "Checkpoint must not jump past the fetched list");
+
+            // Second round picks up the remaining DELETEs and the APPENDs after the burst.
+            List<ChangeLogEntryResponse> secondRound = client.conn().sync().changelogRange(
+                    volumeConfig.name(), "*", "(" + checkpoint.sequenceNumber(), latest + "]", null);
+            assertEquals((burst - 1000) + tail, secondRound.size());
+
+            cdc.processChanges(checkpoint, latest, secondRound);
+            assertEquals(secondRound.getLast().after().sequenceNumber(), checkpoint.sequenceNumber());
+
+            Path primarySegment0 = SegmentUtil.getFilePath(volume.getConfig().dataDir(), 0L);
+            Path standbySegment0 = SegmentUtil.getFilePath(destination.toAbsolutePath().toString(), 0L);
+            int appended = 0;
+            for (ChangeLogEntryResponse entry : secondRound) {
+                if (entry.after() == null) {
+                    continue;
+                }
+                long position = entry.after().position();
+                int len = Math.toIntExact(entry.after().length());
+                assertArrayEquals(readRange(primarySegment0, position, len), readRange(standbySegment0, position, len),
+                        "APPEND at position " + position + " was not replicated");
+                appended++;
+            }
+            assertEquals(tail, appended);
         } finally {
             if (cdc != null) {
                 cdc.close();
