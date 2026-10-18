@@ -118,9 +118,9 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
     /**
      * Processes changelog entries in batches, handling segment rollovers as needed.
      */
-    // Exposed with package-private visibility solely for test support.
     void processChanges(Checkpoint checkpoint, long latestSequenceNumber, List<ChangeLogEntryResponse> changes)
             throws IOException, ExecutionException, InterruptedException {
+        // Exposed with package-private visibility solely for test support.
         int index = 0;
         while (index < changes.size()) {
             if (shutdown) break;
