@@ -37,4 +37,11 @@ public enum ParentOperationKind {
     public byte getValue() {
         return value;
     }
+
+    public static ParentOperationKind parentKindOf(OperationKind operationKind) {
+        return switch (operationKind) {
+            case INSERT, APPEND, UPDATE -> LIFECYCLE;
+            case DELETE -> FINALIZATION;
+        };
+    }
 }
