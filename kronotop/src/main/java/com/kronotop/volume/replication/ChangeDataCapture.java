@@ -42,7 +42,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Throwables.getRootCause;
-import static com.kronotop.volume.ParentOperationKind.LIFECYCLE;
 
 /**
  * Streams incremental changes from the primary's changelog to the standby.
@@ -132,6 +131,7 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
             long sequenceNumber = 0;
             long nextPosition = 0;
             long nextSegmentId = -1;
+            long skippedSequenceNumber = -1;
 
             List<SegmentRange> ranges = new ArrayList<>();
             for (int i = index; i < changes.size(); i++) {
@@ -139,6 +139,7 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
                 ChangeLogEntryResponse response = changes.get(i);
                 OperationKind operationKind = OperationKind.valueOf(response.kind());
                 if (ParentOperationKind.parentKindOf(operationKind) == ParentOperationKind.FINALIZATION) {
+                    skippedSequenceNumber = response.before().sequenceNumber();
                     index++;
                     continue;
                 }
@@ -187,10 +188,12 @@ public class ChangeDataCapture extends AbstractReplication implements Replicatio
                     file = createOrOpenSegmentFile(nextSegmentId);
                     checkpoint.setSegmentId(nextSegmentId);
                     checkpoint.setSequenceNumber(latestSequenceNumber);
-                } else {
-                    // Only FINALIZATION entries in this batch. Advance the checkpoint,
-                    // otherwise the watch returns at once and the same batch is fetched again.
-                    checkpoint.setSequenceNumber(latestSequenceNumber);
+                } else if (skippedSequenceNumber >= 0) {
+                    // EDGE CASE: Only FINALIZATION entries in this batch. Move the checkpoint to the last
+                    // consumed entry, otherwise the watch returns at once and the same batch is
+                    // fetched again. Never jump to latestSequenceNumber: CHANGELOG.RANGE caps the
+                    // result at its default limit, so entries past the list may exist.
+                    checkpoint.setSequenceNumber(skippedSequenceNumber);
                 }
             }
         }
