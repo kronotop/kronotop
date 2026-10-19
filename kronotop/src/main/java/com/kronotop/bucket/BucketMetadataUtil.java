@@ -41,6 +41,7 @@ import com.kronotop.internal.UUIDUtil;
 import com.kronotop.journal.JournalName;
 import com.kronotop.journal.JournalService;
 import com.kronotop.namespace.NamespaceUtil;
+import com.kronotop.namespace.NoSuchNamespaceException;
 import com.kronotop.server.Session;
 import com.kronotop.server.SessionAttributes;
 import com.kronotop.volume.Prefix;
@@ -452,8 +453,7 @@ public class BucketMetadataUtil {
     }
 
     /**
-     * Opens bucket metadata by resolving from a volume prefix. Walks the binding chain in reverse
-     * using {@link #resolvePointerBytes}, then reads bucket name and namespace from the registry.
+     * Opens bucket metadata by its volume prefix. Uses the cache when available.
      *
      * @param context     the context providing environment and services
      * @param tr          the transaction for database access
@@ -462,7 +462,22 @@ public class BucketMetadataUtil {
      * @throws KronotopException if the prefix is not registered or the bucket name is not found
      */
     public static BucketMetadata openByPrefix(Context context, Transaction tr, byte[] prefixBytes) {
-        // Slowest way to load a BucketMetadata but this is only used by Vacuum process.
+        Prefix prefix = Prefix.fromBytes(prefixBytes);
+        BucketMetadataCache cache = context.getBucketMetadataCache();
+        BucketMetadataCache.PrefixBinding binding = cache.getBinding(prefix);
+        if (binding != null) {
+            try {
+                BucketMetadata metadata = open(context, tr, binding.namespace(), binding.bucket());
+                // A bucket removed and created again under the same name gets a new prefix.
+                if (metadata.prefix().equals(prefix)) {
+                    return metadata;
+                }
+            } catch (NoSuchNamespaceException | NoSuchBucketException e) {
+                // Stale binding, resolved again below.
+            }
+            cache.invalidateBinding(prefix);
+        }
+
         byte[] rawPointer = resolvePointerBytes(context, tr, prefixBytes);
         if (rawPointer == null) {
             throw new KronotopException("Prefix not registered");
@@ -488,7 +503,7 @@ public class BucketMetadataUtil {
         String namespace = String.join(".", subpath);
 
         DirectorySubspace pointerSubspace = openPointerSubspace(tr, context, namespace, bucket);
-        Prefix prefix = Prefix.fromBytes(prefixBytes);
+        cache.setBinding(prefix, namespace, bucket);
         return loadMetadata(context, tr, bucketSubspace, pointerSubspace, pointer, namespace, bucket, prefix, false);
     }
 

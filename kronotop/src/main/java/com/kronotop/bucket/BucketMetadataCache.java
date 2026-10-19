@@ -17,9 +17,11 @@
 package com.kronotop.bucket;
 
 import com.kronotop.Context;
+import com.kronotop.volume.Prefix;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.LongSupplier;
@@ -30,11 +32,22 @@ import java.util.function.LongSupplier;
  *
  * <p>Entries can be invalidated by bucket or by namespace prefix. A background eviction worker
  * drops entries that have not been accessed within their TTL, so the cache stays bounded.
+ *
+ * <p>The cache also keeps a volume prefix to (namespace, bucket) binding. A prefix never changes,
+ * so a binding has no TTL. It goes stale only after a namespace move or a bucket removal; the
+ * caller drops it when the bucket cannot be opened under the bound name.
  */
 public class BucketMetadataCache {
     private final Context context;
     private final StampedLock lock = new StampedLock();
     private final ConcurrentSkipListMap<String, BucketMetadataRegistry> cache;
+    private final ConcurrentHashMap<Prefix, PrefixBinding> bindings = new ConcurrentHashMap<>();
+
+    /**
+     * Namespace and bucket name bound to a volume prefix.
+     */
+    public record PrefixBinding(String namespace, String bucket) {
+    }
 
     public BucketMetadataCache(Context context) {
         this.context = context;
@@ -125,6 +138,27 @@ public class BucketMetadataCache {
         } finally {
             lock.unlockWrite(stamp);
         }
+    }
+
+    /**
+     * Returns the binding for a volume prefix, or {@code null} if the prefix is unknown.
+     */
+    public PrefixBinding getBinding(Prefix prefix) {
+        return bindings.get(prefix);
+    }
+
+    /**
+     * Binds a volume prefix to a namespace and bucket name.
+     */
+    public void setBinding(Prefix prefix, String namespace, String bucket) {
+        bindings.put(prefix, new PrefixBinding(namespace, bucket));
+    }
+
+    /**
+     * Removes the binding for a volume prefix.
+     */
+    public void invalidateBinding(Prefix prefix) {
+        bindings.remove(prefix);
     }
 
     /**

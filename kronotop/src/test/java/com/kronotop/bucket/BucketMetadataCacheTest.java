@@ -17,6 +17,7 @@
 package com.kronotop.bucket;
 
 import com.kronotop.BaseStandaloneInstanceTest;
+import com.kronotop.volume.Prefix;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -60,6 +61,20 @@ class BucketMetadataCacheTest extends BaseStandaloneInstanceTest {
     void shouldInvalidateHandleNonExistentNamespace() {
         BucketMetadataCache cache = new BucketMetadataCache(context);
         assertDoesNotThrow(() -> cache.invalidate("non-existent-namespace", TEST_BUCKET));
+    }
+
+    @Test
+    void shouldBindingOperationsWork() {
+        BucketMetadataCache cache = new BucketMetadataCache(context);
+        Prefix prefix = getBucketMetadata(TEST_BUCKET).prefix();
+
+        assertThat(cache.getBinding(prefix)).isNull();
+
+        cache.setBinding(prefix, TEST_NAMESPACE, TEST_BUCKET);
+        assertThat(cache.getBinding(prefix)).isEqualTo(new BucketMetadataCache.PrefixBinding(TEST_NAMESPACE, TEST_BUCKET));
+
+        cache.invalidateBinding(prefix);
+        assertThat(cache.getBinding(prefix)).isNull();
     }
 
     @Test
