@@ -192,10 +192,12 @@ public class VectorIndexUtil {
     /**
      * Validates that a value conforms to a vector index definition: must be a BsonArray of BsonDouble
      * with the correct number of dimensions. Null or missing values are allowed (vector field is optional).
+     *
+     * @return true if the value is a valid vector, false if it is null or missing
      */
-    public static void validateVectorField(VectorIndexDefinition definition, BsonValue value) {
+    public static boolean validateVectorField(VectorIndexDefinition definition, BsonValue value) {
         if (value == null || value.isNull()) {
-            return;
+            return false;
         }
         if (value.getBsonType() != BsonType.ARRAY) {
             throw VectorFieldValidationException.notAnArray(definition.selector());
@@ -209,16 +211,21 @@ public class VectorIndexUtil {
                 throw VectorFieldValidationException.elementsNotDouble(definition.selector());
             }
         }
+        return true;
     }
 
     /**
      * Validates all vector fields in a document against the bucket's vector index definitions.
+     *
+     * @return true if the document has at least one vector field
      */
-    public static void validateVectorFields(BucketMetadata metadata, BsonDocument document) {
+    public static boolean validateVectorFields(BucketMetadata metadata, BsonDocument document) {
+        boolean hasVector = false;
         for (VectorIndex vi : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             BsonValue value = SelectorMatcher.match(vi.definition().selector(), document);
-            validateVectorField(vi.definition(), value);
+            hasVector |= validateVectorField(vi.definition(), value);
         }
+        return hasVector;
     }
 
     /**

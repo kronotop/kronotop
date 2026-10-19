@@ -17,6 +17,7 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
+import com.kronotop.volume.replication.ReplicationHint;
 
 import javax.annotation.Nonnull;
 import java.util.function.IntSupplier;
@@ -40,6 +41,7 @@ public class VolumeSession {
     private final Transaction transaction;
     private final Prefix prefix;
     private final IntSupplier userVersionSupplier;
+    private ReplicationHint replicationHint;
 
     /**
      * Read-only session. Reads come from the entry metadata cache.
@@ -91,5 +93,13 @@ public class VolumeSession {
             return userVersionSupplier.getAsInt();
         }
         return userVersion.getAndIncrement();
+    }
+
+    public void setReplicationHint(ReplicationHint hint) {
+        this.replicationHint = hint;
+    }
+
+    public ReplicationHint getReplicationHint() {
+        return replicationHint;
     }
 }

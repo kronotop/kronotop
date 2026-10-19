@@ -33,6 +33,7 @@ import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.AppendResult;
 import com.kronotop.volume.AppendedEntry;
 import com.kronotop.volume.VolumeSession;
+import com.kronotop.volume.replication.ReplicationHint;
 import org.bson.*;
 import org.bson.types.ObjectId;
 
@@ -361,10 +362,14 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             }
             checkUniqueness(tr, metadata, documents, userProvidedIds);
 
+            ReplicationHint replicationHint = null;
             if (!metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
                 checkVectorIndexRecoveryState(metadata);
-                for (SerializedDocument doc : documents) {
-                    VectorIndexUtil.validateVectorFields(metadata, doc.document());
+                replicationHint = new ReplicationHint();
+                for (int i = 0; i < documents.length; i++) {
+                    if (VectorIndexUtil.validateVectorFields(metadata, documents[i].document())) {
+                        replicationHint.markHasVector(i);
+                    }
                 }
             }
 
@@ -381,6 +386,7 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                 volumeSession = new VolumeSession(tr, metadata.prefix(),
                         () -> TransactionUtil.getUserVersion(session));
             }
+            volumeSession.setReplicationHint(replicationHint);
 
             AppendResult appendResult;
             try {
