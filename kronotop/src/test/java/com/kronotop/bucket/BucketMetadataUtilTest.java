@@ -597,6 +597,76 @@ class BucketMetadataUtilTest extends BaseStandaloneInstanceTest {
     }
 
     @Test
+    void shouldOpenByPrefixCacheBinding() {
+        // Behavior: openByPrefix stores the prefix to (namespace, bucket) binding in the metadata cache.
+        Session session = getSession();
+        BucketMetadata expected = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            BucketMetadataUtil.openByPrefix(context, tr, expected.prefix().asBytes());
+        }
+        BucketMetadataCache.PrefixBinding binding = context.getBucketMetadataCache().getBinding(expected.prefix());
+        assertEquals(new BucketMetadataCache.PrefixBinding(TEST_NAMESPACE, TEST_BUCKET), binding);
+    }
+
+    @Test
+    void shouldOpenByPrefixReturnCachedMetadataOnSecondCall() {
+        // Behavior: the second openByPrefix call goes through the binding and returns the cached metadata instance.
+        Session session = getSession();
+        BucketMetadata expected = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            BucketMetadata first = BucketMetadataUtil.openByPrefix(context, tr, expected.prefix().asBytes());
+            BucketMetadata second = BucketMetadataUtil.openByPrefix(context, tr, expected.prefix().asBytes());
+            assertSame(first, second);
+        }
+    }
+
+    @Test
+    void shouldOpenByPrefixRecoverFromStaleBinding() {
+        // Behavior: a binding to a missing namespace is dropped and the prefix is resolved again from FDB.
+        Session session = getSession();
+        BucketMetadata expected = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
+        // Simulate the namespace move operation
+        context.getBucketMetadataCache().setBinding(expected.prefix(), "stale.ns", TEST_BUCKET);
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            BucketMetadata metadata = BucketMetadataUtil.openByPrefix(context, tr, expected.prefix().asBytes());
+            assertEquals(expected.uuid(), metadata.uuid());
+            assertEquals(TEST_NAMESPACE, metadata.namespace());
+        }
+        BucketMetadataCache.PrefixBinding binding = context.getBucketMetadataCache().getBinding(expected.prefix());
+        assertEquals(new BucketMetadataCache.PrefixBinding(TEST_NAMESPACE, TEST_BUCKET), binding);
+    }
+
+    @Test
+    void shouldOpenByPrefixFailForPurgedBucketRecreatedWithSameName() {
+        // Behavior: after purge and re-create under the same name, the old prefix must not open the new bucket.
+        // The binding is dropped and the old prefix fails to resolve.
+        Session session = getSession();
+        BucketMetadata old = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
+        try (Transaction tr = context.getTransactionManager().create()) {
+            BucketMetadataUtil.openByPrefix(context, tr, old.prefix().asBytes());
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            TransactionalContext tx = new TransactionalContext(context, tr);
+            BucketMetadataUtil.purge(tx, TEST_NAMESPACE, TEST_BUCKET);
+            tr.commit().join();
+        }
+        context.getBucketMetadataCache().invalidate(TEST_NAMESPACE, TEST_BUCKET);
+        BucketMetadata recreated = BucketMetadataUtil.create(context, session, TEST_BUCKET, List.of(TEST_SHARD_ID));
+        assertNotEquals(old.prefix(), recreated.prefix());
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            KronotopException exception = assertThrows(KronotopException.class, () ->
+                    BucketMetadataUtil.openByPrefix(context, tr, old.prefix().asBytes()));
+            assertEquals("Prefix not registered", exception.getMessage());
+        }
+        assertNull(context.getBucketMetadataCache().getBinding(old.prefix()));
+    }
+
+    @Test
     void shouldOpenByPrefixWithNestedNamespace() {
         // Behavior: openByPrefix correctly resolves a dotted namespace path from the namespace binding.
         Session session = getSession();

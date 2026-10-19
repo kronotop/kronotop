@@ -90,7 +90,6 @@ public class BucketEntryEvacuator implements EntryEvacuator {
             EntryMetadata entryMetadata,
             Versionstamp versionstamp
     ) throws IOException {
-        // TODO: Not cached for now. Fix the cache invalidation issues first, then revisit this.
         BucketMetadata metadata = BucketMetadataUtil.openByPrefix(context, tr, entryMetadata.prefix());
 
         ByteBuffer document = volume.getByEntryMetadata(entryMetadata);
