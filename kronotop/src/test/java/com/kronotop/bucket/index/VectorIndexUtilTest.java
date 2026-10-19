@@ -128,4 +128,40 @@ class VectorIndexUtilTest extends BaseIndexMaintainerTest {
         );
         assertEquals("Vector field 'embedding' must be an array", ex.getMessage());
     }
+
+    @Test
+    void hasVectorFieldShouldReturnFalseWhenNoVectorIndex() {
+        createBucket(TEST_BUCKET);
+        BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
+        BsonDocument document = new BsonDocument(SELECTOR, validVector());
+        assertFalse(VectorIndexUtil.hasVectorField(metadata, document));
+    }
+
+    @Test
+    void hasVectorFieldShouldReturnFalseWhenFieldMissing() {
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        BsonDocument document = new BsonDocument("name", new BsonString("x"));
+        assertFalse(VectorIndexUtil.hasVectorField(metadata, document));
+    }
+
+    @Test
+    void hasVectorFieldShouldReturnFalseWhenFieldIsNull() {
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        BsonDocument document = new BsonDocument(SELECTOR, BsonNull.VALUE);
+        assertFalse(VectorIndexUtil.hasVectorField(metadata, document));
+    }
+
+    @Test
+    void hasVectorFieldShouldReturnTrueWhenFieldPresent() {
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        BsonDocument document = new BsonDocument(SELECTOR, validVector());
+        assertTrue(VectorIndexUtil.hasVectorField(metadata, document));
+    }
+
+    @Test
+    void hasVectorFieldShouldNotValidate() {
+        BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
+        BsonDocument document = new BsonDocument(SELECTOR, new BsonString("bad"));
+        assertTrue(VectorIndexUtil.hasVectorField(metadata, document));
+    }
 }

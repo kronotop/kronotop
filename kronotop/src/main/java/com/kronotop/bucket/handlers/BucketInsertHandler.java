@@ -362,6 +362,9 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
             }
             checkUniqueness(tr, metadata, documents, userProvidedIds);
 
+            // WRITABLE selects WAITING, BUILDING and READY vector indexes. DROPPED and FAILED
+            // indexes are ignored on purpose; a document gets a hint only when it carries a
+            // valid vector for a live index.
             ReplicationHint replicationHint = null;
             if (!metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
                 checkVectorIndexRecoveryState(metadata);

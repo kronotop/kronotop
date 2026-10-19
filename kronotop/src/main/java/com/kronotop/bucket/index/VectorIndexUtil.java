@@ -34,6 +34,7 @@ import org.bson.BsonDocument;
 import org.bson.BsonType;
 import org.bson.BsonValue;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 
 import static com.kronotop.bucket.BucketMetadataUtil.POSITIVE_DELTA_ONE;
@@ -226,6 +227,36 @@ public class VectorIndexUtil {
             hasVector |= validateVectorField(vi.definition(), value);
         }
         return hasVector;
+    }
+
+    /**
+     * Checks if the document has a non-null value for at least one writable vector index selector.
+     * No type or dimension validation is done.
+     *
+     * @return true if the document has at least one vector field
+     */
+    public static boolean hasVectorField(BucketMetadata metadata, BsonDocument document) {
+        for (VectorIndex vi : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
+            BsonValue value = SelectorMatcher.match(vi.definition().selector(), document);
+            if (value != null && !value.isNull()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Same as {@link #hasVectorField(BucketMetadata, BsonDocument)} for a BSON buffer.
+     * The buffer position is restored after the read.
+     */
+    public static boolean hasVectorField(BucketMetadata metadata, ByteBuffer document) {
+        for (VectorIndex vi : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
+            BsonValue value = SelectorMatcher.match(vi.definition().selector(), document);
+            if (value != null && !value.isNull()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

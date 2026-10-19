@@ -27,6 +27,7 @@ import com.kronotop.bucket.vector.VectorNodeDeleteHook;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
+import com.kronotop.volume.replication.ReplicationHint;
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
@@ -86,6 +87,17 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                     versionstamps.add(versionstamp);
                 }
 
+                // Documents are not read on delete. When the bucket has a writable vector index,
+                // every entry is marked, same as VectorIndexMaintainer.dropEntry.
+                ReplicationHint hint = null;
+                if (!ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
+                    hint = new ReplicationHint();
+                    for (int i = 0; i < entries.length; i++) {
+                        hint.markHasVector(i);
+                    }
+                }
+                session.setReplicationHint(hint);
+
                 if (shard != null) {
                     DeleteResult deleteResult = shard.volume().deleteByVersionstampedEntry(session, entries);
                     PostCommitHook postCommitHook = new PostCommitHook(deleteResult);
@@ -97,6 +109,8 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                     });
                     volumeFacade.deleteByVersionstampedEntry(subspace, session, entries);
                 }
+
+                session.resetReplicationHint();
             }
 
             // Drop index entries for all deleted documents

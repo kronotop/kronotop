@@ -99,6 +99,10 @@ public class VolumeSession {
         this.replicationHint = hint;
     }
 
+    public void resetReplicationHint() {
+        this.replicationHint = null;
+    }
+
     public ReplicationHint getReplicationHint() {
         return replicationHint;
     }

@@ -21,6 +21,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.bucket.index.*;
 import com.kronotop.volume.*;
+import com.kronotop.volume.replication.ReplicationHint;
 import org.bson.BsonDocument;
 import org.bson.types.ObjectId;
 
@@ -99,6 +100,14 @@ public class BucketEntryEvacuator implements EntryEvacuator {
         ObjectId objectId = doc.get(ReservedFieldName.ID.getValue()).asObjectId().getValue();
 
         VolumeSession session = new VolumeSession(tr, metadata.prefix());
+        ReplicationHint hint = null;
+        if (!metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
+            hint = new ReplicationHint();
+            if (VectorIndexUtil.hasVectorField(metadata, doc)) {
+                hint.markHasVector(0);
+            }
+        }
+        session.setReplicationHint(hint);
         VersionstampedEntryUpdate update = new VersionstampedEntryUpdate(versionstamp, entryMetadata, document);
         UpdateResult result = volume.updateByVersionstampedEntryUpdate(session, update);
 

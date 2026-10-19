@@ -35,6 +35,7 @@ import com.kronotop.bucket.vector.VectorNodeDeleteHook;
 import com.kronotop.cluster.sharding.ShardKind;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.*;
+import com.kronotop.volume.replication.ReplicationHint;
 import org.bson.*;
 import org.bson.types.ObjectId;
 
@@ -240,6 +241,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         UniquenessChecker uniquenessChecker = new UniquenessChecker(tr);
         List<VersionstampedEntryUpdate> updatedEntries = new ArrayList<>();
         List<ObjectId> objectIds = new ArrayList<>();
+        boolean hasVectorIndex = !ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty();
+        ReplicationHint hint = hasVectorIndex ? new ReplicationHint() : null;
 
         for (DocumentRef docRef : docRefs) {
             ByteBuffer document = shard.volume().getByEntryMetadata(docRef.entryMetadata());
@@ -254,6 +257,9 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             uniquenessEnforcer.enqueue(uniquenessChecker, docRef.objectId().toByteArray(), setResult.document());
             Versionstamp versionstamp = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, docRef.objectId().toByteArray(), ctx.metadata());
             VersionstampedEntryUpdate updatedEntry = new VersionstampedEntryUpdate(versionstamp, docRef.entryMetadata(), setResult.document());
+            if (hint != null && VectorIndexUtil.hasVectorField(ctx.metadata(), setResult.document())) {
+                hint.markHasVector(updatedEntries.size());
+            }
             updatedEntries.add(updatedEntry);
             objectIds.add(docRef.objectId());
             updateResultContainers.put(docRef.objectId(), new UpdateResultContainer(shardId, setResult));
@@ -266,6 +272,7 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         // Drain all uniqueness reads before touching the volume so a violation leaves no appended bytes.
         uniquenessChecker.await();
 
+        session.setReplicationHint(hint);
         UpdateResult updateResult = shard.volume().updateByVersionstampedEntryUpdate(session, updatedEntries.toArray(new VersionstampedEntryUpdate[0]));
         TransactionUtil.addPostCommitHook(new PostCommitHook(updateResult), ctx.getSession());
 
@@ -334,9 +341,20 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         uniquenessChecker.await();
 
         // Second pass: insert into the local shard and delete the remote original.
+        boolean hasVectorIndex = !ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty();
         for (ChangedDocument entry : changed) {
             DocumentRef docRef = entry.docRef();
             BSONUpdateUtil.DocumentUpdateResult setResult = entry.setResult();
+
+            // Both the insert and the remote delete carry a single entry at index 0.
+            ReplicationHint hint = null;
+            if (hasVectorIndex) {
+                hint = new ReplicationHint();
+                if (VectorIndexUtil.hasVectorField(ctx.metadata(), setResult.document())) {
+                    hint.markHasVector(0);
+                }
+            }
+            session.setReplicationHint(hint);
 
             Versionstamp versionstamp = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, docRef.objectId().toByteArray(), ctx.metadata());
             KeyEntry keyEntry = new KeyEntry(versionstamp, setResult.document());
@@ -651,6 +669,15 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
 
         BucketShard shard = findLocalBucketShard(ctx);
         VolumeSession session = new VolumeSession(tr, ctx.metadata().prefix());
+
+        ReplicationHint hint = null;
+        if (!ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
+            hint = new ReplicationHint();
+            if (VectorIndexUtil.hasVectorField(ctx.metadata(), upsertDoc)) {
+                hint.markHasVector(0);
+            }
+        }
+        session.setReplicationHint(hint);
 
         AppendResult appendResult = shard.volume().append(session, docBuffer);
 
