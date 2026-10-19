@@ -26,4 +26,5 @@ public class Subspaces {
     public static final byte CHANGELOG_BACK_POINTER_SUBSPACE = 0x07;
     public static final byte VACUUM_METADATA_SUBSPACE = 0x08;
     public static final byte VOLUME_METADATA_SUBSPACE = 0x09;
+    public static final byte REPLICATION_HINT_SUBSPACE = 0x0A;
 }
