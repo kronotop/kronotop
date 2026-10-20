@@ -59,6 +59,7 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
     private final ReentrantReadWriteLock rwlock = new ReentrantReadWriteLock();
     private final EnumMap<ShardKind, Map<Integer, ReplicationWatchDog>> replications = new EnumMap<>(ShardKind.class);
     private final EnumMap<ShardKind, Map<Integer, Boolean>> suppressionFlag = new EnumMap<>(ShardKind.class);
+    private final ReplicationHintPlugins hintPlugins = new ReplicationHintPlugins();
 
     public ReplicationService(Context context) {
         super(context, NAME);
@@ -75,6 +76,10 @@ public class ReplicationService extends BaseKronotopService implements KronotopS
         this.routing.registerHook(RoutingEventKind.START_REPLICATION, new StartReplicationHook(this));
         this.routing.registerHook(RoutingEventKind.STOP_REPLICATION, new StopReplicationHook(this));
         this.routing.registerHook(RoutingEventKind.PRIMARY_OWNER_CHANGED, new PrimaryOwnerChangedHook(this));
+    }
+
+    public ReplicationHintPlugins getHintPlugins() {
+        return hintPlugins;
     }
 
     /**

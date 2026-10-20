@@ -33,6 +33,7 @@ import com.kronotop.bucket.index.VectorIndex;
 import com.kronotop.bucket.index.VectorIndexDefinition;
 import com.kronotop.bucket.index.maintenance.IndexMaintenanceRoutineMetrics;
 import com.kronotop.bucket.vector.*;
+import com.kronotop.bucket.vector.replication.VectorReplicationPlugin;
 import com.kronotop.cluster.Route;
 import com.kronotop.cluster.RoutingEventHook;
 import com.kronotop.cluster.RoutingEventKind;
@@ -43,6 +44,8 @@ import com.kronotop.internal.ExecutorServiceUtil;
 import com.kronotop.metrics.InfoReport;
 import com.kronotop.server.ServerKind;
 import com.kronotop.server.SessionAttributes;
+import com.kronotop.volume.replication.ReplicationHintKind;
+import com.kronotop.volume.replication.ReplicationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,6 +102,12 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
         this.maxScanCandidates = context.getConfig().getInt("bucket.vector.max_scan_candidates");
         this.defaultOverquery = (float) context.getConfig().getDouble("bucket.vector.default_overquery");
         this.bucketDataDir = context.getDataDir().resolve("bucket");
+
+        // Register replication hint plugins
+        ReplicationService replication = context.getService(ReplicationService.NAME);
+        VectorReplicationPlugin vectorPlugin = new VectorReplicationPlugin(this);
+        replication.getHintPlugins().register(ReplicationHintKind.VECTOR_NODE_ADD, vectorPlugin);
+        replication.getHintPlugins().register(ReplicationHintKind.VECTOR_NODE_DELETE, vectorPlugin);
 
         context.setBucketMetadataCache(new BucketMetadataCache(context));
 

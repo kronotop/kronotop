@@ -49,6 +49,7 @@ public abstract class AbstractReplication {
     protected final DirectorySubspace subspace;
     protected final ReplicationClient client;
     protected final ReplicationSession session;
+    protected final ReplicationHintPlugins hintPlugins;
     protected final Retry transactionWithRetry;
     protected final long reconnectBackoffNanos;
     protected final CountDownLatch latch = new CountDownLatch(1);
@@ -63,6 +64,8 @@ public abstract class AbstractReplication {
         this.subspace = subspace;
         this.client = client;
         this.session = session;
+        ReplicationService replicationService = context.getService(ReplicationService.NAME);
+        this.hintPlugins = replicationService.getHintPlugins();
         this.transactionWithRetry = TransactionUtil.retry(10, Duration.ofMillis(100));
         this.reconnectBackoffNanos =
                 TimeUnit.MILLISECONDS.toNanos(context.getConfig().getLong("volume.replication.reconnect_backoff"));
