@@ -17,7 +17,8 @@
 package com.kronotop.volume.replication;
 
 public enum ReplicationHintKind {
-    ENTRIES_HAVE_VECTOR((byte) 0x01);
+    VECTOR_NODE_ADD((byte) 0x01),
+    VECTOR_NODE_DELETE((byte) 0x02);
 
     private final byte value;
 
@@ -26,10 +27,11 @@ public enum ReplicationHintKind {
     }
 
     public static ReplicationHintKind valueOf(byte value) {
-         if (value == ENTRIES_HAVE_VECTOR.value) {
-             return ENTRIES_HAVE_VECTOR;
-         }
-         throw new IllegalArgumentException("Unknown replication hint kind: " + value);
+        return switch (value) {
+            case 0x01 -> VECTOR_NODE_ADD;
+            case 0x02 -> VECTOR_NODE_DELETE;
+            default -> throw new IllegalArgumentException("Unknown replication hint kind: " + value);
+        };
     }
 
     public byte getValue() {

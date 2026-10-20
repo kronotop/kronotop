@@ -29,6 +29,8 @@ import com.kronotop.internal.VersionstampUtil;
 import com.kronotop.transaction.TransactionUtil;
 import com.kronotop.volume.changelog.ChangeLog;
 import com.kronotop.volume.handlers.PackedEntry;
+import com.kronotop.volume.replication.ReplicationHintKind;
+import com.kronotop.volume.replication.ReplicationHintMaintainer;
 import com.kronotop.volume.segment.*;
 import io.github.resilience4j.retry.Retry;
 import io.netty.util.AttributeKey;
@@ -532,6 +534,13 @@ public class Volume {
             segmentMetadata.increaseCardinalityByOne(session);
             segmentMetadata.increaseUsedBytes(session, metadata.length());
 
+            ReplicationHintMaintainer.setHintIfMarked(
+                    session,
+                    index,
+                    subspace.getDirectorySubspace(),
+                    ReplicationHintKind.VECTOR_NODE_ADD,
+                    metadata
+            );
             changeLog.appendOperation(tr, metadata, session.prefix(), userVersion);
         }
 
@@ -786,6 +795,13 @@ public class Volume {
             segmentMetadata.decreaseCardinalityByOne(session);
             segmentMetadata.increaseUsedBytes(session, -1 * metadata.length());
 
+            ReplicationHintMaintainer.setHintIfMarked(
+                    session,
+                    index,
+                    subspace.getDirectorySubspace(),
+                    ReplicationHintKind.VECTOR_NODE_DELETE,
+                    metadata
+            );
             changeLog.deleteOperation(session.transaction(), metadata, session.prefix(), key);
 
             result.add(index, key);
@@ -804,7 +820,8 @@ public class Volume {
             byte[] packedKey,
             EntryMetadata prevMetadata,
             byte[] encodedPrevMetadata,
-            EntryMetadata newMetadata
+            EntryMetadata newMetadata,
+            int index
     ) {
         Transaction tr = session.transaction();
 
@@ -839,6 +856,20 @@ public class Volume {
                 encodedKey
         );
 
+        ReplicationHintMaintainer.setHintIfMarked(
+                session,
+                index,
+                subspace.getDirectorySubspace(),
+                ReplicationHintKind.VECTOR_NODE_DELETE,
+                prevMetadata
+        );
+        ReplicationHintMaintainer.setHintIfMarked(
+                session,
+                index,
+                subspace.getDirectorySubspace(),
+                ReplicationHintKind.VECTOR_NODE_ADD,
+                newMetadata
+        );
         changeLog.updateOperation(tr, prevMetadata, newMetadata, session.prefix(), key);
 
         return new UpdatedEntry(key, newMetadata, encodedNewMetadata);
@@ -864,7 +895,8 @@ public class Volume {
         return entryMetadataList;
     }
 
-    public UpdateResult update(@Nonnull VolumeSession session, @Nonnull KeyEntry... pairs) throws IOException, KeyNotFoundException {
+    public UpdateResult update(@Nonnull VolumeSession session, @Nonnull KeyEntry... pairs)
+            throws IOException, KeyNotFoundException {
         EntryMetadata[] entryMetadataList = validateAndAppendEntries(session.prefix(), pairs);
 
         UpdatedEntry[] updatedEntries = new UpdatedEntry[pairs.length];
@@ -879,7 +911,8 @@ public class Volume {
             }
 
             EntryMetadata prevMetadata = EntryMetadata.decode(encodedPrevMetadata);
-            updatedEntries[index] = applyUpdate(session, key, packedKey, prevMetadata, encodedPrevMetadata, entryMetadataList[index]);
+            updatedEntries[index] = applyUpdate(session, key, packedKey, prevMetadata, encodedPrevMetadata,
+                    entryMetadataList[index], index);
             index++;
         }
 
@@ -895,7 +928,8 @@ public class Volume {
         return new UpdateResult(updatedEntries, entryMetadataCache.load(session.prefix())::put);
     }
 
-    public UpdateResult updateByVersionstampedEntryUpdate(VolumeSession session, VersionstampedEntryUpdate... entries) throws IOException {
+    public UpdateResult updateByVersionstampedEntryUpdate(VolumeSession session, VersionstampedEntryUpdate... entries)
+            throws IOException {
         raiseExceptionIfVolumeClosed();
         Objects.requireNonNull(session);
         Objects.requireNonNull(entries);
@@ -927,7 +961,8 @@ public class Volume {
                     packedKey,
                     entry.metadata(),
                     encodedPrevMetadata,
-                    newMetadataList[index]
+                    newMetadataList[index],
+                    index
             );
             index++;
         }
@@ -965,13 +1000,14 @@ public class Volume {
      * @throws VersionstampAlreadyExistsException if any key already exists in this volume
      * @throws IOException                        if a segment write fails
      */
-    public InsertResult insert(@Nonnull VolumeSession session, @Nonnull KeyEntry... pairs) throws IOException, VersionstampAlreadyExistsException {
+    public InsertResult insert(@Nonnull VolumeSession session, @Nonnull KeyEntry... pairs)
+            throws IOException, VersionstampAlreadyExistsException {
         EntryMetadata[] entryMetadataList = validateAndAppendEntries(session.prefix(), pairs);
 
         Transaction tr = session.transaction();
         InsertedEntry[] insertedEntries = new InsertedEntry[pairs.length];
-        for (int i = 0; i < pairs.length; i++) {
-            Versionstamp key = pairs[i].key();
+        for (int index = 0; index < pairs.length; index++) {
+            Versionstamp key = pairs[index].key();
             byte[] packedKey = subspace.packEntryKey(session.prefix(), key);
 
             // Check for duplicate
@@ -980,7 +1016,7 @@ public class Volume {
                 throw new VersionstampAlreadyExistsException(key);
             }
 
-            EntryMetadata metadata = entryMetadataList[i];
+            EntryMetadata metadata = entryMetadataList[index];
             byte[] metadataBytes = metadata.encode();
 
             // Write entry metadata (regular set, not SET_VERSIONSTAMPED_KEY)
@@ -1001,10 +1037,18 @@ public class Volume {
             segmentMetadata.increaseCardinalityByOne(session);
             segmentMetadata.increaseUsedBytes(session, metadata.length());
 
+            ReplicationHintMaintainer.setHintIfMarked(
+                    session,
+                    index,
+                    subspace.getDirectorySubspace(),
+                    ReplicationHintKind.VECTOR_NODE_ADD,
+                    metadata
+            );
+
             // Changelog
             changeLog.insertOperation(tr, metadata, session.prefix(), key);
 
-            insertedEntries[i] = new InsertedEntry(key, metadata, metadataBytes);
+            insertedEntries[index] = new InsertedEntry(key, metadata, metadataBytes);
         }
 
         triggerWatchers(tr);

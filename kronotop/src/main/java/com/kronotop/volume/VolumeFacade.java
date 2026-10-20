@@ -21,6 +21,8 @@ import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.volume.changelog.ChangeLog;
+import com.kronotop.volume.replication.ReplicationHintKind;
+import com.kronotop.volume.replication.ReplicationHintMaintainer;
 
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
@@ -51,7 +53,8 @@ public class VolumeFacade {
         Transaction tr = session.transaction();
         ChangeLog changeLog = new ChangeLog(context, subspace.getDirectorySubspace());
 
-        for (VersionstampedEntry entry : entries) {
+        for (int index = 0; index < entries.length; index++) {
+            VersionstampedEntry entry = entries[index];
             EntryMetadata metadata = entry.metadata();
             Versionstamp key = entry.key();
             byte[] encodedMetadata = metadata.encode();
@@ -77,6 +80,13 @@ public class VolumeFacade {
             byte[] delta = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(-metadata.length()).array();
             tr.mutate(MutationType.ADD, usedBytesKey, delta);
 
+            ReplicationHintMaintainer.setHintIfMarked(
+                    session,
+                    index,
+                    subspace.getDirectorySubspace(),
+                    ReplicationHintKind.VECTOR_NODE_DELETE,
+                    metadata
+            );
             changeLog.deleteOperation(tr, metadata, session.prefix(), key);
         }
 

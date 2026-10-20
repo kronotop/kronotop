@@ -27,6 +27,8 @@ import com.kronotop.volume.changelog.ChangeLogCoordinate;
 import com.kronotop.volume.changelog.ChangeLogEntry;
 import com.kronotop.volume.changelog.ChangeLogIterable;
 import com.kronotop.volume.handlers.PackedEntry;
+import com.kronotop.volume.replication.ReplicationHint;
+import com.kronotop.volume.replication.ReplicationHintKind;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -41,6 +43,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static com.kronotop.volume.SegmentStatsSubspaces.CARDINALITY;
 import static com.kronotop.volume.Subspaces.ENTRY_SUBSPACE;
+import static com.kronotop.volume.Subspaces.REPLICATION_HINT_SUBSPACE;
 import static com.kronotop.volume.Subspaces.SEGMENT_STATS_SUBSPACE;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -2638,5 +2641,131 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         volume.close();
         assertTrue(done.await(5, TimeUnit.SECONDS), "Writer did not terminate after volume close");
         assertNull(failure.get(), "Writer failed with unexpected exception");
+    }
+
+    private byte[] readReplicationHint(EntryMetadata metadata) {
+        try (Transaction tr = context.getTransactionManager().create()) {
+            return tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, metadata.segmentId(), metadata.position()))).join();
+        }
+    }
+
+    private void assertReplicationHint(ReplicationHintKind kind, EntryMetadata metadata) {
+        byte[] value = readReplicationHint(metadata);
+        assertNotNull(value);
+        ByteBuffer buffer = ByteBuffer.wrap(value);
+        assertEquals(kind.getValue(), buffer.get());
+        assertEquals(metadata.length(), buffer.getLong());
+        byte[] prefix = new byte[buffer.remaining()];
+        buffer.get(prefix);
+        assertArrayEquals(metadata.prefix(), prefix);
+    }
+
+    @Test
+    void shouldWriteAddHintOnAppendForMarkedEntries() throws IOException {
+        // Behavior: Only the entry marked in ReplicationHint gets a VECTOR_NODE_ADD hint on append.
+        ByteBuffer[] entries = getEntries(2);
+        ReplicationHint hint = new ReplicationHint();
+        hint.markHasVector(1);
+
+        AppendResult result;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            session.setReplicationHint(hint);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        AppendedEntry[] appended = result.getAppendedEntries();
+        assertNull(readReplicationHint(appended[0].metadata()));
+        assertReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[1].metadata());
+    }
+
+    @Test
+    void shouldNotWriteHintWhenSessionHasNoReplicationHint() throws IOException {
+        // Behavior: A session without a ReplicationHint writes no hint keys.
+        AppendResult result;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            result = volume.append(session, getEntries(1));
+            tr.commit().join();
+        }
+        assertNull(readReplicationHint(result.getAppendedEntries()[0].metadata()));
+    }
+
+    @Test
+    void shouldWriteAddHintOnInsertForMarkedEntries() throws IOException, VersionstampAlreadyExistsException {
+        // Behavior: Only the entry marked in ReplicationHint gets a VECTOR_NODE_ADD hint on insert.
+        KeyEntry[] pairs = {
+                new KeyEntry(TestUtil.generateVersionstamp(0), ByteBuffer.wrap("hello".getBytes())),
+                new KeyEntry(TestUtil.generateVersionstamp(1), ByteBuffer.wrap("world".getBytes())),
+        };
+        ReplicationHint hint = new ReplicationHint();
+        hint.markHasVector(0);
+
+        InsertResult result;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            session.setReplicationHint(hint);
+            result = volume.insert(session, pairs);
+            tr.commit().join();
+        }
+        result.complete();
+
+        InsertedEntry[] inserted = result.entries();
+        assertReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, inserted[0].metadata());
+        assertNull(readReplicationHint(inserted[1].metadata()));
+    }
+
+    @Test
+    void shouldWriteDeleteAndAddHintsOnUpdate() throws IOException, KeyNotFoundException {
+        // Behavior: Update writes VECTOR_NODE_DELETE for the old entry and VECTOR_NODE_ADD for the new one.
+        AppendResult appendResult;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, ByteBuffer.wrap("foobar".getBytes()));
+            tr.commit().join();
+        }
+        EntryMetadata oldMetadata = appendResult.getAppendedEntries()[0].metadata();
+        Versionstamp key = appendResult.getVersionstampedKeys()[0];
+
+        ReplicationHint hint = new ReplicationHint();
+        hint.markHasVector(0);
+        UpdateResult updateResult;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            session.setReplicationHint(hint);
+            updateResult = volume.update(session, new KeyEntry(key, ByteBuffer.wrap("FOOBAR".getBytes())));
+            tr.commit().join();
+        }
+        updateResult.complete();
+
+        assertReplicationHint(ReplicationHintKind.VECTOR_NODE_DELETE, oldMetadata);
+        assertReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, updateResult.entries()[0].metadata());
+    }
+
+    @Test
+    void shouldWriteDeleteHintOnDeleteForMarkedEntries() throws IOException {
+        // Behavior: Only the entry marked in ReplicationHint gets a VECTOR_NODE_DELETE hint on delete.
+        AppendResult appendResult;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            appendResult = volume.append(session, getEntries(2));
+            tr.commit().join();
+        }
+        AppendedEntry[] appended = appendResult.getAppendedEntries();
+
+        ReplicationHint hint = new ReplicationHint();
+        hint.markHasVector(1);
+        DeleteResult deleteResult;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            session.setReplicationHint(hint);
+            deleteResult = volume.delete(session, appendResult.getVersionstampedKeys());
+            tr.commit().join();
+        }
+        deleteResult.complete();
+
+        assertNull(readReplicationHint(appended[0].metadata()));
+        assertReplicationHint(ReplicationHintKind.VECTOR_NODE_DELETE, appended[1].metadata());
     }
 }

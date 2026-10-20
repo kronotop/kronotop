@@ -17,10 +17,13 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.volume.changelog.ChangeLogCoordinate;
 import com.kronotop.volume.changelog.ChangeLogEntry;
 import com.kronotop.volume.changelog.ChangeLogIterable;
+import com.kronotop.volume.replication.ReplicationHint;
+import com.kronotop.volume.replication.ReplicationHintKind;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +32,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.kronotop.volume.Subspaces.REPLICATION_HINT_SUBSPACE;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeFacadeTest extends BaseVolumeIntegrationTest {
@@ -194,6 +198,50 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
                 // Verify prefix
                 assertEquals(stashVolumeSyncerPrefix.asLong(), deleteEntry.getPrefix());
             }
+        }
+    }
+
+    @Test
+    void shouldWriteDeleteHintForMarkedEntries() throws IOException {
+        // Behavior: Facade delete writes VECTOR_NODE_DELETE only for the entry marked in ReplicationHint.
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            volume.append(session, getEntries(2));
+            tr.commit().join();
+        }
+
+        List<VersionstampedEntry> versionstampedEntries = new ArrayList<>();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            for (VolumeEntry volumeEntry : volume.getRange(session)) {
+                versionstampedEntries.add(new VersionstampedEntry(volumeEntry.key(), EntryMetadata.decode(volumeEntry.metadata())));
+            }
+        }
+        assertEquals(2, versionstampedEntries.size());
+
+        ReplicationHint hint = new ReplicationHint();
+        hint.markHasVector(1);
+        VolumeFacade facade = new VolumeFacade(context);
+        VolumeSubspace volumeSubspace = new VolumeSubspace(subspace);
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            session.setReplicationHint(hint);
+            facade.deleteByVersionstampedEntry(volumeSubspace, session, versionstampedEntries.toArray(new VersionstampedEntry[0]));
+            tr.commit().join();
+        }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            EntryMetadata unmarked = versionstampedEntries.get(0).metadata();
+            EntryMetadata marked = versionstampedEntries.get(1).metadata();
+            assertNull(tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, unmarked.segmentId(), unmarked.position()))).join());
+            byte[] value = tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, marked.segmentId(), marked.position()))).join();
+            assertNotNull(value);
+            ByteBuffer buffer = ByteBuffer.wrap(value);
+            assertEquals(ReplicationHintKind.VECTOR_NODE_DELETE.getValue(), buffer.get());
+            assertEquals(marked.length(), buffer.getLong());
+            byte[] prefix = new byte[buffer.remaining()];
+            buffer.get(prefix);
+            assertArrayEquals(marked.prefix(), prefix);
         }
     }
 }
