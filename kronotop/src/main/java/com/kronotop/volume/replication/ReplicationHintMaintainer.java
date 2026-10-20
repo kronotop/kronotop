@@ -54,4 +54,16 @@ public class ReplicationHintMaintainer {
         }
     }
 
+    /**
+     * Decodes one hint key/value pair written by {@link #setHintIfMarked}.
+     */
+    public static ReplicationHintEntry decode(DirectorySubspace subspace, byte[] key, byte[] value) {
+        Tuple tuple = subspace.unpack(key);
+        ByteBuffer buffer = ByteBuffer.wrap(value);
+        ReplicationHintKind kind = ReplicationHintKind.valueOf(buffer.get());
+        long length = buffer.getLong();
+        byte[] prefix = new byte[buffer.remaining()];
+        buffer.get(prefix);
+        return new ReplicationHintEntry(kind, tuple.getLong(1), tuple.getLong(2), length, prefix, tuple.getLong(3));
+    }
 }

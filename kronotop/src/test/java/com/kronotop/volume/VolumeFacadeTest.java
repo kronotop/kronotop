@@ -23,7 +23,9 @@ import com.kronotop.volume.changelog.ChangeLogCoordinate;
 import com.kronotop.volume.changelog.ChangeLogEntry;
 import com.kronotop.volume.changelog.ChangeLogIterable;
 import com.kronotop.volume.replication.ReplicationHint;
+import com.kronotop.volume.replication.ReplicationHintEntry;
 import com.kronotop.volume.replication.ReplicationHintKind;
+import com.kronotop.volume.replication.ReplicationHintMaintainer;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
 
@@ -234,14 +236,16 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
             EntryMetadata unmarked = versionstampedEntries.get(0).metadata();
             EntryMetadata marked = versionstampedEntries.get(1).metadata();
             assertNull(tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, unmarked.segmentId(), unmarked.position(), 7L))).join());
-            byte[] value = tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, marked.segmentId(), marked.position(), 7L))).join();
+            byte[] key = subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, marked.segmentId(), marked.position(), 7L));
+            byte[] value = tr.get(key).join();
             assertNotNull(value);
-            ByteBuffer buffer = ByteBuffer.wrap(value);
-            assertEquals(ReplicationHintKind.VECTOR_NODE_DELETE.getValue(), buffer.get());
-            assertEquals(marked.length(), buffer.getLong());
-            byte[] prefix = new byte[buffer.remaining()];
-            buffer.get(prefix);
-            assertArrayEquals(marked.prefix(), prefix);
+            ReplicationHintEntry entry = ReplicationHintMaintainer.decode(subspace, key, value);
+            assertEquals(ReplicationHintKind.VECTOR_NODE_DELETE, entry.kind());
+            assertEquals(marked.segmentId(), entry.segmentId());
+            assertEquals(marked.position(), entry.position());
+            assertEquals(marked.length(), entry.length());
+            assertArrayEquals(marked.prefix(), entry.prefix());
+            assertEquals(7L, entry.indexId());
         }
     }
 }

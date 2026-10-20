@@ -35,6 +35,9 @@ import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
 import com.kronotop.volume.EntryMetadata;
+import com.kronotop.volume.replication.ReplicationHintEntry;
+import com.kronotop.volume.replication.ReplicationHintKind;
+import com.kronotop.volume.replication.ReplicationHintMaintainer;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.protocol.Command;
@@ -489,17 +492,33 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
     }
 
     /**
-     * Reads the replication hint keys of one entry, keyed by vector index id. The value is the hint kind byte.
+     * Reads the replication hints of one entry, keyed by vector index id.
      */
-    protected Map<Long, Byte> readReplicationHints(EntryMetadata entryMetadata) {
+    protected Map<Long, ReplicationHintEntry> readReplicationHints(EntryMetadata entryMetadata) {
         DirectorySubspace volumeSubspace = getShard(TEST_SHARD_ID).volume().getConfig().subspace();
         byte[] prefix = volumeSubspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, entryMetadata.segmentId(), entryMetadata.position()));
-        Map<Long, Byte> hints = new HashMap<>();
+        Map<Long, ReplicationHintEntry> hints = new HashMap<>();
         try (Transaction tr = context.getTransactionManager().create()) {
             for (KeyValue kv : tr.getRange(Range.startsWith(prefix)).asList().join()) {
-                hints.put(volumeSubspace.unpack(kv.getKey()).getLong(3), kv.getValue()[0]);
+                ReplicationHintEntry hint = ReplicationHintMaintainer.decode(volumeSubspace, kv.getKey(), kv.getValue());
+                hints.put(hint.indexId(), hint);
             }
         }
         return hints;
+    }
+
+    /**
+     * Asserts that every hint of the entry has the given kind and matches the entry metadata.
+     */
+    protected void assertReplicationHints(ReplicationHintKind kind, EntryMetadata entryMetadata, Set<Long> indexIds) {
+        Map<Long, ReplicationHintEntry> hints = readReplicationHints(entryMetadata);
+        assertEquals(indexIds, hints.keySet());
+        for (ReplicationHintEntry hint : hints.values()) {
+            assertEquals(kind, hint.kind());
+            assertEquals(entryMetadata.segmentId(), hint.segmentId());
+            assertEquals(entryMetadata.position(), hint.position());
+            assertEquals(entryMetadata.length(), hint.length());
+            assertArrayEquals(entryMetadata.prefix(), hint.prefix());
+        }
     }
 }

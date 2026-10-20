@@ -1399,8 +1399,7 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(MapRedisMessage.class, msg);
         assertEquals(2, extractObjectIds(msg).size());
 
-        byte delete = ReplicationHintKind.VECTOR_NODE_DELETE.getValue();
-        assertEquals(Map.of(firstId, delete, secondId, delete), readReplicationHints(entries.get("both")));
-        assertEquals(Map.of(firstId, delete, secondId, delete), readReplicationHints(entries.get("none")));
+        assertReplicationHints(ReplicationHintKind.VECTOR_NODE_DELETE, entries.get("both"), Set.of(firstId, secondId));
+        assertReplicationHints(ReplicationHintKind.VECTOR_NODE_DELETE, entries.get("none"), Set.of(firstId, secondId));
     }
 }

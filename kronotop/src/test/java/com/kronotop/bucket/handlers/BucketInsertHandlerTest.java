@@ -55,6 +55,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -2030,9 +2031,8 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         Map<String, EntryMetadata> entries = entryMetadataByLabel(metadata);
         assertEquals(3, entries.size());
 
-        byte add = ReplicationHintKind.VECTOR_NODE_ADD.getValue();
-        assertEquals(Map.of(firstId, add, secondId, add), readReplicationHints(entries.get("both")));
-        assertEquals(Map.of(firstId, add), readReplicationHints(entries.get("one")));
+        assertReplicationHints(ReplicationHintKind.VECTOR_NODE_ADD, entries.get("both"), Set.of(firstId, secondId));
+        assertReplicationHints(ReplicationHintKind.VECTOR_NODE_ADD, entries.get("one"), Set.of(firstId));
         assertTrue(readReplicationHints(entries.get("none")).isEmpty());
     }
 }

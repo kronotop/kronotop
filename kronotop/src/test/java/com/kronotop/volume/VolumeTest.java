@@ -28,7 +28,9 @@ import com.kronotop.volume.changelog.ChangeLogEntry;
 import com.kronotop.volume.changelog.ChangeLogIterable;
 import com.kronotop.volume.handlers.PackedEntry;
 import com.kronotop.volume.replication.ReplicationHint;
+import com.kronotop.volume.replication.ReplicationHintEntry;
 import com.kronotop.volume.replication.ReplicationHintKind;
+import com.kronotop.volume.replication.ReplicationHintMaintainer;
 import com.kronotop.volume.segment.SegmentAnalysis;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -2658,14 +2660,16 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     private void assertReplicationHint(ReplicationHintKind kind, EntryMetadata metadata, long indexId) {
+        byte[] key = subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, metadata.segmentId(), metadata.position(), indexId));
         byte[] value = readReplicationHint(metadata, indexId);
         assertNotNull(value);
-        ByteBuffer buffer = ByteBuffer.wrap(value);
-        assertEquals(kind.getValue(), buffer.get());
-        assertEquals(metadata.length(), buffer.getLong());
-        byte[] prefix = new byte[buffer.remaining()];
-        buffer.get(prefix);
-        assertArrayEquals(metadata.prefix(), prefix);
+        ReplicationHintEntry hint = ReplicationHintMaintainer.decode(subspace, key, value);
+        assertEquals(kind, hint.kind());
+        assertEquals(metadata.segmentId(), hint.segmentId());
+        assertEquals(metadata.position(), hint.position());
+        assertEquals(metadata.length(), hint.length());
+        assertArrayEquals(metadata.prefix(), hint.prefix());
+        assertEquals(indexId, hint.indexId());
     }
 
     @Test
