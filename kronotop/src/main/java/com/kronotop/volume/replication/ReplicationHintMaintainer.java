@@ -29,7 +29,7 @@ import static com.kronotop.volume.Subspaces.REPLICATION_HINT_SUBSPACE;
 public class ReplicationHintMaintainer {
 
     /**
-     * Writes the hint only when the session carries a hint and the entry at {@code index} is marked.
+     * Writes one hint key per vector index id when the session carries a hint and the entry at {@code index} is marked.
      */
     public static void setHintIfMarked(
             VolumeSession session,
@@ -48,8 +48,10 @@ public class ReplicationHintMaintainer {
         buffer.putLong(metadata.length());
         buffer.put(metadata.prefix());
 
-        byte[] key = subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, metadata.segmentId(), metadata.position()));
-        session.transaction().set(key, buffer.array());
+        for (long indexId : hint.indexIds(index)) {
+            byte[] key = subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, metadata.segmentId(), metadata.position(), indexId));
+            session.transaction().set(key, buffer.array());
+        }
     }
 
 }

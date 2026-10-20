@@ -16,20 +16,25 @@
 
 package com.kronotop.bucket.handlers;
 
+import com.apple.foundationdb.KeySelector;
+import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.ByteArrayUtil;
+import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.BaseHandlerTest;
 import com.kronotop.KronotopException;
 import com.kronotop.TestUtil;
+import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.*;
-import com.kronotop.bucket.index.IndexSelectionPolicy;
-import com.kronotop.bucket.index.SingleFieldIndex;
-import com.kronotop.bucket.index.SingleFieldIndexDefinition;
-import com.kronotop.bucket.index.SingleFieldIndexUtil;
+import com.kronotop.bucket.index.*;
 import com.kronotop.commands.BucketCommandBuilder;
 import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
+import com.kronotop.volume.EntryMetadata;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.protocol.Command;
@@ -38,13 +43,17 @@ import io.netty.buffer.Unpooled;
 import org.bson.BsonDocument;
 import org.bson.types.ObjectId;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
+import static com.kronotop.volume.Subspaces.REPLICATION_HINT_SUBSPACE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BaseBucketHandlerTest extends BaseHandlerTest {
+    protected static final String VECTOR_BUCKET = "vector-test-bucket";
+    protected static final String VECTOR_INDEX_JSON = "{\"$vector\": {\"field\": \"embedding\", \"dimensions\": 3, \"distance\": \"cosine\"}}";
     protected static final String MISSING_NAMESPACE = "missing-namespace";
     protected final byte[] TEST_DOCUMENT = BSONUtil.jsonToDocumentThenBytes("{\"one\": \"two\"}");
     protected final Random rand = new Random(System.nanoTime());
@@ -437,5 +446,60 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         Object response = runCommand(channel, buf);
         assertInstanceOf(MapRedisMessage.class, response);
         return extractEntries(response).size();
+    }
+
+    protected List<KeyValue> fetchAllIndexedEntries(DirectorySubspace indexSubspace) {
+        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
+        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
+        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            return tr.getRange(begin, end).asList().join();
+        }
+    }
+
+    protected BucketMetadata createBucketWithTwoVectorIndexes() {
+        createBucket(VECTOR_BUCKET, List.of(TEST_SHARD_ID), VECTOR_INDEX_JSON);
+        BucketMetadata metadata = getBucketMetadata(VECTOR_BUCKET);
+        VectorIndexDefinition definition = VectorIndexDefinition.create(
+                "embedding2_vector_idx", "embedding2", 3, DistanceFunction.COSINE, IndexStatus.WAITING);
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VectorIndexUtil.create(new TransactionalContext(context, tr), metadata, definition);
+            tr.commit().join();
+        }
+        return refreshBucketMetadata(TEST_NAMESPACE, VECTOR_BUCKET);
+    }
+
+    protected long vectorIndexId(BucketMetadata metadata, String selector) {
+        return metadata.vectorIndexes().getIndexBySelector(selector, IndexSelectionPolicy.ALL).definition().id();
+    }
+
+    /**
+     * Maps each stored document's "label" field to its volume entry metadata via the primary index.
+     */
+    protected Map<String, EntryMetadata> entryMetadataByLabel(BucketMetadata metadata) throws IOException {
+        SingleFieldIndex primaryIndex = metadata.singleFieldIndexes().getIndex(PrimaryIndex.SELECTOR, IndexSelectionPolicy.READWRITE);
+        Map<String, EntryMetadata> result = new HashMap<>();
+        for (KeyValue kv : fetchAllIndexedEntries(primaryIndex.subspace())) {
+            EntryMetadata entryMetadata = EntryMetadata.decode(IndexEntry.decode(kv.getValue()).entryMetadata());
+            BsonDocument document = BSONUtil.fromBson(getShard(TEST_SHARD_ID).volume().getByEntryMetadata(entryMetadata));
+            result.put(document.getString("label").getValue(), entryMetadata);
+        }
+        return result;
+    }
+
+    /**
+     * Reads the replication hint keys of one entry, keyed by vector index id. The value is the hint kind byte.
+     */
+    protected Map<Long, Byte> readReplicationHints(EntryMetadata entryMetadata) {
+        DirectorySubspace volumeSubspace = getShard(TEST_SHARD_ID).volume().getConfig().subspace();
+        byte[] prefix = volumeSubspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, entryMetadata.segmentId(), entryMetadata.position()));
+        Map<Long, Byte> hints = new HashMap<>();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            for (KeyValue kv : tr.getRange(Range.startsWith(prefix)).asList().join()) {
+                hints.put(volumeSubspace.unpack(kv.getKey()).getLong(3), kv.getValue()[0]);
+            }
+        }
+        return hints;
     }
 }

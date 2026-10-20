@@ -102,8 +102,8 @@ public class BucketEntryEvacuator implements EntryEvacuator {
         ReplicationHint hint = null;
         if (!metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
             hint = new ReplicationHint();
-            if (VectorIndexUtil.hasVectorField(metadata, doc)) {
-                hint.markHasVector(0);
+            for (long indexId : VectorIndexUtil.hasVectorField(metadata, doc)) {
+                hint.markHasVector(0, indexId);
             }
         }
         session.setReplicationHint(hint);

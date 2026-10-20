@@ -19,7 +19,6 @@ package com.kronotop.bucket.handlers;
 import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.TransactionalContext;
@@ -2371,16 +2370,6 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         cmd.insert(VECTOR_BUCKET, docs).encode(buf);
         Object msg = runCommand(channel, buf);
         assertInstanceOf(ArrayRedisMessage.class, msg);
-    }
-
-    private List<KeyValue> fetchAllIndexedEntries(DirectorySubspace indexSubspace) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
-        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-
-        try (Transaction tr = context.getTransactionManager().create()) {
-            return tr.getRange(begin, end).asList().join();
-        }
     }
 
     @Test

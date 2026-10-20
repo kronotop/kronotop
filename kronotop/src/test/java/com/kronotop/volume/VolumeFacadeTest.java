@@ -220,7 +220,7 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         assertEquals(2, versionstampedEntries.size());
 
         ReplicationHint hint = new ReplicationHint();
-        hint.markHasVector(1);
+        hint.markHasVector(1, 7L);
         VolumeFacade facade = new VolumeFacade(context);
         VolumeSubspace volumeSubspace = new VolumeSubspace(subspace);
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -233,8 +233,8 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata unmarked = versionstampedEntries.get(0).metadata();
             EntryMetadata marked = versionstampedEntries.get(1).metadata();
-            assertNull(tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, unmarked.segmentId(), unmarked.position()))).join());
-            byte[] value = tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, marked.segmentId(), marked.position()))).join();
+            assertNull(tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, unmarked.segmentId(), unmarked.position(), 7L))).join());
+            byte[] value = tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, marked.segmentId(), marked.position(), 7L))).join();
             assertNotNull(value);
             ByteBuffer buffer = ByteBuffer.wrap(value);
             assertEquals(ReplicationHintKind.VECTOR_NODE_DELETE.getValue(), buffer.get());

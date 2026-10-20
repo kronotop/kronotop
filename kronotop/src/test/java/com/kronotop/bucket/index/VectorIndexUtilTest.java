@@ -46,6 +46,10 @@ class VectorIndexUtilTest extends BaseIndexMaintainerTest {
         return new BsonArray(List.of(new BsonDouble(0.1), new BsonDouble(0.2), new BsonDouble(0.3)));
     }
 
+    private static long vectorIndexId(BucketMetadata metadata) {
+        return metadata.vectorIndexes().getIndexBySelector(SELECTOR, IndexSelectionPolicy.ALL).definition().id();
+    }
+
     private BucketMetadata createVectorIndexAndLoadBucketMetadata() {
         createBucket(TEST_BUCKET);
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -98,25 +102,25 @@ class VectorIndexUtilTest extends BaseIndexMaintainerTest {
     }
 
     @Test
-    void shouldReturnFalseWhenNoVectorIndex() {
+    void shouldReturnNoIdsWhenNoVectorIndex() {
         createBucket(TEST_BUCKET);
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         BsonDocument document = new BsonDocument(SELECTOR, validVector());
-        assertFalse(VectorIndexUtil.validateVectorFields(metadata, document));
+        assertTrue(VectorIndexUtil.validateVectorFields(metadata, document).isEmpty());
     }
 
     @Test
-    void shouldReturnFalseWhenDocumentHasNoVectorField() {
+    void shouldReturnNoIdsWhenDocumentHasNoVectorField() {
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         BsonDocument document = new BsonDocument("name", new BsonString("x"));
-        assertFalse(VectorIndexUtil.validateVectorFields(metadata, document));
+        assertTrue(VectorIndexUtil.validateVectorFields(metadata, document).isEmpty());
     }
 
     @Test
-    void shouldReturnTrueWhenDocumentHasVectorField() {
+    void shouldReturnIndexIdWhenDocumentHasVectorField() {
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         BsonDocument document = new BsonDocument(SELECTOR, validVector());
-        assertTrue(VectorIndexUtil.validateVectorFields(metadata, document));
+        assertEquals(List.of(vectorIndexId(metadata)), VectorIndexUtil.validateVectorFields(metadata, document));
     }
 
     @Test
@@ -130,38 +134,38 @@ class VectorIndexUtilTest extends BaseIndexMaintainerTest {
     }
 
     @Test
-    void hasVectorFieldShouldReturnFalseWhenNoVectorIndex() {
+    void hasVectorFieldShouldReturnNoIdsWhenNoVectorIndex() {
         createBucket(TEST_BUCKET);
         BucketMetadata metadata = getBucketMetadata(TEST_BUCKET);
         BsonDocument document = new BsonDocument(SELECTOR, validVector());
-        assertFalse(VectorIndexUtil.hasVectorField(metadata, document));
+        assertTrue(VectorIndexUtil.hasVectorField(metadata, document).isEmpty());
     }
 
     @Test
-    void hasVectorFieldShouldReturnFalseWhenFieldMissing() {
+    void hasVectorFieldShouldReturnNoIdsWhenFieldMissing() {
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         BsonDocument document = new BsonDocument("name", new BsonString("x"));
-        assertFalse(VectorIndexUtil.hasVectorField(metadata, document));
+        assertTrue(VectorIndexUtil.hasVectorField(metadata, document).isEmpty());
     }
 
     @Test
-    void hasVectorFieldShouldReturnFalseWhenFieldIsNull() {
+    void hasVectorFieldShouldReturnNoIdsWhenFieldIsNull() {
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         BsonDocument document = new BsonDocument(SELECTOR, BsonNull.VALUE);
-        assertFalse(VectorIndexUtil.hasVectorField(metadata, document));
+        assertTrue(VectorIndexUtil.hasVectorField(metadata, document).isEmpty());
     }
 
     @Test
-    void hasVectorFieldShouldReturnTrueWhenFieldPresent() {
+    void hasVectorFieldShouldReturnIndexIdWhenFieldPresent() {
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         BsonDocument document = new BsonDocument(SELECTOR, validVector());
-        assertTrue(VectorIndexUtil.hasVectorField(metadata, document));
+        assertEquals(List.of(vectorIndexId(metadata)), VectorIndexUtil.hasVectorField(metadata, document));
     }
 
     @Test
     void hasVectorFieldShouldNotValidate() {
         BucketMetadata metadata = createVectorIndexAndLoadBucketMetadata();
         BsonDocument document = new BsonDocument(SELECTOR, new BsonString("bad"));
-        assertTrue(VectorIndexUtil.hasVectorField(metadata, document));
+        assertEquals(List.of(vectorIndexId(metadata)), VectorIndexUtil.hasVectorField(metadata, document));
     }
 }

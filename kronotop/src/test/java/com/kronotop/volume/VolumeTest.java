@@ -42,12 +42,12 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.kronotop.volume.SegmentStatsSubspaces.CARDINALITY;
-import static com.kronotop.volume.Subspaces.ENTRY_SUBSPACE;
-import static com.kronotop.volume.Subspaces.REPLICATION_HINT_SUBSPACE;
-import static com.kronotop.volume.Subspaces.SEGMENT_STATS_SUBSPACE;
+import static com.kronotop.volume.Subspaces.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeTest extends BaseVolumeIntegrationTest {
+
+    private static final long VECTOR_INDEX_ID = 1L;
 
     @Test
     void shouldAppendEntriesToVolume() throws IOException {
@@ -2644,13 +2644,21 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     private byte[] readReplicationHint(EntryMetadata metadata) {
+        return readReplicationHint(metadata, VECTOR_INDEX_ID);
+    }
+
+    private byte[] readReplicationHint(EntryMetadata metadata, long indexId) {
         try (Transaction tr = context.getTransactionManager().create()) {
-            return tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, metadata.segmentId(), metadata.position()))).join();
+            return tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, metadata.segmentId(), metadata.position(), indexId))).join();
         }
     }
 
     private void assertReplicationHint(ReplicationHintKind kind, EntryMetadata metadata) {
-        byte[] value = readReplicationHint(metadata);
+        assertReplicationHint(kind, metadata, VECTOR_INDEX_ID);
+    }
+
+    private void assertReplicationHint(ReplicationHintKind kind, EntryMetadata metadata, long indexId) {
+        byte[] value = readReplicationHint(metadata, indexId);
         assertNotNull(value);
         ByteBuffer buffer = ByteBuffer.wrap(value);
         assertEquals(kind.getValue(), buffer.get());
@@ -2665,7 +2673,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         // Behavior: Only the entry marked in ReplicationHint gets a VECTOR_NODE_ADD hint on append.
         ByteBuffer[] entries = getEntries(2);
         ReplicationHint hint = new ReplicationHint();
-        hint.markHasVector(1);
+        hint.markHasVector(1, VECTOR_INDEX_ID);
 
         AppendResult result;
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -2700,7 +2708,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
                 new KeyEntry(TestUtil.generateVersionstamp(1), ByteBuffer.wrap("world".getBytes())),
         };
         ReplicationHint hint = new ReplicationHint();
-        hint.markHasVector(0);
+        hint.markHasVector(0, VECTOR_INDEX_ID);
 
         InsertResult result;
         try (Transaction tr = context.getTransactionManager().create()) {
@@ -2729,7 +2737,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         Versionstamp key = appendResult.getVersionstampedKeys()[0];
 
         ReplicationHint hint = new ReplicationHint();
-        hint.markHasVector(0);
+        hint.markHasVector(0, VECTOR_INDEX_ID);
         UpdateResult updateResult;
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
@@ -2755,7 +2763,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         AppendedEntry[] appended = appendResult.getAppendedEntries();
 
         ReplicationHint hint = new ReplicationHint();
-        hint.markHasVector(1);
+        hint.markHasVector(1, VECTOR_INDEX_ID);
         DeleteResult deleteResult;
         try (Transaction tr = context.getTransactionManager().create()) {
             VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
@@ -2767,5 +2775,29 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         assertNull(readReplicationHint(appended[0].metadata()));
         assertReplicationHint(ReplicationHintKind.VECTOR_NODE_DELETE, appended[1].metadata());
+    }
+
+    @Test
+    void shouldWriteOneAddHintKeyPerVectorIndexId() throws IOException {
+        // Behavior: An entry marked with two vector index ids gets two VECTOR_NODE_ADD hint keys, one per id.
+        ByteBuffer[] entries = getEntries(2);
+        ReplicationHint hint = new ReplicationHint();
+        hint.markHasVector(1, 1L);
+        hint.markHasVector(1, 2L);
+
+        AppendResult result;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            session.setReplicationHint(hint);
+            result = volume.append(session, entries);
+            tr.commit().join();
+        }
+
+        AppendedEntry[] appended = result.getAppendedEntries();
+        assertNull(readReplicationHint(appended[0].metadata(), 1L));
+        assertNull(readReplicationHint(appended[0].metadata(), 2L));
+        assertReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[1].metadata(), 1L);
+        assertReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[1].metadata(), 2L);
+        assertNull(readReplicationHint(appended[1].metadata(), 3L));
     }
 }

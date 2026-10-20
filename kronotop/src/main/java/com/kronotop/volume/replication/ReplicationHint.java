@@ -16,16 +16,26 @@
 
 package com.kronotop.volume.replication;
 
-import java.util.BitSet;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+/**
+ * Carries, per entry index in a volume batch, the ids of the vector indexes the entry belongs to.
+ */
 public class ReplicationHint {
-    private final BitSet entriesHaveVector = new BitSet();
+    private final Map<Integer, List<Long>> vectorIndexIds = new HashMap<>();
 
-    public void markHasVector(int index) {
-        entriesHaveVector.set(index);
+    public void markHasVector(int index, long indexId) {
+        vectorIndexIds.computeIfAbsent(index, k -> new ArrayList<>()).add(indexId);
     }
 
     public boolean hasVector(int index) {
-        return entriesHaveVector.get(index);
+        return vectorIndexIds.containsKey(index);
+    }
+
+    public List<Long> indexIds(int index) {
+        return vectorIndexIds.getOrDefault(index, List.of());
     }
 }

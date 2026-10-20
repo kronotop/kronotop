@@ -257,10 +257,14 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             uniquenessEnforcer.enqueue(uniquenessChecker, docRef.objectId().toByteArray(), setResult.document());
             Versionstamp versionstamp = PrimaryIndexMaintainer.getVolumePointer(tr, primaryIndex, docRef.objectId().toByteArray(), ctx.metadata());
             VersionstampedEntryUpdate updatedEntry = new VersionstampedEntryUpdate(versionstamp, docRef.entryMetadata(), setResult.document());
-            if (hint != null && VectorIndexUtil.hasVectorField(ctx.metadata(), setResult.document())) {
-                hint.markHasVector(updatedEntries.size());
-            }
             updatedEntries.add(updatedEntry);
+            if (hint != null) {
+                // The entry index in the volume batch is its position in updatedEntries.
+                int entryIndex = updatedEntries.size() - 1;
+                for (long indexId : VectorIndexUtil.hasVectorField(ctx.metadata(), setResult.document())) {
+                    hint.markHasVector(entryIndex, indexId);
+                }
+            }
             objectIds.add(docRef.objectId());
             updateResultContainers.put(docRef.objectId(), new UpdateResultContainer(shardId, setResult));
         }
@@ -350,8 +354,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             ReplicationHint hint = null;
             if (hasVectorIndex) {
                 hint = new ReplicationHint();
-                if (VectorIndexUtil.hasVectorField(ctx.metadata(), setResult.document())) {
-                    hint.markHasVector(0);
+                for (long indexId : VectorIndexUtil.hasVectorField(ctx.metadata(), setResult.document())) {
+                    hint.markHasVector(0, indexId);
                 }
             }
             session.setReplicationHint(hint);
@@ -673,8 +677,8 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         ReplicationHint hint = null;
         if (!ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
             hint = new ReplicationHint();
-            if (VectorIndexUtil.hasVectorField(ctx.metadata(), upsertDoc)) {
-                hint.markHasVector(0);
+            for (long indexId : VectorIndexUtil.hasVectorField(ctx.metadata(), upsertDoc)) {
+                hint.markHasVector(0, indexId);
             }
         }
         session.setReplicationHint(hint);

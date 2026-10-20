@@ -34,6 +34,8 @@ import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
+import com.kronotop.volume.EntryMetadata;
+import com.kronotop.volume.replication.ReplicationHintKind;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -47,9 +49,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -59,9 +64,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class BucketInsertHandlerTest extends BaseBucketHandlerTest {
-
-    private static final String VECTOR_BUCKET = "vector-test-bucket";
-    private static final String VECTOR_INDEX_JSON = "{\"$vector\": {\"field\": \"embedding\", \"dimensions\": 3, \"distance\": \"cosine\"}}";
 
     /**
      * Provides test data for all BqlValue/BsonType combinations for index creation tests
@@ -902,16 +904,6 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
         List<ObjectId> objectIds = TestUtil.extractObjectIds(actualMessage);
         assertEquals(providedId, objectIds.get(0), "First ObjectId should be the user-provided one");
         assertNotEquals(providedId, objectIds.get(1), "Second ObjectId should be auto-generated");
-    }
-
-    private List<KeyValue> fetchAllIndexedEntries(DirectorySubspace indexSubspace) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
-        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-
-        try (Transaction tr = context.getTransactionManager().create()) {
-            return tr.getRange(begin, end).asList().join();
-        }
     }
 
     @Test
@@ -2016,5 +2008,31 @@ class BucketInsertHandlerTest extends BaseBucketHandlerTest {
 
         assertInstanceOf(ErrorRedisMessage.class, response);
         assertEquals(expectedError, ((ErrorRedisMessage) response).content());
+    }
+
+    @Test
+    void shouldWriteAddHintPerVectorIndexOnInsert() throws IOException {
+        // Behavior: INSERT writes one VECTOR_NODE_ADD hint key per vector index the document carries a vector for.
+        BucketMetadata metadata = createBucketWithTwoVectorIndexes();
+        long firstId = vectorIndexId(metadata, "embedding");
+        long secondId = vectorIndexId(metadata, "embedding2");
+
+        BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.insert(VECTOR_BUCKET,
+                BSONUtil.jsonToDocumentThenBytes("{\"label\": \"both\", \"embedding\": [0.1, 0.2, 0.3], \"embedding2\": [0.4, 0.5, 0.6]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"label\": \"one\", \"embedding\": [0.7, 0.8, 0.9]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"label\": \"none\"}")
+        ).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(ArrayRedisMessage.class, msg);
+
+        Map<String, EntryMetadata> entries = entryMetadataByLabel(metadata);
+        assertEquals(3, entries.size());
+
+        byte add = ReplicationHintKind.VECTOR_NODE_ADD.getValue();
+        assertEquals(Map.of(firstId, add, secondId, add), readReplicationHints(entries.get("both")));
+        assertEquals(Map.of(firstId, add), readReplicationHints(entries.get("one")));
+        assertTrue(readReplicationHints(entries.get("none")).isEmpty());
     }
 }

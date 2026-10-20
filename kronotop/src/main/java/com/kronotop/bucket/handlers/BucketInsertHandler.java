@@ -370,8 +370,8 @@ public class BucketInsertHandler extends AbstractBucketHandler implements Handle
                 checkVectorIndexRecoveryState(metadata);
                 replicationHint = new ReplicationHint();
                 for (int i = 0; i < documents.length; i++) {
-                    if (VectorIndexUtil.validateVectorFields(metadata, documents[i].document())) {
-                        replicationHint.markHasVector(i);
+                    for (long indexId : VectorIndexUtil.validateVectorFields(metadata, documents[i].document())) {
+                        replicationHint.markHasVector(i, indexId);
                     }
                 }
             }

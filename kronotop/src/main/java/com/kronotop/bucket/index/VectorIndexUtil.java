@@ -35,6 +35,7 @@ import org.bson.BsonType;
 import org.bson.BsonValue;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.kronotop.bucket.BucketMetadataUtil.POSITIVE_DELTA_ONE;
@@ -218,45 +219,49 @@ public class VectorIndexUtil {
     /**
      * Validates all vector fields in a document against the bucket's vector index definitions.
      *
-     * @return true if the document has at least one vector field
+     * @return ids of the writable vector indexes the document has a vector for, empty if none
      */
-    public static boolean validateVectorFields(BucketMetadata metadata, BsonDocument document) {
-        boolean hasVector = false;
+    public static List<Long> validateVectorFields(BucketMetadata metadata, BsonDocument document) {
+        List<Long> indexIds = new ArrayList<>();
         for (VectorIndex vi : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             BsonValue value = SelectorMatcher.match(vi.definition().selector(), document);
-            hasVector |= validateVectorField(vi.definition(), value);
+            if (validateVectorField(vi.definition(), value)) {
+                indexIds.add(vi.definition().id());
+            }
         }
-        return hasVector;
+        return indexIds;
     }
 
     /**
      * Checks if the document has a non-null value for at least one writable vector index selector.
      * No type or dimension validation is done.
      *
-     * @return true if the document has at least one vector field
+     * @return ids of the writable vector indexes the document has a value for, empty if none
      */
-    public static boolean hasVectorField(BucketMetadata metadata, BsonDocument document) {
+    public static List<Long> hasVectorField(BucketMetadata metadata, BsonDocument document) {
+        List<Long> indexIds = new ArrayList<>();
         for (VectorIndex vi : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             BsonValue value = SelectorMatcher.match(vi.definition().selector(), document);
             if (value != null && !value.isNull()) {
-                return true;
+                indexIds.add(vi.definition().id());
             }
         }
-        return false;
+        return indexIds;
     }
 
     /**
      * Same as {@link #hasVectorField(BucketMetadata, BsonDocument)} for a BSON buffer.
      * The buffer position is restored after the read.
      */
-    public static boolean hasVectorField(BucketMetadata metadata, ByteBuffer document) {
+    public static List<Long> hasVectorField(BucketMetadata metadata, ByteBuffer document) {
+        List<Long> indexIds = new ArrayList<>();
         for (VectorIndex vi : metadata.vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE)) {
             BsonValue value = SelectorMatcher.match(vi.definition().selector(), document);
             if (value != null && !value.isNull()) {
-                return true;
+                indexIds.add(vi.definition().id());
             }
         }
-        return false;
+        return indexIds;
     }
 
     /**

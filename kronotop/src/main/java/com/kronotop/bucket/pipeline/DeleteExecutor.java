@@ -31,6 +31,7 @@ import com.kronotop.volume.replication.ReplicationHint;
 import org.bson.types.ObjectId;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -87,13 +88,16 @@ public final class DeleteExecutor extends BaseExecutor implements Executor<List<
                     versionstamps.add(versionstamp);
                 }
 
-                // Documents are not read on delete. When the bucket has a writable vector index,
-                // every entry is marked, same as VectorIndexMaintainer.dropEntry.
+                // Documents are not read on delete. When the bucket has writable vector indexes,
+                // every entry is marked for every index, same as VectorIndexMaintainer.dropEntry.
                 ReplicationHint hint = null;
-                if (!ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty()) {
+                Collection<VectorIndex> vectorIndexes = ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE);
+                if (!vectorIndexes.isEmpty()) {
                     hint = new ReplicationHint();
                     for (int i = 0; i < entries.length; i++) {
-                        hint.markHasVector(i);
+                        for (VectorIndex vectorIndex : vectorIndexes) {
+                            hint.markHasVector(i, vectorIndex.definition().id());
+                        }
                     }
                 }
                 session.setReplicationHint(hint);

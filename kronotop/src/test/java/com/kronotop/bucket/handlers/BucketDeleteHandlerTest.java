@@ -16,11 +16,8 @@
 
 package com.kronotop.bucket.handlers;
 
-import com.apple.foundationdb.KeySelector;
 import com.apple.foundationdb.KeyValue;
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.directory.DirectorySubspace;
-import com.apple.foundationdb.tuple.ByteArrayUtil;
 import com.apple.foundationdb.tuple.Tuple;
 import com.kronotop.TransactionalContext;
 import com.kronotop.bucket.BSONUtil;
@@ -35,6 +32,8 @@ import com.kronotop.commands.KronotopCommandBuilder;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.Response;
 import com.kronotop.server.resp3.*;
+import com.kronotop.volume.EntryMetadata;
+import com.kronotop.volume.replication.ReplicationHintKind;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -49,6 +48,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,8 +59,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
 
     private static final String COLLATION_BUCKET = "collation-bucket";
-    private static final String VECTOR_BUCKET = "vector-test-bucket";
-    private static final String VECTOR_INDEX_JSON = "{\"$vector\": {\"field\": \"embedding\", \"dimensions\": 3, \"distance\": \"cosine\"}}";
 
     static Stream<Arguments> duplicateArguments() {
         return Stream.of(
@@ -1115,16 +1113,6 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertInstanceOf(ArrayRedisMessage.class, msg);
     }
 
-    private List<KeyValue> fetchAllIndexedEntries(DirectorySubspace indexSubspace) {
-        byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.ENTRIES.getValue()));
-        KeySelector begin = KeySelector.firstGreaterOrEqual(prefix);
-        KeySelector end = KeySelector.firstGreaterOrEqual(ByteArrayUtil.strinc(prefix));
-
-        try (Transaction tr = context.getTransactionManager().create()) {
-            return tr.getRange(begin, end).asList().join();
-        }
-    }
-
     @Test
     void shouldDropVectorIndexEntriesOnDelete() {
         // Behavior: Deleting documents with vector fields removes the corresponding vector index entries from FDB.
@@ -1386,5 +1374,33 @@ class BucketDeleteHandlerTest extends BaseBucketHandlerTest {
         assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_DELETE,
                         List.of("test-bucket", "{}", "NAMESPACE", "a", "NAMESPACE", "b")));
+    }
+
+    @Test
+    void shouldWriteDeleteHintForEveryVectorIndexOnDelete() throws IOException {
+        // Behavior: DELETE does not read documents, so it writes a VECTOR_NODE_DELETE hint key for every
+        // writable vector index of the bucket, on every deleted entry.
+        BucketMetadata metadata = createBucketWithTwoVectorIndexes();
+        long firstId = vectorIndexId(metadata, "embedding");
+        long secondId = vectorIndexId(metadata, "embedding2");
+
+        insertIntoVectorBucket(
+                BSONUtil.jsonToDocumentThenBytes("{\"label\": \"both\", \"embedding\": [0.1, 0.2, 0.3], \"embedding2\": [0.4, 0.5, 0.6]}"),
+                BSONUtil.jsonToDocumentThenBytes("{\"label\": \"none\"}")
+        );
+        Map<String, EntryMetadata> entries = entryMetadataByLabel(metadata);
+        assertEquals(2, entries.size());
+
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.delete(VECTOR_BUCKET, "{}").encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+        assertEquals(2, extractObjectIds(msg).size());
+
+        byte delete = ReplicationHintKind.VECTOR_NODE_DELETE.getValue();
+        assertEquals(Map.of(firstId, delete, secondId, delete), readReplicationHints(entries.get("both")));
+        assertEquals(Map.of(firstId, delete, secondId, delete), readReplicationHints(entries.get("none")));
     }
 }
