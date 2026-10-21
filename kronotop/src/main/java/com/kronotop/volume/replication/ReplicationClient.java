@@ -57,7 +57,7 @@ public class ReplicationClient {
     private volatile boolean connected;
     private volatile boolean shutdown;
 
-    ReplicationClient(Context context, ShardKind shardKind, int shardId) {
+    public ReplicationClient(Context context, ShardKind shardKind, int shardId) {
         this.shardKind = shardKind;
         this.shardId = shardId;
         this.context = context;
