@@ -16,17 +16,22 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.client.protocol.SegmentRange;
+import com.kronotop.volume.VolumeConfigGenerator;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -44,9 +49,53 @@ public class SegmentReplication extends AbstractReplication implements Replicati
     private static final Logger LOGGER = LoggerFactory.getLogger(SegmentReplication.class);
 
     private final CountDownLatch latch = new CountDownLatch(1);
+    private final DirectorySubspace volumeSubspace;
+    private long hintCursor;
 
     public SegmentReplication(Context context, DirectorySubspace subspace, ReplicationClient client, ReplicationSession session) {
         super(context, subspace, client, session);
+        this.volumeSubspace = new VolumeConfigGenerator(context, session.shardKind(), session.shardId()).openVolumeSubspace();
+    }
+
+    /**
+     * Dispatches the hints of the entries that are fully replicated below {@code written}.
+     *
+     * <p>Runs before the position is persisted, so a crash in between replays the same hints
+     * on restart. Plugins must be idempotent.</p>
+     */
+    private void processHints(long written) throws IOException {
+        if (hintCursor >= written) {
+            return;
+        }
+        ReplicationHintScan scan;
+        Map<Long, Versionstamp> versionstamps = Map.of();
+        try (Transaction tr = context.getTransactionManager().create()) {
+            scan = ReplicationHintMaintainer.scan(tr, volumeSubspace, session.segmentId(), hintCursor, written);
+            if (!scan.hints().isEmpty()) {
+                // Hints are ordered by position. Read only the span the hints cover.
+                long from = scan.hints().getFirst().position();
+                long to = scan.hints().getLast().position() + 1;
+                versionstamps = ReplicationHintMaintainer.readVersionstamps(tr, volumeSubspace, session.segmentId(), from, to);
+            }
+        }
+        for (ReplicationHintEntry hint : scan.hints()) {
+            Versionstamp versionstamp = versionstamps.get(hint.position());
+            if (versionstamp == null) {
+                throw new KronotopException(
+                        "No versionstamp for replication hint at Segment=" + hint.segmentId() + " Position=" + hint.position()
+                );
+            }
+            // Maximum document length is 16MiB, so this conversion should be safe.
+            ByteBuffer document = ByteBuffer.allocate(Math.toIntExact(hint.length()));
+            while (document.hasRemaining()) {
+                int nr = file.getChannel().read(document, hint.position() + document.position());
+                if (nr < 0) {
+                    throw new KronotopException("Unexpected end of segment file at Position=" + hint.position());
+                }
+            }
+            hintPlugins.dispatch(hint, versionstamp, document.flip());
+        }
+        hintCursor = scan.cursor();
     }
 
     /**
@@ -57,6 +106,9 @@ public class SegmentReplication extends AbstractReplication implements Replicati
         long length;
 
         try {
+            try (Transaction tr = context.getTransactionManager().create()) {
+                hintCursor = ReplicationHintMaintainer.findHintCursor(tr, volumeSubspace, session.segmentId(), position);
+            }
             RedisFuture<List<Long>> cursorFuture = client.conn().async().segmentTailPointer(session.volume(), session.segmentId());
             List<Long> cursor = cursorFuture.get();
 
@@ -90,6 +142,7 @@ public class SegmentReplication extends AbstractReplication implements Replicati
                     // During active-segment replication, batch writes may overshoot the limitPosition.
                     // To avoid advancing beyond the allowed range, clamp to the lower of (position, limitPosition).
                     // The main loop will exit once this boundary is reached.
+                    processHints(Math.min(position, limitPosition));
                     setPosition(Math.min(position, limitPosition));
                 }
             }

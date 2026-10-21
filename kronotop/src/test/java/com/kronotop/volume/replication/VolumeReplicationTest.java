@@ -2386,4 +2386,89 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
             replication.shutdown();
         }
     }
+
+    private record Dispatched(long position, long indexId, Versionstamp versionstamp, byte[] document) {
+    }
+
+    private void runSegmentReplication(DirectorySubspace standbySubspace, Path destination, long segmentId, long position) {
+        ReplicationClient replicationClient = new ReplicationClient(context, SHARD_KIND, SHARD_ID);
+        replicationClient.connect(getClientOptions());
+        ReplicationSession session = new ReplicationSession(
+                volumeConfig.name(), SHARD_KIND, SHARD_ID, destination, segmentId, position, 100, volumeConfig.segmentSize()
+        );
+        try (SegmentReplication segmentReplication = new SegmentReplication(context, standbySubspace, replicationClient, session)) {
+            segmentReplication.start();
+        } finally {
+            replicationClient.shutdown();
+        }
+    }
+
+    private void assertDispatched(List<Dispatched> expected, List<Dispatched> dispatched) {
+        assertEquals(expected.size(), dispatched.size(), "Dispatched: " + dispatched);
+        for (Dispatched e : expected) {
+            assertTrue(dispatched.stream().anyMatch(d ->
+                            d.position() == e.position()
+                                    && d.indexId() == e.indexId()
+                                    && d.versionstamp().equals(e.versionstamp())
+                                    && Arrays.equals(d.document(), e.document())),
+                    "Missing hint at position " + e.position() + " index " + e.indexId());
+        }
+    }
+
+    @Test
+    void shouldDispatchHintsOfCompleteEntriesAcrossChunkBoundaries(@TempDir Path destination) throws Exception {
+        // Behavior: With a chunk size smaller than one entry, SegmentReplication dispatches the hint of every
+        // marked entry exactly once with its versionstamp and document. A second run that resumes from the
+        // middle of entry 1 dispatches the marked entries from entry 1 on and skips entry 0.
+        int length = 1024;
+        int number = 10;
+        int[] marked = {0, 4, 9};
+        ByteBuffer[] entries = getEntries(number, length);
+        byte[][] documents = new byte[number][];
+        for (int i = 0; i < number; i++) {
+            documents[i] = Arrays.copyOf(entries[i].array(), length);
+        }
+
+        ReplicationHint hint = new ReplicationHint();
+        for (int index : marked) {
+            hint.markHasVector(index, 1L);
+        }
+        hint.markHasVector(4, 2L);
+
+        AppendResult appendResult;
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, prefix);
+            session.setReplicationHint(hint);
+            appendResult = volume.append(session, entries);
+            tr.commit().join();
+        }
+        Versionstamp[] versionstampedKeys = appendResult.getVersionstampedKeys();
+        AppendedEntry[] appendedEntries = appendResult.getAppendedEntries();
+        long segmentId = appendedEntries[0].metadata().segmentId();
+
+        List<Dispatched> dispatched = new ArrayList<>();
+        ReplicationService replicationService = context.getService(ReplicationService.NAME);
+        replicationService.getHintPlugins().register(ReplicationHintKind.VECTOR_NODE_ADD, (h, vs, doc) -> {
+            byte[] copy = new byte[doc.remaining()];
+            doc.get(copy);
+            dispatched.add(new Dispatched(h.position(), h.indexId(), vs, copy));
+        });
+
+        DirectorySubspace standbySubspace = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString()).createOrOpenStandbySubspace();
+        runSegmentReplication(standbySubspace, destination, segmentId, 0);
+
+        List<Dispatched> expected = new ArrayList<>();
+        for (int index : marked) {
+            expected.add(new Dispatched(appendedEntries[index].metadata().position(), 1L, versionstampedKeys[index], documents[index]));
+        }
+        expected.add(new Dispatched(appendedEntries[4].metadata().position(), 2L, versionstampedKeys[4], documents[4]));
+        assertDispatched(expected, dispatched);
+
+        // Resume from the middle of entry 1: entry 0 is below the cursor, entry 1 covers the position.
+        dispatched.clear();
+        runSegmentReplication(standbySubspace, destination, segmentId, appendedEntries[1].metadata().position() + length / 2);
+
+        expected.removeIf(e -> e.position() == appendedEntries[0].metadata().position());
+        assertDispatched(expected, dispatched);
+    }
 }
