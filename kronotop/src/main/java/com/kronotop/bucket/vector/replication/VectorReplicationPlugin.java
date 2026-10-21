@@ -45,7 +45,7 @@ public final class VectorReplicationPlugin implements ReplicationHintPlugin {
         this.service = service;
     }
 
-    private void processVectorNodeAdd(ReplicationHintEntry hint, Versionstamp addVs, ByteBuffer document) {
+    private void processVectorNodeAdd(ReplicationHintEntry hint, int shardId, Versionstamp addVs, ByteBuffer document) {
         try (Transaction tr = context.getTransactionManager().create()) {
             BucketMetadata metadata = BucketMetadataUtil.openByPrefix(context, tr, hint.prefix());
             VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
@@ -71,25 +71,32 @@ public final class VectorReplicationPlugin implements ReplicationHintPlugin {
             }
             CollectedVector cv = new CollectedVector(
                     id.asObjectId().getValue(),
-                    metadata.shards().getFirst(),
+                    shardId,
                     entryMetadata,
                     vector,
                     index.definition(),
                     addVs.getUserVersion()
             );
-            writer.write(cv, addVs);
+            try {
+                writer.write(cv, addVs);
+            } catch (Exception e) {
+                writer.recordFailedAdd(addVs, cv);
+                LOGGER.warn("Failed to add vector node to on-heap graph, objectId={}, vectorIndexId={}, versionstamp={}, recorded a retry entry: {}",
+                        cv.objectId(), cv.definition().id(), addVs, e.toString());
+                LOGGER.debug("Stack trace for failed vector node add, objectId={}", cv.objectId(), e);
+            }
         }
     }
 
-    private void processVectorNodeDelete(ReplicationHintEntry hint, Versionstamp addVs, ByteBuffer document) {
+    private void processVectorNodeDelete(ReplicationHintEntry hint, int shardId, Versionstamp addVs, ByteBuffer document) {
     }
 
     @Override
-    public void process(ReplicationHintEntry hint, Versionstamp addVs, ByteBuffer document) {
+    public void process(ReplicationHintEntry hint, int shardId, Versionstamp addVs, ByteBuffer document) {
         try {
             switch (hint.kind()) {
-                case VECTOR_NODE_ADD -> processVectorNodeAdd(hint, addVs, document);
-                case VECTOR_NODE_DELETE -> processVectorNodeDelete(hint, addVs, document);
+                case VECTOR_NODE_ADD -> processVectorNodeAdd(hint, shardId, addVs, document);
+                case VECTOR_NODE_DELETE -> processVectorNodeDelete(hint, shardId, addVs, document);
                 default -> throw new IllegalArgumentException("Unknown ReplicationHintEntry: " + hint);
             }
         } catch (Exception exp) {

@@ -93,7 +93,7 @@ public class SegmentReplication extends AbstractReplication implements Replicati
                     throw new KronotopException("Unexpected end of segment file at Position=" + hint.position());
                 }
             }
-            hintPlugins.dispatch(hint, versionstamp, document.flip());
+            hintPlugins.dispatch(hint, session.shardId(), versionstamp, document.flip());
         }
         hintCursor = scan.cursor();
     }

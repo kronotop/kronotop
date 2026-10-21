@@ -2448,7 +2448,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
 
         List<Dispatched> dispatched = new ArrayList<>();
         ReplicationService replicationService = context.getService(ReplicationService.NAME);
-        replicationService.getHintPlugins().register(ReplicationHintKind.VECTOR_NODE_ADD, (h, vs, doc) -> {
+        replicationService.getHintPlugins().register(ReplicationHintKind.VECTOR_NODE_ADD, (h, SHARD_ID, vs, doc) -> {
             byte[] copy = new byte[doc.remaining()];
             doc.get(copy);
             dispatched.add(new Dispatched(h.position(), h.indexId(), vs, copy));

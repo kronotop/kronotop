@@ -37,13 +37,13 @@ public class ReplicationHintPlugins {
         plugins.computeIfAbsent(kind, k -> new CopyOnWriteArrayList<>()).add(plugin);
     }
 
-    public void dispatch(ReplicationHintEntry hint, Versionstamp addVs, ByteBuffer document) {
+    public void dispatch(ReplicationHintEntry hint, int shardId, Versionstamp addVs, ByteBuffer document) {
         List<ReplicationHintPlugin> list = plugins.get(hint.kind());
         if (list == null) {
             return;
         }
         for (ReplicationHintPlugin plugin : list) {
-            plugin.process(hint, addVs, document);
+            plugin.process(hint, shardId, addVs, document);
         }
     }
 }

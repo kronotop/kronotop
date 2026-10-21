@@ -30,7 +30,7 @@ class BaseVectorNode {
         this.metadata = metadata;
     }
 
-    VectorGraphIndexGroup awaitReadyGroup(long vectorIndexId) {
+    public VectorGraphIndexGroup awaitReadyGroup(long vectorIndexId) {
         VectorIndex vectorIndex = metadata.vectorIndexes().getIndexById(vectorIndexId, IndexSelectionPolicy.ALL);
         VectorGraphIndexGroup group = service.getVectorGraphRegistry().computeIfAbsent(
                 metadata,

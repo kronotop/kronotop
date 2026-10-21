@@ -19,6 +19,8 @@ package com.kronotop.bucket.vector;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
+import com.kronotop.bucket.index.IndexSelectionPolicy;
+import com.kronotop.bucket.index.VectorIndex;
 import org.bson.types.ObjectId;
 
 /**
@@ -89,5 +91,10 @@ public final class VectorNodeWriter extends BaseVectorNode {
                 service.getVectorGraphExecutor().submit(() -> group.flushSingle(service.getBucketDataDir(), previous));
             }
         }
+    }
+
+    public void recordFailedAdd(Versionstamp addVs, CollectedVector cv) {
+        VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
+        group.recordFailedOp(RetryEntry.add(metadata, addVs, cv));
     }
 }

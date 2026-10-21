@@ -22,5 +22,5 @@ import java.nio.ByteBuffer;
 
 @FunctionalInterface
 public interface ReplicationHintPlugin {
-    void process(ReplicationHintEntry hint, Versionstamp addVs, ByteBuffer document);
+    void process(ReplicationHintEntry hint, int shardId, Versionstamp addVs, ByteBuffer document);
 }

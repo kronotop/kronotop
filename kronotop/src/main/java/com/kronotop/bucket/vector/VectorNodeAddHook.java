@@ -44,12 +44,7 @@ public final class VectorNodeAddHook extends BaseVectorNode implements CommitHoo
         this.collectedVectors = collectedVectors;
         this.trVersionFuture = trVersionFuture;
     }
-
-    private void recordFailedAdd(Versionstamp addVs, CollectedVector cv) {
-        VectorGraphIndexGroup group = awaitReadyGroup(cv.definition().id());
-        group.recordFailedOp(RetryEntry.add(metadata, addVs, cv));
-    }
-
+    
     @Override
     public void run() {
         byte[] trVersion = trVersionFuture.join();
@@ -59,7 +54,7 @@ public final class VectorNodeAddHook extends BaseVectorNode implements CommitHoo
             try {
                 writer.write(cv, addVs);
             } catch (Exception e) {
-                recordFailedAdd(addVs, cv);
+                writer.recordFailedAdd(addVs, cv);
                 LOGGER.warn("Failed to add vector node to on-heap graph, objectId={}, vectorIndexId={}, versionstamp={}, recorded a retry entry: {}",
                         cv.objectId(), cv.definition().id(), addVs, e.toString());
                 LOGGER.debug("Stack trace for failed vector node add, objectId={}", cv.objectId(), e);
