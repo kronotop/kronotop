@@ -85,7 +85,8 @@ public class VolumeFacade {
                     index,
                     subspace.getDirectorySubspace(),
                     ReplicationHintKind.VECTOR_NODE_DELETE,
-                    metadata
+                    metadata,
+                    key
             );
             changeLog.deleteOperation(tr, metadata, session.prefix(), key);
         }

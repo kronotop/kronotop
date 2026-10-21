@@ -69,20 +69,12 @@ public class SegmentReplication extends AbstractReplication implements Replicati
             return;
         }
         ReplicationHintScan scan;
-        Map<Long, Versionstamp> versionstamps = Map.of();
         try (Transaction tr = context.getTransactionManager().create()) {
             scan = ReplicationHintMaintainer.scan(tr, volumeSubspace, session.segmentId(), hintCursor, written);
-            if (!scan.hints().isEmpty()) {
-                // Hints are ordered by position. Read only the span the hints cover.
-                long from = scan.hints().getFirst().metadata().position();
-                long to = scan.hints().getLast().metadata().position() + 1;
-                versionstamps = ReplicationHintMaintainer.readVersionstamps(tr, volumeSubspace, session.segmentId(), from, to);
-            }
         }
         for (ReplicationHintEntry hint : scan.hints()) {
             EntryMetadata metadata = hint.metadata();
-            Versionstamp versionstamp = versionstamps.get(metadata.position());
-            if (versionstamp == null) {
+            if (hint.versionstamp() == null) {
                 throw new KronotopException(
                         "No versionstamp for replication hint at Segment=" + metadata.segmentId() + " Position=" + metadata.position()
                 );
@@ -95,7 +87,7 @@ public class SegmentReplication extends AbstractReplication implements Replicati
                     throw new KronotopException("Unexpected end of segment file at Position=" + metadata.position());
                 }
             }
-            hintPlugins.dispatch(hint, session.shardId(), versionstamp, document.flip());
+            hintPlugins.dispatch(hint, session.shardId(), hint.versionstamp(), document.flip());
         }
         hintCursor = scan.cursor();
     }

@@ -16,11 +16,13 @@
 
 package com.kronotop.volume.replication;
 
+import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.volume.EntryMetadata;
 
 public record ReplicationHintEntry(
         ReplicationHintKind kind,
         long indexId,
+        Versionstamp versionstamp,
         EntryMetadata metadata
 ) {
 }

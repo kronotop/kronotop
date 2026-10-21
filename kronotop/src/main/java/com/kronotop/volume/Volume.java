@@ -539,7 +539,8 @@ public class Volume {
                     index,
                     subspace.getDirectorySubspace(),
                     ReplicationHintKind.VECTOR_NODE_ADD,
-                    metadata
+                    metadata,
+                    userVersion
             );
             changeLog.appendOperation(tr, metadata, session.prefix(), userVersion);
         }
@@ -800,7 +801,8 @@ public class Volume {
                     index,
                     subspace.getDirectorySubspace(),
                     ReplicationHintKind.VECTOR_NODE_DELETE,
-                    metadata
+                    metadata,
+                    key
             );
             changeLog.deleteOperation(session.transaction(), metadata, session.prefix(), key);
 
@@ -861,14 +863,16 @@ public class Volume {
                 index,
                 subspace.getDirectorySubspace(),
                 ReplicationHintKind.VECTOR_NODE_DELETE,
-                prevMetadata
+                prevMetadata,
+                key
         );
         ReplicationHintMaintainer.setHintIfMarked(
                 session,
                 index,
                 subspace.getDirectorySubspace(),
                 ReplicationHintKind.VECTOR_NODE_ADD,
-                newMetadata
+                newMetadata,
+                key
         );
         changeLog.updateOperation(tr, prevMetadata, newMetadata, session.prefix(), key);
 
@@ -1042,7 +1046,8 @@ public class Volume {
                     index,
                     subspace.getDirectorySubspace(),
                     ReplicationHintKind.VECTOR_NODE_ADD,
-                    metadata
+                    metadata,
+                    key
             );
 
             // Changelog

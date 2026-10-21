@@ -18,19 +18,12 @@ package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
-import com.kronotop.volume.AppendResult;
-import com.kronotop.volume.AppendedEntry;
-import com.kronotop.volume.BaseVolumeIntegrationTest;
-import com.kronotop.volume.EntryMetadata;
-import com.kronotop.volume.VolumeSession;
+import com.kronotop.volume.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -132,22 +125,81 @@ class ReplicationHintMaintainerTest extends BaseVolumeIntegrationTest {
     }
 
     @Test
-    void shouldReadVersionstampsByPosition() throws IOException {
-        // Behavior: readVersionstamps returns the versionstamp of every entry in the range keyed by position.
-        AppendResult result = appendMarkedEntries();
-        AppendedEntry[] entries = result.getAppendedEntries();
-        Versionstamp[] keys = result.getVersionstampedKeys();
-        long segmentId = entries[0].metadata().segmentId();
+    void shouldDecodeValuesOfSetHintIfMarked() {
+        byte[] prefix = {1, 2, 3, 4, 5};
+        EntryMetadata metadata = new EntryMetadata(1L, prefix, 100L, 200L, 7L);
+        ReplicationHint hint = new ReplicationHint();
+        hint.markHasVector(0, 1L);
 
-        Map<Long, Versionstamp> versionstamps;
+        Versionstamp versionstamp;
         try (Transaction tr = context.getTransactionManager().create()) {
-            versionstamps = ReplicationHintMaintainer.readVersionstamps(tr, subspace, segmentId, 0, segmentEnd(result));
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            session.setReplicationHint(hint);
+            ReplicationHintMaintainer.setHintIfMarked(
+                    session,
+                    0,
+                    subspace,
+                    ReplicationHintKind.VECTOR_NODE_ADD,
+                    metadata,
+                    5
+            );
+            CompletableFuture<byte[]> vsFuture = tr.getVersionstamp();
+            tr.commit().join();
+            versionstamp = Versionstamp.complete(vsFuture.join(), 5);
         }
 
-        assertEquals(NUMBER, versionstamps.size());
-        for (int i = 0; i < NUMBER; i++) {
-            EntryMetadata metadata = entries[i].metadata();
-            assertEquals(keys[i], versionstamps.get(metadata.position()));
+        try (Transaction tr = context.getTransactionManager().create()) {
+            VolumeSession session = new VolumeSession(tr, stashVolumeSyncerPrefix);
+            session.setReplicationHint(hint);
+            ReplicationHintMaintainer.setHintIfMarked(
+                    session,
+                    0,
+                    subspace,
+                    ReplicationHintKind.VECTOR_NODE_DELETE,
+                    metadata,
+                    versionstamp
+            );
+            tr.commit().join();
         }
+
+        try (Transaction tr = context.getTransactionManager().create()) {
+            byte[] addKey = ReplicationHintMaintainer.packHintKey(
+                    subspace,
+                    1L,
+                    100L,
+                    1L,
+                    ReplicationHintKind.VECTOR_NODE_ADD
+            );
+            byte[] deleteKey = ReplicationHintMaintainer.packHintKey(
+                    subspace,
+                    1L,
+                    100L,
+                    1L,
+                    ReplicationHintKind.VECTOR_NODE_DELETE
+            );
+            byte[] addValue = tr.get(addKey).join();
+            byte[] deleteValue = tr.get(deleteKey).join();
+            assertNotNull(addValue);
+            assertNotNull(deleteValue);
+            assertArrayEquals(addValue, deleteValue);
+
+            ReplicationHintEntry add = ReplicationHintMaintainer.decode(subspace, addKey, addValue);
+            assertEquals(ReplicationHintKind.VECTOR_NODE_ADD, add.kind());
+            assertHintEntry(add, versionstamp, metadata);
+
+            ReplicationHintEntry delete = ReplicationHintMaintainer.decode(subspace, deleteKey, deleteValue);
+            assertEquals(ReplicationHintKind.VECTOR_NODE_DELETE, delete.kind());
+            assertHintEntry(delete, versionstamp, metadata);
+        }
+    }
+
+    private void assertHintEntry(ReplicationHintEntry entry, Versionstamp versionstamp, EntryMetadata metadata) {
+        assertEquals(1L, entry.indexId());
+        assertEquals(versionstamp, entry.versionstamp());
+        assertEquals(metadata.segmentId(), entry.metadata().segmentId());
+        assertEquals(metadata.position(), entry.metadata().position());
+        assertEquals(metadata.length(), entry.metadata().length());
+        assertEquals(metadata.handle(), entry.metadata().handle());
+        assertArrayEquals(metadata.prefix(), entry.metadata().prefix());
     }
 }

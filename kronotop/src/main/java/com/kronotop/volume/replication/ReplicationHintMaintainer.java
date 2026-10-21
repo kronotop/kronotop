@@ -17,6 +17,7 @@
 package com.kronotop.volume.replication;
 
 import com.apple.foundationdb.KeyValue;
+import com.apple.foundationdb.MutationType;
 import com.apple.foundationdb.Range;
 import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.directory.DirectorySubspace;
@@ -45,21 +46,38 @@ public class ReplicationHintMaintainer {
             int index,
             DirectorySubspace subspace,
             ReplicationHintKind kind,
-            EntryMetadata metadata
+            EntryMetadata metadata,
+            int userVersion
     ) {
         ReplicationHint hint = session.getReplicationHint();
         if (hint == null || !hint.hasVector(index)) {
             return;
         }
 
-        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2 + metadata.prefix().length);
-        buffer.putLong(metadata.length());
-        buffer.putLong(metadata.handle());
-        buffer.put(metadata.prefix());
-
+        Tuple value = Tuple.from(Versionstamp.incomplete(userVersion), metadata.length(), metadata.handle(), metadata.prefix());
         for (long indexId : hint.indexIds(index)) {
             byte[] key = packHintKey(subspace, metadata.segmentId(), metadata.position(), indexId, kind);
-            session.transaction().set(key, buffer.array());
+            session.transaction().mutate(MutationType.SET_VERSIONSTAMPED_VALUE, key, subspace.packWithVersionstamp(value));
+        }
+    }
+
+    public static void setHintIfMarked(
+            VolumeSession session,
+            int index,
+            DirectorySubspace subspace,
+            ReplicationHintKind kind,
+            EntryMetadata metadata,
+            Versionstamp versionstamp
+    ) {
+        ReplicationHint hint = session.getReplicationHint();
+        if (hint == null || !hint.hasVector(index)) {
+            return;
+        }
+
+        Tuple value = Tuple.from(versionstamp, metadata.length(), metadata.handle(), metadata.prefix());
+        for (long indexId : hint.indexIds(index)) {
+            byte[] key = packHintKey(subspace, metadata.segmentId(), metadata.position(), indexId, kind);
+            session.transaction().set(key, subspace.pack(value));
         }
     }
 
@@ -74,16 +92,19 @@ public class ReplicationHintMaintainer {
      * Decodes one hint key/value pair written by {@link #setHintIfMarked}.
      */
     public static ReplicationHintEntry decode(DirectorySubspace subspace, byte[] key, byte[] value) {
-        Tuple tuple = subspace.unpack(key);
-        ByteBuffer buffer = ByteBuffer.wrap(value);
-        long length = buffer.getLong();
-        long handle = buffer.getLong();
-        byte[] prefix = new byte[buffer.remaining()];
-        buffer.get(prefix);
-        EntryMetadata metadata = new EntryMetadata(tuple.getLong(1), prefix, tuple.getLong(2), length, handle);
+        Tuple parsedKey = subspace.unpack(key);
+        Tuple parsedValue = subspace.unpack(value);
+        EntryMetadata metadata = new EntryMetadata(
+                parsedKey.getLong(1),
+                parsedValue.getBytes(3),
+                parsedKey.getLong(2),
+                parsedValue.getLong(1),
+                parsedValue.getLong(2)
+        );
         return new ReplicationHintEntry(
-                ReplicationHintKind.valueOf((byte) tuple.getLong(4)),
-                tuple.getLong(3),
+                ReplicationHintKind.valueOf((byte) parsedKey.getLong(4)),
+                parsedKey.getLong(3),
+                parsedValue.getVersionstamp(0),
                 metadata
         );
     }
@@ -127,19 +148,5 @@ public class ReplicationHintMaintainer {
             return entryPosition;
         }
         return position;
-    }
-
-    /**
-     * Reads the versionstamps of the entries that start in {@code [from, to)} of a segment, keyed by position.
-     */
-    public static Map<Long, Versionstamp> readVersionstamps(Transaction tr, DirectorySubspace subspace, long segmentId, long from, long to) {
-        byte[] begin = subspace.pack(Tuple.from(SEGMENT_POSITION_SUBSPACE, segmentId, from));
-        byte[] end = subspace.pack(Tuple.from(SEGMENT_POSITION_SUBSPACE, segmentId, to));
-        Map<Long, Versionstamp> versionstamps = new HashMap<>();
-        for (KeyValue keyValue : tr.getRange(new Range(begin, end))) {
-            long position = subspace.unpack(keyValue.getKey()).getLong(2);
-            versionstamps.put(position, VersionstampUtil.decodeVersionstampedValue(keyValue.getValue()));
-        }
-        return versionstamps;
     }
 }
