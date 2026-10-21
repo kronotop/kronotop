@@ -2645,13 +2645,20 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         assertNull(failure.get(), "Writer failed with unexpected exception");
     }
 
-    private byte[] readReplicationHint(EntryMetadata metadata) {
-        return readReplicationHint(metadata, VECTOR_INDEX_ID);
+    private byte[] readReplicationHint(ReplicationHintKind kind, EntryMetadata metadata) {
+        return readReplicationHint(kind, metadata, VECTOR_INDEX_ID);
     }
 
-    private byte[] readReplicationHint(EntryMetadata metadata, long indexId) {
+    private byte[] readReplicationHint(ReplicationHintKind kind, EntryMetadata metadata, long indexId) {
         try (Transaction tr = context.getTransactionManager().create()) {
-            return tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, metadata.segmentId(), metadata.position(), indexId))).join();
+            return tr.get(
+                    ReplicationHintMaintainer.packHintKey(
+                            subspace,
+                            metadata.segmentId(),
+                            metadata.position(),
+                            indexId,
+                            kind
+                    )).join();
         }
     }
 
@@ -2660,8 +2667,8 @@ class VolumeTest extends BaseVolumeIntegrationTest {
     }
 
     private void assertReplicationHint(ReplicationHintKind kind, EntryMetadata metadata, long indexId) {
-        byte[] key = subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, metadata.segmentId(), metadata.position(), indexId));
-        byte[] value = readReplicationHint(metadata, indexId);
+        byte[] key = ReplicationHintMaintainer.packHintKey(subspace, metadata.segmentId(), metadata.position(), indexId, kind);
+        byte[] value = readReplicationHint(kind, metadata, indexId);
         assertNotNull(value);
         ReplicationHintEntry hint = ReplicationHintMaintainer.decode(subspace, key, value);
         assertEquals(kind, hint.kind());
@@ -2688,7 +2695,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         AppendedEntry[] appended = result.getAppendedEntries();
-        assertNull(readReplicationHint(appended[0].metadata()));
+        assertNull(readReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[0].metadata()));
         assertReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[1].metadata());
     }
 
@@ -2701,7 +2708,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
             result = volume.append(session, getEntries(1));
             tr.commit().join();
         }
-        assertNull(readReplicationHint(result.getAppendedEntries()[0].metadata()));
+        assertNull(readReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, result.getAppendedEntries()[0].metadata()));
     }
 
     @Test
@@ -2725,7 +2732,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
 
         InsertedEntry[] inserted = result.entries();
         assertReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, inserted[0].metadata());
-        assertNull(readReplicationHint(inserted[1].metadata()));
+        assertNull(readReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, inserted[1].metadata()));
     }
 
     @Test
@@ -2777,7 +2784,7 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
         deleteResult.complete();
 
-        assertNull(readReplicationHint(appended[0].metadata()));
+        assertNull(readReplicationHint(ReplicationHintKind.VECTOR_NODE_DELETE, appended[0].metadata()));
         assertReplicationHint(ReplicationHintKind.VECTOR_NODE_DELETE, appended[1].metadata());
     }
 
@@ -2798,10 +2805,10 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         }
 
         AppendedEntry[] appended = result.getAppendedEntries();
-        assertNull(readReplicationHint(appended[0].metadata(), 1L));
-        assertNull(readReplicationHint(appended[0].metadata(), 2L));
+        assertNull(readReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[0].metadata(), 1L));
+        assertNull(readReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[0].metadata(), 2L));
         assertReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[1].metadata(), 1L);
         assertReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[1].metadata(), 2L);
-        assertNull(readReplicationHint(appended[1].metadata(), 3L));
+        assertNull(readReplicationHint(ReplicationHintKind.VECTOR_NODE_ADD, appended[1].metadata(), 3L));
     }
 }

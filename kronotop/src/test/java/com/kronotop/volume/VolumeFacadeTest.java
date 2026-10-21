@@ -17,7 +17,6 @@
 package com.kronotop.volume;
 
 import com.apple.foundationdb.Transaction;
-import com.apple.foundationdb.tuple.Tuple;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.volume.changelog.ChangeLogCoordinate;
 import com.kronotop.volume.changelog.ChangeLogEntry;
@@ -34,7 +33,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.kronotop.volume.Subspaces.REPLICATION_HINT_SUBSPACE;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VolumeFacadeTest extends BaseVolumeIntegrationTest {
@@ -235,8 +233,21 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
         try (Transaction tr = context.getTransactionManager().create()) {
             EntryMetadata unmarked = versionstampedEntries.get(0).metadata();
             EntryMetadata marked = versionstampedEntries.get(1).metadata();
-            assertNull(tr.get(subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, unmarked.segmentId(), unmarked.position(), 7L))).join());
-            byte[] key = subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, marked.segmentId(), marked.position(), 7L));
+            assertNull(tr.get(
+                    ReplicationHintMaintainer.packHintKey(
+                            subspace,
+                            unmarked.segmentId(),
+                            unmarked.position(),
+                            7L,
+                            ReplicationHintKind.VECTOR_NODE_DELETE
+                    )).join());
+            byte[] key = ReplicationHintMaintainer.packHintKey(
+                    subspace,
+                    marked.segmentId(),
+                    marked.position(),
+                    7L,
+                    ReplicationHintKind.VECTOR_NODE_DELETE
+            );
             byte[] value = tr.get(key).join();
             assertNotNull(value);
             ReplicationHintEntry entry = ReplicationHintMaintainer.decode(subspace, key, value);

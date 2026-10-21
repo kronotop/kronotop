@@ -58,9 +58,16 @@ public class ReplicationHintMaintainer {
         buffer.put(metadata.prefix());
 
         for (long indexId : hint.indexIds(index)) {
-            Tuple key = Tuple.from(REPLICATION_HINT_SUBSPACE, metadata.segmentId(), metadata.position(), indexId, kind.getValue());
-            session.transaction().set(subspace.pack(key), buffer.array());
+            byte[] key = packHintKey(subspace, metadata.segmentId(), metadata.position(), indexId, kind);
+            session.transaction().set(key, buffer.array());
         }
+    }
+
+    /**
+     * Packs the key of one hint. Tests use it to read hints back.
+     */
+    public static byte[] packHintKey(DirectorySubspace subspace, long segmentId, long position, long indexId, ReplicationHintKind kind) {
+        return subspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, segmentId, position, indexId, kind.getValue()));
     }
 
     /**
