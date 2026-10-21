@@ -63,6 +63,10 @@ public class BaseStandaloneInstanceTest extends BaseTest {
         return DEFAULT_CONFIG_FILE_NAME;
     }
 
+    protected boolean runWithTCPServer() {
+        return false;
+    }
+
     protected DirectorySubspace createOrOpenSubspaceUnderCluster(String subspaceName) {
         try (Transaction tr = instance.getContext().getFoundationDB().createTransaction()) {
             String clusterName = config.getString("cluster.name");
@@ -133,7 +137,7 @@ public class BaseStandaloneInstanceTest extends BaseTest {
     public void setup() throws UnknownHostException, InterruptedException {
         config = loadConfig(getConfigFileName());
         TEST_NAMESPACE = config.getString("default_namespace");
-        instance = new KronotopTestInstance(config);
+        instance = new KronotopTestInstance(config, runWithTCPServer());
         instance.start();
         context = instance.getContext();
     }

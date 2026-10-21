@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
-abstract class BaseVectorHookIntegrationTest extends BaseBucketHandlerTest {
+public abstract class BaseVectorHookIntegrationTest extends BaseBucketHandlerTest {
 
     protected void createBucketWithVectorIndex() {
         BucketCommandBuilder<byte[], byte[]> cmd = new BucketCommandBuilder<>(ByteArrayCodec.INSTANCE);
