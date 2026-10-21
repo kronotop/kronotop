@@ -29,6 +29,7 @@ import org.bson.BsonDocument;
 import org.bson.BsonValue;
 import org.bson.types.ObjectId;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -272,6 +273,11 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
      * @return the parsed vector, or {@code null} if the field is missing or null
      */
     public static float[] extractVector(VectorIndexDefinition definition, BsonDocument document) {
+        BsonValue value = SelectorMatcher.match(definition.selector(), document);
+        return parseVector(value);
+    }
+
+    public static float[] extractVector(VectorIndexDefinition definition, ByteBuffer document) {
         BsonValue value = SelectorMatcher.match(definition.selector(), document);
         return parseVector(value);
     }
