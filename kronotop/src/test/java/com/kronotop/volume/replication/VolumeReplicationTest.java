@@ -2451,7 +2451,7 @@ class VolumeReplicationTest extends BaseNetworkedVolumeIntegrationTest {
         replicationService.getHintPlugins().register(ReplicationHintKind.VECTOR_NODE_ADD, (h, SHARD_ID, vs, doc) -> {
             byte[] copy = new byte[doc.remaining()];
             doc.get(copy);
-            dispatched.add(new Dispatched(h.position(), h.indexId(), vs, copy));
+            dispatched.add(new Dispatched(h.metadata().position(), h.indexId(), vs, copy));
         });
 
         DirectorySubspace standbySubspace = new VolumeReplication(context, SHARD_KIND, SHARD_ID, destination.toString()).createOrOpenStandbySubspace();

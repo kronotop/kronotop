@@ -16,12 +16,11 @@
 
 package com.kronotop.volume.replication;
 
+import com.kronotop.volume.EntryMetadata;
+
 public record ReplicationHintEntry(
         ReplicationHintKind kind,
-        long segmentId,
-        long position,
-        long length,
-        byte[] prefix,
-        long indexId
+        long indexId,
+        EntryMetadata metadata
 ) {
 }

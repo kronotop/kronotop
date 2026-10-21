@@ -22,6 +22,7 @@ import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.Context;
 import com.kronotop.KronotopException;
 import com.kronotop.cluster.client.protocol.SegmentRange;
+import com.kronotop.volume.EntryMetadata;
 import com.kronotop.volume.VolumeConfigGenerator;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisFuture;
@@ -73,24 +74,25 @@ public class SegmentReplication extends AbstractReplication implements Replicati
             scan = ReplicationHintMaintainer.scan(tr, volumeSubspace, session.segmentId(), hintCursor, written);
             if (!scan.hints().isEmpty()) {
                 // Hints are ordered by position. Read only the span the hints cover.
-                long from = scan.hints().getFirst().position();
-                long to = scan.hints().getLast().position() + 1;
+                long from = scan.hints().getFirst().metadata().position();
+                long to = scan.hints().getLast().metadata().position() + 1;
                 versionstamps = ReplicationHintMaintainer.readVersionstamps(tr, volumeSubspace, session.segmentId(), from, to);
             }
         }
         for (ReplicationHintEntry hint : scan.hints()) {
-            Versionstamp versionstamp = versionstamps.get(hint.position());
+            EntryMetadata metadata = hint.metadata();
+            Versionstamp versionstamp = versionstamps.get(metadata.position());
             if (versionstamp == null) {
                 throw new KronotopException(
-                        "No versionstamp for replication hint at Segment=" + hint.segmentId() + " Position=" + hint.position()
+                        "No versionstamp for replication hint at Segment=" + metadata.segmentId() + " Position=" + metadata.position()
                 );
             }
             // Maximum document length is 16MiB, so this conversion should be safe.
-            ByteBuffer document = ByteBuffer.allocate(Math.toIntExact(hint.length()));
+            ByteBuffer document = ByteBuffer.allocate(Math.toIntExact(metadata.length()));
             while (document.hasRemaining()) {
-                int nr = file.getChannel().read(document, hint.position() + document.position());
+                int nr = file.getChannel().read(document, metadata.position() + document.position());
                 if (nr < 0) {
-                    throw new KronotopException("Unexpected end of segment file at Position=" + hint.position());
+                    throw new KronotopException("Unexpected end of segment file at Position=" + metadata.position());
                 }
             }
             hintPlugins.dispatch(hint, session.shardId(), versionstamp, document.flip());

@@ -91,9 +91,9 @@ class ReplicationHintMaintainerTest extends BaseVolumeIntegrationTest {
                 scan = ReplicationHintMaintainer.scan(tr, subspace, segmentId, cursor, to);
             }
             for (ReplicationHintEntry hint : scan.hints()) {
-                assertTrue(hint.position() + hint.length() <= to, "Incomplete entry returned at to=" + to);
+                assertTrue(hint.metadata().position() + hint.metadata().length() <= to, "Incomplete entry returned at to=" + to);
                 assertEquals(ReplicationHintKind.VECTOR_NODE_ADD, hint.kind());
-                found.add(new PositionAndIndex(hint.position(), hint.indexId()));
+                found.add(new PositionAndIndex(hint.metadata().position(), hint.indexId()));
             }
             assertTrue(scan.cursor() >= cursor, "Cursor moved backwards at to=" + to);
             assertTrue(scan.cursor() <= to);

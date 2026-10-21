@@ -47,26 +47,20 @@ public final class VectorReplicationPlugin implements ReplicationHintPlugin {
 
     private void processVectorNodeAdd(ReplicationHintEntry hint, int shardId, Versionstamp addVs, ByteBuffer document) {
         try (Transaction tr = context.getTransactionManager().create()) {
-            BucketMetadata metadata = BucketMetadataUtil.openByPrefix(context, tr, hint.prefix());
+            EntryMetadata entryMetadata = hint.metadata();
+            BucketMetadata metadata = BucketMetadataUtil.openByPrefix(context, tr, entryMetadata.prefix());
             VectorNodeWriter writer = new VectorNodeWriter(service, metadata);
             VectorIndex index = metadata.vectorIndexes().getIndexById(hint.indexId(), IndexSelectionPolicy.WRITABLE);
             if (index == null) {
                 LOGGER.warn("Vector index not found, skipping replication hint: indexId={}, prefix={}, segmentId={}, position={}",
-                        hint.indexId(), hint.prefix(), hint.segmentId(), hint.position());
+                        hint.indexId(), entryMetadata.prefix(), entryMetadata.segmentId(), entryMetadata.position());
                 return;
             }
-            EntryMetadata entryMetadata = new EntryMetadata(
-                    hint.segmentId(),
-                    hint.prefix(),
-                    hint.position(),
-                    hint.length(),
-                    EntryMetadata.STUB_HANDLE // not useful for vector processing.
-            );
             BsonValue id = SelectorMatcher.match(PrimaryIndex.SELECTOR, document);
             float[] vector = VectorIndexMaintainer.extractVector(index.definition(), document);
             if (vector == null) {
                 LOGGER.warn("Vector field not found in document, skipping replication hint: indexId={}, selector={}, id={}, segmentId={}, position={}",
-                        hint.indexId(), index.definition().selector(), id, hint.segmentId(), hint.position());
+                        hint.indexId(), index.definition().selector(), id, entryMetadata.segmentId(), entryMetadata.position());
                 return;
             }
             CollectedVector cv = new CollectedVector(
@@ -101,7 +95,7 @@ public final class VectorReplicationPlugin implements ReplicationHintPlugin {
             }
         } catch (Exception exp) {
             LOGGER.error("Failed to process replication hint: kind={}, indexId={}, prefix={}, segmentId={}, position={}",
-                    hint.kind(), hint.indexId(), hint.prefix(), hint.segmentId(), hint.position(), exp);
+                    hint.kind(), hint.indexId(), hint.metadata().prefix(), hint.metadata().segmentId(), hint.metadata().position(), exp);
         }
     }
 }

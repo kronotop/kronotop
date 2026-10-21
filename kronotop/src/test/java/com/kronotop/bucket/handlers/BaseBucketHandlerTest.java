@@ -526,10 +526,10 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
         assertEquals(indexIds, hints.keySet());
         for (ReplicationHintEntry hint : hints.values()) {
             assertEquals(kind, hint.kind());
-            assertEquals(entryMetadata.segmentId(), hint.segmentId());
-            assertEquals(entryMetadata.position(), hint.position());
-            assertEquals(entryMetadata.length(), hint.length());
-            assertArrayEquals(entryMetadata.prefix(), hint.prefix());
+            assertEquals(entryMetadata.segmentId(), hint.metadata().segmentId());
+            assertEquals(entryMetadata.position(), hint.metadata().position());
+            assertEquals(entryMetadata.length(), hint.metadata().length());
+            assertArrayEquals(entryMetadata.prefix(), hint.metadata().prefix());
         }
     }
 }

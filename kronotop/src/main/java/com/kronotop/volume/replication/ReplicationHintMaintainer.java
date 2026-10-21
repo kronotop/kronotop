@@ -52,8 +52,9 @@ public class ReplicationHintMaintainer {
             return;
         }
 
-        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES + metadata.prefix().length);
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 2 + metadata.prefix().length);
         buffer.putLong(metadata.length());
+        buffer.putLong(metadata.handle());
         buffer.put(metadata.prefix());
 
         for (long indexId : hint.indexIds(index)) {
@@ -69,15 +70,14 @@ public class ReplicationHintMaintainer {
         Tuple tuple = subspace.unpack(key);
         ByteBuffer buffer = ByteBuffer.wrap(value);
         long length = buffer.getLong();
+        long handle = buffer.getLong();
         byte[] prefix = new byte[buffer.remaining()];
         buffer.get(prefix);
+        EntryMetadata metadata = new EntryMetadata(tuple.getLong(1), prefix, tuple.getLong(2), length, handle);
         return new ReplicationHintEntry(
                 ReplicationHintKind.valueOf((byte) tuple.getLong(4)),
-                tuple.getLong(1),
-                tuple.getLong(2),
-                length,
-                prefix,
-                tuple.getLong(3)
+                tuple.getLong(3),
+                metadata
         );
     }
 
@@ -93,8 +93,8 @@ public class ReplicationHintMaintainer {
         List<ReplicationHintEntry> hints = new ArrayList<>();
         for (KeyValue keyValue : tr.getRange(new Range(begin, end))) {
             ReplicationHintEntry hint = decode(subspace, keyValue.getKey(), keyValue.getValue());
-            if (hint.position() + hint.length() > to) {
-                return new ReplicationHintScan(hints, hint.position());
+            if (hint.metadata().position() + hint.metadata().length() > to) {
+                return new ReplicationHintScan(hints, hint.metadata().position());
             }
             hints.add(hint);
         }

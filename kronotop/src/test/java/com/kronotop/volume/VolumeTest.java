@@ -2665,10 +2665,10 @@ class VolumeTest extends BaseVolumeIntegrationTest {
         assertNotNull(value);
         ReplicationHintEntry hint = ReplicationHintMaintainer.decode(subspace, key, value);
         assertEquals(kind, hint.kind());
-        assertEquals(metadata.segmentId(), hint.segmentId());
-        assertEquals(metadata.position(), hint.position());
-        assertEquals(metadata.length(), hint.length());
-        assertArrayEquals(metadata.prefix(), hint.prefix());
+        assertEquals(metadata.segmentId(), hint.metadata().segmentId());
+        assertEquals(metadata.position(), hint.metadata().position());
+        assertEquals(metadata.length(), hint.metadata().length());
+        assertArrayEquals(metadata.prefix(), hint.metadata().prefix());
         assertEquals(indexId, hint.indexId());
     }
 

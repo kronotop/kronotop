@@ -25,7 +25,6 @@ import java.nio.ByteBuffer;
 public record EntryMetadata(long segmentId, byte[] prefix, long position, long length, long handle) {
     public static final int ENCODED_SIZE = 40;
     public static int ENTRY_PREFIX_SIZE = 8;
-    public static int STUB_HANDLE = -1;
 
     /**
      * Decodes entry metadata from a fixed-size byte array.

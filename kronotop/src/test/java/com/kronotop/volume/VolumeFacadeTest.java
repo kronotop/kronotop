@@ -241,10 +241,10 @@ class VolumeFacadeTest extends BaseVolumeIntegrationTest {
             assertNotNull(value);
             ReplicationHintEntry entry = ReplicationHintMaintainer.decode(subspace, key, value);
             assertEquals(ReplicationHintKind.VECTOR_NODE_DELETE, entry.kind());
-            assertEquals(marked.segmentId(), entry.segmentId());
-            assertEquals(marked.position(), entry.position());
-            assertEquals(marked.length(), entry.length());
-            assertArrayEquals(marked.prefix(), entry.prefix());
+            assertEquals(marked.segmentId(), entry.metadata().segmentId());
+            assertEquals(marked.position(), entry.metadata().position());
+            assertEquals(marked.length(), entry.metadata().length());
+            assertArrayEquals(marked.prefix(), entry.metadata().prefix());
             assertEquals(7L, entry.indexId());
         }
     }
