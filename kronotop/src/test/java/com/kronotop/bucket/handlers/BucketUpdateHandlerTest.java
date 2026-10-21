@@ -32,6 +32,9 @@ import com.kronotop.commands.BucketCreateArgs;
 import com.kronotop.commands.BucketQueryArgs;
 import com.kronotop.server.RESPVersion;
 import com.kronotop.server.resp3.*;
+import com.kronotop.volume.EntryMetadata;
+import com.kronotop.volume.replication.ReplicationHintEntry;
+import com.kronotop.volume.replication.ReplicationHintKind;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.netty.buffer.ByteBuf;
@@ -45,6 +48,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Stream;
@@ -3146,5 +3150,78 @@ class BucketUpdateHandlerTest extends BaseBucketHandlerTest {
         assertErrorReply("ERR Duplicate 'NAMESPACE' argument",
                 runRaw(channel, BucketCommandBuilder.CommandType.BUCKET_UPDATE,
                         List.of("test-bucket", "{}", "{\"$set\":{\"a\":1}}", "NAMESPACE", "a", "NAMESPACE", "b")));
+    }
+
+    private void updateVectorBucket(String update) {
+        BucketCommandBuilder<String, String> cmd = new BucketCommandBuilder<>(StringCodec.UTF8);
+        switchProtocol(cmd, RESPVersion.RESP3);
+        ByteBuf buf = Unpooled.buffer();
+        cmd.update(VECTOR_BUCKET, "{}", update).encode(buf);
+        Object msg = runCommand(channel, buf);
+        assertInstanceOf(MapRedisMessage.class, msg);
+        assertEquals(1, extractObjectIds(msg).size());
+    }
+
+    @Test
+    void shouldNotWriteHintsOnUnrelatedFieldUpdate() throws IOException {
+        // Behavior: UPDATE of a field no vector index covers writes no replication hint: no delete hint on
+        // the old entry, no add hint on the new one. The graph node is keyed by versionstamp and stays valid.
+        BucketMetadata metadata = createBucketWithTwoVectorIndexes();
+        long firstId = vectorIndexId(metadata, "embedding");
+        long secondId = vectorIndexId(metadata, "embedding2");
+
+        insertIntoVectorBucket(
+                BSONUtil.jsonToDocumentThenBytes("{\"label\": \"doc\", \"embedding\": [0.1, 0.2, 0.3], \"embedding2\": [0.4, 0.5, 0.6]}")
+        );
+        EntryMetadata oldEntry = entryMetadataByLabel(metadata).get("doc");
+
+        updateVectorBucket("{\"$set\": {\"label\": \"renamed\"}}");
+        EntryMetadata newEntry = entryMetadataByLabel(metadata).get("renamed");
+        assertNotNull(newEntry);
+        assertNotEquals(oldEntry.position(), newEntry.position());
+
+        // The old entry keeps only the add hints INSERT wrote; the new entry has none.
+        assertEquals(Set.of(
+                new Hint(ReplicationHintKind.VECTOR_NODE_ADD, firstId),
+                new Hint(ReplicationHintKind.VECTOR_NODE_ADD, secondId)
+        ), hintsOf(oldEntry));
+        assertTrue(readReplicationHintEntries(newEntry).isEmpty());
+    }
+
+    @Test
+    void shouldWriteDeleteAndAddHintsOnlyForUpdatedVectorIndex() throws IOException {
+        // Behavior: UPDATE of one vector field writes VECTOR_NODE_DELETE on the old entry and
+        // VECTOR_NODE_ADD on the new entry for that index only. The untouched index gets no new hint.
+        BucketMetadata metadata = createBucketWithTwoVectorIndexes();
+        long firstId = vectorIndexId(metadata, "embedding");
+        long secondId = vectorIndexId(metadata, "embedding2");
+
+        insertIntoVectorBucket(
+                BSONUtil.jsonToDocumentThenBytes("{\"label\": \"doc\", \"embedding\": [0.1, 0.2, 0.3], \"embedding2\": [0.4, 0.5, 0.6]}")
+        );
+        EntryMetadata oldEntry = entryMetadataByLabel(metadata).get("doc");
+
+        updateVectorBucket("{\"$set\": {\"embedding\": [0.7, 0.8, 0.9]}}");
+        EntryMetadata newEntry = entryMetadataByLabel(metadata).get("doc");
+        assertNotEquals(oldEntry.position(), newEntry.position());
+
+        // The old entry keeps the add hints INSERT wrote and gains a delete hint for the updated index only.
+        assertEquals(Set.of(
+                new Hint(ReplicationHintKind.VECTOR_NODE_ADD, firstId),
+                new Hint(ReplicationHintKind.VECTOR_NODE_ADD, secondId),
+                new Hint(ReplicationHintKind.VECTOR_NODE_DELETE, firstId)
+        ), hintsOf(oldEntry));
+        assertEquals(Set.of(new Hint(ReplicationHintKind.VECTOR_NODE_ADD, firstId)), hintsOf(newEntry));
+    }
+
+    private record Hint(ReplicationHintKind kind, long indexId) {
+    }
+
+    private Set<Hint> hintsOf(EntryMetadata entryMetadata) {
+        Set<Hint> hints = new HashSet<>();
+        for (ReplicationHintEntry hint : readReplicationHintEntries(entryMetadata)) {
+            hints.add(new Hint(hint.kind(), hint.indexId()));
+        }
+        return hints;
     }
 }

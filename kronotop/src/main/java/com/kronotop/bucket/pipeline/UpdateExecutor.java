@@ -241,8 +241,9 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
         UniquenessChecker uniquenessChecker = new UniquenessChecker(tr);
         List<VersionstampedEntryUpdate> updatedEntries = new ArrayList<>();
         List<ObjectId> objectIds = new ArrayList<>();
-        boolean hasVectorIndex = !ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE).isEmpty();
-        ReplicationHint hint = hasVectorIndex ? new ReplicationHint() : null;
+        Collection<VectorIndex> vectorIndexes = ctx.metadata().vectorIndexes().getIndexes(IndexSelectionPolicy.WRITABLE);
+        ReplicationHint hint = vectorIndexes.isEmpty() ? null : new ReplicationHint();
+        Set<String> affectedPaths = collectAffectedPaths(ctx);
 
         for (DocumentRef docRef : docRefs) {
             ByteBuffer document = shard.volume().getByEntryMetadata(docRef.entryMetadata());
@@ -260,9 +261,17 @@ public final class UpdateExecutor extends BaseExecutor implements Executor<List<
             updatedEntries.add(updatedEntry);
             if (hint != null) {
                 // The entry index in the volume batch is its position in updatedEntries.
+                // Only a vector index whose field changed needs a hint; the graph node is keyed by
+                // versionstamp and a volume update keeps it, so an unrelated field update is a no-op.
                 int entryIndex = updatedEntries.size() - 1;
-                for (long indexId : VectorIndexUtil.hasVectorField(ctx.metadata(), setResult.document())) {
-                    hint.markHasVector(entryIndex, indexId);
+                for (VectorIndex vectorIndex : vectorIndexes) {
+                    if (!isVectorIndexAffected(vectorIndex, affectedPaths)) {
+                        continue;
+                    }
+                    BsonValue value = SelectorMatcher.match(vectorIndex.definition().selector(), setResult.document());
+                    if (value != null && !value.isNull()) {
+                        hint.markHasVector(entryIndex, vectorIndex.definition().id());
+                    }
                 }
             }
             objectIds.add(docRef.objectId());

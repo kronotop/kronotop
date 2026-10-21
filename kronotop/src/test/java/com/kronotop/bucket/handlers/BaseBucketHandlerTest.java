@@ -495,13 +495,24 @@ public class BaseBucketHandlerTest extends BaseHandlerTest {
      * Reads the replication hints of one entry, keyed by vector index id.
      */
     protected Map<Long, ReplicationHintEntry> readReplicationHints(EntryMetadata entryMetadata) {
+        Map<Long, ReplicationHintEntry> hints = new HashMap<>();
+        for (ReplicationHintEntry hint : readReplicationHintEntries(entryMetadata)) {
+            hints.put(hint.indexId(), hint);
+        }
+        return hints;
+    }
+
+    /**
+     * Reads every replication hint key of one entry. An entry can carry both an add and a delete
+     * hint for the same vector index, so this keeps all of them.
+     */
+    protected List<ReplicationHintEntry> readReplicationHintEntries(EntryMetadata entryMetadata) {
         DirectorySubspace volumeSubspace = getShard(TEST_SHARD_ID).volume().getConfig().subspace();
         byte[] prefix = volumeSubspace.pack(Tuple.from(REPLICATION_HINT_SUBSPACE, entryMetadata.segmentId(), entryMetadata.position()));
-        Map<Long, ReplicationHintEntry> hints = new HashMap<>();
+        List<ReplicationHintEntry> hints = new ArrayList<>();
         try (Transaction tr = context.getTransactionManager().create()) {
             for (KeyValue kv : tr.getRange(Range.startsWith(prefix)).asList().join()) {
-                ReplicationHintEntry hint = ReplicationHintMaintainer.decode(volumeSubspace, kv.getKey(), kv.getValue());
-                hints.put(hint.indexId(), hint);
+                hints.add(ReplicationHintMaintainer.decode(volumeSubspace, kv.getKey(), kv.getValue()));
             }
         }
         return hints;
