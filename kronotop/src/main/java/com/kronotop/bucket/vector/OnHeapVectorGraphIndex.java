@@ -22,6 +22,7 @@ import com.kronotop.volume.EntryMetadata;
 import io.github.jbellis.jvector.disk.BufferedRandomAccessWriter;
 import io.github.jbellis.jvector.graph.*;
 import io.github.jbellis.jvector.graph.disk.OnDiskGraphIndex;
+import io.github.jbellis.jvector.graph.disk.OnDiskGraphIndexWriter;
 import io.github.jbellis.jvector.graph.similarity.BuildScoreProvider;
 import io.github.jbellis.jvector.graph.similarity.DefaultSearchScoreProvider;
 import io.github.jbellis.jvector.graph.similarity.SearchScoreProvider;
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -364,16 +366,22 @@ public class OnHeapVectorGraphIndex implements SearchableVectorIndex {
             String name = id.toHexString();
             Path indexPath = path.resolve(name + ".index");
 
+            // removeDeletedNodes leaves holes in the ordinal space. The on-disk graph is written with
+            // sequential ordinals, so vmeta and pqv must use the same renumbering.
+            Map<Integer, Integer> ordinalMap = OnDiskGraphIndexWriter.sequentialRenumbering(builder.getGraph());
+
             RandomAccessVectorValues rvv = new MapVectorValues(vectors, ravv.dimension());
-            OnDiskGraphIndex.write(builder.getGraph(), rvv, indexPath);
+            OnDiskGraphIndex.write(builder.getGraph(), rvv, ordinalMap, indexPath);
 
             Path metadataPath = path.resolve(name + ".vmeta");
-            OnDiskVectorGraphIndexMetadataWriter.write(metadataPath, metadata);
+            OnDiskVectorGraphIndexMetadataWriter.write(metadataPath, metadata, ordinalMap);
 
             if (pqVectors != null) {
+                MutablePQVectors remapped = new MutablePQVectors(pq);
+                vectors.forEach((ord, vec) -> remapped.encodeAndSet(ordinalMap.get(ord), vec));
                 Path pqPath = path.resolve(name + ".pqv");
                 try (var pqOut = new BufferedRandomAccessWriter(pqPath)) {
-                    pqVectors.write(pqOut, OnDiskGraphIndex.CURRENT_VERSION);
+                    remapped.write(pqOut, OnDiskGraphIndex.CURRENT_VERSION);
                 }
             }
 

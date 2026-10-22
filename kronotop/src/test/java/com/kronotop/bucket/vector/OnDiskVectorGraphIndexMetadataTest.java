@@ -27,7 +27,9 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -42,7 +44,11 @@ class OnDiskVectorGraphIndexMetadataTest {
 
     private Path writeAndOpen(OnHeapVectorGraphIndexMetadata heapMeta) throws IOException {
         Path path = tempDir.resolve("test.vmeta");
-        OnDiskVectorGraphIndexMetadataWriter.write(path, heapMeta);
+        Map<Integer, Integer> identity = new HashMap<>();
+        for (int ordinal : heapMeta.getOrdinals().keySet()) {
+            identity.put(ordinal, ordinal);
+        }
+        OnDiskVectorGraphIndexMetadataWriter.write(path, heapMeta, identity);
         return path;
     }
 

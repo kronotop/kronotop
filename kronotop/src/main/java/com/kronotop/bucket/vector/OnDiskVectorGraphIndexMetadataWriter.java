@@ -80,22 +80,24 @@ public class OnDiskVectorGraphIndexMetadataWriter {
         }
     }
 
-    /**
-     * Writes the metadata to the disk in a single immutable file.
-     */
-    public static void write(Path path, OnHeapVectorGraphIndexMetadata metadata) throws IOException {
+    public static void write(Path path, OnHeapVectorGraphIndexMetadata metadata, Map<Integer, Integer> ordinalMap) throws IOException {
         Map<ObjectId, GraphNodeRef> objectIds = metadata.getObjectIds();
         Map<Integer, DocumentLocation> ordinals = metadata.getOrdinals();
 
         int count = objectIds.size();
         int maxOrdinal = -1;
         for (int ord : ordinals.keySet()) {
-            if (ord > maxOrdinal) {
-                maxOrdinal = ord;
+            int diskOrdinal = ordinalMap.get(ord);
+            if (diskOrdinal > maxOrdinal) {
+                maxOrdinal = diskOrdinal;
             }
         }
 
         int ordinalSlots = maxOrdinal + 1;
+        DocumentLocation[] slots = new DocumentLocation[ordinalSlots];
+        for (Map.Entry<Integer, DocumentLocation> entry : ordinals.entrySet()) {
+            slots[ordinalMap.get(entry.getKey())] = entry.getValue();
+        }
         int objectIdSectionOffset = HEADER_SIZE + ordinalSlots * ORDINAL_SLOT_SIZE;
 
         Path tmpPath = path.resolveSibling(path.getFileName() + ".tmp");
@@ -121,18 +123,19 @@ public class OnDiskVectorGraphIndexMetadataWriter {
             // Write ordinal -> DocumentLocation section
             ByteBuffer ordinalSection = ByteBuffer.allocate(ordinalSlots * ORDINAL_SLOT_SIZE).order(ByteOrder.nativeOrder());
             for (int i = 0; i < ordinalSlots; i++) {
-                DocumentLocation entry = ordinals.get(i);
-                if (entry != null) {
-                    ordinalSection.putLong(entry.entryMetadata().segmentId());
-                    ordinalSection.put(entry.entryMetadata().prefix());
-                    ordinalSection.putLong(entry.entryMetadata().position());
-                    ordinalSection.putLong(entry.entryMetadata().length());
-                    ordinalSection.putLong(entry.entryMetadata().handle());
-                    ordinalSection.putInt(entry.shardId());
-                    ordinalSection.put(entry.objectId().toByteArray());
-                } else {
-                    ordinalSection.position(ordinalSection.position() + ORDINAL_SLOT_SIZE);
+                DocumentLocation entry = slots[i];
+                if (entry == null) {
+                    // This should never happen!
+                    logger.error("No document location for disk ordinal {} while writing {}", i, path);
+                    throw new IllegalStateException("No document location for disk ordinal " + i);
                 }
+                ordinalSection.putLong(entry.entryMetadata().segmentId());
+                ordinalSection.put(entry.entryMetadata().prefix());
+                ordinalSection.putLong(entry.entryMetadata().position());
+                ordinalSection.putLong(entry.entryMetadata().length());
+                ordinalSection.putLong(entry.entryMetadata().handle());
+                ordinalSection.putInt(entry.shardId());
+                ordinalSection.put(entry.objectId().toByteArray());
             }
             ordinalSection.flip();
             writeFully(channel, ordinalSection);
@@ -145,7 +148,7 @@ public class OnDiskVectorGraphIndexMetadataWriter {
             ByteBuffer objectIdSection = ByteBuffer.allocate(count * OBJECTID_ENTRY_SIZE).order(ByteOrder.nativeOrder());
             for (Map.Entry<ObjectId, GraphNodeRef> entry : sortedEntries) {
                 objectIdSection.put(entry.getKey().toByteArray());
-                objectIdSection.putInt(entry.getValue().ordinal());
+                objectIdSection.putInt(ordinalMap.get(entry.getValue().ordinal()));
                 objectIdSection.put(entry.getValue().versionstamp().getBytes());
             }
             objectIdSection.flip();
