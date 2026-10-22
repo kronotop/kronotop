@@ -30,60 +30,9 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.kronotop.bucket.vector.OnDiskVectorGraphIndexMetadataWriter.*;
 
-/**
- * Memory-mapped reader for on-disk vector graph index metadata files (*.vmeta).
- * Provides O(1) ordinal-to-metadata lookup and O(log N) ObjectId-to-node lookup.
- * Thread-safe: uses a shared Arena so any thread can read concurrently.
- *
- * <p>The on-disk format uses native byte order. Files are node-local (written and read on the
- * same machine) and the target platform is exclusively little-endian (x86-64, ARM64).</p>
- *
- * <h2>File format</h2>
- *
- * <p>All multi-byte integers are in native byte order. Fields within each section are laid out
- * so that longs fall on 8-byte boundaries and ints on 4-byte boundaries. The file is memory-mapped
- * and read in place, so a misaligned field would need two memory accesses instead of one. Entry sizes
- * (64 and 28 bytes) are multiples of 4 to keep every entry start aligned. There is no page-size
- * alignment; a lookup touches one entry, and the OS page cache serves the rest.</p>
- *
- * <pre>{@code
- * HEADER (40 bytes)
- * -------------------------------------------
- * offset  size  field
- *      0     4  magic (0x4B564D44)
- *      4     4  version (always 1)
- *      8     4  count (number of ObjectId entries)
- *     12     4  maxOrdinal
- *     16     4  objectIdSectionOffset
- *     20    12  latestVersionstamp
- *     32     4  deletedCount
- *     36     4  reserved
- *
- * ORDINAL SECTION ((maxOrdinal + 1) × 64 bytes)
- * -------------------------------------------
- * offset  size  field
- *      0     8  segmentId   (long)
- *      8     8  prefix      (byte[8])
- *     16     8  position    (long)
- *     24     8  length      (long)
- *     32     8  handle      (long)
- *     40     4  shardId     (int)
- *     44     1  alive       (0 = dead, 1 = alive)
- *     45    12  objectId    (byte[12])
- *     57     7  reserved
- *
- * OBJECTID SECTION (count × 28 bytes, sorted by ObjectId, unsigned)
- * ---------------------------------------
- * offset  size  field
- *      0    12  objectId     (byte[12])
- *     12     4  ordinal      (int)
- *     16    12  versionstamp (byte[12], versionstamp of the add)
- * }</pre>
- */
 public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata, Closeable {
     private static final int OBJECTID_SIZE = 12;
     private static final int VERSIONSTAMP_SIZE = 12;
@@ -93,14 +42,11 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
     private final int maxOrdinal;
     private final int objectIdSectionOffset;
     private final Versionstamp latestVersionstamp;
-    private final AtomicInteger deletedCount;
-    private final AtomicInteger flushCounter = new AtomicInteger(0);
-    private final Object flushLock = new Object();
 
     public OnDiskVectorGraphIndexMetadata(Path path) throws IOException {
         this.arena = Arena.ofShared();
-        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE)) {
-            this.mappedMemory = channel.map(FileChannel.MapMode.READ_WRITE, 0, channel.size(), arena);
+        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+            this.mappedMemory = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size(), arena);
         } catch (IOException e) {
             arena.close();
             throw e;
@@ -121,17 +67,8 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
         byte[] versionstampBytes = new byte[VERSIONSTAMP_SIZE];
         MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, 20, versionstampBytes, 0, VERSIONSTAMP_SIZE);
         this.latestVersionstamp = Versionstamp.fromBytes(versionstampBytes);
-        this.deletedCount = new AtomicInteger(mappedMemory.get(ValueLayout.JAVA_INT, 32));
     }
-
-    public int getDeletedCount() {
-        return deletedCount.get();
-    }
-
-    public int getCount() {
-        return count;
-    }
-
+    
     public Versionstamp getLatestVersionstamp() {
         return latestVersionstamp;
     }
@@ -194,38 +131,6 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
             }
         }
         return null;
-    }
-
-    /**
-     * Marks the node at the given ordinal as deleted by setting its ALIVE byte to 0.
-     * A second call for the same ordinal has no effect, so a retried delete counts once.
-     */
-    public void markDeleted(int ordinal) {
-        int offset = HEADER_SIZE + ordinal * ORDINAL_SLOT_SIZE;
-        if (mappedMemory.get(ValueLayout.JAVA_BYTE, offset + 44) == 0) {
-            return;
-        }
-        mappedMemory.set(ValueLayout.JAVA_BYTE, offset + 44, (byte) 0);
-        deletedCount.incrementAndGet();
-        flushCounter.incrementAndGet();
-    }
-
-    /**
-     * Forces pending alive-byte changes to disk.
-     */
-    public void flush() {
-        if (flushCounter.get() == 0) {
-            return;
-        }
-        synchronized (flushLock) {
-            int count = flushCounter.get();
-            if (count == 0) {
-                return;
-            }
-            mappedMemory.set(ValueLayout.JAVA_INT, 32, deletedCount.get());
-            mappedMemory.force();
-            flushCounter.updateAndGet(waiting -> waiting - count);
-        }
     }
 
     @Override
