@@ -55,7 +55,6 @@ public final class ReplayFailedOpsLog {
 
         List<FailedOps.Add> failedAdds = new ArrayList<>();
         List<FailedOps.Delete> failedDeletes = new ArrayList<>();
-        boolean replayed = false;
         while (true) {
             List<KeyValue> page;
             try (Transaction tr = context.getTransactionManager().create()) {
@@ -73,18 +72,12 @@ public final class ReplayFailedOpsLog {
             );
             failedAdds.addAll(failedOps.adds());
             failedDeletes.addAll(failedOps.deletes());
-            replayed = true;
             if (page.size() < PAGE_SIZE) {
                 break;
             }
             begin = KeySelector.firstGreaterThan(page.getLast().getKey());
         }
 
-        if (replayed) {
-            for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-                onDisk.flushMetadata();
-            }
-        }
         return new FailedOps(failedAdds, failedDeletes);
     }
 }

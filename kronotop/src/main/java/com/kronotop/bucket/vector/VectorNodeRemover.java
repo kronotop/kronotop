@@ -108,19 +108,7 @@ public class VectorNodeRemover extends BaseVectorNode {
         }
     }
 
-    /**
-     * Writes pending delete marks of the on-disk graphs to disk and advances the versionstamp of the active
-     * on-heap graph to the newest delete in this batch. A flush failure is logged and does not stop the batch.
-     */
     public void flush() {
-        for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-            try {
-                onDisk.flushMetadata();
-            } catch (Exception exp) {
-                LOGGER.error("Failed to flush on-disk vector index metadata, bucket={} vectorIndexId={}", metadata.uuid(), vectorIndexId, exp);
-            }
-        }
-
         if (maxVs != null) {
             List<OnHeapVectorGraphIndex> onHeaps = group.getOnHeapIndexes();
             if (!onHeaps.isEmpty()) {

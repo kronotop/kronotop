@@ -171,11 +171,6 @@ public final class VectorIndexCrashRecovery {
             failedAdds.addAll(failedOps.adds());
             failedDeletes.addAll(failedOps.deletes());
 
-            // Flush any on-disk metadata changes made during recovery
-            for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-                onDisk.flushMetadata();
-            }
-
             if (page.size() < PAGE_SIZE) {
                 break;
             }

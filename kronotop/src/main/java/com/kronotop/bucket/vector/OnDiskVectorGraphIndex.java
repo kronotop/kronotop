@@ -126,14 +126,7 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
      * Marks a node as deleted in the on-disk metadata.
      */
     public void markNodeDeleted(int ordinal) {
-        metadata.markDeleted(ordinal);
-    }
-
-    /**
-     * Forces pending metadata changes to disk.
-     */
-    public void flushMetadata() {
-        metadata.flush();
+        // TODO: DELETED_ORDINALS
     }
 
     public int size() {
