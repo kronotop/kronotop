@@ -113,6 +113,7 @@ public class VectorGraphIndexGroup {
      * @return opened indexes, or an empty list if the directory doesn't exist or contains no valid index sets
      */
     public static List<OnDiskVectorGraphIndex> openOnDiskIndexes(
+            DirectorySubspace indexSubspace,
             Path bucketDataDir,
             UUID bucketId,
             long indexId,
@@ -159,7 +160,7 @@ public class VectorGraphIndexGroup {
         try {
             for (String baseName : completeBaseNames) {
                 Path indexFile = indexDir.resolve(baseName + ".index");
-                opened.add(new OnDiskVectorGraphIndex(indexFile, similarityFunction));
+                opened.add(new OnDiskVectorGraphIndex(indexSubspace, indexFile, similarityFunction));
             }
         } catch (IOException e) {
             for (OnDiskVectorGraphIndex idx : opened) {
@@ -388,7 +389,7 @@ public class VectorGraphIndexGroup {
         // in between finds the node in no list, stores a tombstone, and the delete is lost.
         if (indexPath != null) {
             try {
-                onDiskIndexes.add(new OnDiskVectorGraphIndex(indexPath, index.getSimilarityFunction()));
+                onDiskIndexes.add(new OnDiskVectorGraphIndex(vectorIndex.subspace(), indexPath, index.getSimilarityFunction()));
             } catch (IOException e) {
                 LOGGER.error("Failed to open flushed vector graph index from {}", indexPath, e);
             }

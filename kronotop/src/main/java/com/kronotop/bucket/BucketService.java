@@ -353,6 +353,7 @@ public class BucketService extends ShardOwnerService<BucketShard> implements Kro
             try {
                 VectorIndexDefinition definition = vectorIndex.definition();
                 List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
+                        vectorIndex.subspace(),
                         bucketDataDir,
                         metadata.uuid(),
                         definition.id(),

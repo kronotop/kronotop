@@ -54,7 +54,7 @@ class OnDiskVectorGraphIndexTest {
                 .filter(p -> p.toString().endsWith(".index"))
                 .findFirst()
                 .orElseThrow(() -> new IOException("No .index file found after flush"));
-        return new OnDiskVectorGraphIndex(indexFile, VSF);
+        return new OnDiskVectorGraphIndex(null, indexFile, VSF);
     }
 
     private float[] randomVector(Random rng) {
@@ -207,75 +207,6 @@ class OnDiskVectorGraphIndexTest {
 
             try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
                 assertEquals(total, diskIndex.size());
-            }
-        }
-    }
-
-    @Test
-    void shouldExcludeDeletedNodeFromMetadataLookup(@TempDir Path tempDir) throws IOException {
-        // Behavior: Marking a node as deleted on an on-disk index causes findEntryMetadata to return null
-        // for that ordinal while other ordinals remain accessible.
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            ObjectId oid1 = new ObjectId();
-            ObjectId oid2 = new ObjectId();
-            ObjectId oid3 = new ObjectId();
-
-            OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
-            heapIndex.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(oid2, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(oid3, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
-
-            try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
-                GraphNodeRef ref = diskIndex.getMetadata().findNodeRef(oid2);
-                assertNotNull(ref);
-                int ordinal = ref.ordinal();
-
-                diskIndex.markNodeDeleted(ordinal);
-
-                assertNull(diskIndex.getMetadata().findDocumentLocation(ordinal));
-                assertNotNull(diskIndex.getMetadata().findDocumentLocation(diskIndex.getMetadata().findNodeRef(oid1).ordinal()));
-                assertNotNull(diskIndex.getMetadata().findDocumentLocation(diskIndex.getMetadata().findNodeRef(oid3).ordinal()));
-            }
-        }
-    }
-
-    @Test
-    void shouldExcludeDeletedNodeFromSearchResults(@TempDir Path tempDir) throws IOException {
-        // Behavior: After marking a node as deleted, search results that include its ordinal
-        // yield null from findEntryMetadata, effectively filtering it from visible results.
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            ObjectId oid1 = new ObjectId();
-            ObjectId oid2 = new ObjectId();
-            ObjectId oid3 = new ObjectId();
-
-            OnHeapVectorGraphIndex heapIndex = new OnHeapVectorGraphIndex(3, VSF);
-            heapIndex.addGraphNode(oid1, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(oid2, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
-            heapIndex.addGraphNode(oid3, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(3), new float[]{0.0f, 0.0f, 1.0f}, executor).join();
-
-            try (OnDiskVectorGraphIndex diskIndex = flushAndOpen(tempDir, heapIndex)) {
-                // Before deletion: all search results have valid metadata
-                float[] queryVector = {0.9f, 0.1f, 0.0f};
-                SearchResult before = diskIndex.search(queryVector, 3);
-                for (SearchResult.NodeScore ns : before.getNodes()) {
-                    assertNotNull(diskIndex.getMetadata().findDocumentLocation(ns.node));
-                }
-
-                // Delete oid1's node
-                int oid1Ordinal = diskIndex.getMetadata().findNodeRef(oid1).ordinal();
-                diskIndex.markNodeDeleted(oid1Ordinal);
-
-                // After deletion: metadata lookup returns null for the deleted ordinal
-                SearchResult after = diskIndex.search(queryVector, 3);
-                int visibleCount = 0;
-                for (SearchResult.NodeScore ns : after.getNodes()) {
-                    DocumentLocation loc = diskIndex.getMetadata().findDocumentLocation(ns.node);
-                    if (loc != null) {
-                        visibleCount++;
-                        assertNotEquals(oid1, loc.objectId());
-                    }
-                }
-                assertEquals(2, visibleCount);
             }
         }
     }

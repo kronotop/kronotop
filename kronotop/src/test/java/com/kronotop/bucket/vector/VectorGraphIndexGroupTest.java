@@ -230,7 +230,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
                 .filter(p -> p.toString().endsWith(".index"))
                 .findFirst()
                 .orElseThrow(() -> new IOException("No .index file found after flush"));
-        return new OnDiskVectorGraphIndex(indexFile, VectorSimilarityFunction.COSINE);
+        return new OnDiskVectorGraphIndex(vectorIndex.subspace(), indexFile, VectorSimilarityFunction.COSINE);
     }
 
     @Test
@@ -328,6 +328,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
     void shouldReturnEmptyListWhenDirectoryDoesNotExist() throws IOException {
         // Behavior: openOnDiskIndexes returns an empty list when the index directory does not exist.
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
+                vectorIndex.subspace(),
                 context.getDataDir().resolve("bucket"), metadata.uuid(),
                 vectorIndex.definition().id(), VectorSimilarityFunction.COSINE);
         assertTrue(result.isEmpty());
@@ -341,6 +342,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
                 .resolve(Long.toString(vectorIndex.definition().id()));
         Files.createDirectories(indexDir);
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
+                vectorIndex.subspace(),
                 context.getDataDir().resolve("bucket"), metadata.uuid(),
                 vectorIndex.definition().id(), VectorSimilarityFunction.COSINE);
         assertTrue(result.isEmpty());
@@ -362,6 +364,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         heapIndex.close();
 
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
+                vectorIndex.subspace(),
                 context.getDataDir().resolve("bucket"), metadata.uuid(),
                 vectorIndex.definition().id(), VectorSimilarityFunction.COSINE);
         assertEquals(1, result.size());
@@ -397,6 +400,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         heapB.close();
 
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
+                vectorIndex.subspace(),
                 context.getDataDir().resolve("bucket"), metadata.uuid(),
                 vectorIndex.definition().id(), VectorSimilarityFunction.COSINE);
         assertEquals(2, result.size());
@@ -763,6 +767,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         }
 
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
+                vectorIndex.subspace(),
                 bucketDir, metadata.uuid(), vectorIndex.definition().id(), VectorSimilarityFunction.COSINE);
         assertEquals(1, result.size());
 
@@ -900,6 +905,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         Files.createFile(indexDir.resolve(fakeId + ".vmeta"));
 
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
+                vectorIndex.subspace(),
                 context.getDataDir().resolve("bucket"), metadata.uuid(),
                 vectorIndex.definition().id(), VectorSimilarityFunction.COSINE);
         assertTrue(result.isEmpty());
@@ -952,6 +958,7 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
         }
 
         List<OnDiskVectorGraphIndex> result = VectorGraphIndexGroup.openOnDiskIndexes(
+                vectorIndex.subspace(),
                 context.getDataDir().resolve("bucket"), metadata.uuid(),
                 vectorIndex.definition().id(), VectorSimilarityFunction.COSINE);
         assertEquals(1, result.size());
@@ -1532,6 +1539,34 @@ class VectorGraphIndexGroupTest extends BaseStandaloneInstanceTest {
             for (MergedNodeScore result : registryGroup.searchAll(vector, 4, 0.0f, 1.0f)) {
                 assertNotEquals(objectId, result.location().objectId());
             }
+        }
+    }
+
+    @Test
+    void shouldWriteDeletedOrdinalToFoundationDB(@TempDir Path tempDir) throws IOException {
+        // Behavior: markNodeDeleted on an on-disk index writes (DELETED_ORDINALS, baseName, ordinal) to FDB.
+        OnHeapVectorGraphIndex heapIndex = newIndex();
+        ObjectId objectId = new ObjectId();
+        heapIndex.addGraphNode(objectId, TestUtil.zeroVersionstamp(), 0, newEntryMetadata(1), new float[]{1.0f, 0.0f, 0.0f}, executor).join();
+        heapIndex.addGraphNode(new ObjectId(), TestUtil.zeroVersionstamp(), 0, newEntryMetadata(2), new float[]{0.0f, 1.0f, 0.0f}, executor).join();
+
+        try (OnDiskVectorGraphIndex onDisk = flushToOnDisk(tempDir, heapIndex, "deleted-ordinal")) {
+            int ordinal = onDisk.getMetadata().findNodeRef(objectId).ordinal();
+            try (Transaction tr = context.getTransactionManager().create()) {
+                onDisk.markNodeDeleted(tr, ordinal);
+                tr.commit().join();
+            }
+
+            DirectorySubspace indexSubspace = vectorIndex.subspace();
+            byte[] prefix = indexSubspace.pack(Tuple.from(IndexSubspaceMagic.DELETED_ORDINALS.getValue()));
+            List<KeyValue> entries;
+            try (Transaction tr = context.getTransactionManager().create()) {
+                entries = tr.getRange(prefix, ByteArrayUtil.strinc(prefix)).asList().join();
+            }
+            assertEquals(1, entries.size());
+            Tuple key = indexSubspace.unpack(entries.getFirst().getKey());
+            assertEquals(ordinal, key.getLong(2));
+            assertEquals(0, entries.getFirst().getValue().length);
         }
     }
 }

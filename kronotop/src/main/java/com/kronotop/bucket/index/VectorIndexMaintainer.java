@@ -177,6 +177,19 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
+     * Records a deleted ordinal of an on-disk graph. The vmeta file is immutable, so deleted ordinals live in FDB.
+     * The key is {@code (DELETED_ORDINALS, baseName, ordinal)}, the value is empty.
+     */
+    public static void setDeletedOrdinal(Transaction tr, DirectorySubspace indexSubspace, String baseName, int ordinal) {
+        Tuple tuple = Tuple.from(
+                IndexSubspaceMagic.DELETED_ORDINALS.getValue(),
+                baseName,
+                ordinal
+        );
+        tr.set(indexSubspace.pack(tuple), new byte[0]);
+    }
+
+    /**
      * Removes every entry from the failed op log of the vector index.
      */
     public static void truncateFailedOpLog(Transaction tr, DirectorySubspace indexSubspace) {

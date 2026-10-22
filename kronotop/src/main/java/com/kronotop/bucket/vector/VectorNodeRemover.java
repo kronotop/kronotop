@@ -16,6 +16,7 @@
 
 package com.kronotop.bucket.vector;
 
+import com.apple.foundationdb.Transaction;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.bucket.BucketMetadata;
 import com.kronotop.bucket.BucketService;
@@ -83,15 +84,24 @@ public class VectorNodeRemover extends BaseVectorNode {
                     onHeap.markNodeDeleted(objectId, deleteVs);
                 }
             }
-            for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-                GraphNodeRef ref = onDisk.getMetadata().findNodeRef(objectId);
-                if (ref != null) {
-                    found = true;
-                    if (deleteVs.compareTo(ref.versionstamp()) > 0) {
-                        onDisk.markNodeDeleted(ref.ordinal());
+            // One transaction covers every on-disk graph that holds the node.
+            try (Transaction tr = service.getContext().getTransactionManager().create()) {
+                boolean marked = false;
+                for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
+                    GraphNodeRef ref = onDisk.getMetadata().findNodeRef(objectId);
+                    if (ref != null) {
+                        found = true;
+                        if (deleteVs.compareTo(ref.versionstamp()) > 0) {
+                            onDisk.markNodeDeleted(tr, ref.ordinal());
+                            marked = true;
+                        }
                     }
                 }
+                if (marked) {
+                    tr.commit().join();
+                }
             }
+
             // On-heap markNodeDeleted removes the ObjectId mapping. A retry of a delete operation that already
             // marked the node then finds nothing and stores a tombstone for a node that is already gone.
             // This is harmless: a later add for the same ObjectId is either newer (tombstone is consumed,

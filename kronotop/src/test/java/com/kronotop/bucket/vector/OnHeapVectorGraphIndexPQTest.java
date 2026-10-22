@@ -222,7 +222,7 @@ class OnHeapVectorGraphIndexPQTest {
                 indexFile = files.filter(p -> p.toString().endsWith(".index")).findFirst().orElseThrow();
             }
             try (OnDiskVectorGraphIndex diskIndex = new OnDiskVectorGraphIndex(
-                    indexFile, VectorSimilarityFunction.EUCLIDEAN)) {
+                    null, indexFile, VectorSimilarityFunction.EUCLIDEAN)) {
                 SearchResult result = diskIndex.search(target, 1);
                 assertEquals(1, result.getNodes().length);
                 assertTrue(result.getNodes()[0].score > 0);

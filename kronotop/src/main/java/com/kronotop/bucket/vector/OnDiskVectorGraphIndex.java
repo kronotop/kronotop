@@ -16,8 +16,11 @@
 
 package com.kronotop.bucket.vector;
 
+import com.apple.foundationdb.Transaction;
+import com.apple.foundationdb.directory.DirectorySubspace;
 import com.apple.foundationdb.tuple.Versionstamp;
 import com.kronotop.KronotopException;
+import com.kronotop.bucket.index.VectorIndexMaintainer;
 import io.github.jbellis.jvector.disk.RandomAccessReader;
 import io.github.jbellis.jvector.disk.ReaderSupplier;
 import io.github.jbellis.jvector.disk.ReaderSupplierFactory;
@@ -50,14 +53,21 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
     private final OnDiskVectorGraphIndexMetadata metadata;
     private final VectorSimilarityFunction similarityFunction;
     private final PQVectors pqVectors;
+    private final DirectorySubspace indexSubspace;
+    private final String baseName;
 
-    public OnDiskVectorGraphIndex(Path indexPath, VectorSimilarityFunction similarityFunction) throws IOException {
+    public OnDiskVectorGraphIndex(
+            DirectorySubspace indexSubspace,
+            Path indexPath,
+            VectorSimilarityFunction similarityFunction
+    ) throws IOException {
+        this.indexSubspace = indexSubspace;
         this.similarityFunction = similarityFunction;
         this.readerSupplier = ReaderSupplierFactory.open(indexPath);
         this.graph = OnDiskGraphIndex.load(readerSupplier);
 
         String fileName = indexPath.getFileName().toString();
-        String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+        this.baseName = fileName.substring(0, fileName.lastIndexOf('.'));
         Path metadataPath = indexPath.resolveSibling(baseName + ".vmeta");
         this.metadata = new OnDiskVectorGraphIndexMetadata(metadataPath);
 
@@ -123,10 +133,10 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Marks a node as deleted in the on-disk metadata.
+     * Records the ordinal as deleted in FDB under the given transaction. The caller commits.
      */
-    public void markNodeDeleted(int ordinal) {
-        // TODO: DELETED_ORDINALS
+    public void markNodeDeleted(Transaction tr, int ordinal) {
+        VectorIndexMaintainer.setDeletedOrdinal(tr, indexSubspace, baseName, ordinal);
     }
 
     public int size() {

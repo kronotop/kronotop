@@ -180,6 +180,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Load on-disk indexes
         List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
+                vectorIndex.subspace(),
                 service.getBucketDataDir(),
                 metadata.uuid(),
                 vectorIndex.definition().id(),
@@ -522,6 +523,7 @@ class VectorIndexCrashRecoveryTest extends BaseStandaloneInstanceTest {
 
         // Load on-disk indexes
         List<OnDiskVectorGraphIndex> onDiskIndexes = VectorGraphIndexGroup.openOnDiskIndexes(
+                vectorIndex.subspace(),
                 service.getBucketDataDir(),
                 metadata.uuid(),
                 vectorIndex.definition().id(),

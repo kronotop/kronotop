@@ -64,6 +64,7 @@ public final class ReplayFailedOpsLog {
                 break;
             }
             FailedOps failedOps = VectorIndexCrashRecovery.replayMutationLog(
+                    context,
                     group,
                     onHeap,
                     page,

@@ -53,6 +53,7 @@ public final class VectorIndexCrashRecovery {
      * @return the adds and deletes that failed to apply
      */
     static FailedOps replayMutationLog(
+            Context context,
             VectorGraphIndexGroup group,
             OnHeapVectorGraphIndex onHeap,
             List<KeyValue> entries,
@@ -94,10 +95,18 @@ public final class VectorIndexCrashRecovery {
                 case DELETE -> {
                     try {
                         onHeap.markNodeDeleted(objectId, versionstamp);
-                        for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
-                            GraphNodeRef diskRef = onDisk.getMetadata().findNodeRef(objectId);
-                            if (diskRef != null && versionstamp.compareTo(diskRef.versionstamp()) > 0) {
-                                onDisk.markNodeDeleted(diskRef.ordinal());
+                        // One transaction covers every on-disk graph that holds the node.
+                        try (Transaction tr = context.getTransactionManager().create()) {
+                            boolean marked = false;
+                            for (OnDiskVectorGraphIndex onDisk : group.getOnDiskIndexes()) {
+                                GraphNodeRef diskRef = onDisk.getMetadata().findNodeRef(objectId);
+                                if (diskRef != null && versionstamp.compareTo(diskRef.versionstamp()) > 0) {
+                                    onDisk.markNodeDeleted(tr, diskRef.ordinal());
+                                    marked = true;
+                                }
+                            }
+                            if (marked) {
+                                tr.commit().join();
                             }
                         }
                     } catch (Exception exp) {
@@ -167,7 +176,7 @@ public final class VectorIndexCrashRecovery {
                     pqTrainingThreshold,
                     pqSubspaceDivisor
             );
-            FailedOps failedOps = replayMutationLog(group, onHeap, page, indexSubspace, executor);
+            FailedOps failedOps = replayMutationLog(context, group, onHeap, page, indexSubspace, executor);
             failedAdds.addAll(failedOps.adds());
             failedDeletes.addAll(failedOps.deletes());
 
