@@ -36,13 +36,38 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Writes {@link OnHeapVectorGraphIndexMetadata} to an immutable on-disk file (*.vmeta).
+ * Writes vector graph index metadata to an immutable *.vmeta file.
+ * All integers use native byte order. The reader maps the file read-only.
+ *
+ * <pre>{@code
+ * HEADER (32 bytes)
+ *   0   4  magic
+ *   4   4  version
+ *   8   4  count
+ *  12   4  maxOrdinal
+ *  16   4  objectIdSectionOffset
+ *  20  12  latestVersionstamp
+ *
+ * ORDINAL SECTION ((maxOrdinal + 1) x 56 bytes)
+ *   0   8  segmentId
+ *   8   8  prefix
+ *  16   8  position
+ *  24   8  length
+ *  32   8  handle
+ *  40   4  shardId
+ *  44  12  objectId
+ *
+ * OBJECTID SECTION (count x 28 bytes, sorted by ObjectId, unsigned)
+ *   0  12  objectId
+ *  12   4  ordinal
+ *  16  12  versionstamp
+ * }</pre>
  */
 public class OnDiskVectorGraphIndexMetadataWriter {
     static final int MAGIC = 0x4B564D44;
     static final int VERSION = 1;
-    static final int HEADER_SIZE = 40;
-    static final int ORDINAL_SLOT_SIZE = 64;
+    static final int HEADER_SIZE = 32;
+    static final int ORDINAL_SLOT_SIZE = 56;
     static final int OBJECTID_ENTRY_SIZE = 28;
     private static final Logger logger = LoggerFactory.getLogger(OnDiskVectorGraphIndexMetadataWriter.class);
 
@@ -90,8 +115,6 @@ public class OnDiskVectorGraphIndexMetadataWriter {
             } else {
                 header.put(new byte[12]);
             }
-            header.putInt(0); // deletedCount
-            header.putInt(0); // reserved
             header.flip();
             writeFully(channel, header);
 
@@ -106,9 +129,7 @@ public class OnDiskVectorGraphIndexMetadataWriter {
                     ordinalSection.putLong(entry.entryMetadata().length());
                     ordinalSection.putLong(entry.entryMetadata().handle());
                     ordinalSection.putInt(entry.shardId());
-                    ordinalSection.put((byte) 1); // alive
                     ordinalSection.put(entry.objectId().toByteArray());
-                    ordinalSection.position(ordinalSection.position() + 7); // padding
                 } else {
                     ordinalSection.position(ordinalSection.position() + ORDINAL_SLOT_SIZE);
                 }

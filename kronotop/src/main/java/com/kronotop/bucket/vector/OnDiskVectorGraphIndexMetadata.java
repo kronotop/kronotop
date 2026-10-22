@@ -73,38 +73,29 @@ public class OnDiskVectorGraphIndexMetadata implements VectorGraphIndexMetadata,
         return latestVersionstamp;
     }
 
-    /**
-     * Looks up the DocumentLocation (ObjectId + shard ID + EntryMetadata) for a given ordinal. Returns null if the
-     * ordinal is out of range or the slot is marked as deleted.
-     */
     public DocumentLocation findDocumentLocation(int ordinal) {
         if (ordinal < 0 || ordinal > maxOrdinal) {
             return null;
         }
         int offset = HEADER_SIZE + ordinal * ORDINAL_SLOT_SIZE;
-        byte alive = mappedMemory.get(ValueLayout.JAVA_BYTE, offset + 44);
-        if (alive == 0) {
+        long length = mappedMemory.get(ValueLayout.JAVA_LONG, offset + 24);
+        if (length == 0) {
             return null;
         }
         long segmentId = mappedMemory.get(ValueLayout.JAVA_LONG, offset);
         byte[] prefix = new byte[8];
         MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, offset + 8, prefix, 0, 8);
         long position = mappedMemory.get(ValueLayout.JAVA_LONG, offset + 16);
-        long length = mappedMemory.get(ValueLayout.JAVA_LONG, offset + 24);
         long handle = mappedMemory.get(ValueLayout.JAVA_LONG, offset + 32);
         int shardId = mappedMemory.get(ValueLayout.JAVA_INT, offset + 40);
         byte[] objectIdBytes = new byte[OBJECTID_SIZE];
-        MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, offset + 45, objectIdBytes, 0, OBJECTID_SIZE);
+        MemorySegment.copy(mappedMemory, ValueLayout.JAVA_BYTE, offset + 44, objectIdBytes, 0, OBJECTID_SIZE);
         ObjectId objectId = new ObjectId(objectIdBytes);
         EntryMetadata em = new EntryMetadata(segmentId, prefix, position, length, handle);
 
         return new DocumentLocation(objectId, shardId, em);
     }
 
-    /**
-     * Looks up the node reference (ordinal and add versionstamp) for a given ObjectId using binary search.
-     * Returns null if the ObjectId is not found.
-     */
     public GraphNodeRef findNodeRef(ObjectId objectId) {
         byte[] target = objectId.toByteArray();
         int low = 0;
