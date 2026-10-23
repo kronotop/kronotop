@@ -139,30 +139,20 @@ public class OnDiskVectorGraphIndex implements SearchableVectorIndex {
     }
 
     /**
-     * Records the ordinal as deleted in FDB under the given transaction. The caller commits, then calls
-     * {@link #markNodeDeletedInMemory}.
+     * Records the ordinal as deleted in FDB. The caller commits, then calls {@link #markNodeDeletedInMemory}.
      */
     public void markNodeDeleted(Transaction tr, int ordinal) {
         VectorIndexMaintainer.setDeletedOrdinal(tr, indexSubspace, baseName, ordinal);
     }
 
-    /**
-     * Hides the ordinal from search. Call after the FDB write of {@link #markNodeDeleted} is committed.
-     */
     public void markNodeDeletedInMemory(int ordinal) {
         deletedOrdinals.set(ordinal);
     }
 
-    /**
-     * Returns whether the ordinal is hidden from search. Used by tests.
-     */
     boolean isNodeDeleted(int ordinal) {
         return deletedOrdinals.get(ordinal);
     }
 
-    /**
-     * Loads the deleted ordinals of this index from FDB. Called once at bootstrap.
-     */
     public void loadDeletedOrdinals(Context context) {
         VectorIndexMaintainer.loadDeletedOrdinals(context.getTransactionManager(), indexSubspace, baseName, deletedOrdinals::set);
     }

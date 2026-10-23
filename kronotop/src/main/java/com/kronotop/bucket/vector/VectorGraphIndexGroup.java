@@ -302,10 +302,9 @@ public class VectorGraphIndexGroup {
 
     /**
      * Marks the node of the object as deleted in every on-disk index that holds it, unless the node carries a
-     * newer versionstamp than the delete. One transaction covers all on-disk indexes. The bits are set only
-     * after the commit, so a failed commit leaves the node visible and the caller records a retry.
+     * newer versionstamp than the delete.
      *
-     * @return {@code true} if at least one on-disk index holds the node, regardless of its versionstamp
+     * @return {@code true} if at least one on-disk index holds the node
      */
     public boolean markNodeDeletedOnDisk(ObjectId objectId, Versionstamp deleteVs) {
         if (onDiskIndexes.isEmpty()) {

@@ -183,8 +183,7 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
-     * Records a deleted ordinal of an on-disk graph. The vmeta file is immutable, so deleted ordinals live in FDB.
-     * The key is {@code (DELETED_ORDINALS, baseName, ordinal)}, the value is empty.
+     * Writes the deleted ordinal of an on-disk graph under {@code (DELETED_ORDINALS, baseName, ordinal)}.
      */
     public static void setDeletedOrdinal(Transaction tr, DirectorySubspace indexSubspace, String baseName, int ordinal) {
         Tuple tuple = Tuple.from(
@@ -196,8 +195,8 @@ public final class VectorIndexMaintainer extends IndexMaintainer {
     }
 
     /**
-     * Reads every deleted ordinal of an on-disk graph and passes it to the sink. The read is paged with one
-     * transaction per page, so a large set does not hit the transaction time limit.
+     * Reads every deleted ordinal of an on-disk graph and passes it to the sink. The read is paged, one
+     * transaction per page.
      */
     public static void loadDeletedOrdinals(TransactionManager transactionManager,
                                            DirectorySubspace indexSubspace,
